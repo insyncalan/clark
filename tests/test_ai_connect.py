@@ -212,10 +212,10 @@ class Both(Base):
 
 class TheFileLock(Base):
     def test_every_setter_takes_the_one_lock_so_none_is_lost(self):
-        for setter in (settings.set_backups_kept, settings.set_profile, settings.set_backup_copy_folder, settings.ai_write):
+        for setter in (settings.set_backups_kept, settings.set_profile, settings.set_backup_copy_folder, settings.ai_write, settings.set_notices_path):
             self.assertTrue(hasattr(setter, "__wrapped__"), setter.__name__)
         source = Path(settings.__file__).read_text(encoding="utf-8")
-        self.assertEqual(source.count("platform.write_file("), 4, "a new writer needs the lock too")
+        self.assertEqual(source.count("platform.write_file("), 5, "a new writer needs the lock too")
 
     def test_two_at_once_keep_both(self):
         threads = [threading.Thread(target=settings.ai_write, args=(self.d, {"model": "fable"})), threading.Thread(target=settings.set_profile, args=(self.d, "Sam Lee", ""))]

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { openFile } from "../router.js";
 import { ClientMenu } from "./ClientMenu.jsx";
+import { classicTheme } from "./Contents.jsx";
 import { coverLine } from "../logic/cover.js";
 import { pastReportsOf } from "../logic/clientMenu.js";
 import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
@@ -43,7 +44,7 @@ export function TopBar({ tools }) {
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
-  const Bell = tools && tools.Bell && !fromFile.value ? tools.Bell : null;     // row 1046: the notices bell, left of search; the editor only, a published page carries nothing from notices
+  const Bell = tools && tools.Bell && !fromFile.value && classicTheme() ? tools.Bell : null;     // row 1046: the notices bell, left of search; the editor only and Classic only (Cards is frozen: it draws no bell), a published page carries nothing from notices
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   const HeaderDate = tools && tools.HeaderDate && !fromFile.value ? tools.HeaderDate : null;     // item 1177: the week as a button that opens the calendar (the editor only)
   const row = useRef(null);
