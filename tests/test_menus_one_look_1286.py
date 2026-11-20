@@ -36,6 +36,7 @@ MIN_W = 224
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
 PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
+TIGHT = {"text-style"}      # row 1288: the rich editor's menus are the tight ones (radius 12, padding 4, rows 4px 10px at 13.5px; test_rich_menus_tight_1288)
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -65,19 +66,20 @@ def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
-    test.assertEqual(m["rad"], "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px")
+    tight = name in TIGHT
+    test.assertEqual(m["rad"], "12px" if tight else "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px (the tight rich editor menus 12px)")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
         test.assertEqual(m["pad"], "6px 6px 6px 6px", f"{where}: the popup padding")
     for r in m["rows"]:
         if name in PICKERS or name in PILL_MENU:
             continue
-        test.assertEqual(r["fs"], "15px" if three else "14px", f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
+        test.assertEqual(r["fs"], "15px" if three else "13.5px" if tight else "14px", f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
         if not three:
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
-            test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
+            test.assertAlmostEqual(r["il"], 15 if tight else 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
             if three:
                 test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
