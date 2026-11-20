@@ -260,7 +260,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
 @media (min-width: 900px) {
-  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
+  .set-bar { background: var(--grey-50); border-radius: 10px; }   /* Row 1356: the prototype's panel fill (soft, F6F8FC) and radius 10 */
   .set-group-name { text-transform: none; letter-spacing: normal; }
   .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
 }
@@ -380,6 +380,20 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1324 gap, Work items (Option A, ruling 18-11; Classic only, Cards keeps its group tiles): Group by draws a heading on the page, no tile: the name, the count 13 px with 2 px before it, one 1 px hairline under it; the column names once on top (WorkItems.jsx, only in this Theme) with 1 px under them and 14 px of space before the first group; 18 px above each group; the first and last cell of a row have no side padding and the first row of a group has no line over it; the heading goes brand on hover and has a 2 px brand ring, offset 2 px, radius 6 px. Rows, collapse, counts and keys are untouched. */
+.wgroup:has(> table.items.grouped) { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
+.wgroup.wcolh { background: none; border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; overflow: visible; margin: 0; }
+.wgroup.wcolh + .wgroup:has(> table.items.grouped) { margin-top: 14px; }
+.wgroup.wcolh table.items th { border-top: 0; border-bottom: 0; }
+.wgroup table.items.grouped tr.grp th { padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; }
+.wgroup table.items.grouped tbody tr:first-child td { border-top: 0; }
+.wgroup:is(.wcolh, :has(> table.items.grouped)) table.items :is(th, td):first-child { padding-left: 0; }
+.wgroup:is(.wcolh, :has(> table.items.grouped)) table.items tr:not(.grp) :is(th, td):last-child { padding-right: 0; }
+.wgroup table.items.grouped .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
+.wgroup table.items.grouped .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }
+.wgroup table.items.grouped .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 2px; }
+.wgroup table.items.grouped .grp-b:hover, .wgroup table.items.grouped .grp-b:hover .i { color: var(--brand-blue); }
+.wgroup table.items.grouped .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
@@ -455,6 +469,16 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu[aria-label="Group by"] [role="menuitemradio"] .ck, #viewMenuList.ddmenu[aria-label="Group by"] [role="menuitemradio"] .ck, .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] > .ck { order: -1; flex: none; margin: 0 var(--space-1) 0 0; padding: 0; }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"]:not(:has(> .ck))::before { content: ""; order: -1; flex: none; width: 1.2em; margin-right: var(--space-1); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--weight-medium); }
+/* Row 1409: ONE colour per priority, read by the Work items table chip and by the rating matrix cell alike (Low green, Medium amber, High red, Urgent maroon; the word stays on both). The four pairs below are the only source; Brands reach them through the tokens they name. */
+:root { --pri-low-bg: var(--status-green-tint); --pri-low-fg: var(--status-green-text); --pri-medium-bg: var(--status-amber-tint); --pri-medium-fg: var(--status-amber-text); --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); --pri-urgent-bg: var(--tone-urgent); --pri-urgent-fg: var(--tone-on-urgent); }
+.wil-pr[data-pri="Low"], .cpop .rmx-c[data-level="Low"] { background: var(--pri-low-bg); color: var(--pri-low-fg); }
+.wil-pr[data-pri="Medium"], .cpop .rmx-c[data-level="Medium"] { background: var(--pri-medium-bg); color: var(--pri-medium-fg); }
+.wil-pr[data-pri="High"], .cpop .rmx-c[data-level="High"] { background: var(--pri-high-bg); color: var(--pri-high-fg); }
+.wil-pr[data-pri="Urgent"], .cpop .rmx-c[data-level="Urgent"] { background: var(--pri-urgent-bg); color: var(--pri-urgent-fg); }
+.wil-pr[data-pri="Low"] { border-color: var(--pri-low-bg); }
+.wil-pr[data-pri="Medium"] { border-color: var(--pri-medium-bg); }
+.wil-pr[data-pri="High"] { border-color: var(--pri-high-bg); }
+.wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
