@@ -33,7 +33,7 @@ def texts(data):
     out = []
     for b in docx_read.read(data, "r.docx").blocks:
         out += [c for r in b["rows"] for c in r] if b["kind"] == "table" else [b.get("text", "")]
-    return out
+    return [line for t in out for line in t.split("\n")]
 
 
 FULL = {"category": "Policy", "colour": "amber", "icon": "flag", "title": "Freeze on 5 Dec", "html": "<p>ZQ-WORDS no merges</p>"}
@@ -42,24 +42,46 @@ FULL = {"category": "Policy", "colour": "amber", "icon": "flag", "title": "Freez
 class Words(unittest.TestCase):
     def test_the_category_colour_and_icon_are_written_as_words(self):
         data = docx_build.build(with_callout(FULL))
-        self.assertIn("Policy · Amber · Flag", "\n".join(texts(data)))
+        self.assertIn("Category: Policy. Colour: Amber. Icon: Flag.", texts(data))
+
+    def test_exact_lines_in_order_heading_then_line_then_words(self):
+        got = texts(docx_build.build(with_callout(FULL)))
+        at = got.index("Freeze on 5 Dec")
+        self.assertEqual(got[at:at + 3], ["Freeze on 5 Dec", "Category: Policy. Colour: Amber. Icon: Flag.", "ZQ-WORDS no merges"])
+        self.assertNotIn("Heads up", got)
+        self.assertNotIn("·", "\n".join(got))
+
+    def test_empty_parts_are_left_out(self):
+        for value, line in (({"category": ""}, "Colour: Amber. Icon: Flag."), ({"icon": "none"}, "Category: Policy. Colour: Amber."),
+                            ({"colour": "plain"}, "Category: Policy. Icon: Flag."), ({"category": "", "icon": "none"}, "Colour: Amber."),
+                            ({"category": "", "colour": "plain"}, "Icon: Flag.")):
+            got = texts(docx_build.build(with_callout({**FULL, **value})))
+            at = got.index("Freeze on 5 Dec")
+            self.assertEqual(got[at:at + 3], ["Freeze on 5 Dec", line, "ZQ-WORDS no merges"], value)
+
+    def test_all_parts_empty_writes_no_line(self):
+        got = texts(docx_build.build(with_callout({**FULL, "category": "", "colour": "plain", "icon": "none"})))
+        at = got.index("Freeze on 5 Dec")
+        self.assertEqual(got[at:at + 2], ["Freeze on 5 Dec", "ZQ-WORDS no merges"])
 
     def test_the_title_and_the_words_are_written(self):
         got = "\n".join(texts(docx_build.build(with_callout(FULL))))
         self.assertIn("Freeze on 5 Dec", got)
         self.assertIn("ZQ-WORDS no merges", got)
 
-    def test_the_section_heading_is_written_when_its_heading_is_on(self):
+    def test_the_callout_title_is_the_heading_when_its_heading_is_on(self):
         heads = [b["text"] for b in docx_read.read(docx_build.build(with_callout(FULL)), "r.docx").blocks if b["kind"] == "heading"]
-        self.assertIn("Heads up", heads)
+        self.assertIn("Freeze on 5 Dec", heads)
+        self.assertNotIn("Heads up", heads)
 
     def test_heading_off_writes_no_heading(self):
         heads = [b["text"] for b in docx_read.read(docx_build.build(with_callout({**FULL, "heading": False})), "r.docx").blocks if b["kind"] == "heading"]
-        self.assertNotIn("Heads up", heads)
+        self.assertNotIn("Freeze on 5 Dec", heads)
 
-    def test_a_section_without_a_title_is_headed_callout(self):
-        heads = [b["text"] for b in docx_read.read(docx_build.build(with_callout(FULL, title="")), "r.docx").blocks if b["kind"] == "heading"]
+    def test_a_callout_without_a_title_is_headed_callout(self):
+        heads = [b["text"] for b in docx_read.read(docx_build.build(with_callout({**FULL, "title": ""})), "r.docx").blocks if b["kind"] == "heading"]
         self.assertIn("Callout", heads)
+        self.assertNotIn("Heads up", heads)
 
     def box(self, **value):
         xml = document(docx_build.build(with_callout({**FULL, **value})))
@@ -93,20 +115,19 @@ class Words(unittest.TestCase):
 
     def test_tile_off_keeps_the_heading(self):
         heads = [b["text"] for b in docx_read.read(docx_build.build(with_callout({**FULL, "tile": False})), "r.docx").blocks if b["kind"] == "heading"]
-        self.assertIn("Heads up", heads)
+        self.assertIn("Freeze on 5 Dec", heads)
 
     def test_a_content_without_tile_or_heading_has_both_on(self):
         p = with_callout(FULL)
         for k in ("tile", "heading"):
             del p["sections"][-1]["content"][k]
         data = docx_build.build(p)
-        self.assertIn("Heads up", [b["text"] for b in docx_read.read(data, "r.docx").blocks if b["kind"] == "heading"])
+        self.assertIn("Freeze on 5 Dec", [b["text"] for b in docx_read.read(data, "r.docx").blocks if b["kind"] == "heading"])
         self.assertEqual(document(data).count("<w:tbl>"), document(docx_build.build(with_callout(FULL))).count("<w:tbl>"))
 
     def test_tile_off_has_no_box(self):
         xml = document(docx_build.build(with_callout({**FULL, "tile": False})))
-        self.assertNotIn("Policy ·", xml[:0])
-        self.assertIn("Policy · Amber · Flag", "\n".join(texts(docx_build.build(with_callout({**FULL, "tile": False})))))
+        self.assertIn("Category: Policy. Colour: Amber. Icon: Flag.", texts(docx_build.build(with_callout({**FULL, "tile": False}))))
         self.assertEqual(xml.count("<w:tbl>"), document(docx_build.build(publish.select(fx.inputs()))).count("<w:tbl>"))
 
     def test_plain_and_no_icon_say_nothing_extra(self):
@@ -122,7 +143,7 @@ class Words(unittest.TestCase):
 
     def test_an_older_callout_prints_its_tone_word(self):
         got = "\n".join(texts(docx_build.build(with_callout({"tone": "decision", "title": "Choose", "paras": ["Pick one."]}))))
-        self.assertIn("Decision needed · Amber · Question", got)
+        self.assertIn("Category: Decision needed. Colour: Amber. Icon: Question.", got)
         self.assertIn("Pick one.", got)
 
     def test_paragraphs_are_written_when_there_is_no_html(self):

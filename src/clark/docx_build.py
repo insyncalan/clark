@@ -769,18 +769,19 @@ def section_glancetemplate(published, ctx, title, sec):
 
 
 def section_callout(published, ctx, title, sec):
-    """Row 1272 (1291): a callout as the page draws it, in words: the section heading (when its heading is on), then one shaded box
-    (when its tile is on; the colour is a help, never the carrier) holding the category, colour name and icon name on one bold line,
-    the callout's own title in bold, and its words. Tile off: the same lines on the page, no box. An empty callout is left out."""
+    """Row 1272 (1291), ruling M8780: a callout as a text block, in Dashboard order: the heading (the callout's own title, else "Callout"; left out when its
+    heading is off), one bold line "Category: <category>. Colour: <colour>. Icon: <icon>." (empty parts left out; Plain and No icon say nothing extra),
+    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). An empty callout is left out."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
-    head = [str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name")]
-    line = " \u00b7 ".join(w for w in (head[0], "" if head[1] == "Plain" else head[1], head[2]) if w)
+    cat, col, ico = (str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name"))
+    parts = [f"{label}: {w}." for label, w in (("Category", cat), ("Colour", "" if col == "Plain" else col), ("Icon", ico)) if w]
+    line = " ".join(parts)
     name = str(c.get("title") or "").strip()
     body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
     if not (name or body):
         return ""
-    inner = (para(run(line, bold=True), "TableText") if line else "") + (para(run(name, bold=True), "TableText") if name else "") + body
-    out = _heading(title) if c.get("heading", True) else ""
+    inner = (para(run(line, bold=True), "TableText") if line else "") + body
+    out = _heading(name or "Callout") if c.get("heading", True) else ""
     if c.get("tile", True):
         fill = ctx.hexes(CALLOUT_FILL[c["colour"]])[0] if c.get("colour") in CALLOUT_FILL else None
         return out + table(ctx, None, [1], [[(inner, fill)]])
