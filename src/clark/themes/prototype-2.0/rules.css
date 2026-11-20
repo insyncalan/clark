@@ -536,6 +536,11 @@ html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.2
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--grey-200); }
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
 @media (max-width: 1180px) { html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell.health { border-right: 0; } }
+/* Row 1345 at 900 and below (ruled: one column, content at x=20, right margin 24; prototype 2.0 index.html lines 88 and 92). No token holds 20 or 24, so they are bare lengths. */
+@media screen and (max-width: 900px) {
+  html:has(.rbar + #report .cnt-grid) main { padding-left: 20px; padding-right: 24px; }
+  html:has(.rbar + #report .cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }
+}
 /* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
 .ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. */
