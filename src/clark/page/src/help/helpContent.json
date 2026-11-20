@@ -406,7 +406,7 @@
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "Under the title are the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** (a decision says **Decider**) and **Due**, each in colour. In Edit, click **Status** to choose another value. For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
+     "Under the title are the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour. In Edit, click **Status** to choose another value. For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an open item is due on a weekend, or an open action is overdue, with one-click fixes such as **Move to Friday** and the date.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client wording; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
@@ -728,7 +728,7 @@
     "go": "settings",
     "s": [
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
-     "Each project has **Open** (not on the project that is already open), **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
+     "Each project has **Open** (not on the project already open), **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Source folders for** card of that project.",
      "The project name in the top bar, beside the logo, is a button that opens the project list to switch projects, and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
@@ -1444,7 +1444,7 @@
       [
        "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **More actions**, a menu of actions for this item, such as **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
        "A warning bar sits above the title (in Edit) when an open item is due on a weekend or an open action is overdue, with fixes such as **Move to Friday** and the date.",
-       "**The title**, then the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** (a decision says **Decider**) and **Due**, each in colour.",
+       "**The title**, then the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour.",
        "**Latest update** (in Edit; a published file shows it as a read-only line), and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details** (in Edit a tab, with Activity; in View the same rows with no tab): Workstream, Milestone, Raised, and in Edit the Client visible line (a risk and an issue also have Use case); a decision has its own rows instead. Status, Owner, Due and Priority are the chips above it. An item’s description is its title.",
        "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
@@ -1877,7 +1877,7 @@
        ],
        [
         "Projects",
-        "Every project with its name, code, client, workstreams and item count; **Open** (not on the project that is already open), **Edit** and **Archive**; **+** adds one, and **Show archived** lists the archived ones, each with **Restore**."
+        "Every project with its name, code, client, workstreams and item count; **Open** (not on the project already open), **Edit** and **Archive**; **+** adds one, and **Show archived** lists the archived ones, each with **Restore**."
        ],
        [
         "Data",
@@ -2564,7 +2564,7 @@
     {
      "card": "projects",
      "title": "Projects",
-     "line": "Every project, with Open (not on the project that is already open), Edit and Archive; Show archived lists archived projects, each with Restore."
+     "line": "Every project, with Open (not on the project already open), Edit and Archive; Show archived lists archived projects, each with Restore."
     },
     {
      "card": "data",
@@ -2937,7 +2937,7 @@
      "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."
     },
     {
-     "d": "The page reloads and one line says that the backup was restored; when it put back over data that was there, the line adds that your data from before is kept. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back. Backups do not include the kept copies of the pages you sent to your client; to have them copied too, type a folder in the Copy my backups to box and press **Save**."
+     "d": "The page reloads and one line says that the backup was restored; when it put back over data that was there, the line adds that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back. Backups do not include the kept copies of the pages you sent to your client; to have them copied too, type a folder in the Copy my backups to box and press **Save**."
     }
    ],
    "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",

@@ -23,15 +23,15 @@ class HelpWordsB(unittest.TestCase):
             "a mark per milestone with its name and date below it; a name that has no room shows when you point at the mark or tab to it.",
             "a dashed red ring on its expected date, joined by a dashed line to its agreed date",
             "and again as “Expected”, in a dashed red outline.",
-            "one line says that the backup was restored; when it put back over data that was there, the line adds that your data from before is kept.",
+            "one line says that the backup was restored; when it put back over data that was there, the line adds that your data from before is kept in case you need it.",
             "The words you typed in the box show as their own Search: chip among the filters.",
         ):
             self.assertEqual(HELP.count(s), 1, s)
-        self.assertEqual(HELP.count("Open** (not on the project that is already open)"), 2)
-        self.assertEqual(HELP.count("Open (not on the project that is already open)"), 1)
+        self.assertEqual(HELP.count("Open** (not on the project already open)"), 2)
+        self.assertEqual(HELP.count("Open (not on the project already open)"), 1)
 
     def test_item_3_chips(self):
-        new = ("the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** (a decision says **Decider**) and **Due**, "
+        new = ("the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, "
                "each in colour.")
         self.assertEqual(HELP.count(new), 2)
         self.assertEqual(HELP.count("**The title**, then " + new), 1)
@@ -44,7 +44,7 @@ class HelpWordsB(unittest.TestCase):
         self.assertIn('row.kind === "decision" ? "Decider" : "Owner"', pk)
 
     def test_old_sentences_gone(self):
-        for s in ("a faint mark on its expected date", "again, faintly, as", "kept in case you need it",
+        for s in ("a faint mark on its expected date", "again, faintly, as", "restored and that your data from before is kept",
                   "with its name and date below.", "Each project has **Open**, **Edit**"):
             self.assertNotIn(s, HELP, s)
 
