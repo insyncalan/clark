@@ -677,6 +677,8 @@ table.items .weye { width: 30px; height: 30px; }
 .rt-bubble .rt-bubble-ai { color: #7C4DFF; padding: 0 10px; font-size: 13px; font-weight: var(--weight-regular); }
 :root[data-theme=dark] .rt-bubble .rt-bubble-ai { color: #B39DFF; }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .rt-bubble .rt-bubble-ai { color: #B39DFF; } }
+/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
+.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
 .rt-bar .rt-more { min-width: 40px; gap: 2px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
