@@ -65,6 +65,7 @@ def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
+    r1273 = three and name != "new-tile"     # row 1273 changes Group by and Move to only; the Add menu is row 1462
     test.assertEqual(m["rad"], "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
@@ -77,16 +78,21 @@ def check(test, name, look, m):
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
-            if three:
+            if r1273:
                 test.assertEqual((r["pad"].split()[:3], r["rad"]), (["7px", "10px", "7px"], "6px"), f"{where}: the line {r['t']!r} padding (top, right, bottom; the left holds row 1273's tick slot) and radius")
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
                 test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, row 1273 draws 10")
                 test.assertAlmostEqual(r["slot"], 16, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px of tick slot before its icon, row 1273 reserves 16")
+            elif three:
+                test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
+                test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
+                test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
+                test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
             else:
                 test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 test.assertAlmostEqual(r["gap"], 8, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, production's grid is 8")
         if r.get("side"):
-            test.assertEqual(r["side"], "left" if name in TICK_LEFT or three else "right", f"{where}: the tick of {r['t']!r}")
+            test.assertEqual(r["side"], "left" if name in TICK_LEFT or r1273 else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
         caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
         test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")

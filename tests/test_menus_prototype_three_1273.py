@@ -1,6 +1,6 @@
-"""Row 1273 (Classic): Group by, Move to and the Add menu take the prototype's look, and no other menu does.
+"""Row 1273 (Classic): Group by and Move to take the prototype's look, and no other menu does.
 
-Reads rules.css and Board.jsx (no browser): the rules are scoped to the three menus by their ids and labels (the View menu by #viewMenuList, so the use case Group by menus are untouched); the Move to head holds the card id.
+Reads rules.css and Board.jsx (no browser): the rules are scoped to the two menus by their ids and labels (the View menu by #viewMenuList, so the use case Group by menus are untouched); the Move to head holds the card id.
 Run: python3 dev/run_tests.py test_menus_prototype_three_1273
 """
 import re
@@ -12,8 +12,6 @@ RULES = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / "prototype
 BOARD = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
 GROUP = "#viewMenuList.ddmenu"
 MOVE = '.ddmenu[aria-label^="Move "][aria-label$=" to"]'
-ADD = ".wil-add .ddmenu"
-ADD_ALL = "#newBtnMenu.ddmenu"
 
 
 def rules():
@@ -47,18 +45,14 @@ class ThreeMenus(unittest.TestCase):
         ten = "calc(var(--space-2) + 2px)"
         self.assertEqual(decls(GROUP + " .mi", "margin-right"), ten)
         self.assertEqual(decls(MOVE + ":not(#none) .mi", "margin-right"), ten)
-        self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), ten)
-        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "gap"), ten)
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
         start = text.index("/* Row 1273")
         self.assertNotIn("34px", text[start:text.index("/* Row 1409", start)])   # the 34px gap is gone from the Row 1273 block
 
-    def test_tick_slot_16px_in_all_three(self):
+    def test_tick_slot_16px_in_group_by_and_move_to(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "width"), "var(--space-4)")
         self.assertEqual(decls(MOVE + ' [role="menuitem"] > .ck', "width"), "var(--space-4)")
         self.assertEqual(decls(MOVE + ' [role="menuitem"]:not(:has(> .ck))::before', "width"), "var(--space-4)")
-        self.assertEqual(decls(ADD + ' [role="menuitem"]', "padding-left"), "calc(var(--space-2) + var(--space-4))")   # the item's own 8px plus the empty slot
-        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "padding-left"), "calc(var(--space-4) + var(--space-4))")  # the item's own 16px plus the empty slot
 
     def test_tick_before_the_icon_in_group_by_and_move_to(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "order"), "-1")
@@ -69,20 +63,20 @@ class ThreeMenus(unittest.TestCase):
         for sel in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card"):
             self.assertEqual(decls(sel, "text-transform"), "uppercase", sel)
         for sel, body in rules():
-            if any("uppercase" in b for b in [body]) and any(s.startswith((GROUP, MOVE, ADD, ADD_ALL)) for s in sel):
-                self.assertTrue(all(s in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card") for s in sel if s.startswith((GROUP, MOVE, ADD, ADD_ALL))), sel)
+            if any("uppercase" in b for b in [body]) and any(s.startswith((GROUP, MOVE)) for s in sel):
+                self.assertTrue(all(s in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card") for s in sel if s.startswith((GROUP, MOVE))), sel)
         self.assertIn('class={it.card ? "mh caps mh-card" : "mh caps"}', BOARD)   # only the card's own head carries the mark, not the lane head
         self.assertIn("`Move to ${groupLabel(g)}`, card: true }", BOARD)
 
     def test_no_other_menu_is_named(self):
-        """Every selector of the Row 1273 block names one of the three menus."""
+        """Every selector of the Row 1273 block names Group by or Move to, and none names the Add menu (row 1462)."""
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
         start = text.index("/* Row 1273")
         block = text[start:text.index("/* Row", start + 2)]  # the Row 1273 comment and the rules after it, up to the next Row comment
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:
-                self.assertTrue(s.startswith((GROUP, MOVE, ADD, ADD_ALL)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
+                self.assertTrue(s.startswith((GROUP, MOVE)), f"the rule {s!r} is not scoped to Group by, Move to ")
 
     def test_the_move_to_head_holds_the_card_id(self):
         self.assertIn("classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)   # Classic holds the id, Cards keeps Move to <group>
