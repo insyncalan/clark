@@ -277,10 +277,10 @@ class Version1Stays(unittest.TestCase):
         over = data(jpeg(pad=10 * mib - 101 + 4), "jpeg")
         with self.assertRaises(Bad) as e:
             gallery.with_picture({"v": 2}, "1", over)
-        self.assertEqual(str(e.exception), BIG_PICTURE, "over 10 MiB is refused before it is decoded")
+        self.assertEqual(str(e.exception), imagecap._say_image(BIG_PICTURE), "over 10 MiB is refused before it is decoded")
         with self.assertRaises(Bad) as e:
             imagecap.with_picture({"v": 2}, "image", data(jpeg(pad=9 * mib), "jpeg"))
-        self.assertEqual(str(e.exception), BIG_PICTURE, "the Image template still refuses over 8 MiB")
+        self.assertEqual(str(e.exception), imagecap._say_image(BIG_PICTURE), "the Image template still refuses over 8 MiB")
 
     def test_a_1_0_7_gallery_checks_and_publishes_as_before(self):
         self.assertEqual(gallery.check(self.OLD, None), self.OLD)
