@@ -726,7 +726,7 @@ class HelpSaysKeptCopiesAreCopied(unittest.TestCase):
     """Row 1380: two Help sentences about the kept copies of published pages are pinned, each once, in its own entry."""
     CARD = ("The kept copies of your published pages are copied there too; without that folder they are in no backup.")
     STEP = ("The pages you have published are kept on this computer, in the clark data folder, and a backup does not include them. "
-            "To have them copied too, type a folder in Copy my backups to and press Save. "
+            "To have them copied too, type a folder in **Copy my backups to** and press **Save**. "
             "Putting a backup back never removes a kept page.")
 
     @classmethod

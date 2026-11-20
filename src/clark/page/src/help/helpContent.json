@@ -2937,7 +2937,7 @@
      "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."
     },
     {
-     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back. The pages you have published are kept on this computer, in the clark data folder, and a backup does not include them. To have them copied too, type a folder in Copy my backups to and press Save. Putting a backup back never removes a kept page."
+     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back. The pages you have published are kept on this computer, in the clark data folder, and a backup does not include them. To have them copied too, type a folder in **Copy my backups to** and press **Save**. Putting a backup back never removes a kept page."
     }
    ],
    "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
