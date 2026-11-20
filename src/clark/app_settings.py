@@ -19,7 +19,7 @@ import threading
 from pathlib import Path
 
 from clark import ask_connectors, platform
-from clark.store import CODE_RE, CONNECTORS, THEMES, Invalid, open_store
+from clark.store import CODE_RE, CONNECTORS, HIDDEN_CONNECTORS, THEMES, Invalid, open_store
 
 SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
 ASK_FIELDS = ("ask_enabled", "updated_at")
@@ -215,7 +215,7 @@ class AppSettings:
         for r in rows if isinstance(rows, list) else []:
             cid = r.get("connector") if isinstance(r, dict) else None
             label = r.get("label") if isinstance(r, dict) else None
-            if type(cid) is str and cid in CONNECTORS and cid not in seen and type(label) is str:
+            if type(cid) is str and cid in CONNECTORS and cid not in HIDDEN_CONNECTORS and cid not in seen and type(label) is str:
                 seen.add(cid)
                 out.append((cid, label))
         return out
@@ -271,7 +271,7 @@ class AppSettings:
                 return 400, self.fail("bad_project")
         else:
             return 400, self.fail("bad_request")
-        if kind != "undo" and (type(body["id"]) is not str or body["id"] not in CONNECTORS):
+        if kind != "undo" and (type(body["id"]) is not str or body["id"] not in CONNECTORS or body["id"] in HIDDEN_CONNECTORS):
             return 400, self.fail("bad_connector")
         found = self.found_connectors()
         turning_off = (kind == "global" and body["on"] is False) or (kind == "project" and body["off_here"] is True)
