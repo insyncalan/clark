@@ -215,7 +215,7 @@ export function Edge() {
 
 export function Peek({ tools }) {
   const p = peek.value;
-  const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
+  const box = useRef(null), back = useRef(null), pending = useRef(""), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
@@ -241,7 +241,7 @@ export function Peek({ tools }) {
     said.value = { text: "", n: 0 };
     const close = box.current && box.current.querySelector("[data-pk-close]");
     if (close) {
-      close.focus();
+      close.focus({ preventScroll: true });      // row 1467: taking the focus never scrolls the page behind
       // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
       if (classicTheme() && !keyedLast) {
         close.setAttribute("data-quiet", "");
@@ -269,7 +269,7 @@ export function Peek({ tools }) {
     if (!p || !stepped.current) return;
     stepped.current = false;
     const a = document.activeElement, close = box.current && box.current.querySelector("[data-pk-close]");
-    if (close && (!a || a === document.body || (a.disabled && box.current.contains(a)))) close.focus();
+    if (close && (!a || a === document.body || (a.disabled && box.current.contains(a)))) close.focus({ preventScroll: true });
   }, [p && p.id]);                                        // eslint-disable-line react-hooks/exhaustive-deps
   // The peek follows the list's cursor: an arrow key that moves the focus to another row or card shows that item (the row's own key
   // handler moves the cursor; this only watches where the focus lands, so a Tab or a click away never moves the peek).
@@ -297,7 +297,7 @@ export function Peek({ tools }) {
   // Esc closes the words box first, then the peek; two slashes outside a field open the words box (Edit only). Up and Down on one of the
   // peek's own buttons step to the item before or after (#246); every other arrow is left to whatever it was aimed at (#289).
   // Closing with an unsaved Latest update shows the bar (Save and close, Discard, Keep editing) instead of closing (row 1180).
-  const askClose = () => { if (tools && tools.peekDirty && tools.peekDirty()) unsaved.value = true; else closePeek(); };
+  const askClose = () => { pending.current = ""; if (tools && tools.peekDirty && tools.peekDirty()) unsaved.value = true; else closePeek(); };
   const stepBy = (dir) => {
     const q = peek.value;                                 // the peek now, not the one this handler was made for: a second key can come before the redraw
     if (!q) return;
@@ -338,10 +338,23 @@ export function Peek({ tools }) {
     const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) askClose(); };
     // A mouse press on Close keeps the focus in the open editor: taking it would save the update before the bar can ask.
     const hold = (e) => { if (e.target.closest && e.target.closest("[data-pk-close]")) e.preventDefault(); };
+    // Row 1467: a click on another item's row switches the peek. With an unsaved Latest update in the open peek the click asks first, as Close does
+    // (the bar: Save and close, Discard, Keep editing); the press keeps the focus in the editor so that leaving it does not save the update unasked.
+    const opener = (t) => (t && t.closest && !t.closest("#peek") ? t.closest("#work tr[data-id], #work article[data-id], .wl-row[data-id], .wil-table tr[data-id]") : null);
+    const dirty = () => !!(tools && tools.peekDirty && tools.peekDirty());
+    const keepFocus = (e) => { if (opener(e.target) && dirty()) e.preventDefault(); };
+    const ask = (e) => {
+      const row = opener(e.target);
+      if (!row || !dirty()) return;
+      e.stopPropagation(); e.preventDefault();
+      pending.current = row.dataset.id; unsaved.value = true;
+    };
     document.addEventListener("pointerdown", press, true);
     document.addEventListener("mousedown", hold, true);
+    document.addEventListener("mousedown", keepFocus, true);
+    document.addEventListener("click", ask, true);
     document.addEventListener("click", click);
-    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("mousedown", hold, true); document.removeEventListener("click", click); };
+    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("mousedown", hold, true); document.removeEventListener("mousedown", keepFocus, true); document.removeEventListener("click", ask, true); document.removeEventListener("click", click); };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // Closed: the panel slides out. Its node is kept as it mounts and the copy is made in a layout effect, not while rendering.
   useLayoutEffect(() => {
@@ -362,7 +375,7 @@ export function Peek({ tools }) {
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
         more={MoreBtn && row ? <MoreBtn row={row} /> : MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null} />
-      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={closePeek} onDone={() => { unsaved.value = false; }} /> : null}
+      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={() => { const to = pending.current; pending.current = ""; if (to) openPeek(to, "item"); else closePeek(); }} onDone={() => { unsaved.value = false; }} /> : null}
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <PeekIdLine id={p.id} />
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
