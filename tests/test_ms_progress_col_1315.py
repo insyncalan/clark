@@ -70,7 +70,7 @@ class Look(PublishedFile, Setup):
             p.js("(() => { const sh = new CSSStyleSheet(); sh.replaceSync(%s); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sh]; })()" % json.dumps(EDIT_RULE))
             p.js("""(() => { const box = document.querySelector('.msl-box'); if (%s) box.setAttribute('style', '--msl-cols: 400px 300px 150px 90px; --msl-cols-w: 400px 300px 150px 90px');
               const hc = document.createElement('div'); hc.className = 'msl-hc'; hc.style.display = 'grid'; hc.innerHTML = '<span>a</span><span>b</span><span>c</span><span id="hp">d</span>';
-              const ul = box.querySelector('ul'); ul.parentNode.insertBefore(hc, ul); })()""" % ("true" if saved else "false"))
+              const ul = box.querySelector('.msl-row').parentNode; ul.parentNode.insertBefore(hc, ul); })()""" % ("true" if saved else "false"))
             res = p.js(PROBE)
             more = p.js("""(() => { const t = (e) => getComputedStyle(e).gridTemplateColumns;
               return {cells: t(document.querySelector('.msl-cells')), head: t(document.querySelector('.msl-hc')), classicDefault: document.querySelector('.msl-cells').matches('.msl-box[data-place="page"]:not([style*="--msl-cols:"]) .msl-cells')}; })()""")

@@ -31,7 +31,7 @@ LOOK = r"""(() => {
   const q = (s) => document.querySelector(s), box = (e) => { const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, w: r.width}; };
   const probe = (v) => { const e = document.createElement('i'); e.style.borderColor = `var(${v})`; e.style.borderStyle = 'solid'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; };
   const prim = (v, prop) => { const e = document.createElement('i'); e.style[prop] = `var(${v})`; document.body.appendChild(e); const c = getComputedStyle(e)[prop]; e.remove(); return c; };
-  const slipEl = q('[data-slip]'), wrap = q('.mv-wrap'), tog = q('.msl-det'), leg = q('.mlg-b'), bar = q('.msl-bar');
+  const slipEl = q('[data-slip]'), wrap = q('.mv-wrap'), tog = q('.msl-det'), leg = q('.mlg-row') || q('.mlg-b'), bar = q('.msl-bar');
   const rows = [...document.querySelectorAll('.msl-row')].map((row) => {
     const n = row.querySelector('.node'), cs = getComputedStyle(n), rb = row.getBoundingClientRect(), nb = n.getBoundingClientRect();
     const sub = row.querySelector('.msl-sub'), cells = row.querySelector('.msl-cells').getBoundingClientRect();
@@ -73,7 +73,7 @@ class Both(unittest.TestCase):
             self.assertLess(abs((tog["t"] + tog["b"]) / 2 - (leg["t"] + leg["b"]) / 2), 4, f"{where}: the toggle and Legend are on the same row")
             self.assertLess(tog["r"], leg["l"], f"{where}: the toggle is left of Legend")
             self.assertLess(tog["l"] - got["bar"]["l"], 12, f"{where}: the toggle sits at the left edge")
-        self.assertGreater(leg["r"], got["bar"]["r"] - 12, f"{where}: Legend sits at the right edge")
+        self.assertGreater(leg["r"], got["bar"]["r"] - 12, f"{where}: Legend sits at the right edge")   # Classic (a published file) draws the Legend as the one-row .mlg-row, Cards the .mlg-b button
         self.assertLessEqual(got["bar"]["h"], 40, f"{where}: the bar is one row high")
         # The late text on the timeline is '+N days' and nothing else.
         self.assertTrue(got["slips"], f"{where}: the demo has a slipped milestone")

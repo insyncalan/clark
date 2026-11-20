@@ -230,9 +230,17 @@ class Legend(unittest.TestCase):
 
     def test_cards_draws_no_legend_row_and_keeps_the_popover(self):
         for route in ("milestones", "dashboard"):
-            got = self.legend(None, 1400, route)
-            self.assertEqual(got["display"], "none", route)
-        self.assertNotEqual(self.legend(None, 1400, "milestones")["popover"], "none")
+            self.assertIsNone(self.legend(None, 1400, route), route)
+        self.assertNotEqual(self.popover(None), "none")
+
+    def popover(self, theme):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = open_page(cdp, 1400, "light", theme)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p={CODE}"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)), "the list drew")
+            return cdp.js("(() => { const p = document.querySelector('.msl-bar .mlg'); return p ? getComputedStyle(p).display : 'absent'; })()", sid)
 
 
 if __name__ == "__main__":
