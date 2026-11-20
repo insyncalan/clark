@@ -445,7 +445,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .wil-scroll { overscroll-behavior-y: auto; }
 /* Row 1399 (Use cases rows audit, Classic only): the rows as the prototype draws them. Cell padding 6px 12px with a 40px row, the hover tint, the title at 500, the reference as a chip, no progress bar under the next steps, and the view tabs 15px with 6px 8px. */
 #usecases .ucl-table td { padding: 6px 12px; height: 40px; }
-#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: #F3F5FB; }
+#usecases .ucl-group .ucl-table td { padding: 6px 4px; }      /* ticket 1399 row 1: 6px 4px in a grouped card, 6px 12px inside the box */
+#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: var(--band-bg); }
 :root[data-theme=dark] #usecases .ucl-table tbody tr:hover, :root[data-theme=dark] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table tbody tr:hover, :root[data-theme=auto] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); } }
 #usecases .ucl-table .ucl-go, #usecases .ucl-table .uctitle { font-weight: 500; }
