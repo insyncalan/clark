@@ -165,8 +165,40 @@ class OffStops(Base):
             t, got = self.running()
         self.assertEqual(self.provider.given, ("teams",))
         self.assertEqual(self.provider.stopped, 0)
+        self.assertEqual([r.connectors for r in self.asking.runs], [("teams",)])      # the record holds what was really given
+        self.assertEqual(self.post({"id": "calendar", "on": True})[0], 200)
+        self.assertEqual(self.post({"id": "calendar", "on": False})[0], 200)          # an unrelated change does not stop it
+        self.assertEqual(self.provider.stopped, 0)
         self.provider.release.set()
         self.assertEqual(self.finish(t, got)[1]["ok"], True)
+
+    def test_an_off_saved_right_after_the_connectors_were_read_still_stops_the_question(self):
+        real, state = self.asking.connectors_now, {"in_stop": False, "done": False}
+
+        def read_then_off(code, chosen):              # the Off is saved the moment after the question's own read, before anything else
+            got = real(code, chosen)
+            if not state["done"] and not state["in_stop"]:
+                state["done"] = True
+                self.assertEqual(self.post({"id": "mail", "on": False})[0], 200)
+            return got
+        orig_stop = self.asking.stop_off
+
+        def stop_off():
+            state["in_stop"] = True
+            try:
+                return orig_stop()
+            finally:
+                state["in_stop"] = False
+        with mock.patch.object(self.asking, "connectors_now", read_then_off), mock.patch.object(self.asking, "stop_off", stop_off):
+            got = {}
+            t = threading.Thread(target=lambda: got.update(r=self.asking.ask({"project": "ABC", "question": "What is open?"})), daemon=True)
+            t.start()
+            t.join(10)
+        self.assertFalse(t.is_alive())
+        status, answer = got["r"]
+        self.assertEqual((status, answer["ok"], answer["message"]), (200, False, ask.STOPPED))     # the run was in the list, so stop_off cancelled it
+        self.assertFalse(self.provider.entered.is_set())
+        self.assertEqual(self.asking.runs, [])
 
     def test_a_switch_that_cannot_be_read_gives_no_connector(self):
         with mock.patch.object(ask_service.Store, "connector_allowed", side_effect=RuntimeError("bad")):

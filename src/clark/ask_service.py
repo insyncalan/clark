@@ -247,10 +247,11 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        on_connectors = self.connectors_now(code, on_connectors)      # row 1306 test 7: a connector turned Off meanwhile is not used
-        run = Run(code, on_connectors)
+        run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
         with self.using_lock:
             self.runs.append(run)
+        on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
+        run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
         try:
             reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
