@@ -236,6 +236,18 @@ class TheChangesPath(unittest.TestCase):
         self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
 
+    def test_the_read_before_the_dry_run_refuses_on_the_projects_own_switch(self):
+        """ask_apply's own gate, alone: the claims name the saved title, so the only thing left to refuse is this project's switch."""
+        plan = self.ask.plan("ABC", self.said)[1]
+        self.assertTrue(plan["ok"], plan)
+        parsed = ask_apply.read_suggestion("ABC", self.said, False)
+        self.assertEqual(parsed.claims["current_title"], "Draft the cut-over plan")
+        self.ask.check_data(parsed)
+        self.off()
+        with self.assertRaises(ask_apply.Refusal) as got:
+            self.ask.check_data(parsed)
+        self.assertEqual((got.exception.code, got.exception.status), ("asking_off", 409))
+
     def test_a_project_left_on_still_changes(self):
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
         self.assertEqual(status, 200, body)
