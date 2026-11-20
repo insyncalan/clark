@@ -44,6 +44,23 @@ class IconTones(unittest.TestCase):
         self.assertIn(".ic-m { color: var(--tone-urgent); }", RULES)
         self.assertNotIn(".ic-m", (ROOT / "page" / "shell.css").read_text(encoding="utf-8"))
 
+    def test_the_picker_priority_icon_takes_the_classic_tone_when_the_theme_is_there_and_the_cards_tone_when_not(self):
+        node = need_node(self)
+        menu = ROOT / "page" / "src" / "menuIcons.js"
+        def tones(doc):
+            code = (f'globalThis.document = {doc}; const M = await import("{menu.as_uri()}"); '
+                    'console.log(JSON.stringify(["Urgent", "High", "Medium", "Low"].map((p) => M.priorityIcon(p).tone)))')
+            done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            return json.loads(done.stdout)
+        self.assertEqual(tones("{ getElementById: (id) => (id === 'theme' ? {} : null) }"), ["m", "r", "n", "n"])
+        self.assertEqual(tones("{ getElementById: () => null }"), ["r", "a", "b", "n"])
+
+    def test_the_maroon_icon_rule_sits_before_row_1314_so_the_toolbar_test_windows_do_not_hold_it(self):
+        self.assertIn("/* Row 1314", RULES)
+        self.assertLess(RULES.index(".ic-m { color: var(--tone-urgent); }"), RULES.index("/* Row 1314"))
+        self.assertEqual(RULES.count(".ic-m {"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
