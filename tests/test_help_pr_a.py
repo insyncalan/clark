@@ -245,12 +245,12 @@ class ExcelColumns(unittest.TestCase):
         self.assertEqual(table[1], ["Sheet", "Columns the import reads"])
         self.assertEqual([(r[0], r[1]) for r in table[2]], want)
         heads = flat(table)
-        for real in ("Achieved on", "% complete"):
+        for real in ("Achieved on", "Progress %"):
             self.assertIn(real, heads)
-        for wrong in ("Rating", "Progress", "Title", "Open work items"):
+        for wrong in ("Rating", "Open work items"):
             self.assertNotIn(wrong, heads)
         py = (SRC / "excel.py").read_text(encoding="utf-8")
-        for label in ('("Achieved on", "actual_date")', '("% complete", "percent_complete")'):
+        for label in ('("Achieved on", "actual_date")', '("Progress %", "percent_complete")'):
             self.assertIn(label, py)
 
     def test_the_table_is_what_the_importer_applies(self):

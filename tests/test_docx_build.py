@@ -600,7 +600,11 @@ class FollowsTheLook(unittest.TestCase):
             self.assertIn('w:ascii="Verdana"', parts(docx_build.build(published()))["word/styles.xml"].decode())
 
     def test_the_colours_are_the_looks_light_values(self):
+        from clark import excel_colours
         for name, hexa in docx_build.TOKENS.items():
+            if name in excel_colours.EXPORT_TOKENS:      # item 1390: the workbook's own tokens, not in tokens.css; Word does not draw with them
+                self.assertEqual(hexa, excel_colours.EXPORT_TOKENS[name], name)
+                continue
             self.assertEqual(hexa, look.colour(name), name)
 
 

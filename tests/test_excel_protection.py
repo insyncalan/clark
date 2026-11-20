@@ -35,11 +35,11 @@ def tearDownModule():
 
 
 LOCKED_LABELS = {
-    "Actions": {"ID", "Project", "Source", "Updated"},
-    "Risks & Issues": {"ID", "Project", "Priority", "Source", "Updated"},
-    "Decisions": {"ID", "Project", "Source", "Updated"},
-    "Milestones": {"ID", "Project", "Original", "Shown state", "Open work items", "Source", "Updated"},
-    "Use cases": {"ID", "Project", "Open work items", "Source", "Updated"},
+    "Actions": {"ID", "Project", "Added from", "Last updated"},
+    "Risks & Issues": {"ID", "Project", "Priority", "Added from", "Last updated"},
+    "Decisions": {"ID", "Project", "Added from", "Last updated"},
+    "Milestones": {"ID", "Project", "Original", "State", "Open work items", "Added from", "Last updated"},
+    "Use cases": {"ID", "Project", "Open work items", "Added from", "Last updated"},
 }
 DATA = tuple(LOCKED_LABELS)
 
@@ -119,7 +119,7 @@ class Protected(Base):
         self.assertIsNone(ws.cell(blank, 1).value)
         self.assertTrue(ws.cell(blank, 1).protection.locked)
         labels = [c.value for c in ws[1]]
-        for label in ("Description", "Owner", "Priority", "Due", "Status", "Client wording", "Milestone", "Use case", "Labels"):
+        for label in ("Title", "Owner", "Priority", "Due", "Status", "Client wording", "Milestone", "Use case", "Labels"):
             self.assertFalse(ws.cell(blank, labels.index(label) + 1).protection.locked, label)
 
     def test_the_commitment_column_is_editable_and_keeps_its_drop_down_on_a_protected_sheet(self):
@@ -188,7 +188,7 @@ class RoundTrip(Base):
     def test_a_new_row_with_an_empty_id_is_added(self):
         ws = self.wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        ws.cell(3, head["Description"]).value = "A new item"
+        ws.cell(3, head["Title"]).value = "A new item"
         self.wb.save(str(self.path))
         self.assertIn("new", self.kinds())
 
@@ -197,7 +197,7 @@ class RoundTrip(Base):
             ws.protection.sheet = False
         ws = self.wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        ws.cell(2, head["Updated"]).value = "yesterday"          # a locked cell, changed by someone who unprotected the sheet
+        ws.cell(2, head["Last updated"]).value = "yesterday"          # a locked cell, changed by someone who unprotected the sheet
         ws.cell(2, head["Owner"]).value = "Sam Example"
         self.wb.save(str(self.path))
         self.assertIn("changed", self.kinds())

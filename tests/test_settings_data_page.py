@@ -34,7 +34,7 @@ def workbook(rig, tmp, new_text):
     ws = wb["Actions"]
     head = {c.value: c.column for c in ws[1]}
     row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == action["id"])
-    ws.cell(row, head["Description"]).value = new_text
+    ws.cell(row, head["Title"]).value = new_text
     wb.save(str(path))
     return base64.b64encode(path.read_bytes()).decode(), action["id"], action["description"]
 

@@ -29,7 +29,7 @@ def with_unknowns(rig, folder, ms=MS):
     ws = wb["Actions"]
     head = {c.value: c.column for c in ws[1]}
     row = ws.max_row + 1
-    for label, value in {"Description": TEXT, "Milestone": ms, "Use case": UC}.items():
+    for label, value in {"Title": TEXT, "Milestone": ms, "Use case": UC}.items():
         ws.cell(row, head[label]).value = value
     wb.save(str(path))
     return base64.b64encode(path.read_bytes()).decode()
