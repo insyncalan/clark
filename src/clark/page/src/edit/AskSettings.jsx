@@ -10,6 +10,7 @@ import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
@@ -212,6 +213,7 @@ function AskProject() {
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
     </>
   );
 }
@@ -229,6 +231,7 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
     {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
