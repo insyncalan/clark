@@ -202,5 +202,101 @@ class F5UnknownServer(unittest.TestCase):
         self.assertEqual(ca.connector_plan(disc, ["mail"])[1], 1)
 
 
+def stream(*events):
+    return ("\n".join(json.dumps(e) for e in events) + "\n").encode()
+
+
+def use(ident, name, tool_input):
+    return {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": ident, "name": name, "input": tool_input}]}}
+
+
+def got(ident, content, use_result=None):
+    ev = {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": ident, "content": content}]}}
+    if use_result is not None:
+        ev["tool_use_result"] = use_result
+    return ev
+
+
+DONE = {"type": "result", "subtype": "success", "is_error": False, "result": "x"}
+INIT = {"type": "system", "subtype": "init", "tools": ["ToolSearch"]}
+LATE_TOOL = "mcp__claude_ai_Fake_Late__read_everything"
+NEW_TOOL = f"{P}__outlook_brand_new_tool"          # a tool of the On server that no table names: neither allowed nor denied
+
+
+class F5LateServer(unittest.TestCase):
+    """A server that is listed only after the discovery the argument list came from."""
+    def setUp(self):
+        ask_connectors.clear_cache()
+        self.listings = []
+        self.provider = ac.ClaudeCommand(places=(), env={}, limit=5)
+        self.provider.connector_runner = lambda: self.listings.pop(0) if len(self.listings) > 1 else self.listings[0]
+        self.ran = []
+        good = stream(INIT, use("1", f"{P}__outlook_email_search", {"query": "x"}), got("1", "three plain lines"), DONE)
+        for p in (mock.patch.object(self.provider, "usable", return_value=(PATH, None)),
+                  mock.patch.object(ac, "run", side_effect=lambda *a, **k: (self.ran.append(a[0]) or ("ok", good, 0)))):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def ask(self):
+        return self.provider.ask(ask.Request(text="Q", question="Q", connectors=("mail",)))
+
+    def test_the_call_remembers_the_servers_it_was_built_from(self):
+        call = call_for(["mail"], LIST_M365 + "\nclaude.ai Gmail: https://example.invalid/g - ! Needs authentication")
+        self.assertEqual(call.servers, frozenset({M365, "claude.ai Gmail"}))
+        self.assertEqual(ca.Call(True).servers, frozenset())
+
+    def test_no_new_server_means_the_answer_is_used(self):
+        self.listings = [LIST_M365]
+        self.assertEqual(self.ask(), "x")
+        self.assertEqual(len(self.ran), 1)
+
+    def test_a_server_that_appears_during_the_run_refuses_the_answer(self):
+        self.listings = [LIST_M365, LIST_M365 + "\nclaude.ai Fake Late: https://example.invalid/l - ✓ Connected"]
+        got_ = self.ask()
+        self.assertIsInstance(got_, ask.Failure)
+        self.assertEqual(got_.message, ac.CONNECTOR_REFUSED)
+        self.assertEqual(len(self.ran), 1)                      # the run was started once, on the first list; nothing was retried
+
+    def test_a_list_that_cannot_be_read_after_the_run_refuses_the_answer(self):
+        self.listings = [LIST_M365, "not a list at all"]
+        got_ = self.ask()
+        self.assertIsInstance(got_, ask.Failure)
+        self.assertEqual(got_.message, ac.CONNECTOR_REFUSED)
+
+    def test_a_server_that_went_away_is_not_a_late_one(self):
+        call = call_for(["mail"], LIST_M365 + "\nclaude.ai Gmail: https://example.invalid/g - ✓ Connected")
+        self.assertFalse(ca.server_appeared(call, lambda: LIST_M365))
+
+    def test_server_appeared_names_only_the_new_one(self):
+        call = call_for(["mail"], LIST_M365)
+        self.assertFalse(ca.server_appeared(call, lambda: LIST_M365))
+        self.assertTrue(ca.server_appeared(call, lambda: LIST_M365 + "\nclaude.ai Fake Late: https://example.invalid/l - ✓ Connected"))
+        self.assertTrue(ca.server_appeared(call, lambda: ""))
+
+    def test_the_stream_refuses_a_call_to_the_late_server_and_to_a_search_for_it(self):
+        for events in ((use("1", LATE_TOOL, {}), got("1", "secret")),
+                       (use("1", "ToolSearch", {"query": f"select:{LATE_TOOL}"}),
+                        got("1", [{"type": "tool_reference", "tool_name": LATE_TOOL}], {"matches": [LATE_TOOL], "total_deferred_tools": 9}))):
+            ok, _line, result = cs.checked(stream(INIT, *events, DONE), {"Mail"})
+            self.assertFalse(ok, events[0])
+            self.assertIsNone(result)
+
+    def test_the_stream_refuses_a_deferred_tool_that_is_neither_allowed_nor_denied(self):
+        self.assertNotIn("outlook_brand_new_tool", ca.WRITE_TOOLS[M365] + tuple(t for v in ca.READ_TOOLS[M365].values() for t in v))
+        args = ca.connector_args(DISC, ["mail"])
+        self.assertFalse(permitted(args, NEW_TOOL))             # never allowed: the command has no allow for it
+        for events in ((use("1", NEW_TOOL, {}), got("1", "secret")),
+                       (use("1", "ToolSearch", {"query": f"select:{NEW_TOOL}"}),
+                        got("1", [{"type": "tool_reference", "tool_name": NEW_TOOL}], {"matches": [NEW_TOOL], "total_deferred_tools": 9}))):
+            ok, _line, result = cs.checked(stream(INIT, *events, DONE), {"Mail"})
+            self.assertFalse(ok, events[0])
+            self.assertIsNone(result)
+
+    def test_the_allowed_tool_through_the_same_stream_is_used(self):
+        ok, _line, result = cs.checked(stream(INIT, use("1", f"{P}__outlook_email_search", {"query": "x"}), got("1", "plain"), DONE), {"Mail"})
+        self.assertTrue(ok)
+        self.assertIsNotNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()

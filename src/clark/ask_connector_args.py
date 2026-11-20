@@ -125,10 +125,11 @@ def connector_args(discovered, on):
 class Call:
     """The verdict for one call: ok, args (empty when refused or when no connector is On), reason, dropped, connectors (False
     when nothing is On: the caller then keeps its normal locked-down path)."""
-    __slots__ = ("ok", "args", "reason", "dropped", "connectors")
+    __slots__ = ("ok", "args", "reason", "dropped", "connectors", "servers")
 
-    def __init__(self, ok, args=(), reason="", dropped=0, connectors=False):
+    def __init__(self, ok, args=(), reason="", dropped=0, connectors=False, servers=()):
         self.ok, self.args, self.reason, self.dropped, self.connectors = ok, tuple(args), reason, dropped, connectors
+        self.servers = frozenset(servers)         # the server names the argument list was built from (the fresh discovery of this call)
 
 
 def build_call(on, run=None):
@@ -146,7 +147,14 @@ def build_call(on, run=None):
     present = {e["connector"] for e in found if _clean(e)}
     if not set(on_ids) <= present or not any(a.startswith(FLAG_ALLOW) for a in args):
         return Call(False, reason="connector not found", dropped=dropped)
-    return Call(True, args, dropped=dropped, connectors=True)
+    return Call(True, args, dropped=dropped, connectors=True, servers={e["server"] for e in found})
+
+
+def server_appeared(call, run=None):
+    """Row 1306 F5: True when a server is listed NOW that the call's argument list was not built from (it appeared after the discovery, so no deny
+    covers it), or when the list cannot be read to check. Asked after a connector run, from a fresh discovery; the run's answer is then not used."""
+    ok, found = ask_connectors.list_fresh(run)
+    return not ok or bool({e["server"] for e in found} - call.servers)
 
 
 def compose(base, call):

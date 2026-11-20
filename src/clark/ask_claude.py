@@ -545,6 +545,8 @@ class ClaudeCommand(ask.Provider):
         if screened and status == "ok":
             names = part_of()
             good, line, result = ask_connector_stream.inspect(out, {names[c] for c in connectors if c in names})
+            if good and ask_connector_args.server_appeared(call, self.connector_runner):
+                good = False                       # F5: a server that appeared during the run was never denied, so nothing from this run is shown
             self.last_used = line.text
             self.last_line = line
             if not good:
