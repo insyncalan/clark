@@ -33,21 +33,21 @@ const PLACE_ROWS = [
 const HINT_ADD = "(what you type after the name)";
 const TEST_HEAD = "Test it", READS = "What ask clark reads";
 const NOT_SET = "not set";
-const NOT_YET = "Nothing is sent to Claude here. This shows the instructions with each placeholder filled in.";   // NEEDS APPROVAL
-const CANT_READ = "Slash commands aren't ready on this computer yet. Nothing was changed.";                        // NEEDS APPROVAL
-const NO_FILL = (k) => `{${k}} has nothing to fill where this appears.`;                                          // NEEDS APPROVAL
-const LONG = "The instructions are long.";                                                                          // NEEDS APPROVAL
+const NOT_YET = "Nothing is sent to Claude here. This shows the instructions with each placeholder filled in.";
+const CANT_READ = "Slash commands aren't ready on this computer yet. Nothing was changed.";
+const NO_FILL = (k) => `{${k}} has nothing to fill where this appears.`;
+const LONG = "The instructions are long.";
 const LONG_AT = 800;
 const DESCRIBE_LABEL = "Describe it and let AI write all of it";                                                  // the ticket's words
 const WRITE_IT = "Write it", CLEARER = "Make it clearer", SHORTER = "Shorter", UNDO = "Undo";                      // the ticket's words
 const AI_NOTE = "Written with AI. Read it before you save.";                                                       // the ticket's words
-const AI_CHECK = "AI check";                                                                                        // NEEDS APPROVAL
-const CHECK_RUN = "Check with AI";                                                                                  // NEEDS APPROVAL
+const AI_CHECK = "AI check";
+const CHECK_RUN = "Check with AI";
 const Q_CLEAR = "Clear?", Q_READS = "Reads only what a question reads?", Q_CHANGES = "What it can change?";         // the ticket's words
-const TOKENS = (n) => `${n} ${n === 1 ? "token" : "tokens"}`;                                                       // NEEDS APPROVAL
-const EMPTY_INS = "The instructions are empty.";                                                                    // NEEDS APPROVAL
-const NEED_SENTENCE = "Say what you want first.";                                                                   // NEEDS APPROVAL
-const ADDED = "Added";                                                                                              // NEEDS APPROVAL
+const TOKENS = (n) => `${n} ${n === 1 ? "token" : "tokens"}`;
+const EMPTY_INS = "The instructions are empty.";
+const NEED_SENTENCE = "Say what you want first.";
+const ADDED = "Added";
 const AI_LINES = { off: WORDS.off, not_signed_in: WORDS.notSignedIn };
 const REMOVE_ALL = "This slash command is kept for all projects. Remove it from the all projects tab.";
 const RESET_ALL = "This version is kept for all projects. Reset it from the all projects tab.";

@@ -176,7 +176,7 @@ class AskCommandsKillersTest(unittest.TestCase):
         for bad in ("../x", "a/b", "", "A", "a.json", "-a"):
             with self.assertRaises(ac.Refused, msg=bad) as cm:
                 self.s._file(bad)
-            self.assertIn("not a slash command's name", str(cm.exception))
+            self.assertIn("That is not a name a slash command can have.", str(cm.exception))
         self.assertEqual(self.s._file("who"), self.d / "who.json")
 
     def test_write_of_a_non_record_says_it_could_not_be_read(self):

@@ -11,8 +11,8 @@ export const SLASH_PROJECT_HEAD = (code) => `Slash commands in ${code}`;
 export const SLASH_OPEN = "Open the editor ↗";
 export const SLASH_NEW = "New slash command ↗";
 export const SLASH_EDIT = "Edit ↗";
-export const SLASH_UNAVAILABLE = "Slash commands aren't ready on this computer yet.";   // NEEDS APPROVAL
-export const SLASH_DAMAGED = "A file could not be read:";                                // NEEDS APPROVAL
+export const SLASH_UNAVAILABLE = "Slash commands aren't ready on this computer yet.";
+export const SLASH_DAMAGED = "A file could not be read:";
 export const TAG_BUILT = "Built in", TAG_YOURS = "Yours", TAG_ACTION = "Action", TAG_EDITED = "edited";
 export const TAG_PROJECT = (code) => `${code} only`;
 
