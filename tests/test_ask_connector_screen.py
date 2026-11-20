@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_connector_screen
 """
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
@@ -68,6 +69,13 @@ class Screen(unittest.TestCase):
         self.assertFalse(s.used)
         self.assertEqual(s.reason, cs.REFUSED_SIZE)
 
+    def test_the_total_is_the_request_ceiling(self):
+        self.assertEqual(cs.MAX_TOTAL, 1_230_000)                      # row 1293: the same as ask.MAX_REQUEST
+        self.assertEqual(cs.MAX_RESULT, 40000)
+        self.assertTrue(cs.screen("sharepoint_search", "a", 1_229_999).used)
+        self.assertFalse(cs.screen("sharepoint_search", "a", 1_230_000).used)
+
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_total_cap(self):
         res = [("sharepoint_search", "a" * 40000), ("sharepoint_search", "b" * 30000), ("sharepoint_search", "c")]
         out = cs.screen_all(res)
@@ -122,6 +130,7 @@ class Line(unittest.TestCase):
                          "Used: Read your mail (3 messages)")
         self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "text")), "Used: Read your mail")
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_every_not_used_reason_has_its_approved_words(self):
         self.assertEqual(self.line(("outlook_email_search", "x" * 40001)), "Not used: Mail was too long")
         self.assertEqual(self.line(("outlook_email_search", "a\u200bb")), "Not used: Mail has hidden characters")

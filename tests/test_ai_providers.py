@@ -131,6 +131,12 @@ class Sizes(Fake):
         self.assertEqual(ai_providers.most_chars(None), min(ai_providers.most_chars(m) for m in ac.MODELS))
         self.assertLess(ask.MAX_REQUEST, ai_providers.most_chars(None))
 
+    def test_a_token_allows_two_characters_so_a_window_of_a_million_tokens_allows_two_million(self):
+        self.assertEqual(ai_providers.CHARS_PER_TOKEN, 2.0)
+        self.assertEqual(ai_providers.most_chars("opus"), 2_000_000)
+        self.assertEqual(ai_providers.most_chars(None), 2_000_000)
+        self.assertEqual(ai_providers.ClaudeSubscription(command=self.provider).most_chars("sonnet"), 2_000_000)
+
     def test_the_provider_refuses_a_bad_alias_and_is_found_by_name(self):
         prov = ai_providers.provider_for("claude", command=self.provider)
         self.assertEqual(prov.ask(self.request(), "gpt"), ask.Failure(ac.MODEL_REFUSED))
