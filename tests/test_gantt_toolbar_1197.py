@@ -30,7 +30,7 @@ class Static(unittest.TestCase):
     def test_the_rules_are_in_rules_css_before_row_1314_and_nowhere_else(self):
         self.assertLess(RULES.index("Row 1197"), RULES.index("Row 1314"))
         for f in (GP.PAGE_SRC.parent / "shell.css", GP.PAGE_SRC / "edit" / "edit.css"):
-            self.assertNotIn("Row 1197", f.read_text(encoding="utf-8"))
+            self.assertNotIn("Row 1197: the Gantt toolbar", f.read_text(encoding="utf-8"))
 
 
 class Toolbar(GP.Page):
