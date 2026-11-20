@@ -1,6 +1,5 @@
-"""Item 1190: At a glance as a library template. The Add a section box offers it with the built-in's own behaviour: it makes the
-same section type (glance), so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's own;
-the card has its words, parts and sketch, and Help's table of section templates says the same words.
+"""Row 1411: the built-in At a glance card is not in the Add a section box. "Project at a glance" stays. A report that already has an
+At a glance section keeps it: the section type, its tiles and every reader are unchanged.
 
 Run: python3 dev/run_tests.py test_glance_template
 No Chrome: the page's catalogue (logic/templates.js) runs in node. Fictional data only.
@@ -19,39 +18,35 @@ NODE = shutil.which("node")
 
 
 def run(expr):
-    """Evaluate a JS expression against the page's templates.js and return it as JSON."""
     script = f'import * as T from {json.dumps(LOGIC.as_uri())}; console.log(JSON.stringify({expr}));'
     got = subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True, timeout=60)
     assert got.returncode == 0, got.stderr
     return json.loads(got.stdout)
 
 
-def sec(i, type_):
-    return {"id": i, "type": type_, "title": type_, "beside": 0}
-
-
-class GlanceTemplate(unittest.TestCase):
-    def card(self):
-        return run('T.list({sections: []}).find(x => x.type === "glance") || null')
-
+class GlanceCardRemoved(unittest.TestCase):
     def test_node_is_there(self):
         self.assertTrue(NODE, "node is needed to run the page's catalogue")
 
-    def test_the_card_has_its_words_parts_and_fit(self):
-        card = self.card()
-        self.assertIsNotNone(card, "the box offers At a glance when the report has none")
-        self.assertEqual((card["name"], card["title"], card["type"], card["kind"]), ("At a glance", "At a glance", "glance", "figures"))
-        self.assertTrue(card["description"].endswith("."))
-        self.assertEqual(card["holds"], ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"])
-        self.assertEqual(card["fit"], ["full"])
-        self.assertIs(card["ready"], True)
+    def test_the_box_has_no_at_a_glance_card_with_or_without_the_section(self):
+        for secs in ([], [{"id": "a", "type": "text", "title": "t", "beside": 0}]):
+            names = run(f'T.list({{sections: {json.dumps(secs)}}}).map(x => x.name)')
+            self.assertNotIn("At a glance", names)
+            self.assertEqual(run(f'T.list({{sections: {json.dumps(secs)}}}).filter(x => x.type === "glance").length'), 0)
 
-    def test_the_card_has_a_sketch_for_the_box(self):
-        self.assertTrue(run('!!T.SKETCHES["built-in-glance"]'))
+    def test_it_has_no_catalogue_entry_or_plan(self):
+        self.assertIsNone(run('T.find("built-in-glance")'))
+        # the sketch entry stays: the Cards look is frozen and the entry is part of its pin; no card can reach it
+        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a")')
+        self.assertFalse(got["ok"], got)
 
-    def test_help_says_the_same_words_as_the_card(self):
-        card = self.card()
-        rows = []
+    def test_project_at_a_glance_stays(self):
+        card = run('T.list({sections: []}).find(x => x.id === "glance-template") || null')
+        self.assertIsNotNone(card)
+        self.assertEqual((card["name"], card["type"]), ("Project at a glance", "glancetemplate"))
+
+    def test_help_table_has_no_at_a_glance_row_but_keeps_project_at_a_glance(self):
+        names = []
 
         def walk(o):
             if isinstance(o, dict):
@@ -59,32 +54,18 @@ class GlanceTemplate(unittest.TestCase):
                     walk(v)
             elif isinstance(o, list):
                 if len(o) == 3 and all(isinstance(x, str) for x in o):
-                    rows.append(tuple(o))
+                    names.append(o[0])
                 for v in o:
                     walk(v)
         walk(json.loads(HELP.read_text(encoding="utf-8")))
-        self.assertIn((card["name"], card["description"], "Full"), rows)
+        self.assertNotIn("At a glance", names)
+        self.assertIn("Project at a glance", names)
 
-    def test_it_is_offered_once_like_the_built_in_and_not_while_it_is_there(self):
-        has = [sec("a", "text"), sec("b", "glance")]
-        self.assertIsNone(run(f'T.list({{sections: {json.dumps(has)}}}).find(x => x.type === "glance") || null'))
-        gone = run(f'T.plan({json.dumps(has)}, "built-in-glance", "a")')
-        self.assertFalse(gone["ok"])
-
-    def test_placing_it_sends_the_one_request_the_store_takes(self):
-        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a")')
-        self.assertTrue(got["ok"], got)
-        self.assertEqual(got["requests"], [{"op": "new", "values": {"type": "glance", "title": "At a glance"}, "after": "a", "place": "report"}])
-        self.assertEqual(got["words"], "At a glance added.")
+    def test_existing_glance_sections_still_work(self):
         self.assertIn("glance", changes.NEW_SECTION_TYPES)
         self.assertIn("glance", store_module.SECTION_TYPES)
-        self.assertIn("glance", publish.BUILT_IN_SECTIONS, "the published file draws the section by its type, as for the built-in")
-
-    def test_beside_is_refused_full_width_only(self):
-        # Half width is not checked in a browser (item 1190), so the card is full width only.
-        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a", true)')
-        self.assertFalse(got["ok"], got)
-        self.assertEqual(got["message"], "This template needs the full width. Place it on its own row.")
+        self.assertIn("glance", publish.BUILT_IN_SECTIONS)
+        self.assertTrue(run('T.ACCEPTS.types.includes("glance")'))
 
 
 if __name__ == "__main__":
