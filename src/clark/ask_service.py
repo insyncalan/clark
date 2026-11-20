@@ -210,6 +210,7 @@ class AskService:
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
+                     "read": ask_data.read_counts(data),
                      "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 

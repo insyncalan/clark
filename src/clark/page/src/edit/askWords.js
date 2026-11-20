@@ -318,6 +318,7 @@ export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
 // #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
+export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";
 export const SLASH_HINT = {
   check: "Check this report",
@@ -329,6 +330,37 @@ export const SLASH_HINT = {
   history: "Earlier chats",
   new: "Start a new chat",
 };
+
+// Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
+export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
+export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title
+export const ABOUT_CHIP = (label) => `About ${label}`;                          // M ask.js drawCtx, T feature 1 ("About PDF-A-018 Write the user test scripts")
+export const ABOUT_REMOVE = (label) => `Stop asking about ${label}`;            // M ask.js drawCtx: aria-label
+export const ABOUT_REMOVE_TITLE = "Remove";                                     // M ask.js drawCtx: title; A 11-13: "Remove" is the app's word for a bin
+export const ABOUT_SECTION = (title) => `Section: ${title}`;                    // M ask.js ctxLabel
+export const ABOUT_LINE = (label) => `About ${label}`;                          // M ask.js: the small line under the person's question
+// What is sent ahead of the person's words so the answer is about the subject. Model-facing, never shown (the same rule as the request lines A approved 17-11).
+export const ABOUT_LEAD = (kind, id, name) => `About ${kind} ${id}${name && name !== id ? ` (${name})` : ""}: `;
+// The suggestions once a subject is chosen (M ask.js PILLS; T feature 1 names the item ones).
+export const PILLS_ABOUT = {
+  item: ["Is it late?", "Who owns it?", "What is it needed for?", "Draft an update", "Move it a week"],
+  milestone: ["Is it on track?", "What is holding it up?"],
+  "use case": ["Where does it stand?", "What work sits behind it?"],
+  section: ["Summarise this section", "What is missing here?"],
+};
+export const CITE_LABEL = (n, id) => `Source ${n}: open ${id}`;                 // M ask.js cite(): aria-label
+export const CITE_TITLE = (id) => `Open ${id}`;                                 // M ask.js cite(): title
+export const USED = "Used:";                                                    // M ask.js botHtml; A 18-11: the heading is "Used"
+const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
+export function READ_LINE(read) {
+  if (!read || typeof read !== "object") return "";
+  const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
+    .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
+  if (!parts.length) return "";
+  const said = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+  return `${said} read${typeof read.as_at === "string" && read.as_at ? " · as at " + read.as_at : ""}`;
+}
 // row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
 export const SLASH_HINT_CLASSIC = {
   summary: "Summarise this week into a draft",
