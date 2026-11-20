@@ -131,6 +131,31 @@ class Limits(Base):
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["type"], c["too_long"]), (1, 0))
 
+    def _zip3(self):
+        import io
+        import zipfile
+        b = io.BytesIO()
+        with zipfile.ZipFile(b, "w") as z:
+            for n in ("a", "b", "c"):
+                z.writestr(n, "x")
+        return b.getvalue()
+
+    def _line(self, *names):
+        for n in names:
+            self.put(n, self._zip3() if n.endswith(".xlsx") else pdf(["zqa", "zqb", "zqc", "zqd"]), binary=True)
+        with mock.patch.object(ix.mod(), "INDEX_PDF_PAGES", 3), mock.patch.object(ix.mod(), "MAX_EXCEL_MEMBERS", 2):
+            self.build()
+        return ix.mod().line_for(ix.status(self.data, "P1", None))
+
+    def test_the_status_line_names_no_file_type_for_a_pdf_only(self):
+        self.assertEqual(self._line("a.pdf"), "Indexed 0 of 1 file. 1 is too long.")
+
+    def test_the_status_line_names_no_file_type_for_a_workbook_only(self):
+        self.assertEqual(self._line("a.xlsx", "b.xlsx"), "Indexed 0 of 2 files. 2 are too long.")
+
+    def test_the_status_line_is_true_for_a_pdf_and_a_workbook_together(self):
+        self.assertEqual(self._line("a.pdf", "b.xlsx"), "Indexed 0 of 2 files. 2 are too long.")
+
 
 if __name__ == "__main__":
     unittest.main()
