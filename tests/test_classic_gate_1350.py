@@ -102,7 +102,7 @@ class Order(PalBase):
                     p.key("Escape", 0, "Escape", 27)
                     p.show()
                     got = self.kinds(p, "work")
-                    self.assertEqual(got[:2], ["Command", "Page"], f"classic={classic} at {w} px: {got}")
+                    self.assertEqual(got[:2], ["Command", "Page"] if classic else ["Page", "Command"], f"classic={classic} at {w} px: {got}")
                     p.key("Escape", 0, "Escape", 27)
                     p.show()
                     self.assertEqual(runs([r[0] for r in p.rows(True)]), ["Page", "Action", "Project", "Command"], f"classic={classic} at {w} px: empty bar")
