@@ -559,7 +559,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
         text = ""
     cut = len(text) > MAX_REPLY
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised, dropped, cut, draft = [], [], [], bool(text.strip()), False, 0, 0, None
+    answer, cites, changes, ok, disguised, dropped, over, draft = [], [], [], bool(text.strip()), False, 0, 0, None
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
@@ -576,7 +576,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
             if change is None:
                 dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
             elif len(changes) >= MAX_CHANGES:
-                cut += 1                          # Row 1293: a good change over the limit is cut and said so, not called unreadable
+                over += 1                         # Row 1293: a good change over the limit is cut and said so, not called unreadable
             else:
                 changes.append(change)
         elif word == "DRAFT":
@@ -596,7 +596,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 left.append(change)
         if dropped:
             flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
-        if cut:
+        if over:
             flags.append(Flag("change_limit", "", CHANGE_LIMIT))
         said = "\n".join(answer).strip()
         return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts), cut)
