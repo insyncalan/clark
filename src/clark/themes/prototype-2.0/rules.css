@@ -556,6 +556,29 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
+:root { --d-colh-y: 9px; }
+table.items th { font-size: var(--size-caption); font-weight: 500; }
+table.items td { border-top-color: var(--grey-200); }
+table.items .t { font-weight: 500; color: var(--heading); }
+table.items .due-l { font-size: var(--size-caption); }
+table.items .due-l.late { font-weight: var(--weight-medium); }
+table.items .ico.r { color: var(--status-red-text); }
+table.items .ico.g { color: var(--status-green-text); }
+table.items tbody tr:hover { background: var(--band-bg); }
+table.items .weye { width: 30px; height: 30px; }
+@media (min-width: 901px) { table.items .c-status { width: 76px; } table.items .c-owner { width: 170px; } table.items .c-due { width: 134px; } table.items .c-prio { width: 104px; } }
+/* Row 1394: the Work items view tabs as the prototype draws them (Classic only; Cards keeps shell.css). Tabs 15px with padding 9px 10px 8px and a 3px underline, count pills 13px with padding 1px 8px and min-width 22 (grey; the open tab brand-tinted), + New view padding 6px 12px. */
+#work .vtab { padding: 9px 10px 8px; min-height: 0; font-size: 15px; border-bottom-width: 3px; }
+#work .vtab em { padding: 1px 8px; min-width: 22px; background: var(--tone-grey-tint); color: var(--text-muted); }
+#work .vtab[aria-pressed="true"] em { background: var(--brand-blue-tint); color: var(--brand-blue); }
+#work .vnew { padding: 6px 12px; }
+/* Row 1395: the Work items toolbar as the prototype draws it at 1400, Classic only (the page is #work). The filter box types 15px (its drawn copy, .fhi, follows so the caret stays on the letters) and its count 13px; the chosen layout tile is 36 x 32 with the brand tint and the brand blue glyph (--tile-on-bg, --tile-on-fg, set in tokens.css); the Add tile is a dashed grey-500 box, radius 6, no fill, brand blue. Hover and focus of the Add tile stay as they are. */
+#work .fedit input, #work .fhi { font-size: 15px; }
+#work .fcount { font-size: var(--size-caption); }
+#work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
+#work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
+#work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
