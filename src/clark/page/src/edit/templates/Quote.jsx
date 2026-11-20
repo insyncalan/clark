@@ -1,4 +1,4 @@
-// Quote (#96; row 1271), store type "quote": its Edit part, in place. A toolbar (whether the tile and the heading show, Left or Centre, how many to a row), then the quotes
+// Quote (item 96; row 1271), store type "quote": its Edit part, in place. A toolbar (whether the tile and the heading show, Left or Centre, how many to a row), then the quotes
 // as the reader sees them, each with its words typed inside it (a box that wraps and grows, with its count of 600), and its name and role under it. Up to six quotes:
 // Add a quote, and Remove when there are two or more. Each save is one change() (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Quote.jsx.
 import { useEffect, useState } from "preact/hooks";

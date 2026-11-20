@@ -1,6 +1,6 @@
 """Row 1271, Quote template: the store (up to six quotes, align, perRow, tile, heading; the older one-quote shape kept), the file, View look F
 (Classic) at 1400 and 900, and Edit in place. Run: python3 dev/run_tests.py test_tpl_quote_1271
-Needs Chrome (the #33 harness). Fictional data only. Widths 1400 and 900 only.
+Needs Chrome (the item 33 harness). Fictional data only. Widths 1400 and 900 only.
 """
 import json
 import unittest

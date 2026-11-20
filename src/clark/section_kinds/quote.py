@@ -1,4 +1,4 @@
-"""Quote (H3, #96; row 1271): the content of a section of type 'quote': up to six quotations, each with who said it. READY.
+"""Quote (H3, item 96; row 1271): the content of a section of type 'quote': up to six quotations, each with who said it. READY.
 
 Stored (canonical JSON): {"v": 1, "quote": text, "by": text, "role": text} is the older one-quote shape and is read and kept unchanged.
 Row 1271 adds these optional fields: "quotes" ([{"quote", "by", "role"}, ...], six at most; it replaces the three top-level fields when
