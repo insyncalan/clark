@@ -1,5 +1,5 @@
 """Row 1315 fill (ruling 19-11): the Milestones switches (Timeline / Calendar, Week / Month / Quarter) take a 1px --ui frame,
-padding 0 12, Timeline / Calendar buttons 28 high (medium weight), a 1px --ui (--grey-500) rule between the halves. Light, 1400 px (900 is a note).
+a 1px --ui (--grey-500) rule between the halves. Light, 1400 px (900 is a note).
 
 Run: python3 dev/run_tests.py test_gap_1315b
 """
@@ -29,9 +29,10 @@ class Gap1315b(Base, unittest.TestCase):
         self.assertLess(i, next(n for n, l in enumerate(rows) if l.startswith("/* Row 1393")))      # before Row 1393, other rows may sit between
         block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[0]      # up to the next comment of any kind
         rules = {l.split(" {", 1)[0]: l for l in block.splitlines() if " {" in l}      # found by selector, never by position or count of other rules
-        self.assertIn("#milestones .msv-b", rules)
-        self.assertIn("min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium);", rules["#milestones .msv-b"])
-        self.assertEqual(rules["#milestones .cal-sc button"].split("{", 1)[1].strip(), "padding: 0 12px; }")
+        self.assertNotIn("#milestones .msv-b", rules)      # padding, height and weight are Row 1319's (3px 14px, 28, 600), ruled 20-11, newer
+        self.assertNotIn("#milestones .cal-sc button", rules)
+        for l in rules.values():
+            self.assertNotIn("padding", l)
         self.assertIn("border: 1px solid var(--grey-500);", rules["#milestones .msv-sw, #milestones .cal-sc"])
         self.assertIn("border-left: 1px solid var(--grey-500);", rules["#milestones .msv-b + .msv-b, #milestones .cal-sc button + button"])
         for l in rules.values():
@@ -40,14 +41,14 @@ class Gap1315b(Base, unittest.TestCase):
             self.assertNotIn("background", l)
             self.assertNotIn("mv-today", l)      # the Today name is the Row 1316 PR's line
 
-    def test_frame_padding_12_divider_1px_at_1400(self):
+    def test_frame_padding_14_sides_divider_1px_at_1400(self):
         with chrome() as cdp:
             sid = self.show(cdp, 1400, "light")
             m = cdp.js(M, sid)
             print("row 1315 fill 1400", m)
             for k in ("sw", "sc"):
                 g = m[k]
-                self.assertEqual(g["pad"], "12px 12px", (k, m))
+                self.assertEqual(g["pad"], {"sw": "12px 12px", "sc": "14px 14px"}[k], (k, m))      # sc is a .seg: Row 1319 3px 14px; sw (Timeline / Calendar) is not a .seg, it keeps the shared 12px sides
                 self.assertEqual(g["border"], "1px", (k, m))
                 self.assertEqual(g["bc"], "rgb(135, 148, 179)", (k, m))
             self.assertEqual((m["sw"]["h"], m["sw"]["w"]), (28, "600"), m)      # Timeline / Calendar; Week / Month / Quarter height and weight are the Row 1316 PR's rule
