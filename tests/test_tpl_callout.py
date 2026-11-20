@@ -354,7 +354,7 @@ class Page(n.PageChecks):
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
     def test_edit_the_decision_icon_is_two_ways_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
-        """Row 1272 (Stark read 2089: Two ways, Romanoff 20-11): the Decision suggestion sets the Two ways icon; the title text and the words text start where the
+        """Row 1272 (read of PR 2089 of 20-11: Two ways): the Decision suggestion sets the Two ways icon; the title text and the words text start where the
         category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
         for width in (1400, 900):
             ref = self.make(GOOD)
