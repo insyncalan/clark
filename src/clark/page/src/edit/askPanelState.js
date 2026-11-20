@@ -14,6 +14,7 @@ const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
 
 export const panelOpen = signal(false);
+export const panelDocker = signal("");                  // Row 1293: the server's "not available in the Docker version" sentence when clark runs in Docker, else ""
 export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
 export const panelState = signal("checking");        // "checking" | "unknown" (the check failed: nothing is claimed) | "off" (the server said off) | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
@@ -91,6 +92,7 @@ function apply(b) {
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
   panelStanding.value = b.standing_instructions === true;
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
+  panelDocker.value = b.docker === true && typeof b.why === "string" && b.why.length <= 300 ? b.why : "";
   if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
 }
