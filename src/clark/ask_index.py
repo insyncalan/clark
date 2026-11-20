@@ -588,6 +588,7 @@ class Indexer:
         self.live = {}                       # code -> {folder: (done, total)} for the run in progress
         self.busy = 0
         self.checked = {}                    # code -> when the Settings poll last looked for changed files
+        self.resumed = {}                    # code -> when an unfinished index was last started again
         self.stop = threading.Event()
         self.thread = None
 
@@ -647,11 +648,28 @@ class Indexer:
             self.start(code, folders)               # the index file is gone: build it again, so the line and the next question have it
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
+        elif due and folders and not current(self.data_dir, code, folders):
+            self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
+            with self.wake:
+                live = dict(self.live[code]) if code in self.live else None
         elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
         return folder_status(self.data_dir, code, folders, live)
+
+    def resume(self, code, folders):
+        """Start the read again for an index that is not finished (its first pass was stopped or failed). At most once every
+        STALE_POLL_SECONDS for a project, however often it is asked, so a read that keeps failing is a retry now and then, never a loop.
+        Nothing starts when a read is queued or running, or once clark is closing (`start` refuses then)."""
+        with self.wake:
+            if code in self.queue or code in self.live:
+                return False
+            now = time.monotonic()
+            if now - self.resumed.get(code, -STALE_POLL_SECONDS) < STALE_POLL_SECONDS:
+                return False
+            self.resumed[code] = now
+        return self.start(code, folders)
 
     def not_yet(self, code):
         """How many files of the run in progress for `code` are not read yet (0 when no run is going)."""
@@ -666,6 +684,8 @@ class Indexer:
             self.start(code, folders)               # no index file: build it in the background, this question reads the folders
             return False
         if not current(self.data_dir, code, folders):
+            if folders:
+                self.resume(code, folders)          # the first pass was stopped or failed: carry on in the background; this question reads the folders
             return False
         if stale(self.data_dir, code, folders, self.home):
             self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
