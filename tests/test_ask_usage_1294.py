@@ -85,7 +85,7 @@ class TheFile(unittest.TestCase):
         self.u.record("PUB", 5, datetime.date(2026, 10, 31))
         self.assertEqual(self.u.month(DAY), {})
         self.u.record("PUB", 1, DAY)
-        self.assertEqual(list(json.loads((self.d / ask_usage.FILE).read_text())), ["2026-11"])
+        self.assertEqual(list(json.loads((self.d / ask_usage.FILE).read_text(encoding="utf-8"))), ["2026-11"])
 
     def test_a_damaged_file_reads_as_nothing_and_a_bad_code_is_not_kept(self):
         (self.d / ask_usage.FILE).write_text("{not json", encoding="utf-8")
@@ -122,7 +122,7 @@ class TheFile(unittest.TestCase):
 
     def test_the_file_holds_counts_and_nothing_else(self):
         self.u.record("PUB", 3, DAY)
-        self.assertEqual(json.loads((self.d / ask_usage.FILE).read_text()), {"2026-11": {"PUB": {"questions": 1, "tokens": 3, "unreported": 0}}})
+        self.assertEqual(json.loads((self.d / ask_usage.FILE).read_text(encoding="utf-8")), {"2026-11": {"PUB": {"questions": 1, "tokens": 3, "unreported": 0}}})
 
 
 class Counted(unittest.TestCase):
@@ -391,7 +391,7 @@ class OnThePage(unittest.TestCase):
         self.service.usage.record("NEW", None, DAY)
         self.s.httpd.ask = self.service
 
-    def open(self, cdp, tab):
+    def open_tab(self, cdp, tab):
         from _editor_checks import for_project
         from test_page import navigate
         from test_server import wait
@@ -405,7 +405,7 @@ class OnThePage(unittest.TestCase):
         from test_server import chrome, wait
         for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
-                sid, js = self.open(cdp, "all")
+                sid, js = self.open_tab(cdp, "all")
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-list')"), 20), "the list")
                 self.assertEqual(js("document.querySelector('#ask-usage-all h2').innerText"), "Usage, 1 to 20 November 2026")
@@ -435,7 +435,7 @@ class CardsUnchanged(OnThePage):
         from test_server import chrome, wait
         with chrome() as cdp:
             for tab in ("all", "project"):
-                sid, js = self.open(cdp, tab)
+                sid, js = self.open_tab(cdp, tab)
                 self.assertFalse(js("!!document.getElementById('theme')"), "Cards has no theme layer")
                 self.assertTrue(wait(lambda: js("document.querySelectorAll('section.frame.setting').length > 0"), 20), "the tab drew")
                 time.sleep(3)          # the Classic page shows the card once its read answers; give it that long
