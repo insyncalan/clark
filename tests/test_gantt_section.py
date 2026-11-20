@@ -81,7 +81,7 @@ class Static(unittest.TestCase):
         self.assertIn("title: GANTT_TABLE_NAME", entry)
         self.assertIn("The plan as a table, from your Gantt lines. Only lines put in the client view show.", entry)
         self.assertIn('holds: ["Heading", "The plan table"]', entry)
-        self.assertIn('export const GANTT_TABLE_NAME = "Table";', text)
+        self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', text)
 
 
 class Section(unittest.TestCase):

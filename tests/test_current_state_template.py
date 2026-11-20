@@ -36,6 +36,7 @@ class CurrentStateTemplate(unittest.TestCase):
         d = default_sections.DEFAULT_SECTIONS[0] if hasattr(default_sections, "DEFAULT_SECTIONS") else self.first()
         self.assertEqual((typ, title, body), (d["type"], d["title"], d.get("body", "")))
         self.assertEqual(name, "Header and Text")
+        self.assertEqual((title, d["title"]), ("Header", "Header"), "row 1262: the starting title of the template and the Dashboard default is Header")
         self.assertIn('"half"', fit)
 
     def test_the_template_words_reach_the_published_file(self):
