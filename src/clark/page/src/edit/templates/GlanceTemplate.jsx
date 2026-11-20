@@ -26,7 +26,7 @@ export const WORDS = {
   showHealth: "Show project health here",                                                                                                    // group 3
   healthHidden: "Project health is hidden completely", healthShown: "Project health is shown",                                                // group 10
   hintEye: "The eye on Project health hides it completely.", hintAdd: "Use Add a tile to make your own. Click the pencil on your own tile to edit it.",   // group 12 (Cards keeps these)
-  hint: "Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. The eye on Project health hides it completely.",   // row 1336: approved word for word
+  hint: "Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin removes it from the strip. Add a tile brings it back.",   // row 1336: Romanoff must confirm these closing words (the ticket's proposal said 'the bin deletes it')
   perRow: "Tiles on a line", halfNote: "Half width always shows 2 on a line.",                                                               // group 13
 };
 
@@ -49,7 +49,7 @@ function actions(section, u, own) {
     if (before === key || (before === null ? at === order.length - 1 : order[at + 1] === before)) return Promise.resolve(null);
     return send(withChange(u, { order: moved(u.order, key, before, drawn) }), `${titleOf(key)} moved.`, tile(key, "[data-tile-grip]"));
   };
-  const del = (key) => send(withChange(u, { hide: [key, true] }), `Deleted: ${titleOf(key)}`, at(".tileadd"));      // row 1336: the bin on a built-in tile takes it off the strip with an Undo; the stored body is the hidden flag, so the published-file rule is the one it was (Add a tile brings it back)
+  const del = (key) => send(withChange(u, { hide: [key, true] }), `Removed: ${titleOf(key)}`, at(".tileadd"));      // row 1336: the bin on a built-in tile takes it off the strip with an Undo; the stored body is the hidden flag, so the published-file rule is the one it was (Add a tile brings it back)
   return {
     del,
     hide: (key, hidden) => send(withChange(u, { hide: [key, hidden] }),

@@ -23,7 +23,7 @@ BODY = "document.body.innerText"
 
 
 class HeaderSwitchClassic(Base):
-    """Row 1341 ruling: with the Classic layer the header name's tooltip is the full project name (Cards keeps 'Click to change project')."""
+    """Row 1341 ruling: with the Classic layer the header name's tooltip is the full project name and Click to change project (Cards keeps 'Click to change project')."""
     def setUp(self):
         orig = testpage.html
         m = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(orig(), theme.css("prototype-2.0")))
@@ -39,7 +39,7 @@ class HeaderSwitchClassic(Base):
                 p.width(w)
                 name = p.js("document.querySelector('%s').textContent.trim()" % NAME)
                 self.assertEqual(name, 'Bridge & "Harbour" <Programme>', "the full name is shown at %d" % w)
-                self.assertEqual(p.js("document.querySelector('%s').title" % NAME), 'Bridge & "Harbour" <Programme>', "Classic tooltip is the full name at %d" % w)
+                self.assertEqual(p.js("document.querySelector('%s').title" % NAME), 'Bridge & "Harbour" <Programme>. Click to change project', "Classic tooltip is the full name and Click to change project (row 1305) at %d" % w)
 
 
 class HeaderSwitch(Base):

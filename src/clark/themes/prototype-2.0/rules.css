@@ -425,6 +425,7 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 .tpl-edit-glancetemplate .glance .tcell + .tcell { padding-left: 0; }
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
+/* Row 1336 ruling 2: label padding-right 84px (built-in tile, three controls) and 110px (own tile), eye right 30px, grip right 56px: the mock-up draws them, at-a-glance-builder.html lines 110-111 (84 and 110) and 414-415 (eye 30, grip 56); the mock-up's own tile selectors differ, the values are copied. */
 #report[data-mode="edit"] .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .fig .k { padding-right: 84px; }
 .tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }

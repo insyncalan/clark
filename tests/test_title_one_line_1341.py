@@ -58,7 +58,7 @@ class Title(Setup):
         self.assertTrue(g["lineInside"], "Weekly report stays in the bar: %r" % (g,))
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
-        self.assertEqual(g["tip"], g["orig"], "row 1341 ruling: the tooltip is the full project name (the aria-label keeps Change project)")
+        self.assertEqual(g["tip"], g["orig"] + ". Click to change project", "the tooltip is the full project name with Click to change project, as row 1305 pins it (the aria-label keeps Change project)")
         self.assertEqual(g["barH"], g["token"], "the bar is as tall as the real --topbar token, read with the inline value removed")
         self.assertGreaterEqual(g["tabs"]["n"], 1, "at least one tab is drawn")
         self.assertTrue(g["tabs"]["all"] and g["tabs"]["strip"], "every tab and the tab strip lie inside the bar: %r" % (g,))
@@ -86,7 +86,7 @@ class Title(Setup):
         """Ruling a (12:43): the plain title span in the bar (no project switch) has title = the full name in Classic, and none in Cards.
         The standard test page always mounts the switch, so the span is pinned in the source: the title is the full name behind the Classic gate."""
         src = (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8")
-        m = re.search(r'<span class="hdr-project hdr-static" id="project-name" title=\{classicTheme\(\) \? \(([^}]*)\) : undefined\}>\{([^}]*)\}</span>', src)
+        m = re.search(r'<span class="hdr-project hdr-static" id="project-name" title=\{classicTheme\(\) \? ([^}]*) : undefined\}>\{([^}]*)\}</span>', src)
         self.assertTrue(m, "the static title span has a title attribute, set only in Classic")
         self.assertEqual(m.group(1).strip(), m.group(2).strip(), "title and text are the same full name")
         self.assertEqual(len(re.findall(r'import \{ classicTheme \}', src)), 1)
@@ -94,9 +94,9 @@ class Title(Setup):
     def test_cards_keep_the_change_project_tooltip(self):
         """With the Cards theme (no Classic layer) the header switch tooltip stays 'Click to change project' and the static span has no title."""
         src = (ROOT / "src/clark/page/src/edit/ProjectSwitch.jsx").read_text(encoding="utf-8")
-        self.assertIn('tip={classicTheme() ? shown : "Click to change project"}', src)
+        self.assertIn('tip={classicTheme() ? `${shown}. Click to change project` : "Click to change project"}', src)
         self.assertEqual(len(re.findall(r'import \{ classicTheme \}', src)), 1)
-        self.assertIn("title={classicTheme() ? (name || project.value || \"No project open\") : undefined}", (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8"))
+        self.assertIn("title={classicTheme() ? name || project.value || \"No project open\" : undefined}", (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8"))
         self.mock_off()
         with chrome() as cdp:
             p = self.show(cdp, 1400, False, standard=True)

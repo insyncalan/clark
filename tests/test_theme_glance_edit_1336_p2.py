@@ -13,8 +13,8 @@ import unittest
 from test_server import chrome, wait
 from test_theme_glance_edit_1336 import ClassicEdit, tearDownModule  # noqa: F401
 
-HINT = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. "
-        "The eye on Project health hides it completely.")
+HINT = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin removes it from the strip. "
+        "Add a tile brings it back.")
 OWN = {"id": "t1", "label": "Fictional own tile", "figure": "7", "tag": "Fine", "note": "Fictional note", "tone": "green"}
 PROBE = """(function(sel){ function rel(el, cell){ var r = el.getBoundingClientRect(), c = cell.getBoundingClientRect();
     return { top: Math.round((r.top - c.top) * 10) / 10, right: Math.round((c.right - r.right) * 10) / 10, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; }
@@ -131,7 +131,7 @@ class Controls(ClassicEdit):
             p.js(f"document.querySelector({self.q('[data-tile=overdue] [data-tile-bin]')}).click()")
             p.until(f"!document.querySelector({self.q('[data-tile=overdue]')})", "the tile left the strip")
             self.assertTrue(wait(lambda: self.body().get("builtin", {}).get("overdue", {}).get("hidden") is True, 10), self.body())
-            self.assertEqual(self.toast(p).split("Undo")[0].strip(), "Deleted: Overdue actions")
+            self.assertEqual(self.toast(p).split("Undo")[0].strip(), "Removed: Overdue actions")
             self.undo(p)
             p.until(f"!!document.querySelector({self.q('[data-tile=overdue]')})", "undone: the tile is back")
             self.assertTrue(wait(lambda: not self.body().get("builtin"), 10), self.body())
