@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_gap_1317b
 """
 import unittest
 
+from test_server import chrome  # noqa: F401  (names the file as a browser test; the page comes from the base class)
 from test_theme_classic_1317 import RealSettings as Base
 
 PROBE_TOKENS = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
