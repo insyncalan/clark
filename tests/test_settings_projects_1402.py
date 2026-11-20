@@ -85,8 +85,12 @@ class ProjectsCard(t13.RealSettings):
 
     def test_cards_projects_card_unchanged(self):
         for tag, c in self.each(None):
-            self.assertNotEqual(c["btnBg"], "rgb(6, 47, 58)", tag)
-            self.assertNotEqual(c["thPad2"], "8px 10px 8px 0px", tag)
+            dark = "dark" in tag
+            # the values below were measured on origin/main (Cards, real computed styles, 1400 and 900 alike), not guessed
+            want = {"thBottom": "0px none " + ("rgb(169, 203, 212)" if dark else "rgb(71, 85, 119)"), "thLeft2": "0px", "thRight": "0px", "tdLeft": "0px",
+                    "thPad": "8px 10px 8px 4px", "thPad2": "8px 10px 8px 10px", "tdPad": "9px 10px 9px 4px", "tdPad2": "9px 10px 9px 10px",
+                    "btnBg": "rgb(14, 45, 56)" if dark else "rgb(255, 255, 255)", "btnColor": "rgb(183, 169, 255)" if dark else "rgb(74, 55, 194)", "btnRadius": "8px"}
+            self.assertEqual({k: c[k] for k in want}, want, tag + ": the Cards Projects card is what main computes")
 
 
 if __name__ == "__main__":

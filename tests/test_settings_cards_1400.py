@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 from _editor_checks import for_url
+from _paths import ROOT
 
 from clark import page
 from test_server import Running, chrome, wait
@@ -21,7 +22,7 @@ PAGES = {"folder": (".set-cards .setting > h3, .set-cards .setting-part > h3", "
          "essentials": (".set-cards .set-row-text label", "profile"), "appearance": (".secpick input:not(:checked) + .secpick-card", "appearance"), "version": (".upd-rows .upd-l", "version")}
 PROBE = """function(sel) { const e = document.querySelector(sel); if (!e) return null; const g = (p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p]; i.remove(); return r; };
-  return { size: g('fontSize'), weight: g('fontWeight'), color: g('color'), case: g('textTransform'), track: g('letterSpacing'), family: g('fontFamily'),
+  return { size: g('fontSize'), weight: g('fontWeight'), color: g('color'), parent: getComputedStyle(e.parentElement).color, case: g('textTransform'), track: g('letterSpacing'), family: g('fontFamily'),
     border: g('borderTopWidth') + ' ' + g('borderTopColor'), radius: g('borderTopLeftRadius'), grey500: tok('var(--grey-500)', 'borderTopColor'), heading: tok('var(--heading)', 'color'),
     head: tok('var(--font-head)', 'fontFamily') }; }"""
 
@@ -74,12 +75,21 @@ class Real(unittest.TestCase):
                 self.assertEqual(c["family"], c["head"], tag + ": sub-heading in the heading face")
             elif slug in ("profile", "essentials", "version"):
                 self.assertEqual((c["size"], c["weight"]), ("15px", "600"), tag + ": label 15 px, 600")
-                if slug == "version":
-                    self.assertEqual(c["color"], c["heading"], tag + ": update-row label in the heading colour")
             else:
                 self.assertEqual(c["border"].split(" ", 1)[0], "1px", tag)
                 self.assertEqual(c["radius"], "14px", tag + ": spacing card radius 14")
                 self.assertEqual(c["border"].split(" ", 1)[1], c["grey500"], tag + ": spacing card border in the grey-500 tone")
+
+    def test_labels_take_the_colour_the_cascade_gives(self):
+        """The label rule sets no colour (no mock-up line gives one): no colour in the rule's text, and the Classic field and row labels are the colour the cascade gives them (their parent's)."""
+        rules = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+        rule = next(l for l in rules.splitlines() if l.startswith(".set-cards .fld > label"))
+        self.assertNotIn("color", rule, "the label rule gives no colour")
+        got = {tag: (c["color"], c["parent"]) for tag, slug, c in self.each(NAME) if slug in ("profile", "essentials")}
+        self.assertEqual(len(got), 8)
+        print("1400 label colour (label, parent):", got)
+        for tag, (color, parent) in got.items():
+            self.assertEqual(color, parent, tag + ": the label takes its parent's colour, as the cascade gives it")
 
     def test_update_rows_markup_matches_the_real_page_source(self):
         # the injected rows above copy Update.jsx; this fails if the real markup loses the class names the CSS and the probe rely on

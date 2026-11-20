@@ -18,12 +18,14 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 NAME = "prototype-2.0"
 WIDTHS = (1400, 900)
 LIGHT_LINE = "#D9E0EF"
+CARDS_SEARCH = {"light": "#C4CEE3", "dark": "#2B5868"}     # the Cards Settings search box edge on main (measured below on this page)
 DARK_LINE = "#2B3850"     # the Classic dark value of the same grey-200 token
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (s) => { const e = q(s); return e ? [getComputedStyle(e).borderTopColor, getComputedStyle(e).borderTopWidth] : null; };
+  if (!q('.frame:not(#gantt-setting) .set-reset')) { const f = q('#ess-name') && q('#ess-name').closest('.frame'); if (f) f.insertAdjacentHTML('beforeend', '<button type="button" class="set-reset">Reset</button>'); }  /* the real Reset button (SettingRow.jsx) shows only after a change; add its markup to a real non-Gantt card */
   const b = q('.seg button + button');
   const ground = (s) => { let e = q(s); while (e) { const c = getComputedStyle(e).backgroundColor; if (c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c; e = e.parentElement; } return null; };
   return {ground: ground('#safety-copy-box') || ground('#ess-name') || ground('.seg'),
-          edges: {box: g('#safety-copy-box'), save: g('[data-copy-save]'), choice: g('.seg'), name: g('#ess-name'), paste: g('#client-folder-paste'), use: g('[data-copy-suggestion]'), search: g('.set-search input'), gantt: g('#gantt-name')},
+          edges: {box: g('#safety-copy-box'), save: g('[data-copy-save]'), choice: g('.seg'), name: g('#ess-name'), paste: g('#client-folder-paste'), use: g('[data-copy-suggestion]'), search: g('.set-search input'), reset: g('.frame:not(#gantt-setting) .set-reset'), rowtext: g('.set-row-ctl input[type="text"]'), gantt: g('#gantt-name')},
           divider: b ? getComputedStyle(b).borderLeftColor : null}; })()"""
 
 
@@ -79,10 +81,14 @@ class SettingsEdge(unittest.TestCase):
             for w in WIDTHS:
                 with self.subTest(scheme=scheme, width=w):
                     got = self.read(NAME, w, scheme)
-                    for name in ("box", "save", "choice", "name", "paste", "use", "search"):
+                    for name in ("box", "save", "choice", "name", "paste", "use", "search", "reset", "rowtext"):
                         self.assertEqual(got["edges"][name], [rgb(line), "1px"], f"{name} edge, Classic {scheme} {w}")
                     self.assertEqual(got["divider"], rgb(line), f"choice divider, Classic {scheme} {w}")
                     self.assertEqual(got["edges"]["gantt"][0], "rgb(196, 206, 227)" if scheme == "light" else "rgb(43, 88, 104)", f"the Gantt card keeps its edge, Classic {scheme} {w}")
+
+    def test_reset_markup_matches_the_real_page_source(self):
+        src = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "SettingRow.jsx").read_text(encoding="utf-8")
+        self.assertIn('<button type="button" class="set-reset"', src)
 
     def test_the_measured_line_against_its_ground(self):
         """Measured from the computed border and the card ground Chrome draws, 1400 and 900: the Classic line is 1.32:1 on white in light and 1.46:1 in dark,
@@ -103,6 +109,7 @@ class SettingsEdge(unittest.TestCase):
                     got = self.read(None, w, scheme)
                     for name in ("box", "save", "choice", "name", "paste", "use"):
                         self.assertEqual(got["edges"][name], [rgb(edge), "1px"], f"{name} edge, Cards {scheme} {w}")
+                    self.assertEqual(got["edges"]["search"], [rgb(CARDS_SEARCH[scheme]), "1px"], f"search box edge unchanged, Cards {scheme} {w}")
 
     def test_the_exemption_is_one_rule_naming_the_settings_controls(self):
         """The ONE named exemption (ticket 1406, the 18-11 ruling, do not redesign for contrast): the Settings card controls' border in Classic is the grey-200 line
