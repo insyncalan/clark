@@ -25,7 +25,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'ask clark', 'Confirm and apply', 'Source folders for', 'Turn off asking' (#721) and the two long pills are the page's own words (edit/askWords.js, AskSettings.jsx, SneakPeek.jsx); the prototype words them differently.
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
-# 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
+# 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
 # 'Keep the model I have' and 'Use it anyway' are the buttons of the Settings AI card (edit/AiSettings.jsx, #446); the prototype has no AI card. Claude and ChatGPT are named only as the two providers the card connects.
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
@@ -33,7 +33,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Ask clark to update for you' is the words box's heading (edit/SneakPeek.jsx, row 1077, the owner's words of 09-11-2026); the prototype still says Change an item with words.
 # 'Earlier chats' is the heading of the ask clark History list (edit/askWords.js HISTORY_TITLE, row 1095); the prototype has no chat history.
 # 'More actions' is the menu of a use case or milestone row and of the milestone peek (edit/RecordMore.jsx, item 1148); the prototype has no such menu.
-CHECKED_BY_HAND = set(['More actions', 'Expected or achieved', 'Add issue', 'Move to Status', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn off asking', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
+CHECKED_BY_HAND = set(['More actions', 'Expected or achieved', 'Add issue', 'Move to Status', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the model I have', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn off asking', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -103,7 +103,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (35, 35))   # Row 1329: the two Movement how-tos left the Help (was 37). merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -521,6 +521,26 @@ class ProfileCircleWords(unittest.TestCase):
         for claim in ("your initials go in the circle", "initials fill the circle", "your initials (a person icon"):
             self.assertNotIn(claim, text.lower(), f"Help must not say the editor's profile circle shows initials: {claim}")
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
+
+
+class MilestonesHelpWithoutMovement(unittest.TestCase):
+    """Row 1329: Classic has no Plan | Movement switch, so Help no longer teaches it. The approved strings are pinned, and so is their absence from the old wording."""
+
+    def _text(self):
+        return json.dumps(SRC, ensure_ascii=False)
+
+    def test_the_approved_milestones_strings_are_in_the_source(self):
+        text = self._text()
+        self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones."), 2)
+        self.assertIn('"t": "Milestones"', text)
+        self.assertIn("(the Client wording on a row, picture captions and the Own words of risks and issues) have no / menu", text)
+        self.assertIn("Use **Add milestone** to add one.", text)
+
+    def test_nothing_in_the_source_teaches_the_removed_switch(self):
+        text = self._text()
+        for gone in ("Movement is the switch next to", "**Movement** shows slippage", "Use the **Movement** switch next to **Plan**",
+                     "Milestones and Movement", "handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Movement words"):
+            self.assertNotIn(gone, text, gone)
 
 
 if __name__ == "__main__":
