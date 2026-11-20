@@ -278,6 +278,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
             _set(db, "counts", {**dict.fromkeys(NAMES, 0), "safety": len(bad)})
             _set(db, "folders", per)
             _set(db, "listed", listed)
+            _set(db, "screen", str(SCREEN_VERSION))
             _set(db, "complete", "1")
             db.commit()
             db.close()

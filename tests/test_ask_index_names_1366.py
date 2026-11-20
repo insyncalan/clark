@@ -529,8 +529,9 @@ class NoFolders(Base):
         self.assertEqual({k: v["state"] for k, v in got.items()}, {str(a): "done", str(b): "done"})
         self.assertEqual(got[str(a)]["line"], "Indexed 0 of 1 file. 1 looks like a password or a key and was left out.")
         meta = dict(sqlite3.connect(ix.path_for(self.data, "P1")).execute("SELECT k, v FROM meta").fetchall())
-        self.assertEqual(sorted(meta), ["complete", "counts", "folders", "listed"])
+        self.assertEqual(sorted(meta), ["complete", "counts", "folders", "listed", "screen"])
         self.assertEqual(meta["complete"], "1")
+        self.assertEqual(meta["screen"], str(ask_index.SCREEN_VERSION))
 
 
 class Ledger(Base):
