@@ -129,6 +129,37 @@ class Reader(unittest.TestCase):
         self.assertEqual(s.calls, [])
 
 
+    def test_run_jxa_captures_the_output_with_text_mode_the_given_timeout_and_returns_it(self):
+        seen = []
+
+        def fake(argv, **kw):
+            seen.append((argv, kw))
+            return subprocess.CompletedProcess(argv, 0, "printed\n", "")
+
+        self.assertEqual(pl.run_jxa("x", ["a", 7], 5, run=fake, on="darwin"), "printed\n")
+        argv, kw = seen[0]
+        self.assertIs(kw["capture_output"], True)               # without it osascript's answer is never read and every picture reads as no text
+        self.assertIs(kw["text"], True)
+        self.assertIs(kw["check"], False)
+        self.assertEqual(kw["timeout"], 5)
+        self.assertEqual(argv[-2:], ["a", "7"])
+
+    def test_run_jxa_turns_a_timeout_a_failure_and_a_missing_program_into_a_platform_error(self):
+        def late(argv, **kw):
+            raise subprocess.TimeoutExpired("osascript", 5)
+
+        def gone(argv, **kw):
+            raise OSError("no osascript")
+
+        def failed(argv, **kw):
+            return subprocess.CompletedProcess(argv, 1, "", "boom")
+
+        for fake, words in ((late, "did not finish in time"), (gone, "could not be started"), (failed, "failed")):
+            with self.subTest(words=words), self.assertRaises(pl.PlatformError) as caught:
+                pl.run_jxa("x", [], 5, run=fake, on="darwin")
+            self.assertIn(words, str(caught.exception))
+
+
 class InTheIndex(Base):
     def reader(self, stub):
         for p in (mock.patch.object(pl, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", lambda raw: vm.read(raw, run=stub))):
