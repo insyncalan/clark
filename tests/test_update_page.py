@@ -487,6 +487,7 @@ class Rows(InBrowser):
             hint = self.text("#update-file-hint")
             self.assertEqual(hint, "For a computer with no internet. Review a clark download you already have.")      # Row 1327 table row 3
             self.assertIsNone(re.search(r"(?i)zip|source|manifest|sha", hint), hint)
+            self.assertFalse(hint.startswith(("clark", "Clark")))
             self.assertEqual(self.text("[data-choose]"), "Choose zip…")
             self.assertEqual(self.val("document.querySelector('[data-choose]').getAttribute('aria-describedby')"), "update-file-hint")
             self.below("[data-choose]", "#update-file-hint")
