@@ -61,5 +61,47 @@ class QuestionEnv(unittest.TestCase):
             self.assertNotIn(CANARY, env)
 
 
+class CheckEnv(unittest.TestCase):
+    """The version, flag-list and sign-in checks (ask_claude.ClaudeCommand._flags_ok and _login_problem) run with the same env."""
+
+    def setUp(self):
+        self.calls = []
+        for p in (mock.patch.dict(os.environ, {CANARY: "do-not-pass", "ANTHROPIC_API_KEY": "do-not-pass"}),
+                  mock.patch.object(ac.platform, "run_stoppable", side_effect=self.record)):
+            p.start()
+            self.addCleanup(p.stop)
+        self.provider = ac.ClaudeCommand(places=())
+
+    def record(self, args, data, env, *_a, **_k):
+        self.calls.append((list(args), dict(env)))
+        if "--version" in args:
+            return "ok", b"2.1.0 (Claude Code)", 0
+        if "--help" in args:
+            return "ok", "\n".join("  " + f for f in ac.NEEDED_FLAGS).encode(), 0
+        return "ok", json.dumps({"loggedIn": True, "authMethod": ac.SIGNED_IN}).encode(), 0
+
+    def env_of(self, flag):
+        found = [env for args, env in self.calls if flag in args]
+        self.assertEqual(len(found), 1)
+        return found[0]
+
+    def check(self, env):
+        self.assertEqual(env, ac.child_env())
+        self.assertNotIn(CANARY, env)
+        self.assertNotIn("ANTHROPIC_API_KEY", env)
+
+    def test_the_version_check_gets_the_scrubbed_env(self):
+        self.assertTrue(self.provider._flags_ok(PATH))
+        self.check(self.env_of("--version"))
+
+    def test_the_help_check_gets_the_scrubbed_env(self):
+        self.assertTrue(self.provider._flags_ok(PATH))
+        self.check(self.env_of("--help"))
+
+    def test_the_sign_in_check_gets_the_scrubbed_env(self):
+        self.assertIsNone(self.provider.login_problem(PATH))
+        self.check(self.env_of("auth"))
+
+
 if __name__ == "__main__":
     unittest.main()
