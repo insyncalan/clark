@@ -688,6 +688,10 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
 html { overscroll-behavior-y: none; }
+/* Row 1355 (Classic only; the Cards look layers none of this, shell.css is untouched): the Timeline / Calendar switch has radius 6, as the prototype draws it (index.html lines 189-192), not the 8px --radius; the 1px border and the line between the cells are the prototype --ui, which is the Classic token --grey-500 (see row 1316d); the cells are 28px high with padding 0 12px. Bare lengths: no token holds 6, 28 or 12. The cells stay square inside; the switch clips them. */
+.msv-sw { border-radius: 6px; border-color: var(--grey-500); }
+.msv-sw .msv-b { min-height: 28px; padding: 0 12px; }
+.msv-sw .msv-b + .msv-b { border-left-color: var(--grey-500); }
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
 .hdr-id, .top-id { max-width: 50%; }
 .hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

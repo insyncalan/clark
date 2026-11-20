@@ -259,10 +259,10 @@ class Classic(Setup):
             self.assertIsNotNone(sc)
             for grp in (sw, sc):
                 self.assertEqual(grp["gap"], "0px", "joined")
-                self.assertEqual(grp["rad"], "6px" if grp is sc else g["radius"], "the group keeps the rounded outer corners (the text tabs are radius 6, Row 1316 gap)")
+                self.assertEqual(grp["rad"], "6px", "the group keeps the rounded outer corners (radius 6: the scale by row 1316, the switch by the row 1355 ruling)")
                 self.assertEqual(grp["ov"], "hidden", "the square buttons are clipped to the rounded outer corners")
                 self.assertEqual(grp["pad"], "12px 12px", "each button keeps its side padding")
-                self.assertEqual(grp["div"], rgb_of(g["g500"] if grp is sc else g["heading"]), "the rule between neighbours is the heading colour (the text tabs: --grey-500, Row 1316 gap)")
+                self.assertEqual(grp["div"], rgb_of(g["g500"]), "the rule between neighbours is grey-500 (the scale by row 1316, the switch by row 1355)")
                 self.assertEqual({b["radius"] for b in grp["btns"]}, {"0px"})
                 self.assertEqual({b["bottom"] for b in grp["btns"]}, {"0px"}, "no underline")
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
@@ -277,7 +277,7 @@ class Classic(Setup):
             print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
                   "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")
-            self.assertEqual(sw["bc"], rgb_of(g["heading"]))
+            self.assertEqual(sw["bc"], rgb_of(g["g500"]), "row 1355: the switch outline is grey-500")
             self.assertEqual(set(sc["dots"]), {"none"}, "the dots between scales are gone")
 
     def test_only_the_dashboard_frame_goes_flat_the_gantt_page_the_milestones_frame_and_a_plain_frame_keep_their_card(self):
