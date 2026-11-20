@@ -2,6 +2,7 @@
 // (Overdue actions, High risks and issues, Decisions needed: the same figures as the At a glance tiles). A field is saved when it
 // is left (or its choice made): one change() each, so one step and one Undo. A figure with a label and no number (or the other way
 // round) is saved and waits: the line under it says it stays out of the published page. The preview above is what View shows.
+import { StartPrompt } from "../StartPrompt.jsx";
 import { change } from "../../stores/changes.js";
 import { data } from "../../stores/report.js";
 import { todayIso } from "../../workItems.js";
@@ -39,7 +40,7 @@ export function figuresEdit(type) {
     };
     return (
       <div class="tpl-edit" data-edit-only="" data-template={type}>
-        {shown.length ? <FigureRow list={shown} type={type} /> : <p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p>}
+        {shown.length ? <FigureRow list={shown} type={type} /> : <><StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"} /><p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p></>}
         <div class={`tpl-slots n${places}`}>
           {slots.map((s, i) => (
             <fieldset class="tpl-slot" key={i} data-slot={i}>
