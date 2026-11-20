@@ -85,7 +85,7 @@ COVERED = [
      "test_settings_head::Head::test_C_the_title_the_help_line_and_a_menu_item_for_each_page_that_exists"),
     ("#677", "Appearance is a segmented control (System, Light, Dark), not radio buttons.",
      "test_appearance::Appearance::test_C_appearance_is_a_segmented_control_not_radio_buttons"),
-    ("#677", "Single-key shortcuts is a switch with its words and works by keyboard.",
+    ("#677", "Single-key slash commands are a switch with its words and works by keyboard.",
      "test_single_keys::PageKeys::test_the_setting_is_a_switch_with_its_words_and_works_by_keyboard"),
     ("#688", "The line under the Help search count says each result names the guide and the step.",
      "test_help_search_where::Logic::test_the_count_line_and_the_lead_are_the_signed_words"),

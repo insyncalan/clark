@@ -19,8 +19,9 @@ from clark import page, theme
 
 NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
-M1305, NEXT = "/* Row 1305", "/* Row 1393"
-PART_1305 = RULES[RULES.index(M1305):RULES.index(NEXT)]
+M1305 = "/* Row 1305"
+# the block runs to the next Row comment, whichever row that is (later rows land after it)
+PART_1305 = RULES[RULES.index(M1305):RULES.index("/* Row ", RULES.index(M1305) + 1)]
 LONG = "A very long project name that goes on and on and on and on and on and on and on and on and on"
 HEADER = "document.querySelector('.top-hdr, .top-file')"
 

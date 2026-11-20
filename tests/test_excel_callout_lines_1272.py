@@ -53,7 +53,29 @@ class CalloutLines(unittest.TestCase):
         self.assertEqual(lines(paras=[])[0], ("ZQ-Pick one", True))
 
     def test_empty_callout_is_empty(self):
-        self.assertEqual(lines(title="", paras=[]), [])
+        self.assertEqual(lines(title="", paras=[], category="", colour="plain", icon="none"), [])
+
+    def test_all_five_empty_with_the_fields_absent_is_empty(self):
+        self.assertEqual(callout_lines({"type": "callout", "content": {"title": "", "paras": [], "category": "", "colour": "plain", "icon": "none"}}), [])
+
+    def test_category_only_gets_heading_and_line(self):
+        self.assertEqual(lines(title="", paras=[], colour="plain", icon="none"), [("Callout", True), ("Category: ZQ-Choice.", False)])
+
+    def test_colour_only_gets_heading_and_line(self):
+        self.assertEqual(lines(title="", paras=[], category="", icon="none"), [("Callout", True), ("Colour: Amber.", False)])
+
+    def test_icon_only_gets_heading_and_line(self):
+        self.assertEqual(lines(title="", paras=[], category="", colour="plain"), [("Callout", True), ("Icon: Flag.", False)])
+
+    def test_category_only_heading_off_is_just_the_line(self):
+        self.assertEqual(lines(title="", paras=[], colour="plain", icon="none", heading=False), [("Category: ZQ-Choice.", False)])
+
+    def test_category_only_with_title_keeps_title_heading(self):
+        self.assertEqual(lines(title="ZQ-T", paras=[], colour="plain", icon="none")[0], ("ZQ-T", True))
+
+    def test_tile_switch_changes_nothing(self):
+        self.assertEqual(lines(tile=False), lines(tile=True))
+        self.assertEqual(lines(tile=False, title="", paras=[], colour="plain", icon="none"), lines(tile=True, title="", paras=[], colour="plain", icon="none"))
 
     def test_no_content_is_empty(self):
         self.assertEqual(callout_lines({"type": "callout"}), [])
@@ -76,7 +98,7 @@ class CalloutLines(unittest.TestCase):
         self.assertEqual(lines()[0], ("ZQ-Pick one", True))
 
     def test_heading_off_and_empty_callout_is_empty(self):
-        self.assertEqual(lines(heading=False, title="", paras=[]), [])
+        self.assertEqual(lines(heading=False, title="", paras=[], category="", colour="plain", icon="none"), [])
 
     def test_heading_off_title_only_keeps_the_parts_line(self):
         self.assertEqual(lines(heading=False, paras=[]), [("Category: ZQ-Choice. Colour: Amber. Icon: Flag.", False)])
