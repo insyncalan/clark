@@ -6,6 +6,7 @@ muted, capitals, 13 px or more and 4.5:1 on the bar) with more space above it th
 at most 32 px high; a page row is the whole hit area (its edges answer to the page), has a pointer cursor and a hover fill, the open page is marked
 (aria-current and a filled row with an accent bar) and the keyboard ring shows. Chrome is required: these tests fail, never skip, without it.
 """
+import time
 import unittest
 
 from test_publish_dialog import Base
@@ -101,9 +102,12 @@ class SettingsMenu1280(Base):
                 self.assertLessEqual(bottom, 8, "padding under a heading is small")
             li = p.js("[...document.querySelectorAll('.set-nav .plain li')].map(e => { const s = getComputedStyle(e); return [s.borderTopWidth, s.paddingTop, s.paddingBottom]; })")
             self.assertTrue(all(x == ["0px", "0px", "0px"] for x in li), "no line or padding on a page's list item")
-            adv = p.js("(function(){ const s = getComputedStyle(document.querySelector('.set-advanced')); return [s.borderTopWidth, parseFloat(s.paddingTop)]; })()")
-            self.assertEqual(adv[0], "1px", "Advanced keeps its line above")
-            self.assertGreater(adv[1], 0, "and room under the line")
+            if p.js("!!document.querySelector('.set-advanced')"):
+                adv = p.js("(function(){ const s = getComputedStyle(document.querySelector('.set-advanced')); return [s.borderTopWidth, parseFloat(s.paddingTop)]; })()")
+                self.assertEqual(adv[0], "1px", "Advanced keeps its line above")
+                self.assertGreater(adv[1], 0, "and room under the line")
+            else:
+                self.assertEqual(p.js("document.querySelectorAll('.set-group-line').length"), 0, "row 1299 1a: no group is set apart and none has a line of words")
             first = p.js("(function(){ const g = document.querySelector('.set-nav .set-group'); return getComputedStyle(g).marginTop; })()")
             self.assertEqual(first, "0px", "the first group has no space above it")
         self.each(body)
@@ -122,9 +126,16 @@ class SettingsMenu1280(Base):
             self.assertEqual(marked[1], "3px", "and has an accent bar")
             rest = p.js("(function(){ const b = document.querySelector('.set-chip:not([aria-current])'); return getComputedStyle(b).backgroundColor; })()")
             self.assertEqual(rest, "rgba(0, 0, 0, 0)")
-            r = p.js("(function(){ const c = document.querySelector('.set-chip:not([aria-current])'); c.scrollIntoView({block: 'nearest'}); const b = c.getBoundingClientRect(); return [b.left + b.width - 3, b.top + b.height / 2]; })()")
-            self.hover(p, *r)
-            self.assertTrue(wait(lambda: p.js("getComputedStyle(document.querySelector('.set-chip:not([aria-current])')).backgroundColor") != "rgba(0, 0, 0, 0)", 5), "a hover fill at the row's far edge")
+            # the pointer is moved again on every poll, to a point re-measured from the row and one pixel different each time: a single move sent while the page is still
+            # settling (a loaded runner) is lost, and a move to the same point is not a move at all
+            tries = []
+            def hovered():
+                r = p.js("(function(){ const c = document.querySelector('.set-chip:not([aria-current])'); c.scrollIntoView({block: 'nearest'}); const b = c.getBoundingClientRect(); return [b.left + b.width - 3, b.top + b.height / 2]; })()")
+                tries.append(1)
+                self.hover(p, r[0] - len(tries) % 2, r[1])
+                time.sleep(0.15)
+                return p.js("getComputedStyle(document.querySelector('.set-chip:not([aria-current])')).backgroundColor") != "rgba(0, 0, 0, 0)"
+            self.assertTrue(wait(hovered, 10), "a hover fill at the row's far edge")
             p.js("document.querySelector('.set-chip').focus()")
             p.key("Tab", code="Tab", vk=9)
             ring = p.js("(function(){ const s = getComputedStyle(document.activeElement); return [s.outlineWidth, s.outlineStyle]; })()")

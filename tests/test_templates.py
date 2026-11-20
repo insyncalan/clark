@@ -168,6 +168,19 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t(f"plan({lit(have)}, 'built-in-milestones', 'a', false)")["requests"],
                          [{"op": "new", "values": {"type": "milestones", "title": "Milestones"}, "after": "a", "place": "report"}])
 
+    def test_no_card_for_risks_and_issues_open_actions_or_decisions(self):
+        """Row 1407: the Work items list covers them; the library offers no card for those three, with or without a section of that type."""
+        types = {x["type"] for x in self.t("BUILT_INS")}
+        self.assertFalse(types & {"raid", "actions", "decisions"}, "no built-in card of the three")
+        offered = [x["name"] for x in self.t("list({sections: []})")]
+        for name in ("Risks and issues", "Open actions", "Decisions"):
+            self.assertNotIn(name, offered)
+        self.assertIsNone(self.t('find("built-in-raid")'))
+        self.assertIsNone(self.t('find("built-in-actions")'))
+        self.assertIsNone(self.t('find("built-in-decisions")'))
+        self.assertIn("work-items", [x["id"] for x in self.t("list({sections: []})")], "Work items list stays")
+        self.assertTrue({"raid", "actions", "decisions"} <= set(self.t("ACCEPTS")["types"]), "the store still takes sections of the three types, so a report that holds one opens and exports")
+
     @staticmethod
     def _rows(o, out=None):
         out = [] if out is None else out
@@ -344,7 +357,7 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 24)      # row 1068: + the Plan table card
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 24)      # row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
                              ["All templates24", "Project information1", "Text and pictures8", "Figures3", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")

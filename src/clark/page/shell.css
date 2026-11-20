@@ -93,6 +93,11 @@ html[data-density="comfortable"] .frame.report .cover { border-radius: var(--rad
 .tcell.health { flex: 2 1 12px; min-width: min(292px, 100%); }   /* 12px: the gap above; 292 = 2 x 140 + 12 */
 /* A-D14 as the prototype has it: at 1180 px and below Project health sits on its own row and the other tiles share the row under it. */
 @media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }
+/* row 1303: above 1180 px Project health with two visible tiles fills half the row and with one visible tile three quarters (the gap taken off its share, the tiles share the rest); with three it stays two shares of four-up. Hidden tiles do not count (data-others is set in Glance.jsx). */
+@media (min-width: 1181px) {
+  .glance[data-others="2"] > .tcell.health { flex: 0 0 calc(50% - var(--space-3) / 2); }
+  .glance[data-others="1"] > .tcell.health { flex: 0 0 calc(75% - var(--space-3) * 3 / 4); }
+}
 .fig { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font: inherit; text-align: left; color: inherit; }
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
@@ -139,7 +144,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
-.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu [role="menuitemradio"]:hover, .ddmenu [role="menuitemradio"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ragdot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-grey); }
 .rag-g .ragdot { background: var(--status-green); } .rag-a .ragdot { background: var(--status-amber); } .rag-r .ragdot { background: var(--status-red); }
@@ -269,7 +274,7 @@ table.items th:first-child, table.items td:first-child { padding-left: var(--spa
 table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
-table.items .c-prio { width: 104px; }
+table.items .c-prio { width: 122px; }
 table.items .c-status { width: 76px; }      /* row 1145: the icon alone */
 table.items.arch .c-status { width: 152px; }      /* the archived list still reads its status in words */
 table.items tr.done .t { color: var(--text-muted); }
@@ -327,6 +332,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
 .head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
+.head-sub-off { display: none; }      /* hides the whole last-milestone sentence (its name, its date or "no date yet", the "now expected" part and the achieved / to come counts) whenever the page has such a line; the sentence stays in the page for the tests. The empty and cancelled sentences have no line and stay shown. */
 .hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
@@ -496,18 +502,18 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* creaite's Add button (NewTile): a "+" that grows to its words on hover and on keyboard focus. */
 .dd { position: relative; display: inline-block; }
-.newb { height: 32px; min-width: 32px; border: 0; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 7px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
+.newb { height: 28px; min-width: 28px; border: 1px dashed var(--status-blue-text); border-radius: var(--radius); background: var(--surface); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 4px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
 .newb .i { width: 18px; height: 18px; stroke-width: 2.2; }
 .newb .w { max-width: 0; opacity: 0; overflow: hidden; transition: max-width var(--dur-state) var(--ease-out), opacity var(--dur-instant) var(--ease-out), margin var(--dur-state) var(--ease-out); }
-.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); color: var(--text-on-brand); }
+.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .newb:hover .w, .newb:focus-visible .w, .newb[aria-expanded="true"] .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
 .newb:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .newb .nch { display: none; width: 14px; height: 14px; }
 .newb.hasmenu:hover .nch, .newb.hasmenu:focus-visible .nch, .newb.hasmenu[aria-expanded="true"] .nch { display: inline-block; }
-.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 200px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 224px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .ddmenu.left { left: 0; right: auto; }
 .ddmenu:focus { outline: none; }
-.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu .sep { height: 1px; margin: 6px 0; background: var(--border); }
 .ddmenu .who { display: block; padding: var(--space-2) 14px 6px; max-width: 280px; }
 .ddmenu .who b { display: block; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -729,15 +735,16 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; overscroll-behavior-y: contain; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
-/* Row 1258 (v1.1.1), the approved peek mockup (peek-mockup.html .panel): the item, milestone and archived peeks float as a card, 16 px in from the right and the bottom, 16 px under the banner, radius 16, a 1 px border and the mockup's shadow. The Help peek keeps its banner-line, flush-right shape. */
-.peek:not(.hpk) { top: calc(var(--topbar) + 16px); right: 16px; bottom: 16px; max-width: calc(100% - 32px); border: 1px solid var(--grey-200); border-radius: 16px; box-shadow: 0 10px 40px rgba(6, 47, 58, .18); }
-.peek.wide:not(.hpk) { width: calc(100% - 32px); }
+/* Row 1289 (v1.3, the owner 17-11 "smooth peek is perfect", reverses the card of row 1258): every peek, Help included, is flush to the right edge, top on the banner's bottom edge, bottom on the window's bottom, square, no gap; the base rule above is the whole frame. Entry is a 0.5 s slide from beyond the right edge (--peek-dur, --peek-ease, keyframe pk-in); the exit stays 120 ms. */
+:root { --peek-dur: 500ms; --peek-ease: cubic-bezier(.22, 1, .36, 1); }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
-@media (max-width: 999px) { .peek:not(.hpk) { width: calc(100% - 32px) !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
+@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
+@keyframes pk-in { from { transform: translateX(100%); } }
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
-@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
+@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } .peek:not(.leaving) { animation: pk-fade var(--dur-instant) var(--ease-enter) 1; } }      /* row 1289: no travel under reduced motion, a short fade */
+@keyframes pk-fade { from { opacity: 0; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 24px; cursor: ew-resize; touch-action: none; }      /* a 24 px hit box inside the peek's 24 px side padding; the strip that shows is still 8 px */
 .pk-edge:hover { background: linear-gradient(var(--brand-cyan), var(--brand-cyan)) left / 8px 100% no-repeat; opacity: .5; }
 .pk-edge:focus-visible { background: linear-gradient(var(--brand-blue), var(--brand-blue)) left / 8px 100% no-repeat; opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
@@ -896,6 +903,8 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
 .boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
+.boardbox { scrollbar-width: none; }      /* row 1269 Cards item 3: both scroll bars of the board (sideways and down) are hidden on the scroller (.boardbox), not on .board; the board still scrolls both ways */
+.boardbox::-webkit-scrollbar { display: none; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
@@ -1184,6 +1193,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-act:not(.tb-ask) { min-width: 38px; height: 28px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); }   /* row 772: the search button is a bordered 38 by 28 box, as in the prototype */
 .tb-ask { height: 34px; padding: 0 10px; font-size: var(--size-small); border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }   /* row 772: the ask clark text at 14 px in a 34 px button */
 .tb-ask .tb-ico { width: 16px; height: 16px; }
+.tb-ask-dots { display: inline-flex; gap: 2px; margin-left: 6px; }   /* row 1292: an answer is being made while the panel is closed (still dots, nothing loops) */
+.tb-ask-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .8; }
+.tb-ask-ready { margin-left: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--white); color: var(--brand-navy); font-size: var(--size-caption); line-height: 16px; text-align: center; font-weight: 600; }   /* row 1292: an answer is ready */
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
@@ -1841,7 +1853,7 @@ html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: cal
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals); row 805 took the intro line away */
-#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
+#work .crumbs, #milestones .crumbs, #usecases .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones and Use cases too) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab { font-family: var(--font-label); font-weight: 500; }
@@ -1968,7 +1980,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .pk-row.flash { animation: sn-flash calc(var(--dur-enter) * 2 + var(--dur-state)) var(--ease-out) 1; }
     .sn-confirm.flash { animation: sn-flash calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
-    .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .peek:not(.leaving) { animation: pk-in var(--peek-dur) var(--peek-ease) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
     /* row 884: the Dashboard pill's thumb slides to the other button (transform only; the buttons keep their places), and the Edit-only chrome fades in as Edit opens */
     .modes.seg.glide { position: relative; }
@@ -2195,6 +2207,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-pr { padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wil-pr.h { background: var(--tone-amber-tint); color: var(--tone-amber-text); }
 .wil-pr.u { background: var(--tone-red-tint); color: var(--tone-red-text); }
+table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2: the pill in the live table's Priority cell (with the edit button's caret) keeps inside the 104 px column */
 .wil-table .due-l { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .wil-table .due-l.late { color: var(--status-red-text); }
 /* row 1268: an item the client eye has taken off is greyed, tile, title, owner, date, priority and ID (Edit only; View and a file list none). */
@@ -2239,6 +2252,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   .wil-table .wil-c-type, .wil-table .wil-c-id, .wil-table .wil-c-due { width: 92px; }
   .wil-table .wil-c-status { width: 96px; }
   .wil-table .wil-c-priority { width: 72px; }
+}
+/* row 1193: at 1000 px and below the date and priority cells give their content room (less padding, the pill and the date may wrap), so nothing spills over the next cell */
+@media (max-width: 1000px) {
+  .wil-table td.wil-c-due, .wil-table td.wil-c-priority { padding-left: 4px; padding-right: 4px; white-space: normal; overflow-wrap: anywhere; }
+  .wil-table .wil-c-due { width: 104px; }
+  .wil-table .wil-c-priority { width: 80px; }
 }
 
 /* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
@@ -3047,3 +3066,22 @@ html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) m
 html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .pkt-name { display: inline-flex; align-items: center; gap: 8px; } .pkt-name .ms-i { width: 16px; height: 16px; flex: none; }
 .pkt-opts label.zero { color: var(--text-muted); opacity: 0.6; cursor: default; }
+
+/* row 1294 (A8, first slice): the two tabs on the ask clark page, "All projects" and the open project; the one shown has the same marker as a Settings page link. */
+.ask-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.ask-tabs-lab { margin-right: var(--space-1); }
+.ask-tab { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }
+.ask-tab:hover { background: var(--grey-200, var(--grey-100)); }
+.ask-tab[aria-current] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.ask-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
+/* row 1294 (A8, third slice): the standing instructions of asking. The box is under its label, as wide as the card, and grows only downward. */
+.ask-instr { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; }
+.ask-instr-name { font-weight: var(--weight-medium); }
+.ask-instr-box { width: 100%; box-sizing: border-box; min-height: 160px; padding: 10px 12px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; line-height: 1.5; resize: vertical; }
+.ask-instr-box:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-instr-box[aria-invalid="true"] { border-color: var(--status-red-text); }
+.ask-instr-box:disabled { background: var(--grey-100); }
+.ask-instr-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--size-caption); }
+.ask-instr-foot .pub-msg { margin-top: 0; min-height: 0; flex: 1 1 240px; text-align: right; }
+.ask-instr-read { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-1) 0 var(--space-2); font-size: var(--size-body); }

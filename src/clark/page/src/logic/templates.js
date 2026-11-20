@@ -11,6 +11,7 @@ import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
 import { defaults, bodyOf } from "../templates/workItemsList.js";
+import { PLAN_SUMMARY_BODY } from "./planSummaryBody.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -81,7 +82,7 @@ export const TEMPLATES = [
   { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
-    body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
+    body: PLAN_SUMMARY_BODY,
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
@@ -103,6 +104,7 @@ export const LATER = [
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
+// Row 1407: Risks and issues, Open actions and Decisions are not in this list; the Work items list (its views in filterLine.js) covers them.
 // Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
 // so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
 const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
@@ -118,8 +120,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
-  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
-  builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
 // "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.

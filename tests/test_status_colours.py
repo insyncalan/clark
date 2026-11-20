@@ -80,6 +80,7 @@ class Tokens(unittest.TestCase):
 class Tiles(Base):
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent and late", "owner": "Sara Khan", "due_date": "2026-10-01", "priority": "Urgent",
                                   "raised": "2026-09-01", "client_message": "Urgent and late", "source": "demo"})
@@ -172,6 +173,9 @@ class PaletteUrgent(unittest.TestCase):
 
 
 class WordUrgent(Base):
+    def setUp(self):
+        super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
     def test_an_urgent_item_has_a_maroon_status_cell_with_white_bold_words_and_overdue_stays_in_the_due_column(self):
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent late", "owner": "Sara Khan", "due_date": "2026-10-01", "priority": "Urgent",
@@ -192,6 +196,7 @@ class WordUrgent(Base):
 class FileWordAndWordCopy(Base):
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent on track", "owner": "Sara Khan", "due_date": "2027-03-01", "priority": "Urgent",
                                   "raised": "2026-09-01", "client_message": "Urgent on track", "source": "demo"})

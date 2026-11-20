@@ -10,9 +10,11 @@ import re
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import _routes as routes_expected
+import _testpage as testpage
 from _paths import ROOT
 from _demo import USER
 from _pictures import GOOD
@@ -49,7 +51,14 @@ class ViewBundleNamesNoRoute(unittest.TestCase):
 class AllTemplates(Base):
     def setUp(self):
         super().setUp()
+        # Classic is the only theme (row 1363), so the served View and the file draw the same Theme.
+        # The served test page layers no Theme, and the work items rows read Classic from the <style id="theme"> element: add it, as the real page does.
+        real_html = testpage.html
+        patch = mock.patch.object(testpage, "html", lambda *a, **k: real_html(*a, **k).replace("</head>", '<style id="theme"></style></head>', 1))
+        patch.start()
+        self.addCleanup(patch.stop)
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.kept = d.action(description=KEPT, due_date=OVERDUE)
         self.hid = d.action(description=HIDDEN, due_date=OVERDUE)
         self.arc = d.action(description=ARCHIVED, due_date=OVERDUE)
