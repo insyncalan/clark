@@ -72,6 +72,22 @@ class ThreeMenus(unittest.TestCase):
         self.assertIn('class={it.card ? "mh caps mh-card" : "mh caps"}', BOARD)   # only the card's own head carries the mark, not the lane head
         self.assertIn("`Move to ${groupLabel(g)}`, card: true }", BOARD)
 
+    def test_the_capitals_rule_sets_size_tracking_and_weight_on_both_heads(self):
+        for sel in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card"):
+            self.assertEqual(decls(sel, "font-size"), "var(--size-caption)", sel)
+            self.assertEqual(decls(sel, "letter-spacing"), "var(--tracking-caps)", sel)
+            self.assertEqual(decls(sel, "font-weight"), "var(--weight-medium)", sel)
+
+    def test_move_to_items_centre_their_row_and_the_tick_slot_is_a_fixed_box(self):
+        self.assertEqual(decls(MOVE + ' [role="menuitem"]', "display"), "flex")
+        self.assertEqual(decls(MOVE + ' [role="menuitem"]', "align-items"), "center")
+        for sel in (GROUP + ' [role="menuitemradio"] .ck', MOVE + ' [role="menuitem"] > .ck'):
+            self.assertEqual(decls(sel, "box-sizing"), "border-box", sel)
+            self.assertEqual(decls(sel, "flex"), "none", sel)
+
+    def test_board_imports_classic_theme_from_contents(self):
+        self.assertIn('import { classicTheme } from "../components/Contents.jsx"', BOARD)   # the Move head reads it
+
     def test_no_other_menu_is_named(self):
         """Every selector of the Row 1273 block names Group by or Move to, and none names the Add menu (row 1462)."""
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")

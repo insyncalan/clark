@@ -35,6 +35,20 @@ class MoveHead(wb.Base):
                 tt = cdp.js("[...document.querySelectorAll('.ddmenu .mh')].map(h => getComputedStyle(h).textTransform)", sid)
                 self.assertEqual(tt, ["uppercase", "none"], "only the card's head is drawn in capitals")
 
+                # the capitals rule reads the tokens (a probe set to the same tokens resolves to the same px), on the card's head only
+                probe = cdp.js("""(() => { const m = document.querySelector('.ddmenu'); const p = document.createElement('span'); p.style.cssText = 'font-size:var(--size-caption);letter-spacing:var(--tracking-caps);font-weight:var(--weight-medium)'; m.appendChild(p); const q = getComputedStyle(p); const r = [q.fontSize, q.letterSpacing, q.fontWeight]; p.remove(); return r; })()""", sid)
+                head = cdp.js("(() => { const q = getComputedStyle(document.querySelector('.ddmenu .mh.caps.mh-card')); return [q.fontSize, q.letterSpacing, q.fontWeight]; })()", sid)
+                self.assertEqual(head, probe, "the card's head takes the caption size, the caps tracking and the medium weight")
+                self.assertNotEqual(probe[1], "normal")
+                # the Move to line is a centred flex row; the tick slot stays 16px and border-box even beside a very long label
+                row = cdp.js("""(() => { const ck = document.querySelector('.ddmenu [role="menuitem"] > .ck'); if (!ck) return null; const it = ck.parentElement; const q = getComputedStyle(it); const c = getComputedStyle(ck);
+                  const out = {display: q.display, align: q.alignItems, box: c.boxSizing, shrink: c.flexShrink, w0: ck.getBoundingClientRect().width};
+                  const l = document.createElement('span'); l.style.cssText = 'flex:none;width:2000px'; it.appendChild(l); out.w1 = ck.getBoundingClientRect().width; l.remove(); return out; })()""", sid)
+                self.assertIsNotNone(row, "an item of the Move to menu with a tick slot")
+                self.assertEqual((row["display"], row["align"], row["box"], row["shrink"]), ("flex", "center", "border-box", "0"))
+                self.assertAlmostEqual(row["w0"], 16, delta=0.5)
+                self.assertAlmostEqual(row["w1"], 16, delta=0.5, msg="a long label does not squeeze the tick slot")
+
 
 if __name__ == "__main__":
     unittest.main()
