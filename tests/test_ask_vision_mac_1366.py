@@ -159,6 +159,15 @@ class Reader(unittest.TestCase):
                 pl.run_jxa("x", [], 5, run=fake, on="darwin")
             self.assertIn(words, str(caught.exception))
 
+    def test_run_jxa_fails_for_a_process_stopped_by_a_signal_whose_return_code_is_negative(self):
+        for code in (-9, -15, 2):
+            def killed(argv, code=code, **kw):
+                return subprocess.CompletedProcess(argv, code, "partial", "")
+
+            with self.subTest(code=code), self.assertRaises(pl.PlatformError) as caught:
+                pl.run_jxa("x", [], 5, run=killed, on="darwin")
+            self.assertIn("failed", str(caught.exception))
+
 
 class SweepKillers(unittest.TestCase):
     """Pins found by a mutation sweep of ask_vision_mac and run_jxa: limits, reasons, text decoding and the off-Mac words."""

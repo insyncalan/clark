@@ -891,7 +891,7 @@ class More(Base):
         for reason, state in (("too_big", "too_long"), ("too_many_pages", "too_long"), ("encrypted", "type"), ("", "type")):
             with mock.patch.object(ask_index.pdf_reader, "read", return_value=mock.Mock(status="bad", reason=reason)):
                 ix.refresh(self.data, "P1", [self.box])
-                (self.box / "a.pdf").write_text("x" * (3 + len(reason)))
+                (self.box / "a.pdf").write_text("x" * (3 + len(reason)), encoding="utf-8")
             c = ask_index.status(self.data, "P1")
             self.assertEqual((c["too_long"], c["type"]), (1, 0) if state == "too_long" else (0, 1), reason)
 
