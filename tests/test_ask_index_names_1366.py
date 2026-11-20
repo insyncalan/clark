@@ -11,6 +11,8 @@ import sqlite3
 import threading
 import time
 import unittest
+import shutil
+import tempfile
 import zipfile
 from pathlib import Path
 from unittest import mock
@@ -18,6 +20,7 @@ from unittest import mock
 from _paths import SRC  # noqa: F401
 
 from test_ask_index_1366 import FAKE_KEY, Base, ix
+from clark import __main__ as launcher
 from clark import app_settings, ask_index, store as st
 
 
@@ -1033,6 +1036,44 @@ class WorkerMore(Base):
         self.assertEqual(calls, ["P1", "P1", "P1", "P1"])
         ix.build(self.data, "P1", [self.box])
         self.assertIs(w.current("P1", [self.box]), True)
+
+
+class LauncherWiring(unittest.TestCase):
+    """The one line of the launcher that builds the Indexer: it is told whether asking is On, from the real switch."""
+
+    def built(self, switch):
+        tmp = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        made = []
+        real = ask_index.Indexer
+
+        def spy(*a, **kw):
+            made.append(real(*a, **kw))
+            return made[-1]
+
+        def serve(**kw):
+            print("Open http://127.0.0.1:%d/ to use the report editor." % kw["port"], file=kw["out"], flush=True)
+            return 0
+
+        with mock.patch.object(launcher.ask_index, "Indexer", spy), \
+                mock.patch.object(launcher.platform, "container_on_host_network", lambda: False), \
+                mock.patch.object(st.Store, "ask_enabled", lambda self: switch):
+            code = launcher.main(["--data", str(tmp / "data"), "--port", "8123"], out=io.StringIO(), err=io.StringIO(), serve=serve,
+                                 home=tmp, onedrive_roots=[], environ={}, is_free=lambda port: True)
+            self.assertEqual(code, 0)
+            (ix,) = made
+            self.assertIsNotNone(ix.allowed, "the launcher gives the indexer the asking switch")
+            return ix.allowed(), ix._on()
+
+    def test_with_asking_off_the_indexer_the_launcher_builds_is_not_allowed_to_build(self):
+        allowed, on = self.built(False)
+        self.assertIsNot(allowed, True)
+        self.assertFalse(on)
+
+    def test_with_asking_on_the_indexer_the_launcher_builds_is_allowed(self):
+        allowed, on = self.built(True)
+        self.assertIs(allowed, True)
+        self.assertTrue(on)
 
 
 if __name__ == "__main__":
