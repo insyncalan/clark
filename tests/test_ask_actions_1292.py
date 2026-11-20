@@ -314,6 +314,44 @@ class More(Classic):
                 p.js("document.querySelector('[data-ask-copy]').click()")
                 p.until("document.body.textContent.includes('Could not copy. Select the text and copy it yourself.')", f"{w}: the failure notice")
 
+    def test_copied_going_away_does_not_wipe_a_newer_line_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                p.js(FAKE)
+                self.ask(p, "Q?")
+                self.answered(p, 1, f"{w}: answered")
+                p.js("document.querySelector('[data-ask-copy]').click()")
+                p.until("document.querySelector('#ask-note').textContent === 'Copied'", f"{w}: copied")
+                p.js("document.querySelector('#ask-send').click()")
+                p.until("document.querySelector('#ask-note').textContent === 'Type a question first, then press Ask.'", f"{w}: a newer line replaced Copied")
+                p.js("window.__t = Date.now()")
+                p.until("Date.now() - window.__t > 2600", f"{w}: past the 2 s")
+                self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "Type a question first, then press Ask.", f"{w}: the newer line stays")
+
+    def test_the_copied_timer_is_cleared_when_the_panel_goes_away(self):
+        # The panel stays mounted while the page is open (App.jsx), so closing it never runs the cleanup; the cleanup is pinned in the source.
+        src = (EDIT / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertIn("useEffect(() => () => clearTimeout(copiedTimer.current), []);", src)
+        self.assertIn("clearTimeout(copiedTimer.current);\n    setNote(ok ?", src, "a second copy cancels the first timer")
+
+    def test_ask_again_is_off_when_asking_is_off_though_nothing_is_running_at_1400_and_900(self):
+        for w in (1400, 900):
+            self.stub.__dict__.pop("ask", None)
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "Q?")
+                self.answered(p, 1, f"{w}: answered")
+                self.assertEqual(p.js("document.querySelector('[data-ask-again]').disabled"), False, f"{w}: on while ready")
+                self.stub.ask = lambda body: (409, {"ok": False, "code": "asking_off", "message": "Asking is off."})
+                self.ask(p, "Next?")
+                p.until("!document.querySelector('#ask-work') && !!document.querySelector('[data-ask-again]') && document.querySelector('#ask-panel').textContent.length > 0", f"{w}: settled")
+                p.until("document.querySelector('[data-ask-again]').disabled === true", f"{w}: Ask again is off with asking off")
+
 
 if __name__ == "__main__":
     unittest.main()
