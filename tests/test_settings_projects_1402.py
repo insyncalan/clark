@@ -8,6 +8,7 @@ import unittest
 
 import test_theme_classic_1317 as t13
 from test_theme_classic_1317 import NAME, page_target, for_url, wait, FIXED_DATE
+from test_server import Running, chrome  # noqa: F401  the browser harness, named so the browser tier reads this file as a browser test
 
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const ths = [...document.querySelectorAll('#projects-table thead th')], th = ths[0], th2 = ths[1], td = q('#projects-table tbody td'), td2 = q('#projects-table tbody td + td'), btn = q('#npBtn');
