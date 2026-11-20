@@ -55,7 +55,7 @@ class Words(unittest.TestCase):
 class Approval(Base):
     def test_a_suggestion_changes_nothing_until_apply(self):
         before = self.counts()
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertEqual(self.counts(), before)
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
         status, body = self.ask.apply("not-an-offer", "ABC")
@@ -65,7 +65,7 @@ class Approval(Base):
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Closed")
 
     def test_an_applied_change_has_an_undo_and_it_puts_the_old_value_back(self):
-        applied = self.applied(self.planned({"op": "change", "id": self.action, "status": "Closed"})["offer"])
+        applied = self.applied(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})["offer"])
         self.assertTrue(applied["undoable"])
         status, body = self.undo({"project": "ABC", "apply_id": applied["apply_id"]})
         self.assertEqual(status, 200, body)
@@ -74,7 +74,7 @@ class Approval(Base):
     def test_a_decision_marked_made_is_not_undone_and_a_new_decision_replaces_it(self):
         with self.s.step("dashboard", "t") as st:
             ref = st.create("decisions", {"project": "ABC", "decision": "Use the shared calendar", "status": "Pending", "source": "demo"})
-        applied = self.applied(self.planned({"op": "change", "id": ref, "status": "Made", "date": "2026-10-29", "made_by": "Sara Khan"})["offer"])
+        applied = self.applied(self.planned({"op": "change", "id": ref, "current_title": "Use the shared calendar", "status": "Made", "date": "2026-10-29", "made_by": "Sara Khan"})["offer"])
         self.assertEqual(self.s.read("decisions", ref=ref)["status"], "Made")
         status, body = self.undo({"project": "ABC", "apply_id": applied["apply_id"]})
         self.assertFalse(applied["undoable"], "the apply says itself there is no Undo for a Made decision")
@@ -86,7 +86,7 @@ class Approval(Base):
     def test_a_decision_marked_made_has_no_undo(self):
         with self.s.step("dashboard", "tester") as st:
             ref = st.create("decisions", {"project": "ABC", "decision": "Pick the venue", "made_by": "Sam Lee", "status": "Pending", "source": "demo"})
-        plan = self.planned({"op": "change", "id": ref, "status": "Made", "date": "2026-11-01"})
+        plan = self.planned({"op": "change", "id": ref, "current_title": "Pick the venue", "status": "Made", "date": "2026-11-01"})
         self.assertFalse(self.applied(plan["offer"])["undoable"])
 
     def test_asking_cannot_make_a_new_use_case_so_that_needs_no_undo_words(self):
@@ -108,7 +108,7 @@ class OnlyOffered(Base):
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
 
     def test_an_offer_applies_once_and_the_second_try_writes_nothing_more(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         before = self.counts()
         self.applied(plan["offer"])
         after_first = self.counts()
@@ -118,7 +118,7 @@ class OnlyOffered(Base):
         self.assertEqual(self.counts(), after_first, "the second apply wrote nothing")
 
     def test_one_offer_cannot_stand_in_for_another(self):
-        one = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        one = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         before = self.counts()
         status, body = self.ask.apply(one["offer"] + "x", "ABC")
         self.assertEqual((status, body["code"]), (409, "no_offer"))
@@ -128,9 +128,9 @@ class OnlyOffered(Base):
 
 class ExtraTick(Base):
     def test_only_a_change_taken_from_a_source_needs_the_tick(self):
-        own = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        own = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertFalse(own["needs_confirm"])
-        src = self.planned({"op": "change", "id": self.action, "status": "Closed", "source": "P2"})
+        src = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed", "source": "P2"})
         self.assertTrue(src["needs_confirm"])
         status, body = self.ask.apply(src["offer"], "ABC")
         self.assertEqual((status, body["code"]), (409, "needs_confirm"))
