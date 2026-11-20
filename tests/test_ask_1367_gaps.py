@@ -127,6 +127,15 @@ class TeamOnlyAndCurrentState(unittest.TestCase):
         self.assertIn("ZQ-KEEP-CURRENT", text_of(read(edit=hide)[0]))
         self.assertIn("ZQ-KEEP-CURRENT", text_of(read()[0]))
 
+    def test_the_current_state_text_is_read_without_markup(self):
+        def put(given):
+            given["data"]["project"]["current_state"] = '<b>ZQ-BOLD</b><script>ZQ-SCRIPT()</script> <a href="http://x.invalid">ZQ-LINK</a>'
+        text = text_of(read(edit=put)[0])
+        self.assertIn("ZQ-BOLD", text)
+        self.assertIn("ZQ-LINK", text)
+        for bad in ("<b>", "<script", "<a ", "href", "ZQ-SCRIPT"):
+            self.assertNotIn(bad, text)
+
 
 class DraftQuotingAHiddenItem(unittest.TestCase):
     def test_a_file_that_quotes_a_hidden_item_is_stopped_by_the_client_check(self):
