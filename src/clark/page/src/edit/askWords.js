@@ -374,3 +374,4 @@ export const PEOPLE_CONTRACT_AND = " and ";
 export const PEOPLE_CONTRACT_REST = ". When you ask a question, passages from matching files are sent to Claude. Choose other folders for asking, or keep this one.";
 export const PEOPLE_CONTRACT_CHOOSE = "Choose other folders";
 export const PEOPLE_CONTRACT_KEEP = "Keep it";
+export const PEOPLE_CONTRACT_LEAVE = "Leave these subfolders out";

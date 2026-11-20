@@ -502,7 +502,7 @@ class PeopleContractWarning(Base):
         root = self.tree()
         status, got = self.add(root)
         self.assertEqual(status, 200)
-        self.assertEqual(got["warnings"], [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1}]}])
+        self.assertEqual(got["warnings"], [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1, "dir": True}]}])
         self.assertEqual(self.stored(), [str(root)], "a warning is not a block: the folder is saved")
 
     def test_the_list_carries_the_same_warning_on_every_read(self):
@@ -510,7 +510,7 @@ class PeopleContractWarning(Base):
         self.add(root)
         for _ in range(2):
             status, got = self.get()
-            self.assertEqual((status, got["warnings"]), (200, [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1}]}]))
+            self.assertEqual((status, got["warnings"]), (200, [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1, "dir": True}]}]))
 
     def test_a_folder_without_such_names_has_an_empty_warning_and_the_choose_route_carries_it_too(self):
         (self.more / "notes").mkdir()
@@ -531,7 +531,7 @@ class PeopleContractWarning(Base):
         status, got = self.add(self.more)
         self.assertEqual(status, 200)
         self.assertEqual(got["warnings"], [{"folder": str(self.more), "items": [
-            {"name": "Salary", "readable_files": 1}, {"name": "Payroll", "readable_files": 2}]}],
+            {"name": "Salary", "readable_files": 1, "dir": True}, {"name": "Payroll", "readable_files": 2, "dir": True}]}],
             "the added folder only; every hit; in scan order; the name, not the path")
 
     def test_mutation_survivors_the_list_warns_for_every_project_folder_and_not_for_the_all_projects_folders(self):
@@ -548,7 +548,7 @@ class PeopleContractWarning(Base):
         self.assertEqual(status, 200)
         self.assertEqual([w["folder"] for w in got["warnings"]], [str(first), str(self.more)],
                          "each folder of the project, in list order; the all-projects folders are not part of this warning")
-        self.assertEqual([w["items"] for w in got["warnings"]], [[{"name": "Contract 2026", "readable_files": 1}], [{"name": "Payroll", "readable_files": 1}]],
+        self.assertEqual([w["items"] for w in got["warnings"]], [[{"name": "Contract 2026", "readable_files": 1, "dir": True}], [{"name": "Payroll", "readable_files": 1, "dir": True}]],
                          "each folder is scanned for itself, not the first folder's items under every folder")
 
     def test_no_provider_is_involved_in_the_warning(self):

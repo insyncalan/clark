@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
@@ -141,6 +141,22 @@ function AskProject() {
     setFmsg({ kind: "error", text: failure(r) });
   }
 
+  // Row 1365: Leave these subfolders out. The server finds the flagged subfolders itself and saves them as left out of this folder; the page sends only the folder.
+  // The answer's warnings replace the old ones for every folder (this folder's notice goes, as nothing in it is named any more); no file or folder on disk is touched.
+  async function leaveOut(p) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersChange(code, "exclude", p);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setFolders(b.folders);
+      setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
   // Row 1365: Choose other folders REPLACES the flagged folder. The same picker as Choose folder; a cancel (or a pick that is already listed) changes nothing;
   // a new pick is saved first, then the flagged folder is taken off the list (the list only: nothing on disk is touched).
   async function replaceFlagged(flagged) {
@@ -215,6 +231,7 @@ function AskProject() {
                 {kept.includes(p) ? null : (
                   <div class="ask-warn-btns">
                     <button type="button" class="btn pri" data-ask-warn-choose disabled={busy} onClick={() => replaceFlagged(p)}>{PEOPLE_CONTRACT_CHOOSE}</button>
+                    {w.items.some((i) => i.dir) ? <button type="button" class="btn" data-ask-warn-leave disabled={busy} onClick={() => leaveOut(p)}>{PEOPLE_CONTRACT_LEAVE}</button> : null}
                     <button type="button" class="btn" data-ask-warn-keep onClick={() => setKept((k) => [...k, p])}>{PEOPLE_CONTRACT_KEEP}</button>
                   </div>
                 )}

@@ -55,6 +55,7 @@ window.fetch = function (url, opts) {
   } else if (body && body.action === 'add') {
     if (body.path === '/bad') { status = 409; out = {ok: false, code: 'client_folder_refused', message: 'That folder holds your passwords, so asking cannot read it.'}; }
     else { f.push(body.path); out = {ok: true, folders: f, message: 'Folder added.', warnings: window.__ask.warn || []}; }
+  } else if (body && body.action === 'exclude') { window.__ask.open = []; window.__ask.warn = []; out = {ok: true, folders: f, apply_id: 7, warnings: window.__ask.excludeKeep || []};
   } else if (body && body.action === 'remove' && window.__ask.removeFail) { status = 500; out = null;
   } else if (body && body.action === 'remove') { window.__ask.folders = f.filter(x => x !== body.path); out = {ok: true, folders: window.__ask.folders}; }
   return Promise.resolve(new Response(JSON.stringify(out), {status: status, headers: {'Content-Type': 'application/json'}}));
@@ -106,7 +107,7 @@ class Settings(unittest.TestCase):
     def theme(self):
         """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules.css), so its test layers the Classic theme; the rest stay as they were."""
         name = self._testMethodName
-        return "prototype-2.0" if any(k in name for k in ("amber", "choose_other_folders", "provider", "singular", "saved_notice")) else None
+        return "prototype-2.0" if any(k in name for k in ("amber", "choose_other_folders", "provider", "singular", "saved_notice", "leave_")) else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
@@ -419,6 +420,33 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("window.__ask.folders"), ["/Example/Other"], "picked saved, flagged removed")
                 self.assertEqual(js("window.__ask.calls.map(c => c && c.action).filter(Boolean)"), ["choose", "choose", "choose", "remove"])
                 self.assertEqual(js("[...document.querySelectorAll('#ask-folders .folder-now')].map(e => e.innerText)"), ["/Example/Other"])
+
+    def test_leave_these_subfolders_out_is_a_third_button_that_sends_only_the_folder_and_the_notice_goes(self):
+        """Row 1365 line 14: the button shows only when a flagged hit is a folder, sends {action: exclude, path: the saved folder} and nothing else, and
+        the notice goes with the answer. 1400 and 900, Classic."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Choose other folders", "Leave these subfolders out", "Keep it"], width)
+                self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+                js(f"{box}.querySelector('[data-ask-warn-leave]').click()")
+                self.assertTrue(wait(lambda: js("!document.querySelector('[data-ask-warn]')"), 10), "the notice goes")
+                self.assertEqual(js("window.__ask.calls.filter(c => c && c.action === 'exclude')"), [{"project": "ABC", "action": "exclude", "path": "/Example/Programme files"}])
+                self.assertEqual(js("[...document.querySelectorAll('#ask-folders .folder-now')].map(e => e.innerText)"), ["/Example/Programme files"], "the folder stays listed")
+
+    def test_leave_out_button_is_not_offered_for_a_hit_that_is_only_a_file(self):
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Payroll.csv", "readable_files": 1, "dir": False}]}])
+            self.assertEqual(js("document.querySelectorAll('[data-ask-warn-leave]').length"), 0)
+
+    def test_a_failed_leave_out_says_so_and_keeps_the_notice(self):
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+            js("window.__ask.excludeFail = true; const f = window.fetch; window.fetch = (u, o) => (o && o.body && String(o.body).indexOf('exclude') >= 0) ? Promise.resolve(new Response(JSON.stringify({ok: false, code: 'cant_save', message: 'That folder could not be saved. Nothing was changed.'}), {status: 409, headers: {'Content-Type': 'application/json'}})) : f(u, o)")
+            js("document.querySelector('[data-ask-warn-leave]').click()")
+            self.assertTrue(wait(lambda: "Nothing was changed" in js("document.querySelector('#ask-folders-card').innerText"), 10))
+            self.assertTrue(js("!!document.querySelector('[data-ask-warn]')"))
 
     def test_the_warning_names_the_provider_in_use_and_choose_other_folders_opens_the_chooser(self):
         """Row 1365 test 5: ChatGPT is named when it is the provider; on open the notice is a labelled region, not an alert, and starts with the saved folder."""

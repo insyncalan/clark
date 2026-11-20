@@ -123,6 +123,10 @@ class AskService:
                 out.append(p)
         return out[:ask_folders.MAX_FOLDERS]
 
+    def left_out_for(self, store, code):
+        """{saved folder: its stored list of left-out subfolders} for the project's own folders (row 1365). The folders for all projects have none."""
+        return {r["path"]: r.get("excluded") for r in store.read("source_folders", code) if r.get("project", code) == code}
+
     def reader(self):
         """The store, opened read-only (a write through it fails in SQLite itself)."""
         return Store(connect(self.db_path, readonly=True), self.db_path, self.onedrive_roots)
@@ -256,6 +260,7 @@ class AskService:
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                cut_subs = self.left_out_for(store, code)
                 on_connectors = tuple(c for c in CONNECTORS if store.connector_allowed(c, code))      # row 1306: switch On and the project has not turned it Off
                 standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
@@ -263,7 +268,7 @@ class AskService:
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
             found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
-                                             ask.MAX_PASSAGES - len(data.passages))
+                                             ask.MAX_PASSAGES - len(data.passages), cut_subs)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:

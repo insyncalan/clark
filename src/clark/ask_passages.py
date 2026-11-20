@@ -24,7 +24,7 @@ import os
 import time
 from dataclasses import dataclass
 
-from clark import ask, ask_data, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_exclude, docx_read, pdf_reader, reach, secret_screen
 
 TEXT_TYPES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst")
 WORD_TYPES = (".docx",)
@@ -86,15 +86,26 @@ def _label(root, path):
     return name if ask._label_ok(name) else None
 
 
-def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES):
-    """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note."""
+def _gone(rels):
+    """The test the folder walk is given for one saved folder: True for a path (a tuple of names below the folder) that the person left out."""
+    return lambda names: ask_exclude.left_out(names, rels)
+
+
+def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None):
+    """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note.
+    `leave_out` (row 1365) is {saved folder: the stored list of subfolders left out (text or list)}: those are never entered or read. A
+    folder whose list cannot be read is not read at all (counted in `safety`): a broken list never means "read everything"."""
     safety = pdf = other = 0
     secret_labels, pdf_reasons = [], []
     cut = 0                                   # PDF pages and parts that were not read or did not fit the part cap
-    usable = []
+    usable, cuts = [], {}
     for f in folders or ():
         try:
             why = reach.never_inside(f, data_dir, home)
+            if not why:
+                got = ask_exclude.parse((leave_out or {}).get(f))
+                if got:
+                    cuts[f] = _gone(got)
         except (OSError, ValueError, RuntimeError):
             why = "unusable"
         if why:
@@ -103,7 +114,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             usable.append(f)
     if not usable:
         return FolderData(safety=safety)
-    listing = reach.readable_files(usable, data_dir, None, home)
+    listing = reach.readable_files(usable, data_dir, None, home, cuts)
     safety += listing.skipped
     roots = reach.roots(usable, home)
     passages, files_read, bytes_read, chars = [], 0, 0, 0
