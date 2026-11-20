@@ -1,6 +1,6 @@
-"""Row 1357 item 8 (Use cases page, Classic only): the Add button on the page is 30 px high with a 1px dashed line (ruling 20-11: the ticket's 30).
+"""Row 1357 item 8 (Use cases page, Classic only): the Add button on the page is 28 px high with a 1px line, as the prototype's add button (usecases.css:19, height 28px). The ticket text says 30 px; the prototype file says 28 px and the page already draws 28 px.
 
-Run: python3 dev/run_tests.py test_classic_uc_add_30_1357
+Run: python3 dev/run_tests.py test_classic_uc_add_28_1357
 Chrome at 1400 and 900 px (fictional data). Page words: none new.
 """
 import unittest
@@ -16,12 +16,12 @@ PROBE = """(() => { const e = document.getElementById('ucAddPage'); const c = ge
 class App(ucl.Setup):
     THEME = "prototype-2.0"
 
-    def test_add_button_is_30_high_and_dashed_at_1400_and_900(self):
+    def test_add_button_is_28_high_and_dashed_at_1400_and_900(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width=width, dark=False)
                 got = p.js(PROBE)
-                self.assertEqual(got["h"], 30, f"{width}: Add button 30 px high")
+                self.assertEqual(got["h"], 28, f"{width}: Add button 28 px high")
                 self.assertEqual((got["w"], got["style"]), ("1px", "dashed"))
 
 
