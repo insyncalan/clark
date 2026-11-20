@@ -19,7 +19,7 @@ from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
 from _growth import ABSOLUTE_CAP, GROWTH_LIMIT, GROWTH_STEP, growth_ratio
 
-TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
+TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input", "span"}      # row 1364: span, only with one of the six rt-c-* classes (test_font_colour_clean_1364)
 VOID = {"br", "hr", "input"}
 LINK = re.compile(r"(?:https?://[^/?#\s]|mailto:\S|#)", re.I)
 
