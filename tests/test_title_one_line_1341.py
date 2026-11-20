@@ -38,8 +38,10 @@ class Title(Setup):
             if view:
                 p.js(f"document.querySelector('.tab[data-view={view}]').click()")
                 p.until(f"!!document.querySelector('.tab[data-view={view}][aria-selected=true]')", "the page opened")
-            p.js("(() => { const n = document.querySelector('.hdr-project'); (n.querySelector('span') || n).textContent = %r; })()" % LONG)
-            return p.js(PROBE)
+            p.js("(() => { const n = document.querySelector('.hdr-project'); window.__orig = (n.querySelector('span') || n).textContent.trim(); (n.querySelector('span') || n).textContent = %r; })()" % LONG)
+            g = p.js(PROBE)
+            g["orig"] = p.js("window.__orig")
+            return g
 
     def check(self, width, view):
         g = self.look(width, view)
@@ -49,7 +51,7 @@ class Title(Setup):
         self.assertTrue(g["lineInside"], "Weekly report stays in the bar: %r" % (g,))
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
-        self.assertEqual(g["tip"], g["text"], "row 1341 ruling: the tooltip is the full project name (the aria-label keeps Change project)")
+        self.assertEqual(g["tip"], g["orig"], "row 1341 ruling: the tooltip is the full project name (the aria-label keeps Change project)")
         if width == 1400:
             self.assertEqual(g["barH"], 85, "row 1341 ruling: the bar is 85 px at 1400 (Classic prototype)")
         else:
