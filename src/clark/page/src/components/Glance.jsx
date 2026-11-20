@@ -9,20 +9,23 @@ import { drawnTiles, hiddenTiles } from "../glanceHidden.js";
 import { useRef } from "preact/hooks";
 import { useSettle } from "../stores/motion.js";
 import { HTML_START } from "../logic/richWords.js";
+import { classicTheme } from "./Contents.jsx";   // row 1404: under Classic the "of N ..." note sits in the figure line, as the prototype draws it
 
 function Cell({ tile, children }) {
   return <div class={`tcell${tile.key === "health" ? " health" : ""}`} data-tile={tile.key}>{children}</div>;
 }
 
 export function Figure({ t, file }) {
+  const inline = classicTheme() && /^of /.test(t.detail || "");      // row 1404: Classic only; Cards keeps the note on its own line
   const inner = (
     <>
       <span class="k"><i class="ragdot" aria-hidden="true"></i>{t.label}</span>
       <span class="vrow">
         <span class="v num">{t.value}</span>
+        {inline ? <span class="dd of">{t.detail}</span> : null}
         {t.word ? <span class="tw" aria-hidden="true">{t.word}</span> : null}   {/* beside the figure; the word is in the tile's own label below, so it is not read twice */}
       </span>
-      <span class="dd">{t.detail}</span>
+      {inline ? null : <span class="dd">{t.detail}</span>}
     </>
   );
   const aria = `${t.label}: ${t.value}${t.detail ? ", " + t.detail : ""}${t.word ? ". " + t.word : ""}`;
