@@ -11,6 +11,7 @@ from _paths import ROOT
 
 from clark import page
 from test_server import Running, chrome, wait
+from test_settings_sidebar_1401 import ratio
 from test_settings_look_1200 import PAGE_READY, STUB, rgb
 from test_work_items import FIXED_DATE, load_demo, page_target
 
@@ -20,7 +21,9 @@ LIGHT_LINE = "#D9E0EF"
 DARK_LINE = "#2B3850"     # the Classic dark value of the same grey-200 token
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (s) => { const e = q(s); return e ? [getComputedStyle(e).borderTopColor, getComputedStyle(e).borderTopWidth] : null; };
   const b = q('.seg button + button');
-  return {edges: {box: g('#safety-copy-box'), save: g('[data-copy-save]'), choice: g('.seg'), name: g('#ess-name'), paste: g('#client-folder-paste'), use: g('[data-copy-suggestion]'), search: g('.set-search input'), gantt: g('#gantt-name')},
+  const ground = (s) => { let e = q(s); while (e) { const c = getComputedStyle(e).backgroundColor; if (c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c; e = e.parentElement; } return null; };
+  return {ground: ground('#safety-copy-box') || ground('#ess-name') || ground('.seg'),
+          edges: {box: g('#safety-copy-box'), save: g('[data-copy-save]'), choice: g('.seg'), name: g('#ess-name'), paste: g('#client-folder-paste'), use: g('[data-copy-suggestion]'), search: g('.set-search input'), gantt: g('#gantt-name')},
           divider: b ? getComputedStyle(b).borderLeftColor : null}; })()"""
 
 
@@ -44,7 +47,7 @@ class SettingsEdge(unittest.TestCase):
         self.addCleanup(shutil.rmtree, brand, True)
         s = Running(data_for=data_for, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.page_html(brand, theme=theme))
         self.addCleanup(s.close)
-        got = {"edges": {}}
+        got = {"edges": {}, "ground": None}
         with chrome() as cdp:
             sid = page_target(cdp)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
@@ -65,6 +68,8 @@ class SettingsEdge(unittest.TestCase):
                 for k, v in r["edges"].items():
                     if v is not None and k not in got["edges"]:
                         got["edges"][k] = v
+                if r["ground"] and not got["ground"]:
+                    got["ground"] = r["ground"]
                 if r["divider"] and "divider" not in got:
                     got["divider"] = r["divider"]
         return got
@@ -78,6 +83,18 @@ class SettingsEdge(unittest.TestCase):
                         self.assertEqual(got["edges"][name], [rgb(line), "1px"], f"{name} edge, Classic {scheme} {w}")
                     self.assertEqual(got["divider"], rgb(line), f"choice divider, Classic {scheme} {w}")
                     self.assertEqual(got["edges"]["gantt"][0], "rgb(196, 206, 227)" if scheme == "light" else "rgb(43, 88, 104)", f"the Gantt card keeps its edge, Classic {scheme} {w}")
+
+    def test_the_measured_line_against_its_ground(self):
+        """Measured from the computed border and the card ground Chrome draws, 1400 and 900: the Classic line is 1.32:1 on white in light and 1.46:1 in dark,
+        both under the non-text 3:1 (the named exemption); the old Cards edge, 7A859F, is 3.70:1 on white."""
+        for scheme, want in (("light", 1.32), ("dark", 1.46)):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme, width=w):
+                    got = self.read(NAME, w, scheme)
+                    r = ratio(got["edges"]["name"][0], got["ground"])
+                    print(f"1406 border {scheme} {w}: {got['edges']['name'][0]} on {got['ground']} = {r:.2f}:1")
+                    self.assertAlmostEqual(r, want, places=2, msg=f"Classic {scheme} {w} border ratio")
+                    self.assertLess(r, 3.0, "the exemption is real: under 3:1")
 
     def test_cards_keeps_the_control_edge(self):
         for scheme, edge in (("light", "#7A859F"), ("dark", "#7AA3AE")):

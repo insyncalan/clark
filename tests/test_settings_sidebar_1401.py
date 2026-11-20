@@ -5,6 +5,7 @@ group margin 12 px and 4 px between the pages of a group. At 900 the list is pac
 and the 900 pass checks the text size, colours and marker.
 
 Run: python3 dev/run_tests.py test_settings_sidebar_1401"""
+import re
 import shutil
 import tempfile
 import time
@@ -17,6 +18,22 @@ from test_server import Running, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
+
+
+def _rgb(c):
+    return [int(x) for x in re.findall(r"\d+", c)[:3]]
+
+
+def ratio(a, b):
+    """WCAG contrast ratio of two computed rgb() colours."""
+    def lum(c):
+        r = [v / 255 for v in _rgb(c)]
+        r = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in r]
+        return 0.2126 * r[0] + 0.7152 * r[1] + 0.0722 * r[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
   const chip = q('.set-chip:not([aria-current])'), cur = q('.set-chip[aria-current]'), grp = [...document.querySelectorAll('.set-group')].filter((e) => e.previousElementSibling)[0];
@@ -72,6 +89,20 @@ class RealSettings(unittest.TestCase):
                 if width == 1400:
                     self.assertEqual(c["groupMargin"], "12px", tag + ": 12 px above a group")
                     self.assertEqual(c["gap"], 4, tag + ": 4 px between the pages of a group")
+
+    def test_open_chip_contrast(self):
+        """The open chip's text on its fill, from the page's computed colours, at 1400 and 900: light 5B47D8 on ECE9FB is 5.28:1 by hand (>= 4.5 at the 1200 check);
+        the dark pair is measured too and must also be >= 4.5, so a lighter dark fill cannot pass on token equality alone."""
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                c = self.look(NAME, width, scheme)
+                r = ratio(c["curColor"], c["curBg"])
+                print(f"open chip {scheme} {width}: {c['curColor']} on {c['curBg']} = {r:.2f}:1")
+                self.assertGreaterEqual(r, 4.5, f"classic {scheme} {width}: open chip text is 4.5:1 on its fill")
+                if scheme == "light":
+                    self.assertAlmostEqual(r, 5.28, places=1, msg="light pair is 5.28:1")
+                else:
+                    self.assertGreaterEqual(r, 6.5, f"classic dark {width}: dark pair measured")
 
     def test_cards_unchanged(self):
         c = self.look(None, 1400, "light")
