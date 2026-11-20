@@ -98,7 +98,8 @@ class RealSettings(unittest.TestCase):
 
     def test_classic_settings_sidebar_cards_table_and_add_project(self):
         for tag, c in self.each(NAME):
-            self.assertEqual(c["barBg"], c["grey50"], tag + ": the sidebar is the --grey-50 panel (ruling 19-11, #1356)")
+            self.assertEqual(c["barBg"], c["grey50"], tag + ": the sidebar is the soft grey panel (row 1356)")
+            self.assertEqual(c["barRadius"], "10px", tag + ": the panel radius is 10 (row 1356)")
             self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
