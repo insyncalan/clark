@@ -33,7 +33,8 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
       if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) broken.push(m[0]); } } });
   const btn = q('#npBtn'), w = btn.querySelector('.w'), wr = w.getBoundingClientRect(), br = btn.getBoundingClientRect();
   return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'),
-    barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: [g(cur, 'borderTopLeftRadius'), g(cur, 'borderTopRightRadius')].join(' '),
+    barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'].map((k) => g(cur, k)).join(' '),
+    marker: (() => { const m = getComputedStyle(cur, '::before'), r = cur.getBoundingClientRect(); return [m.content, m.position, m.left, m.top, m.bottom, m.width, m.borderTopLeftRadius, Math.round(r.height)].join('|'); })(),
     cardRadius: g(card, 'borderTopLeftRadius'), cardShadow: g(card, 'boxShadow'),
     thCase: g(th, 'textTransform'), thTrack: g(th, 'letterSpacing'), thWeight: g(th, 'fontWeight'), thBorderTop: g(th, 'borderTopWidth'),
     btnBg: g(btn, 'backgroundColor'), btnColor: g(btn, 'color'), brand: tok('var(--brand-blue)', 'backgroundColor'), onBrand: tok('var(--text-on-brand)'),
@@ -101,7 +102,8 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
-            self.assertEqual(c["curRadius"], "0px 10px", tag + ": the open page is a bar with its square edge at the marker (row 1356, main)")
+            self.assertEqual(c["curRadius"], "10px 10px 10px 10px", tag + ": the open page chip has radius 10 on all four corners (ruling 20-11, prototype settings.css:34)")
+            self.assertEqual(c["marker"], '""|absolute|0px|7px|7px|3px|3px|36', tag + ": the 3px marker is inside the chip, 7px from top and bottom, radius 3 (prototype settings.css:37)")
             self.assertEqual((c["barRadius"], c["groupSize"], c["groupWeight"]), ("10px", "14px", "600"), tag + ": panel radius 10, group name 14px 600")
             if width_is_wide(tag):
                 self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")
