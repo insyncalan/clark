@@ -279,9 +279,14 @@ class AskApply:
             return fail("too_many", TOO_MANY)
         return 200, {"ok": True, "plans": [self.plan(project, c, from_source)[1] for c in suggested]}
 
+    def restore(self, offer, held):
+        """Put an offer back after a save that did not happen (its own time still runs, so it expires when it would have)."""
+        with self.lock:
+            self.offers[offer] = held
+
     def apply(self, offer, project, confirm=False):
         """Save one offer as one undoable step. A change from a source passage needs `confirm` exactly True. The offer is used
-        once: it is dropped as soon as Apply is pressed with what it needs, whatever happens next (ask again to try again)."""
+        once: it is gone once it is saved or refused; a save that could not be made (busy or unusable data, or a fault) keeps it."""
         if not isinstance(offer, str) or not isinstance(project, str):
             return fail("no_offer", NO_OFFER)
         with self.lock:
@@ -290,8 +295,14 @@ class AskApply:
                 return fail("no_offer", NO_OFFER, 409)
             if held.from_source and confirm is not True:
                 return fail("needs_confirm", NEEDS_CONFIRM, 409)
-            del self.offers[offer]                     # used once, whatever happens next
-        status, body = self.ask_change(held.request, dry=False, expect=held.expect)
+            del self.offers[offer]                     # taken while it is saved, so a second Apply at the same moment finds nothing
+        try:
+            status, body = self.ask_change(held.request, dry=False, expect=held.expect)
+        except BaseException:                          # row 1293 line 10: an unexpected fault saved nothing, so the offer stays
+            self.restore(offer, held)
+            raise
+        if status == 503:                              # row 1293 line 10: a busy or unusable database saved nothing: the offer is kept for the next Apply
+            self.restore(offer, held)
         if status != 200 or not body.get("ok"):
             return status, {"ok": False, "code": body.get("code", "refused"), "message": body.get("message", NOT_A_CHANGE)}
         return 200, {"ok": True, "kind": body["kind"], "ref": body["ref"], "apply_id": body["apply_id"],
