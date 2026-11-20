@@ -264,6 +264,9 @@ export function Peek({ tools }) {
       if (!elsewhere && el && el.isConnected && el.focus) el.focus();
     };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
+  // Row 1467 P5: a switch to another item says the new one to a screen reader: its id and title, no other words (a step says its own place instead).
+  const sawId = useRef("");
+  useEffect(() => { const id = p ? p.id : ""; const was = sawId.current; sawId.current = id; if (id && was && was !== id && !stepped.current) { const t = p.kind === "milestone" ? ((data.value.milestones || []).find((x) => x.id === id) || {}).name : (rows.value.find((r) => r.id === id) || {}).title; say(`${id}: ${t || ""}`); } }, [p && p.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // After a step the focus is never left on a button that has just turned off (Next at the last item) or on the page: it goes to Close.
   useEffect(() => {
     if (!p || !stepped.current) return;

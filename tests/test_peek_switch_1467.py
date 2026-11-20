@@ -79,6 +79,25 @@ class Switch(base.Peeks):
                 self.assertEqual(got["closed"], 0)
                 self.assertEqual(got["spot"], before, "the page did not move")
 
+    def test_a_switch_tells_a_screen_reader_the_new_items_id_and_title_p5(self):
+        """Row 1467 P5: the peek's polite live line (p.sr-only[data-pk-live], never seen) holds exactly '<id>: <title>' of the new item after a row click; it is not drawn, so light and dark look the same."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.ready(cdp, width)
+                ids = cdp.js(ROWS, sid)
+                a, b = ids[-2], ids[-1]
+                self.place(cdp, sid, a)
+                self.press(cdp, sid, a)
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == a))
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-live]').textContent", sid), "", "opening says nothing new")
+                self.press(cdp, sid, b)
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == b))
+                title = cdp.js("document.querySelector('#peek .pk-title').value || document.querySelector('#peek .pk-title').textContent", sid).strip()
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek [data-pk-live]').textContent", sid) == f"{b}: {title}"),
+                                "the live line holds the new item's id and title: " + str(cdp.js("document.querySelector('#peek [data-pk-live]').textContent", sid)))
+                self.assertTrue(title)
+                self.assertEqual(cdp.js("(e => { const s = getComputedStyle(e); return [e.getAttribute('role'), e.getAttribute('aria-live'), e.getBoundingClientRect().width <= 1]; })(document.querySelector('#peek [data-pk-live]'))", sid), ["status", "polite", True])
+
     def test_work_items_page_and_milestones_page_switch_the_peek_too(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
