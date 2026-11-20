@@ -63,7 +63,7 @@ class ToggleLook(BrowserBase, unittest.TestCase):
             got["calendar_bg"] = cdp.js("getComputedStyle(document.querySelector('.cal-sc button[aria-current=true]')).backgroundColor", sid)
             cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#gantt&p=MOSS")}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#gantt-page')", sid)), "the Gantt page drew")
-            cdp.js("document.querySelector('[data-gp-mode=edit]').click()", sid)
+            cdp.js("document.querySelector('%s').click()" % (".modes [data-mode=edit]" if theme == "classic" else "[data-gp-mode=edit]"), sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.gt-grp .gt-ib[aria-pressed=true]')", sid)), "the chart's scale buttons drew")
             self.scheme(cdp, sid, scheme)
             time.sleep(0.3)
