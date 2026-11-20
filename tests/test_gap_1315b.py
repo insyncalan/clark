@@ -1,0 +1,57 @@
+"""Row 1315 fill (ruling 19-11): the Milestones switches (Timeline / Calendar, Week / Month / Quarter) take the navy chosen half with white text,
+radius 6, padding 0 12, Timeline / Calendar buttons 28 high (medium weight), a 1px --ui (--grey-500) rule between the halves. Light, 1400 px (900 is a note).
+
+Run: python3 dev/run_tests.py test_gap_1315b
+"""
+import unittest
+
+from _paths import ROOT
+
+from test_server import chrome
+from test_ms_timeline_classic_1315 import Base
+
+M = """(() => { const cs = (e, p) => getComputedStyle(e)[p], q = (s) => [...document.querySelectorAll(s)];
+  const g = (sel) => { const bs = q(sel + ' button'), box = document.querySelector(sel), on = bs.find((b) => b.getAttribute('aria-current') === 'true'), off = bs.find((b) => b !== on);
+    return { rad: cs(box, 'borderTopLeftRadius'), border: cs(box, 'borderTopWidth'), bc: cs(box, 'borderTopColor'), h: Math.round(on.getBoundingClientRect().height), pad: cs(on, 'paddingLeft') + ' ' + cs(on, 'paddingRight'),
+      w: cs(on, 'fontWeight'), bg: cs(on, 'backgroundColor'), fg: cs(on, 'color'), offbg: cs(off, 'backgroundColor'), div: bs.length > 1 ? [cs(bs[1], 'borderLeftWidth'), cs(bs[1], 'borderLeftColor')] : null }; };
+  const sw = document.querySelector('.msv-sw').getBoundingClientRect();
+  return { sw: g('#milestones .msv-sw'), sc: g('#milestones .cal-sc'), swPos: [Math.round(sw.left), Math.round(sw.top)],
+    navy: getComputedStyle(document.documentElement).getPropertyValue('--brand-navy').trim(), ui: getComputedStyle(document.documentElement).getPropertyValue('--grey-500').trim() }; })()"""
+
+
+RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+
+
+class Gap1315b(Base, unittest.TestCase):
+    def test_fill_block_is_before_row_1393_with_no_literal_weight_and_no_shared_pieces(self):
+        rows = [l for l in RULES.splitlines() if l.startswith("/* Row ")]
+        i = next(n for n, l in enumerate(rows) if l.startswith("/* Row 1315 fill"))
+        self.assertTrue(rows[i + 1].startswith("/* Row 1393"), rows[i + 1][:20])
+        self.assertTrue(rows[-1].startswith("/* Row 1314"))
+        block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/* Row 1393", 1)[0]
+        self.assertNotIn("font-weight: 600", block)
+        self.assertIn("#milestones .msv-b { min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium); }", block)
+        self.assertNotIn("mv-today", block)      # the Today name is the Row 1316 PR's line
+        self.assertNotIn("min-height: 28px; font-weight", block.replace("#milestones .msv-b { min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium); }", ""))
+
+    def test_navy_fill_radius_6_padding_12_divider_1px_at_1400(self):
+        with chrome() as cdp:
+            sid = self.show(cdp, 1400, "light")
+            m = cdp.js(M, sid)
+            print("row 1315 fill 1400", m)
+            for k in ("sw", "sc"):
+                g = m[k]
+                self.assertEqual(g["bg"], "rgb(6, 47, 58)", (k, m))
+                self.assertEqual(g["fg"], "rgb(255, 255, 255)", (k, m))
+                self.assertEqual(g["rad"], "6px", (k, m))
+                self.assertEqual(g["pad"], "12px 12px", (k, m))
+                self.assertEqual(g["border"], "1px", (k, m))
+                self.assertEqual(g["bc"], "rgb(135, 148, 179)", (k, m))
+                self.assertNotEqual(g["offbg"], g["bg"], (k, m))
+            self.assertEqual((m["sw"]["h"], m["sw"]["w"]), (28, "600"), m)      # Timeline / Calendar; Week / Month / Quarter height and weight are pinned with the Row 1316 PR's rule
+            self.assertEqual(m["sw"]["div"], ["1px", "rgb(135, 148, 179)"], m)
+            self.assertEqual(m["sc"]["div"], ["1px", "rgb(135, 148, 179)"], m)
+
+
+if __name__ == "__main__":
+    unittest.main()
