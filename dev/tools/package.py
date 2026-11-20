@@ -142,6 +142,7 @@ already use Docker, use Docker instead. You only need Docker and Chrome.
      right end of Chrome's address bar. Open it from there on later days.
   5. To stop clark, type this in the same folder and press Return:
         docker compose -f docker/compose.yaml down
+To update later, read docker/UPDATE.txt.
 Use the clark download, not a copy of the source code: a copy of the source
 has no built page, and Docker stops with a message saying so.
 Start Docker from the clark folder.

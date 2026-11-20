@@ -81,7 +81,7 @@ class WindowsUpdateGuide(unittest.TestCase):
     def test_house_wording(self):
         self.assertNotIn("!", GUIDE)
         self.assertNotIn("\t", GUIDE)
-        self.assertNotIn("docker load", GUIDE)
+        self.assertEqual(GUIDE.count("docker load"), 1)      # only the ruled changed-runtime-image sentence
         self.assertNotIn("#", GUIDE)
         self.assertNotRegex(GUIDE, r"(?m)(^|[.?]\s+)Clark\b")
         self.assertNotIn("usual", GUIDE)
@@ -91,9 +91,9 @@ class WindowsUpdateGuide(unittest.TestCase):
                       "Its name ends in -migrate.db",
                       "never fewer than 3",
                       "start from the newer clark folder.\nNothing was changed.",
-                      "Update from file in Settings does not work under Docker."):
-            self.assertIn(words, MAC_GUIDE)
-            self.assertIn(words, GUIDE)
+                      "Under Docker, Install from a file in Settings does not apply: update by starting from the newer clark folder."):
+            self.assertIn(" ".join(words.split()), " ".join(MAC_GUIDE.split()))
+            self.assertIn(" ".join(words.split()), " ".join(GUIDE.split()))
 
     def test_it_ships_in_the_docker_folder_of_the_windows_zip(self):
         self.assertTrue(release_files.covers("windows", "docker/UPDATE-windows.txt"))
@@ -118,6 +118,17 @@ class WindowsUpdateGuide(unittest.TestCase):
         self.assertIn("cd /d", GUIDE)
         self.assertIn(BOTH + " up -d", GUIDE.split("4. Type this")[1].split("5. Open")[0])   # step 4 starts the new clark
         self.assertIn("5. Open http://127.0.0.1:8766 in Chrome.", GUIDE)
+
+    def test_going_back_renames_the_folders_before_the_up_command(self):
+        back = " ".join(GUIDE.split("To go back to the old clark")[1].split())
+        self.assertIn("To go back: rename clark to clark-new, rename clark-old back to clark, then type the up command in that folder.", back)
+        self.assertNotIn("in the old folder", back)
+
+    def test_a_changed_runtime_image_is_loaded_again_before_the_up_command(self):
+        text = " ".join(GUIDE.split())
+        sentence = "If a new zip carries a changed runtime image, run docker load -i docker\\clark-runtime.tar again before the up command."
+        self.assertIn(sentence, text)
+        self.assertLess(text.index(sentence), text.index(BOTH + " up -d"))
 
     def test_the_hash_has_a_command_prompt_form_as_well(self):
         self.assertIn("certutil -hashfile clark-<version>-windows.zip SHA256", GUIDE)

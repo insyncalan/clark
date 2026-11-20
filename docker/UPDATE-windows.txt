@@ -15,6 +15,8 @@ To update:
   3. In the same window, go to the new clark folder: type cd and a space,
      drag the new folder into the window and press Enter. In Command Prompt,
      type cd /d and a space instead, if the new folder is on another drive.
+     If a new zip carries a changed runtime image, run
+     docker load -i docker\clark-runtime.tar again before the up command.
   4. Type this and press Enter:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
   5. Open http://127.0.0.1:8766 in Chrome.
@@ -40,10 +42,11 @@ To go back to the old clark:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml run --rm clark python3 -m clark restore --data /data
      Then type the same line again, with the name of the -migrate.db copy added
      at the end.
-  3. Type the up command in the old folder to start the old clark.
+  3. To go back: rename clark to clark-new, rename clark-old back to clark,
+     then type the up command in that folder.
 
-Update from file in Settings does not work under Docker. The clark folder is
-read-only there. Use the steps above.
+Under Docker, Install from a file in Settings does not apply: update by
+starting from the newer clark folder.
 
 Check the download: the release page shows a long number (called SHA-256) for
 the zip. Type this in PowerShell:
