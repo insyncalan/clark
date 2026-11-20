@@ -8,10 +8,22 @@ import unittest
 import test_tpl_workitems as T
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
+from clark import page, theme
+from _real_server import real_server
+import _testpage as testpage
+
+
+def classic(test):
+    # Row 1287 (Classic only): the Cards page keeps the markup it had, so these tests serve the page with the Classic theme layered, as Classic serves it
+    test.s.close()
+    css = theme.css("prototype-2.0")
+    test.s = real_server(test.store.path, test.store.data_for, page_html=lambda: page.layer_theme(testpage.html(), css), seam=test.seam)
+    test.addCleanup(test.s.close)
 
 
 class ViewPicks(T.InThePage):
     def test_view_lists_pick_four_values_and_the_title_opens_the_peek_in_edit_at_both_widths(self):
+        classic(self)
         ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
         row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"]"
         for width in (1400, 900):

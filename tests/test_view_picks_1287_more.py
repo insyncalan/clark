@@ -9,6 +9,17 @@ import unittest
 import test_tpl_workitems as T
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
+from clark import page, theme
+from _real_server import real_server
+import _testpage as testpage
+
+
+def classic(test):
+    # Row 1287 (Classic only): the Cards page keeps the markup it had, so these tests serve the page with the Classic theme layered, as Classic serves it
+    test.s.close()
+    css = theme.css("prototype-2.0")
+    test.s = real_server(test.store.path, test.store.data_for, page_html=lambda: page.layer_theme(testpage.html(), css), seam=test.seam)
+    test.addCleanup(test.s.close)
 
 
 class ViewPickMore(T.InThePage):
@@ -68,6 +79,7 @@ class ViewPickMore(T.InThePage):
             self.select_then_click(p, title)
 
     def test_selected_text_in_a_work_items_title_does_not_open_the_peek(self):
+        classic(self)
         ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
         title = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"] .wil-c-title"
         with chrome() as cdp:
@@ -76,6 +88,7 @@ class ViewPickMore(T.InThePage):
             self.select_then_click(p, title)
 
     def test_the_work_items_list_picks_its_urgency_in_view(self):
+        classic(self)
         ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
         row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"]"
         with chrome() as cdp:
@@ -84,6 +97,7 @@ class ViewPickMore(T.InThePage):
             self.assertEqual(p.js(f"document.querySelectorAll('{row} .wil-c-priority .cell-pick[data-cell$=\":priority\"]').length"), 1)
 
     def test_the_work_items_pickers_say_the_cell_in_their_label_never_undefined(self):
+        classic(self)
         ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
         row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"]"
         for width in (1400, 900):
