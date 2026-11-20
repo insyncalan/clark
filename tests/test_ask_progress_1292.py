@@ -14,6 +14,7 @@ EDIT = ROOT / "src" / "clark" / "page" / "src" / "edit"
 WORDS = (EDIT / "askWords.js").read_text(encoding="utf-8")
 STATE = (EDIT / "askPanelState.js").read_text(encoding="utf-8")
 PANEL = (EDIT / "AskPanel.jsx").read_text(encoding="utf-8")
+WORKITEMS = (ROOT / "src" / "clark" / "page" / "src" / "workItems.js").read_text(encoding="utf-8")
 CSS = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
 
 
@@ -53,6 +54,8 @@ class Gone(unittest.TestCase):
         self.assertRegex(PANEL, r'id="ask-step" aria-hidden="true"')
 
     def test_the_clock_ticks_each_second_from_the_moment_of_the_send_in_whole_seconds_of_ms(self):
+        self.assertIn('export const nowMs = () => Date.now();', WORKITEMS)
+        self.assertIn('import { nowMs } from "../workItems.js";', PANEL)
         self.assertIn("const from = nowMs();", PANEL)
         self.assertIn("setSecs((nowMs() - from) / 1000), 1000)", PANEL)
 
