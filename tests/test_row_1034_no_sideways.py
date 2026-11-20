@@ -25,11 +25,12 @@ MEASURE = r"""(() => {
 })()"""
 
 
-# Row 1287: the Dashboard lists in View now hold pickers (class cell-pick, its value cell-val). Measured 18-11 on the demo project: a status, due or
-# owner picker has its caret room (2 to 4 px) and, at 900, an owner value (25 px) wider than its own box; each stays inside its table cell and the
-# page and the sections do not scroll. These are the exact lists, so any other element running past its box still fails.
-PICKS = {1400: ["cell-pick"] * 8,
-         900: ["cell-pick", "cell-pick", "cell-val"] * 4 + ["cell-pick"] * 2 + ["cell-pick", "cell-pick", "cell-val"] * 2}
+# Row 1287: the Dashboard lists in View now hold pickers (class cell-pick) and the work-item cells (wil-c-due, wil-c-priority). Measured 20-11 on the
+# merged tree, demo project: each runs a few px past its own box (caret room) and stays inside its table cell; the page and the sections do not
+# scroll. These are the exact lists, so any other element running past its box still fails.
+PICKS = {1400: ["cell-pick", "wil-c-priority", "cell-pick"],
+         900: ["wil-c-due", "cell-pick", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-priority",
+               "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick"]}
 
 
 class Css(unittest.TestCase):
