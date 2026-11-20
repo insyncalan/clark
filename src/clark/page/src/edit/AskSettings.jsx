@@ -160,8 +160,10 @@ function AskProject() {
       {classicTheme() ? (
         <>
           <div class="row ask-model">
-            <span class="ask-model-label">Model</span>
-            <span class="muted ask-model-same">Same for every project.</span>
+            <div class="ask-model-text">
+              <span class="ask-model-label">Model</span>
+              <small class="muted ask-model-same">Same for every project.</small>
+            </div>
             {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
             <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
           </div>

@@ -16,7 +16,6 @@ import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { openPanel, handOver } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
-import { classicTheme } from "../components/Contents.jsx";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, all kinds together (cut after the ID ranking), so a short word does not fill the box

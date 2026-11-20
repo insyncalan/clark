@@ -70,7 +70,10 @@ class Tabs(unittest.TestCase):
             self.assertEqual(js("(() => { const s = getComputedStyle(document.querySelector('[data-ask-goall]')); return [s.borderBottomStyle, s.borderBottomWidth, s.backgroundColor, s.paddingLeft]; })()"),
                              ["dashed", "1px", "rgba(0, 0, 0, 0)", "0px"], "Change is a link with a dashed underline, not a button")
             self.assertEqual(js("document.querySelector('[data-ask-goall]').innerText"), "Change")
-            self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model > *')].map(e => e.className.split(' ').pop())"), ["ask-model-label", "ask-model-same", "ask-model-name", "ask-model-change"], "name, note, link in that order")
+            self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model > *')].map(e => e.className.split(' ').pop())"), ["ask-model-text", "ask-model-name", "ask-model-change"], "label block, name, link in that order")
+            self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model-text > *')].map(e => e.className.split(' ').pop())"), ["ask-model-label", "ask-model-same"], "label then the same-line")
+            self.assertEqual(js("(() => { const q = x => getComputedStyle(document.querySelector(x)); const l = q('.ask-model-label'), m = q('.ask-model-same'), n = q('.ask-model-name'), t = q('#ask-used-all .ask-model-note'); const lb = document.querySelector('.ask-model-label').getBoundingClientRect(), sb = document.querySelector('.ask-model-same').getBoundingClientRect(); return [l.fontWeight, m.fontSize, m.color === n.color, n.fontWeight, t.marginTop, t.marginRight, t.marginLeft, t.marginBottom, sb.top >= lb.bottom - 1]; })()"),
+                             ["400", "13px", True, "400", "6px", "6px", "6px", "0px", True], "A8: label normal, same-line 13px muted under it, name muted normal, note margin 6px 6px 0")
 
     def test_cards_keeps_the_card_as_it_was(self):
         self.s.close()
