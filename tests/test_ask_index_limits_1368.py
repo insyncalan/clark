@@ -113,6 +113,18 @@ class Limits(Base):
         self.assertEqual(pdf_reader.read(raw, seconds=72).pages, ((1, "77"),))
         self.assertEqual(pdf_reader.read(raw).pages, ((1, "15"),))
 
+    def test_a_pdf_read_only_to_its_first_pages_is_too_long_not_indexed(self):
+        self.put("cut.pdf", pdf(["zqlead" + "x" * 300, "zqlate" + "y" * 300, "zqlast" + "z" * 300]), binary=True)
+        self.put("whole.pdf", pdf(["zqwhole"]), binary=True)
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 700):
+            self.assertEqual(pdf_reader.read(pdf(["a" * 300] * 3), vendor=pdf_reader.VENDOR).left_out, 1)
+            self.build()
+        c = ix.status(self.data, "P1", None)
+        self.assertEqual((c["indexed"], c["too_long"], c["type"]), (1, 1, 0))
+        self.assertEqual(self.left(), {"saved/cut.pdf": "too long to read"})
+        self.assertTrue(self.found("zqwhole"))
+        self.assertFalse(self.found("zqlead"))
+
     def test_a_scanned_pdf_is_still_a_type_not_too_long(self):
         self.put("scan.pdf", pdf([None, None]), binary=True)
         self.build()

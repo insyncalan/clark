@@ -333,6 +333,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
             got = pdf_reader.read(raw, truncated=truncated, max_bytes=INDEX_PDF_BYTES, max_pages=INDEX_PDF_PAGES, seconds=INDEX_PDF_SECONDS)
             if got.status != "ok":
                 state = "too_long" if got.reason in ("too_big", "too_many_pages", "timeout") else "type"
+            elif got.left_out:
+                state = "too_long"               # only its leading pages fit the output budget: never shown as indexed in full
             else:
                 groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
         elif is_excel:
