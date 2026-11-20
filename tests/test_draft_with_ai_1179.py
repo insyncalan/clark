@@ -36,7 +36,8 @@ class Source(unittest.TestCase):
         rt = read("edit/RichText.jsx")
         self.assertIn("data-rt-bubble-ai", rt)
         self.assertIn("{DRAFT_WITH_AI}</button>", rt, "the bubble's last button uses the existing words from DraftAi.jsx")
-        self.assertNotIn("Ask AI", rt, "no new words")
+        bubble = [l for l in rt.splitlines() if "data-rt-bubble-ai" in l][0]
+        self.assertNotIn("Ask AI", bubble, "the bubble button reads Draft with AI here (the Classic Ask AI... is row 1288 part a1); the '/' menu has its own Ask AI line")
         self.assertIn("checked: current ?", rt, "the Text style menu ticks the current line")
 
     def test_the_button_is_in_every_peek_and_the_menu_is_the_places_menu(self):
