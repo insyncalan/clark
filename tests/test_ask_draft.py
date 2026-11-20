@@ -7,6 +7,7 @@ section and a new one; a replace and an add are each one step that Undo takes ba
 the panel closes the draft. Fictional text only.
 """
 import json
+import pathlib
 import time
 import unittest
 
@@ -343,12 +344,28 @@ def _button_test(self):
                     self.assertEqual(b[:9], ["Open the draft", "rgb(59, 91, 219)", "rgb(59, 91, 219)", "rgb(255, 255, 255)", "13px", "4px 10px", "6px", True, "0"], (theme, width))
                     c = p.js("(() => { const s = getComputedStyle(document.querySelector('[data-ask-draftcard]')); return [s.display, s.columnGap, s.borderTopWidth, s.borderTopLeftRadius, s.paddingTop + ' ' + s.paddingLeft, s.marginTop]; })()")
                     self.assertEqual(c, ["flex", "10px", "1px", "10px", "10px 12px", "10px"], (theme, width))
+                    d = p.js("(() => { const e = document.querySelector('[data-ask-draftcard] button'); e.style.transition = 'none'; document.documentElement.setAttribute('data-theme', 'dark'); const s = getComputedStyle(e); const r = [s.backgroundColor, s.borderTopColor]; document.documentElement.removeAttribute('data-theme'); return r; })()")
+                    self.assertEqual(d, ["rgb(57, 98, 254)", "rgb(57, 98, 254)"], ("dark", theme, width))
                 else:
                     self.assertEqual(b[9], "btn primary", width)
                     self.assertNotEqual(b[1], "rgb(59, 91, 219)", width)
 
 
 Draft.test_the_open_the_draft_button_is_the_prototypes_blue_rectangle_in_classic_only = _button_test
+
+def _blue_named_exception_test(self):
+    """Row 1347: the blue is a named exception (Alan 19-11): the three values live once, as --adc- custom properties on the button rule; hover and dark read them by var(), and no other rule of the block holds a colour literal."""
+    rules = (pathlib.Path(themes.__file__).parent / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+    block = rules.split("/* Row 1347 (Classic only; Cards is not touched)")[1].split(".ad-count")[0]
+    for lit in ("#3B5BDB", "#2F4AC0", "#3962FE", "rgba(57,98,254,.22)"):
+        self.assertEqual(rules.count(lit), 1, lit)
+    lines = [l for l in block.split("\n")[1:] if l.strip()]
+    for l in lines:
+        if "--adc-blue:" not in l:
+            self.assertNotRegex(l, r"#[0-9a-fA-F]{3,8}\b|rgba?\(", l)
+    self.assertIn(":hover { background: var(--adc-blue-hover); border-color: var(--adc-blue-hover);", block)
+    self.assertEqual(block.count("var(--adc-blue-dark)"), 4)
+Draft.test_the_draft_ready_blue_is_a_named_exception_through_custom_properties = _blue_named_exception_test
 
 def _empty_test(self):
     """Row 1347: in Classic the Add menu says (empty) or (N words now) with the title bold; Cards keeps a plain label (no bold title) that ends (N words now), never (empty)."""
