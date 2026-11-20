@@ -725,8 +725,9 @@ class KeptPublications(Rig):
 class HelpSaysKeptCopiesAreCopied(unittest.TestCase):
     """Row 1380: two Help sentences about the kept copies of published pages are pinned, each once, in its own entry."""
     CARD = ("The kept copies of your published pages are copied there too; without that folder they are in no backup.")
-    STEP = ("Backups do not include the kept copies of the pages you sent to your client; to have them copied too, "
-            "type a folder in the Copy my backups to box and press **Save**.")
+    STEP = ("The pages you have published are kept on this computer, in the clark data folder, and a backup does not include them. "
+            "To have them copied too, type a folder in Copy my backups to and press Save. "
+            "Putting a backup back never removes a kept page.")
 
     @classmethod
     def setUpClass(cls):
@@ -753,7 +754,7 @@ class HelpSaysKeptCopiesAreCopied(unittest.TestCase):
         self.assertIn("The backups clark keeps", hits[0])         # the Backups card entry
         self.assertTrue(hits[0].endswith(self.CARD))
 
-    def test_restore_step_says_backups_do_not_include_the_kept_copies(self):
+    def test_restore_step_says_the_approved_s3_text(self):
         hits = self.entries_with(self.STEP)
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0].count(self.STEP), 1)
