@@ -98,7 +98,7 @@ export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
 // Row 1294: the folders for all projects (the All projects tab): the same, with scope "all" in place of a project.
-export const askFoldersAllRead = () => call("GET", "/api/ask-folders?scope=all");
+export const askFoldersAllRead = (project) => call("GET", "/api/ask-folders?scope=all" + (project ? `&project=${encodeURIComponent(project)}` : ""));
 export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });
 export const askFoldersAllChange = (action, path) => call("POST", "/api/ask-folders", { scope: "all", action, path });
 
