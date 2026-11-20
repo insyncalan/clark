@@ -30,7 +30,7 @@ READ = """(() => { const g = (sel, pseudo) => { const e = document.querySelector
   for (const id of ['ucl-group', 'ucl-sort', 'ucAddPage']) { const e = document.getElementById(id); if (e) { e.style.transition = 'none'; e.setAttribute('aria-expanded', 'true'); } }
   s = g('#ucl-group'); o.groupOpen = s && [s.backgroundColor, s.color];
   s = g('#ucAddPage'); o.plusOpen = s && [s.borderTopColor, s.backgroundColor];
-  const r = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.rowW = Math.round(r.width);
+  const r = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.rowW = Math.round(r.width); o.boxW = Math.round(document.querySelector('#usecases .fline').getBoundingClientRect().width);
   o.mag = g('#usecases .fline', '::before').content; o.handle = g('#usecases .fline', '::after').content;
   s = g('#usecases .fline'); o.padL = s.paddingLeft;
   const c = document.querySelector('#usecases .fcount').getBoundingClientRect(); o.countBox = [Math.round(c.width), Math.round(c.height)];
@@ -70,18 +70,17 @@ class Top(unittest.TestCase):
                 self.assertEqual(g["crumb"][3], "13px", "Crumb: 13 px")
                 self.assertEqual(g["listCrumb"], ["none", "normal", "400", "13px"])
                 for k in ("group", "sort"):
-                    self.assertEqual(g[k][0], "rgba(0, 0, 0, 0)", k + ": no border")
+                    self.assertEqual(g[k][0], g["grey500"], k + ": the 1px --grey-500 border (Row 1316 controls, ruling 19-11; was borderless)")
                     self.assertEqual(g[k][1], "rgba(0, 0, 0, 0)", k + ": no fill")
-                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are icon buttons)")
+                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are labelled buttons since Row 1316 follow-up)")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
-                self.assertEqual(g["plus"][0], "dashed")
-                self.assertEqual(g["plus"][1], g["grey500"], "the dashed + border is the grey")
+                self.assertEqual(g["plus"][0], "dashed", "Row 1316 ruling 19-11: the Classic + is dashed")
+                self.assertEqual(g["plus"][1], g["brand"], "the + border is brand coloured (Row 1316 controls, ruling 19-11; was grey)")
                 self.assertNotEqual(g["groupOpen"][0], "rgba(0, 0, 0, 0)", "Group by open or hovered gets a fill")
-                self.assertEqual(g["plusOpen"], g["plusRest"], "the + open or hovered keeps its rest look: no fill, still the grey border")
+                self.assertEqual(g["plusOpen"], g["plusRest"], "the + open or hovered keeps its rest look: no fill, still the brand border")
                 self.assertNotEqual(g["plusOpen"][1], g["brand"], "no brand fill on the +")
-                self.assertNotEqual(g["plus"][1], g["blue"], "the dashed + border is no longer the purple")
-                self.assertNotEqual(g["plus"][2], g["blue"], "nor its +")
-                self.assertEqual(g["rowW"], 560, "Search: 560 px box")
+                self.assertEqual(g["plus"][2], g["brand"], "and its + is brand coloured")
+                self.assertEqual(g["boxW"], 560, "Search: 560 px box")
                 self.assertEqual((g["mag"], g["handle"], g["padL"]), ('""', '""', "34px"), "Search: a magnifier")
                 self.assertEqual(g["countBox"], [1, 1], "the count in the box is visually hidden")
                 self.assertRegex(g["countText"], r"^\d+ of \d+$", "and still said")
@@ -110,8 +109,8 @@ class Top(unittest.TestCase):
         self.assertEqual(page.page_html(d, theme="not-a-theme"), base)
         classic = page.page_html(d, theme=NAME)
         self.assertNotEqual(classic, base)
-        self.assertNotIn("#ucAddPage.newb { border-color: var(--grey-500)", base)
-        self.assertIn("ucAddPage.newb{border-color:var(--grey-500)" if "ucAddPage.newb{" in classic else "ucAddPage.newb { border-color:", classic)
+        self.assertNotIn("min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue)", base)
+        self.assertIn("min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue)", classic)
 
 
 if __name__ == "__main__":
