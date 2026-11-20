@@ -74,7 +74,7 @@ class Top(unittest.TestCase):
                     self.assertEqual(g[k][1], "rgba(0, 0, 0, 0)", k + ": no fill")
                 self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are labelled buttons since Row 1316 follow-up)")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
-                self.assertEqual(g["plus"][0], "solid", "Row 1316 gap: the Classic + is solid")
+                self.assertEqual(g["plus"][0], "dashed", "Row 1316 ruling 19-11: the Classic + is dashed")
                 self.assertEqual(g["plus"][1], g["brand"], "the + border is brand coloured (Row 1316 controls, ruling 19-11; was grey)")
                 self.assertNotEqual(g["groupOpen"][0], "rgba(0, 0, 0, 0)", "Group by open or hovered gets a fill")
                 self.assertEqual(g["plusOpen"], g["plusRest"], "the + open or hovered keeps its rest look: no fill, still the brand border")
@@ -109,8 +109,8 @@ class Top(unittest.TestCase):
         self.assertEqual(page.page_html(d, theme="not-a-theme"), base)
         classic = page.page_html(d, theme=NAME)
         self.assertNotEqual(classic, base)
-        self.assertNotIn("#ucAddPage.newb { border-color: var(--grey-500)", base)
-        self.assertIn("ucAddPage.newb{border-color:var(--grey-500)" if "ucAddPage.newb{" in classic else "ucAddPage.newb { border-color:", classic)
+        self.assertNotIn("min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue)", base)
+        self.assertIn("min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue)", classic)
 
 
 if __name__ == "__main__":

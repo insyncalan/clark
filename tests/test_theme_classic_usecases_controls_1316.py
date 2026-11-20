@@ -49,6 +49,12 @@ class Controls(unittest.TestCase):
                 self.assertEqual(a["fg"], g["blue"], "the + is brand coloured")
                 self.assertEqual(a["c"], g["blue"], "the + border is brand coloured")
                 self.assertEqual(a["fw"], "600", "the + is weight 600")
+                self.assertEqual(a["st"], "dashed", "the + is dashed")
+                self.assertEqual(a["r"], "6px", "the + radius 6")
+                self.assertEqual(a["mh"], "28px", "the + min-height 28")
+                self.assertGreaterEqual(a["h"], 28)
+                self.assertGreaterEqual(a["w2"], 28, "the + min-width 28")
+                self.assertEqual(a["pad"], ["8px", "8px"], "the + padding 0 8")
 
     def test_cards_unchanged(self):
         g = self.read(None, 1400, "light")

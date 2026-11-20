@@ -1,4 +1,4 @@
-"""Row 1316 gaps (Classic only): the Add use case button's border is solid (the base rule draws it dashed), and the Dashboard-section text tabs (.mv-txt) are a grey 1px box with grey dividers, radius 6, 28 high, weight --weight-medium (600 in Classic).
+"""Row 1316 gaps (Classic only): the Add use case button border is dashed brand (ruling 19-11), and the Dashboard-section text tabs (.mv-txt) are a grey 1px box with grey dividers, radius 6, 28 high, weight --weight-medium (600 in Classic).
 Run: python3 dev/run_tests.py test_gap_1316c   Chrome required."""
 import unittest
 
@@ -24,7 +24,7 @@ class Gap1316c(Redesign, Base):
             g = p.js(JS)
             print("MEASURED", g)
             self.assertEqual(g["ph"], "Search use cases, or try status:Flag", "Classic search placeholder")
-            self.assertEqual(g["add"], "solid", "Add use case: solid border")
+            self.assertEqual(g["add"], "dashed", "Add use case: dashed border (ruling 19-11)")
             self.assertEqual(g["box"], ["1px", g["grey"], "6px"], "text tabs: 1px grey box, radius 6")
             self.assertEqual((g["b0"][0], g["b1"][0]), (28, 28), "28 high")
             self.assertEqual((g["b0"][1], g["b1"][1]), ("600", "600"), "weight var(--weight-medium) = 600 in Classic, on both")
