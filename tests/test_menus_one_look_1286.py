@@ -54,7 +54,7 @@ MEASURE = r"""(root => {
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
    const c = cs(b);
-   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + 16)) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, ibl: Math.round((ir.left - b.getBoundingClientRect().left) * 10) / 10, tx: after.length ? Math.round((Math.min(...after) - b.getBoundingClientRect().left) * 10) / 10 : null, ckl: ckr && ckr.width > 0 ? Math.round((ckr.left - b.getBoundingClientRect().left) * 10) / 10 : null, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + 16)) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  const bc = cs(box);
@@ -83,6 +83,11 @@ def check(test, name, look, m):
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
                 test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, row 1273 draws 10")
                 test.assertAlmostEqual(r["slot"], 16, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px of tick slot before its icon, row 1273 reserves 16")
+                # the mock-up line is [16px slot][icon][10px gap][text]: from the slot's left edge (the item's 16px padding) to the text is 16 + 16 + 10 = 42, from the item's left edge 16 + 42 = 58
+                test.assertAlmostEqual(r["tx"] - 16, 42, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx'] - 16}px after its tick slot, the rule is 16 slot + 16 icon + 10 gap")
+                test.assertAlmostEqual(r["tx"], 58, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx']}px from the item's left edge, 16 padding + 42")
+                if r["ckl"] is not None:
+                    test.assertAlmostEqual(r["ckl"] + 16, r["ibl"], delta=0.5, msg=f"{where}: the tick of {r['t']!r} fills the 16px slot right before the icon")
             elif three:
                 test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
