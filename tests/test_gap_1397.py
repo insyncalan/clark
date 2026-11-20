@@ -17,7 +17,7 @@ READ = """(() => { const c = (s) => getComputedStyle(document.querySelector(s)),
   const mk = r('.mv-mk'), ic = r('.mv-mk .ms-i'), sw = document.querySelector('#milestones .msv-b'), fr = c('#milestones .msv-sw'), b2 = c('#milestones .msv-b + .msv-b');
   return JSON.stringify({ fill: c('.mv-wrap').backgroundColor, line: [c('.mv-line').height, c('.mv-line').backgroundColor], todayW: r('.mv-today').width, todayBg: c('.mv-today').backgroundColor,
     lab: [c('.mv-today b').fontSize, c('.mv-today b').fontWeight, c('.mv-today b').color, c('.mv-today b').backgroundColor],
-    mk: [mk.width, mk.height], ic: [ic.width, ic.height], sw: getComputedStyle(sw).fontSize, swW: getComputedStyle(sw).fontWeight, frame: [fr.borderTopWidth, fr.borderTopColor, fr.borderTopLeftRadius], divider: [b2.borderLeftWidth, b2.borderLeftColor], grey500: tok('--grey-500'), blue: tok('--brand-blue') }); })()"""
+    mk: [mk.width, mk.height], ic: [ic.width, ic.height], sw: getComputedStyle(sw).fontSize, swPad: getComputedStyle(sw).paddingLeft + ' ' + getComputedStyle(sw).paddingRight, swW: getComputedStyle(sw).fontWeight, frame: [fr.borderTopWidth, fr.borderTopColor, fr.borderTopLeftRadius], divider: [b2.borderLeftWidth, b2.borderLeftColor], grey500: tok('--grey-500'), blue: tok('--brand-blue') }); })()"""
 
 
 class Source(unittest.TestCase):
@@ -47,6 +47,14 @@ class Computed(Base, unittest.TestCase):
         self.assertEqual((m["sw"], m["swW"]), ("14px", "600"))
         self.assertEqual(m["frame"], ["1px", m["grey500"], "6px"])
         self.assertEqual(m["divider"], ["1px", m["grey500"]])
+        self.assertEqual(m["swPad"], "12px 12px")      # padding 0 12px is Row 1315's, drawn in Classic
+
+    def test_cards_keeps_its_strip_and_switch(self):
+        m = self.read(None)
+        self.assertNotEqual(m["fill"], "rgba(0, 0, 0, 0)")
+        self.assertNotEqual(m["line"][1], m["grey500"])
+        self.assertEqual(m["todayW"], 2)
+        self.assertEqual(m["mk"], m["ic"])
 
 
 if __name__ == "__main__":

@@ -483,6 +483,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1396: the Milestones list as the prototype draws it (Classic only; shell.css and edit.css, Cards, are untouched). Rows 9px above and below with 20px at the left, a light divider and hover, the name in the heading colour, a 13px / 500 / .08em heading row, a 36px percent, only the name of a left-out row greyed, and the prototype's four state colours. */
 .msl-box .msl-cells { padding: 9px var(--space-2) 9px 20px; }
 .msl-box :not(.msl-hdw) + .msl { margin-top: 6px; }
+.msl-box .msl-hd, .msl-box .msl-hdw.plain + .msl { margin-top: 6px; }      /* the list is 6px under the bar: under the heading row on the page, under the bar where the Dashboard's heading row is hidden (the rule above never matched, the heading row is always the list's previous sibling) */
 .msl-box .msl-row:not(:last-child)::after { background: var(--line-soft); }
 .msl-box .msl-row:hover { background: var(--band-bg); }
 .msl-box .msl-name { color: var(--heading); }

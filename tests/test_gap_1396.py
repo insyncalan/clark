@@ -36,7 +36,7 @@ MEASURE = r"""(() => {
   }
   const hd = document.querySelector('.msl-hd'), hc = document.querySelector('.msl-hc');
   const head = hd ? {display: cs(hd,'display'), marginTop: cs(hd,'marginTop'), border: cs(hd,'borderBottomColor'), size: cs(hc,'fontSize'), w: cs(hc,'fontWeight'), ls: cs(hc,'letterSpacing'), pad: [cs(hc,'paddingTop'), cs(hc,'paddingRight'), cs(hc,'paddingBottom'), cs(hc,'paddingLeft')], cols: cs(hc,'gridTemplateColumns'), rowCols: cs(cells,'gridTemplateColumns'), h: hd.getBoundingClientRect().height} : null;
-  return {head, pad: [cs(cells,'paddingTop'), cs(cells,'paddingRight'), cs(cells,'paddingBottom'), cs(cells,'paddingLeft')], listTop: cs(list, 'marginTop'),
+  return {head, pad: [cs(cells,'paddingTop'), cs(cells,'paddingRight'), cs(cells,'paddingBottom'), cs(cells,'paddingLeft')], listTop: cs(list, 'marginTop'), gaps: (() => { const h = document.querySelector('.msl-hdw'), b = document.querySelector('.msl-bar'); return {prev: list.previousElementSibling.className, hdwBottomToList: list.getBoundingClientRect().top - h.getBoundingClientRect().bottom, barToHdw: h.getBoundingClientRect().top - b.getBoundingClientRect().bottom, hdMargin: cs(document.querySelector('.msl-hd'), 'marginTop'), hdwMargin: cs(h, 'marginTop')}; })(),
     divider: after.backgroundColor, rowH: r0.getBoundingClientRect().height,
     name: {w: cs(r0.querySelector('.msl-name'), 'fontWeight'), c: cs(r0.querySelector('.msl-name'), 'color')},
     num: num ? {minW: cs(num, 'minWidth'), w: cs(num, 'fontWeight'), boxW: num.getBoundingClientRect().width} : null,
@@ -110,7 +110,7 @@ class Computed(unittest.TestCase):
             got["out"] = cdp.js("""(() => { const r = document.querySelectorAll('.msl-row')[1]; r.classList.add('out'); const n = r.querySelector('.msl-name');
                 return {opacity: getComputedStyle(r).opacity, name: getComputedStyle(n).color}; })()""", sid)
             got["muted"] = cdp.js("(() => { const e = document.createElement('i'); e.style.color = 'var(--text-muted)'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })()", sid)
-            got["tone"] = cdp.js("(() => { const p = (v) => { const e = document.createElement('i'); e.style.color = `var(${v})`; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }; return {blue: p('--tone-blue-text'), green: p('--status-green-text'), red: p('--status-red-text'), amber: p('--ms-amber-shape')}; })()", sid)
+            got["tone"] = cdp.js("(() => { const p = (v) => { const e = document.createElement('i'); e.style.color = `var(${v})`; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }; return {blue: p('--tone-blue-text'), green: p('--status-green-text'), red: p('--status-red-text'), amber: p('--ms-amber-shape'), amberText: p('--status-amber-text')}; })()", sid)
             return got
 
     def check_classic(self, got, where):
@@ -122,6 +122,8 @@ class Computed(unittest.TestCase):
         h = got["head"]
         self.assertEqual((h["size"], h["w"], h["pad"][0], h["pad"][2], h["pad"][3]), ("13px", "500", "4px", "4px", "20px"), where)
         self.assertEqual(h["ls"], "1.04px", where)
+        self.assertEqual(h["pad"][1], "78px", where + ": 8px plus the 70px the eye and More buttons take (edit.css, editor only); a published list has none of them")
+        self.assertEqual((got["gaps"]["barToHdw"], got["gaps"]["hdwBottomToList"]), (6, 0), where + ": the list starts 6px under the bar (ticket row 1, list margin-top 6)")
         self.assertEqual((got["num"]["minW"], got["num"]["w"]), ("36px", "600"), where)
         self.assertEqual(got["num"]["boxW"], 44, where + ": the percent sits in a fixed 44px slot, so every bar is the same length (the 100% row too: test_ms_progress_col_1315)")
         self.assertEqual(got["out"]["opacity"], "1", where)
@@ -131,6 +133,7 @@ class Computed(unittest.TestCase):
         self.assertEqual(got["states"]["green"]["node"], t["green"], where)
         self.assertEqual(got["states"]["red"]["node"], t["red"], where)
         self.assertEqual(got["states"]["amber"]["node"], t["amber"], where)
+        self.assertEqual((got["states"]["green"]["text"], got["states"]["red"]["text"], got["states"]["amber"]["text"]), (t["green"], t["red"], t["amberText"]), where + ": the state words keep the status text colours, which are the prototype's --green, --red and --amber")
         self.assertFalse(got["pageScroll"], where)
 
     def test_classic_light_1400(self):
@@ -142,6 +145,7 @@ class Computed(unittest.TestCase):
         self.assertEqual(got["states"]["amber"]["node"], "rgb(197, 138, 0)")
         self.assertEqual(got["states"]["green"]["node"], "rgb(0, 107, 94)")
         self.assertEqual(got["states"]["red"]["node"], "rgb(163, 48, 31)")
+        self.assertEqual([got["states"][c]["text"] for c in ("green", "amber", "red")], ["rgb(0, 107, 94)", "rgb(138, 90, 0)", "rgb(163, 48, 31)"])
 
     def test_classic_dark_1400(self):
         got = self.measure(NAME, 1400, "dark")
@@ -159,6 +163,16 @@ class Computed(unittest.TestCase):
     def test_dashboard_list_has_no_heading_row_in_classic_and_cards_keeps_it(self):
         self.assertEqual(self.dash_head(NAME), "none")
         self.assertNotIn(self.dash_head(None), ("none", "absent"))
+
+    def test_dashboard_list_starts_6px_under_the_bar_in_classic(self):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=NAME))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = open_page(cdp, 1400, "light", NAME)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#dashboard&p={CODE}"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-box:not([data-place=\"page\"]) .msl-row')", sid)), "the Dashboard list drew")
+            gap = cdp.js("(() => { const b = document.querySelector('.msl-box:not([data-place=\"page\"])'); return b.querySelector('.msl').getBoundingClientRect().top - b.querySelector('.msl-bar').getBoundingClientRect().bottom; })()", sid)
+        self.assertEqual(gap, 6)
 
     def test_plain_class_is_in_classic_dom_only(self):
         src = (ROOT / "src/clark/page/src/components/MsList.jsx").read_text(encoding="utf-8")
