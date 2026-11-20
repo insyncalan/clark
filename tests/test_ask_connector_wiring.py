@@ -185,7 +185,7 @@ class Wired(Run):
         self.assertEqual(self.args, want)
         self.assertNotIn("--strict-mcp-config", self.args)
         self.assertIn(f"--allowedTools={P}__outlook_email_search", self.args)
-        self.assertEqual(self.discoveries, 1)
+        self.assertEqual(self.discoveries, 2)         # one before the run (the argument list) and one after it (F5: a server that appeared)
 
     def test_only_the_output_the_turns_and_the_connector_flags_differ_from_today(self):
         self.ask(["mail"])
@@ -224,7 +224,7 @@ class Wired(Run):
         self.assertIn("--no-session-persistence", a)
         self.assertEqual(a[a.index("--max-turns") + 1], "6")
         lists = [i for i, x in enumerate(a) if x.startswith(("--allowedTools", "--disallowedTools"))]
-        self.assertLess(a.index("--max-budget-usd"), min(lists))
+        self.assertNotIn("--max-budget-usd", a)
         named = {x.split("=", 1)[1] for x in a if x.startswith(("--allowedTools=", "--disallowedTools="))}
         self.assertEqual(sorted(named & set(self.BUILT_INS)), [], "no built-in name is allowed or denied: the allow-list is the gate")
         self.assertFalse(hasattr(ca, "BUILT_IN_TOOLS"))
@@ -291,6 +291,7 @@ class Screened(Run):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "x" * (scr.MAX_RESULT + 1)), final())
         self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
 
+    @mock.patch.object(scr, "MAX_TOTAL", 70000)
     def test_the_total_cap_refuses(self):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "x" * 40000), use("2", f"{P}__outlook_email_search"),
                           got("2", "y" * 40000), final())
