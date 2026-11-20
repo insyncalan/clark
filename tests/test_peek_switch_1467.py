@@ -98,6 +98,54 @@ class Switch(base.Peeks):
                 self.assertTrue(title)
                 self.assertEqual(cdp.js("(e => { const s = getComputedStyle(e); return [e.getAttribute('role'), e.getAttribute('aria-live'), e.getBoundingClientRect().width <= 1]; })(document.querySelector('#peek [data-pk-live]'))", sid), ["status", "polite", True])
 
+    def real_key(self, cdp, sid, name):
+        vk = {"ArrowUp": 38, "ArrowDown": 40}[name]
+        common = {"key": name, "code": name, "windowsVirtualKeyCode": vk}
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+    def test_stepping_with_up_and_down_stays_silent_and_a_row_click_after_it_speaks_p5(self):
+        """Row 1467 P5: Up and Down on Close step to the neighbour and the live line holds only the stepping line '<id>, n of m', never the switch line '<id>: <title>'; a real row click after a step does say '<id>: <title>'."""
+        import re
+        live = "document.querySelector('#peek [data-pk-live]').textContent"
+        shown = "(p => !!p && p.dataset.peek)(document.querySelector('#peek'))"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.live(cdp, width, self.store, f"#work&p={self.code}")      # Up and Down step through the Work items list
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 2))
+                ids = cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)", sid)
+                a = ids[1]
+                self.open_peek(cdp, sid, a, "item")
+                self.assertTrue(wait(lambda: cdp.js(shown, sid) == a))
+                cdp.js("document.querySelector('#peek [data-pk-close]').focus()", sid)
+                self.assertEqual(cdp.js(live, sid), "", "opening says nothing")
+                stepped_to, stuck = [], []
+                for name in ("ArrowDown", "ArrowUp", "ArrowDown", "ArrowUp"):
+                    before = cdp.js(shown, sid)
+                    cdp.js("document.querySelector('#peek [data-pk-close]').focus()", sid)
+                    self.real_key(cdp, sid, name)
+                    moved = wait(lambda: cdp.js(shown, sid) != before)
+                    if not moved:
+                        stuck.append([name, cdp.js(live, sid), cdp.js("document.activeElement.outerHTML.slice(0, 120)", sid)])
+                        continue            # at an end of the list: the end line, not a step
+                    now = cdp.js(shown, sid)
+                    stepped_to.append(now)
+                    title = cdp.js("document.querySelector('#peek .pk-title').value || document.querySelector('#peek .pk-title').textContent", sid).strip()
+                    self.assertTrue(wait(lambda: re.fullmatch(re.escape(now) + r", \d+ of \d+", cdp.js(live, sid) or "") is not None),
+                                    "the live line is the stepping line: " + str(cdp.js(live, sid)))
+                    time.sleep(0.4)         # the switch effect would have said its line by now
+                    line = cdp.js(live, sid)
+                    self.assertRegex(line, "^" + re.escape(now) + r", \d+ of \d+$")
+                    self.assertNotEqual(line, f"{now}: {title}", "stepping never says the switch line")
+                self.assertGreaterEqual(len(stepped_to), 2, "the keys stepped at least twice: " + json.dumps(stuck))
+                here = cdp.js(shown, sid)
+                other = next(i for i in ids if i != here and i != ids[0])
+                cdp.js(f"document.querySelector('#work tbody tr[data-id={other}] .wil-c-title, #work tbody tr[data-id={other}] td:nth-child(2)').click()", sid)      # as the Work items test above: the row's title cell
+                self.assertTrue(wait(lambda: cdp.js(shown, sid) == other))
+                title = cdp.js("document.querySelector('#peek .pk-title').value || document.querySelector('#peek .pk-title').textContent", sid).strip()
+                self.assertTrue(title)
+                self.assertTrue(wait(lambda: cdp.js(live, sid) == f"{other}: {title}"), "after a step, a row click says the switch line: " + str(cdp.js(live, sid)))
+
     def test_work_items_page_and_milestones_page_switch_the_peek_too(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
