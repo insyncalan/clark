@@ -21,17 +21,23 @@ PROBE = """(() => { const R = (e) => e.getBoundingClientRect(), bar = document.q
   return {view: document.querySelector('.tab[aria-selected=true]') ? document.querySelector('.tab[aria-selected=true]').dataset.view : null, text: s.textContent,
     nameH: nn.height, tip: n.getAttribute('title') || n.parentElement.getAttribute('title') || '', nameTop: nn.top, lh: parseFloat(getComputedStyle(n).lineHeight), ws: c.whiteSpace, to: c.textOverflow, ov: c.overflow,
     lineInside: ll.top >= b.top - 0.5 && ll.bottom <= b.bottom + 0.5 && ll.right <= b.right + 0.5, lineBottom: ll.bottom, barBottom: b.bottom, barH: b.height,
-    nameInside: nn.bottom <= b.bottom + 0.5 && nn.right <= b.right + 0.5, wide: document.documentElement.scrollWidth <= innerWidth}; })()"""
+    nameInside: nn.bottom <= b.bottom + 0.5 && nn.right <= b.right + 0.5, wide: document.documentElement.scrollWidth <= innerWidth,
+    token: (() => { const r = document.documentElement; r.style.removeProperty('--topbar'); return parseFloat(getComputedStyle(r).getPropertyValue('--topbar')); })(),
+    tabs: (() => { const t = [...document.querySelectorAll('.top-hdr .tab')], st = document.querySelector('.top-hdr .tabs'), inside = (e) => { const r = R(e); return r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5 && r.left >= b.left - 0.5 && r.right <= b.right + 0.5; };
+      return {n: t.length, all: t.every(inside), strip: !!st && inside(st)}; })()}; })()"""
 
 
 class Title(Setup):
     def setUp(self):
         orig = testpage.html
-        m = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(orig(), theme.css("prototype-2.0")))
-        m.start()
-        self.addCleanup(m.stop)
+        self.m = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(orig(), theme.css("prototype-2.0")))
+        self.m.start()
+        self.addCleanup(self.m.stop)
         super().setUp()
         self.store.con.execute("UPDATE projects SET show_gantt_editor = 1 WHERE code = 'ABC'")      # the Gantt tab is on, so its page can be drawn
+
+    def mock_off(self):
+        self.m.stop()      # the Classic layer off: the page is the Cards one
 
     def look(self, width, view):
         with chrome() as cdp:
@@ -53,6 +59,9 @@ class Title(Setup):
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
         self.assertEqual(g["tip"], g["orig"], "row 1341 ruling: the tooltip is the full project name (the aria-label keeps Change project)")
+        self.assertEqual(g["barH"], g["token"], "the bar is as tall as the real --topbar token, read with the inline value removed")
+        self.assertGreaterEqual(g["tabs"]["n"], 1, "at least one tab is drawn")
+        self.assertTrue(g["tabs"]["all"] and g["tabs"]["strip"], "every tab and the tab strip lie inside the bar: %r" % (g,))
         if width == 1400:
             self.assertEqual(g["barH"], 85, "row 1341 ruling: the bar is 85 px at 1400 (Classic prototype)")
         else:
@@ -74,12 +83,27 @@ class Title(Setup):
                     self.assertTrue(g["lineInside"] and g["wide"], (width, text, g))
 
     def test_the_static_title_span_carries_the_full_name_as_its_tooltip(self):
-        """Ruling a (12:43): the plain title span in the bar (no project switch) has title = the full name. The standard test page always
-        mounts the switch, so the span is pinned in the source: the span's title is the same expression as its text."""
+        """Ruling a (12:43): the plain title span in the bar (no project switch) has title = the full name in Classic, and none in Cards.
+        The standard test page always mounts the switch, so the span is pinned in the source: the title is the full name behind the Classic gate."""
         src = (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8")
-        m = re.search(r'<span class="hdr-project hdr-static" id="project-name" title=\{([^}]*)\}>\{([^}]*)\}</span>', src)
-        self.assertTrue(m, "the static title span has a title attribute")
+        m = re.search(r'<span class="hdr-project hdr-static" id="project-name" title=\{classicTheme\(\) \? \(([^}]*)\) : undefined\}>\{([^}]*)\}</span>', src)
+        self.assertTrue(m, "the static title span has a title attribute, set only in Classic")
         self.assertEqual(m.group(1).strip(), m.group(2).strip(), "title and text are the same full name")
+        self.assertEqual(len(re.findall(r'import \{ classicTheme \}', src)), 1)
+
+    def test_cards_keep_the_change_project_tooltip(self):
+        """With the Cards theme (no Classic layer) the header switch tooltip stays 'Click to change project' and the static span has no title."""
+        src = (ROOT / "src/clark/page/src/edit/ProjectSwitch.jsx").read_text(encoding="utf-8")
+        self.assertIn('tip={classicTheme() ? shown : "Click to change project"}', src)
+        self.assertEqual(len(re.findall(r'import \{ classicTheme \}', src)), 1)
+        self.assertIn("title={classicTheme() ? (name || project.value || \"No project open\") : undefined}", (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8"))
+        self.mock_off()
+        with chrome() as cdp:
+            p = self.show(cdp, 1400, False, standard=True)
+            g = p.js("(() => { const n = document.querySelector('.hdr-project'); return {theme: !!document.getElementById('theme'), tip: n.getAttribute('title') || n.parentElement.getAttribute('title') || '', stat: !!document.querySelector('.hdr-static[title]')}; })()")
+        self.assertFalse(g["theme"])
+        self.assertEqual(g["tip"], "Click to change project")
+        self.assertFalse(g["stat"])
 
 
 for _w in (1400, 900):
