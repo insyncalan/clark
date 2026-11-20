@@ -19,7 +19,7 @@ PROBE = """(() => { const cs = (e, p) => getComputedStyle(e)[p], R = (e) => e.ge
     return { key: f.dataset.fig, label: k.textContent, labelFont: cs(k, 'fontFamily').split(',')[0], labelWeight: cs(k, 'fontWeight'), labelSize: cs(k, 'fontSize'),
       figFont: cs(v, 'fontFamily').split(',')[0], figWeight: cs(v, 'fontWeight'), figSize: cs(v, 'fontSize'), figLH: cs(v, 'lineHeight'), figSpacing: cs(v, 'letterSpacing'), figColor: cs(v, 'color'), tint: f.className,
       note: dd ? dd.textContent : null, noteInRow: !!(dd && row && row.contains(dd)), noteSize: dd ? cs(dd, 'fontSize') : null, noteColor: dd ? cs(dd, 'color') : null,
-      noteBelow: dd ? Math.round(R(dd).top - R(v).bottom) : null, sameLine: dd ? Math.abs((R(dd).bottom) - (R(v).bottom)) < 6 : null, h: Math.round(R(f).height) }; }); })()"""
+      ddCount: f.querySelectorAll('.dd').length, rowAlign: row ? cs(row, 'alignItems') : null, noteBelow: dd ? Math.round(R(dd).top - R(v).bottom) : null, sameLine: dd ? Math.abs((R(dd).bottom) - (R(v).bottom)) < 6 : null, h: Math.round(R(f).height) }; }); })()"""
 
 
 class Base(Setup):
@@ -49,6 +49,9 @@ class Classic(Base):
             self.assertTrue(t["noteInRow"], t)
             self.assertEqual(t["noteSize"], "14px", t)
             self.assertTrue(t["sameLine"], t)
+            self.assertEqual(t["noteColor"], "rgb(71, 85, 119)", t)       # the muted text colour
+            self.assertEqual(t["ddCount"], 1, t)                           # one note, not a second copy under the row
+            self.assertEqual(t["rowAlign"], "baseline", t)                 # the note and the figure share a baseline
 
     def test_T2_label_is_inter_400_figure_is_inter_text_colour_normal_line_height(self):
         for t in self.look():
@@ -63,7 +66,7 @@ class Classic(Base):
         rows = [l for l in RULES.split("\n") if l.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"), rows[-1][:40])
         self.assertLess(RULES.index("/* Row 1404"), RULES.index("/* Row 1314"))
-        block = RULES.split("/* Row 1404")[1].split("/* Row 1314")[0]
+        block = RULES.split("/* Row 1404")[1].split("\n/* Row ")[0]          # to the next Row comment, not to Row 1314: blocks merged in from main between them are not this one
         self.assertIsNone(re.search(r"#[0-9a-fA-F]", block), "colours from tokens only")
 
 
