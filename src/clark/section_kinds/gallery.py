@@ -28,8 +28,8 @@ migrated. The fields:
 
 Sizes (decided here, stated for the report file, the Word export and the backup): an image is made at most WIDTH_MAX (1,600 px) wide
 (300 dpi at two across on a full landscape page); each framed copy holds at most FRAMED_MAX (512 KiB) and each original at most
-ORIGINAL_MAX (1 MiB), decoded. Six framed copies are 4.1 MB as text, inside the 5 MiB a published report may take; the stored section
-may reach LIMIT (12.1 MB: six framed copies and six originals), which is what a backup of the project can grow by.
+ORIGINAL_MAX (1 MiB), decoded. A picture may be sent up to PICTURE_MAX (10 MiB, the gallery's own). Six framed copies are 4.0 MiB as text, inside the 5 MiB a published report may take; the stored section
+may reach LIMIT (12.7 MB: six framed copies and six originals), which is what a backup of the project can grow by.
 
 Published (version 2): ONLY the framed copies, in `order`, with their captions and descriptions, `columns` and `shape`; never an original,
 so a cropped part is not in the report file. No image: not published.
@@ -44,9 +44,9 @@ SLOTS = ("1", "2", "3", "4", "5", "6")
 ORIGINALS = tuple("o" + s for s in SLOTS)
 KIB = 1024
 V1_PICTURE_MAX = 400 * KIB          # each of six in a version 1 body (decoded), as in 1.0.7
-PICTURE_MAX = imagecap.PICTURE_MAX  # bytes one image may take when it is SENT (decoded); the route's limit allows its base64 (a test keeps it equal to the Image template's)
+PICTURE_MAX = 10 * 1024 * KIB       # bytes one image may take when it is SENT (decoded): 10 MB, the gallery's own (the Image template keeps 8 MiB); the route's limit allows its base64 (server.IMAGE_FILE_MB, a test keeps them equal)
 WIDTH_MAX = 1600                    # px: 300 dpi at two across on a full landscape page; a wider image is made this wide
-FRAMED_MAX = 512 * KIB              # bytes one framed copy may take (decoded): six in base64 are 4.1 MB, inside the 5 MiB a published report may hold
+FRAMED_MAX = 512 * KIB              # bytes one framed copy may take (decoded): six in base64 are 4.0 MiB, inside the 5 MiB a published report may hold
 ORIGINAL_MAX = 1024 * KIB           # bytes one stored original may take (decoded), after a wide PNG is made smaller
 V1_LIMIT = 3 * 1024 * KIB + 256 * KIB    # what a version 1 body may take, as before (six pictures at V1_PICTURE_MAX in base64 and their words)
 LIMIT = 6 * ((FRAMED_MAX + 2) // 3 * 4 + (ORIGINAL_MAX + 2) // 3 * 4) + 64 * KIB     # the stored body (either version): six framed copies, six originals and the words

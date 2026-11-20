@@ -11,7 +11,7 @@ import unittest
 
 from _pictures import GOOD, GOOD_JPEG, EXIF, data, jpeg
 from test_imagecap_full_server import BLUE, RED, decode, halves, make_png, sized_jpeg
-from clark import changes, section_bodies, store as store_module
+from clark import changes, section_bodies, server, store as store_module
 from clark.section_kinds import gallery, imagecap
 from clark.section_kinds.base import Bad
 from clark.section_kinds.textimage import BAD_SLOT, BIG_PICTURE, CAMERA_DETAILS, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, UNKNOWN_FIELD
@@ -38,7 +38,10 @@ def six(shape="whole"):
 class Shape(unittest.TestCase):
     def test_the_sizes_are_the_ones_the_report_states(self):
         self.assertEqual((gallery.WIDTH_MAX, gallery.FRAMED_MAX, gallery.ORIGINAL_MAX), (1600, 512 * 1024, 1024 * 1024))
-        self.assertEqual(gallery.PICTURE_MAX, imagecap.PICTURE_MAX, "the route's one send limit is the Image template's")
+        self.assertEqual(gallery.PICTURE_MAX, 10 * 1024 * 1024, "a person may add a picture up to 10 MB")
+        self.assertEqual(imagecap.PICTURE_MAX, 8 * 1024 * 1024, "the Image template keeps its 8 MiB")
+        self.assertEqual(server.IMAGE_FILE_MB * 1024 * 1024, gallery.PICTURE_MAX)
+        self.assertGreater(server.ROUTE_BODY_LIMITS["/api/section-image"], gallery.PICTURE_MAX * 4 // 3 + server.REQUEST_ENVELOPE, "the route takes a 10 MiB picture in base64")
         self.assertGreater(gallery.LIMIT, gallery.V1_LIMIT, "a stored 1.0.7 gallery is never refused for size")
         self.assertLess(6 * (gallery.FRAMED_MAX + 2) // 3 * 4, 5 * 1024 * 1024, "six framed copies fit a published report")
         self.assertEqual(gallery.LIMIT, section_bodies.LIMITS["gallery"])
@@ -265,6 +268,19 @@ class Columns(unittest.TestCase):
 
 class Version1Stays(unittest.TestCase):
     OLD = {"v": 1, "items": {"1": {"caption": "Fictional one", "alt": "A room"}, "2": {"caption": "Two"}}, "pictures": {"1": GOOD, "2": GOOD_JPEG}}
+
+    def test_a_picture_of_10_mib_is_read_and_one_byte_more_is_refused_at_once(self):
+        from clark.section_kinds.textimage import picture
+        mib = 1024 * 1024
+        exact = data(jpeg(pad=10 * mib - 101), "jpeg")
+        self.assertEqual(picture(exact, gallery.PICTURE_MAX), exact, "10 MiB decoded is read")
+        over = data(jpeg(pad=10 * mib - 101 + 4), "jpeg")
+        with self.assertRaises(Bad) as e:
+            gallery.with_picture({"v": 2}, "1", over)
+        self.assertEqual(str(e.exception), BIG_PICTURE, "over 10 MiB is refused before it is decoded")
+        with self.assertRaises(Bad) as e:
+            imagecap.with_picture({"v": 2}, "image", data(jpeg(pad=9 * mib), "jpeg"))
+        self.assertEqual(str(e.exception), BIG_PICTURE, "the Image template still refuses over 8 MiB")
 
     def test_a_1_0_7_gallery_checks_and_publishes_as_before(self):
         self.assertEqual(gallery.check(self.OLD, None), self.OLD)

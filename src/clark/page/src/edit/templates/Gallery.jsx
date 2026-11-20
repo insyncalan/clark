@@ -8,7 +8,7 @@ import { SLOTS } from "../../templates/Gallery.jsx";
 
 const WORDS = { added: "Picture added.", removed: "Picture taken out." };
 export const LONGEST = 1200;
-export const MOST = 400 * 1024;              // gallery.py PICTURE_MAX
+export const MOST = 512 * 1024;              // gallery.py FRAMED_MAX (one framed copy, decoded)
 
 function itemsOf(v) {
   return v && v.items && typeof v.items === "object" && !Array.isArray(v.items) ? v.items : {};
