@@ -51,6 +51,21 @@ class Toolbar(GP.Page):
                     self.assertEqual(m["sep"], [1, 22, "6px", "6px"], "a divider sits between the zoom-in and the filter")
                     self.assertTrue(m["before"])
 
+    def test_the_zoom_percentage_and_the_show_menu_are_the_measured_ones(self):
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width):
+                    self.look(width, scheme)
+                    self.mount(mode="edit")
+                    self.js("document.querySelector('[data-g-show]').click()")
+                    self.until("document.querySelector('[data-g-showmenu]')", "the menu")
+                    m = self.val("""(() => { const q = s => document.querySelector(s), cs = e => getComputedStyle(e), menu = q('[data-g-showmenu]'), fit = q('[data-g-fit]'), row = menu.querySelector('button');
+                      return {fitMin: cs(fit).minWidth, fitFont: cs(fit).fontSize, w: menu.getBoundingClientRect().width, pad: cs(menu).padding, radius: cs(menu).borderRadius,
+                        rowPad: cs(row).padding, rowFont: cs(row).fontSize}; })()""")
+                    self.assertEqual((m["fitMin"], m["fitFont"]), ("56px", "14px"))
+                    self.assertEqual((m["w"], m["pad"], m["radius"]), (240, "6px", "12px"))
+                    self.assertEqual((m["rowPad"], m["rowFont"]), ("8px 10px", "14px"))
+
 
 for _n in [n for n in dir(GP.Page) if n.startswith("test_")]:
     setattr(Toolbar, _n, None)
