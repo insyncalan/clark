@@ -270,6 +270,12 @@ export const QUIPS = [
   "Proofreading…",
 ];
 
+// Row 1292 (S6, no streaming yet; Classic only): the working line says the one step the page really knows (the question is out to the provider) and how long
+// it has been going, counted from the send. A longer step list waits for real progress from the server. Cards keeps the quips above.
+export const STEP_ASKING = "Asking Claude";
+export const workingFor = (secs) => `Working ${Math.max(0, Math.floor(secs))}s`;
+export const workingLine = (who, secs) => `${named(STEP_ASKING, who)} · ${workingFor(secs)}`;
+
 // A change an answer suggests (#47e). The before and after come from the saved data, never from the answer's words.
 export const CHANGE_HEAD = "Suggested change";
 export const NEW_HEAD = "Suggested new item";
