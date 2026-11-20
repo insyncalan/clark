@@ -120,7 +120,14 @@ class SettingsSize(unittest.TestCase):
         from clark import ai_connect
         self.assertIs(ai_connect.QUESTION_CHARS, ask.BUDGET)
         self.assertEqual(ask.BUDGET, 1_200_000)
-        line = ai_connect.SIZE_LINE.format(tokens=ai_connect.QUESTION_CHARS // ai_connect.CHARS_PER_TOKEN, chars=ai_connect.QUESTION_CHARS)
+        # what the page is actually given: AiConnect.view()["size"], not a line formatted again here
+        import os, shutil, tempfile
+        from pathlib import Path
+        import test_ai_connect as T
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        connect, _chain = T.ac.chain(d, T.FakeClaude(), T.FakeChatGPT())
+        line = connect.view()["size"]
         self.assertIn(f"{ask.BUDGET // 4:,} tokens", line)
         self.assertIn(f"{ask.BUDGET:,} characters", line)
 
