@@ -175,5 +175,31 @@ class AskingOff(Base):
         self.assertFalse((data / "ask-index").exists() and any((data / "ask-index").iterdir()))
 
 
+class RefusedFolder(Base):
+    def refuse(self, bad):
+        real = ask_index.reach.never_inside
+        return mock.patch.object(ask_index.reach, "never_inside", side_effect=lambda f, d, h: "refused" if str(f) == str(bad) else real(f, d, h))
+
+    def test_a_folder_refused_for_a_reason_is_never_usable_and_a_normal_one_is(self):
+        good, bad = self.d / "good", self.d / "bad"
+        good.mkdir()
+        bad.mkdir()
+        with self.refuse(bad):
+            self.assertEqual(ask_index._unusable([good, bad], self.data, None), ([good], [bad]))
+            self.assertEqual(ask_index._unusable([bad], self.data, None), ([], [bad]))
+            self.assertEqual(ask_index._unusable([good], self.data, None), ([good], []))
+
+    def test_a_refused_folder_gives_no_passage_and_counts_as_safety_while_the_other_is_searched(self):
+        good, bad = self.d / "good", self.d / "bad"
+        self.put("a.txt", "zqrefuse good words", folder=good)
+        self.put("b.txt", "zqrefuse bad words", folder=bad)
+        with self.refuse(bad):
+            ix.refresh(self.data, "P1", [good, bad])
+        got = self.found("zqrefuse")
+        self.assertEqual(len(got), 1)
+        self.assertIn("good", got[0][0])
+        self.assertEqual(ask_index.status(self.data, "P1")["safety"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
