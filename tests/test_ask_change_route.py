@@ -300,7 +300,7 @@ class Mutants(Base):
 
     def test_without_the_servers_mark_a_change_from_a_file_needs_no_confirm(self):
         real = ask_service.AskService.hold
-        with mock.patch.object(ask_service.AskService, "hold", lambda s, c, r, q, _ids, t: real(s, c, r, q, set(), t)):
+        with mock.patch.object(ask_service.AskService, "hold", lambda s, c, r, q, _ids, t, *more: real(s, c, r, q, set(), t, *more)):
             got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"), files=(FILE,))
             offer = self.dry(got["reply"])[1]["plans"][0]["offer"]
             self.assertEqual(self.apply(offer)[0], 200, "the mark is what made Confirm needed")
