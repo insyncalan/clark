@@ -146,12 +146,16 @@ class Window(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     r = p.js("(() => { const cs = getComputedStyle(document.querySelector('.set-win')); return {radius: cs.borderTopLeftRadius, shadow: cs.boxShadow, bg: cs.backgroundColor,"
-                             " pt: cs.paddingTop, pr: cs.paddingRight, pb: cs.paddingBottom, pl: cs.paddingLeft, border: cs.borderTopWidth}; })()")
+                             " pt: cs.paddingTop, pr: cs.paddingRight, pb: cs.paddingBottom, pl: cs.paddingLeft, border: cs.borderTopWidth,"
+                             " card: getComputedStyle(document.querySelector('.set-win .set-cards .frame')).backgroundColor}; })()")
                     self.assertEqual(r["radius"], "18px", "the radius is the mock-up's 18px (row 1299 ruling): 12px and 14px both fail here")
                     self.assertNotIn(r["radius"], ("12px", "14px"), "neither the large-radius token nor 14")
-                    ring = self.token(p, "var(--border)")["bg"]
-                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px, rgba(6, 47, 58, 0.18) 0px 12px 36px 0px", "a one pixel ring in the border colour drawn as a shadow (it takes no room), then the mock-up's 0 12px 36px drop shadow")
-                    self.assertEqual(r["bg"], self.token(p, "var(--surface)")["bg"], "the ground is the surface token")
+                    ring = {"light": "rgb(233, 237, 246)", "dark": "rgb(43, 56, 80)"}[mode]      # the mock-up's --line (#e9edf6, dark #2b3850), the row 1299 ruling
+                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px, rgba(6, 47, 58, 0.18) 0px 12px 36px 0px", "a one pixel ring in the mock-up line colour drawn as a shadow (it takes no room), then the mock-up's 0 12px 36px drop shadow")
+                    ground = {"light": "rgb(241, 243, 249)", "dark": "rgb(21, 31, 44)"}[mode]      # the mock-up's --win (#f1f3f9, dark #151f2c)
+                    self.assertEqual(r["bg"], ground, "the window ground is the mock-up's --win in " + mode)
+                    self.assertEqual(r["card"], self.token(p, "var(--surface)")["bg"], "the cards inside stay on the surface token (white in light) in " + mode)
+                    self.assertNotEqual(r["card"], r["bg"], "the cards read against the window ground")
                     self.assertEqual(r["border"], "0px", "the ring is not a border")
                     self.assertEqual((r["pt"], r["pr"], r["pb"]), (self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-5)")["w"]), "padding: space-4 above and right, space-5 below")
                     self.assertEqual(r["pl"], "20px", "on screen the left padding is Row 1312's 20px gutter")

@@ -43,6 +43,7 @@ LIGHT = {
         '--gutter-rule': '#EEEBFB',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        '--set-ring': '#E9EDF6', '--set-win': '#F1F3F9',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
     }
 DARK = {
@@ -77,6 +78,7 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        '--set-ring': '#2B3850', '--set-win': '#151F2C',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
     }
 RULE_LINES = [

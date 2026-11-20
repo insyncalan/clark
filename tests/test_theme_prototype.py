@@ -16,7 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
-THEME_ONLY = {"--sec-band-bg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
+THEME_ONLY = {"--sec-band-bg", "--set-ring", "--set-win"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes; row 1299 adds --set-ring and --set-win the same way (the Settings window, Classic only)
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
