@@ -101,6 +101,53 @@ class Switch(base.Peeks):
                 cdp.js(f"document.querySelector('.msl-row[data-ms={ms[1]}] .msl-cells').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').dataset.peek", sid) == ms[1]))
 
+    def mouse(self, cdp, sid, selector):
+        """A real mouse click (move, press, release) on the middle of the first visible element that `selector` finds."""
+        x, y = cdp.js(f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null), b = e.getBoundingClientRect(); return [b.left + Math.min(b.width / 2, 120), b.top + b.height / 2]; }})()", sid)
+        for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
+            cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+
+    def test_a_real_click_on_a_milestone_row_keeps_the_open_peek_and_switches_it_row_1467(self):
+        """The keep rule `.msl-row`: a real press on another milestone's row (its cells) is not a click outside; the same peek element shows that milestone."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.live(cdp, width, self.store, f"#milestones&p={self.code}")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row[data-ms]').length", sid) > 1))
+                ms = cdp.js("[...new Set([...document.querySelectorAll('.msl-row[data-ms]')].filter(e => e.offsetParent).map(e => e.dataset.ms))]", sid)
+                self.assertGreaterEqual(len(ms), 2, "the Milestones list shows two milestones")
+                self.open_peek(cdp, sid, ms[0], "milestone")
+                cdp.js("window.__peek1467 = document.querySelector('#peek'); window.__closed1467 = 0; new MutationObserver(() => { if (!document.querySelector('#peek')) window.__closed1467++; }).observe(document.body, { childList: true, subtree: true })", sid)
+                self.mouse(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells")
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == ms[1]), "the peek shows the other milestone")
+                self.assertTrue(cdp.js("window.__peek1467 === document.querySelector('#peek')", sid), "the same peek element: never closed and reopened")
+                self.assertEqual(cdp.js("window.__closed1467", sid), 0)
+
+    def test_a_real_click_on_a_use_case_page_work_item_keeps_the_open_peek_and_switches_it_row_1467(self):
+        """The keep rule `[data-item]`: a real press on another work item of a use case's own page is not a click outside; the same peek element shows that item."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.live(cdp, width, self.store, f"#usecases&p={self.code}")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#usecases .ucl-go').length", sid) > 0), "the Use cases list drew")
+                n = cdp.js("document.querySelectorAll('#usecases [data-uc] .ucl-go').length", sid)
+                items = []
+                for i in range(n):
+                    cdp.js(f"[...document.querySelectorAll('#usecases [data-uc] .ucl-go')].filter(e => e.offsetParent)[{i}].click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucd]')", sid)), "the use case page opened")
+                    wait(lambda: True)
+                    items = cdp.js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)", sid)
+                    if len(items) >= 2:
+                        break
+                    cdp.js("history.back()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-ucd]')", sid)))
+                self.assertGreaterEqual(len(items), 2, "a use case page lists two work items")
+                self.mouse(cdp, sid, f"[data-item={items[0]}]")
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == items[0]), "the peek opened on the first item")
+                cdp.js("window.__peek1467 = document.querySelector('#peek'); window.__closed1467 = 0; new MutationObserver(() => { if (!document.querySelector('#peek')) window.__closed1467++; }).observe(document.body, { childList: true, subtree: true })", sid)
+                self.mouse(cdp, sid, f"[data-item={items[1]}]")
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == items[1]), "the peek shows the other item")
+                self.assertTrue(cdp.js("window.__peek1467 === document.querySelector('#peek')", sid), "the same peek element: never closed and reopened")
+                self.assertEqual(cdp.js("window.__closed1467", sid), 0)
+
     def test_a_click_on_empty_page_and_esc_still_close_and_up_down_still_step(self):
         with chrome() as cdp:
             sid = self.ready(cdp, 1400)
