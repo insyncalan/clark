@@ -22,6 +22,8 @@ class Sizes(Computed):
                     w = f"{scheme} {w}"
                     for sel in ("#sg", "#sc", "#cs"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "borderTopWidth"), "1px", f"{w} {sel} AP4 border")
+                        self.assertEqual(self.style(cdp, sid, sel, "borderTopStyle"), "solid", f"{w} {sel} AP4 border")
                     cdp.js("document.getElementById('probe').insertAdjacentHTML('beforeend', '<button class=\"msv-sw\" id=\"sw1\">S</button><button class=\"mv-txt\" id=\"tx1\">T</button><div class=\"seg lsw\" id=\"lw\"><button>L</button></div>')", sid)
                     for sel in ("#sw1", "#tx1"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
@@ -34,6 +36,7 @@ class Sizes(Computed):
                         self.assertEqual(self.style(cdp, sid, sel, "paddingBottom"), "3px", f"{w} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "paddingLeft"), "14px", f"{w} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "paddingRight"), "14px", f"{w} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "fontWeight"), "600", f"{w} {sel} AP4 weight")
                     self.assertEqual(self.style(cdp, sid, "#lw button", "minHeight"), "32px", f"{w} layout switch keeps its height")
                     self.assertEqual(self.style(cdp, sid, "#lw button", "paddingLeft"), "12px", f"{w} layout switch keeps its padding")
                     self.assertEqual(self.style(cdp, sid, "#md button", "minHeight"), "32px", f"{w} top-bar switch unchanged")
