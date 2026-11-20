@@ -19,7 +19,7 @@ import secrets
 import unicodedata
 from dataclasses import dataclass, field, replace
 
-from clark import edit_ai
+from clark import edit_ai, settings
 
 BUDGET = 1_200_000          # characters of passages in one request: 300,000 tokens at 4 characters each (row 1293; the fixed budget, no follow-up rounds)
 MAX_QUESTION = 4000
@@ -616,7 +616,7 @@ HELD_BACK = "The answer was held back because it would have revealed the assista
 HELD_BACK_SECRET = "The answer was held back because it looked like it held a password or a key."
 
 
-PERSON_MAX = 60        # the profile field's own limit (settings.NAME_MAX)
+PERSON_MAX = settings.NAME_MAX        # the profile field's own limit
 
 
 def person_line(name):

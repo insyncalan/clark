@@ -56,6 +56,22 @@ class Line(unittest.TestCase):
         self.assertEqual(slot, "a" * ask.PERSON_MAX)
         self.assertEqual(ask.person_line("é" * 61).split('"')[1], "é" * 60)
 
+    def test_person_max_is_the_profile_limit(self):
+        self.assertEqual(ask.PERSON_MAX, settings.NAME_MAX)
+        with open(ask.__file__, encoding="utf-8") as f:
+            self.assertRegex(f.read(), r"(?m)^PERSON_MAX = settings\.NAME_MAX\b", "tied to the setting, not a literal")
+
+    def test_decomposed_and_precomposed_accents_both_stay_on_one_line(self):
+        nfd, nfc = "Jose\u0301 Lee", "Jos\u00e9 Lee"
+        for name in (nfd, nfc):
+            p = ask.system_prompt("K", None, name)
+            extra = p[len(ask.RULES):].split("\n")
+            self.assertEqual(len(extra), 3)
+            self.assertEqual(len(extra[1].split('"')), 3)
+        self.assertEqual(ask.person_line(nfd).split('"')[1], nfd, "the combining mark is kept, not turned into a space")
+        self.assertEqual(ask.person_line(nfc).split('"')[1], nfc)
+        self.assertNotIn("Jose Lee", ask.person_line(nfd))
+
     def test_spaces_are_squeezed_and_the_rules_are_untouched(self):
         self.assertEqual(ask.person_line("  Sam    Lee ").split('"')[1], "Sam Lee")
         self.assertTrue(ask.system_prompt("K", None, "x").startswith(ask.RULES))
