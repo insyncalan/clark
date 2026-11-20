@@ -19,7 +19,7 @@ MEASURE = ("JSON.stringify((() => { const s = %s, q = (x) => document.querySelec
            "const top = r(box).top - g.bottom, bw = r(box).width, ckr = r(ck), selr = r(sel), rowh = r(ckl).height; ck.focus(); const kf = c(ck); const f = {w: kf.outlineWidth, o: kf.outlineOffset, c: kf.outlineColor}; sel.focus(); const sf = c(sel);"
            "return {box: {w: bw, top: top, pad: bc.paddingTop + ' ' + bc.paddingLeft, rad: bc.borderTopLeftRadius, sh: bc.boxShadow, bord: bc.borderTopWidth + ' ' + bc.borderTopColor, gap: bc.rowGap},"
            "h4: {fs: c(q('.wil-cfg h4')).fontSize, fw: c(q('.wil-cfg h4')).fontWeight, ff: c(q('.wil-cfg h4')).fontFamily}, label: {fs: c(lab).fontSize, fw: c(lab).fontWeight}, legend: {fs: c(lg).fontSize, fw: c(lg).fontWeight},"
-           "sel: {h: selr.height, rad: sc.borderTopLeftRadius, pad: sc.paddingLeft + ' ' + sc.paddingRight, fw: sc.fontWeight, bg: sc.backgroundColor, bord: sc.borderTopWidth + ' ' + sc.borderTopColor, focus: sf.outlineWidth + ' ' + sf.outlineOffset + ' ' + sf.outlineColor},"
+           "sel: {w: selr.width, h: selr.height, rad: sc.borderTopLeftRadius, pad: sc.paddingLeft + ' ' + sc.paddingRight, fw: sc.fontWeight, bg: sc.backgroundColor, bord: sc.borderTopWidth + ' ' + sc.borderTopColor, focus: sf.outlineWidth + ' ' + sf.outlineOffset + ' ' + sf.outlineColor},"
            "ck: {w: ckr.width, h: ckr.height, rowh: rowh, fs: c(ckl).fontSize, fw: c(ckl).fontWeight, gap: c(ckl).columnGap, focus: f}}; })())")
 
 
@@ -49,6 +49,10 @@ class Measured(M.Look):
             p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
             return json.loads(p.js(MEASURE % json.dumps(sec)))
 
+    def test_classic_select_is_270_wide_at_1400(self):
+        got = self.look(1400)
+        self.assertEqual(got["sel"]["w"], 270, got)  # .wil-cfg .wil-sel select, 1400
+
     def test_classic_box_is_the_mockup_box_at_1400(self):
         got = self.look(1400)
         b = got["box"]
@@ -71,6 +75,9 @@ class CardsMeasured(Measured):
     classic = False
 
     def test_classic_box_is_the_mockup_box_at_1400(self):
+        self.skipTest("Classic only")
+
+    def test_classic_select_is_270_wide_at_1400(self):
         self.skipTest("Classic only")
 
     def test_cards_box_keeps_320_and_12_padding(self):
