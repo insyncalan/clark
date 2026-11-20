@@ -32,7 +32,7 @@ class PressGlow(unittest.TestCase):
         m = re.search(r"/\* Row 1358 part 2.*?\*/\n([^{]*)\{([^}]*)\}", RULES, re.S)
         self.assertIsNotNone(m)
         sels = {x.strip() for x in m.group(1).split(",")}
-        self.assertEqual(sels, {".msv-sw", ".mv-txt", "#usecases #ucl-group", "#usecases #ucl-sort", "#usecases #ucAddPage.newb"})
+        self.assertEqual(sels, {".mv-txt", "#usecases #ucl-group", "#usecases #ucl-sort", "#usecases #ucAddPage.newb"})
         self.assertIn("border-radius: 6px", m.group(2))
         self.assertLess(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1314"))
         self.assertGreater(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1318"))
