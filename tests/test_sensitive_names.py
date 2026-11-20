@@ -424,5 +424,47 @@ class MutationSurvivors(unittest.TestCase):
         self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 2), ("Passport", 1)])
 
 
+class MutationGaps(unittest.TestCase):
+    """Nine survivors of the mutation sweep: each test fails on its mutant of sensitive_names.py."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.root = self._t.name
+        self.addCleanup(self._t.cleanup)
+
+    def test_full_width_letters_fold_to_plain(self):  # NFKD -> NFD
+        self.assertEqual(sn.words_in("\uff23\uff36.txt"), ["cv"])
+
+    def test_non_ascii_letters_make_their_own_word(self):  # [^\W_]+ -> [a-z0-9]+
+        self.assertEqual(sn.words_in("cv\u0436.txt"), [])
+        self.assertEqual(sn.words_in("\u0436cv.txt"), [])
+
+    def test_single_letter_word_still_splits_a_phrase(self):  # [^\W_]+ -> [^\W_]{2,}
+        self.assertEqual(sn.words_in("purchase a order.txt"), [])
+
+    def test_hits_come_in_list_order(self):  # reversed(words)
+        self.assertEqual(sn.words_in("Resume CV Salary"), ["cv", "resume", "salary"])
+
+    def test_count_goes_one_level_per_folder(self):  # depth + 1 -> depth + 2
+        tree(self.root, ["Contracts/a/b/x.txt", "Contracts/a/b/c/y.txt"])
+        with mock.patch.object(sn, "MAX_DEPTH", 3):
+            rows = list(sn.scan(self.root))
+        self.assertEqual(rows[0]["readable_files"], 1)
+
+    def test_parent_folder_name_is_not_matched(self):  # words_in(e.name) -> words_in(e.path)
+        root = Path(self.root, "Contracts Archive")
+        tree(root, ["notes/a.txt", "b.txt"])
+        self.assertEqual(list(sn.scan(root)), [])
+
+    def test_all_words_of_a_name_are_listed(self):  # 'words': found[:1], folder and file
+        tree(self.root, ["CV Salary/a.txt", "Payroll Passport.txt"])
+        rows = {r["name"]: r for r in sn.scan(self.root)}
+        self.assertEqual(rows["CV Salary"]["words"], ["cv", "salary"])
+        self.assertEqual(rows["Payroll Passport.txt"]["words"], ["payroll", "passport"])
+
+    def test_scan_result_is_not_truncated_by_default(self):  # truncated = True
+        self.assertIs(sn.ScanResult().truncated, False)
+
+
 if __name__ == "__main__":
     unittest.main()
