@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
@@ -369,7 +369,9 @@ export function AskPanel() {
       {state === "off" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
-      {state === "signed-out" ? (
+      {classic && panelDocker.value && state !== "off" ? (
+        <p class="ask-off" id="ask-docker" data-ask-docker>{panelDocker.value}</p>
+      ) : state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       {showHist ? (
@@ -479,7 +481,7 @@ export function AskPanel() {
           <p class="ask-files-note">{F.SCREEN_LINE} {F.THIS_QUESTION_LINE}</p>
         </div>
       ) : null}
-      <form class="ask-form" onSubmit={send}>
+      {classic && panelDocker.value && state !== "off" ? null : <form class="ask-form" onSubmit={send}>
         {subject.value ? (
           <p class="ask-chip" id="ask-chip" data-ask-chip={subject.value.id}>
             <Icon name="sparkle" />
@@ -522,7 +524,7 @@ export function AskPanel() {
             </button>
           )}
         </div>
-      </form>
+      </form>}
     </aside>
     <AskDraft />
     </>

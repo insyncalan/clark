@@ -19,14 +19,14 @@ import secrets
 import unicodedata
 from dataclasses import dataclass, field, replace
 
-from clark import edit_ai
+from clark import ask_words, edit_ai
 
 BUDGET = 1_200_000          # characters of passages in one request: 300,000 tokens at 4 characters each (row 1293; the fixed budget, no follow-up rounds)
 MAX_QUESTION = 4000
 MAX_EARLIER_TURNS = 10
 MAX_TURN = 4000
 MAX_PASSAGES = 60
-MAX_PASSAGE = 4000          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
+MAX_PASSAGE = ask_words.ROW_CUT_AT          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
 MAX_LABEL = 200
 MAX_REQUEST = BUDGET + 30000   # 1,230,000: the whole text: question, earlier turns and passages
 
@@ -320,7 +320,7 @@ MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
 MAX_DRAFT_CHARS = 20000        # one DRAFT line, JSON included
 MAX_DRAFT_TITLE = 200
 MAX_DRAFT_SEC = 40
-MAX_REPLY = 60000
+MAX_REPLY = ask_words.REPLY_CUT_AT
 MAX_ITEMS = 20              # most item IDs a reply's `items` holds (DRAFT contract, row 1332)
 ITEM_STATES = ("overdue", "red", "no_owner")      # the only words an item's state may hold (DRAFT contract, row 1332)
 MAX_FLAGS = 25              # most flags of one kind that are kept; the rest become one "and N more" line
@@ -356,6 +356,7 @@ class Reply:
     flags: tuple = ()
     draft: object = None
     items: tuple = ()
+    reply_cut: bool = False         # Row 1293: the reply was longer than MAX_REPLY and was cut (the Used line says so)
 
 
 _CITE_ID = re.compile(r"P[1-9]\d{0,2}")
@@ -556,6 +557,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     Never raises on odd text."""
     if not isinstance(text, str):
         text = ""
+    cut = len(text) > MAX_REPLY
     text = text[:MAX_REPLY]
     answer, cites, changes, ok, disguised, dropped, cut, draft = [], [], [], bool(text.strip()), False, 0, 0, None
     for line in text.splitlines():
@@ -597,9 +599,9 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
         if cut:
             flags.append(Flag("change_limit", "", CHANGE_LIMIT))
         said = "\n".join(answer).strip()
-        return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts))
+        return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts), cut)
     kind = "disguised" if disguised else "unreadable"
-    return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))
+    return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags), None, (), cut)
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -643,8 +645,7 @@ def secret_note(count):
     """The plain-words line for `Request.left_out_secret`. "" for none."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return (f"Part of your report {LOOKS_LIKE}, so it was left out and the answer may be missing something. "
-            "Take it out of the item if you want it included.")
+    return ask_words.SECRET_LEFT_OUT      # Row 1293: one plain line; what matched is never shown
 
 
 def dropped_note(count):

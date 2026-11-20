@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -117,6 +117,8 @@ class AskService:
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
         on = self.enabled()
+        if platform.container_mode():             # Row 1293: in Docker nothing can be asked; the panel and Settings say so in these words
+            return 200, {"ok": True, "ask_enabled": on, "connected": False, "why": ask_words.DOCKER, "docker": True}
         st = ask.answer_status(self.provider) if on else {"connected": False, "why": MESSAGES["asking_off"]}
         label = getattr(self.provider, "label", "")      # #54: who a question goes to, so the page can say so truly
         return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"], **({"provider": label} if label else {})}
@@ -175,6 +177,8 @@ class AskService:
         code, question, earlier = got
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        if platform.container_mode():                # Row 1293: refused before anything is read or sent
+            return 409, self.fail("docker", ask_words.DOCKER)
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
         try:
@@ -226,6 +230,8 @@ class AskService:
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+        notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
+                              ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
