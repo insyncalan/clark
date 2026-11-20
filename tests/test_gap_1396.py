@@ -159,6 +159,11 @@ class Computed(unittest.TestCase):
         self.assertEqual(self.dash_head(NAME), "none")
         self.assertNotIn(self.dash_head(None), ("none", "absent"))
 
+    def test_plain_class_is_in_classic_dom_only(self):
+        src = (ROOT / "src/clark/page/src/components/MsList.jsx").read_text()
+        self.assertIn('class={`msl-hdw${classicTheme() ? " plain" : ""}`}', src, "the heading row's plain class is gated with classicTheme()")
+        self.assertNotIn('class="msl-hdw plain"', src)
+
     def test_cards_keeps_the_installed_values(self):
         got = self.measure(None, 1400, "light")
         self.assertEqual(got["pad"], ["14px", "8px", "14px", "22px"])
