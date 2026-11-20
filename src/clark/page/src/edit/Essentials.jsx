@@ -1,5 +1,5 @@
 // Settings › Essentials (row 1115, S3): the first card of the long scroll and the first chip, holding the eight settings most people come for, each on the
-// shared setting row (SettingRow.jsx): Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off.
+// shared setting row (SettingRow.jsx): Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off.
 // The originals stay in their own cards. Each control here is the same control (the same state, the same save), drawn again: its ids and data hooks
 // start with "ess-" so the page never holds one twice. Edit parts only (a published file has no Settings).
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -111,7 +111,7 @@ export function Essentials() {
       <SettingRow id="ess-appearance-first" name="Appearance"><AppearancePick pick="data-ess-theme-pick" first="ess-appearance-first" /></SettingRow>
       <SpacingRow />
       <MotionRow />
-      <SettingRow id="ess-keys" name="Single-key shortcuts"><KeysSwitch id="ess-keys" describedby="" data-ess-keys /></SettingRow>
+      <SettingRow id="ess-keys" name="Single-key slash commands"><KeysSwitch id="ess-keys" describedby="" data-ess-keys /></SettingRow>
       <BackupsRow />
       {open ? <SettingRow id="ess-local-folder" name="Publishing folder"><LocalFolderPick /></SettingRow> : null}
       <AskRow />
