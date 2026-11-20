@@ -23,6 +23,12 @@ SK = "document.querySelector('[data-template=callout] .ad-sk')"
 PROBE = f"""(() => {{ const k = {SK}, cs = getComputedStyle(k), kids = [...k.children].map((i) => getComputedStyle(i));
   return {{ classes: k.className, left: cs.borderLeftWidth, top: cs.borderTopWidth, bg: cs.backgroundColor, kids: kids.length,
     dot: kids[0] ? [kids[0].borderTopLeftRadius, kids[0].width] : null }}; }})()"""
+# Row 1272: the card's colours as Chrome computes them, against the same token expression drawn on a probe element (so the pin follows the tokens, not a literal).
+COLOURS = """(() => { const k = %s, probe = (css) => { const d = document.createElement('div'); d.style.cssText = css; document.body.appendChild(d); const v = getComputedStyle(d); const o = [v.backgroundColor, v.borderTopColor, v.color]; d.remove(); return o; };
+  const cs = getComputedStyle(k), kids = [...k.children].map((i) => getComputedStyle(i).backgroundColor);
+  const want = probe('background:var(--brand-blue-tint);border:1px solid color-mix(in srgb, var(--status-blue) 45%%, var(--brand-blue-tint))');
+  const ink = probe('background:color-mix(in srgb, var(--status-blue-text) 55%%, var(--brand-blue-tint))')[0];
+  return { bg: [cs.backgroundColor, want[0]], edge: [cs.borderTopColor, want[1]], text: [cs.color, getComputedStyle(k.parentElement).color], ink: kids.map((c) => [c, ink]).slice(0, 3), kids: kids }; })()""" % SK
 BOX = "document.querySelector('[data-id=%s] .tpl-callout')"
 
 
@@ -72,6 +78,13 @@ class Shared(Base):
             p.until("!!document.querySelector('[data-template=callout] .ad-sk')", "the Callout card is drawn with its sketch")
             return p.js(PROBE)
 
+    def colours(self, width):
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            p.js(OPEN % json.dumps("ABC-S-003"))
+            p.until("!!document.querySelector('[data-template=callout] .ad-sk')", "the Callout card is drawn with its sketch")
+            return p.js(COLOURS)
+
     def make_plain(self):
         from _demo import USER
         from test_changes import KIND
@@ -94,7 +107,17 @@ class Classic(Shared):
             self.assertEqual(got["dot"][0], "50%", "the icon is a dot")
             self.assertNotEqual(got["bg"], "rgb(255, 248, 225)")
 
-    def test_classic_plain_box_in_edit_has_a_dashed_outline_and_view_has_none(self):
+    def test_classic_library_card_thumbnail_colours_are_pinned(self):
+        for width in (1400, 900):
+            got = self.colours(width)
+            self.assertEqual(got["bg"][0], got["bg"][1], f"{width}: the tint fill")
+            self.assertEqual(got["edge"][0], got["edge"][1], f"{width}: the 45% edge")
+            for have, want in got["ink"]:
+                self.assertEqual(have, want, f"{width}: the icon dot and the bars use the ink mix")
+            self.assertNotEqual(got["bg"][0], got["ink"][0][0], "the box and its dot differ")
+            self.assertEqual(got["text"][0], got["text"][1], f"{width}: the sketch carries no text colour of its own")
+
+    def test_classic_plain_box_in_edit_has_a_dashed_border_and_padding_not_an_outline_and_view_has_none(self):
         ref = self.make_plain()
         for width in (1400, 900):
             with chrome() as cdp:
@@ -105,7 +128,9 @@ class Classic(Shared):
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .cb .tpl-callout.k-plain')", "the plain callout in Edit")
                 cs = "getComputedStyle(document.querySelector('[data-id=%s] .cb .tpl-callout.k-plain'))" % json.dumps(ref)
-                self.assertEqual(p.js(f"{cs}.outlineStyle + ' ' + {cs}.outlineWidth"), "dashed 1px", width)
+                self.assertEqual(p.js(f"{cs}.borderTopStyle + ' ' + {cs}.borderTopWidth + ' ' + {cs}.outlineStyle"), "dashed 1px none", width)
+                want = p.js("(() => { const d = document.createElement('div'); d.style.cssText = 'padding:var(--space-2) var(--space-3);border-color:var(--text-muted);border-style:solid'; document.body.appendChild(d); const v = getComputedStyle(d); const o = [v.paddingTop, v.paddingLeft, v.borderTopColor]; d.remove(); return o; })()")
+                self.assertEqual(p.js(f"[{cs}.paddingTop, {cs}.paddingLeft, {cs}.borderTopColor]"), want, f"{width}: the mock-up's padding and edge colour")
 
 
 class Cards(Shared):
@@ -123,7 +148,7 @@ class Cards(Shared):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .cb .tpl-callout.k-plain')", "the plain callout in Edit")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-id=%s] .cb .tpl-callout.k-plain')).outlineStyle" % json.dumps(ref)), "none")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-id=%s] .cb .tpl-callout.k-plain')).borderTopStyle" % json.dumps(ref)), "solid", "Cards keeps the base box edge, transparent")
 
 
 if __name__ == "__main__":
