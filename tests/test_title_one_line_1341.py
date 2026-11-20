@@ -49,7 +49,7 @@ class Title(Setup):
         self.assertTrue(g["lineInside"], "Weekly report stays in the bar: %r" % (g,))
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
-        self.assertEqual(g["tip"], "Click to change project", "the existing tooltip (item 1177): unchanged, the full name is in the aria-label")
+        self.assertEqual(g["tip"], g["text"], "row 1341 ruling: the tooltip is the full project name (the aria-label keeps Change project)")
         if width == 1400:
             self.assertEqual(g["barH"], 85, "row 1341 ruling: the bar is 85 px at 1400 (Classic prototype)")
         else:

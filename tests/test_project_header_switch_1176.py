@@ -34,7 +34,8 @@ class HeaderSwitch(Base):
                 self.assertEqual(p.js("document.querySelectorAll('.top .hdr-project').length"), 1, "one project control in the header at %d" % w)
                 self.assertEqual(p.js("document.querySelectorAll('#project-name').length"), 1, "its id is not repeated at %d" % w)
                 self.assertEqual(p.js("document.querySelectorAll('.cover-switch, #cover .hdr-project').length"), 0, "no second control in a cover band at %d" % w)
-                self.assertIn("Click to change project", p.js("(document.querySelector('%s').title || '') + ' ' + (document.querySelector('%s').getAttribute('aria-label') || '')" % (NAME, NAME)))
+                self.assertEqual(p.js("document.querySelector('%s').title" % NAME), p.js("document.querySelector('%s').textContent.trim()" % NAME), "row 1341 ruling: the tooltip is the full project name at %d" % w)
+                self.assertIn("Change project", p.js("document.querySelector('%s').getAttribute('aria-label') || ''" % NAME))
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways overflow at %d" % w)
 
     def test_C_a_click_opens_the_project_list(self):
