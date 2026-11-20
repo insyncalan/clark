@@ -95,9 +95,13 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-views .vt { gap: 0; }
 .wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }
 .wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }
-/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */
+/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, the status half-circle is 16 px, a dragged column heading is dimmed with a drop mark, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */
 #report[data-mode="view"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="view"] .wil-scroll::-webkit-scrollbar { display: none; }
+.wil-half { width: 16px; height: 16px; }
+.wil-table th.wil-drop { box-shadow: inset 3px 0 var(--brand-blue); }
+.wil-table th.wil-dragging { opacity: 0.4; }
+.wil-table th[draggable="true"] { cursor: grab; }
 .wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value="type"]) { display: none; }
 .wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }
@@ -153,6 +157,8 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media print { .cnt { display: none; } .cnt-grid { display: block; } }
 html.print-all .cnt { display: none; }
+/* The Work items + New view button is the brand colour in Classic (row 1314; the shared button is grey, and Cards keeps it). Same as the Use cases button above; scoped to the Work items page. */
+#work .vnew, #work .vnew:hover { color: var(--brand-blue); }
 /* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). */
 .glance[data-glance] { gap: 0; }
 .glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
@@ -474,6 +480,12 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody td { padding-left: 12px; padding-right: 12px; }
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:first-child td { border-top: 0; }
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:last-child td { border-bottom: 0; }
+/* Row 1408, Classic only (Cards keeps its tint, bar and the word Changed): a changed section is marked by a 2px line under its title that runs left to right in 0.8 s, holds, and fades out (1.8 s in all); nothing stays after it. Paint only: the line is positioned under the title, so nothing shifts. No motion when the computer or clark asks for reduced motion; nothing shows then. */
+.sec-t { position: relative; display: inline-block; max-width: 100%; }
+.sec-t::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--brand-blue); transform-origin: left center; transform: scaleX(0); opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) .sec-sweep .sec-t::after { animation: sec-sweep-1408 1800ms ease-out 1 both; } }
+@keyframes sec-sweep-1408 { 0% { transform: scaleX(0); opacity: 1; } 45% { transform: scaleX(1); opacity: 1; } 65% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+@media (forced-colors: active) { .sec-t::after { background: CanvasText; forced-color-adjust: none; } }
 /* Row 1345 block (Classic Dashboard layout vs prototype 2.0), Classic only, compact spacing, editor Dashboard only: Contents at 66, right margin 616, section paddings 20 and 22, break 1000 (row 1318). */
 @media screen and (min-width: 1000px) {
   html:has(.rbar + #report .cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }
@@ -523,7 +535,7 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucbar:hover, .uc .ucrow.open > .ucbar { background: var(--band-bg); }
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
-.uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+.uc .cchip.cchip { border-style: solid; border-color: var(--grey-200); background: transparent; color: var(--text-muted); }      /* every chip, Committed and both Planned, is the same muted pill: no fill, solid line (it beats the shell fill and dashed line) */
 /* Row 1295 (Classic only; Cards does not draw these): the slash commands list in Settings and the editor page that opens in a new tab. A list row is name, menu line, tag and Edit; the editor page is a left list, the editor, a live preview and Test it underneath. Colours are the page's tokens. */
 .slash-list .slash-rows { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
 .slash-list .slash-rows li { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content max-content; gap: var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-top: 1px solid var(--line-soft); }
@@ -637,6 +649,9 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1346 (Classic only; Cards keeps its own width): the Draft sheet is the room left of the ask panel less 24 px, never wider than 560, so it stays on the screen at 1400 and 900 (the panel's width arrives as --ad-r from AskDraft.jsx). */
+#ask-draft.ask-draft { width: min(560px, calc(100% - var(--ad-r, 320px) - 24px)); min-width: 0; }
+
 /* Row 1373 (Classic only; the Cards look keeps its Configure box): the Work items Configure box is the approved mock-up's, work-items-mockup.html line 61. 300 wide, 14 padding, radius 12, the 0 10px 30px shadow, 6 below the gear; heading 15 (the small size plus 1); labels and legends 12.5 (the caption size less .5); fields 38 tall with radius 8 and 10 side padding; the column ticks 32 tall with an 18 box; the focus ring 2px with offset 1 on every field and tick. No token holds the 300, the 14, the 15, the 12.5, the 38, the 18 or the shadow. */
 .wil-cfg { top: calc(100% + 6px); width: min(300px, calc(100vw - var(--space-6))); padding: 14px; border-color: var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .wil-cfg h4 { font-size: calc(var(--size-small) + 1px); line-height: normal; }
@@ -647,6 +662,11 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
+html { overscroll-behavior-y: none; }
+/* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
+.hdr-id, .top-id { max-width: 50%; }
+.hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
