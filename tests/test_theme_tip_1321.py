@@ -17,6 +17,8 @@ from clark import page
 
 NAME = "prototype-2.0"
 RULES = ROOT / "src" / "clark" / "themes" / NAME / "rules.css"
+SHADOW_CSS = "box-shadow: 0 6px 18px rgba(14,36,48,.12);"      # Romanoff, Row 1321
+SHADOW = "rgba(14, 36, 48, 0.12) 0px 6px 18px 0px"
 WANT = {"light": ("rgb(255, 255, 255)", "rgb(217, 224, 239)", "rgb(29, 36, 51)"),      # --surface, --grey-200 (#D9E0EF, the ticket's hairline), --text
         "dark": ("rgb(18, 28, 40)", "rgb(43, 56, 80)", "rgb(230, 235, 245)")}
 PROBE = """(() => { const t = document.querySelector('[data-tip]:not([disabled])'); const b = document.createElement('button'); b.className = 'fi-btn'; b.setAttribute('data-tip', 'Crop');
@@ -34,7 +36,9 @@ class Source(unittest.TestCase):
         self.assertLess(t.index("/* Row 1321"), t.index("/* Row 1393"))
         b = t[t.index("/* Row 1321"):t.index("/* Row 1393")]
         rules = re.sub(r"/\*.*?\*/", "", b, flags=re.S)
-        self.assertNotRegex(rules, r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
+        self.assertEqual(rules.count(SHADOW_CSS), 2, "both tip rules carry the ruled shadow")
+        self.assertNotIn("var(--shadow)", rules)
+        self.assertNotRegex(rules.replace(SHADOW_CSS, ""), r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
         self.assertLess(len(t.encode()), 131072)
 
     def test_cards_page_does_not_carry_it(self):
@@ -65,7 +69,7 @@ class Computed(Base):
                     for name, v in (("hover", hov), ("fi-btn", fi)):
                         self.assertEqual(v[:4], [bg, "1px", line, "9px"], name)
                         self.assertEqual(v[4:9], ["7px", "11px", "12.5px", "500", ink], name)
-                        self.assertNotEqual(v[9], "none", name)
+                        self.assertEqual(v[9], SHADOW, name)
 
     def test_cards_tip_is_unchanged(self):
         for width in (1400, 900):

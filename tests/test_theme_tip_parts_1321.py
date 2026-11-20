@@ -20,7 +20,7 @@ FIND = """(() => { const all = [...document.querySelectorAll('[data-tip]')].filt
 HOVER = """(() => { const h = document.elementFromPoint(%d, %d).closest('[data-tip]'); if (!h) return 'null'; const p = h.querySelector(':scope > .tip-parts');
   if (!p) return JSON.stringify({parts: false}); const cs = (e) => getComputedStyle(e); const k = p.querySelector('.tp-kind'), d = p.querySelector('.tp-dot'), l = p.querySelector('.tp-late');
   return JSON.stringify({parts: true, text: p.textContent, tip: h.getAttribute('data-tip'), hidden: p.getAttribute('aria-hidden'), shown: cs(p).display, after: cs(h, '::after').content,
-    card: [cs(p).backgroundColor, cs(p).borderTopWidth, cs(p).borderTopLeftRadius, cs(p).fontWeight], kind: cs(k).fontWeight, dot: cs(d).color, late: l ? [cs(l).color, cs(l).fontWeight] : null, word: cs(p.querySelector('.tp-word') || k).fontWeight}); })()"""
+    card: [cs(p).backgroundColor, cs(p).borderTopWidth, cs(p).borderTopLeftRadius, cs(p).fontWeight], shadow: cs(p).boxShadow, kind: cs(k).fontWeight, dot: cs(d).color, late: l ? [cs(l).color, cs(l).fontWeight] : null, word: cs(p.querySelector('.tp-word') || k).fontWeight}); })()"""
 
 
 class Parts(Base):
@@ -47,6 +47,7 @@ class Parts(Base):
                 self.assertEqual(h["shown"], "block")
                 self.assertIn(h["after"], ("none", "normal"))      # no pseudo-element is made
                 self.assertEqual(h["card"], ["rgb(255, 255, 255)", "1px", "9px", "500"])
+                self.assertEqual(h["shadow"], "rgba(14, 36, 48, 0.12) 0px 6px 18px 0px")   # Romanoff, Row 1321
                 self.assertEqual(h["kind"], "600")
                 self.assertEqual(h["late"][1], "600")
                 self.assertNotEqual(h["late"][0], h["dot"])
