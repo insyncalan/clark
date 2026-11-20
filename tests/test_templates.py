@@ -47,7 +47,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
     {"id": "gallery", "description": "Pictures in a grid, each with a caption."},
-    {"id": "full-image", "description": "One image across the full width, framed as you choose, with an optional caption."},
+    {"id": "full-image", "description": "One image, framed as you choose, with an optional caption."},
     {"id": "quote", "description": "A voice from the business."},
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
@@ -143,7 +143,7 @@ class Logic(unittest.TestCase):
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
-            "full-image": ("One image across the full width, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full", "half"]),      # row 1223: Image, full or half
+            "full-image": ("One image, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full", "half"]),      # row 1223: Image, full or half
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
@@ -353,7 +353,7 @@ class Logic(unittest.TestCase):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
         self.assertNotIn("Image with caption", help_)
         self.assertNotIn("Full width image", help_)
-        self.assertIn('"Image",\n        "One image across the full width, framed as you choose, with an optional caption.",\n        "Full or half"', help_)
+        self.assertIn('"Image",\n        "One image, framed as you choose, with an optional caption.",\n        "Full or half"', help_)
 
     def test_the_box_code_escapes_the_selector_and_does_not_touch_state_after_closing(self):
         src = (SRC / "clark" / "page" / "src" / "edit" / "AddDialog.jsx").read_text(encoding="utf-8")
