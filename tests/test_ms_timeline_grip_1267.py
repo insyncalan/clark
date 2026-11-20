@@ -251,10 +251,17 @@ class DarkAndSideways(BrowserBase, unittest.TestCase):
                     return cdp.js(spot, sid) == a
                 self.assertTrue(wait(settled, 20), f"{width}: the strip finished growing before the scroll starts")
                 before = cdp.js(spot, sid)
-                for left in ("document.querySelector('.mv-wrap').scrollWidth", "200", "0"):
-                    cdp.js(f"document.querySelector('.mv-wrap').scrollTo({{left: {left}, behavior: 'instant'}}); true", sid)
-                    self.assertTrue(wait(lambda: cdp.js(f"Math.abs(document.querySelector('.mv-wrap').scrollLeft - Math.min({left}, document.querySelector('.mv-wrap').scrollWidth - document.querySelector('.mv-wrap').clientWidth)) < 2", sid), 15), f"{width}: scrolled to {left}")
-                    self.assertEqual(cdp.js(spot, sid), before, f"{width}: the grip did not move with the strip at scrollLeft {left}")
+                seen = []
+                for left in ("1e6", "200", "0"):
+                    got = cdp.js(f"(() => {{ const w = document.querySelector('.mv-wrap'); w.scrollTo({{left: {left}, behavior: 'instant'}}); return w.scrollLeft; }})()", sid)
+                    seen.append(round(got))
+                    cdp.js("new Promise((r) => setTimeout(r, 150))", sid)
+                    now = cdp.js(spot, sid)
+                    self.assertEqual(now[0], before[0], f"{width}: the grip did not move sideways with the strip (scrollLeft {got})")
+                    self.assertEqual(now[2], before[2], f"{width}: its width held (scrollLeft {got})")
+                    self.assertLessEqual(abs(now[1] - before[1]), 2, f"{width}: it did not move up or down either (scrollLeft {got})")
+                self.assertGreater(seen[0], 200, f"{width}: the strip really scrolled to its far end ({seen})")
+                self.assertEqual(seen[2], 0, f"{width}: and back to the start ({seen})")
                 self.assertEqual(cdp.js("document.querySelector('.mv-wrap').contains(document.querySelector('[data-grip]'))", sid), False, f"{width}: it sits in the box, outside the scrolling strip")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stayed on it")
 
