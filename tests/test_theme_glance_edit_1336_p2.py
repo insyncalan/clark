@@ -23,8 +23,8 @@ PROBE = """(function(sel){ function rel(el, cell){ var r = el.getBoundingClientR
   out.tiles = {};
   g.querySelectorAll('.tcell').forEach(function(cell){
     var k = cell.dataset.tile, grip = cell.querySelector('.tgrip'), eye = cell.querySelector('.teye'), bin = cell.querySelector('[data-tile-bin]'),
-      lab = cell.querySelector('.k, .tpl-gt-k'), icon = bin ? bin.querySelector('svg') : null, cr = cell.getBoundingClientRect();
-    out.tiles[k] = { w: Math.round(cr.width * 10) / 10, x: Math.round((cr.left - gr.left) * 10) / 10, grip: grip ? rel(grip, cell) : null, eye: eye ? rel(eye, cell) : null,
+      lab = cell.querySelector('.k, .tpl-gt-k'), tile = cell.querySelector('.fig, .tpl-gt-tile'), tr = tile.getBoundingClientRect(), icon = bin ? bin.querySelector('svg') : null, cr = cell.getBoundingClientRect();
+    out.tiles[k] = { fx: Math.round((tr.left - gr.left) * 10) / 10, fw: Math.round(tr.width * 10) / 10, w: Math.round(cr.width * 10) / 10, x: Math.round((cr.left - gr.left) * 10) / 10, grip: grip ? rel(grip, cell) : null, eye: eye ? rel(eye, cell) : null,
       bin: bin ? Object.assign(rel(bin, cell), { icon: icon ? [Math.round(icon.getBoundingClientRect().width), Math.round(icon.getBoundingClientRect().height)] : null,
         label: bin.getAttribute('aria-label'), title: bin.getAttribute('title') }) : null,
       padR: lab ? getComputedStyle(lab).paddingRight : null }; });
@@ -76,27 +76,30 @@ class Controls(ClassicEdit):
                 self.assertEqual((t["bin"]["right"], t["grip"]["right"], t["eye"]["right"]), (4, 56, 30), t)
 
     def test_P4_fixed_fraction_and_the_show_project_health_line(self):
+        # Ruling 4: each tile is (100% - (cols - 1) x 12px) / cols wide, 12px between tiles. The tile is the drawn box (.fig), measured in Chrome;
+        # the expected values are worked from the measured row width and the ruled 12 and 4 or 3, never read back from a CSS rule.
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.look2(width, {"v": 1, "health": {"shown": False}})
                 g = got["glance"]["w"]
-                gap = 0
-                n = 4
-                names = [k for k in got["tiles"]]
+                names = list(got["tiles"])
                 self.assertEqual(names, ["overdue", "risks", "decisions"], names)
-                xs = [got["tiles"][k]["x"] for k in names]
-                w = got["tiles"][names[0]]["w"]
-                gap = xs[1] - xs[0] - w
-                self.assertAlmostEqual(w, (g - (n - 1) * gap) / n, delta=0.6, msg=f"each tile is a quarter of the row less the gaps: {got}")
-                self.assertAlmostEqual(xs[0], 0, delta=0.6)
-                self.assertLess(xs[2] + w, g - w / 2, f"the 4th place stays blank: {got}")
+                t = [got["tiles"][k] for k in names]
+                want = (g - 3 * 12) / 4
+                for i in range(3):
+                    self.assertAlmostEqual(t[i]["fw"], want, delta=0.6, msg=f"tile {i} width {t[i]['fw']} want {want} (row {g}): {got}")
+                    self.assertAlmostEqual(t[i]["fx"], i * (want + 12), delta=0.6, msg=f"tile {i} left {t[i]['fx']}: {got}")
+                for i in range(2):
+                    self.assertAlmostEqual(t[i + 1]["fx"] - (t[i]["fx"] + t[i]["fw"]), 12, delta=0.6, msg=f"gap between tiles: {got}")
+                self.assertLess(t[2]["fx"] + t[2]["fw"], g - want / 2, f"the 4th place stays blank: {got}")
                 self.assertEqual(got["show"]["text"], "Show project health here")
                 self.assertAlmostEqual(got["show"]["w"], g, delta=0.6)
         with self.subTest(per_row=3):
             got = self.look2(1400, {"v": 1, "per_row": 3, "health": {"shown": False}})
-            g, w = got["glance"]["w"], got["tiles"]["overdue"]["w"]
-            gap = got["tiles"]["risks"]["x"] - got["tiles"]["overdue"]["x"] - w
-            self.assertAlmostEqual(w, (g - 2 * gap) / 3, delta=0.6)
+            g = got["glance"]["w"]
+            a, b = got["tiles"]["overdue"], got["tiles"]["risks"]
+            self.assertAlmostEqual(a["fw"], (g - 2 * 12) / 3, delta=0.6, msg=str(got))
+            self.assertAlmostEqual(b["fx"] - (a["fx"] + a["fw"]), 12, delta=0.6, msg=str(got))
 
     def test_P4b_bin_rests_in_body_colour_and_the_show_line_gap_is_14(self):
         probe = """(function(sel){ var g = document.querySelector(sel + ' [data-glance-template]'), e = document.createElement('i'), o = {};

@@ -386,7 +386,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
-/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Part 2: the label row keeps room for the three controls (grip, eye, bin): 84px on a built-in tile and 110px on a typed tile (which has the pencil too). A built-in tile has the bin at right 4, so its eye moves to right 30 and its grip to right 56 (a typed tile already has them there); Project health has no bin and keeps its grip and eye. The 84, 110, 30 and 56 are the mock-up's own lengths and have no token. */
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }
@@ -422,6 +421,8 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1350 part 4 (Classic only): at 700px and below the row is two columns and the kind takes a line of its own above the label and the hint, as the mock-up's last media rule draws it (app.css line 1575). The bare length 700px is the mock-up's break and has no token. */
 @media (max-width: 700px) { .pal-row { grid-template-columns: minmax(0, 1fr) auto; } .pal-kind { grid-column: 1 / -1; } }
 /* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). */
+/* Ruling 4 of row 1336: the tiles are (100% - (cols - 1) x 12px) / cols wide with 12px between them; the grid gap is the 12px, so the divider padding of the View strip (the Row 1260 rule above) is taken off here, else tiles 2 to 4 are 16px narrower and 28px apart. */
+.tpl-edit-glancetemplate .glance .tcell + .tcell { padding-left: 0; }
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
 #report[data-mode="edit"] .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .fig .k { padding-right: 84px; }
