@@ -248,6 +248,27 @@ class Question(RouteBase):
         self.assertNotIn("quokka", self.provider.sent[0])
         self.assertNotIn(str(self.box), self.provider.sent[0], "no path of the folder is sent")
 
+    def test_a_passage_served_from_the_index_goes_through_the_same_secret_screen_at_answer_time(self):
+        """The index screens a file when it is read, but the answer path screens every passage again (ask.build_request), as for the files:
+        a row that looks like a key and is in the index anyway (an older index, a screen that was weaker then) is never sent."""
+        import sqlite3
+        db = sqlite3.connect(ask_index.path_for(self.service.data_dir, "ABC"))
+        for text, name in (("zebrafish tank login " + FAKE_KEY, "planted.txt"), ("The zebrafish tank is cleaned on Tuesdays.", "clean.txt")):
+            db.execute("INSERT INTO p(text, file, part, mtime) VALUES (?, ?, NULL, 1700000000)", (text, name))
+        db.commit()
+        db.close()
+        self.assertTrue(self.ix.current("ABC", [str(self.box)]), "the index is still the one a question is answered from")
+        self.assertTrue(any("planted.txt" in p.label for p in ask_index.search(self.service.data_dir, "ABC", "zebrafish")),
+                        "the planted row is served by the index search, so only the answer-time screen can stop it")
+        self.provider.reply = "Tuesdays."
+        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": "when is the zebrafish tank cleaned"})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(len(self.provider.sent), 1)
+        self.assertNotIn(FAKE_KEY, self.provider.sent[0], "a passage that looks like a password is not sent")
+        self.assertNotIn("planted.txt", self.provider.sent[0])
+        self.assertIn("clean.txt", self.provider.sent[0], "the ordinary passage is still sent")
+        self.assertNotIn(FAKE_KEY, json.dumps(got))
+
     def test_while_the_index_is_not_current_a_question_reads_the_files_instead(self):
         """Why the Help does not say a question never opens a file: it falls back to the files while the index is old or being read."""
         self.ix.current = lambda code, folders: False
