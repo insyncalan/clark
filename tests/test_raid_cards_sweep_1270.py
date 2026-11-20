@@ -25,6 +25,7 @@ class Kind(unittest.TestCase):
 class View(PublishedFile, glance.Setup):
     def put(self, rows, body_cards, kind="raid3", across=0):
         ids = []
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             for table, fields in rows:
                 ids.append(st.create(table, dict({"project": "ABC", "raised": "2026-10-01", "source": "demo"}, **fields)))
@@ -47,10 +48,9 @@ class View(PublishedFile, glance.Setup):
                 cs = self.look(self.draw(cdp, path, width=w))
                 self.assertEqual(len(cs), 3, w)
                 self.assertEqual(cs[0]["latest"], 1)
-                self.assertFalse(cs[0]["text"], "words equal to the latest update (trailing space) are drawn once")
+                self.assertEqual([c["text"] for c in cs], [False] * 3, "slice A: client and own words are never drawn, only the latest update")
                 self.assertEqual(cs[0]["label"], "Latest update")
                 self.assertFalse(cs[1]["rating"], "an action has no rating element")
-                self.assertFalse(cs[2]["text"], "a card with empty own words draws no words")
                 self.assertEqual(cs[0]["btn"], ["Open " + ids[0], True], "the id button names its item and keeps the peek open")
 
     def test_card_colours_by_rating(self):
@@ -97,6 +97,7 @@ class Edit(PageBase):
     stored = one.Edit.stored
 
     def make(self, body, n=9):
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             made = [st.create("raid", {"project": "ABC", "type": "Risk", "description": f"Fictional risk {i}", "raised": "2026-10-01", "source": "demo"}) for i in range(n)]
             ref = st.create("report_sections", {"project": "ABC", "type": "raid4", "title": "Fictional cards", "sort_order": 999, "body": body(made)})
@@ -131,8 +132,8 @@ class Edit(PageBase):
         sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": self.cards(m, 6)}))
         with chrome() as cdp:
             p, q = self.show_picker(cdp, sec)
-            self.set_select(p, f"{q} select[aria-label='Card 2 text']", "own")
-            self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][1]["source"] == "own"))
+            self.set_select(p, f"{q} select[aria-label='Card 2 item']", made[6])
+            self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][1]["id"] == made[6]))
             got = self.stored(sec)
             self.assertEqual((got["v"], got["across"], len(got["cards"])), (2, 4, 6))
             self.set_select(p, f"{q} select[aria-label='RAID cards']", "3")
@@ -146,8 +147,8 @@ class Edit(PageBase):
         sec, made = self.make(lambda m: json.dumps({"v": 1, "cards": self.cards(m, 4)}))
         with chrome() as cdp:
             p, q = self.show_picker(cdp, sec)
-            self.set_select(p, f"{q} select[aria-label='Card 1 text']", "own")
-            self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0]["source"] == "own"))
+            self.set_select(p, f"{q} select[aria-label='Card 1 item']", made[6])
+            self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0]["id"] == made[6]))
             self.assertEqual(self.stored(sec)["v"], 1, "four cards, changed: still version one")
             p.until(f"!!document.querySelector('{q} select[aria-label=\"Card 5 item\"]')", "slot 5")
             self.set_select(p, f"{q} select[aria-label='Card 5 item']", made[4])
@@ -159,10 +160,23 @@ class Edit(PageBase):
         sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": self.cards(m, 6)}))
         with chrome() as cdp:
             p, q = self.show_picker(cdp, sec)
-            for n in (2, 3):
-                self.set_select(p, f"{q} select[aria-label='Card {n} text']", "own")
-                self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][n - 1]["source"] == "own"))
-            self.assertEqual([c["source"] for c in self.stored(sec)["cards"][1:3]], ["own", "own"])
+            for n, k in ((2, 6), (3, 7)):
+                self.set_select(p, f"{q} select[aria-label='Card {n} item']", made[k])
+                self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][n - 1]["id"] == made[k]))
+            self.assertEqual([c["id"] for c in self.stored(sec)["cards"][1:3]], [made[6], made[7]])
+
+    def test_no_words_choice_is_offered_and_an_old_one_is_kept(self):
+        old = lambda m: json.dumps({"v": 2, "across": 4, "cards": [{"id": m[0], "source": "own", "own": "Old own words"}, {"id": m[1], "source": "client"}]})
+        sec, made = self.make(old)
+        with chrome() as cdp:
+            p, q = self.show_picker(cdp, sec)
+            self.assertEqual(p.js(f"document.querySelectorAll('{q} select[aria-label$=\" text\"], {q} .rce-own').length"), 0, "no text choice and no own words field")
+            self.set_select(p, f"{q} select[aria-label='RAID cards']", "3")
+            self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 3))
+            self.assertEqual(self.stored(sec)["cards"][0], {"id": made[0], "source": "own", "own": "Old own words"}, "an old saved choice is kept as it was")
+            self.set_select(p, f"{q} select[aria-label='Card 1 item']", made[5])
+            self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0]["id"] == made[5]))
+            self.assertEqual(self.stored(sec)["cards"][0], {"id": made[5], "source": "own", "own": "Old own words"}, "another item on the card keeps the old saved choice")
 
 
 if __name__ == "__main__":

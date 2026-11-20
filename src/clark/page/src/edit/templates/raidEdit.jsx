@@ -1,15 +1,11 @@
-// The Edit part RAID cards (#96) share: one row per card (the work item, where its words come from, and the card's own words),
+// The Edit part RAID cards (#96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
 // saved in place. Every committed choice is one change() to the section's body: one step, one Undo, place "report". A card holds
-// the item's id only, so what the item says is read when the page is drawn or published. Plain text only (the Own words are typed in the one editor and kept as one plain line); nothing is drawn as markup.
+// the item's id only, so what the item says is read when the page is drawn or published.
 import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
-import { RichField } from "../RichField.jsx";
-import { TOO_LONG } from "../RichText.jsx";
-import { legacyToHtml } from "../../logic/richOrPlain.js";
 import { putCard } from "../../logic/putCard.js";
-import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
-import { MANY, OWN_MAX, SOURCES, acrossOf, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
+import { MANY, acrossOf, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf } from "../../templates/raid.js";
 
 const GROUPS = [["raid", "Risks and issues"], ["actions", "Actions"], ["decisions", "Decisions"]];
 const cut = (s, n) => { const c = Array.from(s); return c.length > n ? `${c.slice(0, n - 1).join("").trimEnd()}…` : s; };
@@ -54,26 +50,14 @@ export function RaidEdit({ section, size: base, choice = false }) {
   for (let i = 0; i < slots; i++) {
     const card = cards[i] || null;
     const found = card ? rowOf(d, card.id) : null;
-    const isAction = card ? kindOfId(card.id) === "actions" : false;
     const choose = (e) => {
       const id = e.currentTarget.value;
       if (!id) return put(i, null, "Card removed.");
       const source = card && card.source === "latest" && kindOfId(id) !== "actions" ? "client" : card ? card.source : "client";
-      return put(i, { id, source, own: card ? card.own : "" }, card ? "Card changed." : "Card added.");
-    };
-    const pick = (e) => put(i, { ...card, source: e.currentTarget.value }, "Card text changed.");
-    // Item 1005: Own words is the one editor. The card keeps one line of plain text (plainLine of what was typed); more than the limit is not saved.
-    const commit = (html) => {
-      const text = plainLine(html);
-      if (text === card.own) return true;
-      if (Array.from(text).length > OWN_MAX) return TOO_LONG;      // the field stays open and says so, in the words every too-long field uses
-      return put(i, { ...card, own: text }, "Card text changed.", { inline: true });      // a refusal (hidden text) is said in the editor too
+      return put(i, { id, source, own: card ? card.own : "" }, card ? "Card changed." : "Card added.");      // an old saved own or latest choice is kept in the body as it was, never drawn
     };
     const missing = card && !found;
-    const note = !card ? "" : missing ? "This item is not in the record any more. Choose another item or remove the card."
-      : card.source === "client" && !wordsOf(card, found.row) ? "This item has no client wording yet, so the card shows the item only. Add it on the item, or choose Own words."
-      : card.source === "latest" && !wordsOf(card, found.row) ? "This action has no latest update yet, so the card shows the item only."
-      : "";
+    const note = missing ? "This item is not in the record any more. Choose another item or remove the card." : "";
     rows.push(
       <li class="rce-card" key={i} data-slot={i}>
         <label class="rce-f"><span>{`Card ${i + 1}`}</span>
@@ -84,14 +68,6 @@ export function RaidEdit({ section, size: base, choice = false }) {
           </select></label>
         {card ? (
           <>
-            <label class="rce-f"><span>Text under the card</span>
-              <select aria-label={`Card ${i + 1} text`} value={card.source} onChange={pick}>
-                {SOURCES.filter(([v]) => v !== "latest" || isAction).map(([v, w]) => <option key={v} value={v}>{w}</option>)}
-              </select></label>
-            {card.source === "own" ? (
-              <div class="rce-f rce-own"><span id={`rce-own-${i}`}>Own words</span>
-                <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} oneLine /></div>
-            ) : null}
             {found ? <p class="quiet rce-what">{`${kindWords(found.row, found.kind)}: ${cut(titleOf(found.row, found.kind), 100)}`}</p> : null}
             {note ? <p class="quiet rce-note">{note}</p> : null}
           </>

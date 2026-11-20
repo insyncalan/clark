@@ -18,6 +18,7 @@ STATE = """(() => { const p = document.querySelector('#peek'); const a = documen
 
 class RaidCardsPeek(PublishedFile, glance.Setup):
     def seed(self):
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             i = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Kiln roof may leak", "raised": "2026-10-01", "source": "demo",
                                    "impact": "High", "likelihood": "High", "client_message": "Words for the client."})

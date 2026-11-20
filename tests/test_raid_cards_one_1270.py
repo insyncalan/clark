@@ -60,6 +60,7 @@ class Kind(unittest.TestCase):
 class Page(PublishedFile, glance.Setup):
     def seed(self, across, n, kind="raid4"):
         made = []
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             for i in range(n):
                 made.append(st.create("raid", {"project": "ABC", "type": "Risk", "description": f"Fictional risk {i}", "raised": "2026-10-01", "source": "demo"}))
@@ -92,6 +93,24 @@ class Page(PublishedFile, glance.Setup):
                 got = self.read(self.draw(cdp, path, width=w))
                 self.assertEqual(got["n"], 8, w)
                 self.assertIn("raid-n4", got["cls"])
+                self.assertEqual(got["left"], 4 if w == 1400 else 2, f"four across hold at 1400 and go two across at 900: {got}")
+
+    def test_four_across_at_1400_fit_a_whole_owner(self):
+        made = []
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
+        with self.store.step("dashboard", USER) as st:
+            for i in range(4):
+                made.append(st.create("raid", {"project": "ABC", "type": "Risk", "description": f"Fictional risk {i}", "raised": "2026-10-01", "source": "demo",
+                                               "status": "Open", "owner": "Alexandria Montgomery", "due_date": "2026-12-01"}))
+            ref = st.create("report_sections", {"project": "ABC", "type": "raid4", "title": "Fictional cards", "sort_order": 993})
+            st.update("report_sections", ref, {"body": json.dumps({"v": 2, "across": 4, "cards": [{"id": i, "source": "client"} for i in made]})})
+        path = self.publish()
+        with chrome() as cdp:
+            got = self.draw(cdp, path, width=1400).js("""[...document.querySelectorAll('.raid-card')].map(c => { const m = c.querySelector('.raid-meta');
+                return { top: Math.round(c.getBoundingClientRect().top), w: Math.round(c.getBoundingClientRect().width), over: c.scrollWidth > c.clientWidth + 1 || m.scrollWidth > m.clientWidth + 1,
+                         owner: m.textContent.includes('owner Alexandria Montgomery') }; })""")
+        self.assertEqual(len({c["top"] for c in got}), 1, f"one line of four: {got}")
+        self.assertTrue(all(c["owner"] and not c["over"] for c in got), f"a whole owner fits in each card: {got}")
 
     def test_an_old_body_of_version_one_publishes_four_across_and_no_more(self):
         self.seed(0, 4)
@@ -108,6 +127,7 @@ class Edit(PageBase):
     wait_for = three.PageSide.wait_for
 
     def seed(self):
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             made = [st.create("raid", {"project": "ABC", "type": "Risk", "description": f"Fictional risk {i}", "raised": "2026-10-01", "source": "demo"}) for i in range(9)]
             ref = st.create("report_sections", {"project": "ABC", "type": "raid4", "title": "Fictional cards", "sort_order": 999,

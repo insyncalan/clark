@@ -18,6 +18,7 @@ LONG = "The kiln roof may leak in the wet season and ruin the stock that is stor
 class RaidCardsView(PublishedFile, glance.Setup):
     def seed(self):
         ids = []
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             ids.append(st.create("raid", {"project": "ABC", "type": "Risk", "description": LONG, "raised": "2026-10-01", "source": "demo",
                                           "impact": "High", "likelihood": "High", "client_message": "Words for the client.", "owner": "Pat", "latest_update": "Roof survey booked."}))
@@ -51,6 +52,7 @@ class RaidCardsView(PublishedFile, glance.Setup):
                 self.assertEqual(len({c["h"] for c in cs[:3 if w == 1400 else 2]}), 1, "same height in a row at %d" % w)
 
     def test_action_and_decision_have_no_rating_word(self):
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             a = st.create("actions", {"project": "ABC", "description": "Book the crane", "owner": "Pat", "due_date": "2026-12-01", "raised": "2026-10-01", "source": "demo", "client_message": "Words.", "latest_update": "Called them."})
             ref = st.create("report_sections", {"project": "ABC", "type": "raid3", "title": "Fictional cards", "sort_order": 993})
