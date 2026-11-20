@@ -68,6 +68,10 @@ class Chain(base.PageBase):
                 self.assertGreater(top, 0, f"{width}: the box still scrolls its own rows")
                 # bottom edge: keep scrolling down, the page moves
                 p.js(f"(b => b.scrollTop = b.scrollHeight)(document.querySelector('{BOX % self.ref}'))")
+                # The page can sit on a half pixel (the At a glance figures have a normal line height, Row 1404), so the box's end is
+                # fractional and the first wheel only uses up the last sub-pixel without handing on. One small wheel settles it; the
+                # 300 px wheel below must then move the page.
+                self.wheel(p, 3)
                 y1 = p.js(PAGE_Y)
                 page, _ = self.wheel(p, 300)
                 self.assertGreater(page, y1, f"{width}: a wheel down at the bottom of the box moved the page")

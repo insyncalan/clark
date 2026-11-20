@@ -20,6 +20,7 @@ import { richOrPlain } from "../logic/richOrPlain.js";
 import { plainFromEditor } from "./plainWords.js";
 import { tableOf } from "./itemEdit.js";
 import { eyeWords } from "../logic/eyeWords.js";
+import { AskAbout } from "./AskAbout.jsx";
 
 export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build: a work item's text is that many characters at most
 const A = { raid: "a risk", actions: "an action", decisions: "a decision" };
@@ -98,6 +99,7 @@ function EditRow({ row, today, words, type }) {
       <span class="c-id wl-id num">
         <button type="button" class="idl" data-open aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button>
         <button type="button" class="ib" data-eye aria-label={w.label} title={w.title} onClick={eye}><Icon name="eye" /></button>
+        <AskAbout kind="item" id={row.id} name={`${row.id} ${words[row.id] || ""}`.trim()} />
       </span>
     </li>
   );

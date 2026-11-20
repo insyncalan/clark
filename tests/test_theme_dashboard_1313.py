@@ -116,7 +116,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
-    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor'), style: cs(e, 'borderLeftStyle')})),
+    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), br: cs(e, 'borderRightWidth'), rline: cs(e, 'borderRightColor'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor'), style: cs(e, 'borderLeftStyle')})),
     lineSoft: cv('--line-soft'),
     sech: {size: cs(sech, 'fontSize'), weight: cs(sech, 'fontWeight'), family: cs(sech, 'fontFamily'), color: cs(sech, 'color'), ratio: ratio(cs(sech, 'color'), under(sech))},
     num: {size: cs(head, 'fontSize', '::before'), weight: cs(head, 'fontWeight', '::before'), family: cs(head, 'fontFamily', '::before'), color: cs(head, 'color', '::before'), blue: cv('--brand-blue'), ratio: ratio(cs(head, 'color', '::before'), under(head)), content: cs(head, 'content', '::before')},
@@ -194,16 +194,16 @@ class Classic(Setup):
             for row in rows.values():
                 row.sort(key=lambda c: c["left"])
                 for i, c in enumerate(row):
-                    self.assertEqual(c["bl"], "1px" if i else "0px", (width, c))
-                    if i:
-                        self.assertEqual(c["style"], "solid", "a solid rule between figures")
+                    self.assertEqual(c["bl"], "0px", (width, c))       # row 1345: the rule is on the right of a figure, none on the left
+                    alone = len(row) == 1
+                    self.assertEqual(c["br"], "0px" if (i == len(row) - 1 or alone) else "1px", (width, c))
             if width == 900:
                 self.assertGreater(len(rows), 1, "Project health on its own row at 900")
                 self.assertEqual([c["bb"] for r in rows.values() for c in r if c["health"]], ["1px"])
             else:
                 self.assertEqual(len(rows), 1, "one strip of figures at 1400")
                 self.assertEqual({c["bb"] for c in g["cells"]}, {"0px"})
-            dividers = {c["line"] for c in g["cells"] if c["bl"] == "1px"}
+            dividers = {c["rline"] for c in g["cells"] if c["br"] == "1px"}
             self.assertEqual(len(dividers), 1)
             self.assertTrue(g["scrollW"] <= g["innerW"])
 
@@ -268,12 +268,12 @@ class Classic(Setup):
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
                 active = [b for b in grp["btns"] if b["cur"] == "true"]
                 self.assertEqual(len(active), 1)
-                self.assertEqual(active[0]["bg"], rgb_of(g["heading"]), "the chosen one is filled dark (light page) with the heading colour")
+                self.assertEqual(active[0]["bg"], "rgb(43, 56, 80)" if dark else rgb_of("#062F3A"), "row 1354: the chosen one is navy (light) or 2b3850 (dark)")
                 for r in grp["ratios"]:
                     self.assertGreaterEqual(r, 4.5)
                 self.assertNotEqual(active[0]["bg"], [b for b in grp["btns"] if b["cur"] != "true"][0]["bg"])
-            for grp in (sw, sc):
-                self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
+            for grp in (sw, sc) if not dark else ():      # dark: the fill is 1.46 to 1 on its ground, so row 1354 draws a 1px edge instead
+                self.assertGreaterEqual(grp["edge"], 3.0, "the fill against the page beside it, as a control edge")
             print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
                   "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")
