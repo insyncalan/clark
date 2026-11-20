@@ -76,6 +76,19 @@ class DecisionChips(unittest.TestCase):
                                  " return {owner: g('owner'), due: g('due')}; })()", sid)
                     self.assertEqual(got, {"owner": owner, "due": date})
 
+    def test_an_overdue_actions_status_chip_says_open_with_needed_by_passed_under_it(self):
+        """Row 1285 AP16: the overdue action's Status chip keeps Open and gains the sub "needed by passed" in the "needed by" word style; an action not overdue has none."""
+        for width in (1400, 900):
+            for ref, sub in (("TUL-A-002", "needed by passed"), ("TUL-A-001", "")):
+                with self.subTest(width=width, ref=ref), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    got = cdp.js("(() => { const c = document.querySelector('#peek .pk-chips > [data-row=status]'), s = c.querySelector('.pk-chip-sub');"
+                                 " return {value: c.querySelector('.pkc-v').textContent.trim(), sub: s ? s.textContent.trim() : '', word: !!(s && s.classList.contains('word'))}; })()", sid)
+                    self.assertEqual(got["sub"], sub, got)
+                    if sub:
+                        self.assertEqual(got["value"], "Open")
+                        self.assertTrue(got["word"], got)
+
 
 _Fields = _m.Fields
 
@@ -106,10 +119,18 @@ class Warnbar(unittest.TestCase):
         self.addCleanup(p.stop)
 
     def test_the_overdue_bar_is_a_quiet_note_with_text_links(self):
+        self.note("TUL-A-002", "overdue")
+
+    def test_the_weekend_line_is_the_same_quiet_note_with_text_links(self):
+        """Row 1285 AP4: the weekend line (TUL-A-006, due on a Saturday) is drawn as the .sub note too: 13px muted, no fill, no border, two text-link moves."""
+        self.note("TUL-A-006", "weekend")
+
+    def note(self, ref, kind):
         for width in (1400, 900):
             for dark in (False, True):
-                with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, "TUL-A-002", edit=True, dark=dark)
+                with self.subTest(width=width, dark=dark, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True, dark=dark)
+                    self.assertEqual(cdp.js("document.querySelector('#peek .pk-warnbar').dataset.pkWarn", sid), kind)
                     got = cdp.js("(() => { const b = document.querySelector('#peek .pk-warnbar'), w = b.querySelector('.pk-warn'), m = [...b.querySelectorAll('[data-pk-move]')], g = (e, p) => getComputedStyle(e)[p];"
                                  " const tok = (v) => { const i = document.createElement('i'); i.style.color = v; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };"
                                  " return {moves: m.length, border: g(b, 'borderTopWidth'), bg: g(b, 'backgroundColor'), size: g(w, 'fontSize'), ink: g(w, 'color'), muted: tok('var(--text-muted)'),"
