@@ -19,6 +19,7 @@ import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
 import { workSelection as pickSel } from "../stores/selection.js";
+import { AskAbout } from "./AskAbout.jsx";
 import { ownClick, noTextRange, pickClick, pickOpen, pickKeys } from "../components/pick.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
@@ -63,7 +64,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos,
           pickKeys(e, card.id, focusCard);
           cardKeys(e);
         }}>
-        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} /></div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} />{editing ? <AskAbout kind="item" id={card.id} name={`${card.id} ${card.title || ""}`.trim()} /> : null}</div>
         <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
