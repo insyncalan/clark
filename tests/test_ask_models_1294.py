@@ -85,6 +85,8 @@ class Models(unittest.TestCase):
         self.assertIn(format(ask.BUDGET, ","), line)
         self.assertIn(format(ask.BUDGET // 4, ","), line)
         passages = [("P%d" % i, "x" * ask.MAX_PASSAGE) for i in range(ask.MAX_PASSAGES)]       # the most passages of the most characters is 240,000: under the figure, accepted
+        self.assertEqual((ask.MAX_PASSAGES, ask.MAX_PASSAGE), (60, 4000), "the limits that keep a question under the budget")
+        self.assertLess(ask.MAX_PASSAGES * ask.MAX_PASSAGE, ask.MAX_REQUEST)
         ask.build_request("What is open?", passages)
 
     def test_the_size_of_one_question_is_stated_with_the_lower_limit_rule(self):
