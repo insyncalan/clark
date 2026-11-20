@@ -1490,7 +1490,7 @@ table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowra
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
 
 /* row 1292 (S12): the Draft beside the ask panel (mock-up image 09). It sits to the left of the panel (its right edge is the panel's width, set inline), full height, the page's own tokens; in a narrow window it covers the panel's left part instead of overflowing. */
-.ask-draft { position: fixed; top: 0; bottom: 0; z-index: 44; width: min(560px, calc(100% - 320px)); min-width: 280px; display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 12%, transparent); }
+.ask-draft { position: fixed; top: 0; bottom: 0; z-index: 44; width: min(560px, calc(100% - var(--ad-r, 320px) - 24px)); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 12%, transparent); }
 .ad-h { flex: none; display: flex; align-items: baseline; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--grey-200); }
 .ad-h h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); }
 .ad-hint { flex: 1; min-width: 0; font-size: var(--size-small); color: var(--text-muted); }
