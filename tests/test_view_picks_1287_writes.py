@@ -9,6 +9,7 @@ import unittest
 import test_tpl_workitems as T
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
+from test_view_picks_1287_more import classic
 
 
 class ViewPickWrites(T.InThePage):
@@ -24,6 +25,7 @@ class ViewPickWrites(T.InThePage):
         return p.js(f"document.querySelector('{cell}').getAttribute('aria-label')")
 
     def test_a_status_pick_in_view_saves_one_step_and_undo_puts_it_back(self):
+        classic(self)
         cell = f".wl-row[data-id=\"{self.a_due}\"] .c-ico .cell-pick"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -56,6 +58,7 @@ class ViewPickWrites(T.InThePage):
         return f"document.querySelector('{cell}').getAttribute('aria-label')"
 
     def test_an_empty_owner_and_date_say_none_and_cancelled_and_delayed_read_in_view(self):
+        classic(self)
         with self.store.step("dashboard", T.USER) as st:
             bare = st.create("actions", {"project": "ABC", "description": "Fictional bare step", "raised": "2026-10-01", "source": "demo"})
             gone = st.create("actions", {"project": "ABC", "description": "Fictional dropped step", "raised": "2026-10-01", "source": "demo", "owner": "Pat Demo", "due_date": "2030-02-02", "status": "Cancelled"})
@@ -77,6 +80,7 @@ class ViewPickWrites(T.InThePage):
             self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [data-value]')].map(b => b.dataset.value).filter((v, i, a) => a.indexOf(v) === i)"), ["Open", "Delayed", "Closed", "Cancelled"])
 
     def test_previous_and_next_leave_the_edit_peek_a_description_click_opened(self):
+        classic(self)
         title = f".wl-row[data-id=\"{self.a_due}\"] .c-title"
         with chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -89,6 +93,7 @@ class ViewPickWrites(T.InThePage):
             p.until("!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the neighbour opens read only")
 
     def test_back_to_the_item_a_click_opened_in_edit_shows_it_read_only(self):
+        classic(self)
         title = f".wl-row[data-id=\"{self.a_due}\"] .c-title"
         peeked = "((document.querySelector('#peek') || {dataset: {}}).dataset.peek || '')"
         with chrome() as cdp:
