@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 from clark import page
+from _new_page import reload_to_new_page_cdp
 from test_milestones_page import BrowserBase
 from test_server import Running, chrome, wait
 
@@ -218,9 +219,8 @@ class ShortList(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: at 100% a short line has no grip")
-                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); window.__beforeReload = true; true", sid)
-                cdp.call("Page.reload", {}, sid)
-                self.assertTrue(wait(lambda: cdp.js("window.__beforeReload !== true", sid)), f"{width}: the page reloaded")
+                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); true", sid)
+                reload_to_new_page_cdp(cdp, sid, what=f"{width}: the page reloaded")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
