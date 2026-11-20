@@ -16,7 +16,7 @@ from clark import page, theme as themes
 
 import test_peek_latest
 import test_server  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 import test_milestone_peek_1078 as _m
 import test_theme_classic_1317 as t
 
@@ -63,7 +63,22 @@ class Peek(unittest.TestCase):
                     self.assertEqual((g["w"], g["h"]), (40, 22), g)
                     self.assertLess(g["right"], 3, g)
                     self.assertGreaterEqual(g["rowH"], 36, g)
-                    self.assertIn(g["words"], ("Client visible", "Client not visible"), "the words stay as they were")
+                    self.assertEqual(g["words"], "Shown to the client" if g["on"] == "true" else "Client not visible", "the label is the approved one; the off words stay")
+                    self.assertNotIn("Client visible", g["words"])
+
+    def test_an_empty_use_case_button_says_select_use_case_and_a_set_one_its_name(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, "TUL-007", edit=True)
+                cdp.js("(() => { const h = document.querySelector('#peek [data-pk-details]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()", sid)
+                js = "(() => { const b = document.querySelector('#peek [data-pk-pick=use_case]'); return b ? b.textContent.trim() : null; })()"
+                got = cdp.js(js, sid)
+                self.assertTrue(got and got.startswith("Use case "), "a set use case shows its own name: %r" % got)
+                cdp.js("document.querySelector('#peek [data-pk-pick=use_case]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
+                self.assertEqual(cdp.js("document.querySelector(\"[role=menu] [data-value='']\").textContent.trim()", sid), "No use case", "the clearing entry keeps its words")
+                cdp.js("document.querySelector(\"[role=menu] [data-value='']\").click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(js, sid) == "Select use case"), cdp.js(js, sid))
 
     def test_a_details_picker_has_the_mockup_val_look(self):
         for width in (1400, 900):
@@ -115,6 +130,18 @@ class Milestone(_m.Base):
                         self.assertFalse(g["tileCut"], g)
                     owner = [g for g in got if g["k"] == "owner"][0]
                     self.assertIn("Featherstonehaugh", owner["text"], "the full name is in the tile")
+
+
+    def test_the_milestone_client_line_says_shown_to_the_client_and_keeps_the_off_words(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit_peek(cdp, width=width, view="milestones")
+                p.js("(() => { const h = document.querySelector('#peek [data-pk-details]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()")
+                self.assertEqual(p.js("document.querySelector('#peek [data-pk-client]').textContent.trim()"), "Shown to the client")
+                p.js("document.querySelector('#peek [data-pk-client]').click()")
+                p.until("document.querySelector('#peek [data-pk-client]').textContent.trim() === 'Client not visible'", "the off words stay")
+                p.js("document.querySelector('#peek [data-pk-client]').click()")           # back on for the next width
+                p.until("document.querySelector('#peek [data-pk-client]').textContent.trim() === 'Shown to the client'", "on again")
 
 
 class Settings900(unittest.TestCase):
