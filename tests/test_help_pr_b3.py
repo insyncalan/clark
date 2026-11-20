@@ -112,13 +112,13 @@ class ExcelCells(unittest.TestCase):
             self.assertIn(sentence, step)
         cv, ex = py("excel_cover.py"), py("excel.py")
         self.assertIn('SUBTITLE_KIND', cv)
-        self.assertIn('parts.append(f"Week ending {long_date(week)}")', cv)
-        self.assertIn('parts.append(f"for {client}")', cv)
+        self.assertIn('parts.append(f"Week ending {show_date(week)}")', cv)
+        self.assertNotIn('parts.append(f"for {client}")', cv, "item 1390: the client is not named in the subtitle")
         self.assertIn('title["tag"] = INTERNAL_TAG', cv)
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)
         self.assertIn('shown = [s for s in sections or [] if not s.get("hidden")]', cv)
         self.assertLess(cv.index('_line("about", ABOUT)'), cv.index('_line("ids", IDS)'))
-        self.assertIn("ws = wb.create_sheet(COVER_NAME, 0)", ex)
+        self.assertIn("ws = wb.create_sheet(REPORT_NAME, 0)", ex)      # item 1390: the Cover is now the Report sheet
         self.assertIn("a quiet About this export block", ex)
 
     def test_the_tab_order_and_the_page_words_already_say_risks_and_issues_with_an_ampersand(self):
