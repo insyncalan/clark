@@ -24,7 +24,7 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
   supplies an API key), `--disable-slash-commands`, `--tools ""` (no tool at all), `--strict-mcp-config` (no MCP server),
   `--no-session-persistence` (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which
   carries the folder, the platform and the date, is replaced), `--max-turns 1`, a pinned `--output-format json`
-  (one result object, read strictly) and a `--max-budget-usd` cap. Never `--bare` (it would allow an API key only and never the sign-in),
+  (one result object, read strictly), with no per-question cost cap (row 1293: the person has a plan). Never `--bare` (it would allow an API key only and never the sign-in),
   never `--add-dir`, never a model except one of `MODELS` (a fixed list of the command's aliases), never a file argument. `--max-turns` is documented for print mode but some versions leave it
   out of `--help`, so it is in `UNLISTED_FLAGS`: sent, not looked for (with no tools there is one answer either way).
 - SCRUBBED ENVIRONMENT (`child_env`): an allow-list built from nothing: HOME, USER and LOGNAME from the system's own record of
@@ -64,7 +64,7 @@ PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/cl
           "~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
-                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+                "--no-session-persistence", "--system-prompt", "--output-format")
 MODEL_FLAG = "--model"                             # #54: needed only when a model is asked for, so a command without it still answers with its own
 MODELS = ("opus", "sonnet", "haiku", "fable")      # #54: the only --model values ever sent: the command's own aliases, never raw text
 MODEL_NAMES = {"opus": "Opus", "sonnet": "Sonnet", "haiku": "Haiku", "fable": "Fable"}
@@ -82,7 +82,6 @@ SIGNED_IN = "claude.ai"                             # the only `authMethod` a qu
 KEY_LOGINS = ("api_key", "api_key_helper")
 AUTH_ARGS = ("--setting-sources", "", "auth", "status")   # the sign-in check reads no settings file (no apiKeyHelper, env or hooks)
 LOGIN_REUSE = 2.0                                   # seconds a status() sign-in check stands for the question that follows it
-MAX_BUDGET_USD = "1.00"                             # the command's own cap on one question's spend (counts against the plan)
 TIME_LIMIT = 120.0                                  # seconds for one answer
 CHECK_LIMIT = 15.0                                  # seconds for --version, --help or auth status
 MAX_OUT = 4 * ask.MAX_REPLY + 65536                 # bytes read back: the reply as UTF-8, in its JSON wrapping
@@ -170,7 +169,7 @@ def arguments(path, canary="", system=None, model=None):
     pick = ["--model", model] if model else []
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, *pick, "--system-prompt", ask.system_prompt(canary, system)]
+            *pick, "--system-prompt", ask.system_prompt(canary, system)]
 
 
 CONNECTOR_TURNS = "6"          # row 1306: a run that may call a connector needs more than the one turn of an ordinary ask
