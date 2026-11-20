@@ -206,7 +206,7 @@ class Table(unittest.TestCase):
                         where = f"{width} px, {mode}, {theme}"
                         got = self.measure(cdp, self.load(cdp, width, mode, theme))
                         self.assertNotIn("Type", got["heads"], where + ": no Type column")
-                        self.assertEqual(set(got["heads"]), {"Item", "Owner", "Due", "Priority", "Status", "Client-visible"}, where)
+                        self.assertEqual(set(got["heads"]), {"Item", "Owner", "Due", "Priority", "Id", "Status", "Client-visible"}, where)   # #1195 S1: the Id is its own column
                         self.assertGreater(len(got["cards"]), 1, where + ": more than one group")
                         for c in got["cards"]:
                             self.assertEqual((c["bw"], c["tables"], c["groups"], c["head"], c["inside"]), ("1px", 1, 1, True, True), f"{where}: a group is a card of its own")

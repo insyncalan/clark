@@ -249,7 +249,7 @@ class Ui(unittest.TestCase):
         self.h.mount("<p>Title</p>")
         self.h.ev("document.querySelector('.rt-bar .rt-style').click(); true")
         self.assertTrue(self.h.until("!!document.querySelector('.rt-bar [role=menu]')"))
-        self.h.ev("document.querySelector('.rt-bar [role=menuitem][data-kind=h2]').click(); true")
+        self.h.ev("document.querySelector('.rt-bar [role=menuitemradio][data-kind=h2]').click(); true")
         self.assertTrue(self.h.until("!!document.querySelector('.ProseMirror h2')"), "the heading was made")
         self.assertTrue(self.h.until("!!document.activeElement && document.activeElement.classList.contains('ProseMirror')"),
                         f"focus is back in the text: {self.h.ev('document.activeElement.outerHTML.slice(0, 80)')}")

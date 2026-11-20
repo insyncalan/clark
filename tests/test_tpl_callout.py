@@ -202,6 +202,18 @@ class Page(n.PageChecks):
             p.js(f"{q(head)}.click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is True, 10), self.body_of(ref))
 
+    def test_edit_tags_the_hidden_part_in_the_ticket_words_and_view_has_no_tag(self):
+        want = {(True, True): None, (False, True): "Tile not shown in View", (True, False): "Heading not shown in View", (False, False): "Heading and tile not shown in View"}
+        for (tile, head), word in want.items():
+            ref = self.make({**GOOD, "tile": tile, "heading": head})
+            with self.subTest(tile=tile, heading=head), chrome() as cdp:
+                p = self.visit(cdp)
+                tag = f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] [data-not-shown]')].map(e => e.textContent)"
+                self.assertEqual(p.js(tag), [], "View draws no tag")
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-callout, [data-id={json.dumps(ref)}] [aria-label=\"Show the heading\"]')", "the callout in Edit")
+                self.assertEqual(p.js(tag), [word] if word else [])
+
     def test_no_tile_and_no_heading_in_view_and_the_heading_keeps_its_name(self):
         ref = self.make({**GOOD, "tile": False, "heading": False})
         with chrome() as cdp:

@@ -27,6 +27,7 @@ from openpyxl.xml.functions import tostring
 from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
+from clark import glance_print
 from clark.section_kinds import reportheadline
 
 NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
@@ -141,7 +142,7 @@ def headline_line(published):
     for s in published["sections"]:
         if s.get("type") == "reportheadline":
             c = s.get("content") if isinstance(s.get("content"), dict) else {}
-            health = c.get("health")
+            health = c.get("health") if c.get("pill") is not False else ""      # row 1261: the eye is off, no health word
             words = (reportheadline.WORDS.get(health) if isinstance(health, str) and health else "", c.get("headline"), c.get("sentence"))
             line = " · ".join(str(w).strip() for w in words if isinstance(w, str) and w.strip())
             if line:
@@ -249,6 +250,48 @@ def write_gantt_sheet(wb, published, palette=None):
     return ws
 
 
+GLANCE_SHEET = "At a glance"
+GLANCE_HEADS = (("Label", 28), ("Figure", 14), ("Tag", 16), ("Note", 60))
+
+
+def write_glance_sheet(wb, published, sec, palette=None):
+    """Row 1264 slice 7: a glance template section as one sheet, a row for each tile in the section's order (the health tile first when
+    it has a row of its own): Label, Figure, Tag, Note. Locked text. The words are the published content's own."""
+    got = glance_print.read(published, sec)
+    rows = ([got["health_row"]] if got["health_row"] else []) + got["tiles"]
+    if not rows:
+        return None
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
+    name, n = GLANCE_SHEET, len(wb.sheetnames) + 1
+    while name in wb.sheetnames:      # the suffix is the sheet's position (len(sheetnames) + 1); a name already taken gives the next number
+        name, n = f"{GLANCE_SHEET} {n}", n + 1
+    ws = wb.create_sheet(name)
+    title, sub = title_text(published)
+    for r, (text, font) in enumerate(((title, TITLE), (sub, SUB)), start=1):
+        for c in range(1, len(GLANCE_HEADS) + 1):
+            ws.cell(row=r, column=c).fill = HEAD_FILL
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = font
+        excel.protect_text_cell(cell)
+    ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(GLANCE_HEADS), palette)
+    for i, (label, width) in enumerate(GLANCE_HEADS, start=1):
+        head = ws.cell(row=4, column=i, value=label)
+        head.font, head.fill = HEAD, HEAD_FILL
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for n, t in enumerate(rows, start=5):
+        for i, v in enumerate((t["label"], t["figure"], t["tag"], t["note"]), start=1):
+            cell = ws.cell(row=n, column=i, value=excel.cell_text(v))
+            cell.font = BODY
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            excel.protect_text_cell(cell)
+    ws.freeze_panes = "A5"
+    excel.print_setup(ws)
+    excel.protect_sheet(ws)
+    wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)
+    return ws
+
+
 def workbook_bytes(published, palette=None):
     """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
     wb = Workbook()
@@ -257,6 +300,9 @@ def workbook_bytes(published, palette=None):
         write_sheet(wb, published, table, palette)
     if "gantt" in published.get("tabs", ()) and (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client); row 1068: a table section's copy has no tab and no tab name, so no sheet
         write_gantt_sheet(wb, published, palette)
+    for sec in published.get("sections") or ():
+        if sec.get("type") == "glancetemplate":
+            write_glance_sheet(wb, published, sec, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])

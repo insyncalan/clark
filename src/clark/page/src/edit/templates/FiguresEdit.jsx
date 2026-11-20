@@ -9,7 +9,7 @@ import { todayIso } from "../../workItems.js";
 import { FigureRow } from "../../templates/FiguresView.jsx";
 import { parseDay } from "../../templates/keydates.js";
 import { dateWords } from "../../templates/safe.js";
-import { PLACES, METRICS, LIMITS, slotsOf, bodyOf, figuresOf } from "../../templates/figures.js";
+import { PLACES, METRICS, LIMITS, metricsOffered, slotsOf, bodyOf, figuresOf } from "../../templates/figures.js";
 
 const BLANK = { mode: "typed", label: "", value: "", detail: "", asof: "" };
 
@@ -22,11 +22,12 @@ export function figuresEdit(type) {
   return function Edit({ section }) {
     const slots = slotsOf(section, places);
     while (slots.length < places) slots.push({ ...BLANK });
+    const offered = metricsOffered(data.value);      // item 1337: a live figure is offered only while its section is there
     const shown = figuresOf(section, data.value, todayIso(), places);
     const put = (i, one) => save(section, slots.map((s, j) => (j === i ? one : s)));
     const mode = (i, e) => {
       const m = e.currentTarget.value;
-      put(i, m === "live" ? { mode: "live", metric: METRICS[0][0] } : { ...BLANK });
+      put(i, m === "live" && offered.length ? { mode: "live", metric: offered[0][0] } : { ...BLANK });
     };
     const field = (i, name) => (e) => {
       const v = e.currentTarget.value.trim();
@@ -47,13 +48,13 @@ export function figuresEdit(type) {
               <label>Source
                 <select aria-label={`Figure ${i + 1} source`} value={s.mode === "live" ? "live" : "typed"} onChange={(e) => mode(i, e)}>
                   <option value="typed">Typed</option>
-                  <option value="live">Live from the project</option>
+                  {offered.length || s.mode === "live" ? <option value="live">Live from the project</option> : null}
                 </select>
               </label>
               {s.mode === "live" ? (
                 <label>Figure
                   <select aria-label={`Figure ${i + 1} live figure`} value={s.metric} onChange={(e) => put(i, { mode: "live", metric: e.currentTarget.value })}>
-                    {METRICS.map(([k, name]) => <option value={k} key={k}>{name}</option>)}
+                    {METRICS.filter(([k]) => s.metric === k || offered.some(([o]) => o === k)).map(([k, name]) => <option value={k} key={k}>{name}</option>)}
                   </select>
                 </label>
               ) : (

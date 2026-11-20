@@ -207,7 +207,7 @@
 .rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 2 * var(--space-2))); }
 .rowmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }                /* row 978: the entry's icon, before its words, from the existing icon set; it takes the entry's colour on hover and focus */
 .rowmenu [role="menuitem"]:hover .rm-ic, .rowmenu [role="menuitem"]:focus-visible .rm-ic { color: inherit; }
@@ -311,6 +311,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-status:empty::before { display: none; }
 /* off, or not set up: one amber line with the link to the card */
 .ask-off { flex: none; margin: 0; padding: 10px 20px; font-size: var(--size-small); color: var(--status-amber-text); background: var(--status-amber-tint); border-bottom: 1px solid var(--grey-200); }
+.ask-first-run { flex: none; margin: 0; padding: 12px 20px; font-size: var(--size-small); color: var(--text-muted); border-bottom: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ask-first-run p { margin: 0 0 6px; }
+.ask-first-link a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link, var(--brand-blue)); font-weight: var(--weight-medium); text-decoration: underline; }
 .ask-off a { display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; }
 .ask-panel a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px var(--space-3); }
@@ -669,15 +672,13 @@ textarea.tpl-field { resize: vertical; }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
-.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
-.wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
 .wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
 .wil-add .newb { border-style: dashed; }
+/* Row 1273: Add milestone, Add project and Add use case take the same dashed look; border only, nothing moves */
+#addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
-.wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.wil-more summary { min-height: 28px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: var(--size-small); }
 .wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
 .wil-f legend { padding: 0; margin-bottom: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-opts { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }
@@ -1034,7 +1035,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
-/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+/* row 962: a cell picker (Pop: MenuPick, the rating matrix, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
    (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
@@ -1148,7 +1149,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
-@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 121px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
 
 /* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
 @media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
@@ -1369,12 +1370,13 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 #mode-pill .mode .tb-ico { width: 16px; height: 16px; }
 #mode-pill .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 #mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
-body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
+/* Row 1320: only an open dialog hides the View | Edit pill: not the first-run Welcome card (a non-modal note) and not one with the hidden attribute (the Work items Configure panel kept role=dialog while shut in 1.3.1). */
+body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"]:not([data-welcome], [hidden]), [role="alertdialog"]:not([hidden])) #mode-pill { display: none; }
 #report-bar:empty { display: none; }
 /* Switching to Edit must not move the page: the drag hint floats left of the pill (fixed, as the pill is) and the bar takes no room, so drawing or dropping the hint changes no section's place. */
 #report-bar { min-height: 0; margin: 0; }
 #report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
-body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
+body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"]:not([data-welcome], [hidden]), [role="alertdialog"]:not([hidden])) #report-bar .rbar-hint { display: none; }
 
 /* row 1104: a table whose column has a chosen width is laid out in fixed mode so the width holds; the other columns share the rest, and a long word breaks inside its cell */
 table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
@@ -1414,6 +1416,7 @@ table.items th.c-eye { white-space: nowrap; }
 table.items .c-x { width: 130px; }
 table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
 table.items .c-x-id, table.items .c-x-type { width: 100px; }
+table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowrap; }        /* row 1195: the mock-up's blue ID column */
 @media (max-width: 700px) {
   table.items td.c-x { grid-column: 1 / -1; width: auto; }
   table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
@@ -1485,3 +1488,88 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .tpl-rh-edit-text .tpl-lbl:not(:first-child) { margin-top: var(--space-2); }
 .tpl-rh-in { overflow-wrap: anywhere; }
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
+
+/* row 1292 (S12): the Draft beside the ask panel (mock-up image 09). It sits to the left of the panel (its right edge is the panel's width, set inline), full height, the page's own tokens; in a narrow window it covers the panel's left part instead of overflowing. */
+.ask-draft { position: fixed; top: 0; bottom: 0; z-index: 44; width: min(560px, calc(100% - 320px)); min-width: 280px; display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 12%, transparent); }
+.ad-h { flex: none; display: flex; align-items: baseline; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--grey-200); }
+.ad-h h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); }
+.ad-hint { flex: 1; min-width: 0; font-size: var(--size-small); color: var(--text-muted); }
+.ad-h .pkp-btn { align-self: center; }
+.ad-doc { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-4); font-size: var(--size-body); line-height: 1.55; outline: none; }
+.ad-doc:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.ad-doc p { margin: 0 0 var(--space-3); }
+.ad-note { flex: none; margin: 0; padding: 0 var(--space-4); min-height: 1.4em; font-size: var(--size-small); color: var(--text-muted); }
+.ad-f { flex: none; position: relative; display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--grey-200); }
+.ad-menu { position: absolute; left: var(--space-4); bottom: calc(100% - 4px); z-index: 2; display: flex; flex-direction: column; min-width: 260px; max-width: calc(100% - 2 * var(--space-4)); padding: var(--space-1); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-navy) 18%, transparent); }
+.ad-menu button { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 6px var(--space-3); text-align: left; font: inherit; font-size: var(--size-small); color: var(--text); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ad-menu button svg { flex: none; width: 16px; height: 16px; }
+.ad-menu button:hover, .ad-menu button:focus-visible { background: var(--brand-blue-tint); outline: none; }
+.ad-menu button:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.ask-draftcard { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font-size: var(--size-small); }
+.ask-draftcard > span { flex: 1; min-width: 0; }
+.ask-draftcard-title { font-weight: var(--weight-medium); }
+.ask-draftcard-note { color: var(--text-muted); }
+
+/* Row 1264 slice 9: the glance template's Edit layout, the same grid as its View (shell.css .tpl-gt): 4 tiles on a line, 3 when the section says
+   so, 2 at half width, 1 at 900; Project health one tile wide, or the whole row (the switch). Controls under the tiles: Tiles on a line, the switch. */
+.tpl-edit-glancetemplate .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance .tcell, .tpl-edit-glancetemplate .glance .tcell.health { min-width: 0; }
+.tpl-edit-glancetemplate .glance[data-own-row] > .tcell.health { grid-column: 1 / -1; }
+.gt-showhealth { all: unset; box-sizing: border-box; grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3); min-height: 40px; cursor: pointer; color: var(--text); font-size: var(--size-body); }
+.gt-showhealth-eye { display: inline-grid; place-items: center; width: 40px; height: 40px; }
+.gt-showhealth-eye .i { width: 20px; height: 20px; }
+.gt-showhealth:hover .gt-showhealth-eye { color: var(--brand-blue); }
+.gt-showhealth:focus-visible, .gt-per:focus-visible, .gt-own:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-gt-perrow { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gt-per { all: unset; box-sizing: border-box; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); }
+.gt-per[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
+.gt-own { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-3); cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-pill); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.gt-own-sw { position: relative; width: 30px; height: 16px; border-radius: 9px; background: var(--control-edge); flex: none; }
+.gt-own-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); }
+.gt-own[aria-checked="true"] { border-color: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw { background: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw i { left: 16px; }
+.tpl-gt-halfnote { display: none; }
+.slot-left .tpl-gt-halfnote, .slot-right .tpl-gt-halfnote { display: inline; }
+@media (max-width: 900px) { .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }
+
+/* #1298 the Feedback tag: fixed to the right edge a little below the middle, vertical word; pulls out 5 px on hover or focus. With a peek open it sits at the peek's left edge. The dialog slides in from the right, 0.4 s, the peek's easing. Widths 1400 and 900 only. */
+.fbt-tag { position: fixed; top: 58%; right: 0; z-index: 34; transform: translateY(-50%); writing-mode: vertical-rl; padding: var(--space-3) 7px; border: 0; border-radius: 10px 0 0 10px; background: var(--brand-blue); color: var(--text-on-brand); font-size: var(--size-caption); font-weight: 600; letter-spacing: var(--tracking-caps); cursor: pointer; box-shadow: -2px 2px 10px color-mix(in srgb, var(--brand-ink) 20%, transparent); transition: padding-right .15s var(--ease-out), right .3s cubic-bezier(.22, 1, .36, 1); }
+.fbt-tag:hover, .fbt-tag:focus-visible { padding-right: 12px; }
+.fbt-tag:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fbt-tag.beside { right: min(420px, 100vw); }   /* the fallback; the tag sets the item peek's real, dragged width inline (FeedbackTag.jsx) */
+.fbt-tag.beside-help { right: min(var(--hpk-w), 100vw); }
+.fbt-tag.open { right: min(360px, 100vw); }
+.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: var(--space-4) 18px var(--space-3); background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes fbt-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.fbt-head { display: flex; justify-content: space-between; align-items: center; }
+.fbt-head h2 { margin: 0; font-size: var(--size-h3); }
+.fbt-x { all: unset; cursor: pointer; font-size: var(--size-figure); line-height: 1; padding: 0 var(--space-1); color: var(--grey-700); }
+.fbt-x:focus-visible, .fbt-kind:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fbt-kinds { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-3); }
+.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: var(--size-small); cursor: pointer; }
+.fbt-kind.on { background: var(--brand-blue); color: var(--text-on-brand); }
+.fbt-added { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--grey-100); font-size: var(--size-caption); color: var(--grey-700); }
+.fbt-added ul { margin: var(--space-1) 0; }
+@media (prefers-reduced-motion: reduce) { .fbt-dlg { animation: none; } .fbt-tag { transition: none; } }
+
+/* #1292 S10: the slash menu, above the box; existing tokens only. */
+.ask-slash { position: absolute; left: var(--space-4); right: var(--space-4); bottom: calc(100% - var(--space-2)); z-index: 5; margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto; background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.ask-slash li { display: flex; gap: var(--space-2); align-items: baseline; min-height: 28px; padding: 4px var(--space-3); font-size: var(--size-caption); color: var(--text-muted); border-radius: var(--radius); cursor: pointer; }
+.ask-slash li b { color: var(--text); font-weight: 600; }
+.ask-slash li[aria-selected="true"] { background: var(--brand-blue-tint); }
+.ask-slash-none { cursor: default; }
+/* #1292 S14: files and pictures for the next question (chips with a name, a size and a bin; a dashed edge while a file is dragged over) */
+.ask-files { flex: none; margin: 0 var(--space-4) 6px; padding: 4px 4px 4px 10px; border: 1px solid var(--grey-200); border-radius: 10px; background: var(--surface); font-size: var(--size-caption); }
+.ask-files ul { margin: 0; padding: 0; list-style: none; }
+.ask-files li { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; }
+.ask-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-file-size { flex: none; color: var(--text-muted); }
+.ask-file-del { flex: none; width: 28px; height: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ask-files-note { margin: 0 0 4px; color: var(--text-muted); }
+.ask-panel[data-drop] { outline: 2px dashed var(--brand-blue); outline-offset: -6px; }
+.ask-drop-line { flex: none; margin: 0 var(--space-4) 6px; color: var(--status-blue-text, var(--brand-blue)); font-size: var(--size-body); text-align: center; }
+.ask-actions #ask-attach { flex: none; }

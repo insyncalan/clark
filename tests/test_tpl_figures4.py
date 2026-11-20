@@ -23,7 +23,10 @@ class Published(_cases[1]):
 
 
 class ThroughTheStore(_cases[2]):
-    pass
+    def setUp(self):
+        super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the live figures count the built-in sections' rows (row 1193)
+
 
 
 class PageSide(_cases[3]):
@@ -31,7 +34,10 @@ class PageSide(_cases[3]):
 
 
 class InThePage(_cases[4]):
-    pass
+    def setUp(self):
+        super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the live figure is the built-in tile's number (row 1193)
+
 
 
 

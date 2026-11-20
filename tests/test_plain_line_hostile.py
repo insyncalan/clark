@@ -20,8 +20,10 @@ import esbuild  # noqa: E402
 
 from test_movement_page import Base as MovementBase, GO_LIVE  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_tpl_raid3 import PageSide  # noqa: E402
 from test_report_editor import Base as ReportBase  # noqa: E402
+import test_tpl_raid3  # noqa: E402  (the module only: importing the class by name would collect its tests in this file too)
+
+PageSide = test_tpl_raid3.PageSide
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 _CACHE = {}
