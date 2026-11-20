@@ -88,6 +88,22 @@ class ViewPickWrites(T.InThePage):
             p.until(f"((document.querySelector('#peek') || {{dataset: {{}}}}).dataset.peek || '') !== '{self.a_due}' && !!document.querySelector('#peek')", "the peek moved to the neighbour")
             p.until("!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the neighbour opens read only")
 
+    def test_back_to_the_item_a_click_opened_in_edit_shows_it_read_only(self):
+        title = f".wl-row[data-id=\"{self.a_due}\"] .c-title"
+        peeked = "((document.querySelector('#peek') || {dataset: {}}).dataset.peek || '')"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('{title}')", "the actions list drew")
+            p.js(f"document.querySelector('{title}').click()")
+            p.until("!!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the description opened the peek in edit")
+            p.until("!!document.querySelector('#peek [data-pk-next]:not([disabled])')", "Next is there")
+            p.js("document.querySelector('#peek [data-pk-next]:not([disabled])').click()")
+            p.until(f"{peeked} !== '{self.a_due}' && !!document.querySelector('#peek')", "the peek moved to the neighbour")
+            p.until("!!document.querySelector('#peek [data-pk-prev]:not([disabled])')", "Previous is there")
+            p.js("document.querySelector('#peek [data-pk-prev]:not([disabled])').click()")
+            p.until(f"{peeked} === '{self.a_due}'", "Previous came back to the first item")
+            p.until("!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the first item opens read only again")
+
 
 def json_s(expr):
     return f"({expr} || '')"
