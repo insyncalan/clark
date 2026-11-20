@@ -56,6 +56,25 @@ class ClassicCards(Themed):
             self.assertEqual(len([r for r in self.store.read("actions", "ABC") if r["description"] == TITLE.lower()]), 1)
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-duplicate]').length"), 0, "the warning goes once the card is used")
 
+    def test_the_duplicate_note_keeps_its_amber_bar_light_and_dark_at_1400_and_900(self):
+        self.says(self.new(TITLE.lower()))
+        probe = ("(() => { const d = document.querySelector('[data-ask-duplicate]'); const c = getComputedStyle(d); const r = getComputedStyle(document.documentElement);"
+                 " const t = document.createElement('i'); t.style.color = 'var(--status-amber)'; document.body.appendChild(t); const amber = getComputedStyle(t).color; t.remove();"
+                 " return {w: c.borderLeftWidth, s: c.borderLeftStyle, col: c.borderLeftColor, amber: amber}; })()")
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            p.until("!!document.querySelector('[data-ask-duplicate]')", "the note")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for scheme in ("light", "dark"):
+                    p.js("document.documentElement.setAttribute('data-theme', %r)" % scheme)
+                    got = p.js(probe)
+                    tag = f"{scheme} {width}"
+                    self.assertEqual((got["w"], got["s"]), ("3px", "solid"), tag)
+                    self.assertEqual(got["col"], got["amber"], tag)
+                    self.assertNotIn(got["amber"], ("", "rgba(0, 0, 0, 0)"), tag)
+
     def test_after_the_first_change_is_applied_the_second_shows_the_line_and_no_apply(self):
         self.says(self.change(status="Closed"), self.change(priority="High"))
         with chrome() as cdp:
