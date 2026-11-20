@@ -33,7 +33,7 @@ CONNECTED_OTHER = CONNECTED
 NOT_SIGNED_IN = {CHATGPT: "ChatGPT is not signed in on this computer. Sign in to the Codex command, then turn it on again."}     # row 1294: the switch goes back off and says this; Claude says what its own check found
 SIZE_LINE = ("Size of one question: about {tokens:,} tokens ({chars:,} characters of passages). Each model has its own limit and the lower one applies.")
 CHARS_PER_TOKEN = 4                       # the usual rough figure for English; the page says "about"
-QUESTION_CHARS = ask.BUDGET               # row 1294: the page states the size that really cuts a question (ask.BUDGET), so page and code cannot differ; the 300,000-token cut of A8 is not built
+QUESTION_CHARS = ask.BUDGET               # row 1294: the page states the size that really cuts a question (ask.BUDGET), so page and code cannot differ; 1,200,000 characters is 300,000 tokens at 4 characters each (the A8 cut), and ask.MAX_REQUEST = BUDGET + 30000 caps the whole request
 TEST_QUESTION = "Reply with the one word ready."
 TEST_SYSTEM = "You answer in one word."
 TEST_FAILED = "{label} did not answer."
