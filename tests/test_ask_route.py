@@ -340,7 +340,8 @@ class Stop(Base):
         self.provider.stop.assert_called_once_with(owner=self.s.httpd.ask.owner)
 
 
-SETTINGS_WRITER = "ask_folders.py"      # the Settings entry's folder list: it saves through the store's one writer (store.step)
+SETTINGS_WRITER = "ask_folders.py"
+OWN_FILE_INDEX = "ask_index.py"         # opens only its own rebuildable index file (never clark.db), so it may call sqlite3.connect and executescript on that file      # the Settings entry's folder list: it saves through the store's one writer (store.step)
 
 
 def ask_modules():
@@ -358,12 +359,12 @@ class Source(unittest.TestCase):
             for n in ast.walk(tree):
                 if isinstance(n, ast.Name) and n.id in ("open_store", "sqlite3_connect"):
                     self.fail(f"{path.name}:{n.lineno} uses {n.id}")
-                if isinstance(n, ast.Attribute) and n.attr in ("open_store", "step", "undo", "executescript"):
+                if isinstance(n, ast.Attribute) and n.attr in (("open_store", "step", "undo") if path.name == OWN_FILE_INDEX else ("open_store", "step", "undo", "executescript")):
                     self.fail(f"{path.name}:{n.lineno} uses .{n.attr}")
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "connect":
                     ro = [k for k in n.keywords if k.arg == "readonly" and isinstance(k.value, ast.Constant) and k.value.value is True]
                     self.assertTrue(ro, f"{path.name}:{n.lineno}: connect() without readonly=True")
-                if isinstance(n, ast.Attribute) and n.attr == "connect" and isinstance(n.value, ast.Name) and n.value.id == "sqlite3":
+                if isinstance(n, ast.Attribute) and n.attr == "connect" and isinstance(n.value, ast.Name) and n.value.id == "sqlite3" and path.name != OWN_FILE_INDEX:
                     self.fail(f"{path.name}:{n.lineno} opens a database itself")
 
     def test_the_checker_sees_a_writing_open(self):
