@@ -35,7 +35,7 @@ BOX = "document.querySelector('[data-id=%s] .tpl-callout')"
 class Rules(unittest.TestCase):
     def block(self):
         i = RULES.index("/* Row 1272 ")
-        return RULES[i:RULES.index("/* Row 1393")]
+        return RULES[i:RULES.index("/* Row ", i + 1)]
 
     def test_the_block_sits_after_row_1318_and_before_row_1393_and_the_file_stays_under_128_kib(self):
         self.assertGreater(RULES.index("/* Row 1272 "), RULES.index("/* Row 1318"))
