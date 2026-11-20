@@ -728,7 +728,7 @@ class MockupLook(InThePage):
                 self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
 
     def test_values_the_code_measured_and_the_ones_the_mock_gives_are_pinned_and_labelled(self):
-        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: --badge-ink #111 (the page icon outline), the header's padding-right 112px,
+        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: --badge-ink 111 as a hex without the hash (the page icon outline), the header's padding-right 112px,
         the icon row's margin -56px (see the title-line pin above). From the mock: the link box width 340px and top 54px (its .pop), the note's padding 10px 14px (its .al)."""
         ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
         sel = f"[data-id={json.dumps(ref)}]"
