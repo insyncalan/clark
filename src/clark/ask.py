@@ -312,7 +312,7 @@ def _assemble(question, turns, chosen, head=(), standing=()):
 # check then compares what the reply says with the project's data, through callables the caller builds from a read-only path.
 # The form is a small copy in spirit of creaite's EDIT: line: the idea of a marked line, none of its code.
 # ---------------------------------------------------------------------------------------------------------------------------
-MAX_CHANGES = 10
+MAX_CHANGES = 5                # Row 1293: equals ask_apply.MAX_AT_ONCE (ask_apply imports ask_data imports ask, so no import here; a test pins them equal)
 MAX_CHANGE_CHARS = 2000        # one CHANGE line, JSON included
 MAX_CHANGE_FIELDS = 12
 MAX_FIELD_NAME = 40
@@ -329,13 +329,14 @@ MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change. Ask again, or check it against the report yourself.")
 # [D] #1293 A: NEEDS RULING (wording): said when one CHANGE line could not be read and only that change was dropped.
 CHANGE_UNREADABLE = "A change the answer suggested could not be read, so it was left out."
+CHANGE_LIMIT = f"Only the first {MAX_CHANGES} changes are offered. Ask again for the rest."   # Row 1293: said only when changes were cut at the limit
 NOT_SENT = "The answer named a source that was not sent. Ignore that part."
 
 
 @dataclass(frozen=True)
 class Flag:
     """One problem the claims check found. `kind` is one of: unknown_id, wrong_title, wrong_owner, unsent_passage, change_left_out,
-    unreadable, disguised, more. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
+    change_limit, unreadable, disguised, more. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
     kind: str
     ref: str
     message: str
@@ -554,7 +555,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     if not isinstance(text, str):
         text = ""
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised, dropped, draft = [], [], [], bool(text.strip()), False, 0, None
+    answer, cites, changes, ok, disguised, dropped, cut, draft = [], [], [], bool(text.strip()), False, 0, 0, None
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
@@ -568,8 +569,10 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
             cites.extend(i for i in ids if i not in cites)
         elif word == "CHANGE":
             change = read_change(rest)
-            if change is None or len(changes) >= MAX_CHANGES:
+            if change is None:
                 dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
+            elif len(changes) >= MAX_CHANGES:
+                cut += 1                          # Row 1293: a good change over the limit is cut and said so, not called unreadable
             else:
                 changes.append(change)
         elif word == "DRAFT":
@@ -589,6 +592,8 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 left.append(change)
         if dropped:
             flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
+        if cut:
+            flags.append(Flag("change_limit", "", CHANGE_LIMIT))
         said = "\n".join(answer).strip()
         return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts))
     kind = "disguised" if disguised else "unreadable"

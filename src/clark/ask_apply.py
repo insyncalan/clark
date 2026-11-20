@@ -28,10 +28,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import ask_data, changes, edit_ai, platform
+from clark import ask, ask_data, changes, edit_ai, platform
 from clark.store import CODE_RE, Store, connect
 
-MAX_AT_ONCE = 5                 # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet)
+MAX_AT_ONCE = ask.MAX_CHANGES   # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet). One constant with the reply reader (Row 1293)
 OFFER_MINUTES = 30
 MAX_OFFERS = 50
 OP_NEW, OP_CHANGE = "new", "change"
