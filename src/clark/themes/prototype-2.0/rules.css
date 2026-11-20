@@ -77,7 +77,7 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-cfg .wil-opts label:has(> input[value="workstream"]) { order: 5; }
 .wil-cfg .wil-opts label:has(> input[value="milestone"]) { order: 6; }
 .wil-cfg .wil-opts label:has(> input[value="id"]) { order: 7; }
-/* The + stays the 34 px dashed square at every width and in every state, and the Add menu draws each kind as the letter tile the rows use. */
+/* The + stays the 34 px dashed square at every width and in every state, and the Add menu draws the + icon on each line (item 1273 item 4, design lead ruling 20-11: the letter chips are gone). */
 .wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--wil-add-bd); border-radius: 6px; background: none; color: var(--wil-add-fg); }
 .wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded="true"] { background: var(--grey-50); border-color: var(--wil-add-bd); color: var(--wil-add-fg); }
 .wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
