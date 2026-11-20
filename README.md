@@ -8,7 +8,7 @@ This is a report editor for programme managers. It keeps a project's actions, ri
 
 ![The clark Dashboard in the light theme, showing a weekly report for the demo project: the current state, the project health and the use case summary.](docs/img/report-light.png)
 
-> **Version 1.2.** clark runs on a Mac. On Windows, unzip the same download and run clark in Docker; the release notes say how.
+> **Version 1.3.** clark runs on a Mac. On Windows, unzip the same download and run clark in Docker; the release notes say how.
 
 ## What you can do with it
 
