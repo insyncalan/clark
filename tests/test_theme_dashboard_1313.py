@@ -116,7 +116,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
-    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor'), style: cs(e, 'borderLeftStyle')})),
+    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), br: cs(e, 'borderRightWidth'), rline: cs(e, 'borderRightColor'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor'), style: cs(e, 'borderLeftStyle')})),
     lineSoft: cv('--line-soft'),
     sech: {size: cs(sech, 'fontSize'), weight: cs(sech, 'fontWeight'), family: cs(sech, 'fontFamily'), color: cs(sech, 'color'), ratio: ratio(cs(sech, 'color'), under(sech))},
     num: {size: cs(head, 'fontSize', '::before'), weight: cs(head, 'fontWeight', '::before'), family: cs(head, 'fontFamily', '::before'), color: cs(head, 'color', '::before'), blue: cv('--brand-blue'), ratio: ratio(cs(head, 'color', '::before'), under(head)), content: cs(head, 'content', '::before')},
@@ -194,16 +194,16 @@ class Classic(Setup):
             for row in rows.values():
                 row.sort(key=lambda c: c["left"])
                 for i, c in enumerate(row):
-                    self.assertEqual(c["bl"], "1px" if i else "0px", (width, c))
-                    if i:
-                        self.assertEqual(c["style"], "solid", "a solid rule between figures")
+                    self.assertEqual(c["bl"], "0px", (width, c))       # row 1345: the rule is on the right of a figure, none on the left
+                    alone = len(row) == 1
+                    self.assertEqual(c["br"], "0px" if (i == len(row) - 1 or alone) else "1px", (width, c))
             if width == 900:
                 self.assertGreater(len(rows), 1, "Project health on its own row at 900")
                 self.assertEqual([c["bb"] for r in rows.values() for c in r if c["health"]], ["1px"])
             else:
                 self.assertEqual(len(rows), 1, "one strip of figures at 1400")
                 self.assertEqual({c["bb"] for c in g["cells"]}, {"0px"})
-            dividers = {c["line"] for c in g["cells"] if c["bl"] == "1px"}
+            dividers = {c["rline"] for c in g["cells"] if c["br"] == "1px"}
             self.assertEqual(len(dividers), 1)
             self.assertTrue(g["scrollW"] <= g["innerW"])
 
