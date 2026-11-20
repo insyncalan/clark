@@ -7,6 +7,8 @@ popup (Esc closes it and the focus returns), and fills the placeholders in the t
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -19,6 +21,11 @@ from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
 from clark import ask_commands_service, page
+
+from _paths import ROOT, SRC, TOOLS
+sys.path.insert(0, str(TOOLS))
+import build_page  # noqa: E402
+import esbuild  # noqa: E402
 
 EDITOR = "/?slash-editor=1&project=ABC"
 
@@ -393,6 +400,40 @@ class Editor(Base):
         with chrome() as cdp:
             js = self.editor(cdp, EDITOR + "&name=history")
             self.assertEqual(js("document.querySelectorAll('#sl-text').length"), 0)
+
+
+
+class ReadPartsToday(unittest.TestCase):
+    """Row 2032: readParts with no day given fills {today} from todayDate(), so it follows the pinned day and reads the clock when unpinned (node, no Chrome)."""
+    _code = {}
+
+    def run_js(self, expr):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        with tempfile.TemporaryDirectory() as tmp:
+            if "c" not in self._code:
+                out = Path(tmp) / "rp.js"
+                done = esbuild.run(["--bundle", "--format=iife", "--global-name=RP", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
+                                    *build_page.preact_flags(), f"--alias:@src={SRC / 'clark' / 'page' / 'src'}",
+                                    str(ROOT / "tests" / "fixtures" / "slash_readparts_node.js"), f"--outfile={out}"],
+                                   cwd=tmp, capture_output=True, text=True)
+                assert done.returncode == 0, done.stderr
+                self._code["c"] = out.read_text(encoding="utf-8")
+            script = Path(tmp) / "probe.js"
+            script.write_text("globalThis.addEventListener = () => {};\n" + self._code["c"] + ";\nconsole.log(JSON.stringify(%s));" % expr, encoding="utf-8")
+            done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
+            assert done.returncode == 0, done.stderr
+            return json.loads(done.stdout)
+
+    READ = 'RP.readParts({text:"On {today}.",scope:"anywhere"},"").map((p)=>p.t)'
+
+    def test_a_pinned_day_fills_today_and_unpinning_reads_the_clock(self):
+        self.assertEqual(self.run_js('(()=>{RP.pinToday("2026-02-03");return ' + self.READ + '})()'), ["On ", "03-02-2026", "."])
+        clock = self.run_js('(()=>{RP.pinToday("2026-02-03");RP.pinToday("");return ' + self.READ + '})()')
+        now = self.run_js('(()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear()})()')
+        self.assertEqual(clock, ["On ", now, "."])
+        self.assertNotEqual(clock[1], "03-02-2026")
 
 
 if __name__ == "__main__":

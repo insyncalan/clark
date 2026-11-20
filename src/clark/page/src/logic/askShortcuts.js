@@ -1,6 +1,7 @@
 // Row 1295: the data model and rules of ask clark slash commands. Pure functions on a list of records; the files are kept by the server (ask_commands.py, one file
 // per slash command) and the editor page (edit/SlashEditor.jsx) sits on top. A slash command is text: it gets no more access than a typed question.
 import { SLASH_HINT } from "../edit/askWords.js";
+import { todayDate } from "../workItems.js";
 export const MAX_SHORTCUTS = 20;
 export const NAME_MIN = 2, NAME_MAX = 24, MENU_MAX = 70, TEXT_MAX = 1000;
 export const SCOPES = ["anywhere", "item", "section", "usecase"];      // Anywhere; About a work item; About a section; About a use case
@@ -122,7 +123,7 @@ export function fill(s, ctx = {}) {
 export const unfillable = (s) => [...new Set([...String(s.text || "").matchAll(/\{(item|owner|section)\}/g)].map((m) => m[1]))].filter((k) => !PLACEHOLDERS[k].includes(s.scope));
 
 /** The commands the / menu gets from the person's files (`b` is the server's answer {all, project}): an answer, anywhere, with no {input}, filled with today. A project's own wins. */
-export function menuCommands(b, today = new Date()) {
+export function menuCommands(b, today = todayDate()) {
   const byName = new Map([...b.all, ...(Array.isArray(b.project) ? b.project : [])].map((m) => [m.name, m]));
   return [...byName.values()]
     .filter((m) => m.scope === "anywhere" && m.result === "answer" && !/\{input\}/.test(m.text) && !(BUILTINS.find((x) => x.name === m.name) || {}).locked)

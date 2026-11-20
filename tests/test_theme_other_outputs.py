@@ -1,5 +1,6 @@
 """Row 1269, slice B: the Theme reaches the served page and the published web file only. Word and the client Excel workbook are the
 same bytes with either Theme; the Draft email text, the web app manifest, the service worker and the offline page do not change.
+Help says it in one sentence: The Theme changes the pages. Word, Excel and email files, and the installed app, keep clark’s own colours.
 Fictional data only. Run: python3 dev/run_tests.py test_theme_other_outputs
 """
 import re

@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { BUILTINS, PLACEHOLDERS, problems, fill, unfillable, nameProblem, copy } from "../logic/askShortcuts.js";
 import { askCommandsRead, askCommandsChange, words } from "./publishApi.js";
+import { todayDate } from "../workItems.js";
 import { askOn, askStatus, loadAsk, ASK_OFF_LINE } from "./askState.js";
 import { aiClient } from "./aiShared.js";
 import { AI_FAILED_LINE } from "./aiClient.js";
@@ -59,7 +60,7 @@ const toDraft = (c) => ({ name: c.name, menu: c.menu, text: c.text, scope: c.sco
 const dmy = (d) => String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getFullYear();
 
 // The instructions with each placeholder filled: a filled value is marked, one with nothing to fill reads "not set".
-export function readParts(draft, input, now = new Date()) {
+export function readParts(draft, input, now = todayDate()) {
   const out = [];
   String(draft.text || "").split(/(\{(?:item|owner|section|today|input)\})/).forEach((p, i) => {
     const m = /^\{(item|owner|section|today|input)\}$/.exec(p);

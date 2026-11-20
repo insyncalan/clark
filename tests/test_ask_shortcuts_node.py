@@ -279,6 +279,15 @@ class TheMenuFeed(unittest.TestCase):
         got = js('AS.menuCommands({all:[%s],project:[]}, new Date(2026,10,17))' % self.REC)
         self.assertEqual(got, [{"name": "monday", "hint": "Monday summary", "ask": "Overdue by owner on 17-11-2026", "own": True}])
 
+    def test_today_without_a_second_argument_follows_the_pinned_day_and_the_clock_when_unpinned(self):
+        """Row 2032: todayDate() reads the pinned day (pinToday) and the clock again once the pin is cleared."""
+        run = 'AS.menuCommands({all:[%s],project:[]})[0].ask'
+        self.assertEqual(js('(()=>{AS.pinToday("2026-02-03");return ' + run % self.REC + '})()'), "Overdue by owner on 03-02-2026")
+        clock = js('(()=>{AS.pinToday("2026-02-03");AS.pinToday("");return ' + run % self.REC + '})()')
+        self.assertNotIn("03-02-2026", clock)
+        now = js('(()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear()})()')
+        self.assertEqual(clock, "Overdue by owner on " + now)
+
     def test_only_what_runs_from_the_box_as_it_is_is_listed(self):
         recs = ",".join('{...%s,name:"%s",%s}' % (self.REC, n, extra) for n, extra in (("a-item", 'scope:"item"'), ("a-chg", 'result:"changes"'), ("a-inp", 'text:"Who is {input}"')))
         self.assertEqual(js('AS.menuCommands({all:[%s],project:[]}).map((m) => m.name)' % recs), [])
@@ -296,9 +305,9 @@ class TheMenuFeed(unittest.TestCase):
         self.assertEqual([m[0] for m in menu], ["check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new"])
 
     def test_a_new_one_follows_the_built_ins_and_a_typed_prefix_filters(self):
-        menu = js('AS.slashMatches("/m", AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
+        menu = js('AS.slashMatches("/m", false, AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
         self.assertEqual(menu, ["milestones", "monday"])
-        self.assertEqual(js('AS.slashMatches("/", []).length'), 8)
+        self.assertEqual(js('AS.slashMatches("/", false, []).length'), 8)
 
     def test_the_built_in_questions_are_answers_that_may_be_anywhere_and_an_act_is_kept_by_its_name(self):
         """Row 1295 mutation sweep: BUILTINS' scope and result, and withOwn keeping a built-in act when a name clashes."""
