@@ -40,6 +40,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.late = False                        # row 1293 line 7: an answer that still comes back after Stop
         self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
@@ -58,7 +59,7 @@ class Stub:
     def ask(self, body):
         self.calls.append(("ask", body))
         self.hold.wait(30)
-        if self.stopped:
+        if self.stopped and not self.late:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
 
@@ -389,6 +390,20 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_an_answer_that_comes_after_stop_is_not_shown(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the question stayed and the stopped line followed")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-answer').length"), 0, "no answer is drawn")
+            self.assertNotIn("The pilot goes live in March.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertIn("Stopped. Nothing was changed.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
 
     def test_stop_pressed_puts_focus_back_in_the_question_box(self):
         self.stub.hold.clear()
