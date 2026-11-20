@@ -3,11 +3,12 @@
 // Add a quote, and Remove when there are two or more. Each save is one change() (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Quote.jsx.
 import { useEffect, useState } from "preact/hooks";
 import { source, tidyQuote, quoteEmpty, LIMITS } from "../../templates/notes.js";
+import { startOr } from "../startingText.js";
 import { Icon } from "../../components/Icon.jsx";
 import { Field, useSaver } from "./noteEdit.jsx";
 
 // Row 1271 words: the toolbar and field words are the ones approved for the quote mock-up (words list, item 1271); the counts and the Add and Remove words are the ones accepted 17-11.
-export const WORDS = { tools: "Quote tools", quote: "Type or paste the quote here", name: "Name (optional)", role: "Role (optional)", add: "Add a quote", remove: "Remove",
+export const WORDS = { tools: "Quote tools", add: "Add a quote", remove: "Remove",
   tile: "Show the tile (the card around the quote)", heading: "Show the heading" };
 export const upTo = (n) => `Up to ${LIMITS.quotes} quotes (${n} of ${LIMITS.quotes})`;
 const NARROW = "(max-width: 900px)";
@@ -37,10 +38,10 @@ function Box({ q, i, many, edit, remove }) {
         <span class="tq-count" data-tq-words>{`${typed === null ? q.quote.length : typed} of ${LIMITS.quote}`}</span>
         {many >= 2 ? <button type="button" class="tq-rm" aria-label={`Remove quote ${i + 1}`} onClick={remove}>{WORDS.remove}</button> : null}
       </div>
-      <Field area value={q.quote} label={nth("Quote words", i)} max={LIMITS.quote} placeholder={WORDS.quote} cls="tq-words" onDraft={setTyped} onCommit={(quote) => edit(i, { quote })} />
+      <Field area value={q.quote} label={nth("Quote words", i)} max={LIMITS.quote} hint={startOr("", "quote", "empty", 0)} cls="tq-words" onDraft={setTyped} onCommit={(quote) => edit(i, { quote })} />
       <div class="tq-by">
-        <Field value={q.by} label={nth("Quote said by", i)} max={LIMITS.name} placeholder={WORDS.name} cls="tq-f" onCommit={(by) => edit(i, { by })} />
-        <Field value={q.role} label={nth("Quote role", i)} max={LIMITS.name} placeholder={WORDS.role} cls="tq-f" onCommit={(role) => edit(i, { role })} />
+        <Field value={q.by} label={nth("Quote said by", i)} max={LIMITS.name} hint={startOr("", "quote", "empty", 1)} cls="tq-f" onCommit={(by) => edit(i, { by })} />
+        <Field value={q.role} label={nth("Quote role", i)} max={LIMITS.name} cls="tq-f" onCommit={(role) => edit(i, { role })} />
       </div>
     </figure>
   );
