@@ -523,6 +523,15 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
 /* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
+/* Row 1285 (Classic only, ruling 20-11): "Shown to the client" is a switch row (the eye and the label left, a 40 by 22 track with an 18 knob right) and "Show history" is a row like the other Details rows (14 px label, 36 px tall, no underline, no link colour). */
+.pk-client:has(.pk-sw) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); width: 100%; min-height: 36px; text-align: left; }
+.pk-client .pk-sw { position: relative; box-sizing: border-box; width: 40px; height: 22px; border-radius: 999px; background: var(--grey-300); transition: background-color var(--dur-state) var(--ease-out); }
+.pk-client.on .pk-sw { background: var(--brand-blue); }
+.pk-client .pk-sw-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--white); transition: transform var(--dur-state) var(--ease-out); }
+.pk-client.on .pk-sw-knob { transform: translateX(18px); }
+.pk-client .pk-sw-label { display: inline-flex; align-items: center; gap: var(--space-2); }
+.pk-lh-btn { display: flex; align-items: center; width: 100%; min-height: 36px; margin-left: 0; text-align: left; text-decoration: none; color: var(--text-muted); font-size: var(--size-small); }
+.pk-lh-btn:hover { color: var(--text); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

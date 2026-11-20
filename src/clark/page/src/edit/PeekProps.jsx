@@ -9,6 +9,7 @@ import { PICKERS } from "./cells/Cell.jsx";
 import { eyeChange } from "../logic/rowMenu.js";
 import { Icon } from "../components/Icon.jsx";
 import { Matrix } from "./PeekRating.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 
 const PLACE = "peek";
 
@@ -43,7 +44,10 @@ export function ClientLine({ row }) {
   const run = () => { const c = eyeChange(row); changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back, place: PLACE }); };
   return (
     <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
-      <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
+      {classicTheme() ? <>
+        <span class="pk-sw-label"><Icon name={on ? "eye" : "eyeoff"} />Shown to the client</span>
+        <span class="pk-sw" aria-hidden="true"><span class="pk-sw-knob" /></span>      {/* row 1285 (Classic, ruling 20-11): the line is a switch, label left, 40 by 22 track, 18 knob */}
+      </> : <><Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}</>}
     </button>
   );
 }
