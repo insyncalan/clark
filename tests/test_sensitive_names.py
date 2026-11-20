@@ -371,5 +371,58 @@ class MutationSurvivors(unittest.TestCase):
         self.assertEqual(names, ["Contract", "Passport", "Payroll"])
 
 
+    def test_the_budget_stops_the_count_at_the_entry_limit(self):
+        # Survivor: _count without "if not budget.take(): break". Six files, room for the folder's own name and three more.
+        tree(self.root, [f"Contract/f{i}.txt" for i in range(6)])
+        with mock.patch.object(sn, "MAX_ENTRIES", 4):
+            res = sn.scan(self.root)
+        self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 3)])
+        self.assertTrue(res.truncated)
+
+    def test_an_unreadable_folder_is_skipped_and_the_scan_goes_on(self):
+        # Survivor: re-raise instead of skipping. The matched folder itself cannot be listed, and so cannot a folder inside another.
+        tree(self.root, ["Contract/a.txt", "Payroll/b.txt", "Payroll/locked/c.txt", "Payroll/d.txt"])
+        real = os.scandir
+        def fake(p):
+            if str(p).endswith("Contract") or str(p).endswith("locked"):
+                raise PermissionError(p)
+            return real(p)
+        with mock.patch.object(os, "scandir", fake):
+            res = sn.scan(self.root)
+        self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 0), ("Payroll", 2)])
+
+    def test_names_come_out_sorted_whatever_order_the_disk_gives(self):
+        # Survivor: sorted() without its key. A scrambled disk order, at the top and one folder down.
+        tree(self.root, ["Dept/Salary/a.txt", "Dept/Contract/a.txt", "Dept/NDA.txt", "Payroll/a.txt", "CV.txt",
+                         "Passport/a.txt", "Contract/a.txt"])
+        real = os.scandir
+        class Scrambled:
+            def __init__(self, p):
+                self.it = real(p)
+            def __enter__(self):
+                es = sorted(self.it.__enter__(), key=lambda e: e.name)
+                return es[1::2] + es[0::2]
+            def __exit__(self, *a):
+                return self.it.__exit__(*a)
+        with mock.patch.object(os, "scandir", Scrambled):
+            got = [r["path_rel"] for r in sn.scan(self.root)]
+        self.assertEqual(got, ["CV.txt", "Contract", os.path.join("Dept", "Contract"), os.path.join("Dept", "Salary"),
+                               "Passport", "Payroll"])
+
+
+    def test_an_entry_that_cannot_be_checked_is_skipped_in_the_count_and_in_the_walk(self):
+        # Survivor: re-raise instead of "except OSError: continue". Subfolder "locked" fails its link check, in the count
+        # under Contract and in the walk beside it; the other names are kept.
+        tree(self.root, ["Contract/locked/a.txt", "Contract/b.txt", "Contract/c.txt", "locked/Payroll/p.txt", "Passport/q.txt"])
+        real = sn._is_link
+        def flaky(e):
+            if e.name == "locked":
+                raise PermissionError(e.name)
+            return real(e)
+        with mock.patch.object(sn, "_is_link", flaky):
+            res = sn.scan(self.root)
+        self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 2), ("Passport", 1)])
+
+
 if __name__ == "__main__":
     unittest.main()
