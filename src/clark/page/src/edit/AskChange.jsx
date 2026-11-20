@@ -77,6 +77,7 @@ export function ChangeCards({ turn }) {
       const step = await applyOne(turn, i, plans[i], false);
       if (step !== false) saved++;
       if (Number.isInteger(step)) steps.push(step);
+      if (panelState.value === "off") break;           // asking was turned off: nothing more is applied, the cards left stay offered
     }
     keepGroup(turn, { state: "done", steps, line: saved === offered.length ? W.ALL_DONE_LINE(saved) : saved ? W.ALL_PARTLY_LINE(saved, offered.length) : "", solo: steps.length === saved });
   }
@@ -84,9 +85,18 @@ export function ChangeCards({ turn }) {
     if (!live || group.state !== "done" || !group.solo) return;
     keepGroup(turn, { state: "undoing" });
     const r = await sendUndoMany(project.value, group.steps);    // one request: the server undoes them all (newest first) as one new step
-    if (!r.ok || r.reply.skipped.length) { keepGroup(turn, { state: "done", line: W.UNDO_FAILED_LINE }); reread(project.value); return; }
-    plans.forEach((p, i) => { if (cardOf(turn, i).state === "done") keepCard(turn, i, { state: "undone", line: W.UNDONE_LINE }); });
-    keepGroup(turn, { state: "undone", line: W.ALL_UNDONE_LINE });
+    if (!r.ok) { keepGroup(turn, { state: "done", line: W.UNDO_FAILED_LINE }); reread(project.value); return; }
+    const left = new Set(r.reply.skipped.map((e) => e && e.step).filter((n) => Number.isInteger(n)));
+    if (r.reply.skipped.length && !left.size) group.steps.forEach((n) => left.add(n));          // a skipped line with no step: none is known to be undone
+    const stuck = group.steps.filter((n) => left.has(n));
+    plans.forEach((p, i) => {
+      const c = cardOf(turn, i);
+      if (c.state !== "done") return;
+      if (left.has(c.step)) keepCard(turn, i, { state: "done", line: W.UNDO_FAILED_LINE });          // a change not undone is named by its own card
+      else keepCard(turn, i, { state: "undone", line: W.UNDONE_LINE });
+    });
+    if (stuck.length) keepGroup(turn, { state: "done", steps: stuck, line: W.UNDO_FAILED_LINE });
+    else keepGroup(turn, { state: "undone", line: W.ALL_UNDONE_LINE });
     reread(project.value);
   }
   return (
@@ -121,7 +131,7 @@ function ChangeCard({ plan, turn, index, passages }) {
   const kept = (turn.cards && turn.cards[index]) || {};
   const state = kept.state || "offered", line = kept.line || "", step = kept.step === undefined ? null : kept.step;
   const classic = classicTheme();
-  const grouped = !!(turn.group && turn.group.state);          // one Undo for the lot sits above the cards
+  const grouped = !!(turn.group && turn.group.state && turn.group.solo);          // one Undo for the lot sits above the cards (when one change can't be undone there is none, and each card keeps its own)
   const [ticked, setTicked] = useState(false);
   const setState = (v) => keepCard(turn, index, { state: v }), setLine = (v) => keepCard(turn, index, { line: v });
   const live = panelState.value === "ready";

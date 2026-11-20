@@ -33,7 +33,7 @@ export const CLASSIC_STANDING = "Standing instructions on";                     
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
-export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
+export const STANDING_LINE = "Standing instructions on.";   // row 1292 step S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
 export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
@@ -285,7 +285,7 @@ export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check th
 export const CONFIRM_BOX = "I have checked this change and want to save it";
 export const DONE_LINE = "Done.";
 export const UNDO = "Undo";
-// #1292 S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
+// row 1292 step S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
 export const WHY = "Why";
 export const NOT_NOW = "Not now";
 export const NOT_NOW_LINE = "Not now. Nothing was changed.";
@@ -326,7 +326,7 @@ export const DRAFT_READY_LINE = "Nothing is in the report yet.";
 export const DRAFT_OPEN = "Open the draft";
 export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
-// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+// row 1292 step S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
 export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";

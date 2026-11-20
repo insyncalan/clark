@@ -339,7 +339,7 @@ class TheCard(Card):
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"], self.store.read("actions", ref=third)["status"]),
                              ("Closed", "Closed", "Open"), "exactly those 2")
 
-    def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # #1292 sweep: only a card that was Done is marked Undone
+    def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # row 1292 sweep: only a card that was Done is marked Undone
         self.two_cards()
         third = self.demo.action(owner="Pat Kay", description="Book the room")
         self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})
@@ -356,6 +356,75 @@ class TheCard(Card):
             p.until("document.querySelector('[data-ask-group-line]').textContent === 'Undone. The old values are back.'", "Undone")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-bring-back]').length"), 1, "the card put aside is still put aside")
             self.assertEqual(self.store.read("actions", ref=third)["status"], "Open")
+
+    def test_a_partial_undo_all_undoes_the_done_ones_and_names_the_one_left(self):         # row 1292: skipped is not total failure
+        self.two_cards()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("!!document.querySelector('[data-ask-undo-all]')", "done with one Undo")
+            with self.store.step("dashboard", USER) as st:          # a later change to the second action: its step is left as it is
+                st.update("actions", self.second, {"status": "Delayed"})
+            p.js("document.querySelector('[data-ask-undo-all]').click()")
+            p.until("document.querySelectorAll('[data-ask-line]')[0] && document.querySelectorAll('[data-ask-line]')[0].textContent.startsWith('Undone.')", "the first card undone")
+            lines = p.js("[...document.querySelectorAll('[data-ask-line]')].map((l) => l.firstChild.textContent)")
+            self.assertEqual(lines, ["Undone. The old values are back.", "That could not be undone. Open the item and change it back yourself."])
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Delayed"))
+            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').firstChild.textContent"), "That could not be undone. Open the item and change it back yourself.")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 1, "Undo all stays for the one left")
+            p.js("document.querySelector('[data-ask-undo-all]').click()")      # pressed again: only the one left is asked for, so it is left again and the first stays undone
+            time.sleep(1.5)
+            p.until("document.querySelectorAll('[data-ask-undo-all]').length === 1", "the second press is answered")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-ask-line]')].map((l) => l.firstChild.textContent.slice(0, 7))"), ["Undone.", "That co"])
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Delayed"), "nothing moved on the second press")
+
+    def test_one_change_that_cannot_be_undone_leaves_the_other_cards_their_undo(self):         # row 1292
+        self.two_cards()
+        calls, real = [], self.service.change_apply
+
+        def second_cannot_be_undone(body):
+            calls.append(1)
+            status, reply = real(body)
+            if len(calls) == 2:
+                reply = dict(reply, undoable=False)
+            return status, reply
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", second_cannot_be_undone):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("document.querySelectorAll('[data-ask-line]').length === 2", "both saved")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo]').length"), 1, "the card that can be undone keeps its Undo")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 0)
+            p.js("document.querySelector('[data-ask-undo]').click()")
+            p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Undone.')", "the first undone")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Closed"))
+
+    def test_apply_all_stops_at_the_first_asking_off(self):         # row 1292: nothing more is applied once asking is off
+        self.two_cards()
+        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})
+        calls, real = [], self.service.change_apply
+
+        def off_at_the_second(body):
+            calls.append(1)
+            if len(calls) == 2:
+                return 409, {"ok": False, "code": "asking_off", "message": ask_apply.ASKING_OFF}
+            return real(body)
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", off_at_the_second):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 3", "three cards")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("document.querySelectorAll('#ask-off').length === 1", "asking is off")
+            time.sleep(1)
+            self.assertEqual(len(calls), 2, "the third was never sent")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"], self.store.read("actions", ref=third)["status"]), ("Closed", "Open", "Open"))
 
     def test_apply_all_is_not_offered_when_a_card_needs_the_confirm_box(self):
         self.two_cards()
