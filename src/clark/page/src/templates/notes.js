@@ -12,7 +12,7 @@ export const COLOURS = { plain: "Plain", violet: "Violet", amber: "Amber", red: 
 export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning", alert: "Alert", check: "Tick", clock: "Clock",
   cal: "Calendar", flag: "Flag", lock: "Lock", key: "Key", bulb: "Light bulb", star: "Star", bell: "Bell", megaphone: "Megaphone", doc: "Document",
   link: "Link", people: "People", money: "Money", chart: "Chart", shield: "Shield",
-  flash: "Lightning", sparkle: "Sparkle", eye: "Eye", gear: "Gear", table: "Table", twoways: "Decision needed" };
+  flash: "Lightning", sparkle: "Sparkle", eye: "Eye", gear: "Gear", table: "Table", twoways: "Two ways" };
 export const TONE_LOOK = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
 export const LIMITS = { category: 30, title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
 

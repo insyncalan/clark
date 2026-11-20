@@ -10,7 +10,7 @@ import { Icon } from "../../components/Icon.jsx";
 import { wordsAsHtml, noBreaks } from "./filesEdit.js";
 
 // The three words a category can be picked from: each sets the colour and the icon the old tone drew.
-const SUGGESTED = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
+const SUGGESTED = { info: ["violet", "info"], decision: ["amber", "twoways"], warning: ["red", "warning"] };
 const SWATCH = { violet: "shViolet", amber: "shAmber", red: "shRed", green: "shGreen", grey: "shGrey" };
 
 function IconPicker({ value, onPick }) {

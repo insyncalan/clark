@@ -59,7 +59,7 @@ class Words(unittest.TestCase):
         self.assertEqual({k: callout.ICONS[k] for k in ("flash", "sparkle", "eye", "gear", "table")},
                          {"flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table"})
         # row 1272 ruling (1): Two ways is new; Warning triangle is the existing "warning" icon (label Warning, triangle glyph)
-        self.assertEqual(callout.ICONS["twoways"], "Decision needed")
+        self.assertEqual(callout.ICONS["twoways"], "Two ways")   # the name approved in NEW-WORDS.md lines 1784 and 1899 (Lightning, Sparkle, Eye, Gear, Table, Two ways)
         self.assertEqual(callout.ICONS["warning"], "Warning")
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
@@ -88,7 +88,7 @@ class Words(unittest.TestCase):
 
     def test_the_five_new_icons_are_kept_and_named_in_the_published_words(self):
         from clark.section_kinds import callout
-        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table"), ("twoways", "Decision needed")):
+        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table"), ("twoways", "Two ways")):
             self.assertEqual(callout.words({"v": 1, "icon": k})["icon_name"], n)
             self.assertEqual(callout.check({"v": 1, "tone": "info", "icon": k}, None)["icon"], k)
 
@@ -290,7 +290,7 @@ class Page(n.PageChecks):
 
     def test_edit_each_suggestion_sets_its_own_colour_and_icon(self):
         from test_server import wait
-        for label, want in (("Use Decision needed", ("Decision needed", "amber", "question", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
+        for label, want in (("Use Decision needed", ("Decision needed", "amber", "twoways", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
             ref = self.make({**GOOD, "tone": "warning"})
             with self.subTest(label=label), chrome() as cdp:
                 p = self.visit(cdp)
@@ -341,8 +341,8 @@ class Page(n.PageChecks):
             got = json.loads(self.body_of(ref))
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
-    def test_edit_the_decision_icon_is_the_question_mark_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
-        """Row 1272 rulings 17-11 (mock-up B wins): the Decision suggestion keeps the question icon; the title text and the words text start where the
+    def test_edit_the_decision_icon_is_two_ways_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
+        """Row 1272 (Stark read 2089: Two ways, Romanoff 20-11): the Decision suggestion sets the Two ways icon; the title text and the words text start where the
         category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
         for width in (1400, 900):
             ref = self.make(GOOD)
@@ -354,7 +354,7 @@ class Page(n.PageChecks):
                 p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
                 p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.body_of(ref))["icon"], "question")
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "twoways")
                 p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
                 left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
                     return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};
