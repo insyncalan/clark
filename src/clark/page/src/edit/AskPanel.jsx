@@ -73,7 +73,8 @@ export function AskPanel() {
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
-  const menu = shut ? null : slashMatches(text);
+  const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
+  const menu = shut ? null : slashMatches(text, classicTheme());
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -397,7 +398,7 @@ export function AskPanel() {
             {t.draft ? (
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
-                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
+                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
                 <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
@@ -467,7 +468,7 @@ export function AskPanel() {
             )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
           </ul>
         ) : null}
-        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
+        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={hold} aria-label={hold} disabled={state !== "ready" && state !== "checking"}
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
           onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
