@@ -159,6 +159,43 @@ class Panel(Base):
             p.until("document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled", "ready")
             self.assertFalse(p.js("!!document.querySelector('#ask-off')"))
 
+    def read_gives(self, status, body):
+        """Make the server's read of the project's own value answer `status` and `body` (the real route, the real page)."""
+        self.svc.read_new = lambda project=None: (status, body) if project else (200, {"ok": True, "on": True})
+
+    def test_a_read_that_fails_sends_nothing(self):
+        cases = (("500", 500, {"ok": False, "code": "boom"}),
+                 ("200 with a value that is not a boolean", 200, {"ok": True, "off_here": "no"}),
+                 ("200 with no value", 200, {"ok": True}),
+                 ("404 bad_project", 404, {"ok": False, "code": "bad_project"}))
+        for name, status, body in cases:
+            with self.subTest(name):
+                self.read_gives(status, body)
+                self.stub.calls.clear()
+                with chrome() as cdp:
+                    p = self.open_panel(cdp)
+                    self.until_unknown(p)
+
+    def test_a_network_error_on_the_read_sends_nothing(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("(() => { const f = globalThis.fetch; globalThis.fetch = (u, i) => String(u).includes('ask-new-projects') ? Promise.reject(new Error('down')) : f(u, i); })()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
+            self.until_unknown(p)
+
+    def test_a_404_with_code_not_found_proceeds(self):
+        self.read_gives(404, {"ok": False, "code": "not_found"})
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            p.until("document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled", "ready: a server with no per-project value proceeds")
+
+    def until_unknown(self, p):
+        """The read has answered and failed: the panel is no longer 'checking' and its box is shut (state unknown, which sends nothing)."""
+        p.until("!!document.querySelector('#ask-box') && document.querySelector('#ask-box').disabled", "the panel reads as unknown")
+        self.assertTrue(p.js("!document.querySelector('#ask-send') || document.querySelector('#ask-send').disabled"), "send is off")
+        self.assertEqual([k for k, b in self.stub.calls if k == "ask"], [], "nothing was asked")
+
 
 if __name__ == "__main__":
     unittest.main()
