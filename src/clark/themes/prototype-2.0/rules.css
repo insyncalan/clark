@@ -451,8 +451,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .msl-box .msl-name { color: var(--heading); }
 .msl-box .msl-hd { border-bottom-color: var(--line-soft); }
 .msl-box .msl-hc { padding-top: 4px; padding-bottom: 4px; padding-left: 20px; font-weight: 500; letter-spacing: .08em; }
-.msl-box[data-place="page"] .msl-prog { gap: 4px; }
-.msl-box[data-place="page"] .msl-prog .num { min-width: 2.25rem; width: 2.5rem; flex: none; white-space: nowrap; font-weight: var(--weight-medium); }
 .msl-box .msl-hdw.plain { display: none; }      /* the Dashboard's list has no heading row in the prototype (View and a published file; Edit's row, with its grips and Columns button, stays) */
 .msl-box .msl-row.out { opacity: 1; }
 .msl-box .msl-row.out .msl-name { color: var(--text-muted); }

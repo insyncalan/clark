@@ -98,7 +98,7 @@ class Look(PublishedFile, Setup):
                         self.assertTrue(r["hasBar"])
                         self.assertAlmostEqual(r["fillW"] / r["barW"], pct / 100, delta=.01, msg=name)
                         self.assertEqual(r["barH"], 6)
-                        self.assertEqual(r["weight"], "600", "the percent is 600 since Row 1396 (36px min-width)")
+                        self.assertEqual(r["weight"], "700", "the percent is bold")
                         self.assertEqual(r["numAlign"], "right")
                         self.assertEqual(r["tab"], "tabular-nums")
                         self.assertEqual(r["numColor"], r["heading"], "the percent is the heading colour (row 1315)")
