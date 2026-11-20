@@ -633,6 +633,53 @@ class Route(Base):
         self.assertEqual([i["dir"] for i in body["warnings"][0]["items"]], [True])
 
 
+class LeftOutPath(Base):
+    """ask_passages.left_out_path: whole names below the saved folder, never a text prefix of either the folder or the left-out name."""
+
+    def cut(self, rel, listed, folder=None, key=None):
+        folder = folder or self.root
+        return ask_passages.left_out_path(self.home / rel, {str(key or folder): listed}, self.home)
+
+    def test_the_left_out_folder_and_everything_below_it_is_cut_and_the_saved_folder_itself_is_not(self):
+        self.assertTrue(self.cut("lib/Archive", '["Archive"]'))
+        self.assertTrue(self.cut("lib/Archive/a.txt", '["Archive"]'))
+        self.assertTrue(self.cut("lib/Archive/deep/b.txt", '["Archive"]'))
+        self.assertFalse(self.cut("lib", '["Archive"]'))
+        self.assertFalse(self.cut("lib/Notes/a.txt", '["Archive"]'))
+
+    def test_a_name_that_only_starts_or_ends_like_a_left_out_name_is_not_cut(self):
+        for rel in ("lib/Archive2/a.txt", "lib/Archived", "lib/OldArchive/a.txt", "lib/Arch/a.txt", "lib/Archiv"):
+            self.assertFalse(self.cut(rel, '["Archive"]'), rel)
+
+    def test_a_left_out_name_is_matched_by_whole_names_at_each_level_below_the_folder(self):
+        self.assertTrue(self.cut("lib/HR/Candidates/cv.txt", '["HR/Candidates"]'))
+        self.assertFalse(self.cut("lib/HR/Policy/rules.txt", '["HR/Candidates"]'))
+        self.assertFalse(self.cut("lib/HR/Candidates2/cv.txt", '["HR/Candidates"]'))
+        self.assertFalse(self.cut("lib/Other/HR/Candidates/cv.txt", '["HR/Candidates"]'))
+
+    def test_case_and_spelling_do_not_hide_a_left_out_name(self):
+        self.assertTrue(self.cut("lib/ARCHIVE/a.txt", '["archive"]'))
+        self.assertTrue(self.cut("lib/Cafe\u0301/a.txt", json.dumps(["Caf\u00e9"])))
+        self.assertFalse(self.cut("lib/Cafe/a.txt", json.dumps(["Caf\u00e9"])))
+
+    def test_a_list_belongs_to_the_saved_folder_that_holds_the_path_and_not_to_one_named_like_it(self):
+        sibling = self.home / "lib2"
+        (sibling / "Archive").mkdir(parents=True)
+        self.assertFalse(self.cut("lib2/Archive/a.txt", '["Archive"]'))
+        self.assertTrue(self.cut("lib2/Archive/a.txt", '["Archive"]', folder=sibling))
+        self.assertFalse(self.cut("lib/Archive/a.txt", '["Archive"]', folder=sibling))
+        (self.root / "li").mkdir()
+        self.assertFalse(ask_passages.left_out_path(self.root / "Archive", {str(self.home / "li"): '["Archive"]'}, self.home))
+
+    def test_nothing_listed_cuts_nothing_and_an_unreadable_list_or_path_cuts_everything(self):
+        self.assertFalse(ask_passages.left_out_path(self.root / "a.txt", None, self.home))
+        self.assertFalse(ask_passages.left_out_path(self.root / "a.txt", {}, self.home))
+        self.assertFalse(self.cut("lib/a.txt", "[]"))
+        for bad in ("not json", '"Archive"', '["../x"]'):
+            self.assertTrue(self.cut("lib/a.txt", bad), bad)
+        self.assertTrue(ask_passages.left_out_path("relative/path", {str(self.root): '["Archive"]'}, self.home))
+
+
 class OnTheRoute(tr.Base):
     """The question itself: a left-out subfolder's text never reaches the provider; a list that cannot be read sends nothing from that folder."""
 
