@@ -133,5 +133,31 @@ class Tabs(unittest.TestCase):
                     self.assertTrue(all(r >= 4.5 for r in ratios), f"tab text contrast {ratios} in {scheme} at {w}")
 
 
+class TabHeight(unittest.TestCase):
+    """Row 1351: the tab pills are 29 px high in Classic and still 36 px in Cards, at 1400 and 900, light and dark."""
+
+    def height(self, theme, width, scheme):
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        s.httpd.app_settings = service(make_db(d))
+        with chrome() as cdp:
+            sid = navigate(cdp, s.port, for_project("#settings&p=ABC&s=claude"))
+            js = lambda e: cdp.js(e, sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab]')"), 20), "the tabs are on the page")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+            js("document.querySelectorAll('[data-ask-tab]').forEach(b => { b.style.transition = 'none'; })")
+            return js("[...document.querySelectorAll('[data-ask-tab]')].map(b => b.getBoundingClientRect().height)")
+
+    def test_classic_29_and_cards_36(self):
+        for scheme in ("light", "dark"):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme, width=w):
+                    self.assertEqual(self.height("prototype-2.0", w, scheme), [29, 29], f"Classic tab pills, {scheme} {w}")
+                    self.assertEqual(self.height(None, w, scheme), [36, 36], f"Cards tab pills, {scheme} {w}")
+
+
 if __name__ == "__main__":
     unittest.main()

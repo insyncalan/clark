@@ -8,9 +8,12 @@ import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE,
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
+import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
-import { askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
+import { classicTheme } from "../components/Contents.jsx";
+import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
@@ -20,6 +23,14 @@ const USED_FROM_ALL = "Connections and the model are yours, not this project's. 
 export const askTab = signal(PROJECT);
 export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const MAX_FOLDERS = 20;
+// Changes and safety (row 1294, area 5): four statements about the code, not switches. Each is pinned by tests/test_ask_safety_1294.py.
+export const SAFETY = [
+  ["Every change needs your approval", "A change can be taken back with Undo, except a decision marked Made, which a new decision replaces."],
+  ["A change taken from one of your own files or passages needs an extra tick", "You confirm \u201cI have checked this change and want to save it\u201d first."],
+  ["ask clark is never on a published report", "A published file has no ask clark button or panel, and it asks nothing."],
+  ["Passwords and keys are never sent", "A question or a file that looks like one is stopped, and you are told."],
+];
+const SAFETY_NOTE = "These are not switches.";
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
@@ -62,6 +73,19 @@ function AskProject() {
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
+  const [modelName, setModelName] = useState("");      // row 1351 part 2: the model asking uses, as the server names it; empty until read or when it cannot be read
+
+  useEffect(() => {
+    if (!classicTheme()) return undefined;           // Cards keeps the card as it was: no model name, no extra read
+    let live = true;
+    aiConnectRead().then((r) => {
+      const b = r.body;
+      if (!live || r.status !== 200 || !b || !Array.isArray(b.models)) return;
+      const m = b.models.find((x) => x.id === b.model);
+      setModelName(m ? m.label : "");
+    });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -135,8 +159,22 @@ function AskProject() {
     </section>
     <section class="frame setting" id="ask-used-all">
       <h2>Used from All projects</h2>
-      <p class="muted">{USED_FROM_ALL}</p>
-      <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+      {classicTheme() ? (
+        <>
+          <div class="row ask-model">
+            <div class="ask-model-text">
+              <span class="ask-model-label">Model</span>
+              <small class="muted ask-model-same">Same for every project.</small>
+            </div>
+            {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
+            <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
+          </div>
+          <p class="muted ask-model-note">{USED_FROM_ALL}</p>
+        </>
+      ) : (<>
+        <p class="muted">{USED_FROM_ALL}</p>
+        <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+      </>)}
     </section>
     <ConnectorsProject code={code} />
     <section class="frame setting" id="ask-folders-card">
@@ -174,6 +212,8 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
+    {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
     </>
   );
 }
@@ -191,8 +231,25 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
+    {classicTheme() ? <UsageAll /> : null}
+    {classicTheme() ? <Safety /> : null}
     </>
+  );
+}
+
+function Safety() {
+  return (
+    <section class="frame setting" id="ask-safety">
+      <h2>Changes and safety</h2>
+      <ul class="ask-safety">
+        {SAFETY.map(([title, line]) => (
+          <li key={title}><strong>{title}</strong> <span class="muted">Always.</span><br /><span class="muted">{line}</span></li>
+        ))}
+      </ul>
+      <p class="muted">{SAFETY_NOTE}</p>
+    </section>
   );
 }
 
