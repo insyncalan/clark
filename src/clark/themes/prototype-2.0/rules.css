@@ -553,6 +553,10 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1357 (Use cases page, Classic only): item 2, Group by and Sort by keep their icons and take the prototype's button line (1px, the prototype's --ui is this theme's --grey-500) and 6px corners, 28px high; item 6, the status pill is 13px weight 600 as the prototype's pill; item 9, the left rule has square corners (border-radius 0). */
+#usecases #ucl-group, #usecases #ucl-sort { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 28px; }
+#usecases .pill { font-size: 13px; font-weight: 600; }
+.frame.ucl { border-radius: 0; }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
