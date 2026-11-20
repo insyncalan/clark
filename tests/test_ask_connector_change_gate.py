@@ -26,7 +26,7 @@ class Gate(route.Base):
 
     def closed(self, line):
         self.provider.last_line = line
-        got = self.answer(change_line(op="change", id=self.action, status="Closed"))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"))
         return self.dry(got["reply"])[1]
 
     def test_a_change_after_a_connector_was_read_needs_confirm(self):
