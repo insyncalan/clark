@@ -27,6 +27,7 @@ class FreshLeftOut(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.act = d.action(description="Fictional kept action", due_date="2031-02-01")
         with self.store.step("dashboard", USER) as st:
             self.risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional kept risk", "raised": "2026-10-01",
@@ -56,8 +57,10 @@ class FreshLeftOut(Base):
             "contacts": {"v": 1, "people": [{"name": "Sam Example", "role": "Fictional lead", "email": "sam@example.org", "phone": "+44 20 7946 0000"}]},
             "checklist": {"v": 1, "items": [{"item": self.act}, {"text": "Fictional typed line", "done": 1}]},
             "keydates": {"v": 1, "items": [{"milestone": self.ms}, {"label": "Fictional typed date", "date": "2031-02-01"}]},
+            "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional pilot is on track.", "sentence": "Fictional sentence."},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
+            "glancetemplate": {"v": 1, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3"}]},
         }
         self.assertEqual(set(self.content), set(TYPES), "one of every template type, and text")
         self.anchor = self.new("text", ANCHOR)

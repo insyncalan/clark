@@ -8,6 +8,9 @@ at 1400 and 900 px. Notices pushed here are made up. Only 1400 and 900 px are te
 """
 import unittest
 
+from clark import page, theme
+import _testpage as testpage
+import test_report_editor as tre
 from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
@@ -18,7 +21,17 @@ MAKE = ("(function(n, sev){var out=[], d=new Date(); var iso=d.getFullYear()+'-'
 SEV = "['info','warning','critical']"
 
 
+def classic_html():
+    return page.layer_theme(testpage.html(), theme.css("prototype-2.0"))
+
+
 class Bell(Base):
+    def setUp(self):
+        super().setUp()
+        self.s.close()
+        self.s = tre.real_server(self.store.path, self.store.data_for, page_html=classic_html, seam=self.seam)      # the bell is the Classic theme's; Cards draws none
+        self.addCleanup(self.s.close)
+
     def at(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 700)
@@ -103,7 +116,7 @@ class Bell(Base):
     def test_the_popup_shadow_is_the_token_not_a_literal(self):
         import re
         from pathlib import Path
-        css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text()
+        css = (Path(__file__).resolve().parent.parent / "src/clark/themes/prototype-2.0/rules.css").read_text(encoding="utf-8")
         rule = re.search(r"^\.bell-pop \{[^}]*\}", css, re.M).group(0)
         self.assertIn("box-shadow: var(--shadow)", rule)
         self.assertNotIn("rgba", rule)
@@ -119,6 +132,19 @@ class Bell(Base):
                            "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5) (r[i][0] === 'bell-btn' || r[j][0] === 'bell-btn') && bad.push(r[i][0] + ' over ' + r[j][0]);}"
                            "return bad;})()")
                 self.assertEqual(got, [], f"at {width} px")
+
+
+class CardsDrawsNoBell(Base):
+    def test_cards_draws_no_bell_and_no_wrapper_even_with_notices_pushed(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                size(cdp, p, width, 700)
+                p.until("!!document.querySelector('#profile-btn')", "the profile circle shows")
+                p.until("!!window.clarkPage && !!window.clarkPage.pushNotices", "the test hook is there")
+                p.js(f"window.clarkPage.pushNotices({MAKE}(3, {SEV}))")
+                p.js("new Promise(r => setTimeout(r, 300))")
+                self.assertEqual(p.js("[!!document.querySelector('#bell-btn'), !!document.querySelector('.bell-wrap'), !!document.querySelector('.tb-bell')]"), [False, False, False])
 
 
 if __name__ == "__main__":

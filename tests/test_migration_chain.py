@@ -103,7 +103,9 @@ class TheChain(Base):
             try:
                 out = {"indexes": sorted(r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL"))}
                 for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").fetchall():
-                    out[t] = (sorted(tuple(r[1:6]) for r in con.execute(f"PRAGMA table_info({t})")),
+                    # row 1269: app_settings.theme starts as 'classic' in a new file and 'cards' in one that already existed, on purpose
+                    out[t] = (sorted(tuple(None if (t, r[1]) == ("app_settings", "theme") and i == 3 else v for i, v in enumerate(r[1:6]))
+                                     for r in con.execute(f"PRAGMA table_info({t})")),
                               sorted(tuple(r[2:5]) for r in con.execute(f"PRAGMA foreign_key_list({t})")))
                 return out
             finally:
@@ -114,6 +116,12 @@ class TheChain(Base):
         open_store(make_v1(old), onedrive_roots=[]).close()
         open_store(new / "clark.db", onedrive_roots=[]).close()
         self.assertEqual(shape(old / "clark.db"), shape(new / "clark.db"))
+        for folder, want in ((old, "cards"), (new, "classic")):      # row 1269: the one difference, on purpose
+            con = sqlite3.connect(str(folder / "clark.db"))
+            try:
+                self.assertEqual(con.execute("SELECT theme FROM app_settings WHERE id = 1").fetchone()[0], want)
+            finally:
+                con.close()
 
     def test_every_start_runs_only_the_steps_after_it_in_order(self):
         for start in range(1, 5):

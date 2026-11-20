@@ -292,3 +292,54 @@ def ai_write(data_dir, changes):
     keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED, "chatgpt_on": AI_CHATGPT_ON}
     current.update({keys[k]: v for k, v in changes.items()})
     platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")
+
+
+# ===== Notices (row 1046, the bell in the top bar) =====
+# A file, or a folder of files, that someone else keeps (often on a shared drive). clark only ever reads it: notices_file.py
+# never writes, moves or deletes there. The path is this computer's own choice, kept beside the other settings.
+NOTICES_PATH = "notices_path"
+NOTICES_PATH_MAX = 1000
+NOTICES_PATH_BAD = "That is not a full path. Give the whole path to a notices file or folder, or leave it empty to turn notices off. Nothing was changed."
+NOTICES_UNREADABLE = "Your settings couldn't be read, so the notices path was not changed. Nothing was changed."
+
+
+def notices_path(data_dir):
+    """The saved notices file or folder as a Path, or None when none is set (or the saved value is not a full path)."""
+    value = read(data_dir).get(NOTICES_PATH)
+    if not isinstance(value, str) or not value.strip() or len(value) > NOTICES_PATH_MAX or "\x00" in value:
+        return None
+    path = Path(value.strip())
+    return path if path.is_absolute() else None
+
+
+@_one_at_a_time
+def set_notices_path(data_dir, text):
+    """Save the notices file or folder, or turn notices off with an empty text. Every other setting is left as it is. The place is
+    not made, opened or written: it need not exist yet (a share may be away). Returns the saved Path, or None when turned off.
+    Raises ValueError in plain words, ending "Nothing was changed.", for a text that is not a full path, and when the settings file
+    can't be read (it is never replaced)."""
+    data_dir = Path(data_dir)
+    off = text is None or (isinstance(text, str) and not text.strip())
+    path = None
+    if not off:
+        if not isinstance(text, str) or len(text) > NOTICES_PATH_MAX or any(ord(c) < 32 or ord(c) == 127 for c in text):
+            raise ValueError(NOTICES_PATH_BAD)
+        path = Path(text.strip())
+        if not path.is_absolute():
+            raise ValueError(NOTICES_PATH_BAD)
+    current = read(data_dir)
+    file = data_dir / FILE
+    if not current and (file.is_symlink() or file.exists()):
+        try:
+            readable = (not file.is_symlink() and file.is_file() and file.stat().st_size <= LIMIT
+                        and isinstance(json.loads(file.read_text(encoding="utf-8")), dict))
+        except (OSError, ValueError, RecursionError):
+            readable = False
+        if not readable:
+            raise ValueError(NOTICES_UNREADABLE)
+    if path is None:
+        current.pop(NOTICES_PATH, None)
+    else:
+        current[NOTICES_PATH] = str(path)
+    platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")
+    return path

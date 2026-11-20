@@ -1,7 +1,7 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
 // A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
-// A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
+// A text section's body (Current state, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
 // draws a saved body as markup in Edit until the one editor arrives (#66); there, every type but the ones below shows one quiet
@@ -17,6 +17,7 @@ import { templateFor } from "../templates/index.js";
 import { ItemRows } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
 import { isChanged, WORD } from "../stores/changed.js";
+import { classicTheme } from "./Contents.jsx";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
@@ -24,6 +25,7 @@ import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
+import { sectionShows, notShownTag } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -45,14 +47,20 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
+  const classic = classicTheme();      // row 1408: Classic marks a changed section with a line under the title that runs and fades; Cards keeps the tint, the bar and the word Changed
+  const sweep = classic && changed;
+  const title = editing ? <tools.Title section={section} /> : section.title;
   const tpl = templateFor(section.type);
+  const shows = sectionShows(section);      // item 1272: a section can show without its tile or its heading
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
+    <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed && !classic ? " is-changed" : ""}${sweep ? " sec-sweep" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
-        <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
-        {changed ? <span class="tag chg">{WORD}</span> : null}
+        <h2 class="sec-h">{classic ? <span class="sec-t">{title}</span> : title}</h2>
+        {editing && tools.AskAbout ? <tools.AskAbout kind="section" id={section.id} name={section.title} /> : null}
+        {!classic && changed ? <span class="tag chg">{WORD}</span> : null}
+        {editing && notShownTag(shows) ? <span class="tag hid" data-not-shown>{notShownTag(shows)}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
         {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}

@@ -9,16 +9,21 @@ import { dayNumber, rowsOf, colourOf } from "../workItems.js";
 import { rulesFor, publishable } from "../logic/publishable.js";
 
 export const KINDS = ["action", "risk", "issue", "assumption", "dependency", "decision"];
-export const MODES = ["open", "closed", "all"];
+export const MODES = ["open", "closed", "all", "current"];
 export const STATUSES = ["Open", "Delayed", "Pending", "Closed", "Cancelled", "Made", "Withdrawn"];
 export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
-export const SORTS = ["due", "priority", "id"];
+export const SORTS = ["due", "priority", "id", "type", "owner"];
+export const CARDS_SORTS = ["due", "priority", "id"];      // what the Cards Configure box offers, unchanged
+export const DESIGN_SORTS = ["due", "priority", "type", "owner"];
+// The options of the Configure box's Sort by: the layer's own list, and the saved sort too when that list lacks it, so the box never shows a sort the list does not have.
+export const sortChoices = (classic, saved) => { const own = classic ? DESIGN_SORTS : CARDS_SORTS; return own.includes(saved) ? own : [...own, saved]; };      // row 1339: the approved Configure box offers these four, in this order; a saved sort by ID is kept (SORTS) and still read
 export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
 export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
+export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
 export const MAX_CAPTION = 200;
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const FILTERS = ["kinds", "status", "due", "owner", "workstream", "use_case", "priority"];
@@ -29,9 +34,9 @@ const WORK = ["actions", "raid", "decisions"];
 // The words a person reads for each choice.
 export const WORDS = {
   kinds: { action: "Actions", risk: "Risks", issue: "Issues", assumption: "Assumptions", dependency: "Dependencies", decision: "Decisions" },
-  mode: { open: "Open", closed: "Closed", all: "Open and closed" },
+  mode: { open: "Open", closed: "Closed", all: "Open and closed", current: "Open, and decisions made in the last 14 days" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
-  sort: { due: "Due date", priority: "Priority", id: "ID" },
+  sort: { due: "Due date", priority: "Priority", id: "ID", type: "Type", owner: "Owner" },
   columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
@@ -48,7 +53,7 @@ export const VIEWS = [
   { id: "all", name: "All work items", patch: {} },
   { id: "actions", name: "Actions", patch: { kinds: ["action"] } },
   { id: "risks-issues", name: "Risks and issues", patch: { kinds: ["risk", "issue"] } },
-  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"] } },
+  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"], mode: "current" } },      // row 1268: Pending, and Made in the last 14 days
   { id: "overdue", name: "Overdue", patch: { due: ["overdue"] } },
 ];
 
@@ -60,10 +65,11 @@ export function viewFilter(id) {
   return out;
 }
 
-// The priority cell of a row: the priority word with the colour class of the pills. A decision has no priority field yet.
+// The priority cell of a row: the priority word with the colour class of the pills (the Rating chip's colour). A decision's priority
+// is the one its peek sets (row 1195, peek_priority on a drawn row, priority on a rule row); a decision with none says nothing.
 export function priorityCell(row) {
-  if (row && row.kind === "decision") return { text: "", class: "n" };
-  const p = row && row.priority;
+  const p = row && row.kind === "decision" ? (row.peek_priority || row.priority) : row && row.priority;
+  if (row && row.kind === "decision" && !p) return { text: "", class: "n" };
   const c = colourOf(p);
   return { text: p || "Not rated", class: c.class };
 }
@@ -72,6 +78,25 @@ export function priorityCell(row) {
 export function windowOf(total, max, showAll) {
   if (total <= max) return { count: total, link: "" };
   return showAll ? { count: total, link: `Show only ${max}` } : { count: max, link: "Show all items" };
+}
+
+// Row 1268 (mock-up work-items-mockup.html, rows()): the foot under the scrolling rows. Edit says how many of the rows are in view and that the
+// rest scroll; View and Edit both carry the link that opens the Work items page on the same filter.
+export const footWords = (total, max) => `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`;
+export const reviewWords = (total) => `Review all ${total} items`;
+
+// The Work items page's filter state (filters.js shape) for a list's saved filter, so "Review all N items" opens the page on the same rows.
+// Open, closed or all; the type when the kinds are one of the page's (Actions, Risks and issues, Decisions); the field choices. The
+// "not", "has", "no" and free-word parts of a list have no place in that state and are left out (the page then shows a few more rows).
+export function pageState(filter, nameOf = (f, v) => v) {
+  const type = !filter.kinds.length ? "all" : filter.kinds.every((k) => k === "action") ? "action" : filter.kinds.every((k) => k === "decision") ? "decision"
+    : filter.kinds.every((k) => k === "risk" || k === "issue") ? "risk" : "all";
+  const filters = {};
+  for (const f of ["workstream", "status", "due", "owner", "priority", "use_case", "milestone"]) {
+    const list = f === "use_case" ? filter[f].map((v) => nameOf(f, v)) : filter[f];
+    if (list.length) filters[f] = list.slice();
+  }
+  return { mode: filter.mode, type, filters, not: {} };
 }
 
 // The columns of the approved design, in its order; Status, Workstream and Milestone are off by default.
@@ -118,6 +143,12 @@ export function ruleRows(data) {
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
 const isOpen = (r) => !CLOSED.includes(r.status);
+// row 1268: a decision Made in the last 14 days (today counts, a date in the future does not), as logic/sectionRows.js listed().
+function madeLately(r, today) {
+  const a = dayNumber(r.due), t = dayNumber(today);
+  return r.kind === "decision" && r.status === "Made" && a !== null && t !== null && t - a >= 0 && t - a <= RECENT;
+}
+const modeFits = (mode, r, today) => mode === "all" || (mode === "current" ? isOpen(r) || madeLately(r, today) : (mode === "open") === isOpen(r));
 const tidy = (v) => (typeof v === "string" ? v.split(/\s+/).filter(Boolean).join(" ") : "");
 
 function bucket(r, today) {
@@ -160,6 +191,8 @@ function byDue(x, y) {
   const a = dueKey(x), b = dueKey(y);
   return cmp(a[0], b[0]) || cmp(a[1], b[1]);
 }
+const kindRank = (r) => { const i = KINDS.indexOf(r.kind); return i < 0 ? KINDS.length : i; };
+const ownerKey = (r) => { const o = String(r.owner == null ? "" : r.owner).trim().toLowerCase(); return o ? [0, o] : [1, ""]; };
 const rank = (r) => { const i = PRIORITIES.indexOf(r.priority); return i < 0 ? PRIORITIES.length : i; };
 
 // The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; null when a choice list had
@@ -191,19 +224,23 @@ export function matching(filter, rows, today, live, all) {
   filter = alive(filter, live);
   if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
-    && (filter.mode === "all" || (filter.mode === "open") === isOpen(r))
+    && modeFits(filter.mode, r, today)
     && FILTERS.every((f) => member(r, f, filter[f], today)) && allowed(r, filter, today));
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "type") hits.sort((x, y) => closedLast(x, y) || cmp(kindRank(x), kindRank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "owner") hits.sort((x, y) => closedLast(x, y) || cmp(ownerKey(x)[0], ownerKey(y)[0]) || cmp(ownerKey(x)[1], ownerKey(y)[1]) || byDue(x, y) || cmp(x.id, y.id));
   else hits.sort((x, y) => closedLast(x, y) || byDue(x, y) || cmp(x.id, y.id));
   return (all ? hits : hits.slice(0, filter.max)).map((r) => r.id);
 }
 
 // The rules for what the page clark serves may show: the publishable() mirror of publish.select, from what the data carries.
 export function servedRules(data) {
-  return rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
+  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
     labelRules: (data && data.label_rules) || [], labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [], deleted: !!(data && data.sections_deleted) });
+  for (const k of WORK) rules.hiddenTypes.delete(k);      // row 1268: a list prints its own rows when the built-in section is hidden (publish.select does the same)
+  return rules;
 }
 
 // Only the rows that would be published, of the three work kinds, in a data shape ruleRows reads.

@@ -26,6 +26,11 @@ from clark import backup, changes, section_kinds, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
+
+# The default sections as a file before this step knows them: the Work items lists (row 1193) are a type the check of that file refuses.
+OLD_DEFAULTS = [dict(s, type={"Risks and issues": "raid", "Open actions": "actions", "Decisions": "decisions"}.get(s["title"], s["type"]), body="")
+                if s["type"] == "workitems" else s for s in store_module.DEFAULT_SECTIONS]
+
 STEP = 8                                            # this step's number (see the docstring)
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
@@ -68,7 +73,7 @@ def every_row(path):
     try:
         names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
                                            "AND name != 'meta' ORDER BY name")]
-        later = {"brand", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
+        later = {"brand", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "ask_instructions"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
         out = {}
         for n in names:
             kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later)
@@ -249,6 +254,7 @@ class Migrating(Base):
         self.assertEqual(version(path), NOW)
         self.assertGreaterEqual(int(NOW), STEP)                  # later steps follow (#115 is 9)
         after = every_row(path)
+        after["app_settings"] = [r[:-1] for r in after["app_settings"]]      # row 1269 (step 27) adds the theme column at the end
         self.assertEqual({t: after[t] for t in before}, before)
         self.assertIn("'onedoc'", table_sql(path))
         self.assertEqual(len(self.copies()), 1)
@@ -434,14 +440,15 @@ class FrozenText(Base):
 
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(statements[0]))      # row 1068: step 23 is now the newest
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt','gantttable'", "", 1))      # steps 19 and 21 added their types after this step's text was frozen
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GLANCE_TEMPLATE), squash(statements[0]))      # row 1264: step 29 is now the newest
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_REPORT_HEADLINE), squash(statements[0]).replace(",'glancetemplate'", "", 1))      # row 1261: step 28's text is that one without 'glancetemplate'
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1).replace(",'glancetemplate'", "", 1).replace(",'reportheadline'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'reportheadline','glancetemplate','gantt','gantttable'", "", 1))      # steps 19, 21 and 28 added their types after this step's text was frozen
 
     def test_the_frozen_text_and_the_store_name_the_same_types(self):
         named = re.findall(r"'([a-z0-9]+)'", store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("CHECK (type IN (")[1].split("))")[0])
-        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t not in ("gantt", "gantttable")))      # row 926: gantt comes with step 19; row 1068: gantttable with step 21
-        self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), section_kinds.TYPES)
+        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t not in ("gantt", "gantttable", "reportheadline", "glancetemplate")))      # row 926: gantt comes with step 19; row 1068: gantttable with step 21
+        self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), tuple(t for t in section_kinds.TYPES if t not in ("reportheadline", "glancetemplate")))      # row 1261: step 28 adds the nineteenth
 
     def test_the_step_does_not_read_the_live_schema(self):
         path = make_before(self.dir)
@@ -471,7 +478,8 @@ class UndoAcrossTheStep(Base):
         """Test 8: a section made, hidden, moved and deleted at the old version are each undone after the file is brought up."""
         path = make_before(self.dir)
         earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", earlier):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", earlier), \
+                mock.patch.object(store_module, "DEFAULT_SECTIONS", OLD_DEFAULTS):
             s = open_store(path, onedrive_roots=[])
             with s.step("dashboard", USER) as st:
                 st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})

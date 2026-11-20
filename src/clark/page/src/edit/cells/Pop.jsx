@@ -31,6 +31,8 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
   const place = () => {
     const el = box.current, a = anchor && anchor.current;
     if (!el || !a) return;
+    const cap = window.innerHeight - 16;                // row 1286 (B-M5): a list taller than the window scrolls inside its own box, first line first
+    if (el.offsetHeight > cap) { el.style.boxSizing = "border-box"; el.style.maxHeight = `${cap}px`; el.style.overflowY = "auto"; }
     const r = a.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
     const left = Math.max(8, Math.min(r.left, document.documentElement.clientWidth - w - 8));
     let top = r.bottom + 4;

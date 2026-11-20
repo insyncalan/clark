@@ -393,6 +393,7 @@ class Milestone(Base):
                 self.real_key(cdp, p, "Enter")
                 self.saved("percent_complete", 90)
                 p.until("!document.querySelector('[data-pop]')", "Enter set it and closed")
+                p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '90%'", "the chip says 90%, so the peek has the new progress before the popover opens again")
                 self.chip(p, "progress")
                 p.until("document.activeElement && document.activeElement.dataset.msBlock === '90'", "the block of the current progress has the focus")
                 self.real_key(cdp, p, "ArrowLeft")
@@ -477,13 +478,13 @@ class Milestone(Base):
             p.until("!!document.querySelector('#peek [data-pk-latest] .ProseMirror')", "the editor opened")
             p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Waiting on the vendor'); true")
             p.until("!!document.querySelector('[data-pk-latest-hint]')", "the hint")
-            self.assertIn("saves", p.js("document.querySelector('[data-pk-latest-hint]').textContent"))
+            self.assertIn("to save", p.js("document.querySelector('[data-pk-latest-hint]').textContent"))
             p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             self.saved("latest_update", "<p>Waiting on the vendor</p>")
             self.assertEqual(len([s for s in self.sent if "latest_update" in s[1].get("changes", {})]), 1, "saved once")
             self.assertEqual(self.sent[-1][1]["place"], "peek")
             p.until("!!document.querySelector('#peek [data-pk-last]')", "the stamp")
-            self.assertTrue(re.search(r"Last updated\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}", p.js("document.querySelector('#peek [data-pk-last]').innerText")))
+            self.assertTrue(re.search(r"last updated\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}", p.js("document.querySelector('#peek [data-pk-last]').innerText")))
             self.undo(p)
             self.saved("latest_update", None)
         with chrome() as cdp:
@@ -621,6 +622,8 @@ class Milestone(Base):
             with self.subTest(width=width), chrome() as cdp:
                 self.setUp()
                 p = self.visit(cdp, ms=GO_LIVE, width=width)
+                cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
+                p.until("document.hasFocus()", "the page has the focus")
                 row = "#peek [data-ms-row=description] [data-rich=description]"
                 # Enter is a new line, nothing is sent; Cmd or Ctrl and Enter saves
                 self.click(p, row)
@@ -649,7 +652,16 @@ class Milestone(Base):
                 # target while the browser window is not focused is read as 'the person left the window', which keeps the box open (RichText away()): on a
                 # busy CI machine the window is not always focused, so the test says outright that the window has the focus and does not depend on it.
                 p.until("document.querySelector('#peek .ProseMirror').textContent.includes('Third')", "the typed text is in the box")
-                p.js("document.hasFocus = () => true; document.querySelector('#peek .pk-title').focus(); true")
+                self.assertTrue(p.js("document.hasFocus()"), "the page has the focus before the focus moves")
+                # The leave-save runs from a focusout (RichText away(), checked one tick later); if that one focus move did not register on a busy runner (a CI shard at 900),
+                # nothing retries it and the old text stays. So: move the focus, wait for the box to close, and if it is still open put the focus back in the text and move it again.
+                from _rich_page import wait_for
+                gone = lambda: p.js("!document.querySelector('#peek .ProseMirror')")
+                for _ in range(3):
+                    p.js("document.querySelector('#peek .pk-title').focus(); true")
+                    if wait_for(gone, 4):
+                        break
+                    p.js("(() => { const e = document.querySelector('#peek .ProseMirror'); if (e) e.focus(); return true; })()")
                 self.saved("description", "<p>First</p><p>Second Third</p>")
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------

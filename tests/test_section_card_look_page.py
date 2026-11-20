@@ -57,7 +57,7 @@ LOOK = """(() => {
   const ctl = [...frame.querySelectorAll('.sec-ctl .handle, .sec-ctl .plus')].map(R);
   const touching = ctl.filter((c) => lines.some((ln) => hit(c, ln))).length;
   const pair = (id) => { const e = frame.querySelector('[data-id="' + id + '"]'), c = getComputedStyle(e); return { rect: R(e), w: c.borderTopWidth, colour: c.borderTopColor, style: c.borderTopStyle }; };
-  return JSON.stringify({ boxed, secSides, touching, controls: ctl.length, left: pair('ABC-S-006'), right: pair('ABC-S-007'), scroll: document.documentElement.scrollWidth <= innerWidth });
+  return JSON.stringify({ boxed, secSides, touching, controls: ctl.length, left: pair('ABC-S-005'), right: pair('ABC-S-006'), scroll: document.documentElement.scrollWidth <= innerWidth });
 })()"""
 
 
@@ -93,13 +93,13 @@ class OneCard(g.Setup):
                     p.edit()
                 got = self.look(p)
                 a, b = got["left"], got["right"]
-                self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-left')"), True, "This week is half width")
+                self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left')"), True, "This week is half width")
                 self.assertEqual((a["w"], b["w"]), ("1px", "1px"), mode)
                 self.assertEqual((a["colour"], a["style"]), (b["colour"], b["style"]), f"{mode}: both halves' lines look the same")
                 self.assertAlmostEqual(a["rect"]["t"], b["rect"]["t"], delta=0.5)
                 self.assertAlmostEqual(a["rect"]["r"], b["rect"]["l"], delta=0.5, msg=f"{mode}: the halves' lines meet, no gap in the middle")
             # the first two sections as a pair: neither half has a line (done last: the page is rearranged by hand)
-            p.js("(() => { const s = document.querySelector('#report .secs'), l = s.querySelector('[data-id=\"ABC-S-006\"]'), r = s.querySelector('[data-id=\"ABC-S-007\"]');"
+            p.js("(() => { const s = document.querySelector('#report .secs'), l = s.querySelector('[data-id=\"ABC-S-005\"]'), r = s.querySelector('[data-id=\"ABC-S-006\"]');"
                  " s.prepend(r); s.prepend(l); })()")
             got = self.look(p)
             self.assertEqual((got["left"]["w"], got["right"]["w"]), ("0px", "0px"), "the first row has no top line, for either half")
@@ -146,13 +146,14 @@ class PublishedCards(g.Setup):
     publish = g.Published.publish          # the finished file, written the way test_glance_page writes it
     draw = g.Published.draw
 
-    def test_the_published_file_draws_the_same_cards(self):
+    def test_the_published_file_draws_classic_sections(self):
+        """Cards is unmaintained (row 1363): a project with a stored 'cards' theme publishes Classic sections, no Cards square and no card border."""
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
             p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; cards are Comfortable
             w, h, bg, border, radius, _, _ = p.js(SQUARE)
-            self.assertEqual((w, h, border), ("10px", "10px", "1px"))
+            self.assertEqual((w, h, border), ("14px", "25px", "0px"))      # measured on the Classic file; the Cards values were 10px, 10px, 1px
 
 
 if __name__ == "__main__":

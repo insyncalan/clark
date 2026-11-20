@@ -32,7 +32,7 @@ FINDINGS = r"""(() => {
     kinds[name] = (kinds[name] || 0) + 1;
     const here = el.tagName.toLowerCase() + "." + name;
     for (const part of [el, ...el.querySelectorAll("*")]) {
-      const stateMark = part.tagName.toLowerCase() === "svg" && (part.classList.contains("ms-i") || part.classList.contains("i"));   // the Milestones section's state marks and the page's small line icons (chevrons): drawn shapes in token colours, not pictures
+      const stateMark = part.tagName.toLowerCase() === "svg" && (part.classList.contains("ms-i") || part.classList.contains("i") || part.classList.contains("wil-half"));   // the Milestones section's state marks and a Work items list's status half-circle (row 1199) and the page's small line icons (chevrons): drawn shapes in token colours, not pictures
       if (!stateMark && /^(img|picture|video|canvas|image|source|object|embed|iframe|svg)$/i.test(part.tagName)) out.push(here + " holds <" + part.tagName.toLowerCase() + ">");
       for (const a of part.attributes) if (bad.test(a.value)) out.push(here + " has " + a.name + " with a picture value");
       for (const pseudo of [null, "::before", "::after", "::marker", "::first-line", "::first-letter"]) {
@@ -61,7 +61,7 @@ PICTURE_KINDS = ("textimage", "gallery", "imagecap")
 # The class of the outermost element of each other template (the rules the page has for it start there).
 ROOT_CLASS = {"headline": "tpl-band", "figures4": "tpl-figs", "figures3": "tpl-figs", "table": "tpl-table", "doclinks": "tpl-dl",
               "linkcard": "tpl-lc", "raid3": "raid-cards", "raid4": "raid-cards", "workitems": "wil-table", "callout": "tpl-callout",
-              "quote": "tpl-quote", "contacts": "tpl-contacts", "checklist": "tpl-check", "keydates": "tpl-dates", "onedoc": "tpl-od"}
+              "quote": "tpl-quote", "contacts": "tpl-contacts", "checklist": "tpl-check", "keydates": "tpl-dates", "onedoc": "tpl-od", "reportheadline": "tpl-rh", "glancetemplate": "tpl-gt"}
 
 
 def picture_rules(text):
@@ -84,6 +84,7 @@ def findings_js():
 class Plain(PublishedFile, glance.Setup):
     def every_kind(self):
         """Four glance tiles, a use case (planted by Setup), RAID cards at three and four across and a link preview."""
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the RAID cards here sit with the built-in sections' (row 1193)
         status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
         self.assertEqual(status, 200)
         with self.store.step("dashboard", USER) as st:
@@ -116,6 +117,8 @@ class Plain(PublishedFile, glance.Setup):
             "keydates": {"v": 1, "items": [{"label": "Fictional typed date", "date": "2031-02-01"}]},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed."]},
+            "reportheadline": {"v": 1, "health": "at_risk", "headline": "Fictional headline", "sentence": "Fictional sentence."},
+            "glancetemplate": {"v": 1, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
         }
         wanted = set(section_kinds.TYPES) - set(PICTURE_KINDS) - {"linkcard", "raid3", "raid4"}
         self.assertEqual(set(bodies), wanted, "one of every template that is not a picture one")
