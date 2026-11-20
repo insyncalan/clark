@@ -55,6 +55,18 @@ class Card(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
             self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
 
+    def test_the_profile_line_shows_at_1400_and_900_only_with_a_saved_name(self):
+        for name in ("", "Sam Lee"):
+            settings.set_profile(self.d, name, "")
+            with chrome() as cdp:
+                js = self.show(cdp)
+                for width in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    got = js("(document.querySelector('[data-ai-profile]')||{}).innerText || ''")
+                    self.assertEqual(got, ai_connect.PROFILE_LINE if name else "", (width, name))
+                    if name:
+                        self.assertTrue(js("document.querySelector('[data-ai-profile]').getBoundingClientRect().right <= innerWidth"), width)
+
     def test_disconnect_then_connect(self):
         with chrome() as cdp:
             js = self.show(cdp)

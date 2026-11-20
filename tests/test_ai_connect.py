@@ -247,6 +247,14 @@ class Words(Base):
         for words in ("leave this computer", "go to the one you choose", "count against that plan", "No password or key is kept"):
             self.assertIn(words, intro)
 
+    def test_the_profile_line_shows_only_while_a_profile_name_is_saved(self):
+        self.assertEqual(ac.PROFILE_LINE, "Your profile name is sent to the model with each question.")
+        self.assertEqual(self.connect.get()[1]["profile_line"], "")
+        settings.set_profile(self.d, "Sam Lee", "")
+        self.assertEqual(self.connect.get()[1]["profile_line"], ac.PROFILE_LINE)
+        settings.set_profile(self.d, "", "")
+        self.assertEqual(self.connect.get()[1]["profile_line"], "")
+
     def test_no_answer_has_a_field_for_a_key_or_a_password(self):
         def fields(x):
             if isinstance(x, dict):
