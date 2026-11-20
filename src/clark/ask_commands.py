@@ -85,7 +85,7 @@ class AskCommands:
 
     def _file(self, name):
         if name_problem(name, (), name):           # a name that passes is only a-z, 0-9 and hyphen: no path can be built from it
-            raise Refused("That is not a slash command's name.")
+            raise Refused("That is not a name a slash command can have.")
         return self.folder / (name + ".json")
 
     def read(self):

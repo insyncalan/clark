@@ -464,6 +464,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .slash-menu-prev > div.on { background: var(--grey-100); }
 .slash-warn { color: var(--tone-amber-text); font-size: var(--size-caption); padding-left: var(--space-4); }
 .ask-slash .ask-slash-own { margin-left: auto; font-style: normal; font-size: var(--size-caption); color: var(--text-muted); }
+.slash-ai { margin-bottom: var(--space-3); }
+.slash-ai label { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.slash-edit-card .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.slash-edit-card .row > input { flex: 1 1 200px; min-width: 0; }
+.slash-added { margin-top: var(--space-1); font-size: var(--size-caption); }
+.slash-added ins { display: block; background: var(--grey-100); text-decoration: none; }
+.slash-check h3 { margin: var(--space-3) 0 var(--space-1); }
+.slash-verdict dt { font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--space-2); }
+.slash-verdict dd { margin: 0; }
 @media (max-width: 900px) { .slash-grid { grid-template-columns: 1fr; } .slash-grid .slash-pick-note { grid-column: 1; } .slash-list .slash-rows li { grid-template-columns: 1fr max-content; } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
