@@ -42,7 +42,7 @@ class Fixture(unittest.TestCase):
         for p in (self.home, self.shared, self.own, self.data):
             p.mkdir(parents=True)
         (self.own / "a.txt").write_text("alpha river", encoding="utf-8")
-        (self.own / "b.png").write_bytes(b"x")
+        (self.own / "b.bin").write_bytes(b"x")
         (self.shared / "c.md").write_text("beta lake", encoding="utf-8")
         db = make_db(self.data)
         self.s.httpd.app_settings = service(db)
@@ -96,6 +96,25 @@ class Page(Fixture):
                     look = js(self.LOOK % q)
                     self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", "status", "polite", True), (w, q, look))
                     self.assertEqual(look["color"], muted, (w, q))
+
+    def test_a_picture_the_computer_cannot_read_has_its_line_and_reason_at_both_widths(self):
+        (self.own / "p.png").write_bytes(b"x")
+        (self.own / "q.jpg").write_bytes(b"x")
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        line = "Indexed 1 of 4 files. 1 is of a type clark can't read yet. 2 are pictures and this computer cannot read them."
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, "!!document.querySelector('#ask-folders .ask-folder-line') && document.querySelector('#ask-folders .ask-folder-line').innerText.startsWith('Indexed')", "indexed")
+            self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), line)
+            js("document.querySelector('#ask-folders .ask-left-btn').click()")
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
+                rows = js("[...document.querySelectorAll('#ask-folders .ask-left-list li')].map(e => e.innerText.replace(/\\s+/g, ' '))")
+                self.assertIn("p.png is a picture and this computer cannot read pictures", rows, w)
+                self.assertIn("q.jpg is a picture and this computer cannot read pictures", rows, w)
+                self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), line)
 
     def test_the_line_in_the_all_projects_card_reads_reading_then_indexed_and_goes_with_its_folder(self):
         self.gate.clear()
