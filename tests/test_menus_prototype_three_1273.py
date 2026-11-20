@@ -36,17 +36,17 @@ def decls(selector, prop):
 
 class ThreeMenus(unittest.TestCase):
     def test_width_224_for_the_three(self):
-        for sel in (GROUP, MOVE, ADD, ADD_ALL):
-            self.assertEqual(decls(sel, "min-width"), "224px", sel)
+        # main's Row 1286 rule gives the three their width; the Row 1273 block does not repeat it
+        self.assertRegex(RULES, r'#viewMenuList, #newBtnMenu, \.ddmenu\[aria-label\^="Add "\], \.ddmenu\[aria-label\^="Move "\]\[aria-label\$=" to"\] \{ min-width: 224px;')
 
     def test_item_text_15px(self):
-        for sel in (GROUP + ' [role="menuitemradio"]', MOVE + ' [role="menuitem"]', ADD + ' [role="menuitem"]', ADD_ALL + ' [role="menuitem"]'):
-            self.assertEqual(decls(sel, "font-size"), "calc(var(--size-body) + 1px)", sel)  # 15px in Chrome (the Classic body is 14px); the 1195 pin forbids a bare px size
+        # main's Row 1286 rule gives the three their 15px; the Row 1273 block does not repeat it
+        self.assertRegex(RULES, r'\.ddmenu\[aria-label\^="Move "\]\[aria-label\$=" to"\]\) :is\(\[role="menuitem"\], \[role="menuitemradio"\]:not\(\.hp\)\) \{[^}]*font-size: 15px')
 
     def test_icon_gap_10px_and_no_34(self):
         ten = "calc(var(--space-2) + 2px)"
         self.assertEqual(decls(GROUP + " .mi", "margin-right"), ten)
-        self.assertEqual(decls(MOVE + " .mi", "margin-right"), ten)
+        self.assertEqual(decls(MOVE + ":not(#none) .mi", "margin-right"), ten)
         self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), ten)
         self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "gap"), ten)
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")

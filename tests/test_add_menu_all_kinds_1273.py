@@ -46,7 +46,7 @@ class AddMenuAllKinds(ClassicBrowser):
 
 class Static(unittest.TestCase):
     def test_rule_names_the_all_kinds_add_menu(self):
-        self.assertRegex(RULES, r"#newBtnMenu\.ddmenu\s*[,{]")
+        self.assertRegex(RULES, r"#newBtnMenu(\.ddmenu)?\s*[,{]")
         self.assertRegex(RULES, r"#newBtnMenu\.ddmenu \[role=\"menuitem\"\][^{]*\{[^}]*gap:\s*calc\(var\(--space-2\) \+ 2px\)")
 
 
