@@ -34,7 +34,7 @@ TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
 MIN_W = 224
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
-PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
+PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
 
 MEASURE = r"""(root => {
@@ -110,6 +110,8 @@ def setUpModule():
 
     def lines(self, root, name, minimum):
         got = orig_lines(self, root, name, minimum)
+        # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
+        self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
         check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
         Seen.names.add(name)
         return got
