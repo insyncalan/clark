@@ -35,6 +35,7 @@ export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -327,4 +328,9 @@ export const SLASH_HINT = {
   usecases: "Which use cases need attention",
   history: "Earlier chats",
   new: "Start a new chat",
+};
+// row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
+export const SLASH_HINT_CLASSIC = {
+  summary: "Summarise this week into a draft",
+  overdue: "What is overdue?",
 };
