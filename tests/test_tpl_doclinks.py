@@ -11,6 +11,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 import hashlib
 import unittest
 from pathlib import Path
@@ -520,6 +521,25 @@ class InThePage(ClassicPage):
             self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"), "Link 3: Enter a link description.")
             self.assertEqual(len(self.sent), sent, "nothing was sent")
 
+    def test_the_add_link_box_on_a_full_list_says_the_full_sentence_and_sends_nothing(self):
+        """Row 1194 read (C2): with 20 entries listed, the add-link box refuses with the FULL sentence and sends nothing."""
+        ref = self.add([a_link(href=f"https://example.org/p{n}", label=f"Plan {n}") for n in range(20)])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "A site", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the full list is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"),
+                             "A Documents and links section can hold 20 files and links at most. Remove one, then add the new one.")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+
     def test_enter_on_an_unchanged_name_does_not_swallow_the_next_rename(self):
         """Row 1194 read (Enter on an unchanged name): Enter saves nothing, then the next name typed and left by a click away is saved."""
         ref = self.add([a_link(label="The plan")])
@@ -533,6 +553,23 @@ class InThePage(ClassicPage):
                  " el.dispatchEvent(new Event('input', {bubbles: true})); el.blur(); })()")
             p.until("document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Name saved')", "the next name was saved")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Next name")
+
+    def test_a_rename_that_changes_nothing_sends_nothing_and_shows_no_toast(self):
+        """Row 1194 read (C1): Enter or leaving a name box with the name as it was sends no request, no toast, and makes no Undo step."""
+        ref = self.add([a_link(label="The plan"), a_file("Plan v2.pdf"), a_file("Notes.txt", 2048, label="Site notes")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 3", "the rows drew")
+            sent = len(self.sent)
+            for n, name in enumerate(["The plan", "Plan v2.pdf", "Site notes"]):
+                RenameTest.type(p, sel, name, "Enter", n)
+                p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{n}]; el.focus(); el.value = {json.dumps('  ' + name + ' ')};"
+                     " el.dispatchEvent(new Event('input', {bubbles: true})); el.blur(); })()")
+            time.sleep(0.5)
+            self.assertFalse(p.js("!!document.querySelector('.toast')"), "no toast")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
 
     def test_the_page_icon_colours_are_the_badge_tokens_not_literals(self):
         """Row 1194 read (colour literals): the drawn icon takes its colours from the --badge-* tokens, none is a hex literal."""
@@ -782,8 +819,10 @@ class Published(PageBase):
                 self.assertEqual(p.js("[...document.querySelectorAll('.tpl-dl a.tpl-act')].every(a => a.rel === 'noopener noreferrer' || a.hasAttribute('download'))"), True)
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(hidden)}]')"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
-                rel = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] a.tpl-name').rel")
-                self.assertEqual(rel, "noopener noreferrer")
+                rels = p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] a.tpl-name, [data-id={json.dumps(ref)}] a.tpl-act:not([download])')].map(a => a.className + ':' + a.target + ':' + a.rel)")
+                self.assertEqual(rels, ["tpl-name:_blank:noopener noreferrer", "tpl-act:_blank:noopener noreferrer",
+                                        "tpl-name:_blank:noopener noreferrer", "tpl-act:_blank:noopener noreferrer"],
+                                 "row 1194 read (B1): each name link and each Open link opens a new tab with rel noopener noreferrer")
 
     def test_the_published_page_carries_no_edit_part(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")

@@ -96,13 +96,6 @@ export function kindWords(name) {
 }
 
 
-// The endings a file may have (the same list as section_kinds/doclinks.py ALLOWED_ENDINGS); only the last ending is read, any case.
-export const ALLOWED_ENDINGS = ["pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt"];
-export const allowedType = (name) => {
-  const m = /^.+\.([^.]+)$/.exec(String(name || ""));
-  return !!m && ALLOWED_ENDINGS.includes(m[1].toLowerCase());
-};
-
 // The page-style icon's label for an entry: PDF, DOC, XLS, PPT, JPG, PNG, TXT for a file; URL for a link; MAIL for an email link.
 const BADGES = { pdf: "PDF", doc: "DOC", docx: "DOC", xls: "XLS", xlsx: "XLS", csv: "XLS", ppt: "PPT", pptx: "PPT", jpg: "JPG", jpeg: "JPG", png: "PNG", txt: "TXT" };
 export function badgeWords(item) {
