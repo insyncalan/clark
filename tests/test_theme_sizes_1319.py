@@ -25,8 +25,8 @@ class Sizes(Computed):
                         self.assertEqual(self.style(cdp, sid, sel, "borderTopWidth"), "1px", f"{w} {sel} AP4 border")
                         self.assertEqual(self.style(cdp, sid, sel, "borderTopStyle"), "solid", f"{w} {sel} AP4 border")
                     cdp.js("document.getElementById('probe').insertAdjacentHTML('beforeend', '<button class=\"msv-sw\" id=\"sw1\">S</button><button class=\"mv-txt\" id=\"tx1\">T</button><div class=\"seg lsw\" id=\"lw\"><button>L</button></div>')", sid)
-                    for sel in ("#sw1", "#tx1"):
-                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
+                    self.assertEqual(self.style(cdp, sid, "#tx1", "borderRadius"), "6px", f"{w} #tx1 the text tabs are 6")
+                    self.assertEqual(self.style(cdp, sid, "#sw1", "borderRadius"), "8px", f"{w} #sw1 the Milestones view switch keeps the --radius (dashboard test, Row 1316 gap)")
                     for sel in ("#b1", "#b2", "#b3", "#b4"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{w} {sel} primaries and plain buttons stay 8")
                     self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "8px", w)
