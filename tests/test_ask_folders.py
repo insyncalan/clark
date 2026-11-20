@@ -548,6 +548,8 @@ class PeopleContractWarning(Base):
         self.assertEqual(status, 200)
         self.assertEqual([w["folder"] for w in got["warnings"]], [str(first), str(self.more)],
                          "each folder of the project, in list order; the all-projects folders are not part of this warning")
+        self.assertEqual([w["items"] for w in got["warnings"]], [[{"name": "Contract 2026", "readable_files": 1}], [{"name": "Payroll", "readable_files": 1}]],
+                         "each folder is scanned for itself, not the first folder's items under every folder")
 
     def test_no_provider_is_involved_in_the_warning(self):
         root = self.tree()
