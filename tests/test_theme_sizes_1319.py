@@ -53,18 +53,30 @@ class Sizes(Computed):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "fontSize"), "13px", f"{scheme} {w} {sel}")
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{scheme} {w} {sel}")
 
-    def test_mode_switch_pressed_text_is_navy_at_each_width(self):
-        # Row 1319, pressed state of the header mode switch (View | Edit): navy text on the chosen half, the other half not navy-on-fill.
-        # The fill itself is not pinned here: the ticket says white, the Classic page paints the aqua pill (needs a ruling).
+    def test_mode_switch_pressed_is_white_with_navy_text_at_each_width(self):
+        # Row 1319 (ruled AP5(a)): the pressed half of the header View | Edit switch is a white fill with navy text, light and dark.
+        # The glide thumb (::before) paints the fill; the buttons themselves stay clear.
         html = page.page_html(branding=page.NO_BRAND, theme=NAME)
         with chrome() as cdp:
             for scheme in ("light", "dark"):
                 for w in SIZES:
                     sid = self.load(cdp, w, scheme, html)
                     tag = f"{scheme} {w}"
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').backgroundColor", sid), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').backgroundImage", sid), "none", tag)
                     self.assertEqual(self.style(cdp, sid, "#md button[aria-pressed=true]", "color"), "rgb(6, 47, 58)", tag)
-                    self.assertEqual(self.style(cdp, sid, "#md button[aria-pressed=true]", "backgroundImage"), "none", tag)
                     self.assertNotEqual(self.style(cdp, sid, "#md button[aria-pressed=false]", "color"), "rgb(6, 47, 58)", tag)
+
+    def test_cards_mode_switch_pressed_stays_aqua(self):
+        html = page.page_html(branding=page.NO_BRAND)
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.load(cdp, w, scheme, html)
+                    tag = f"{scheme} {w}"
+                    q = "getComputedStyle(document.querySelector('#md'), '::before')."
+                    self.assertEqual(cdp.js(q + "backgroundColor", sid), "rgb(56, 224, 238)", tag)
+                    self.assertEqual(cdp.js(q + "backgroundImage", sid), "linear-gradient(90deg, rgb(143, 242, 239), rgb(56, 224, 238))", tag)
 
     def test_cards_keeps_its_pill_and_sizes(self):
         html = page.page_html(branding=page.NO_BRAND)
