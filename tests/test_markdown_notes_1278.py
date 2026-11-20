@@ -5,7 +5,7 @@
   4. Help text (help/helpText.jsx Md: **bold**, `code`, keys, links; the strings hold no heading or bullet marks)  -> checked below
   Peek and Prep notes are plain typed text by design (ruled, plan comment 17-11) and are not markdown places.
 The renderer is the one ask clark uses (edit/askFormat.js, edit/AskFormat.jsx): text nodes only, no HTML read. Copy keeps the original markdown.
-Classic only: Cards is frozen (Alan 19-11); with no Classic layer the notes stay the raw <pre> they are on main (pinned in CardsUnchanged below).
+Classic only: Cards is frozen (ruling 19-11); with no Classic layer the notes stay the raw <pre> they are on main (pinned in CardsUnchanged below).
 
 Run: python3 dev/run_tests.py test_markdown_notes_1278
 """
