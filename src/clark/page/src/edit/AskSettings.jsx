@@ -22,6 +22,14 @@ const USED_FROM_ALL = "Connections and the model are yours, not this project's. 
 export const askTab = signal(PROJECT);
 export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const MAX_FOLDERS = 20;
+// Changes and safety (row 1294, area 5): four statements about the code, not switches. Each is pinned by tests/test_ask_safety_1294.py.
+export const SAFETY = [
+  ["Every change needs your approval", "A change can be taken back with Undo, except a decision marked Made, which a new decision replaces."],
+  ["A change taken from one of your own files or passages needs an extra tick", "You confirm \u201cI have checked this change and want to save it\u201d first."],
+  ["ask clark is never on a published report", "A published file has no ask clark button or panel, and it asks nothing."],
+  ["Passwords and keys are never sent", "A question or a file that looks like one is stopped, and you are told."],
+];
+const SAFETY_NOTE = "These are not switches.";
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
@@ -218,7 +226,22 @@ function AllProjects() {
     <ConnectorsAll />
     <AllInstructions />
     <AllFolders />
+    {classicTheme() ? <Safety /> : null}
     </>
+  );
+}
+
+function Safety() {
+  return (
+    <section class="frame setting" id="ask-safety">
+      <h2>Changes and safety</h2>
+      <ul class="ask-safety">
+        {SAFETY.map(([title, line]) => (
+          <li key={title}><strong>{title}</strong> <span class="muted">Always.</span><br /><span class="muted">{line}</span></li>
+        ))}
+      </ul>
+      <p class="muted">{SAFETY_NOTE}</p>
+    </section>
   );
 }
 
