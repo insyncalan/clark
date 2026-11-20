@@ -44,7 +44,7 @@ class Chats(ThemedTabs):
             self.seed(js, "XYZ", 2)
             reload_to_new_page(js, seconds=20)
             self.until(js, "!!document.querySelector('#ask-chats-clear')", "the chats card")
-            self.assertEqual(js("document.querySelector('#ask-chats-project h2').textContent"), "Chats and usage in ABC")
+            self.assertEqual(js("document.querySelector('#ask-chats-project h2').textContent"), "Chats in ABC")
             self.assertEqual(js("document.querySelector('#ask-chats-note').textContent"), "Kept in this browser for ABC.")
             self.until(js, "document.querySelector('#ask-chats-clear').innerText === 'Clear all chats (4)'", "counts this project's chats only")
             for w in WIDTHS:

@@ -31,7 +31,7 @@ export function ChatsProject() {
   const n = chats().length;
   return (
     <section class="frame setting" id="ask-chats-project">
-      <h2>{`Chats and usage in ${code}`}</h2>
+      <h2>{`Chats in ${code}`}</h2>
       <p><b>{EARLIER}</b></p>
       <p class="muted" id="ask-chats-note">{`Kept in this browser for ${code}.`}</p>
       <div class="row"><button type="button" class="btn" id="ask-chats-clear" data-ask-clear-chats disabled={n === 0} onClick={() => clearChats()}>{`Clear all chats (${n})`}</button></div>
