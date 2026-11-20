@@ -178,7 +178,7 @@ export const SKETCHES = {
 };
 
 // Row 1272: the Classic Theme's own sketch for a template (look B for the Callout); Cards keeps SKETCHES. The shapes are drawn by themes/prototype-2.0/rules.css (.sk-callout-b).
-export const CLASSIC_SKETCHES = { "callout": ["", ["", "", ""]] };
+export const CLASSIC_SKETCHES = { "callout": ["", ["grid-row:1 / 3;width:var(--space-4);height:var(--space-4);border-radius:50%", "width:40%", "width:80%"]] };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
 export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
