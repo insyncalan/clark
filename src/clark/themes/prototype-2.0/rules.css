@@ -553,6 +553,11 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 /* Row 1197 (measured values of the approved mock-up): the zoom percentage is 56 wide with 14px words, the plan has no gap above the toolbar, and the Show menu is 240 wide, radius 12, padding 6, rows 8px 10px and 14px words (the 10px gap is left at the 8 grid, the menus one-look test pins it). */
 [data-gantt] .gt-bar .gt-zf { min-width: 56px; font-size: var(--size-body); }
 .gp-plan { margin-top: 0; }
+/* Row 1197 (Classic, Edit): no Cover band; the title box and its label sit on one flat line at the plan's left edge, 44 high with 6px below (the mock-up's .r1). */
+.gp-flat { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 6px; background: none; }
+.gp-flat-l { font-size: var(--size-caption); color: var(--text-muted); }
+.gp-flat .gp-title { flex: 1; min-width: 4ch; padding: 6px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-body); cursor: text; }
+.gp-flat .gp-title:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 [data-gantt] .gt-pop { min-width: 240px; border-radius: var(--radius-lg); padding: 6px; }
 [data-gantt] .gt-pop button { padding: 8px 10px; gap: 10px; font-size: var(--size-body); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */

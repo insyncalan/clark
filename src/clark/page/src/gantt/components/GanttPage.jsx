@@ -44,6 +44,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const showBtn = useRef(null);
   const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const editing = !!(tools && tools.Toggle) && mode.value === "edit" && !fromFile.value;
+  const classic = classicTheme();      // row 1197: Classic only; Cards keeps the Cover band
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;
   const Title = tools && tools.GanttTitle ? tools.GanttTitle : null;
   const BarNote = tools && tools.GanttBarNote ? tools.GanttBarNote : null;
@@ -153,9 +154,10 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     <>
     {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing && BarNote ? <BarNote /> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
-      {fromFile.value || classicTheme() ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar. Row 1197 (Classic): the approved Gantt page has no Cover band, so it is not drawn */}
+      {fromFile.value || classic ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar. Row 1197 (Classic): the approved Gantt page has no Cover band (the header carries the name and week); Edit keeps the title box on one flat line in the plan */}
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
+        {classic && editing && Title && !fromFile.value ? <div class="gp-flat" data-gp-flat><span class="gp-flat-l" aria-hidden="true">{E.titleLabel}</span><Title text={title} label={E.titleLabel} onSave={saveTitle} /></div> : null}
         {Toggle || layout === "table" ? bar : null}
         {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={E.addBelow} title={E.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"

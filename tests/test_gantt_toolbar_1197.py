@@ -74,15 +74,33 @@ class Toolbar(GP.Page):
                 self.mount(mode="edit")
                 self.assertEqual(self.count("[data-gp-mode]"), 0, "no text View/Edit button in the toolbar")
                 self.assertEqual(self.count(".modes [data-mode=view], .modes [data-mode=edit]"), 2, "the pill's two buttons")
-                self.assertEqual(self.count("#cover"), 0, "the approved Gantt page has no Cover band")
+                self.assertEqual(self.count("#cover, .cover"), 0, "the approved Gantt page has no Cover band")
                 self.assertEqual(self.val("getComputedStyle(document.querySelector('[data-gp-plan]')).marginTop"), "0px", "no gap above the toolbar")
                 self.click(".modes [data-mode=view]")
                 self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
                 self.click(".modes [data-mode=edit]")
                 self.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
 
+    def test_view_has_no_cover_and_edit_has_the_title_box_on_one_flat_line(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.mount()
+                self.assertEqual(self.count(".cover, #cover, [data-gp-flat], [data-g-title]"), 0, "View: no Cover, no title box")
+                self.mount(mode="edit")
+                m = self.val("""(() => { const q = s => document.querySelector(s), cs = e => getComputedStyle(e), r = e => e.getBoundingClientRect(), f = q('[data-gp-flat]');
+                  return {covers: document.querySelectorAll('.cover, #cover').length, box: !!(f && f.querySelector('[data-g-title]')), label: f ? f.querySelector('.gp-flat-l').textContent : null,
+                    bg: f ? cs(f).backgroundColor : null, text: f ? f.textContent : '', left: f ? r(f).left : -1, bar: r(q('[data-gantt] .gt-bar, .gt-bar')).left}; })()""")
+                self.assertEqual(m["covers"], 0)
+                self.assertTrue(m["box"], "Edit has the title box")
+                self.assertEqual(m["label"], "Title")
+                self.assertEqual(m["bg"], "rgba(0, 0, 0, 0)", "no band fill")
+                self.assertNotIn("Weekly report", m["text"])
+                self.assertAlmostEqual(m["left"], m["bar"], delta=1, msg="same left edge as the toolbar")
+
 
 for _n in [n for n in dir(GP.Page) if n.startswith("test_")]:
     setattr(Toolbar, _n, None)
 if __name__ == "__main__":
     unittest.main()
+
