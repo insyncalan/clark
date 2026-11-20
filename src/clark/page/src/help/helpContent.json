@@ -979,7 +979,7 @@
         "The timeline or calendar, the legend and the list of milestones."
        ],
        [
-        "Current state, This week, Next week",
+        "Header, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
        ]
       ]
@@ -1671,7 +1671,7 @@
     "b": [
      [
       "p",
-      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and client wording, and a milestone’s description and client wording. Click the text and it opens in place."
+      "One editor everywhere: Header, the text sections, a use case’s Where it stands, an item’s latest update, description and client wording, and a milestone’s description and client wording. Click the text and it opens in place."
      ],
      [
       "tbl",
@@ -1720,7 +1720,7 @@
       ],
       [
        [
-        "Current state, text sections, Where it stands",
+        "Header, text sections, Where it stands",
         "Draft from the project (where there is one), Format notes, Improve (with Longer), Structure, Make into, Ask"
        ],
        [
