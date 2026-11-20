@@ -98,7 +98,7 @@ class Look(PublishedFile, Setup):
                         self.assertTrue(r["hasBar"])
                         self.assertAlmostEqual(r["fillW"] / r["barW"], pct / 100, delta=.01, msg=name)
                         self.assertEqual(r["barH"], 6)
-                        self.assertEqual(r["weight"], "700", "the percent is bold")
+                        self.assertEqual(r["weight"], "600", "the percent is 600 (row 1396 ruling)")
                         self.assertEqual(r["numAlign"], "right")
                         self.assertEqual(r["tab"], "tabular-nums")
                         self.assertEqual(r["numColor"], r["heading"], "the percent is the heading colour (row 1315)")
@@ -150,6 +150,6 @@ class ProgressRulesPinned(unittest.TestCase):
         got = [l for l in rules[start:].split("\n/* Row ", 2)[0].split("\n") if l.strip()]
         self.assertEqual(got, [
             '/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */',
-            '.msl-box[data-place="page"] .msl-prog .num { min-width: 2.75rem; text-align: right; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; color: var(--heading); }',
+            '.msl-box[data-place="page"] .msl-prog .num { min-width: 36px; width: 2.75rem; flex: none; text-align: right; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--heading); }',
             '@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }',
         ])
