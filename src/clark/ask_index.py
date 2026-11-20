@@ -466,7 +466,7 @@ def line_for(counts, reading=None):
     if o:
         out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
     if long_:
-        out.append(f"{long_} {_plural(long_, 'is', 'are')} too long.")
+        out.append(f"{long_} {_plural(long_, 'file is', 'files are')} too long.")
     if s:
         out.append(f"{s} {_plural(s, 'looks', 'look')} like a password or a key and {_plural(s, 'was', 'were')} left out.")
     return " ".join(out)

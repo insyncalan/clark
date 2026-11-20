@@ -148,13 +148,44 @@ class Limits(Base):
         return ix.mod().line_for(ix.status(self.data, "P1", None))
 
     def test_the_status_line_names_no_file_type_for_a_pdf_only(self):
-        self.assertEqual(self._line("a.pdf"), "Indexed 0 of 1 file. 1 is too long.")
+        self.assertEqual(self._line("a.pdf"), "Indexed 0 of 1 file. 1 file is too long.")
 
     def test_the_status_line_names_no_file_type_for_a_workbook_only(self):
-        self.assertEqual(self._line("a.xlsx", "b.xlsx"), "Indexed 0 of 2 files. 2 are too long.")
+        self.assertEqual(self._line("a.xlsx", "b.xlsx"), "Indexed 0 of 2 files. 2 files are too long.")
 
     def test_the_status_line_is_true_for_a_pdf_and_a_workbook_together(self):
-        self.assertEqual(self._line("a.pdf", "b.xlsx"), "Indexed 0 of 2 files. 2 are too long.")
+        self.assertEqual(self._line("a.pdf", "b.xlsx"), "Indexed 0 of 2 files. 2 files are too long.")
+
+    def test_the_pdf_time_limit_is_120_seconds_and_is_the_one_handed_to_the_reader(self):
+        # Known limit (Row 1368): Stop is checked between files, so one PDF in progress runs to its end or to this limit (120 s).
+        self.assertEqual(ix.mod().INDEX_PDF_SECONDS, 120)
+        self.put("a.pdf", pdf(["zqa"]), binary=True)
+        seen = []
+        real = pdf_reader.read
+
+        def spy(*a, **k):
+            seen.append(k.get("seconds"))
+            return real(*a, **k)
+        with mock.patch.object(pdf_reader, "read", spy):
+            self.build()
+        self.assertEqual(seen, [120])
+
+    def test_stop_is_checked_between_files_not_inside_one(self):
+        import threading
+        self.put("a.pdf", pdf(["zqa"]), binary=True)
+        self.put("b.pdf", pdf(["zqb"]), binary=True)
+        stop = threading.Event()
+        reads = []
+        real = pdf_reader.read
+
+        def spy(*a, **k):
+            reads.append(1)
+            stop.set()      # Stop arrives while the first PDF is being read
+            return real(*a, **k)
+        with mock.patch.object(pdf_reader, "read", spy):
+            done = ix.mod().refresh(self.data, "P1", [self.box], stop=stop)
+        self.assertFalse(done)
+        self.assertEqual(len(reads), 1)   # the one in progress was read to its end; the next file was never started
 
 
 if __name__ == "__main__":
