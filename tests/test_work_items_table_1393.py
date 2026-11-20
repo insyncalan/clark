@@ -77,12 +77,12 @@ class Browser(Base):
 
     # spec row 2: row divider 1px #D9E0EF
     def test_row2_row_divider_is_1px_grey_200(self):
-        cdp, sid = self.look()
-        got = self.style(cdp, sid, "#work table.items tbody tr[data-id] td", ["borderTopWidth", "borderTopColor"], nth=1)
+        cdp, sid = self.look()   # a row after the first of its group: main draws no line over the first (row 1324)
+        got = self.style(cdp, sid, "#work table.items tbody tr[data-id]:not(:first-child) td", ["borderTopWidth", "borderTopColor"], nth=1)
         self.assertEqual(got, {"borderTopWidth": "1px", "borderTopColor": "rgb(217, 224, 239)"}, got)
         cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
         time.sleep(0.4)
-        self.assertEqual(self.style(cdp, sid, "#work table.items tbody tr[data-id] td", ["borderTopColor"], nth=1)["borderTopColor"], self.token(cdp, sid, "--grey-200", "color"))
+        self.assertEqual(self.style(cdp, sid, "#work table.items tbody tr[data-id]:not(:first-child) td", ["borderTopColor"], nth=1)["borderTopColor"], self.token(cdp, sid, "--grey-200", "color"))
 
     # spec row 3: column header 13px, 500, padding 9px 10px
     def test_row3_column_header_is_13px_500_with_9px_above_and_below(self):
