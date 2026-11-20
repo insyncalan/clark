@@ -402,9 +402,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1319, spec 19-11: the page h1 sits 4px above what follows (the .head h1 and cover h1 keep their own margins), and a text segment button is 3px 14px, 28px tall, weight 600 (the two-icon switch, icon tiles and the top bar's switch keep theirs). */
 .frame h1:not(.head h1):not(.cover h1) { margin-bottom: 4px; }
 .seg:not(.lsw):not(.icons):not(.modes) button { padding: 3px 14px; min-height: 28px; font-weight: 600; }
-/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
-@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
-.seg:not(.modes) { border-radius: 6px; }   /* ruled 20-11: a segmented control is radius 6 (buttons stay 8; the top bar's switch keeps its own) */
+.seg:not(.modes):not(.lsw) { border-radius: 6px; }   /* ruled 20-11: a segmented control is radius 6 (buttons stay 8; the top bar's switch keeps its own) */
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }
