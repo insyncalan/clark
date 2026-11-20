@@ -7,6 +7,7 @@ Browser tests: headless Chrome through the harness against a real server, fictio
 """
 import unittest
 
+from _demo import USER
 from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
@@ -19,6 +20,14 @@ VAR = "parseFloat(getComputedStyle(document.documentElement).getPropertyValue('-
 
 
 class Offsets(Base):
+    def setUp(self):
+        super().setUp()
+        # a new project's Risks, Actions and Decisions are Work items lists (row 1193), drawn in View only with a row to list: one of each kind
+        with self.store.step("dashboard", USER) as st:
+            st.create("actions", {"project": "ABC", "description": "Fictional open action", "due_date": "2030-01-05", "raised": "2026-10-01", "source": "demo"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional open risk", "raised": "2026-10-01", "source": "demo"})
+            st.create("decisions", {"project": "ABC", "decision": "Fictional pending decision", "status": "Pending", "source": "demo"})
+
     def test_the_topbar_variable_equals_the_header_height(self):      # item 1177
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -66,7 +75,7 @@ class Offsets(Base):
             p = self.visit(cdp)
             for w in SIZES:
                 size(cdp, p, w, 700)
-                for ref in ("ABC-S-008", "ABC-S-010", "ABC-S-004"):      # not 011: Supporting documents is not drawn in View with no document (test_report_editor.py line 413)
+                for ref in ("ABC-S-008", "ABC-S-009", "ABC-S-004"):      # not 010: Supporting documents is not drawn in View with no document (test_report_editor.py line 413)
                     p.js("window.scrollTo(0, 0)")
                     p.js(f"document.querySelector('[data-id=\"{ref}\"]').scrollIntoView()")
                     p.until(f"document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect().top >= {TOP}.bottom - 1",

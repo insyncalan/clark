@@ -35,7 +35,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 # low-priority follow-up. Moving it onto clarkEditor's plain profile is a separate change (it would rewrite #65's tests of the title).
 # The other: the Draft email preview is a plain editable box on purpose (its styled HTML and table are what Outlook pastes, as in creaite). It holds an email, not a report field. keys.js and help/helpStore.js only READ isContentEditable to leave typing alone.
 # The tracker's status words (row 930) are the same kind of field as the title: one limited plain-text line on a contenteditable="plaintext-only" span (edit/TrackerWords.jsx), with no styled content and no AI place (test_ai_places leaves it out).
-NAMED = {"edit/Title.jsx", "components/DraftEmail.jsx", "edit/TrackerWords.jsx"}
+NAMED = {"edit/Title.jsx", "components/DraftEmail.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}      # row 1292: the Draft beside the ask panel is the answer's own text, edited in place; it is saved nowhere but through one change (Add to the report)
 PATTERN = re.compile(r"new\s+Editor\b|createEditor\b|contenteditable(?!\w*\)?\s*\|\|)", re.I)
 
 
@@ -204,7 +204,7 @@ class PageGate(unittest.TestCase):
         self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
         return js, sid
 
-    def test_only_the_four_text_sections_have_a_rich_field_and_only_in_edit(self):
+    def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-001", "ABC-S-005", "ABC-S-006", "ABC-S-007"])      # item 1188: the first section is a text section
+                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))

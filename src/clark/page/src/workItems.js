@@ -26,6 +26,12 @@ export function todayIso() {
   return `${String(t.getFullYear()).padStart(4, "0")}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
+// Today as a Date at local midnight, for text that fills {today}; it follows todayIso, so it is the one clock too.
+export function todayDate() {
+  const [y, m, d] = todayIso().split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // A day number for a real calendar day, null for anything else (including 2026-02-30). Both dates are read as plain days
 // in UTC, so a clock change never moves a count.
 export function dayNumber(iso) {
@@ -124,13 +130,15 @@ function idOrder(p, q) {
 export function rowsOf(data) {
   const ucs = Object.fromEntries((data.use_cases || []).map((u) => [u.id, u.ref]));
   const ms = Object.fromEntries((data.milestones || []).map((m) => [m.id, m.name]));
+  const labelsOf = data.labels && typeof data.labels === "object" ? data.labels : {};      // item id -> its label names
   // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
     ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null }
     : { raised_on: r.raised || null });      // row 1077: without a history (a published file) the row still knows the date it was raised; under its own name so the Freshness filter is not offered by it
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_message: String(r.client_message || "").trim(),
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
-    source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
+    source: typeof r.source === "string" ? r.source : "",        // row 1077: a published file's rows carry the source by name; the peek draws it
+    labels: Array.isArray(labelsOf[r.id]) ? labelsOf[r.id].filter((n) => typeof n === "string" && n) : [] });      // row 1222: the Labels column
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
@@ -140,9 +148,20 @@ export function rowsOf(data) {
   return rows;
 }
 
+// Row 1222: the Labels column's text, the names in the order the data gives them; nothing when the row has none.
+export const labelsText = (row) => (Array.isArray(row && row.labels) ? row.labels.join(", ") : "");
+
 // The count line's parts: "1 work item, 1 open." / "2 work items, 1 open." (one is singular, nought and the rest are plural).
 export function countOf(total, open) { return { total, open, noun: total === 1 ? "work item" : "work items" }; }
 
 // Grouped by workstream, the group's heading already says it, so the line leaves it out (#947).
 // Row 1222: `own` names the parts that have a column of their own (Id, Use case, Milestone, Workstream), so the line does not say them twice.
 export function metaOf(row, group, own = {}) { return [own.id ? "" : row.id, own.uc ? "" : row.uc, own.milestone ? "" : row.milestone, group === "workstream" || own.workstream ? "" : row.workstream].filter(Boolean).join(" · "); }
+
+// Row 1195, S4: the live Work items page draws the first LIVE_MAX rows (of the rows in the order drawn) and, when the list is longer, a
+// "Show all items" link under the table; once open the link reads "Show only 50". Same words as the section template's link.
+export const LIVE_MAX = 50;
+export function liveWindow(rows, showAll) {
+  if (rows.length <= LIVE_MAX) return { rows, link: "" };
+  return showAll ? { rows, link: `Show only ${LIVE_MAX}` } : { rows: rows.slice(0, LIVE_MAX), link: "Show all items" };
+}

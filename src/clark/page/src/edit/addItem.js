@@ -73,14 +73,15 @@ function focusTitle() {
   }, (f) => requestAnimationFrame(f));
 }
 
-/** Add one item and open it. Resolves to the new id, or null when nothing was added (the toast says why). */
-export async function addItem(kind, place = "menu") {
+/** Add one item and open it. Resolves to the new id, or null when nothing was added (the toast says why). `list` (row 1268): asked from a Work items
+ *  list on the Dashboard, which has no Work items page behind it, so the page's own filters and groups are left as they are. */
+export async function addItem(kind, place = "menu", list = false) {
   const today = todayIso();
   const req = newItemRequest(kind, today, place, workstreamFor(filterState.value, contextFor(today, "all").workstreams));
   if (!req) return null;
   const reply = await newItem(req, placeholderWords(kind));
   if (!reply || typeof reply.ref !== "string") return null;
-  showRow(reply.ref, today);
+  if (!list) showRow(reply.ref, today);
   openPeek(reply.ref, "item");
   focusTitle();
   return reply.ref;

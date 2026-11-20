@@ -64,11 +64,23 @@ ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => { con
         " return r.dataset.id + '|' + st + '|' + r.querySelector('.wl-title').textContent.trim() + '|' + ['.c-owner', '.c-date', '.c-prio'].map(c => r.querySelector(c).textContent.trim()).join(' ') + '|' + r.dataset.kind; })")
 
 
+
+def builtin_sections(demo, project="ABC"):
+    """A new project's report has Work items lists for Risks and issues, Open actions and Decisions (row 1193); these rows pin the built-in
+    sections, so each list becomes the built-in section of its kind, in the same place."""
+    kinds = {"Risks and issues": "raid", "Open actions": "actions", "Decisions": "decisions"}
+    con = demo.store.con
+    for title, kind in kinds.items():
+        con.execute("UPDATE report_sections SET type = ?, body = '' WHERE project = ? AND type = 'workitems' AND title = ?", (kind, project, title))
+    con.commit()
+
+
 class ItemRows(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        builtin_sections(self.demo)      # a new project's report has Work items lists; these rows pin the built-in sections (row 1193)
         fill(self.store)
 
     def check_rows(self, js, where, own=False):
@@ -132,6 +144,7 @@ class ItemRows(unittest.TestCase):
     def test_a_section_with_nothing_to_show_says_so_on_the_page_and_is_left_out_of_the_file(self):
         empty = DemoStore()
         self.addCleanup(empty.close)
+        builtin_sections(empty)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
         with chrome() as cdp:
@@ -153,6 +166,7 @@ class ItemRows(unittest.TestCase):
         heading with that line (prototype views.js), and Edit says it with the add line and the count."""
         empty = DemoStore()
         self.addCleanup(empty.close)
+        builtin_sections(empty)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
         secs = "[...document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]')].map(e => e.querySelector('.sec-h').textContent + '|' + (e.querySelector('[data-nothing]') || {}).textContent)"
@@ -193,6 +207,7 @@ class UnwordedRows(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        builtin_sections(self.demo)      # a new project's report has Work items lists; these rows pin the built-in sections (row 1193)
         fill_unworded(self.store)
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": HIDDEN, "owner": "Omar Reid", "due_date": "2026-11-06",
@@ -248,6 +263,7 @@ class CurrentStateInEdit(unittest.TestCase):
     def test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
+        builtin_sections(demo)
         demo.update("report_sections", "ABC-S-001", {"body": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})   # item 1188: Current state is a text section, its words are its body
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
@@ -287,6 +303,7 @@ class EditRows(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        builtin_sections(self.demo)      # a new project's report has Work items lists; these rows pin the built-in sections (row 1193)
         fill(self.store)
         self.s = edit_server(self, self.store)
 

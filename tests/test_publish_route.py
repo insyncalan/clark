@@ -46,6 +46,8 @@ class Rig:
         self.plant = fx.load()
         fx.build_db(self.db, self.plant)
         self.store = open_store(self.db, onedrive_roots=[])
+        self.store.con.execute("UPDATE app_settings SET theme = 'cards' WHERE id = 1")      # row 1269: a fresh store is Classic; these tests are about the Cards file
+        self.store.con.commit()
         case.addCleanup(self.store.close)
         self.saves, self.picks = [], []
         self.save_to = self.local / "chosen.html"              # what the Save dialog answers; None is Cancel

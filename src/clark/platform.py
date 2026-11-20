@@ -692,6 +692,18 @@ def open_url(url, run=None, on=None):
         raise PlatformError(f"The browser could not be opened. {TRY_AGAIN}")
 
 
+def open_mail(link, run=None, on=None):
+    """Open a finished mailto: link in the person's default mail app (the system's own `open`, so it does not depend on the browser
+    window letting a mailto: link through). Only a mailto: link is opened; a value starting with "-" is never read as an option."""
+    _only_mac("Opening the mail app", on)
+    link = str(link)
+    if not re.match(r"mailto:[^\s\x00-\x1f\x7f\ud800-\udfff]*\Z", link):      # no space, control character or lone surrogate (each would make the system call raise)
+        raise PlatformError(f"Only a mail link starting mailto: can be opened here. {TRY_AGAIN}")
+    done = _run_waiting(["open", link], run)
+    if done.returncode != 0:
+        raise PlatformError(f"The mail app could not be opened. {TRY_AGAIN}")
+
+
 def _existing(path):
     path = Path(path)
     if not path.exists():

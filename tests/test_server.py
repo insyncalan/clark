@@ -355,20 +355,22 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                                                "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
+                                                "/api/ask-instructions": 24 * 1024,     # row 1294: 4,000 characters of any width, as text
+                                                "/api/ask-commands": 8 * 1024,     # row 1295: one slash command (name, menu line, 1,000 characters of text), as text
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
-                                                "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024,
+                                                "/api/ask": 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024), "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
-                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
+                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
                                                 "/api/update/undo": 1024,
                                                 "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,     # #944
                                                 "/api/publications/archive": 1024, "/api/publications/restore": 1024})     # #345: a project code and a number; #96: a project and a section only
@@ -573,7 +575,7 @@ class RealSaving(unittest.TestCase):
         self.assertTrue(all("body" not in r for r in body["sections"]))
         status, body = self.post("/api/undo", {"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, body["ok"], body["skipped"]), (200, True, []))
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Summary")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
         status, body = self.post("/api/change", {**change, "changes": {"hidden": True}})
         self.assertEqual((status, body["message"], body["code"]), (400, "That must be 0 or 1.", "refused"))
         status, body = self.post("/api/change", {**change, "id": "XYZ-S-001"})
@@ -597,11 +599,11 @@ class RealSaving(unittest.TestCase):
             status, body = self.post("/api/change", {"project": "OLD", "kind": "report_sections", "op": "new", "values": {"title": title}})
             self.assertEqual(status, 200, body)
             made.append(body["apply_id"])
-        self.assertEqual(len(self.sections("OLD")), 14)
+        self.assertEqual(len(self.sections("OLD")), 13)
         status, body = self.post("/api/undo", {"project": "OLD", "apply_id": made[0]})
         self.assertEqual((status, body["skipped"]), (200, []))
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (13, ["Current state"], ["y", "Hello"], False))
+        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Current state"], ["y", "Hello"], False))
 
     def test_a_second_undo_of_an_old_projects_first_change_over_http_is_409_undone_already(self):
         self.old_project("OLD")
@@ -612,7 +614,7 @@ class RealSaving(unittest.TestCase):
         status, again = self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})
         self.assertEqual((status, again.get("ok"), again.get("message"), again.get("code")), (409, False, "That step has been undone already.", "undone"))
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps, "no step was written")
-        self.assertEqual(len(self.sections("OLD")), 11, "the starting sections stay")
+        self.assertEqual(len(self.sections("OLD")), 10, "the starting sections stay")
 
     def test_a_rename_that_seeded_and_is_undone_leaves_all_the_starting_sections(self):
         self.old_project("OLD")
@@ -621,7 +623,7 @@ class RealSaving(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})[0], 200)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[4]), (11, "Summary"))
+        self.assertEqual((len(titles), titles[4]), (10, "This week"))
 
     def test_two_first_adds_at_once_on_an_old_project_make_one_seed_and_two_steps(self):
         self.old_project("OLD")
@@ -637,7 +639,7 @@ class RealSaving(unittest.TestCase):
             t.join(20)
         self.assertEqual(sorted(r[0] for r in results), [200, 200], results)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), sorted(titles[-2:])), (13, ["One", "Two"]))
+        self.assertEqual((len(titles), sorted(titles[-2:])), (12, ["One", "Two"]))
         self.assertEqual(titles.count("Current state"), 1, "one seed")
         steps = {r[0] for r in self.demo.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE item_id LIKE 'OLD-S-%'")}
         self.assertEqual(len(steps), 2, "one step each")
@@ -649,7 +651,7 @@ class RealSaving(unittest.TestCase):
         for extra in ({"Origin": "https://evil.example"}, {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}):
             status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"), extra=extra)
             self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"), extra)
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Summary")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps)
         status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"),
                                      extra={"Origin": f"http://127.0.0.1:{self.s.port}"})
