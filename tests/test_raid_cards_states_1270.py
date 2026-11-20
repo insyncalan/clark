@@ -13,7 +13,7 @@ from _publish import PublishedFile
 import test_glance_page as glance
 from test_server import chrome, wait
 
-CARDS = """(() => [...document.querySelectorAll('.raid-card')].map(c => { const b = c.querySelector('.raid-id'), l = c.querySelector('.raid-what');
+CARDS = """(() => [...document.querySelectorAll('.raid-card')].map(c => { const b = c.querySelector('.raid-id'), l = c.querySelector('.raid-part');
   return { id: b.textContent, label: l ? l.textContent : null, aria: b.getAttribute('aria-label'), popup: b.getAttribute('aria-haspopup'), cls: c.className }; }))()"""
 STATE = """(() => { const p = document.querySelector('#peek'); const a = document.activeElement;
   return { open: !!p && !p.hidden && p.getBoundingClientRect().width > 0, active: a ? a.className + ':' + a.textContent : '',

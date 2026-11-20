@@ -34,7 +34,7 @@ class View(PublishedFile, glance.Setup):
         return ids
 
     def look(self, p):
-        return p.js("""(() => [...document.querySelectorAll('.raid-card')].map(c => ({ label: (c.querySelector('.raid-label:not(.raid-what)') || {}).textContent || '', rating: !!c.querySelector('.raid-rating'),
+        return p.js("""(() => [...document.querySelectorAll('.raid-card')].map(c => ({ label: (c.querySelector('.raid-label') || {}).textContent || '', rating: !!c.querySelector('.raid-rating'),
             text: !!c.querySelector('.raid-text'), latest: c.querySelectorAll('.raid-latest').length, btn: (() => { const b = c.querySelector('.raid-id'); return b ? [b.getAttribute('aria-label'), b.hasAttribute('data-open')] : null; })() })))()""")
 
     def test_card_details(self):
@@ -69,7 +69,7 @@ class View(PublishedFile, glance.Setup):
                 p = self.draw(cdp, path, width=w)
                 got = p.js("""(() => { const probe = (prop, v) => { const e = document.createElement('i'); e.style[prop] = 'var(' + v + ')'; document.body.appendChild(e); const c = getComputedStyle(e)[prop]; e.remove(); return c; };
                     const sty = (el, k) => getComputedStyle(el)[k];
-                    return { cards: [...document.querySelectorAll('.raid-card')].map(c => { const top = c.querySelector('.raid-top'), r = c.querySelector('.raid-rating'), lab = c.querySelector('.raid-label:not(.raid-what)'), lat = c.querySelector('.raid-latest'), m = c.querySelector('.raid-meta');
+                    return { cards: [...document.querySelectorAll('.raid-card')].map(c => { const top = c.querySelector('.raid-top'), r = c.querySelector('.raid-rating'), lab = c.querySelector('.raid-label'), lat = c.querySelector('.raid-latest'), m = c.querySelector('.raid-meta');
                         return { word: r ? r.textContent : '', edge: sty(c, 'borderTopColor'), band: sty(top, 'backgroundColor'), ink: sty(top, 'color'),
                           ratingW: r ? sty(r, 'fontWeight') : '', ratingGap: r ? Math.round(c.getBoundingClientRect().right - r.getBoundingClientRect().right) : -1,
                           labelW: lab ? sty(lab, 'fontWeight') : '', labelColour: lab ? sty(lab, 'color') : '', latestColour: lat ? sty(lat, 'color') : '',

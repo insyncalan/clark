@@ -982,3 +982,20 @@ table.items .weye { width: 30px; height: 30px; }
 .raid-card .raid-id:hover { text-decoration: underline; }
 .raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
+
+/* Row 1270 (Classic only): the RAID cards picker, the count, Remove and the Also show on the card choices */
+.rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.rce-pick, .rce-rm { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.rce-pick:disabled { opacity: 0.4; cursor: default; }
+.rce-pick:focus-visible, .rce-rm:focus-visible, .rce-opts button:focus-visible, .rce-picker input:focus-visible, .rce-ck input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rce-rm { width: 36px; padding: 0; justify-self: end; align-self: start; }
+.rce-count { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-picker { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-opts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; }
+.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.rce-opts button:hover { background: var(--brand-blue-tint); }
+.rce-show { grid-column: 1 / -1; display: grid; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
+.rce-show legend { padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
+.rce-ck small { display: block; color: var(--text-muted); font-size: var(--size-caption); }

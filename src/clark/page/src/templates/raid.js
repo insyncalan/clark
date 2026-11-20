@@ -26,8 +26,17 @@ export function parse(body) {
   try { v = typeof body === "string" && body ? JSON.parse(body) : null; } catch (e) { return []; }
   if (!v || !Array.isArray(v.cards)) return [];
   return v.cards.filter((c) => c && typeof c.id === "string" && kindOfId(c.id))
-    .map((c) => ({ id: c.id, source: c.source === "own" || c.source === "latest" ? c.source : "client", own: typeof c.own === "string" ? c.own : "" }));
+    .map((c) => ({ id: c.id, source: c.source === "own" || c.source === "latest" ? c.source : "client", own: typeof c.own === "string" ? c.own : "", show: showOf(c.show) }));
 }
+
+// Row 1270: what a card shows besides its description, { latest, meta, rating }; a key that is not written reads as on.
+export const SHOW_KEYS = ["latest", "meta", "rating"];
+export function showOf(v) {
+  const out = {};
+  if (v && typeof v === "object") for (const k of SHOW_KEYS) if (typeof v[k] === "boolean") out[k] = v[k];
+  return out;
+}
+export const shows = (show, key) => !(show && show[key] === false);
 
 // A body's version 2 choice of cards across (3 or 4), or 0 for a body of version 1 (or none), which keeps the number its type has.
 export function acrossOf(body) {
@@ -45,7 +54,11 @@ export function layoutOf(section, size) {
 
 // The body to save for these cards (the server rebuilds it as the one canonical text). `across` (3 or 4) writes version 2.
 export function bodyOf(cards, across = 0) {
-  const list = cards.map((c) => (c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source }));
+  const list = cards.map((c) => {
+    const one = c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source };
+    if (across && c.show && Object.keys(c.show).length) one.show = showOf(c.show);
+    return one;
+  });
   return JSON.stringify(across ? { v: 2, across, cards: list } : { v: 1, cards: list });
 }
 
@@ -79,6 +92,11 @@ export function ratingOf(row, kind) {
   const c = colourOf(row && row.priority);
   return { word: c.word, tone: "rc-" + c.class };
 }
+// The impact and likelihood a risk or issue card shows in its foot line ("impact high", "likelihood medium"); nothing unless both are set.
+export function ratingBits(row, kind) {
+  if (kind !== "raid" || !row || !row.impact || !row.likelihood) return [];
+  return [`impact ${String(row.impact).toLowerCase()}`, `likelihood ${String(row.likelihood).toLowerCase()}`];
+}
 // The item's latest update as plain words ("" when it has none), for every kind of card.
 export const latestOf = (row) => richWords(row && row.latest_update).trim();
 export const metaOf = (row, kind) => metaBits(row, kind).join(" · ");
@@ -102,13 +120,13 @@ export function rowOf(data, id) {
 // card whose row is missing is dropped; in the served page a card is kept only when publishable() keeps its row, as publish does.
 export function cardsOf(section, data, size) {
   const file = Array.isArray(section && section.cards);
-  const cards = file ? section.cards.filter((c) => c && typeof c.id === "string").map((c) => ({ id: c.id, text: typeof c.text === "string" ? c.text : "" })) : parse(section && section.body);
+  const cards = file ? section.cards.filter((c) => c && typeof c.id === "string").map((c) => ({ id: c.id, text: typeof c.text === "string" ? c.text : "", show: showOf(c.show) })) : parse(section && section.body);
   const rules = file ? null : rulesOf(data);
   const out = [];
   for (const c of cards) {
     const found = rowOf(data, c.id);
     if (!found || (rules && !publishable(found.row, found.kind, rules))) continue;
-    out.push({ id: c.id, kind: found.kind, row: found.row, text: file ? c.text : wordsOf(c, found.row) });
+    out.push({ id: c.id, kind: found.kind, row: found.row, text: file ? c.text : wordsOf(c, found.row), show: c.show });
     if (out.length === size) break;
   }
   return out;

@@ -31,6 +31,8 @@ TOO_MANY = "A card row holds {n} cards at most."
 BAD_CARD = "A card needs the number of a risk, issue, action or decision."
 BAD_SOURCE = "Choose Client wording, Own words or Latest update for a card."
 NO_LATEST = "Only an action has a latest update. Choose Client wording or Own words for this card."
+BAD_SHOW = "Choose what a card shows with Latest update, Owner, status and date, and Impact and likelihood."
+SHOW = {"latest", "meta", "rating"}
 TWICE = "The same item is on two cards."
 OWN_LONG = "A card's own words can be {n} characters at most."
 OWN_BAD = "A card's own words can only be plain text on one line."
@@ -49,6 +51,13 @@ def _id(item):
     return (True, letter) if ok else (False, None)
 
 
+def _show(value):
+    """Row 1270: what a card shows besides the description: {"latest": bool, "meta": bool, "rating": bool}, each key optional (absent reads as on)."""
+    if type(value) is not dict or set(value) - SHOW or any(type(v) is not bool for v in value.values()):
+        raise Bad(BAD_SHOW)
+    return {k: value[k] for k in ("latest", "meta", "rating") if k in value}
+
+
 def _check(value, rules, size, across=()):
     """`across` is the choices a body of version 2 may carry (raid4: 3 or 4, up to eight cards); empty, only version 1 is accepted."""
     if type(value) is not dict or type(value.get("cards")) is not list:
@@ -64,7 +73,7 @@ def _check(value, rules, size, across=()):
         raise Bad(TOO_MANY.format(n=size))
     out, seen = [], set()
     for card in value["cards"]:
-        if type(card) is not dict or set(card) - {"id", "source", "own"}:
+        if type(card) is not dict or set(card) - {"id", "source", "own"} - ({"show"} if two else set()):
             raise Bad(BAD_CARD)
         item = card.get("id")
         found, letter = _id(item)
@@ -89,6 +98,8 @@ def _check(value, rules, size, across=()):
         built = {"id": item, "source": source}
         if own:
             built["own"] = own
+        if "show" in card:
+            built["show"] = _show(card["show"])
         out.append(built)
     return {"v": 2, "across": value["across"], "cards": out} if two else {"v": 1, "cards": out}
 
@@ -117,7 +128,10 @@ def _published(value, ctx, size):
         row = next((r for r in ctx.rows.get(kind, ()) if r.get("id") == card.get("id")), None)
         if row is None:
             continue                       # not kept by publish: hidden, archived, not client visible, sensitive, or a hidden section
-        out.append({"id": card["id"], "text": _words(card, row)})
+        one = {"id": card["id"], "text": _words(card, row)}
+        if card.get("show"):
+            one["show"] = card["show"]
+        out.append(one)
     if not out:
         return None
     return {"cards": out[:size], "across": value["across"]} if (value or {}).get("v") == 2 else {"cards": out[:size]}
