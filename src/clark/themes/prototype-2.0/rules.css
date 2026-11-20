@@ -454,6 +454,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1358 (Classic only): a pressed main button or mode pill keeps easing its glow over the same 0.12 s as its press sink (the shared press rule lists only the transform, so the glow snapped). */
 :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+/* Row 1358 part 2 (Classic only): the corners of the Milestones text tabs and the Use cases Group by, Sort by and New view controls are 6px, as the prototype draws them (the shared token is 8px, and the two icon buttons took 4px). */
+.mv-txt, #usecases #ucl-group, #usecases #ucl-sort, #usecases #ucAddPage.newb { border-radius: 6px; }
 
 /* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
 @media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
@@ -677,6 +679,14 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 #milestones .msv-sw, #milestones .cal-sc { border: 1px solid var(--grey-500); }
 #milestones .msv-sw .msv-b { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
 #milestones .msv-b + .msv-b, #milestones .cal-sc button + button { border-left: 1px solid var(--grey-500); }
+/* Row 1357 (Use cases page, Classic only): item 2, Group by and Sort by keep their icons and take the prototype's button line (1px, the prototype's --ui is this theme's --grey-500) and 6px corners, 28px high; item 6, the status pill is 13px weight 600 as the prototype's pill; item 9, the left rule has square corners (border-radius 0). */
+#usecases #ucl-group, #usecases #ucl-sort { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 28px; height: 28px; box-sizing: border-box; font-weight: 500; }
+#usecases .pill { font-size: 13px; font-weight: 600; height: 20px; line-height: 20px; padding: 0 10px; }
+/* Row 1357 follow-up (Classic only): item 2, Group by and Sort by weight 500 (usecases.css line 10); item 3, + New view has 6px corners; item 6, the pill is 20px high with line-height 20px and padding 0 10px (usecases.css line 73). Row 1358 follow-up: the glow of the main buttons eases on hover over the press time, and + New view on the Work items saved-views row takes the brand colour and the far right (work.css line 43). */
+#usecases #ucl-viewNew { border-radius: 6px; }
+:root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):hover { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+#work .vnew, #work .vnew:hover { color: var(--brand-blue); margin-left: auto; }
+.frame.ucl { border-radius: 0; }
 /* Row 1197: the Gantt toolbar as the approved mock-up draws it. Bar gap 6px, margin 4px 0 10px, icon buttons 34px (the grouped ones 36 wide), the zoom-fit button 34px high, and one divider between zoom in and the filter. */
 [data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 10px; }
 [data-gantt] .gt-bar .gt-ib { width: 34px; height: 34px; }
