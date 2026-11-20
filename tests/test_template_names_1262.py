@@ -24,7 +24,6 @@ NAMES = {                                      # id -> the name on the card (the
     "work-items": "Work items",
     "docs-links": "Files and links",
     "callout": "Must-see note",
-    "image-caption": "One picture",
     "contacts": "Who to ask",
     "checklist": "Next steps",
     "key-dates": "Coming dates",
@@ -60,19 +59,20 @@ class TemplateNames(unittest.TestCase):
         self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', TEMPLATES)
         self.assertRegex(TEMPLATES, r'\{ id: "gantt-table", name: GANTT_TABLE_NAME, ')
 
-    def test_the_wide_picture_card_is_called_wide_picture(self):
-        self.assertRegex(WORDS, r'WORDS = \{\s+name: "Wide picture",')
+    def test_the_two_picture_cards_keep_their_names(self):      # row 1223 replaces them with one Image card
+        self.assertRegex(WORDS, r'WORDS = \{\s+name: "Full width image",')
+        self.assertRegex(TEMPLATES, r'\{ id: "image-caption", name: "Image with caption", kind:')
 
     def test_help_has_a_row_headed_with_each_name(self):
         heads = [r[0] for r in help_rows()]
-        for name in set(NAMES.values()) | {"Wide picture"}:
+        for name in set(NAMES.values()) | {"Image with caption", "Full width image"}:
             self.assertIn(name, heads, f"Help has a row headed {name}")
         self.assertEqual(heads.count("Numbers"), 2, "the two Numbers cards have a row each")
 
     def test_help_rows_for_the_old_names_are_gone(self):
         heads = [r[0] for r in help_rows()]
         for old in ("Key figures, four", "Key figures, three", "Image gallery", "RAID cards, three", "RAID cards, four", "Work items list", "Live work list",
-                    "Documents and links", "Callout", "Image with caption", "Full width image", "Contacts", "Checklist", "Key dates",
+                    "Documents and links", "Callout", "One picture", "Wide picture", "Contacts", "Checklist", "Key dates",
                     "Link preview", "One document", "Plan summary", "Text and image"):
             self.assertNotIn(old, heads, old)
 

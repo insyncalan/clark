@@ -19,7 +19,7 @@ export const MOST_BYTES = 3 * 1024 * 1024;   // the original and the framed copy
 export const PAGE_INCHES = 257 / 25.4;   // the content width of A4 landscape
 
 export const WORDS = {
-  name: "Wide picture",
+  name: "Full width image",
   description: "One image across the full width, framed as you choose, with an optional caption.",
   holds: ["Image", "Caption (optional)"],
   hint: "Choose an image. Until then this section stays out of the published report.",
