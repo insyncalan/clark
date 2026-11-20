@@ -5,7 +5,7 @@
   4. Help text (help/helpText.jsx Md: **bold**, `code`, keys, links; the strings hold no heading or bullet marks)  -> checked below
   Peek and Prep notes are plain typed text by design (ruled, plan comment 17-11) and are not markdown places.
 The renderer is the one ask clark uses (edit/askFormat.js, edit/AskFormat.jsx): text nodes only, no HTML read. Copy keeps the original markdown.
-All themes including Cards (ruling 20-11 14:32): formatted notes are a defect fix, not a Classic look. The Cards pin below runs the default Cards look (no Classic theme layer), 1400 then 900.
+Classic only: Cards is frozen (Alan 19-11); with no Classic layer the notes stay the raw <pre> they are on main (pinned in CardsUnchanged below).
 
 Run: python3 dev/run_tests.py test_markdown_notes_1278
 """
@@ -25,8 +25,10 @@ MARKERS = re.compile(r"(^|\n)\s*(#{1,6} |[-*+] |\d+[.)] )|\*\*|```")
 
 
 class Notes(InBrowser):
-    def prep(self, width, latest=False, notes=NOTES):
+    def prep(self, width, latest=False, notes=NOTES, classic=True):
         self.load(width=width)
+        if classic:
+            self.js("(() => { const t = document.createElement('div'); t.id = 'theme'; document.body.appendChild(t); })()")      # the Classic layer: classicTheme() is true
         self.replies(review=OK({"ok": True, "review_id": "r1", "review": {**REVIEW, "notes": notes, "notes_text": notes}}),
                      status=OK({**BASE, "latest": {**AVAIL, "notes": NOTES}, "fetch": {"state": "idle"}}) if latest else OK(STATUS))
 
@@ -91,32 +93,29 @@ class Notes(InBrowser):
         self.assertFalse(self.present("[data-copy]"))
 
 
-class CardsPin(InBrowser):
-    """The default Cards look (no Classic theme layer in the page) draws the notes through FormattedAnswer in both places."""
+class CardsUnchanged(InBrowser):
+    """The default Cards look (no Classic theme layer in the page) keeps the raw <pre> notes of main in both places."""
 
-    prep, styled, check_formatted, check_safe = Notes.prep, Notes.styled, Notes.check_formatted, Notes.check_safe
+    prep = Notes.prep
 
     def check_cards(self, box):
         self.assertFalse(self.js("!!document.getElementById('theme')"), "this is Cards: no Classic layer")
-        self.assertFalse(self.present(box + " pre"), "the notes are not a raw <pre>")
-        self.assertFalse(self.present("pre.update-notes"))
-        self.check_formatted(box)
-        self.check_safe(box)
+        self.assertTrue(self.present(box.replace("#update-notes", "pre#update-notes")))
+        self.assertEqual(self.val(f"document.querySelectorAll({lit(box + ' h3, ' + box + ' h4, ' + box + ' h5, ' + box + ' ul, ' + box + ' strong')}).length"), 0)
+        self.assertIn("## What is changed", self.text(box), "the marks show as typed, as on main")
 
-    def test_cards_review_panel_notes_are_drawn_by_formatted_answer_at_1400_and_900(self):
+    def test_cards_review_panel_notes_stay_raw_at_1400_and_900(self):
         for width in (1400, 900):
             with self.subTest(width=width):
-                self.prep(width)
-                self.styled()
+                self.prep(width, classic=False)
                 self.mount()
                 self.click("[data-review]")
                 self.check_cards("#update-panel #update-notes")
 
-    def test_cards_newest_release_notes_are_drawn_by_formatted_answer_at_1400_and_900(self):
+    def test_cards_newest_release_notes_stay_raw_at_1400_and_900(self):
         for width in (1400, 900):
             with self.subTest(width=width):
-                self.prep(width, latest=True)
-                self.styled()
+                self.prep(width, latest=True, classic=False)
                 self.mount()
                 self.js("document.querySelector('#update-avail details').open = true")
                 self.check_cards("#update-avail #update-notes")
