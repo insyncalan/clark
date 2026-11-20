@@ -3,18 +3,36 @@
 Run: python3 dev/run_tests.py test_ask_chats_1294
 The chats and the number kept are in the browser (askHistory.js), so the test seeds localStorage. Chrome is required."""
 import json
+import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 import test_ask_panel
 from test_report_editor import Base
-from test_server import chrome
+from test_server import Running, chrome
 
 from test_ask_tabs_1294 import Tabs, WIDTHS
+from test_ask_settings import make_db, service
+from test_page import DATA
+from clark import page
 
 CHAT = lambda i: {"id": str(i), "at": 1000 + i, "title": f"q{i}", "turns": [{"role": "user", "text": f"q{i}"}, {"role": "assistant", "text": "a"}]}  # noqa: E731
 
 
-class Chats(Tabs):
+class ThemedTabs(Tabs):
+    THEME = "prototype-2.0"                       # row 1294 is Classic only: the Chats cards are drawn with the Theme
+
+    def setUp(self):
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=self.THEME))
+        self.addCleanup(self.s.close)
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        self.s.httpd.app_settings = service(make_db(d))
+
+
+class Chats(ThemedTabs):
     def seed(self, js, code, n):
         js(f"localStorage.setItem('clark.askChats.{code}', {json.dumps(json.dumps([CHAT(i) for i in range(n, 0, -1)]))})")
 
@@ -115,6 +133,22 @@ class Chats(Tabs):
             ids = js(self.ORDER)
             self.assertLess(ids.index("ask-instructions-all-card"), ids.index("ask-chats-all"))
             self.assertLess(ids.index("ask-all-folders"), ids.index("ask-chats-all"))
+
+
+class CardsUnchanged(ThemedTabs):
+    THEME = None
+
+    def test_cards_draws_no_chats_card_on_either_tab(self):
+        # Classic only: Cards (no Theme) renders the Settings page as on main, so no Chats node, id or text on the project tab or the All tab.
+        gone = "!document.querySelector('[id^=ask-chats]') && !/Clear all chats|Chats kept/.test(document.body.innerText)"
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.until(js, "!!document.querySelector('#ask-used-all')", "the project tab")
+            self.assertTrue(js("!document.getElementById('theme')"), "no Theme on this page")
+            self.assertTrue(js(gone), "project tab")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.until(js, "!!document.querySelector('#ask-all')", "the All tab")
+            self.assertTrue(js(gone), "All tab")
 
 
 class Drop(Base):
