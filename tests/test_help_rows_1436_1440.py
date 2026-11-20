@@ -1,4 +1,4 @@
-"""Rows 1436, 1437, 1438, 1440: the Help lines that did not match the screens (row 1439 is left as it was: the code differs from the wording asked).
+"""Rows 1436, 1437, 1438, 1439, 1440: the Help lines that did not match the screens (row 1439: only the Latest update line in the item panel changes; line 411 stays by ruling).
 
 Run: python3 dev/run_tests.py test_help_rows_1436_1440
 One test per changed line: the new sentence is in helpContent.json exactly once and the old one is gone.
@@ -48,6 +48,10 @@ class HelpRows(unittest.TestCase):
     def test_1438_warning_line_peek(self):
         swapped(self, "A warning bar sits above the title (in Edit) when an open item is due on a weekend or an open action is overdue, with fixes such as **Move to Friday** and the date.",
                 "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend")
+
+    def test_1439_latest_update_in_edit_read_only_in_file(self):
+        swapped(self, "**Latest update** (in Edit; a published file shows it as a read-only line), and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
+                "**Latest update**, and the words **Shown to the client**")
 
     def test_1440_timeline_calendar_choice(self):
         swapped(self, "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. In Edit your choice is kept; in a published file it lives only in the page address.",
