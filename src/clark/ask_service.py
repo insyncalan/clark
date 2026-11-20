@@ -204,7 +204,7 @@ class AskService:
         sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
-        held = self.hold(code, reply, request, folder_ids, texts, bool(conn)) if reply.changes else None
+        held = self.hold(code, reply, request, folder_ids, texts, bool(conn) or bool(on_connectors)) if reply.changes else None      # fail closed: a connector On and no Used line read (a second run reset it) still needs the Confirm
         return 200, {**({"used": conn} if conn else {}), "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
