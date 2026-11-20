@@ -197,7 +197,7 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out + request.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -353,7 +353,7 @@ def left_out_note(count):
     """The plain line for passages of the project's data that did not fit what can be sent."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return ask.left_out_text(count)
+    return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
 
 
 def connector_used(line):

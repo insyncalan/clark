@@ -36,7 +36,7 @@ EMPTY = "Type a question first."
 LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks like a password" note uses (ai_menu and secret_screen too)
 SECRET = f"That {LOOKS_LIKE}, so it wasn't sent. Take it out and try again."      # the typed question and the selected text (ai_menu.SECRET_MESSAGE is this same note)
 SECRET_EARLIER = f"An earlier message {LOOKS_LIKE}, so this chat can't be sent. Start a new chat and try again."
-LEFT_OUT = "Left out to keep this question under the size limit: {n} passages."   # the ruled words (row 1294); the page shows it as it comes
+LEFT_OUT = "Left out to keep this question under the size limit: {n} {passages}."   # the ruled words (row 1294); the page shows it as it comes
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 INSTRUCTIONS_SECRET = f"The standing instructions {LOOKS_LIKE}, so nothing was sent. Take it out in Settings and ask again."
@@ -680,7 +680,7 @@ def left_out_text(count):
     """The ruled line for passages left out to keep a question under the size limit. "" for none."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return LEFT_OUT.format(n=count)
+    return LEFT_OUT.format(n=count, passages="passage" if count == 1 else "passages")
 
 
 def dropped_note(count):

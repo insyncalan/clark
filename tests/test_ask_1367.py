@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_1367
 Fictional data only (the publish plant). Ruling 19-11 reverses the earlier "report only" rule for ask clark; the published file is unchanged.
 """
+import re
 import unittest
 from unittest import mock
 
@@ -10,7 +11,7 @@ from _paths import SRC  # noqa: F401
 
 import _publish_fixture as plant
 import test_ask_route as route
-from clark import ask, ask_data, ask_service, publish
+from clark import ask, ask_data, ask_passages, ask_service, publish
 
 
 def read(question="what is there?", budget=ask.BUDGET, edit=None):
@@ -234,7 +235,47 @@ class NoteThroughTheRoute(route.Base):
         self.assertEqual(status, 200, got)
         lines = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
         self.assertEqual(len(lines), 1, got["notes"])
-        self.assertRegex(lines[0], r": [1-9][0-9]* passages\.$")
+        self.assertRegex(lines[0], r": [1-9][0-9]* passages?\.$")
+
+    def test_the_reply_notes_say_1_passage_and_n_passages(self):
+        counts = {}
+        for keep in range(1, 12):
+            with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", keep):
+                status, got = self.question("what is late?")
+            self.assertEqual(status, 200, got)
+            for n in got["notes"]:
+                m = re.match(r"Left out to keep this question under the size limit: (\d+) (passages?)\.$", n)
+                if m:
+                    counts[int(m.group(1))] = m.group(2)
+        self.assertEqual(counts.get(1, "passage"), "passage", counts)
+        self.assertTrue(counts and all(w == ("passage" if k == 1 else "passages") for k, w in counts.items()), counts)
+        self.assertIn(1, counts, counts)
+        self.assertIn(2, counts, counts)
+
+    def test_a_file_cut_and_a_request_cut_are_both_said_in_their_own_words(self):
+        folder = ask_passages.FolderData(passages=(ask.Passage("a.md", "plan one"), ask.Passage("b.md", "plan two"), ask.Passage("c.md", "plan three")), left_out=2)
+        with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder), mock.patch.object(ask_service, "folder_notes", return_value=[]), \
+                mock.patch.object(ask, "MAX_PASSAGES", 100):
+            status, base = self.question("what is late?")
+        self.assertEqual(status, 200, base)
+        with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder), mock.patch.object(ask_service, "folder_notes", return_value=[]):
+            with mock.patch.object(ask, "MAX_PASSAGES", 2):
+                status, got = self.question("what is late?")
+        self.assertEqual(status, 200, got)
+        old = [n for n in got["notes"] if "too long to send in full" in n]
+        new = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
+        self.assertEqual(old, [ask_service.left_out_note(2)], got["notes"])
+        self.assertEqual(len(new), 1, got["notes"])
+        self.assertRegex(new[0], r": [1-9][0-9]* passages?\.$")
+        self.assertEqual(ask_service.left_out_note(2), "Some of the report was too long to send in full, so only the parts closest to your question were used.")
+        self.assertEqual(ask_service.left_out_note(0), "")
+        self.assertFalse([n for n in base["notes"] if n.startswith("Left out to keep")], base["notes"])
+        self.assertEqual([n for n in base["notes"] if "too long to send in full" in n], [ask_service.left_out_note(2)], base["notes"])      # files cut, request not cut
+        with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 1):
+            status, only = self.question("what is late?")                                                                                  # request cut, no file cut
+        self.assertEqual(status, 200, only)
+        self.assertFalse([n for n in only["notes"] if "too long to send in full" in n], only["notes"])
+        self.assertTrue([n for n in only["notes"] if n.startswith("Left out to keep")], only["notes"])
 
     def test_a_whole_project_gives_no_counts_line(self):
         status, got = self.question("what is late?")

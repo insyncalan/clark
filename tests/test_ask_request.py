@@ -120,6 +120,8 @@ class Limits(unittest.TestCase):
 
     def test_the_left_out_line_uses_the_ruled_words(self):
         self.assertEqual(ask.left_out_text(3), "Left out to keep this question under the size limit: 3 passages.")
+        self.assertEqual(ask.left_out_text(1), "Left out to keep this question under the size limit: 1 passage.")
+        self.assertEqual(ask.left_out_text(2), "Left out to keep this question under the size limit: 2 passages.")
         self.assertEqual(ask.left_out_text(0), "")
         self.assertEqual(ask.left_out_text(True), "")
 
@@ -178,6 +180,64 @@ class Limits(unittest.TestCase):
     def test_the_count_of_passages_has_a_ceiling_and_the_rest_are_left_out(self):
         r = ask.build_request("Q?", [ask.Passage("a.md", "x")] * (ask.MAX_PASSAGES + 1))
         self.assertEqual((len(r.passages), r.left_out), (ask.MAX_PASSAGES, 1))
+
+
+class Ranking(unittest.TestCase):
+    """Which passages `ask.choose` and `_ranked` keep (the survivors of the row 1292 sweep)."""
+
+    def kept(self, texts, question, limit, budget=ask.BUDGET):
+        keep, left = ask.choose([("l%d" % i, t) for i, t in enumerate(texts)], question, budget, limit)
+        return keep, left
+
+    def test_the_first_passage_stays_first_even_when_it_is_the_least_related(self):
+        self.assertEqual(self.kept(["nothing here", "quasar quasar", "quasar"], "quasar", 1), ([0], 2))
+        ps = [ask.Passage("a.md", "plan " + "x" * 500), ask.Passage("b.md", "Quasar " + "y" * 500), ask.Passage("c.md", "Quasar " + "z" * 500)]
+        self.assertEqual(ask._ranked([(p.label, p.text) for p in ps], "Quasar")[0], 0)
+
+    def test_the_passage_left_out_for_the_ceiling_is_never_the_first(self):
+        old, ask.MAX_REQUEST = ask.MAX_REQUEST, 1100
+        try:
+            r = ask.build_request("Quasar?", [ask.Passage("a.md", "plan " + "x" * 500), ask.Passage("b.md", "Quasar " + "y" * 500)])
+            self.assertEqual((r.left_out, list(r.kept)), (1, [0]))
+        finally:
+            ask.MAX_REQUEST = old
+
+    def test_an_item_id_the_question_names_counts_more_than_a_few_plain_words(self):
+        q = "ABC-A-002 alpha beta gamma"
+        self.assertEqual(self.kept(["first", "alpha beta gamma", "ABC-A-002 only"], q, 2), ([0, 2], 1))
+
+    def test_the_item_id_shapes_that_count(self):
+        for ref in ("ABC-A-002", "PUB-002", "ABCDEFG-1", "AB1-A-1234", "AB1-A-12"):
+            got = self.kept(["first", "alpha beta gamma", "zz " + ref], f"{ref} alpha beta gamma", 2)
+            self.assertEqual(got, ([0, 2], 1), ref)
+
+    def test_an_item_id_counts_as_exactly_five_words(self):
+        q = "ABC-A-002 alpha bravo charlie delta echo foxtrot golf"        # the ID passage scores 5 + its 2 words (abc, 002) = 7
+        six, seven = "alpha bravo charlie delta echo foxtrot", "alpha bravo charlie delta echo foxtrot golf"
+        self.assertEqual(self.kept(["first", six, "ABC-A-002 only"], q, 2), ([0, 2], 1))        # 7 beats 6
+        self.assertEqual(self.kept(["first", seven, "ABC-A-002 only"], q, 2), ([0, 1], 1))      # 7 ties 7: the earlier passage stays
+
+    def test_an_over_long_passage_and_the_budget_cut_are_both_counted(self):
+        ps = [ask.Passage("big.md", "x" * (ask.MAX_PASSAGE + 1))] + [ask.Passage("a.md", "y" * 3000)] * 14
+        r = ask.build_request("Q?", ps)
+        kept = ask.BUDGET // 3000
+        self.assertEqual((len(r.passages), r.left_out), (kept, 1 + 14 - kept))
+
+    def test_the_words_and_the_id_are_matched_without_regard_to_case(self):
+        self.assertEqual(self.kept(["first", "plain filler", "the quasar is here"], "Quasar", 2), ([0, 2], 1))       # a capital in the question
+        self.assertEqual(self.kept(["first", "plain filler", "THE QUASAR IS HERE"], "quasar", 2), ([0, 2], 1))       # capitals in the passage
+        self.assertEqual(self.kept(["first", "alpha beta gamma", "abc-a-002"], "ABC-A-002 alpha beta gamma", 2), ([0, 2], 1))
+
+    def test_too_many_passages_and_over_the_budget_together(self):
+        n = ask.MAX_PASSAGES + 5
+        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 3000)] * n)
+        kept = ask.BUDGET // 3000
+        self.assertLess(kept, ask.MAX_PASSAGES)
+        self.assertEqual((len(r.passages), r.left_out), (kept, n - kept))
+        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 500)] * n)                  # the ceiling binds here, the budget does not
+        self.assertEqual((len(r.passages), r.left_out), (ask.MAX_PASSAGES, 5))
+        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 700)] * n)                  # 65 x 700 is over both: the ceiling is the nearer
+        self.assertEqual((len(r.passages), r.left_out), (min(ask.MAX_PASSAGES, ask.BUDGET // 700), n - min(ask.MAX_PASSAGES, ask.BUDGET // 700)))
 
 
 class NoPaths(unittest.TestCase):
