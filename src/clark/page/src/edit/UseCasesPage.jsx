@@ -307,7 +307,7 @@ function UseCasesList() {
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
     </span>
   );
-  // Row 1325: the layout pair, Group by and Sort by are icon buttons at the right end of the filter line, as on Work items. There is no board for use cases: its button is drawn
+  // Row 1325: the layout pair, the layout pair is icon buttons, Group by and Sort by are labelled buttons (row 1316 follow-up), at the right end of the filter line. There is no board for use cases: its button is drawn
   // (the approved mock-up has it) and cannot be pressed.
   const tail = classic && rows.length ? (
     <span class="vicons">
@@ -315,8 +315,8 @@ function UseCasesList() {
         <button type="button" data-lay="table" aria-label="List" title="List" aria-pressed="true"><Icon name="table" /></button>
         <button type="button" data-lay="board" aria-label="Board" title="Board" aria-pressed="false" aria-disabled="true" onClick={() => say("problem", "There is no board for use cases yet.")}><Icon name="board" /></button>
       </div>
-      <Menu label="" ariaLabel={`Group by: ${groupLabel(f.group)}`} tip="Group by" icon="group" chevron={false} id="ucl-group" btnCls="btn sm vgb" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
-      <Menu label="" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} tip="Sort by" icon="bars" chevron={false} id="ucl-sort" btnCls="btn sm vgb" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
+      <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} chevron={false} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
+      <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} chevron={false} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
     </span>
   ) : null;
   const cols = cm.shown;
