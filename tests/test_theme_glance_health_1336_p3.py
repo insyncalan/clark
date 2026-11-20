@@ -1,8 +1,8 @@
 """Row 1336 part 3: Project health and the status shapes of the At a glance template under the Classic Theme, measured at 1400 and 900 px
 against the approved mock-up (item 1264, the same elements in the page and in the mock-up): the reason box is as wide and as high as the mock-up's
 (the pill sits above it, not beside it), no word of the reason is broken in the middle, and the status shape in View is the 8x8 dot Edit
-and the mock-up draw. Fictional data only; the values are pinned here as constants (tests C1 to C5, which CI runs); the mock-up compare (H1, H2, H4) is an extra that runs only when the plan checkout named by
-the CLARK_PLAN_DIR variable (else ~/ag/plan-1264) holds the mock-up.
+and the mock-up draw. Fictional data only; the values are pinned here as constants (tests C1 to C5, which CI runs); the mock-up compare (H1, H2, H4) is an extra that runs only when the checkout named by
+the CLARK_MOCKUP_DIR variable holds the mock-up.
 
 Run: TZ=UTC python3 dev/run_tests.py test_theme_glance_health_1336_p3
 """
@@ -16,7 +16,7 @@ from test_server import chrome, wait
 from test_tpl_glance_editor_1264 import OWN  # noqa: E402
 from test_theme_glance_edit_1336 import ClassicEdit, RULES, tearDownModule  # noqa: F401
 
-PLAN = os.environ.get("CLARK_PLAN_DIR") or str(pathlib.Path.home() / "ag" / "plan-1264")
+PLAN = os.environ.get("CLARK_MOCKUP_DIR") or "/nonexistent"      # no default place: the mock-up compare runs only where CLARK_MOCKUP_DIR names a checkout that holds it
 MOCK = pathlib.Path(PLAN) / "mockups" / "1264-at-a-glance-template" / "html" / "at-a-glance-builder.html"
 REASON = "Rights data for the 1970s catalogue is late; pilot labels are unaffected."
 TILE_LESS_BOX = 34   # the tile width less the reason box width: padding 16 and border 1 on both sides, measured in Chrome at 1400 and 900, Edit and View
@@ -86,7 +86,7 @@ class Health(ClassicEdit):
             pathlib.Path(out).write_text(json.dumps(got, indent=1))
         return got
 
-    @unittest.skipUnless(MOCK.exists(), "the plan checkout with the mock-up is not here")
+    @unittest.skipUnless(MOCK.exists(), "the checkout with the mock-up is not here")
     def test_H1_the_reason_sits_under_the_pill_at_the_mock_up_width_and_height_in_edit_and_view(self):
         """The same element in the page and in the mock-up at 1400 and 900. The tile is narrower in the page than in the mock-up (the page has a side
         bar), so the width is compared as what the tile leaves it: the tile width less the box width (padding 16 and border 1 on both sides: 34).
@@ -101,7 +101,7 @@ class Health(ClassicEdit):
                                        msg=f"box height less its text lines {pg} {mk}")
                 self.assertGreater(pg["box"]["w"], 140, f"no strip of a few words: {pg}")
 
-    @unittest.skipUnless(MOCK.exists(), "the plan checkout with the mock-up is not here")
+    @unittest.skipUnless(MOCK.exists(), "the checkout with the mock-up is not here")
     def test_H2_no_word_of_the_reason_is_broken_and_the_wrap_is_normal(self):
         got = self.measure()
         for key, v in got.items():
@@ -122,7 +122,7 @@ class Health(ClassicEdit):
                         self.assertLessEqual(got["box"]["over"], 0, got)
                         self.assertLessEqual(got["box"]["broken"], 1, "only the one long word may break: " + json.dumps(got["box"]))
 
-    @unittest.skipUnless(MOCK.exists(), "the plan checkout with the mock-up is not here")
+    @unittest.skipUnless(MOCK.exists(), "the checkout with the mock-up is not here")
     def test_H4_the_view_status_shapes_are_the_8_by_8_dot_of_edit_and_the_mock_up(self):
         got = self.measure()
         for width in (1400, 900):
