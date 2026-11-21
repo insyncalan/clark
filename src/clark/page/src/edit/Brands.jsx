@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./brandApi.js";
 import * as L from "../logic/brand.js";
 import { BrandPick } from "./BrandPick.jsx";
+import { project, settingsProject } from "../stores/report.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 const REAL = { list: A.listBrands, review: A.reviewBrand, install: A.installBrand, remove: A.removeBrand, undo: A.undoBrand };
 const ok = (r) => r.status === 200 && r.body && r.body.ok === true;
@@ -85,6 +87,7 @@ export function Brands({ api = REAL, pick = {} }) {      // `pick` is a test sea
               ))}
             </ul>
           ) : <p class="muted" id="brands-list">{L.EMPTY}</p>}
+          {classicTheme() && (settingsProject.value || project.value) ? <h3 class="brand-for" id="brand-for-h">Brand for {settingsProject.value || project.value}</h3> : null}      {/* row 1299, Classic only: the group heading over the project's brand row */}
           <BrandPick brands={v.brands} {...pick} />
           {armed ? (
             <div class="row" onKeyDown={escape(closeAsk)}>

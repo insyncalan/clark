@@ -65,7 +65,7 @@ def lines(cdp, sid):
 
 
 # row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
-FOUR_GROUPS = '["You", [[' in (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")      # row 1299 1a: the Settings menu is in four groups when Views.jsx has them
+FOUR_GROUPS = False      # row 1299 1a: the four groups are the Classic theme's only (Views.jsx GROUPS_CLASSIC); these tests run with the Cards look, which keeps the five groups
 GROUP_NAMES = ("You", "All projects", "Project settings", "Help and about") if FOUR_GROUPS else ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
 ASK_PAGE = "ask clark" if FOUR_GROUPS else "Claude and AI"
 
