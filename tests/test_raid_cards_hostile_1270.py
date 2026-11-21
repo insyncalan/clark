@@ -164,6 +164,7 @@ class Edit(PageBase):
                 self.assertNotIn("ARCHIVEDITEM", joined, "an archived item is not offered")
                 self.assertTrue(all(len(o) < 200 for o in opts), "long text is cut in the picker")
                 self.assertIn(RTL, joined)
+                self.assertTrue(any(hid in o for o in opts), "an item hidden from the client is listed in the picker (it cannot be picked, but it is shown)")
                 for o in opts:
                     if hid in o:
                         self.assertIn("left out of the published page", o, "a hidden item is marked, not silently published")
