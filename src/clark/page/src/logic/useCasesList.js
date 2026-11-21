@@ -36,13 +36,14 @@ export function ucFor(d, key) {
 
 // How a reference is written where a person reads it, short form then the number: the one place that does, so no other file spells the short form.
 export const REF_PREFIX = "UC";
-export const refOf = (u) => (u.ref ? REF_PREFIX + " " + u.ref : "");
+const prefixed = (ref) => (new RegExp("^\\s*" + REF_PREFIX + "\\b", "i").test(ref) ? String(ref).trim() : REF_PREFIX + " " + ref);   // row 1479: a reference that already starts with UC is not given a second one ("UC UC 1.1")
+export const refOf = (u) => (u.ref ? prefixed(u.ref) : "");
 /** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
 export function refText(ref) {
   return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
 }
 /** The boxed reference, item 1149: the short form once, then the number (UC, a space, then 1.3 + 1.4); the one string the dashboard, the page and the published tab draw in the box. Empty when there is no reference. */
-export const refBox = (ref) => (refText(ref) ? REF_PREFIX + " " + refText(ref) : "");
+export const refBox = (ref) => (refText(ref) ? prefixed(refText(ref)) : "");
 /** The open next steps of a use case, as its row says them. */
 // row 1234-A: the digit of stepsWord(n) apart from its words, for the badge (none when n is 0: "No open steps" stays plain text)
 export const stepsParts = (n) => { const w = stepsWord(n), d = n ? String(n) : ""; return [d, w.slice(d.length)]; };

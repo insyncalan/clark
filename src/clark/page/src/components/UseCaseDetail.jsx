@@ -7,7 +7,7 @@
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, fromFile, project, openWork, openPeek, openUseCases } from "../stores/report.js";
+import { data, rows, fromFile, project, openUseCases } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
@@ -17,13 +17,9 @@ import { Icon } from "./Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
-import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
-import { initial, setFilter } from "../filters.js";
+import { sortRows, todayIso } from "../workItems.js";
 import { refOf } from "../logic/useCasesList.js";
-import { milestoneRows } from "../logic/milestones.js";
-import { MsMark } from "./MsMark.jsx";
-import { ItemIcon, iconWords, TipParts } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
-import { clientPill } from "../logic/sectionRows.js";
+import { UseCaseLayout, Crumb } from "./UseCaseLayout.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -31,7 +27,6 @@ import { wordsOpen } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
-const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 export const NAME_MAX = 120, HEAD_MAX = 300;
 // The two prompts of the "Where it stands" card (#659), said once: the editing form, the use case page and the row all use these. They are only
 // shown where a person can type; the read-only page draws "No headline yet" / "Not written yet." as text, never a prompt.
@@ -183,11 +178,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
 
   const u = live || gone.row || (mine ? snap.current : null);
   const listAt = `#usecases&p=${code}`;
-  const crumb = (label) => (
-    <nav class="ucd-crumb" aria-label="You are here">
-      <a href={listAt} ref={back} data-uc-back onClick={() => { cameBackFrom.value = id; }}>Use cases</a><span aria-hidden="true"> › </span><span>{label}</span>
-    </nav>
-  );
+  const crumb = (label) => <Crumb p="ucd" href={listAt} label={label} backRef={back} onBack={() => { cameBackFrom.value = id; }} />;
   if (!d) return null;
   if (!u) {
     if (!live && !gone.done) return <div class="ucd" data-ucd>{crumb("Use case")}<p class="muted">Loading the use case.</p></div>;
@@ -196,112 +187,63 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
 
   const archived = !live;
   const ro = !editing || archived;
-  const work = linkedTo(d, u.id, rows.value), ms = milestonesOf(d, u.id), open = work.filter(isOpen);
-  const label = u.ref ? `Use case ${u.ref}` : "";
+  const work = linkedTo(d, u.id, rows.value), ms = milestonesOf(d, u.id);
   const on = !!u.client_visible;
   const send = (changes, done) => change({ kind: "use_cases", op: "update", id: u.id, changes, place: "cell" }, done);
   const archive = (op) => change({ kind: "use_cases", op, id: u.id, place: "cell" }, op === "archive" ? "Use case archived. It can be restored." : "Use case restored.")
     .then((reply) => { if (reply && op === "archive") setMine(true); return reply; });
   const lines = all ? hist.lines : hist.lines.slice(0, SHOW);
   const last = (hist.lines.length ? when(hist.lines[0].at).day : "") || when(u.updated_at).day;
-  const sub = work.length ? `${open.length} of ${plural(work.length, "work item")} open` : "No work items";
 
+  const hint = !ro ? <span class="ucd-hint">Click the text to change it</span> : null;
   return (
-    <div class="ucd" data-ucd data-uc-id={u.id} data-archived={archived ? "1" : undefined}>
-      {crumb(refWords(u))}
-      <div class="ucd-head">
-        <div class="ucd-titles">
-          <h1 class="ucd-h" ref={head} tabIndex={-1}>
-            <span class="ucd-ref">{refWords(u)} ·</span>
-            <Line value={u.title} label={`Name of ${refWords(u)}`} cls="ucd-name" field="title" max={NAME_MAX} empty="Name this use case" ro={ro}
-              problem={(t) => (!t ? "A use case needs a name. The old name was kept." : Array.from(t).length > NAME_MAX ? `A name can be ${NAME_MAX} characters at most. The old name was kept.` : "")}
-              onSave={(t) => send({ title: t }, "Name changed.")} />
-          </h1>
-          <p class="ucd-sub">
-            {archived ? <span class="tag ucd-arch">Archived</span> : null}
-            <span class={`ucd-word rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
-            {ro ? <CommitChip u={u} /> : <CommitMenu u={u} left />}
-            <span>{sub} · {plural(ms.length, "milestone")}</span>
-          </p>
-          <p class="ucd-line">
-            <Line value={u.headline} label={`Headline for ${refWords(u)}`} cls="ucd-headline" field="headline" max={HEAD_MAX} empty={ro ? "No headline yet" : HEADLINE_PROMPT} ro={ro}
-              problem={(t) => (Array.from(t).length > HEAD_MAX ? `A headline can be ${HEAD_MAX} characters at most. The old headline was kept.` : "")}
-              onSave={(t) => send({ headline: t }, "Headline changed.")} />
-          </p>
-        </div>
-        {!ro ? (
-          <div class="ucd-acts">
-            <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
-              items={STATUSES.map(([name]) => ({ id: name, name, icon: actionIcon("status"), checked: u.status === name }))}
-              onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
-            <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
-            {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => openUseCases()} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
-          </div>
-        ) : null}
-      </div>
-      {canWords && wordsOpen.value ? <SneakPeek key={u.id} row={u} kind="use_case" /> : null}
-      {archived ? (
-        <div class="ucd-note" data-archived-note>
-          <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
-          {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : null}
+    <UseCaseLayout p="ucd" u={u} name={refWords(u)} work={work} headRef={head} ro={ro}
+      root={{ "data-archived": archived ? "1" : undefined }}
+      ms={ms.map((k) => ({ m: k.m, how: HOW_LINKED(k), attr: k.direct ? (k.via ? "both" : "direct") : "work", side: !ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={k.m} /> : null }))}
+      crumb={<Crumb p="ucd" href={listAt} label={refWords(u)} backRef={back} onBack={() => { cameBackFrom.value = id; }} />}
+      title={<Line value={u.title} label={`Name of ${refWords(u)}`} cls="ucd-name" field="title" max={NAME_MAX} empty="Name this use case" ro={ro}
+        problem={(t) => (!t ? "A use case needs a name. The old name was kept." : Array.from(t).length > NAME_MAX ? `A name can be ${NAME_MAX} characters at most. The old name was kept.` : "")}
+        onSave={(t) => send({ title: t }, "Name changed.")} />}
+      sub={{ before: archived ? <span class="tag ucd-arch">Archived</span> : null, chip: ro ? <CommitChip u={u} /> : <CommitMenu u={u} left /> }}
+      headline={<Line value={u.headline} label={`Headline for ${refWords(u)}`} cls="ucd-headline" field="headline" max={HEAD_MAX} empty={ro ? "No headline yet" : HEADLINE_PROMPT} ro={ro}
+        problem={(t) => (Array.from(t).length > HEAD_MAX ? `A headline can be ${HEAD_MAX} characters at most. The old headline was kept.` : "")}
+        onSave={(t) => send({ headline: t }, "Headline changed.")} />}
+      acts={!ro ? (
+        <div class="ucd-acts">
+          <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
+            items={STATUSES.map(([name]) => ({ id: name, name, icon: actionIcon("status"), checked: u.status === name }))}
+            onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
+          <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
+            onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
+          {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => openUseCases()} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
         </div>
       ) : null}
-      <div class="ucd-grid">
-        <div class="ucd-main">
-          <section class="ucd-card" aria-labelledby="ucd-h-std">
-            <h2 id="ucd-h-std" class="ucd-ch"><span>Where it stands</span>{!ro ? <span class="ucd-hint">Click the text to change it</span> : null}</h2>
-            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty={STANDING_PROMPT}
-              save={(html) => send({ standing: html }, "Text saved.")} />
-              : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Not written yet.</p>}
-          </section>
-          <section class="ucd-card" aria-labelledby="ucd-h-work">
-            <h2 id="ucd-h-work" class="ucd-ch"><span>Work items</span>
-              {open.length && label ? <button type="button" class="link" data-open-all onClick={() => openWork(setFilter(initial(), "use_case", [label], false))}>{`Open all ${open.length} in Work items`}</button> : null}
-            </h2>
-            {work.length ? (
-              <ul class="ucd-items plain">
-                {work.map((r) => {
-                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = clientPill(r, todayIso()), say = iconWords(r, pill, todayIso());
-                  const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
-                  return (
-                    <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
-                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><TipParts say={say} /><span class="sr">{say.name}</span>
-                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span><span class="ucd-x">{extra}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : <p class="muted" data-no-work>No work items are linked to this use case yet.</p>}
-            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
-          </section>
-        </div>
-        <div class="ucd-side">
-          <section class="ucd-card" aria-labelledby="ucd-h-det">
-            <h2 id="ucd-h-det" class="ucd-ch">Details</h2>
-            <dl class="ucd-kv">
-              {!ro || u.owner ? <><dt>Owner</dt><dd data-uc-owner>
-                <Line value={u.owner || ""} label={`Owner of ${refWords(u)}`} cls="ucd-owner" field="owner" max={OWNER_MAX} empty={ro ? "" : OWNER_PROMPT} ro={ro}
-                  problem={(t) => (Array.from(t).length > OWNER_MAX ? `An owner can be ${OWNER_MAX} characters at most. The old owner was kept.` : "")}
-                  onSave={(t) => send({ owner: t }, "Owner changed.")} /></dd></> : null}
-              {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
-              <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
-            </dl>
-          </section>
-          <section class="ucd-card" aria-labelledby="ucd-h-ms">
-            <h2 id="ucd-h-ms" class="ucd-ch">Milestones</h2>
-            {ms.length ? <ul class="ucd-ms plain">{ms.map((k) => {
-                const m = k.m, st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
-                return <li key={m.id} data-ms={m.id} data-how={k.direct ? (k.via ? "both" : "direct") : "work"}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}</span>
-                  <span class="muted ucd-mshow" data-ms-how>{HOW_LINKED(k)}</span></li>;
-              })}</ul>
-              : <p class="muted">No milestones: it is not linked to one directly, and none of its work items is linked to one.</p>}
-            {ms.length ? <p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p> : null}
-            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
-          </section>
+      top={<>
+        {canWords && wordsOpen.value ? <SneakPeek key={u.id} row={u} kind="use_case" /> : null}
+        {archived ? (
+          <div class="ucd-note" data-archived-note>
+            <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
+            {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : null}
+          </div>
+        ) : null}
+      </>}
+      stdHint={hint}
+      std={!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty={STANDING_PROMPT}
+          save={(html) => send({ standing: html }, "Text saved.")} />
+        : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Not written yet.</p>}
+      noWork="No work items are linked to this use case yet."
+      addWork={!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
+      owner={!ro || u.owner ? <Line value={u.owner || ""} label={`Owner of ${refWords(u)}`} cls="ucd-owner" field="owner" max={OWNER_MAX} empty={ro ? "" : OWNER_PROMPT} ro={ro}
+        problem={(t) => (Array.from(t).length > OWNER_MAX ? `An owner can be ${OWNER_MAX} characters at most. The old owner was kept.` : "")}
+        onSave={(t) => send({ owner: t }, "Owner changed.")} /> : null}
+      rows={<>
+        {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
+        <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
+      </>}
+      noMs="No milestones: it is not linked to one directly, and none of its work items is linked to one."
+      msNote={<p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p>}
+      addMs={!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
+      after={(
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>
             {archived ? <p class="muted" data-hist-note>Its history comes back when it is restored.</p>
@@ -320,8 +262,6 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
                 </>
               )}
           </section>
-        </div>
-      </div>
-    </div>
+      )} />
   );
 }
