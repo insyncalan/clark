@@ -15,10 +15,12 @@ from pathlib import Path
 
 import test_server  # noqa: F401  this file drives Chrome through the template harness (the browser tier reads this line)
 
+from _new_page import reload_to_new_page
 from _paths import SRC
 from clark import changes, page, publish, theme
 import test_tpl_workitems as T
 from test_report_editor import Pg
+from test_server import wait
 from _real_server import real_server
 import _testpage as testpage
 
@@ -84,12 +86,6 @@ GOLDEN_LINES = [
     ".wil-add .ddmenu [role=\"menuitem\"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-3)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:hover, .wil-add .ddmenu [role=\"menuitem\"]:focus-visible { background: var(--grey-50); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:focus-visible { outline: 0; }",
-    ".wil-add .ddmenu [role=\"menuitem\"] .mi { display: none; }",
-    ".wil-add .ddmenu [role=\"menuitem\"]::before { content: attr(data-kind); display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--tone-grey-tint); color: var(--tone-grey-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"action\"]::before { content: \"A\"; background: var(--brand-blue-tint); color: var(--status-blue-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"risk\"]::before { content: \"R\"; background: var(--tone-red-tint); color: var(--tone-red-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"issue\"]::before { content: \"I\"; background: var(--tone-urgent); color: var(--tone-on-urgent); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"decision\"]::before { content: \"D\"; background: var(--tone-green-tint); color: var(--tone-green-text); }",
     ".wil-views .vtab { font-weight: var(--weight-medium); }",
     ".wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }",
     ".wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }",
@@ -100,6 +96,10 @@ GOLDEN_LINES = [
     ".wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }",
     "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: none; }",
     "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar { display: none; }",
+    ".wil-half { width: 16px; height: 16px; }",
+    ".wil-table th.wil-drop { box-shadow: inset 3px 0 var(--brand-blue); }",
+    ".wil-table th.wil-dragging { opacity: 0.4; }",
+    ".wil-table th[draggable=\"true\"] { cursor: grab; }",
     ".wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value=\"type\"]) { display: none; }",
     ".wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }",
@@ -161,6 +161,10 @@ def menu_walk(test, p, ref):
         if kind and kind not in walked:
             walked.append(kind)
     return dom, walked
+
+
+ITEM_LABEL = "Item column. Drag its right edge or press Ctrl with an arrow key to resize"
+HEAD_LABEL = "%s column. Drag to move it; Alt with an arrow key moves it; drag its right edge or press Ctrl with an arrow key to resize"      # the mock-up's words (work-items-mockup.html, the .hc heading)
 
 
 class SourceRules(unittest.TestCase):
@@ -253,8 +257,7 @@ class SourceRules(unittest.TestCase):
             return rule(RULES, f".wil-table tr.wil-k-{kind}:not(.wil-off) .ico, .wil-lines li.wil-k-{kind}:not(.wil-off) .ico")
         for kind, k in (("action", "ta"), ("risk", "tr"), ("issue", "ti"), ("decision", "td")):
             self.assertIn(f"background: var(--wil-{k}-bg); color: var(--wil-{k}-fg)", tile(kind))
-        for kind, letter in (("action", "A"), ("risk", "R"), ("issue", "I"), ("decision", "D")):
-            self.assertIn(f'content: "{letter}"', rule(RULES, f'.wil-add .ddmenu [role="menuitem"][data-kind="{kind}"]::before'))
+        self.assertNotIn('.wil-add .ddmenu [role="menuitem"][data-kind=', RULES)      # item 1273: the Add menu draws the + icon, not a letter chip
         self.assertIn('document.getElementById("theme")', ROWS_JSX)
         self.assertIn('kinds ? ` wil-k-${row.kind}` : ""', ROWS_JSX)
 
@@ -373,6 +376,32 @@ class ClassicFile(T.PublishedFile):
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file has no Show all items link")
 
 
+    def test_a_classic_file_has_no_draggable_headings_no_tab_stops_and_no_width_handles(self):      # row 1195 ruling: the published page is out
+        self.store.con.execute("UPDATE app_settings SET theme = 'classic' WHERE id = 1")
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Due soon"}, "after": None})
+        ref = got["ref"]
+        body = {"mode": "all", "columns": ["owner", "due", "id"], "owner": ["Pat Demo", "Lee Demo"]}
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": ref, "changes": {"body": json.dumps(body)}})
+        self.assertEqual(status, 200, got)
+        out = tempfile.mkdtemp(prefix="clark-1195-file-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=T.USER, now=T.TODAY, branding=T.EMPTY_BRANDING)["path"])
+        text = path.read_text(encoding="utf-8")
+        self.assertNotIn("cgrip", text)
+        self.assertNotIn("Drag to move it", text)
+        with T.chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            p = Pg(self, cdp, sid)
+            p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
+            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th').length > 3", "the list drew its headings")
+            self.assertTrue(p.js("!!document.getElementById('theme')"), "the file is Classic")
+            sec = f'[data-id="{ref}"] .wil-table thead'
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [draggable=true], {sec} [tabindex], {sec} [data-cw-head], {sec} .cgrip, {sec} [aria-label*=\"Drag\"]').length"), 0)
+
+
 class Classic(Look):
     LIST = {"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}
 
@@ -396,8 +425,11 @@ class Classic(Look):
                 self.assertFalse(p.js(f"!!document.querySelector('{sec} .wil-form') && getComputedStyle(document.querySelector('{sec} .wil-form')).backgroundColor !== 'rgba(0, 0, 0, 0)'"), "no pale bar")
                 p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
                 p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
-                tiles = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content).join('')")
-                self.assertEqual(tiles, '"R""A""I""D"', "RAID order in the markup, so in the arrow keys too")
+                kinds = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => e.dataset.kind[0].toUpperCase()).join('')")
+                self.assertEqual(kinds, "RAID", "RAID order in the markup, so in the arrow keys too")
+                icons = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content + ':' + (e.querySelector('.mi') ? Math.round(e.querySelector('.mi').getBoundingClientRect().width) : 0)).join(' ')")
+                self.assertNotIn('"', icons, "item 1273: no letter chip is drawn in the Add menu")
+                self.assertNotIn(":0", icons, icons)
                 self.assertEqual(p.js(f"Math.round(document.querySelector('{sec} .wil-add .newb').getBoundingClientRect().width)"), 34, "open: still the square")
 
     def test_configure_lists_the_columns_in_the_mockup_order(self):
@@ -467,7 +499,46 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
-    def test_the_views_list_scroll_bar_is_hidden_in_view_and_not_in_edit(self):
+    def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        probe = lambda sec: f"(() => {{ const s = document.querySelector('{sec}'); const v = (q) => [...s.querySelectorAll(q)].filter((e) => e.offsetParent).length; return [v('.wil-views'), v('[data-wil-line]'), v('[data-wil-add], .wil-add'), v('[data-wil-gear]')]; }})()"
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-scroll')", "View drew")
+            self.assertEqual(p.js(probe(sec)), [0, 0, 0, 0], "View: no tabs, filter, + or gear")
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "Edit drew")
+            got = p.js(probe(sec))
+            self.assertTrue(got[0] and got[1] and got[2] and got[3], f"Edit has tabs, filter, + and gear: {got}")
+
+    def test_foot_words_in_view_and_edit_at_1400_and_900_say_showing_all_of_n_when_nothing_is_cut_and_after_show_all_and_scroll_words_only_while_cut(self):      # row 1195: ruling NEW-WORDS 04:2x, WO-M8328
+        for owner, n in (("Zed Demo", 25), ("Yan Demo", 8), ("Xi Demo", 1)):
+            for k in range(n):
+                self.demo.action(description=f"Foot step {owner} {k}", owner=owner, due_date="2030-02-01")
+        lists = {n: self.add({"mode": "all", "max": 10, "columns": ["id", "owner"], "owner": [o]}) for o, n in (("Zed Demo", 25), ("Yan Demo", 8), ("Xi Demo", 1))}
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                for ref in lists.values():
+                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-scroll], [data-id=\"{ref}\"] .wil-scroll')", "View drew")
+                foot = lambda n: p.js(f"document.querySelector('[data-id=\"{lists[n]}\"] [data-wil-count]').textContent")
+                btn = lambda n: f"document.querySelector('[data-id=\"{lists[n]}\"] .wil-all-b')"
+                for mode in ("View", "Edit"):
+                    if mode == "Edit":
+                        p.edit()
+                        p.until(f"!!document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-gear]')", "Edit drew")
+                    p.until(f"!!document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]')", f"{mode} has the foot words")
+                    self.assertEqual(foot(8), "Showing all of 8", f"{mode}: fits")
+                    self.assertEqual(foot(1), "Showing all of 1", f"{mode}: one item fits")
+                    self.assertEqual(foot(25), "Showing 10 of 25, scroll for the rest", f"{mode}: cut")
+                    p.js(f"{btn(25)}.click()")
+                    p.until(f"document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]').textContent === 'Showing all of 25'", f"{mode}: Show all items")
+                    self.assertEqual(foot(8), "Showing all of 8")
+                    p.js(f"{btn(25)}.click()")
+                    p.until(f"document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]').textContent === 'Showing 10 of 25, scroll for the rest'", f"{mode}: closed again")
+
+    def test_the_views_list_scroll_bar_is_hidden_in_view_and_in_edit_row_1308(self):
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -479,7 +550,245 @@ class Classic(Look):
             self.assertEqual((width, bar), ("none", 0), "View: no scroll bar")
             p.edit()
             p.until(f"!!document.querySelector('{sec} .wil-scroll') && document.querySelector('#report').dataset.mode === 'edit'", "Edit drew")
-            self.assertEqual(p.js(probe)[0], "auto", "Edit keeps its scroll bar")
+            self.assertEqual(p.js(probe)[0], "none", "Edit: no scroll bar either (Row 1308)")
+
+    def test_the_status_half_circle_is_16_px(self):      # the mock-up's .sti
+        ref = self.add({"mode": "all", "columns": ["status", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table .wil-half')", "View drew")
+            self.assertEqual(p.js(f"(() => {{ const r = document.querySelector('[data-id=\"{ref}\"] .wil-table .wil-half').getBoundingClientRect(); return [r.width, r.height]; }})()"), [16, 16])
+
+    def _heads(self, p, ref):
+        return p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => h.dataset.cwHead)")
+
+    def test_a_heading_dragged_onto_another_moves_the_column_and_the_order_is_kept(self):      # README: drag a heading to re-order
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "priority", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            self.assertEqual(p.js(f"{h('id')}.draggable"), True)
+            ev = lambda t, c: p.js(f"{h(c)}.dispatchEvent(new DragEvent('{t}', {{bubbles: true, cancelable: true, dataTransfer: new DataTransfer()}}))")
+            ev("dragstart", "id")
+            ev("dragover", "owner")
+            p.until(f"{h('owner')}.classList.contains('wil-drop')", "the drop mark shows on the target heading")
+            ev("drop", "owner")
+            ev("dragend", "id")
+            p.until(f"{h('owner')}.previousElementSibling.dataset.cwHead === 'id'", "the ID column moved before Owner")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"])
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow the headings")
+            reload_to_new_page(p.js, "!!document.querySelector('#report')", "the page reloaded")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew again")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
+
+    def test_alt_with_an_arrow_moves_a_heading_and_ctrl_with_an_arrow_resizes_it(self):      # README: Ctrl and an arrow to resize; Alt and an arrow moves it
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            key = lambda c, k, **m: p.js(f"{h(c)}.dispatchEvent(new KeyboardEvent('keydown', {{key: '{k}', bubbles: true, cancelable: true, {', '.join(f'{a}: true' for a in m)}}}))")
+            p.until(f"!!{h('due')}", "Edit drew")
+            key("due", "ArrowRight", altKey=True)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
+            self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
+            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.cwHead"), "due", "the heading keeps the focus")
+            key("due", "ArrowLeft", altKey=True)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "due", "id"]), "Alt+Left moved it back")
+            key("owner", "ArrowRight", ctrlKey=True)
+            p.until(f"{h('owner')}.style.width !== ''", "Ctrl+Right sets the Owner width")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and did not move it")
+            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"), "the old sentence is gone")
+            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "the heading is a tab stop")
+            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
+            self.assertEqual(p.js(f"{h('title')}.getAttribute('aria-label')"), "Item column. Drag its right edge or press Ctrl with an arrow key to resize", "the Item heading does not move")
+
+    def test_the_two_heading_labels_are_the_exact_aria_label_in_view_and_edit_at_1400_and_900_and_the_edge_handle_has_none(self):      # row 1195: Approved: WO-M8361, logged NEW-WORDS
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "priority", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                for mode in ("View", "Edit"):
+                    if mode == "Edit":
+                        p.edit()
+                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", f"{mode} drew")
+                    got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
+                    self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"{mode} at {width}")
+                    self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, f"{mode}: the edge handles stay aria-hidden, no label")
+
+    def test_an_empty_match_says_the_mockups_words_in_view_and_the_long_sentence_in_edit_at_1400_and_900(self):      # row 1195: WO-M8425, the words are the mock-up's
+        ref = self.add({"owner": ["Nobody Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                say = f"document.querySelector('[data-id=\"{ref}\"] [data-wil-none]')"
+                p.until(f"!!{say}", "View says it")
+                self.assertEqual(p.js(f"{say}.textContent"), "No work items match this filter.")
+                p.edit()
+                say = f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]')"
+                p.until(f"!!{say} && {say}.textContent.length > 40", "Edit says the long sentence")
+                self.assertEqual(p.js(f"{say}.textContent"), "No work items match this filter, so this section is left out of the published page. Change the filter to list some.")
+
+    def _edit(self, cdp, columns):
+        ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
+        p = self.show(cdp, 1400)
+        p.edit()
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+        return p, ref
+
+    def _where(self, p, ref, c, at="mid"):
+        """[x, y] of a heading: near its left end, or with at="grip" the middle of its width handle."""
+        sel = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+        p.js(f"{sel}.scrollIntoView({{block: 'center'}})")      # the list sits low on the page: a mouse press needs the heading on screen
+        if at == "grip":
+            return p.js(f"(() => {{ const r = {sel}.querySelector('.cgrip').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+        return p.js(f"(() => {{ const r = {sel}.getBoundingClientRect(); return [r.left + 12, r.top + r.height / 2]; }})()")
+
+    def _pointer_drag(self, p, x0, y0, x1, y1, steps=12, release=True):
+        """A real press and moves through Input.dispatchMouseEvent: the browser itself starts the drag (a real dragstart on the pressed heading).
+        Chrome does not run its own drag loop under automation, so the drag is intercepted (Input.setInterceptDrags) and the target
+        is then reached with Input.dispatchDragEvent; the test never makes a DragEvent itself."""
+        data = {"items": [], "dragOperationsMask": 1}
+        p.cdp.call("Input.setInterceptDrags", {"enabled": True}, p.sid)
+        p.mouse("mouseMoved", x0, y0)
+        p.mouse("mousePressed", x0, y0, buttons=1)
+        for i in range(1, steps + 1):
+            x, y = x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps
+            p.mouse("mouseMoved", x, y, buttons=1)
+            if p.js("!!window.__drag") or i == steps:
+                break
+        for kind in ("dragEnter", "dragOver"):
+            p.cdp.call("Input.dispatchDragEvent", {"type": kind, "x": x1, "y": y1, "data": data}, p.sid)
+        if release:
+            p.cdp.call("Input.dispatchDragEvent", {"type": "drop", "x": x1, "y": y1, "data": data}, p.sid)
+            p.mouse("mouseReleased", x1, y1, buttons=1)
+
+    def test_a_real_pointer_drag_of_a_heading_moves_the_column_and_the_item_heading_neither_drags_nor_takes_a_drop(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "priority", "id"])
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1)
+            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "a pointer drag of ID onto Owner put ID before Owner")
+            self.assertEqual(p.js("document.querySelectorAll('.wil-dragging, .wil-drop').length"), 0, "no drag mark is left after the drop")
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=title]').draggable"), False)
+            tx, ty = self._where(p, ref, "title")
+            ox, oy = self._where(p, ref, "due")
+            self._pointer_drag(p, tx, ty, ox, oy)
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "dragging the Item heading changed no order")
+            self._pointer_drag(p, ox, oy, tx, ty)
+            self.assertEqual(self._heads(p, ref)[0], "title", "nothing is dropped before the Item column")
+
+    def test_the_drag_marks_show_during_a_real_pointer_drag_and_the_width_handle_never_starts_a_move(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1, release=False)
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').classList.contains('wil-dragging')", "the dragged heading is dimmed")
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').classList.contains('wil-drop')", "the target heading carries the drop mark")
+            p.cdp.call("Input.dispatchDragEvent", {"type": "drop", "x": x1, "y": y1, "data": {"items": [], "dragOperationsMask": 1}}, p.sid)
+            p.mouse("mouseReleased", x1, y1, buttons=1)
+            p.until("document.querySelectorAll('.wil-dragging, .wil-drop').length === 0", "the marks go at the drop")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due"]), "and the drop moved ID before Owner")
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            width = lambda: p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').getBoundingClientRect().width")
+            w0 = width()
+            gx, gy = self._where(p, ref, "owner", "grip")
+            p.js("window.__ds = 0; window.__drag = 0; document.addEventListener('dragstart', () => { window.__ds++; }, true)")
+            self._pointer_drag(p, gx, gy, gx + 40, gy)
+            self.assertTrue(wait(lambda: abs(width() - (w0 + 40)) < 2), "the handle drag widened Owner by the distance")
+            self.assertEqual(p.js("window.__ds"), 0, "no drag started from the handle")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "the order is unchanged")
+
+    def test_ctrl_with_an_arrow_steps_12_px_and_stops_at_the_minimum_and_alt_moves_without_resizing(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            w = lambda c: p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]').getBoundingClientRect().width")
+            CTRL = 2                                                       # Input.dispatchKeyEvent modifiers: Ctrl
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').focus()")
+            start = w("owner")
+            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("owner") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider")
+            p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            self.assertTrue(wait(lambda: abs(w("owner") - (start - 12)) < 1), "two Ctrl+Left are 24 px back")
+            for _ in range(60):
+                p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            self.assertTrue(wait(lambda: abs(w("owner") - 60) < 1), "the width stops at the mock-up's minimum of 60 px (ruling 20-11; the older 48 px minimum was the shared default)")
+            for _ in range(40):
+                p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("owner") - 360) < 1), "and at the maximum of 360 px, not 1200")
+            before = w("owner")
+            p.key("ArrowRight", 1, code="ArrowRight", vk=39)               # Alt+Right moves the heading, it never resizes
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "due", "owner", "id"]), "Alt+Right moved Owner")
+            self.assertLess(abs(w("owner") - before), 1, "and left its width alone")
+
+    def _view(self, cdp, columns):
+        ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
+        p = self.show(cdp, 1400)
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew")
+        self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
+        return p, ref
+
+    def _bodies(self):
+        return self.store.con.execute("SELECT id, body FROM report_sections ORDER BY id").fetchall()
+
+    def test_view_a_real_pointer_drag_of_a_heading_moves_the_column_and_saves_nothing_in_the_document(self):      # row 1195 ruling: View too, unsaved
+        with T.chrome() as cdp:
+            p, ref = self._view(cdp, ["owner", "due", "priority", "id"])
+            before = self._bodies()
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').draggable"), True)
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1)
+            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag in View")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "ID moved before Owner in View")
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "still View")
+            self.assertEqual(self._bodies(), before, "nothing was written to the document")
+            reload_to_new_page(p.js, f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
+
+    def test_view_the_width_handle_alt_move_and_ctrl_resize_work_and_the_heading_says_so(self):      # row 1195 ruling: View too, unsaved
+        with T.chrome() as cdp:
+            p, ref = self._view(cdp, ["owner", "due", "id"])
+            before = self._bodies()
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            w = lambda c: p.js(f"{h(c)}.getBoundingClientRect().width")
+            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "a heading is a tab stop in View")
+            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
+            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"))
+            w0 = w("owner")
+            gx, gy = self._where(p, ref, "owner", "grip")
+            self._pointer_drag(p, gx, gy, gx + 40, gy)
+            self.assertTrue(wait(lambda: abs(w("owner") - (w0 + 40)) < 2), "the handle drag widened Owner in View")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and moved nothing")
+            CTRL = 2
+            p.js(f"{h('due')}.focus()")
+            start = w("due")
+            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("due") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider in View")
+            before_w = w("due")
+            p.key("ArrowRight", 1, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due in View")
+            self.assertLess(abs(w("due") - before_w), 1, "without resizing it")
+            self.assertEqual(self._bodies(), before, "nothing was written to the document")
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -583,8 +892,9 @@ class Classic(Look):
             self.assertEqual(q(".wil-add .ddmenu", "boxShadow"), ["rgba(6, 47, 58, 0.2) 0px 10px 30px 0px"], "menu shadow")
 
     # The values below were measured in Chrome on work-items-mockup.html at 1400 and 900.
-    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(246, 248, 252)", "rgb(14, 36, 48)", "rgb(217, 224, 239)", "12px", "600", "6px"],
-            "prh": ["rgb(254, 240, 199)", "rgb(181, 71, 8)", "rgb(242, 217, 138)"], "pru": ["rgb(253, 236, 234)", "rgb(180, 35, 24)", "rgb(244, 199, 194)"],
+    # Row 1409: the priority chips take the one mapping the rating matrix has (pr is Medium amber, prh High red, pru Urgent maroon), not the mock-up's grey / amber / red
+    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(252, 239, 207)", "rgb(138, 90, 0)", "rgb(252, 239, 207)", "12px", "600", "6px"],
+            "prh": ["rgb(246, 224, 221)", "rgb(163, 48, 31)", "rgb(246, 224, 221)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
             "tA": ["rgb(237, 233, 255)", "rgb(75, 58, 181)"], "tR": ["rgb(253, 236, 234)", "rgb(180, 35, 24)"], "tI": ["rgb(107, 31, 42)", "rgb(255, 255, 255)"],
             "tD": ["rgb(231, 246, 236)", "rgb(6, 118, 71)"], "hid": ["rgb(238, 240, 244)", "rgb(152, 162, 179)"], "add": ["rgb(152, 162, 179)", "rgb(91, 71, 216)", "6px", "dashed"]}
 
@@ -698,6 +1008,26 @@ class Classic(Look):
 
 class Cards(Look):
     classic = False
+
+    def test_a_cards_view_still_leaves_an_empty_match_out(self):      # row 1195: the mock-up's words are Classic only
+        ref = self.add({"owner": ["Nobody Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"]')"), "Cards View leaves it out")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]')", "Edit says it")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]').textContent"), "No work items match this filter, so this section is left out of the published page. Change the filter to list some.")
+
+    def test_a_cards_heading_has_no_aria_label_and_keeps_its_alt_sentence(self):      # row 1195: the new heading labels are Classic only
+        ref = self.add({"mode": "all", "columns": ["owner", "due"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            h = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]')"
+            p.until(f"!!{h}", "Edit drew")
+            self.assertIsNone(p.js(f"{h}.getAttribute('aria-label')"))
+            self.assertEqual(p.js(f"{h}.getAttribute('aria-description')"), "Width of the Owner column. Alt with Left or Right arrow changes it.")
+            self.assertEqual(p.js(f"{h}.tabIndex"), -1)
 
     def capture(self, width):
         ref = self.add(Classic.LIST)

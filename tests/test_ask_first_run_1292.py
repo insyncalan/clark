@@ -24,7 +24,7 @@ class FirstRun(Panel):
             p = self.opened(cdp)
             self.assertEqual(p.js(f"{CARD}.getAttribute('aria-label')"), "About ask clark")
             self.assertEqual(p.js(f"{LINE}.length"), 3)
-            self.assertEqual(p.js(f"{LINE}[0].textContent.trim()"), "It reads what is in this project. It never reads your mail, Teams or calendars.")
+            self.assertEqual(p.js(f"{LINE}[0].textContent.trim()"), "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.")
             self.assertEqual(p.js(f"{LINE}[1].textContent.trim()"), "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
             self.assertEqual(p.js(f"{LINE}[2].textContent.trim()"), "Your question goes to Claude, which Anthropic runs.")
             self.assertEqual(p.js("document.querySelector('#ask-panel').textContent.indexOf('A question sends')"), -1, "rule 9: the old line stays gone")
@@ -129,7 +129,8 @@ class Words(unittest.TestCase):
             self.assertFalse(text.lower().startswith("clark"), name)
             if name not in ("FIRST_RUN_LABEL", "FIRST_RUN_LINK"):
                 self.assertRegex(text, r"\.$", name)
-        self.assertIn("never reads your mail, Teams or calendars", said["FIRST_RUN_READS"])
+        self.assertIn("Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.", said["FIRST_RUN_READS"])
+        self.assertNotIn("never reads", said["FIRST_RUN_READS"])
         self.assertIn("Nothing is saved until you press Apply", said["FIRST_RUN_CHANGES"])
         self.assertIn("Claude, which Anthropic runs", said["FIRST_RUN_SENT"], "written for Claude; named() swaps the provider")
 
