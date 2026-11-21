@@ -57,6 +57,31 @@ class IndexNote(unittest.TestCase):
     def test_percent_is_files_read_and_never_100_while_one_is_unread(self):
         self.assertEqual(run("[m.percent(1,3), m.percent(199,200), m.percent(3,3), m.percent(9,3), m.percent(0,0)]"), [33, 99, 100, 100, 0])
 
+    def test_percent_ignores_a_negative_or_missing_count(self):
+        self.assertEqual(run("[m.percent(-5,10), m.percent(-1,3), m.percent(0,10)]"), [0, 0, 0])
+        self.assertEqual(note({"phase": "reading", "read": -5, "total": 10})["text"], "Indexing… 0%")
+        self.assertEqual(note({"phase": "reading", "total": 10})["text"], "Indexing… 0%")
+        self.assertEqual(note({"phase": "reading", "read": 4})["text"], "Indexing… 0%")
+        self.assertEqual(run("[m.percent(5, -3), m.percent(5, Infinity), m.percent(NaN, 5)]"), [0, 0, 0])
+
+    def test_percent_steps_at_the_milestones(self):
+        self.assertEqual(run("[0,25,50,75,100].map(r => m.percent(r, 100))"), [0, 25, 50, 75, 100])
+        self.assertEqual(run("[m.percent(1,4), m.percent(2,4), m.percent(3,4), m.percent(4,4), m.percent(7,4)]"), [25, 50, 75, 100, 100])
+
+    def test_updating_with_no_count_says_zero_files(self):
+        self.assertEqual(note({"phase": "updating"})["text"], "Updating… 0 files changed")
+        self.assertEqual(note({"phase": "updating", "changed": 1})["text"], "Updating… 1 file changed")
+
+    def test_a_done_state_with_no_files_never_speaks(self):
+        self.assertEqual(run('m.milestone({phase:"done",total:0})'), -1)
+        self.assertEqual(run('m.announce(null,{phase:"done",total:0})'), "")
+        self.assertEqual(run('m.announce({phase:"reading",read:0,total:5},{phase:"done",total:0})'), "")
+
+    def test_a_reading_state_with_every_file_read_is_still_the_75_milestone(self):
+        self.assertEqual(run('m.milestone({phase:"reading",read:5,total:5})'), 75)
+        self.assertEqual(run('m.announce(null,{phase:"reading",read:5,total:5})'), "Indexing… 75%")
+        self.assertEqual(run('m.announce({phase:"reading",read:5,total:5},{phase:"done",total:5})'), "100% indexed")
+
     def test_the_live_region_speaks_at_the_milestones_only(self):
         said = run("""(() => { const out = []; let prev = null;
             for (let r = 0; r <= 100; r++) { const s = {phase: r === 100 ? "done" : "reading", read: r, total: 100};
