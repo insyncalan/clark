@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./updateApi.js";
 import * as L from "../logic/update.js";
+import { nowMs } from "../workItems.js";   // the one place that reads the clock
 import { FormattedAnswer } from "./AskFormat.jsx";   // row 1278: release notes are markdown; drawn by the safe renderer ask clark uses (text nodes only), Copy still gives the original
 
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers,
@@ -146,7 +147,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     const F = L.FETCH, B = L.FETCH_LABELS;
     const btn = (cls, attr, label, fn) => <button type="button" class={"btn " + cls} {...{ [attr]: true }} disabled={busy} onClick={fn}>{label}</button>;
     if (f.kind === "looking") return <p id="update-line">{F.looking}</p>;
-    if (f.kind === "latest") return <><p id="update-line">{F.latest(f.version, f.when, L.dayText(new Date()))}</p></>;
+    if (f.kind === "latest") return <><p id="update-line">{F.latest(f.version, f.when, L.dayText(new Date(nowMs())))}</p></>;
     if (f.kind === "offline") return <><p id="update-line" class="upd-state">{f.message}</p><div class="row">{btn("", "data-check", B.tryAgain, checkNow)}</div></>;
     if (f.kind === "avail") {
       return (
@@ -212,7 +213,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
             <>
               <p class="upd-l" id="update-checked-l">{L.ROWS.checked}</p>
               <div class="upd-c" role="group" aria-labelledby="update-checked-l" id="update-checked">
-                <p>{L.checkedText(st.fetch.when, L.dayText(new Date()))}</p>
+                <p>{L.checkedText(st.fetch.when, L.dayText(new Date(nowMs())))}</p>
                 <div class="row">{<button type="button" class="btn" data-check disabled={busy} onClick={checkNow}>{L.FETCH_LABELS.checkNow}</button>}</div>
               </div>
             </>
