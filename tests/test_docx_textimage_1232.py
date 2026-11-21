@@ -71,6 +71,21 @@ class Word(unittest.TestCase):
         doc, _ = word({"v": 2, "html": "<p>Fictional body words</p>"})
         self.assertNotIn('w:val="Heading2"', doc)
 
+    def _picture_paragraph(self, doc):
+        return next(p for p in re.findall(r"<w:p>.*?</w:p>|<w:p [^>]*>.*?</w:p>", doc, re.S) if "<w:drawing" in p)
+
+    def test_the_picture_keeps_with_its_caption_and_stands_alone_without_one(self):
+        doc, _ = word({"v": 2, "html": "<p>x</p>", "image": uri(png(300, 200)), "caption": "Fictional caption"})
+        self.assertIn("<w:keepNext/>", self._picture_paragraph(doc), "the image stays on the page with its caption")
+        doc, _ = word({"v": 2, "html": "<p>x</p>", "image": uri(png(300, 200))})
+        self.assertNotIn("<w:keepNext/>", self._picture_paragraph(doc))
+
+    def test_a_small_image_is_centred_and_a_large_one_is_not(self):
+        doc, _ = word({"v": 2, "html": "<p>x</p>", "image": uri(png(150, 100))})
+        self.assertIn('<w:jc w:val="center"/>', self._picture_paragraph(doc))
+        doc, _ = word({"v": 2, "html": "<p>x</p>", "image": uri(png(1200, 600))})
+        self.assertNotIn("<w:jc ", self._picture_paragraph(doc))
+
 
 if __name__ == "__main__":
     unittest.main()
