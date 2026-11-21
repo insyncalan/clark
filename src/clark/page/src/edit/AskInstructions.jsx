@@ -10,8 +10,8 @@ import { askInstructionsRead, askInstructionsChange, words } from "./publishApi.
 
 export const INSTRUCTIONS_MAX = 4000;
 export const ALL_NAME = "Standing instructions for all projects";
-export const ALL_HELP = "Up to 4,000 characters, sent with every question, before each project's own. Long instructions count towards the 300,000 tokens every time.";
-export const OWN_HELP = "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the 300,000 tokens every time.";
+export const ALL_HELP = "Up to 4,000 characters, sent with every question, before each project's own. Long instructions count towards the size of one question every time.";
+export const OWN_HELP = "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the size of one question every time.";
 export const SENT_FIRST = "Set under All projects. Sent first.";
 const SAVE_WHAT = "save the standing instructions";
 
