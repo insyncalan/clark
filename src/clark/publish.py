@@ -119,8 +119,8 @@ SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
 WORDLESS_DROPS = {"actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "latest_update")}     # item 1185: a risk, an issue and a milestone follow the action
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update", "client_message"), "raid": ("latest_update", "client_message"), "decisions": ("latest_update", "client_message"), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("actions", "client_message"), ("raid", "client_message"), ("decisions", "client_message"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),   # item 1158: the needs-from-you flag is no longer read here
@@ -561,7 +561,7 @@ def select(inputs):
             c = _pick(r, PUBLISH_FIELDS[k])
             if k in SOURCED:                                      # row 1077: the source by name, never a path
                 c["source"] = source_name(c.get("source"), published=True) or None
-            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
+            if not (reason_text(sanitise.rich_plain_text(r.get("client_message"))) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
                 for f in WORDLESS_DROPS.get(k, ()):
                     c[f] = None
             for f in RICH.get(k, ()):
@@ -604,11 +604,11 @@ def select(inputs):
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     for_templates = {"use_cases": built["use_cases"]}            # the four work and milestone kinds follow, each with its words made plain
-    for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["actions"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                                 for r in built["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
-    for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["raid"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                              for r in built["raid"]]                            # item 1185: the same for a risk or issue
-    for_templates["decisions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["decisions"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                                   for r in built["decisions"]]                  # row 1195: the same for a decision
     for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))}
                                    if r.get("client_message") or r.get("latest_update") else r

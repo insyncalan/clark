@@ -1,6 +1,7 @@
 // One use case's own page in a published file (row 1111): the same layout and classes as the page the editor has (UseCaseDetail), read only.
 // It reads what the file holds (data.use_case_pages names, for each use case the client may see, the next steps and milestones to show),
 // draws no control and no History, and its Details card shows only the fields the file holds (status, commitment), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
+import { richWords } from "../logic/richWords.js";
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, project, openWork, openPeek } from "../stores/report.js";
 import { isOpen, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
@@ -77,7 +78,7 @@ export function UseCaseFilePage({ id }) {
                     <li key={r.id}>
                       <button type="button" class="ucf-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
                         <ItemIcon row={r} pill={pill} today={todayIso()} plain /><TipParts say={say} /><span class="sr">{say.name}</span>
-                        <span class="ucf-id num">{r.id}</span><span class="ucf-t" title={r.client_message || r.title}>{r.client_message || r.title}</span><span class="ucf-x">{extra}</span>
+                        <span class="ucf-id num">{r.id}</span><span class="ucf-t" title={richWords(r.client_message) || r.title}>{richWords(r.client_message) || r.title}</span><span class="ucf-x">{extra}</span>
                       </button>
                     </li>
                   );

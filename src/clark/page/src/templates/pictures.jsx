@@ -4,6 +4,7 @@
 // page clark serves the section carries its stored `body`, and the template's own `shown` (the mirror of published(), pinned by
 // tests/test_tpl_*.py) picks the same fields from it. Every picture goes through safeImage and every link through safeHref at draw time.
 import { safeImage } from "./safe.js";
+import { richWords } from "../logic/richWords.js";
 
 export const PICTURE_TYPES = ["textimage", "imagecap", "gallery", "headline"];
 
@@ -27,6 +28,8 @@ export function contentOf(section, shown) {
 
 const text = (v) => (typeof v === "string" ? v : "");
 export const lineOf = text;
+// Row 1288: a caption is the one rich editor's HTML now (or the plain line an older clark stored): its words on one line, as text (never markup).
+export const captionOf = (v) => richWords(text(v)).split(/\s+/).filter(Boolean).join(" ");
 export const linesOf = (v) => (Array.isArray(v) ? v.filter((p) => typeof p === "string" && p) : []);
 export const picturesOf = (v) => (v && v.pictures && typeof v.pictures === "object" && !Array.isArray(v.pictures) ? v.pictures : {});
 
