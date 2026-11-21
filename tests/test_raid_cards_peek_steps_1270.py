@@ -68,6 +68,8 @@ class FilePeek(PublishedFile, glance.Setup, Steps):
                 self.assertTrue(shown(p)["next"], "the last card has no Next")
                 self.assertTrue(wait(lambda: "ACTIONLATEST" in shown(p)["text"]), "the file's Latest update row: " + shown(p)["text"][:400])
                 self.step(p, "data-pk-prev", ids["decision"])
+                self.assertFalse(shown(p)["wording"], "a decision card's Peek has no Client wording row either")
+                self.assertNotIn("DECISIONWORDS", shown(p)["text"])
                 self.step(p, "data-pk-prev", ids["risk"])
                 s = shown(p)
                 self.assertTrue(s["prev"], "the first card has no Previous")

@@ -72,6 +72,19 @@ class Page(PublishedFile, glance.Setup):
         self.assertNotIn("impact", got["foot"])
         self.assertIn("owner Pat", got["foot"])
 
+    def test_impact_without_likelihood_adds_nothing_to_the_foot_line(self):
+        """The ticket: impact and likelihood show together or not at all; one of them alone is not drawn."""
+        self.seed(None)
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("raid", "ABC"):
+                st.update("raid", r["id"], {"likelihood": None})
+        path = self.publish()
+        with chrome() as cdp:
+            got = self.foot(self.draw(cdp, path, width=1400))
+        self.assertNotIn("impact", got["foot"])
+        self.assertNotIn("likelihood", got["foot"])
+        self.assertIn("owner Pat", got["foot"])
+
     def test_meta_off_leaves_impact_and_likelihood_only(self):
         self.seed({"meta": False})
         path = self.publish()
