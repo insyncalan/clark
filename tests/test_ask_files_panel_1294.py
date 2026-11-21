@@ -9,6 +9,7 @@ import json
 import time
 import unittest
 
+from _new_page import reload_to_new_page
 from test_ask_files_panel import DROP, PASTE, PICK, SETTLE
 from test_ask_panel import Stub
 from test_report_editor import Base
@@ -133,8 +134,7 @@ class Panel(Base):
             p = self.open_panel(cdp, "allowed")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#ask-panel')", "closed")
-            p.js("location.reload()")
-            p.until("typeof window.__g === 'object' && document.readyState === 'complete'", "the page loaded again")
+            reload_to_new_page(p.js, "typeof window.__g === 'object'", "the page loaded again")
             time.sleep(0.5)
             self.assertEqual(p.js("window.__g.urls.length"), 0, "a closed panel does not read the switch")
             p.key("/", code="Slash", vk=191)
