@@ -296,9 +296,9 @@ class Undo(Content):
         calls = []
         real = store_module.check_section_body
 
-        def spy(kind, body):
+        def spy(kind, body, stored=None):
             calls.append((kind, body))
-            return real(kind, body)
+            return real(kind, body, stored)
         with mock.patch.object(store_module, "check_section_body", spy):
             self.undone(second["apply_id"])
         self.assertIn(("needs", canon(one("first"))), calls)

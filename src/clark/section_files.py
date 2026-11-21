@@ -28,10 +28,11 @@ import re
 import stat
 from pathlib import Path
 
+from clark.section_kinds import doclinks
 from clark import changes, platform, reach, section_bodies, to_client
 from clark import store as clark_store
 from clark.store import Invalid
-from clark.section_kinds.doclinks import FILES_FOLDER, file_name
+from clark.section_kinds.doclinks import FILES_FOLDER, allowed_type, file_name
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 SECTION_ID = re.compile(r"[A-Za-z0-9|_-]{1,64}")
@@ -61,6 +62,7 @@ MESSAGES = {
     "unreadable": "That file could not be read. Check it opens on this computer, then try again.",
     "files_folder": "The client folder has something called “Report files” that clark can't use as a folder. Rename it, then "
                     "add the file again.",
+    "bad_type": "{name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.",      # the same sentence as the page (docLinksWords.js BAD_TYPE) and doclinks.bad_type
     "no_name": "That file's name can't be used in the client folder. Rename the file, then try again.",
     "names_taken": f"There are already {MAX_NUMBER} files with that name in the client folder's “Report files” folder. Rename "
                    "the file, then try again.",
@@ -121,9 +123,9 @@ def _before_the_dialog(pub, code, ref):
         if kind is None:
             raise Refused("no_file_here", 400)
         try:                                                # room for one more (the step checks again: this only saves a dialog)
-            text = clark_store.check_section_body(kind, section.get("body") or "")
+            text = clark_store.check_section_body(kind, section.get("body") or "", section.get("body"))
             section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None,
-                                                    {"name": "a", "rel": f"{FILES_FOLDER}/a", "bytes": 0})
+                                                    {"name": "a.pdf", "rel": f"{FILES_FOLDER}/a.pdf", "bytes": 0})
         except (Invalid, section_bodies.Bad) as e:
             raise Refused("full", reason=str(e)) from None
         saved = row.get("publish_client") or None
@@ -134,7 +136,7 @@ def _before_the_dialog(pub, code, ref):
                                       backups_dir=pub.backups_dir)
         if not checked["ok"]:
             raise Refused("client_folder_refused", reason=checked["message"])
-        return Path(checked["folder"])
+        return Path(checked["folder"]), kind
     finally:
         store.close()
 
@@ -188,9 +190,19 @@ def _identity(pub, path):
         return None
 
 
-def _copy(pub, folder, real, data):
+def _judge_saved(real, saved):
+    """The ending of the name the file is saved under; the refusal carries the name that was chosen."""
+    try:
+        allowed_type(saved)
+    except section_bodies.Bad:
+        raise Refused("bad_type", name=real.name) from None
+
+
+def _copy(pub, folder, real, data, judged=False):
     """Step 5's copy: the name the file is saved under in `folder` (it is used where it is when it is already there)."""
     if Path(pub.fs.realpath(str(real.parent))) == Path(pub.fs.realpath(str(folder))):
+        if judged:
+            _judge_saved(real, real.name.lstrip(". "))      # a name the file keeps is judged without its leading dots and spaces too
         try:
             return file_name(real.name), False, None
         except section_bodies.Bad:
@@ -201,6 +213,8 @@ def _copy(pub, folder, real, data):
         name = file_name(name)
     except (platform.PlatformError, section_bodies.Bad):
         raise Refused("no_name") from None
+    if judged:
+        _judge_saved(real, name)                    # the name that is written, judged before anything is written
     for n in range(1, MAX_NUMBER + 1):
         candidate = name if n == 1 else platform.safe_name(numbered(name, n), folder=folder)
         try:
@@ -222,16 +236,21 @@ def attach(pub, body):
         return fail(Refused("busy"))
     try:
         try:
-            client = _before_the_dialog(pub, code, ref)
+            client, kind = _before_the_dialog(pub, code, ref)
             try:
-                chosen = pub.choose_open_file(PROMPT)
+                chosen = pub.choose_open_file(PROMPT, types=doclinks.ALLOWED_ENDINGS) if kind == "doclinks" else pub.choose_open_file(PROMPT)
             except platform.PlatformError as e:
                 raise Refused("dialog_failed", reason=str(e).rstrip()) from None
             if chosen is None:
                 return 200, {"ok": True, "cancelled": True}
             real, data = _source(pub, chosen)
+            if kind == "doclinks":                          # the ending is judged before anything is copied (and again on the saved name)
+                try:
+                    allowed_type(real.name)
+                except section_bodies.Bad:
+                    raise Refused("bad_type", name=real.name) from None
             folder = _files_folder(pub, client)
-            name, copied, made = _copy(pub, folder, real, data)
+            name, copied, made = _copy(pub, folder, real, data, kind == "doclinks")
         except Refused as r:
             return fail(r)
         except Invalid:
@@ -263,7 +282,7 @@ def _listed_names(section):
     """The file names a Documents and links or One document section lists (its stored content, checked again)."""
     kind = section.get("type")
     try:
-        text = clark_store.check_section_body(kind, section.get("body") or "")
+        text = clark_store.check_section_body(kind, section.get("body") or "", section.get("body"))
         value = json.loads(text) if text else None
     except (Invalid, section_bodies.Bad, ValueError):
         return set()

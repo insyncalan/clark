@@ -132,6 +132,13 @@ class OpenAndReveal(TempHome):
 
 
 class Dialogs(unittest.TestCase):
+    def test_the_open_with_types_script_takes_every_ending_after_the_prompt(self):
+        """Mutation sweep (1194): the AppleScript reads the endings from the second argument on and offers only those."""
+        script = pl.OPEN_TYPES_SCRIPT
+        self.assertIn("repeat with i from 2 to (count of argv)", script)
+        self.assertIn("set end of kinds to (item i of argv)", script)
+        self.assertIn("choose file with prompt (item 1 of argv) of type kinds", script)
+
     def test_the_folder_dialog_passes_text_as_arguments_not_script(self):
         run = FakeRun(stdout="/Users/demo/Reports/\n")
         prompt = 'Choose "Reports" & then quit'
@@ -159,6 +166,14 @@ class Dialogs(unittest.TestCase):
         self.assertIsNone(pl.choose_zip_file("Choose", run=FakeRun(1, stderr="execution error: User canceled. (-128)"), on=pl.MAC))
         with self.assertRaisesRegex(pl.PlatformError, "The Open window could not be opened"):
             pl.choose_zip_file("Choose", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
+
+    def test_the_open_dialog_can_offer_only_some_endings_passed_as_arguments(self):
+        run = FakeRun(stdout="/Users/demo/a.pdf\n")
+        self.assertEqual(pl.choose_open_file("Pick", types=("pdf", "docx"), run=run, on=pl.MAC), Path("/Users/demo/a.pdf"))
+        args = run.calls[0][0]
+        self.assertEqual(args[:3], ["osascript", "-e", pl.OPEN_TYPES_SCRIPT])
+        self.assertEqual(args[3:], ["Pick", "pdf", "docx"])
+        self.assertIn("of type", pl.OPEN_TYPES_SCRIPT)
 
     def test_an_empty_pick_is_no_pick_not_the_current_folder(self):
         # osascript can exit 0 with nothing on stdout; Path("") equals "." and would save the cwd as the chosen folder.
