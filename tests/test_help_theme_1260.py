@@ -32,6 +32,12 @@ class HelpSaysThemeScope(unittest.TestCase):
         self.assertTrue(hits[0].startswith("Choose the look of your pages"))
         self.assertTrue(hits[0].endswith(SENTENCE))
 
+    def test_the_line_is_the_approved_one_and_the_old_clause_is_gone(self):
+        data = json.loads(HELP.read_text(encoding="utf-8"))
+        hits = [s for s in _strings(data) if SENTENCE in s]
+        self.assertTrue(hits[0].startswith("Choose the look of your pages. Your choice applies"))
+        self.assertFalse([s for s in _strings(data) if "from the two the card offers" in s])
+
     def test_the_claim_is_true_the_other_outputs_ignore_the_theme(self):
         suite = unittest.defaultTestLoader.loadTestsFromModule(subject)
         self.assertGreater(suite.countTestCases(), 0)

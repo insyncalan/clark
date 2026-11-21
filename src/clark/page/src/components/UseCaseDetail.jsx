@@ -22,7 +22,7 @@ import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
-import { ItemIcon, iconWords } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
+import { ItemIcon, iconWords, TipParts } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
 import { clientPill } from "../logic/sectionRows.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
@@ -267,7 +267,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
                   return (
                     <li key={r.id}>
                       <button type="button" class="ucd-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
-                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><span class="sr">{say.name}</span>
+                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><TipParts say={say} /><span class="sr">{say.name}</span>
                         <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>

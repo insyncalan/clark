@@ -70,7 +70,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
-        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} empty={tools.richHint(section)} />
+        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} empty={tools.richHint(section)} prompts={tools.richPrompts(section)} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : clean && (section.type === "current" || (!editing && section.type === "text"))     // row 850: Edit draws the Current state text too (read only: the project's headline text has no write kind yet, see edit/richSave.js)

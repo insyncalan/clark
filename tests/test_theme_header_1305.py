@@ -19,8 +19,9 @@ from clark import page, theme
 
 NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
-M1305, NEXT = "/* Row 1305", "/* Row 1393"
-PART_1305 = RULES[RULES.index(M1305):RULES.index(NEXT)]
+M1305 = "/* Row 1305"
+# the block runs to the next Row comment, whichever row that is (later rows land after it)
+PART_1305 = RULES[RULES.index(M1305):RULES.index("/* Row ", RULES.index(M1305) + 1)]
 LONG = "A very long project name that goes on and on and on and on and on and on and on and on and on"
 HEADER = "document.querySelector('.top-hdr, .top-file')"
 
@@ -97,7 +98,7 @@ class Editor(Setup):
                     self.assertLessEqual(long["h"], long["lh"] + 1, "one line however long the name")
                     self.assertTrue(long["clip"], "the long name is cut")
                     self.assertLessEqual(long["idW"], long["barW"] * 0.5 + 1, "the name's box stops at half the header")
-                    self.assertGreater(long["idW"], long["barW"] * 0.3, "it is cut only because it reached the half")
+                    self.assertGreater(long["idW"], long["barW"] * (0.25 if width == 900 else 0.3), "it is cut only because it reached the half (at 900 the ask clark button of row 1349 stays in the header and takes room)")
                     self.assertEqual(long["barH"], short["barH"], "a long name does not grow the bar")
                     self.assertFalse(long["overlap"], "nothing in the header is pushed over or under another")
                     self.assertTrue(long["wide"])

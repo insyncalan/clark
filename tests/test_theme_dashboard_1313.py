@@ -112,7 +112,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
   const seg = (bs) => bs.map((b) => ({cur: b.getAttribute('aria-current'), bg: cs(b, 'backgroundColor'), color: cs(b, 'color'), radius: cs(b, 'borderTopLeftRadius'), left: cs(b, 'borderLeftWidth'), bottom: cs(b, 'borderBottomWidth')}));
   return {
     frame: (() => { const f = q('.frame.report'); return f ? {bg: cs(f, 'backgroundColor'), border: cs(f, 'borderTopWidth') + cs(f, 'borderLeftWidth'), shadow: cs(f, 'boxShadow'), radius: cs(f, 'borderTopLeftRadius')} : null; })(),
-    theme: !!q('#theme'), heading: cv('--heading'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
+    theme: !!q('#theme'), heading: cv('--heading'), g500: cv('--grey-500'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
@@ -259,10 +259,10 @@ class Classic(Setup):
             self.assertIsNotNone(sc)
             for grp in (sw, sc):
                 self.assertEqual(grp["gap"], "0px", "joined")
-                self.assertEqual(grp["rad"], g["radius"], "the group keeps the rounded outer corners")
+                self.assertEqual(grp["rad"], "6px" if grp is sc else g["radius"], "the group keeps the rounded outer corners (the text tabs are radius 6, Row 1316 gap)")
                 self.assertEqual(grp["ov"], "hidden", "the square buttons are clipped to the rounded outer corners")
                 self.assertEqual(grp["pad"], "12px 12px", "each button keeps its side padding")
-                self.assertEqual(grp["div"], rgb_of(g["heading"]), "the rule between neighbours is the heading colour")
+                self.assertEqual(grp["div"], rgb_of(g["g500"] if grp is sc else g["heading"]), "the rule between neighbours is the heading colour (the text tabs: --grey-500, Row 1316 gap)")
                 self.assertEqual({b["radius"] for b in grp["btns"]}, {"0px"})
                 self.assertEqual({b["bottom"] for b in grp["btns"]}, {"0px"}, "no underline")
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")

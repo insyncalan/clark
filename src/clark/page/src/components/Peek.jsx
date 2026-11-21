@@ -93,9 +93,9 @@ function ItemChips({ row, tools, editing }) {
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} subTone={classicTheme() && row.kind === "decision" ? "word" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
-        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : decisionDateWord(row) ? "word" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }
@@ -127,8 +127,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       {row.kind === "decision" ? <>
         {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
         {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
-        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
-        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+        <Row name="Revisit" ms="revisit">{editing && classicTheme() && !row.revisit ? <span class="muted" data-pk-prompt>Add when to look at this again.</span> : text(row.revisit)}</Row>      {/* row 1285: in Edit an empty Revisit says what to add; the view keeps the dash */}
+        <Row name="Replaces" ms="replaces">{editing && classicTheme() && !row.replaces ? <span class="muted" data-pk-prompt>Add the decision this replaces.</span> : text(row.replaces)}</Row>
       </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}

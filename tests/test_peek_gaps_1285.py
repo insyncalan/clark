@@ -76,6 +76,19 @@ class DecisionChips(unittest.TestCase):
                                  " return {owner: g('owner'), due: g('due')}; })()", sid)
                     self.assertEqual(got, {"owner": owner, "due": date})
 
+    def test_an_overdue_actions_status_chip_says_open_with_needed_by_passed_under_it(self):
+        """Row 1285 AP16: the overdue action's Status chip keeps Open and gains the sub "needed by passed" in the "needed by" word style; an action not overdue has none."""
+        for width in (1400, 900):
+            for ref, sub in (("TUL-A-002", "needed by passed"), ("TUL-A-001", "")):
+                with self.subTest(width=width, ref=ref), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    got = cdp.js("(() => { const c = document.querySelector('#peek .pk-chips > [data-row=status]'), s = c.querySelector('.pk-chip-sub');"
+                                 " return {value: c.querySelector('.pkc-v').textContent.trim(), sub: s ? s.textContent.trim() : '', word: !!(s && s.classList.contains('word'))}; })()", sid)
+                    self.assertEqual(got["sub"], sub, got)
+                    if sub:
+                        self.assertEqual(got["value"], "Open")
+                        self.assertTrue(got["word"], got)
+
 
 _Fields = _m.Fields
 
@@ -94,12 +107,106 @@ class Milestone(_Fields):
                     self.assertNotEqual(g["ell"], "ellipsis", f"an ellipsis: {g}")
 
 
+class Warnbar(unittest.TestCase):
+    """Row 1285 ruling: the overdue bar keeps its two move buttons but is a quiet 13px muted note with text links, no amber border or tint (Classic only)."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_overdue_bar_is_a_quiet_note_with_text_links(self):
+        self.note("TUL-A-002", "overdue")
+
+    def test_the_weekend_line_is_the_same_quiet_note_with_text_links(self):
+        """Row 1285 AP4: the weekend line (TUL-A-006, due on a Saturday) is drawn as the .sub note too: 13px muted, no fill, no border, two text-link moves."""
+        self.note("TUL-A-006", "weekend")
+
+    def note(self, ref, kind):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True, dark=dark)
+                    self.assertEqual(cdp.js("document.querySelector('#peek .pk-warnbar').dataset.pkWarn", sid), kind)
+                    got = cdp.js("(() => { const b = document.querySelector('#peek .pk-warnbar'), w = b.querySelector('.pk-warn'), m = [...b.querySelectorAll('[data-pk-move]')], g = (e, p) => getComputedStyle(e)[p];"
+                                 " const tok = (v) => { const i = document.createElement('i'); i.style.color = v; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };"
+                                 " return {moves: m.length, border: g(b, 'borderTopWidth'), bg: g(b, 'backgroundColor'), size: g(w, 'fontSize'), ink: g(w, 'color'), muted: tok('var(--text-muted)'),"
+                                 " link: m.map(e => [g(e, 'borderTopWidth'), g(e, 'backgroundColor'), g(e, 'textDecorationLine'), g(e, 'color'), g(e, 'fontWeight'), g(e, 'fontSize')]), marginBottom: g(b, 'marginBottom'), blue: tok('var(--brand-blue)')}; })()", sid)
+                    self.assertEqual(got["moves"], 2, "the function stays: two move buttons")
+                    self.assertEqual((got["border"], got["bg"]), ("0px", "rgba(0, 0, 0, 0)"), got)
+                    self.assertEqual(got["size"], "13px")
+                    self.assertEqual(got["ink"], got["muted"])
+                    self.assertEqual(got["marginBottom"], "12px", "the approved spec: 12px under the note")
+                    for border, bg, line, colour, weight, size in got["link"]:
+                        self.assertEqual((border, bg, line, colour, weight, size), ("0px", "rgba(0, 0, 0, 0)", "underline", got["blue"], "600", "13px"))
+
+
+class Prompts(unittest.TestCase):
+    """Row 1285 ruling: an empty Revisit and Replaces say what to add in Edit; the view keeps the dash."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+    JS = "[...document.querySelectorAll('#peek [data-ms-row=revisit] dd, #peek [data-ms-row=replaces] dd')].map(e => e.textContent.trim())"
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()          # the prompts are Classic only: the page needs the Theme layered on, as in the Focus class
+        p.start()
+        self.addCleanup(p.stop)
+        with self.store.step("dashboard", "Demo User") as st:
+            st.update("decisions", "TUL-D-016", {"revisit": "", "replaces": ""})
+
+    def test_edit_says_what_to_add_and_the_view_keeps_the_dash(self):
+        for width in (1400, 900):
+            for edit, want in ((True, ["Add when to look at this again.", "Add the decision this replaces."]), (False, ["—", "—"])):
+                with self.subTest(width=width, edit=edit), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, "TUL-D-016", edit=edit)
+                    if not edit:        # the Dashboard in View is the one place that is not Edit (row 824): open the same peek from there
+                        cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=view][aria-pressed=true]')", sid)))
+                        cdp.js("clarkPage.openPeek('TUL-D-016')", sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-row=revisit]')", sid)))
+                    self.assertEqual(cdp.js(self.JS, sid), want)
+
+
 for _n in [n for n in dir(_Fields) if n.startswith('test')]:
     setattr(Milestone, _n, None)      # only this file's own test runs, not the base class's
 
 
-del _m, _B, _Fields
+del _m, _Fields
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class LatestValues(unittest.TestCase):
+    """Row 1285, the approved peek mock-up's measured values for the Latest update (Classic): label 18px above, Draft with AI padding 4px 8px, footer gap 10 and right padding 10, key 11px / 600 / radius 5 / padding 0 5px."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_latest_update_label_button_footer_and_key_match_the_mock_up(self):
+        for width in (1400, 900):
+            for ref, kind in ITEMS:
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    got = cdp.js("(() => { const g = (s, ps) => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return ps.map(p => c[p]); };"
+                                 " return {lab: g('#peek .pk-lab', ['marginTop', 'marginBottom']), ai: g('#peek .pk-ai', ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']),"
+                                 " foot: g('#peek .pk-lfoot', ['columnGap', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']),"
+                                 " key: g('#peek .pk-key', ['fontSize', 'fontWeight', 'borderTopLeftRadius', 'paddingLeft', 'paddingRight'])}; })()", sid)
+                    self.assertEqual(got["lab"], ["18px", "8px"], got)
+                    self.assertEqual(got["ai"], ["4px", "8px", "4px", "8px"], got)
+                    self.assertEqual(got["foot"], ["10px", "8px", "10px", "8px", "14px"], got)
+                    self.assertEqual(got["key"], ["11px", "600", "5px", "5px", "5px"], got)
+
+
+del _B
