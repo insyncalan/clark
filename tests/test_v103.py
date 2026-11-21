@@ -58,7 +58,7 @@ COVERED = [
     ("#777", 'The use case crumb is in tracked capitals, its link underlined on hover.',
      "test_use_case_detail::Detail::test_the_crumb_is_tracked_capitals_and_its_link_is_not_underlined"),
     ("#780", 'The change card has a quiet look and a small flat Apply.',
-     "test_ask_change_page::TheCard::test_the_card_has_a_quiet_look_and_a_small_flat_apply"),
+     "test_ask_change_page::CardsStayAsTheyWere::test_the_card_has_a_quiet_look_and_a_small_flat_apply"),
     ("#790", 'The calendar scales are one capsule.',
      "test_milestones_parity::Switcher::test_the_calendar_scales_are_one_capsule_with_the_active_one_filled_and_today_as_tall"),
     ("#791", 'Change status has room before its arrow.',
