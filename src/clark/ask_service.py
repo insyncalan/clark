@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -56,6 +56,7 @@ MESSAGES = {
 }
 FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
+UNREADY = ("busy", "no_data")      # row 1293 line 10: a dry run refused for these saved nothing and read nothing, so the reply may be tried again
 PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
 APPLY_FIELDS = {"project", "offer", "confirm"}
@@ -141,6 +142,20 @@ class AskService:
         finally:
             store.close()
 
+    def files_allowed(self, code):
+        """Row 1294: whether files may be added to a question in project `code` (the computer's Files switch on and the project not off); False when the
+        store can't be opened or can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return False
+        try:
+            return store.ask_files_allowed(code) is True
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return False
+        finally:
+            store.close()
+
     def connectors_now(self, code, chosen):
         """The connectors of `chosen` that are still On for project `code`, read now; none when the store can't say (never fails open)."""
         try:
@@ -173,6 +188,8 @@ class AskService:
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
         on = self.enabled()
+        if platform.container_mode():             # Row 1293: in Docker nothing can be asked; the panel and Settings say so in these words
+            return 200, {"ok": True, "ask_enabled": on, "connected": False, "why": ask_words.DOCKER, "docker": True}
         st = ask.answer_status(self.provider) if on else {"connected": False, "why": MESSAGES["asking_off"]}
         label = getattr(self.provider, "label", "")      # #54: who a question goes to, so the page can say so truly
         return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"], **({"provider": label} if label else {})}
@@ -231,6 +248,8 @@ class AskService:
         code, question, earlier = got
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        if platform.container_mode():                # Row 1293: refused before anything is read or sent
+            return 409, self.fail("docker", ask_words.DOCKER)
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
         try:
@@ -238,9 +257,12 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         try:
-            added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
+            # item 1292 S14: the files of this question only, screened like any passage; nothing is kept. Row 1294: the Files switch is read now, only for a question that carries files
+            added = ask_files.passages(body.get("files"), self.files_allowed(code) if body.get("files") else True)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
+        window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
+        budget = ask.budget_for(window)
         with self.lock:
             try:
                 store = self.reader()
@@ -253,7 +275,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
@@ -263,13 +285,14 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
-            found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
+            found = ask_passages.folder_data(folders, self.data_dir, question, budget - used, self.home,
                                              ask.MAX_PASSAGES - len(data.passages))
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
-                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
+                                        max_request=ask.request_cap(window))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -291,6 +314,8 @@ class AskService:
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+        notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
+                              ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -406,6 +431,8 @@ class AskService:
                 return 409, self.fail("shown_already")
             held.shown = True
         status, out = self.applier.plan_all(code, list(held.changes), held.from_source)
+        if status != 200 or any(p.get("code") in UNREADY for p in out["plans"]):
+            held.shown = False                       # row 1293 line 10: a dry run that could not be made does not use the reply up
         if status != 200:
             return status, out
         return 200, {"ok": True, "plans": out["plans"], "from_source": held.from_source, "passages": list(held.passages)}
@@ -490,6 +517,8 @@ def folder_notes(found):
             out.append(pdf_reader.count_note(found.pdf - len(found.pdf_reasons), "crash"))
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
+    if getattr(found, "limit", 0):
+        out.append(f"{found.limit} {'file was' if found.limit == 1 else 'files were'} not opened because the limit for one question was reached.")
     if found.stopped:
         out.append("Not every file in your folders was looked at.")
     return out
