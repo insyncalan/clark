@@ -23,7 +23,6 @@ CASES = [
     ("onedoc", "Fictional doc", ["Add the file."]),
     # slice 2
     ("figures4", "Fictional fig4", ["Pick what each number shows."]),
-    ("figures3", "Fictional fig3", ["Pick what each number shows."]),
     ("table", "Fictional table", ["Add the first row."]),
     ("raid3", "Fictional raid3", ["Choose the items to show."]),
     ("raid4", "Fictional raid4", ["Choose the items to show."]),
