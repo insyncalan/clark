@@ -9,7 +9,7 @@ reported in the log and the job summary and the job still succeeds.
 LEGACY (PR written before the Point map format) is a pass. A ticket that the job token cannot read (the plan repo
 is private) is reported as NOT CHECKED and is not a failure.
 """
-import argparse, os, sys
+import argparse, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pr_checks_report as P
 
@@ -18,7 +18,31 @@ NOT_CHECKED_PREFIX = "cannot read ticket"
 
 class CI(P.GH):
     def pr(self, n):
+        """The pull request. On a pull_request run the event payload already holds it (number, title, body, head sha):
+        no API call. Anything else (a rerun, a run by hand, another number, a payload without those fields) is one API call."""
+        path = os.environ.get("GITHUB_EVENT_PATH")
+        # A rerun (attempt 2 and up) reuses the ORIGINAL payload, whose body may be stale: only attempt 1 trusts it.
+        if path and os.environ.get("GITHUB_RUN_ATTEMPT", "1") == "1":
+            try:
+                with open(path, encoding="utf-8") as f:
+                    pr = json.load(f).get("pull_request") or {}
+                if pr.get("number") == n and pr.get("title") is not None and (pr.get("head") or {}).get("sha"):
+                    return pr
+            except (OSError, ValueError):
+                pass
         return P.gh_json(f"repos/{self.repo}/pulls/{n}")
+
+
+def not_checked_fail(check, reason):
+    """A required check must never pass without checking: a rate limit that outlasts the retries FAILS the job (exit 1), whatever BIFROST_ENFORCE says."""
+    line = f"bifrost-{check}: NOT CHECKED: {reason}"
+    print(line)
+    print(f"::error::{line}")
+    summ = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summ:
+        with open(summ, "a") as f:
+            f.write(f"### bifrost-{check}: NOT CHECKED\n\n{reason}\n")
+    return 1
 
 
 def main(argv=None):
@@ -41,7 +65,11 @@ def main(argv=None):
         ap.error("--pr must be a number")
     a.pr = int(a.pr)
     gh = CI(a.repo, a.plan_repo)
-    row = P.run_pr(gh.pr(a.pr), gh)
+    try:
+        row = P.run_pr(gh.pr(a.pr), gh)
+    except P.RateLimited as e:
+        # not a verdict on the pull request, but nothing was checked, so the job fails (rerun it)
+        return not_checked_fail(a.check, "GitHub rate limit after retries, rerun")
     res = row["checks"][a.check]
     verdict, reason = res["result"], res["reason"]
     if verdict == "FAIL" and reason.startswith(NOT_CHECKED_PREFIX):
