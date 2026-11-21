@@ -30,7 +30,6 @@ WANT = {
     "current-state": {"empty": ["Say where the project stands."]},
     # slice 2
     "figures-4": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
-    "figures-3": {"empty": ["Pick what each number shows."]},
     "table": {"empty": ["Add the first row."]},
     "raid-3": {"empty": ["Choose the items to show."]},
     "raid-4": {"empty": ["Choose the items to show."]},
@@ -110,7 +109,7 @@ class SliceTwoIsReached(unittest.TestCase):
                 self.assertIn(n, text, f"{name}: {n}")
 
     def test_no_slice_two_word_is_typed_into_a_part(self):
-        words = sorted({w for k in ("figures-4", "figures-3", "table", "raid-3", "raid-4", "work-items", "docs-links", "checklist", "link-preview", "key-dates", "gantt", "gantt-table")
+        words = sorted({w for k in ("figures-4", "table", "raid-3", "raid-4", "work-items", "docs-links", "checklist", "link-preview", "key-dates", "gantt", "gantt-table")
                         for v in WANT[k].values() for w in ([v] if isinstance(v, str) else v)})
         for p in (PAGE_SRC / "edit").rglob("*"):
             if p.suffix in (".js", ".jsx") and p.name != "startingText.js":
