@@ -89,6 +89,10 @@ class IndexNote(unittest.TestCase):
         self.assertEqual([r for r, _ in said], [0, 25, 50, 75, 100])
         self.assertEqual([t for _, t in said], ["Indexing started", "Indexing… 25%", "Indexing… 50%", "Indexing… 75%", "100% indexed"])
 
+    def test_a_run_that_starts_again_speaks_its_milestones_again(self):
+        self.assertEqual(run('m.announce({phase:"done",total:3},{phase:"reading",read:0,total:3})'), "Indexing started")
+        self.assertEqual(run('m.announce({phase:"reading",read:3,total:4},{phase:"reading",read:1,total:4})'), "Indexing… 25%")
+
     def test_no_speech_for_a_state_that_is_not_moving(self):
         self.assertEqual(run('m.announce({phase:"done",total:3},{phase:"done",total:3})'), "")
         self.assertEqual(run('m.announce(null,{phase:"paused"})'), "")
