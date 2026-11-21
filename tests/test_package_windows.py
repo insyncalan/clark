@@ -38,7 +38,8 @@ class WindowsZipTest(unittest.TestCase):
                 self.assertNotEqual("python.exe", name.rsplit("/", 1)[-1].lower())
 
     def test_the_guard_refuses_what_a_zip_must_not_hold(self):
-        for bad in ("clark/clark.cmd", "clark/x/python.exe", "clark/python/lib.py", "clark/.app/a.EXE"):
+        for bad in ("clark/clark.cmd", "clark/x/python.exe", "clark/python/lib.py", "clark/.app/a.EXE",
+                    "clark/run.bat", "clark/x/lib.DLL"):
             with self.subTest(bad=bad), self.assertRaises(package.Refused):
                 package.assert_no_native_windows("windows", {bad: (b"x", 0o644)})
         package.assert_no_native_windows("mac", {"clark/clark.cmd": (b"x", 0o644)})
@@ -114,7 +115,8 @@ class WindowsZipTest(unittest.TestCase):
                              "clark/intake/run.cmd. Nothing was written.", str(said.exception))
 
     def test_the_guard_leaves_alone_names_that_only_start_with_python(self):
-        for fine in ("clark/docs/python-notes.md", "clark/pythonic.py", "clark/docs/python-style/a.md"):
+        for fine in ("clark/docs/python-notes.md", "clark/pythonic.py", "clark/docs/python-style/a.md",
+                     "clark/run.batx", "clark/lib.dllx", "clark/notes.txt"):
             with self.subTest(fine=fine):
                 package.assert_no_native_windows("windows", {fine: (b"x", 0o644)})
         for bad in ("clark/python3/a.py", "clark/python3.12/a.py", "clark/python"):
