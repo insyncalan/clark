@@ -1,6 +1,7 @@
 // Checklist (#96), store type "checklist": its Edit part. Fill in place: type a line and tick it, or link a work item (its words and
 // whether it is done then follow the work item); change a typed line where it is; remove one. Each save is one change() (one step,
 // one Undo, place "cell"). Given { section, tools }.
+import { StartPrompt } from "../StartPrompt.jsx";
 import { useState } from "preact/hooks";
 import { data } from "../../stores/report.js";
 import { say } from "../../stores/changes.js";
@@ -49,7 +50,7 @@ export function Edit({ section }) {
 
   return (
     <div class="tple" data-tpl="checklist">
-      {items.length === 0 ? <p class="quiet tple-empty">{EMPTY_WORDS}</p> : (
+      {items.length === 0 ? <><StartPrompt id="checklist" /><p class="quiet tple-empty">{EMPTY_WORDS}</p></> : (
         <ul class="tple-list" data-tick={tick}>
           {items.map((i, n) => (typeof i.item === "string" ? (
             <li key={`w${i.item}`} class="tple-row">
