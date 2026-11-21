@@ -9,6 +9,7 @@ Pictures are not declared here (the shots do not exist yet); the shots each step
 import json
 import re
 import unittest
+from pathlib import Path
 
 from _help_shown import LATER, RAW, shown_content
 from test_help_guides import check_guides, run_node
@@ -53,7 +54,7 @@ class TheFourGuides(unittest.TestCase):
 
     def test_every_bold_name_is_a_string_in_the_page_source(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(AgainstThePage.HELPCODE)
+        code = norm(AgainstThePage.HELPCODE) + norm((Path(__file__).resolve().parent.parent / "src" / "clark" / "safety.py").read_text(encoding="utf-8"))      # safety.py: the Backups box label (Copy my backups to) comes from the server
         names = {b for g in GUIDES.values() for t in words(g) for b in re.findall(r"\*\*(.+?)\*\*", t)}
         self.assertTrue(names)
         self.assertEqual(sorted(b for b in names if norm(b).strip(" .,:;…") not in code), [])

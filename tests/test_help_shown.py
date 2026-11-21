@@ -164,7 +164,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Current state, This week, Next week) come from the server
+        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8")) + norm((ROOT / "src" / "clark" / "safety.py").read_text(encoding="utf-8"))      # safety.py: the Backups box label (Copy my backups to) comes from the server; the starting sections' titles (Current state, This week, Next week) come from the server
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
@@ -309,7 +309,7 @@ def labels_of(entry):
 class ReleasedLabels(unittest.TestCase):
     """The check on #82: every label a RELEASED Help entry (How do I, Reference) names must be a word the page itself holds in its source (whole words,
     in the code of the page and of Help, and the tile titles in glance.py). Held entries are exempt: they are not shown."""
-    PAGE = page_code(include_help=True) + "\n" + strip_comments(GLANCE_PY.read_text(encoding="utf-8")) + "\n" + strip_comments(SECTIONS_PY.read_text(encoding="utf-8"))
+    PAGE = page_code(include_help=True) + "\n" + strip_comments(GLANCE_PY.read_text(encoding="utf-8")) + "\n" + strip_comments(SECTIONS_PY.read_text(encoding="utf-8")) + "\n" + strip_comments((ROOT / "src" / "clark" / "safety.py").read_text(encoding="utf-8"))
 
     @classmethod
     def on_page(cls, label):
