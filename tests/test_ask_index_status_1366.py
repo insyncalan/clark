@@ -59,13 +59,13 @@ class PerFolder(Base):
     def test_counts_are_per_folder_and_add_up_to_the_files_in_each(self):
         self.put(self.a, "one.txt", "alpha river")
         self.put(self.a, "two.md", "alpha lake")
-        self.put(self.a, "pic.png", "x")
+        self.put(self.a, "pic.bin", "x")
         self.put(self.b, "three.txt", "beta ocean")
         self.put(self.b, "secret.txt", FAKE_KEY)
         self.assertTrue(ask_index.refresh(self.data, "ABC", [str(self.a), str(self.b)], self.home))
         got = ask_index.folder_status(self.data, "ABC", [str(self.a), str(self.b)])
         self.assertEqual(got[str(self.a)], {"state": "done", "line": "Indexed 2 of 3 files. 1 is of a type clark can't read yet.",
-                                            "left": {"files": [["pic.png", "of a type clark can't read yet"]], "more": 0}})
+                                            "left": {"files": [["pic.bin", "of a type clark can't read yet"]], "more": 0}})
         self.assertEqual(got[str(self.b)], {"state": "done", "line": "Indexed 1 of 2 files. 1 looks like a password or a key and was left out.",
                                             "left": {"files": [["secret.txt", "looks like a password or a key"]], "more": 0}})
         self.assertNotIn("hunter2", json.dumps(got))

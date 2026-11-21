@@ -19,7 +19,7 @@ import re
 import threading
 from pathlib import Path
 
-from clark import ask_connectors, ask_words, platform
+from clark import ask_connectors, ask_index, ask_words, platform
 from clark.store import CODE_RE, CONNECTORS, HIDDEN_CONNECTORS, THEMES, Invalid, columns, open_store
 
 SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
@@ -145,6 +145,8 @@ class AppSettings:
                 step = self.save(store, lambda st: st.update("app_settings", "1", {"ask_enabled": enabled}))
                 if step is False:
                     return 409, self.fail("cant_save")
+                if not enabled:
+                    ask_index.remove_all(self.db_path.parent)      # Row 1366: asking Off keeps no copy of the folders' text
                 return self.answer_ask(store, MESSAGES["asking_on" if enabled else "asking_off"], step)
             finally:
                 store.close()
