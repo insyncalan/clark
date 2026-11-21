@@ -7,7 +7,7 @@ What is asserted, per pill (Low, Medium, High, Urgent):
   radius   6px.
 Ticket 1353 history: items 3 and 4 of its first table (Urgent red / High amber / rest grey, and the widened --wil-pr-* scope) are superseded by the row 1409 ruling
 (Low green, Medium amber, High red, Urgent maroon; ruling 20-11). Items 5 and 6 (border from the page variables, radius 6 not 999) are accepted: the radius is 6px,
-and the border is the one-pixel solid line in the fill colour (Romanoff ruling 21-11). The Cards class skips: the pills are a Classic-layer look.
+and the border is the one-pixel solid line in the fill colour (ruling of 21-11). The Cards class skips: the pills are a Classic-layer look.
 """
 import json
 
