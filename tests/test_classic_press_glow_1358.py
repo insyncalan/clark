@@ -38,6 +38,15 @@ class PressGlow(unittest.TestCase):
         self.assertGreater(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1318"))
         self.assertNotIn("6px", EDIT[EDIT.index("#ucAddPage.newb"):EDIT.index("#ucAddPage.newb") + 120], "the Cards stylesheet is untouched")
 
+    def test_the_milestones_switch_has_6px_corners_and_a_grey_500_border(self):
+        m = re.search(r"/\* Row 1358 part 3.*?\*/\n\.msv-sw \{([^}]*)\}", RULES, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("border-radius: 6px", m.group(1))
+        self.assertIn("border-color: var(--grey-500)", m.group(1))
+        self.assertGreater(RULES.index("/* Row 1358 part 3"), RULES.index("/* Row 1318"))
+        self.assertLess(RULES.index("/* Row 1358 part 3"), RULES.index("/* Row 1305"))
+        self.assertGreater(RULES.index("/* Row 1358 part 3"), RULES.index(".msv-sw, .mv-txt { gap: 0"), "it comes after the shared switch rule, so it wins")
+
     def test_the_glow_eases_on_hover_too(self):
         m = re.search(r":is\(([^)]*)\):not\(:disabled\):hover \{([^}]*)\}", RULES)
         self.assertIsNotNone(m)
