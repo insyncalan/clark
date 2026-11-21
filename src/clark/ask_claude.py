@@ -421,6 +421,33 @@ def run(args, data, env, limit, max_out, stop=None):
 
 
 @dataclass(frozen=True)
+class Reasoned(ask.Failure):
+    """Row 1492: a failure that also says which kind it was, as a short fixed code ("expired", "network" or "slow"), so Settings can show one fixed sentence.
+    The message is the same plain words as before; the code is read from the command's output and nothing of that output is kept."""
+    reason: str = ""
+
+
+EXPIRED_TEXT = re.compile(r"(expired|invalid (api key|token|credential)|please run /login|log ?in again|not logged in|unauthori[sz]ed|\b401\b)", re.I)
+NETWORK_TEXT = re.compile(r"(ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|network|unable to connect|could not resolve|fetch failed|connection (refused|reset|error|closed)|offline)", re.I)
+
+
+def reasoned(message, reason):
+    """A plain Failure, or a Reasoned one when the output said which kind it was (so a failure without a known kind is the same as it always was)."""
+    return Reasoned(message, reason) if reason else ask.Failure(message)
+
+
+def failure_reason(out):
+    """Row 1492: "expired", "network" or "" for the output of a run that gave no answer. Only the kind is returned, never the text."""
+    try:
+        said = out.decode("utf-8", "replace")
+    except AttributeError:
+        return ""
+    if EXPIRED_TEXT.search(said):
+        return "expired"
+    return "network" if NETWORK_TEXT.search(said) else ""
+
+
+@dataclass(frozen=True)
 class LimitReached(ask.Failure):
     """A usage limit stopped the run. `model` is the one asked (None: the command's own) and `others` the aliases that could be
     offered instead; the message already names them. Nothing is retried or switched."""
@@ -481,15 +508,21 @@ class ClaudeCommand(ask.Provider):
             return None, NOT_INSTALLED
         if key not in self.checked:
             self.checked = {key: self._flags_ok(path)}
-        if not self.checked[key]:
-            self.failed = "version_flags"
-        return (path, None) if self.checked[key] else (None, CANT_USE)
+        good = self.checked[key]
+        if not good:
+            if getattr(self, "timed_out", False):
+                self.checked = {}                  # a check that ran out of time is not a verdict: Check again runs it again
+            self.failed = "slow" if getattr(self, "timed_out", False) else "version_flags"
+        return (path, None) if good else (None, CANT_USE)
 
     def _flags_ok(self, path):
+        self.timed_out = False                 # row 1492: a check that ran out of time is "took too long", not "update it"
         status, out, _code = run([str(path), "--version"], b"", self.env, self.check_limit, 4096)
+        self.timed_out = status == "slow"
         if status != "ok" or not VERSION.match(out):
             return False
         status, out, _code = run([str(path), "--help"], b"", self.env, self.check_limit, MAX_HELP)
+        self.timed_out = status == "slow"
         if status != "ok":
             return False
         listed = listed_flags(out.decode("utf-8", "replace"))
@@ -499,13 +532,15 @@ class ClaudeCommand(ask.Provider):
     def login_problem(self, path):
         """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question.
         The check that failed is kept in `failed`."""
+        self.login_slow = False
         why = self._login_problem(path)
-        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why in (NOT_SIGNED_IN, OTHER_LOGIN) else "login_unreadable")
+        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why in (NOT_SIGNED_IN, OTHER_LOGIN) else "slow" if self.login_slow else "login_unreadable")
         return why
 
     def _login_problem(self, path):
         status, out, code = run([str(path), *AUTH_ARGS], b"", self.env, self.check_limit, MAX_AUTH)
         if status not in ("ok", "failed") or code is None:
+            self.login_slow = status == "slow"
             return CANT_USE
         try:
             got = json.loads(out.decode("utf-8"))
@@ -575,7 +610,7 @@ class ClaudeCommand(ask.Provider):
             return ask.Failure(TOO_LONG_REPLY)
         reply = read_answer(out) if status == "ok" else None
         if reply is None:
-            return ask.Failure(" ".join([NO_ANSWER] + hints()))
+            return reasoned(" ".join([NO_ANSWER] + hints()), failure_reason(out))
         self.last_tokens = read_tokens(out)
         return reply
 
