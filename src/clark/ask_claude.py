@@ -159,7 +159,7 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path, canary="", system=None, model=None):
+def arguments(path, canary="", system=None, model=None, person=""):
     """The command line for one run: the fixed flags, the fixed rules as the system prompt (with this request's canary, #277),
     and nothing the person typed. `system` is a fixed rules text written in clark's own code (ai_menu.SUGGEST_RULES); left out,
     it is ask clark's `ask.RULES`. The canary goes onto either one. `model` is None (the command's own choice) or one of
@@ -169,7 +169,7 @@ def arguments(path, canary="", system=None, model=None):
     pick = ["--model", model] if model else []
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            *pick, "--system-prompt", ask.system_prompt(canary, system)]
+            *pick, "--system-prompt", ask.system_prompt(canary, system, person)]
 
 
 CONNECTOR_TURNS = "6"          # row 1306: a run that may call a connector needs more than the one turn of an ordinary ask
@@ -539,10 +539,10 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text, canary="", system=None, model=None, connectors=()):
+    def answer(self, path, text, canary="", system=None, model=None, connectors=(), person=""):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure.
         A usage limit gives a `LimitReached` (never a switch to another model: the caller offers, the person chooses)."""
-        args = arguments(path, canary, system, model)
+        args = arguments(path, canary, system, model, person)
         call = ask_connector_args.build_call(list(connectors), self.connector_runner) if connectors else None
         screened = call is not None and call.ok and call.connectors      # only a connector that is On, and found now, changes the arguments
         if screened:
@@ -609,7 +609,8 @@ class ClaudeCommand(ask.Provider):
                 if not prefer:
                     return ask.Failure(MODEL_NOT_OFFERED)  # nothing is sent, and a question with no model is unaffected
                 model = None
-            return self.answer(path, self.envelope(request.text), request.canary, system, model, tuple(getattr(request, "connectors", ())))
+            return self.answer(path, self.envelope(request.text), request.canary, system, model, tuple(getattr(request, "connectors", ())),
+                               getattr(request, "person", ""))
         finally:
             with self.guard:
                 self.owner = None

@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen, settings
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -304,7 +304,7 @@ class AskService:
         on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
         run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
         try:
-            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, person=settings.profile(self.data_dir)["name"], cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
         finally:
             with self.using_lock:
