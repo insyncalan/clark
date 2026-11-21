@@ -10,7 +10,7 @@ file, whatever its attribution. A section with no quote that has words is not pu
 from clark.section_kinds.base import Bad
 
 READY = True
-LIMIT = 4096
+LIMIT = 65536      # six quotes at their longest (6 x 840 characters), each an emoji stored as a 12-byte escape pair: about 60.5 KB, well under the change route (516 KB)
 EMPTY = ""
 
 QUOTE_MAX, NAME_MAX = 600, 120

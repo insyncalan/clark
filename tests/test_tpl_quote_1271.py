@@ -48,6 +48,34 @@ class Store(unittest.TestCase):
         self.assertEqual(old, {"quotes": [Q("Fictional.", "Sam", "R")], "align": "left", "perRow": 2, "tile": True, "heading": True})
         self.assertEqual(quote.upgrade(LIST)["quotes"], LIST["quotes"])
 
+    def test_a_null_list_is_the_older_shape(self):
+        got = quote.check({"v": 1, "quotes": None, "quote": "Fictional.", "by": "Sam"}, None)
+        self.assertEqual(got, {"v": 1, "quote": "Fictional.", "by": "Sam", "role": ""})
+
+    def test_top_level_words_are_ignored_when_the_list_is_there(self):
+        """The page also sends quote, by and role (the first quote's) beside the list. They are dropped on purpose: the list is the one place
+        the words are kept, and no reader in Python reads the top-level fields of a stored list (the file's copy is made by published())."""
+        sent = {"v": 1, "quotes": [Q("Fictional list.", "Sam")], "quote": "Top level", "by": "Top", "role": "Top"}
+        got = quote.check(sent, None)
+        self.assertEqual(got, {"v": 1, "quotes": [Q("Fictional list.", "Sam")]})
+        self.assertEqual(quote.upgrade(sent)["quotes"], [Q("Fictional list.", "Sam")])
+        self.assertEqual(quote.published(sent, None)["content"]["quote"], "Fictional list.")
+
+    def test_the_file_carries_every_stored_field_and_the_first_quote_with_words_as_top_level(self):
+        got = quote.published({"v": 1, "quotes": [Q("Fictional one.", "A", "R1"), Q("Fictional two.", "B", "R2")], "align": "centre", "perRow": 3, "tile": False, "heading": False}, None)["content"]
+        self.assertEqual((got["align"], got["perRow"], got["tile"], got["heading"]), ("centre", 3, False, False))
+        self.assertEqual((got["quote"], got["by"], got["role"]), ("Fictional one.", "A", "R1"))
+        self.assertEqual(len(got["quotes"]), 2)
+
+    def test_a_check_strips_the_ends_of_every_field(self):
+        got = quote.check({"v": 1, "quotes": [Q("  Fictional.  ", " Sam ", "\tR\n")]}, None)
+        self.assertEqual(got["quotes"], [Q("Fictional.", "Sam", "R")])
+
+    def test_a_reader_gets_its_own_copy_of_the_quotes(self):
+        stored = {"v": 1, "quotes": [Q("Fictional.")]}
+        quote.upgrade(stored)["quotes"][0]["quote"] = "changed"
+        self.assertEqual(stored["quotes"][0]["quote"], "Fictional.")
+
     def test_the_file_carries_only_the_quotes_that_have_words(self):
         got = quote.published({"v": 1, "quotes": [Q("", "Only a name"), Q("Fictional kept.", "Sam"), Q("  ".strip())], "align": "centre"}, None)["content"]
         self.assertEqual(got["quotes"], [Q("Fictional kept.", "Sam")])
@@ -68,6 +96,45 @@ class Data(n.DataChecks):
         self.write(ref, {"v": 1, "quotes": [Q("Fictional kept."), Q("")]})
         self.assertEqual(len(json.loads(self.stored(ref))["quotes"]), 2)
         self.assertEqual(self.file_sections()[ref]["content"]["quotes"], [Q("Fictional kept.")])
+
+    def _six(self, ch):
+        return {"v": 1, "quotes": [Q(ch * quote.QUOTE_MAX, ch * quote.NAME_MAX, ch * quote.NAME_MAX) for _ in range(quote.QUOTES_MAX)]}
+
+    def test_six_full_ascii_quotes_are_saved_and_published(self):
+        ref = self.section()
+        status, got = self.write(ref, self._six("x"))
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(len(json.loads(self.stored(ref))["quotes"]), 6)
+        self.assertEqual(len(self.file_sections()[ref]["content"]["quotes"]), 6)
+
+    def test_six_full_emoji_quotes_are_saved_and_published(self):
+        """Worst case: every character of every field is an emoji, stored as a 12-byte escape pair (6 x 840 x 12 = 60,480 bytes and the JSON)."""
+        ref = self.section()
+        body = self._six("\U0001F600")
+        status, got = self.write(ref, body)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        stored = self.stored(ref)
+        self.assertGreater(len(stored.encode("ascii")), 60480)
+        self.assertLessEqual(len(stored.encode("ascii")), quote.LIMIT)
+        self.assertEqual(json.loads(stored)["quotes"], body["quotes"])
+        self.assertEqual(len(self.file_sections()[ref]["content"]["quotes"]), 6)
+
+    def test_seven_full_quotes_are_refused(self):
+        ref = self.section()
+        body = self._six("x")
+        body["quotes"].append(Q("x"))
+        before = self.snapshot()
+        status, got = self.write(ref, body)
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertEqual(self.snapshot(), before)
+
+    def test_a_body_over_the_limit_is_refused_as_too_big(self):
+        ref = self.section()
+        status, got = self.write(ref, {**self._six("x"), "pad": "y" * quote.LIMIT})
+        self.assertEqual((status, got["ok"]), (400, False))
+
+    def test_the_limit_is_65536(self):
+        self.assertEqual(quote.LIMIT, 65536)
 
     def test_an_older_quote_is_still_published(self):
         ref = self.section()
