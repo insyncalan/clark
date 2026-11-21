@@ -64,6 +64,7 @@ export function App({ tools: given }) {
   const Page = Published ? Published : view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const DemoBanner = !fromFile.value && tools && tools.DemoBanner;         // #731: the demo data line (Edit only); a published file has none, nor has any page drawn from one
   const Toast = tools && tools.Toast;
+  const Informed = tools && tools.InformedToast;        // row 1046: the "Database refreshed" message, in its own place (the editor's)
   const RowMenu = tools && tools.RowMenu;               // the right-click menu on a work item (#97); a published file has none
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
@@ -90,6 +91,7 @@ export function App({ tools: given }) {
       {status.value === "ready" ? <Peek tools={tools} /> : null}
       {FbTag ? <FbTag /> : null}
       {Toast ? <Toast /> : null}
+      {Informed ? <Informed /> : null}
       {RowMenu ? <RowMenu /> : null}
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}

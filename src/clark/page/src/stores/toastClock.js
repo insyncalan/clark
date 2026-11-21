@@ -2,13 +2,14 @@
 // each hold the count (the bar stops with it, in CSS); when the last hold is let go the rest of the time runs. Used by the change toast
 // (changes.js) and the profile menu's note (menuNote.js). The bar itself is drawn by edit/ToastCard.jsx and edit/ProfileMenu.jsx.
 export const TOAST_MS = 5000;
+export const INFORMED_MS = 8000;      // row 1046: a message that only informs (the database was refreshed) stays a little longer than a change's
 
-export function toastClock(onEnd) {
+export function toastClock(onEnd, ms = TOAST_MS) {
   let handle = 0, left = 0, since = 0, running = false;
   const holds = new Set();
   const run = () => { since = performance.now(); running = true; handle = setTimeout(() => { running = false; onEnd(); }, left); };
   return {
-    start() { clearTimeout(handle); holds.clear(); running = false; left = TOAST_MS; run(); },
+    start() { clearTimeout(handle); holds.clear(); running = false; left = ms; run(); },
     stop() { clearTimeout(handle); holds.clear(); running = false; left = 0; },
     hold(why) {
       if (holds.has(why)) return;

@@ -55,6 +55,7 @@ const ICONS = {
   sSlip: '<path d="M3.4 12a8.6 8.6 0 1 0 2.7-6.2M3 3.8v4.4h4.4M12 7.5v4.7l3 1.8"/>',
   sOver: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   sClosed: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  database: '<ellipse cx="12" cy="6" rx="7.2" ry="2.8"/><path d="M4.8 6v6c0 1.5 3.2 2.8 7.2 2.8s7.2-1.3 7.2-2.8V6M4.8 12v6c0 1.5 3.2 2.8 7.2 2.8s7.2-1.3 7.2-2.8v-6"/>',
   archive: '<rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2"/><path d="M5.4 9.6v9.6h13.2V9.6M10.2 13.2h3.6"/>',
   // Row 1272: the Callout's icons (question to shield) and the five shapes a colour draws when it has no word and no icon.
   question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.1.9-1.1 1.7M12 16.8v.2"/>',

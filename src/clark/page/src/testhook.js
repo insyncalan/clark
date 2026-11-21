@@ -3,6 +3,7 @@
 import { workSelection } from "./stores/selection.js";
 import { data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
 import { markChanged, changed, useClock } from "./stores/changed.js";
+import { sayInformed } from "./stores/informed.js";
 import { welcomeHeld } from "./stores/profile.js";
 import { openImport } from "./edit/wordState.js";
 import { closeAfter, CLOSE_MS } from "./edit/publishState.js";
@@ -19,6 +20,7 @@ export function install(tools) {
   const peekHelp = Object.freeze({ open: openContext, toggle: toggleContext, close: closeContext, isOpen: () => contextOpen.value, useText: useContextText });
   const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
   window.clarkPage = Object.freeze({ show, setQuery, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
+    sayInformed,      // row 1046: the editor's own message that only informs
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },
