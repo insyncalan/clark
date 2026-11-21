@@ -450,6 +450,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .fdv.a { background: var(--status-amber); }
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
+.fopt .fl-tick { margin-left: auto; display: inline-grid; align-self: center; color: inherit; }   /* row 1304: the tick on the current Group by choice */
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
 .fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
 .fgloss[hidden] { display: none; }

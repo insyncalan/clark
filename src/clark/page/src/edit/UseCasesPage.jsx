@@ -356,7 +356,7 @@ function UseCasesList() {
           <p class="sr-only" role="status">{told}</p>
         </div>
       ) : null}
-      {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} tail={tail} /> : null}
+      {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} tail={tail} onGroup={(k) => set({ group: k })} /> : null}
       {!rows.length ? <p class="muted ucl-none" data-empty>No use cases yet.</p>
         : !kept_.length ? (
           <div class="ucl-none" data-empty>
