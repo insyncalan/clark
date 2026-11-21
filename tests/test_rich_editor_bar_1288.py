@@ -79,6 +79,19 @@ class Bar(unittest.TestCase):
                         self.assertIn("Divider", names, where)
                         self.assertFalse(h.ev("!!document.querySelector('.rt-bar .rt-more')"), where)
 
+    def test_a_one_line_editor_draws_no_more_button_and_a_normal_one_does(self):
+        with rp.Harness(chrome) as h:
+            for w, th in LOOKS[::2]:
+                layer(h, True)
+                h.resize(w)
+                h.theme(th)
+                where = f"{w} {th}"
+                h.mount("<p>Some words here</p>", ai="current", one_line=True)
+                self.assertTrue(h.until("!!document.querySelector('.rt-bar')"), where)
+                self.assertFalse(h.ev("!!document.querySelector('.rt-bar .rt-more')"), "oneLine " + where)
+                h.mount("<p>Some words here</p>", ai="current")
+                self.assertTrue(h.ev("!!document.querySelector('.rt-bar .rt-more')"), "normal " + where)
+
     def test_the_drop_down_lists_quote_and_divider_and_quote_works(self):
         with rp.Harness(chrome) as h:
             self.open(h, True, 1400, "light")
