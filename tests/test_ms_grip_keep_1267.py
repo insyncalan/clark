@@ -11,7 +11,7 @@ from test_server import chrome, wait
 GRIP = "document.querySelector('.mv-wrap [data-grip], [data-grip]')"
 RING = """(() => { const g = document.querySelector('[data-grip]'), s = getComputedStyle(g), p = document.createElement('i');
   p.style.color = 'var(--focus)'; document.body.appendChild(p); const want = getComputedStyle(p).color; p.remove();
-  return { on: document.activeElement === g, visible: g.matches(':focus-visible'), style: s.outlineStyle, width: s.outlineWidth, color: s.outlineColor, want }; })()"""
+  return { on: document.activeElement === g, visible: g.matches(':focus-visible'), style: s.outlineStyle, width: s.outlineWidth, offset: s.outlineOffset, color: s.outlineColor, want }; })()"""
 
 
 def tab(cdp, sid):
@@ -29,6 +29,7 @@ def ring_by_keyboard(test, cdp, sid, width, look):
     got = cdp.js(RING, sid)
     test.assertTrue(got["visible"], f"{width} {look}: focused by keyboard, so :focus-visible")
     test.assertEqual((got["style"], got["width"]), ("solid", "2px"), f"{width} {look}: the 2px ring of the design, not the browser's own")
+    test.assertEqual(got["offset"], "1px", f"{width} {look}: the ring sits 1px off the grip")
     test.assertEqual(got["color"], got["want"], f"{width} {look}: in the focus colour")
     test.assertNotIn(got["color"], ("rgba(0, 0, 0, 0)", "transparent"), f"{width} {look}: seen")
 
