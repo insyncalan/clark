@@ -9,13 +9,15 @@ import { ADD_SECTION_EVENT } from "./addDialog.js";
 import { inertBehind } from "./modalLayers.js";
 import { addFromTemplate } from "./actions.js";
 import { Icon } from "../components/Icon.jsx";
-import { KINDS, RECENT, MESSAGES, SKETCHES, list, counts, find, available, besideState, remember, fitWords, fitList, noMatch } from "../logic/templates.js";
+import { classicTheme } from "../components/Contents.jsx";
+import { KINDS, RECENT, MESSAGES, SKETCHES, CLASSIC_SKETCHES, list, counts, find, available, besideState, remember, fitWords, fitList, noMatch } from "../logic/templates.js";
 
 // The template's sketch (#783, the prototype's thumbnail): shapes only, hidden from a screen reader, which hears the name and words.
 function Sketch({ id, big }) {
-  const s = SKETCHES[id];
+  const b = classicTheme() ? CLASSIC_SKETCHES[id] : null;       // row 1272: Classic draws look B for the Callout, Cards keeps its sketch
+  const s = b || SKETCHES[id];
   if (!s) return null;
-  return <div class={`ad-sk${big ? " big" : ""}`} style={s[0]} aria-hidden="true">{s[1].map((st, i) => <i key={i} style={st} />)}</div>;
+  return <div class={`ad-sk${big ? " big" : ""}${b ? ` sk-${id}-b` : ""}`} style={s[0]} aria-hidden="true">{s[1].map((st, i) => <i key={i} style={st} />)}</div>;
 }
 
 const STORE_KEY = "clark.recentTemplates";
