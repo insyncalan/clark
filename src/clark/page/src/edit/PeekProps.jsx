@@ -1,6 +1,7 @@
 // Row 1180: what the editor adds to the peek's chip row and Details. `chipPop(row, field)` gives a chip its popover (the table cell's own pickers and the
 // same change, request and Undo, in the peek's place so a pick is about this item alone); `ClientLine` is the one clickable Client visible line.
 // A published file and the Dashboard in View never reach this file: Peek.jsx draws their chips without a popover.
+import { classicTheme } from "../components/Contents.jsx";
 import { data } from "../stores/report.js";
 import { changeCell, changeNewPerson, changeRating } from "../stores/changes.js";
 import { todayIso } from "../workItems.js";
@@ -38,12 +39,13 @@ export function chipPop(row, field) {
 }
 
 /** The Client visible line: the eye, brand coloured when the item is shown to the client, grey "Client not visible" when it is not. One click is one change with one Undo. */
+// Row 1285: under the Classic look the line also draws the 40 x 22 switch at the right of its row (the words are the same); Cards draws none.
 export function ClientLine({ row }) {
   const on = !!row.client;
   const run = () => { const c = eyeChange(row); changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back, place: PLACE }); };
   return (
     <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
-      <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
+      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : (classicTheme() ? "Hidden from the client" : "Client not visible")}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
     </button>
   );
 }
