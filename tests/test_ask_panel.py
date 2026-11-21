@@ -40,6 +40,8 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.late = False                        # row 1293 line 7: an answer that still comes back after Stop
+        self.extra = {}                          # row 1293 line 7: more fields on that answer (a draft, changes and their reply)
         self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
@@ -58,9 +60,9 @@ class Stub:
     def ask(self, body):
         self.calls.append(("ask", body))
         self.hold.wait(30)
-        if self.stopped:
+        if self.stopped and not self.late:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
-        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
+        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes), **self.extra}
 
     def open_source(self, body):
         self.calls.append(("open_source", body))
@@ -374,6 +376,82 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_an_answer_that_comes_after_stop_is_not_shown(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the question stayed and the stopped line followed")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-answer').length"), 0, "no answer is drawn")
+            self.assertNotIn("The pilot goes live in March.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertIn("Stopped. Nothing was changed.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
+
+    def test_a_late_answer_with_changes_and_a_draft_after_stop_shows_neither(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        self.stub.extra = {"reply": "r1", "changes": [{"op": "edit"}], "draft": {"html": "<p>A late draft.</p>", "title": "Late", "sec": ""}}
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("window.__dry = 0; const f = window.fetch; window.fetch = function (u, ...a) { if (String(u).includes('/api/ask/change/')) window.__dry++; return f.call(this, u, ...a); }")
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the question stayed and the stopped line followed")
+            time.sleep(0.5)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn').length"), 2, "no changes turn followed")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-draftcard]').length + document.querySelectorAll('#ask-draft').length"), 0, "no draft card, no draft open")
+            self.assertEqual(p.js("window.__dry"), 0, "the changes were not even asked for")
+            text = p.js("document.querySelector('#ask-panel').textContent")
+            self.assertNotIn("A late draft.", text)
+            self.assertIn("Stopped. Nothing was changed.", text)
+
+    def test_stop_pressed_while_the_changes_are_being_drawn_holds_the_queue(self):          # row 1293 line 7
+        self.stub.extra = {"reply": "r1", "changes": [{"op": "edit"}]}
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("window.__go = null; const f = window.fetch; window.fetch = function (u, ...a) { if (String(u).includes('/api/ask/change/dry')) { window.__dry = true; return new Promise((ok) => { window.__go = () => ok(f.call(this, u, ...a)); }); } return f.call(this, u, ...a); }")
+            self.stub.hold.clear()
+            self.ask(p, "Question A")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-box').focus()")
+            p.type("Question B")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("document.querySelectorAll('#ask-queue li[data-queued]').length === 1", "B was queued")
+            self.stub.hold.set()
+            p.until("window.__dry === true", "the answer is in and the changes are being drawn (held)")
+            p.until("!!document.querySelector('#ask-stop')", "Stop is still there while the changes are drawn")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("window.__go !== null", "the dry run waits")
+            time.sleep(0.5)
+            p.js("window.__go()")
+            p.until("!!document.querySelector('#ask-queue-held')", "the queue is held", 30)
+            time.sleep(0.5)
+            self.assertEqual(p.js("document.querySelector('#ask-queue-held span').textContent"), "Stopped. 1 message is waiting")
+            self.assertEqual(self.stub.count("ask"), 1, "B was not sent")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-queue li[data-queued]').length"), 1, "B is still waiting")
+
+    def test_a_new_question_after_stop_is_answered_normally(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped")
+            self.stub.late, self.stub.stopped = False, False
+            self.stub.answer = "The second answer is shown."
+            self.stub.hold.set()
+            p.until("!document.querySelector('#ask-send').disabled", "the panel takes a new question")
+            self.ask(p, "And the budget?")
+            p.until("document.querySelectorAll('.ask-turn').length === 4 && !document.querySelector('#ask-stop')", "the new question was answered", 30)
+            self.assertIn("The second answer is shown.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-turn')].pop().textContent.includes('The second answer is shown.')"), True, "the new answer is the last turn")
 
     def test_stop_pressed_puts_focus_back_in_the_question_box(self):
         self.stub.hold.clear()
