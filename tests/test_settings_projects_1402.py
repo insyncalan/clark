@@ -1,6 +1,6 @@
 """Row 1402 in the Classic Theme: the Settings Projects card as the prototype draws it (issue 1402, Classic audit 19-11), on the REAL Settings page, as Chrome
 computes it at 1400 (the spec) and 900 (also checked), light and dark; Cards as the control.
-Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no vertical dividers between header cells; cell padding 8px 10px 8px 0 (header and body);
+Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no vertical dividers between header cells; cell padding 8px 10px 8px 0 (body) and 6px 10px 6px 0 (header);
 Add project is navy rgb(6, 47, 58), white text, radius 8. Dark keeps the Theme's tokens for colours.
 
 Run: python3 dev/run_tests.py test_settings_projects_1402"""
