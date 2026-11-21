@@ -7,7 +7,7 @@
 // Words and limits: logic/fullImageWords.js (unruled).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { LineField, CaptionField, saveWords, sendPicture, picturesTotal, NEAR } from "./pictureEdit.jsx";
-import { classicLook } from "../startingText.js";
+import { classicLook, startText, startOr } from "../startingText.js";
 import { samplePicture } from "../samplePicture.js";
 import { Bar } from "./FullImageBar.jsx";
 import { Crop } from "./FullImageCrop.jsx";
@@ -192,6 +192,7 @@ export function Edit({ section }) {
           <button type="button" class="btn sm" data-act="pick" disabled={busy} onClick={pick}>{W.choose}</button>
           <span class="quiet">{busy ? W.making : W.drop}</span>
         </div>
+        {classicLook() ? <p class="quiet tpl-start" data-start="image">{startText("full-image", "empty")}</p> : null}
         <p class="quiet tpl-hint">{W.hint}</p>
         {file}
       </div>
@@ -239,7 +240,7 @@ export function Edit({ section }) {
       {cropping ? null : <p class="quiet fi-file" role="status" data-file-note>{note}</p>}
       {capOpen ? (
         <>
-          <CaptionField section={section} field="caption" label={W.caption} value={v.caption} max={300} words={W.captionSaved} />
+          <CaptionField section={section} field="caption" label={W.caption} value={v.caption} max={300} words={W.captionSaved} empty={startOr(undefined, "full-image", "caption")} />
           <div><button type="button" class="btn sm quiet" data-act="caption-out" onClick={async () => { await saveWords(section, { caption: "" }, W.captionSaved); setCapOpen(false); }}>{W.removeCaption}</button></div>
         </>
       ) : <div><button type="button" class="btn sm quiet" data-act="caption-add" onClick={() => setCapOpen(true)}>{W.addCaption}</button></div>}
