@@ -19,8 +19,10 @@ const BAR = [
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
-// Row 1288 (Classic only, Cards keeps its words): the "/" menu ends with Ask AI... and its filter box says Filter blocks...
+// Row 1288 (Classic only, Cards keeps its own toolbar and words): Quote and Divider share one drop-down ("1C"), the bubble ends with Ask AI..., the "/" menu ends with Ask AI... and its filter box says Filter blocks...
+const MORE = [["quote", "Quote"], ["rule", "Divider"]];
 export const ASK_AI = "Ask AI\u2026";
+const MORE_WORDS = "More blocks: Quote, Divider";
 const FILTER_WORDS = "Filter blocks\u2026";
 const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
@@ -231,7 +233,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
-  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
+  const more = ["quote", "rule"].filter((n) => !oneLine && classic && n);
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR.filter((b) => !(classic && (b[0] === "quote" || b[0] === "rule")))).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
+  const moreIdx = bar.findIndex((b) => b !== "|" && b[0] === "checklist") + 1;
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
   return (
@@ -239,7 +243,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
         {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
           items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
-        {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {bar.map((b, i) => [b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b),
+          more.length && i + 1 === moreIdx ? <Menu key="more" label="❝" ariaLabel={MORE_WORDS} tip={MORE_WORDS} btnCls="rt-btn rt-more"
+            items={MORE.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} /> : null])}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -253,7 +259,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
       {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
-        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
+        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{classic ? ASK_AI : DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
