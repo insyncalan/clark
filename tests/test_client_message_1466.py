@@ -27,7 +27,7 @@ class Words(unittest.TestCase):
                 self.assertIsNone(hit, "Client wording is on a built page" + (": " + html[hit.start() - 60:hit.end() + 40] if hit else ""))
                 self.assertIn("Client Message", html)
 
-    def test_the_history_label_for_client_message_stays_message_to_the_client(self):
+    def test_the_history_label_for_client_message_is_client_message(self):
         from clark import history
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
