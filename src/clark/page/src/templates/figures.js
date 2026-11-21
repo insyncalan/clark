@@ -9,10 +9,24 @@ import { keptRows, rulesFor } from "../logic/publishable.js";
 import { dateWords } from "./safe.js";
 
 export const PLACES = { figures4: 4, figures3: 3 };
+export const COUNTS = [3, 4];     // row 1263: the one Numbers card holds three or four numbers; the count is in the body, an older body has its type's places
+const countIn = (n) => (n === 3 || n === 4 ? n : 0);
 export const METRICS = [["overdue", TILE_TITLES.overdue], ["risks", TILE_TITLES.risks], ["decisions", TILE_TITLES.decisions]];
 export const LIMITS = { label: 60, value: 30, detail: 80 };
 const KIND_OF = { overdue: "actions", risks: "raid", decisions: "decisions" };
 const text = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
+
+// The count a stored body names itself (3 or 4), or 0: a body stored before row 1263, or one that does not read, names none.
+export function ownCount(section) {
+  let v = null;
+  try { v = typeof section.body === "string" && section.body ? JSON.parse(section.body) : null; } catch (e) { v = null; }
+  return countIn(v && typeof v === "object" ? v.count : 0);
+}
+
+// How many numbers a section has: the published file's own count, or the stored body's, or (an older section, no migration) the places of its type.
+export function countOf(section, type) {
+  return countIn(Array.isArray(section.figures) ? section.count : ownCount(section)) || PLACES[type];
+}
 
 // The stored slots of a section (an array no longer than its places): a body that is empty or does not read gives none.
 export function slotsOf(section, places) {
@@ -24,12 +38,16 @@ export function slotsOf(section, places) {
     : { mode: "typed", label: text(s && s.label), value: text(s && s.value), detail: text(s && s.detail), asof: text(s && s.asof) }));
 }
 
-// The body to save for these slots: trailing empty ones dropped; none left is no content ("").
-export function bodyOf(slots) {
+// The body to save for these slots: trailing empty ones dropped; none left is no content (""). A count (3 or 4) is written only when one is
+// given (the caller passes the body's own, or the one a person chose), so an older body saved again keeps its shape; an empty body keeps a
+// count that is not its type's own, so the choice is not lost.
+export function bodyOf(slots, count, type) {
   const empty = (s) => s.mode === "typed" && !s.label && !s.value && !s.detail && !s.asof;
   const list = slots.slice();
   while (list.length && empty(list[list.length - 1])) list.pop();
-  return list.length ? JSON.stringify({ v: 1, figures: list }) : "";
+  if (!count) return list.length ? JSON.stringify({ v: 1, figures: list }) : "";
+  if (!list.length && count === PLACES[type]) return "";
+  return JSON.stringify({ v: 1, count, figures: list });
 }
 
 // The rules the live figures work under (the same ones the published file is cut with).

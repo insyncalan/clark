@@ -1036,13 +1036,8 @@
         "Full or half"
        ],
        [
-        "Key figures, four",
+        "Numbers",
         "Three or four numbers with labels and a change since last week.",
-        "Full or half"
-       ],
-       [
-        "Key figures, three",
-        "Three numbers with labels, in wider cards, so a short note fits under the change.",
         "Full or half"
        ],
        [
@@ -2645,7 +2640,7 @@
      "pic": "templates-dialog"
     },
     {
-     "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
+     "d": "Choose a template in the list, such as **Numbers** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
     },
     {
      "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.",

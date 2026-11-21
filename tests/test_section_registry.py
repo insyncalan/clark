@@ -339,6 +339,7 @@ class PageSide(unittest.TestCase):
         cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST and not x.get("start")]
         # row 1268: the Work items list has no entry without a start (its start is the saved filter it begins from), so it counts here by that one entry
         cat_types += [x["type"] for x in cat if x.get("start") and x["type"] == "workitems"]
+        cat_types += ["figures3"]      # row 1263: the one Numbers card (type figures4) reads the older figures3 sections; figures3 has no card of its own
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
         self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("full-image", "imagecap", '{"v":2}')],
                          "row 1223: Full width image is the same store type as Image with caption, started with a version 2 body; no type of its own")

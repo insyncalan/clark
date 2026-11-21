@@ -1,17 +1,20 @@
 """Row 1263: one Numbers card for three or four numbers (mock-up mockups/1263-numbers-template, approved 18-11-2026).
 
-Stored data: a section of the old type figures3 or figures4 (body {"v":1,"figures":[...]}, no count) is checked, published and
-exported as before; a new body may carry "count": 3 or 4. Fictional data only.
+Stored data first: a section of the old type figures3 or figures4 (body {"v":1,"figures":[...]}, no count) is read by the one
+card as before: checked, published, drawn and exported the same; a new body may carry "count": 3 or 4. Then the page: the pure
+reader (figures.js) and the one card in the library (the Classic Edit is the next slice). Fictional data only.
 
 Run: python3 dev/run_tests.py test_numbers_1263
 """
+import contextlib
 import json
 import unittest
 
-from _tpl_figures import typed
+from _tpl_figures import bare_page, live, typed
 from clark import changes, docx_build, publish, section_bodies, section_kinds, store as store_module
 from clark.section_kinds import base, figures3, figures4
 from test_changes import Api
+from test_server import Running, chrome, wait
 import test_reportheadline_export_1261 as ex
 
 
@@ -163,3 +166,61 @@ class ThroughTheStore(Api):
             with_numbers["sections"] = list(with_numbers["sections"]) + [entry]
         self.assertEqual(ex.doc_xml(docx_build.build(plain)), ex.doc_xml(docx_build.build(with_numbers)))
         self.assertEqual(ex.sheet(plain).sheetnames, ex.sheet(with_numbers).sheetnames)
+
+
+class PageSide(unittest.TestCase):
+    """figures.js: the one reader."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.stack = contextlib.ExitStack()
+        cls.server = Running(page_html=bare_page)
+        cls.stack.callback(cls.server.close)
+        cls.cdp = cls.stack.enter_context(chrome())
+        tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+        cls.sid = cls.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stack.close()
+
+    def setUp(self):
+        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
+        self.assertTrue(wait(lambda: self.cdp.js("!!(window.F && window.F.figures)", self.sid)), "the test bundle ran")
+
+    def val(self, expr):
+        got = self.cdp.js(f"(function(){{ try {{ return JSON.stringify({expr}); }} catch (e) {{ return 'ERROR ' + e.message; }} }})()", self.sid)
+        self.assertIsNotNone(got, expr)
+        self.assertFalse(got.startswith("ERROR"), f"{expr}: {got}")
+        return json.loads(got)
+
+    def data(self):
+        return {"project": {"code": "ABC"}, "actions": [], "raid": [], "decisions": [], "milestones": [], "use_cases": [], "labels": {}, "report_sections": []}
+
+    def test_the_count_is_the_bodys_when_it_has_one_and_the_types_when_it_has_not(self):
+        cases = [("figures4", json.dumps(body()), 4), ("figures3", json.dumps(body()), 3), ("figures4", "", 4), ("figures3", "", 3),
+                 ("figures4", json.dumps(body(count=3)), 3), ("figures3", json.dumps(body(count=4)), 4),
+                 ("figures4", json.dumps(body(count=5)), 4), ("figures3", json.dumps(body(count="4")), 3), ("figures4", "{", 4)]
+        for type_, b, want in cases:
+            with self.subTest(type=type_, body=b):
+                self.assertEqual(self.val(f"F.figures.countOf({json.dumps({'body': b})}, {json.dumps(type_)})"), want)
+
+    def test_a_published_entry_names_its_count_and_an_old_one_falls_back_to_its_type(self):
+        self.assertEqual(self.val("F.figures.countOf({figures: [], count: 3}, 'figures4')"), 3)
+        self.assertEqual(self.val("F.figures.countOf({figures: []}, 'figures3')"), 3)
+        self.assertEqual(self.val("F.figures.countOf({figures: [], count: 9}, 'figures4')"), 4)
+
+    def test_the_figures_drawn_follow_the_count(self):
+        sec = {"id": "S", "type": "figures4", "body": json.dumps({"v": 1, "count": 3, "figures": FOUR})}        # not a checked body: the reader still keeps to its count
+        got = self.val(f"F.figures.figuresOf({json.dumps(sec)}, {json.dumps(self.data())}, '2030-01-15', F.figures.countOf({json.dumps(sec)}, 'figures4'))")
+        self.assertEqual([f["label"] for f in got], ["L0", "L1", "L2"])
+
+    def test_body_of_writes_the_count_when_given_and_nothing_extra_when_not(self):
+        self.assertEqual(json.loads(self.val("F.figures.bodyOf([{mode:'live',metric:'risks'}], 3)")), {"v": 1, "count": 3, "figures": [live("risks")]})
+        self.assertEqual(json.loads(self.val("F.figures.bodyOf([{mode:'live',metric:'risks'}])")), {"v": 1, "figures": [live("risks")]})
+
+    def test_an_empty_body_keeps_a_count_that_is_not_the_types_own_and_drops_the_one_that_is(self):
+        empty = "{mode:'typed',label:'',value:'',detail:'',asof:''}"
+        self.assertEqual(json.loads(self.val(f"F.figures.bodyOf([{empty}], 3, 'figures4')")), {"v": 1, "count": 3, "figures": []})
+        self.assertEqual(self.val(f"F.figures.bodyOf([{empty}], 4, 'figures4')"), "")
+        self.assertEqual(self.val(f"F.figures.bodyOf([{empty}], 3, 'figures3')"), "")
