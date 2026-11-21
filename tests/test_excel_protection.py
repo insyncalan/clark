@@ -99,7 +99,7 @@ class Protected(Base):
 
     def test_every_locked_column_has_the_grey_fill_on_its_data_rows_and_no_other_does(self):
         """Item 1157: the Project and the worked-out columns are grey too, not only the sheet's own locked set."""
-        grey = excel.colours.TOKENS["grey-100"]
+        grey = "E7E7E7"      # item 1390: the Cover grey, not the old blue-ish grey-100 (E6EBF6)
         seen = 0
         for name in DATA:
             ws = self.wb[name]
@@ -161,7 +161,7 @@ class Protected(Base):
         self.assertTrue(ws.conditional_formatting)
 
     def test_the_cover_line(self):
-        want = ("Some cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
+        want = ("Grey cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
                 "To change them, choose Review, then Unprotect Sheet. There is no password. "
                 "Excel will not sort a protected sheet; unprotect it first.")
         self.assertEqual(excel_cover.LOCKED_CELLS, want)
