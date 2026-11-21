@@ -503,20 +503,29 @@ class Classic(Look):
         for k in range(51):
             self.demo.action(description=f"Kim step {k}", owner="Kim Demo", due_date="2030-02-01")
         ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Kim Demo"]})
+        for k in range(50):
+            self.demo.action(description=f"Joy step {k}", owner="Joy Demo", due_date="2030-02-01")
+        exact = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Joy Demo"]})      # exactly as many rows as Most rows: no cut, so no link
         for width in (1400, 900):
             with T.chrome() as cdp:
                 p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{exact}\"] [data-wil-count]')", f"{width}: the exact list is drawn")
+                self.assertEqual(p.js(f"[document.querySelectorAll('[data-id=\"{exact}\"] .wil-all-b').length, document.querySelectorAll('[data-id=\"{exact}\"] .wil-table tbody tr').length, document.querySelector('[data-id=\"{exact}\"] [data-wil-count]').textContent]"), [0, 50, "Showing all of 50"], width)
                 sec = f'[data-id="{ref}"]'
                 p.until(f"!!document.querySelector('{sec} .wil-all-b')", f"{width}: the link is drawn")
                 n = lambda: p.js(f"(() => {{ const b = document.querySelector('{sec} .wil-scroll'), r0 = b.getBoundingClientRect(); return [...b.querySelectorAll('.wil-table tbody tr')].filter(r => r.getBoundingClientRect().top < r0.bottom - 2).length; }})()")      # rows that start inside the box
                 word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+                foot = lambda: p.js(f"[document.querySelector('{sec} [data-wil-count]').textContent, document.querySelector('{sec} .wil-all-b').getAttribute('aria-expanded')]")      # the count words and the link's open state
                 self.assertEqual((n(), word()), (50, "Show all items"), width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
                 p.js(f"document.querySelector('{sec} .wil-all-b').click()")
                 p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 50'", f"{width}: open")
                 self.assertEqual(n(), 51, width)
+                self.assertEqual(foot(), ["Showing all of 51", "true"], width)
                 p.js(f"document.querySelector('{sec} .wil-all-b').click()")
                 p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", f"{width}: closed")
                 self.assertEqual(n(), 50, width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
 
     def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
