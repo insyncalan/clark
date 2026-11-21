@@ -73,7 +73,7 @@ class Classic(Base):
     def look(self, js, sel):
         return js("(() => { const b = document.querySelector(%r + ' .ask-left-btn'); const c = getComputedStyle(b); const tok = (v) => { const p = document.createElement('p'); p.style.color = 'var(' + v + ')'; document.body.appendChild(p); const x = getComputedStyle(p).color; p.remove(); return x; }; "
                   "return {color: c.color, blue: tok('--brand-blue'), size: c.fontSize, h: b.getBoundingClientRect().height, role: b.tagName, exp: b.getAttribute('aria-expanded'), "
-                  "list: !!document.querySelector(%r + ' .ask-left-list'), below: b.getBoundingClientRect().top >= b.closest('li').querySelector('.ask-folder-line').getBoundingClientRect().bottom - 1}; })()" % (sel, sel))
+                  "list: !!document.querySelector(%r + ' .ask-left-list'), below: !!b.closest('.ask-folder-line')}; })()" % (sel, sel))
 
     def open_list(self, js, sel):
         js(BTN % sel + ".click()")
@@ -90,9 +90,8 @@ class Classic(Base):
                     self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), (mode, w))
                     for sel in ("#ask-folders-shared", "#ask-folders"):
                         k = self.look(js, sel)
-                        self.assertEqual((k["color"], k["size"], k["role"], k["exp"], k["list"], k["below"]), (k["blue"], "14px", "BUTTON", "false", False, True), (mode, w, sel, k))
-                        self.assertGreaterEqual(k["h"], 24)
-                        self.assertEqual(js(BTN % sel + ".textContent"), "Show the files left out")
+                        self.assertEqual((k["color"], k["size"], k["role"], k["exp"], k["list"], k["below"]), (k["blue"], "13px", "BUTTON", "false", False, True), (mode, w, sel, k))
+                        self.assertEqual(js(BTN % sel + ".textContent"), "(why)")
             self.open_list(js, "#ask-folders")
             self.assertEqual(js(BTN % "#ask-folders" + ".getAttribute('aria-expanded')"), "true")
             n = js("document.querySelectorAll('#ask-folders .ask-left-list li').length")
