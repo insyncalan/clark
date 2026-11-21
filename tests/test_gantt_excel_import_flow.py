@@ -94,7 +94,7 @@ class Reading(Flow):
 
     def test_ticking_only_the_gantt_sheet_plans_and_applies_only_its_changes_in_one_step_with_one_undo(self):
         self.edit_gantt(Line="Alpha, renamed")
-        self.edit("Actions", self.a1, Description="Not to be imported")
+        self.edit("Actions", self.a1, Title="Not to be imported")
         before, steps = self.lines(), self.steps()
         st, got = self.pick(["gantt_lines"])
         self.assertEqual(st, 200, got)
@@ -110,7 +110,7 @@ class Reading(Flow):
 
     def test_ticking_a_table_does_not_read_the_gantt_sheet_even_though_the_file_has_one(self):
         self.edit_gantt(Line="Alpha, renamed")
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, two")
         st, got = self.pick(["actions"])
         self.assertEqual((st, got["counts"]), (200, {"new": 0, "changed": 1, "removed": 0}), got)
         st, done = self.apply(got["plan"], confirm=True)
@@ -146,7 +146,7 @@ class Partial(Flow):
         return got
 
     def test_ticking_only_actions_on_a_file_with_a_gantt_sheet_is_partial_and_not_marked_imported(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, two")
         got = self.plan_of(["actions"])
         self.assertTrue(excel_route.PLANS[got["plan"]]["plan"].partial)
         self.assertFalse(got["already_imported"])
@@ -166,7 +166,7 @@ class Partial(Flow):
 
     def test_after_a_partial_import_of_actions_the_same_file_is_accepted_again_for_the_gantt_sheet(self):
         self.edit_gantt(Line="Alpha, renamed")
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, two")
         got = self.plan_of(["actions"])
         st, done = self.apply(got["plan"], confirm=True)
         self.assertEqual((st, done["ok"]), (200, True), done)
@@ -189,7 +189,7 @@ class Limit(Flow):
         for i in range(n):
             row = ws.max_row + 1
             for label, v in {"ID": "TBD", "Line": f"Extra {i}", "Type": "Task", "Start": datetime.date(2026, 12, 1),
-                             "End": datetime.date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                             "End": datetime.date(2026, 12, 3), "On the dashboard": "Yes"}.items():
                 ws.cell(row, head[label]).value = v
         wb.save(str(self.path))
 

@@ -116,7 +116,7 @@ class Base(unittest.TestCase):
 
 class Check(Base):
     def test_a_check_lists_the_differences_by_number_and_writes_nothing(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         before = self.steps()
         status, got = self.check()
         self.assertEqual((status, got["ok"], got["file"]), (200, True, "ABC work items.xlsx"), got)
@@ -214,7 +214,7 @@ class Apply(Base):
         ws = wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
         row = ws.max_row + 1
-        ws.cell(row, head["Description"]).value = "Set up the test rig"
+        ws.cell(row, head["Title"]).value = "Set up the test rig"
         ws.cell(row, head["Milestone"]).value = "Pilot wave 2"
         wb.save(str(self.path))
         status, got = self.check()
@@ -233,8 +233,8 @@ class Apply(Base):
         self.assertEqual([r for r in self.store.read("milestones", project="ABC") if r["name"] == "Pilot wave 2"], [])
 
     def test_an_apply_is_one_step_with_one_undo_and_the_workbook_copy_is_gone(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
-        self.edit("Actions", self.a2, Description="Book the big training room")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a2, Title="Book the big training room")
         key = self.check()[1]["plan"]
         self.assertEqual(len(self.temp_folders()) >= 1, True)
         before = self.steps()
@@ -260,9 +260,9 @@ class Apply(Base):
         row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.a2)
         ws.delete_rows(row)
         ws.append([None] * ws.max_column)
-        ws.cell(ws.max_row, head["Description"]).value = "Order the new laptops"
+        ws.cell(ws.max_row, head["Title"]).value = "Order the new laptops"
         wb.save(str(self.path))
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         got = self.check()[1]
         self.assertEqual(sorted(i["kind"] for i in got["items"]), ["changed", "new", "removed"], got["items"])
         removed = next(i["n"] for i in got["items"] if i["kind"] == "removed")
@@ -280,7 +280,7 @@ class Apply(Base):
         self.assertEqual((status, back["ok"]), (200, True), back)
 
     def test_a_waiting_copy_goes_when_its_time_is_up_with_no_later_call_and_at_the_close(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         key = self.check()[1]["plan"]
         held = excel_route.PLANS[key]
         self.assertTrue(held["timer"].daemon)
@@ -294,8 +294,8 @@ class Apply(Base):
         self.assertEqual((excel_route.PLANS, folder.exists()), ({}, False))
 
     def test_accepting_by_number_applies_only_those(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
-        self.edit("Actions", self.a2, Description="Book the big training room")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a2, Title="Book the big training room")
         got = self.check()[1]
         first = next(i["n"] for i in got["items"] if self.a1 in i["text"])
         status, done = self.apply(got["plan"], [first])
@@ -319,7 +319,7 @@ class Apply(Base):
         self.assertEqual(self.store.read("actions", ref=self.a2)["archived"], 1)
 
     def test_the_same_file_again_is_already_imported_and_no_plan_waits(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         self.assertEqual(self.apply(self.check()[1]["plan"])[0], 200)
         status, got = self.check()
         self.assertEqual((status, got["already_imported"], got["items"], got["plan"]), (200, True, [], None))
@@ -338,7 +338,7 @@ class Apply(Base):
         self.assertEqual(self.apply(got["plan"], "all", confirm="yes")[0], 400)
 
     def test_a_row_that_breaks_a_rule_refuses_the_whole_file_at_the_check_and_nothing_waits(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         self.edit("Actions", self.a2, **{"Status": "Not a status"})
         before = self.steps()
         status, got = self.check()
@@ -351,11 +351,11 @@ class Apply(Base):
         self.assertEqual(self.description_of(self.a1), "Draft the cut-over plan")
 
     def test_a_check_with_no_broken_row_has_an_empty_refused_list(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         self.assertEqual(self.check()[1]["refused"], [])
 
     def test_an_old_plan_a_wrong_project_a_bad_accept_and_a_missing_number_are_refused(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         key = self.check()[1]["plan"]
         for accept in ([], [0], ["1"], [True], "some", None, [1] * 6000):
             self.assertEqual(self.apply(key, accept)[1]["message"], excel_route.BAD_ACCEPT, str(accept)[:20])
@@ -378,7 +378,7 @@ class Apply(Base):
         self.assertEqual(len(self.temp_folders()) >= 0, True)
 
     def test_an_undo_takes_only_a_workbook_step_of_that_project(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         done = self.apply(self.check()[1]["plan"])[1]
         self.assertEqual(self.post(op="undo", project="ABC", apply_id="1")[1]["message"], excel_route.NO_UNDO)
         self.assertEqual(self.post(op="undo", project="ABC", apply_id=self.demo.last_step() - 5)[1]["message"], excel_route.NO_UNDO)

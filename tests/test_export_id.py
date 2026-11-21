@@ -187,7 +187,7 @@ class NewRows(Case):
         ws = wb["Actions"]
         head = [c.value for c in ws[1]]
         last = max(r for r in range(2, ws.max_row + 1) if ws.cell(row=r, column=1).value) if ws.max_row > 1 else 1
-        ws.cell(row=last + 1, column=head.index("Description") + 1).value = words
+        ws.cell(row=last + 1, column=head.index("Title") + 1).value = words
         ws.cell(row=last + 1, column=head.index("Project") + 1).value = "PUB"
         ws.cell(row=last + 1, column=head.index("Owner") + 1).value = "Owner A"
         ws.cell(row=last + 1, column=head.index("Status") + 1).value = "Open"

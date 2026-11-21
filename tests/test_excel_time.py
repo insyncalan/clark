@@ -117,7 +117,7 @@ class ExcelTimeTests(unittest.TestCase):
                 path = self.export(tz)[2]
                 ws = load_workbook(path)["Actions"]
                 head = [c.value for c in ws[1]]
-                self.assertEqual(ws.cell(row=2, column=head.index("Updated") + 1).value, "2030-01-10 09:30:00.000")
+                self.assertEqual(ws.cell(row=2, column=head.index("Last updated") + 1).value, "2030-01-10 09:30:00.000")
                 self.assertEqual(excel.read_workbook(path)["actions"][0]["updated_at"], "2030-01-10 09:30:00.000")
 
     def test_a_date_only_cell_is_never_shifted_by_a_zone(self):

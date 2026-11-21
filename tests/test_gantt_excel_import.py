@@ -136,7 +136,7 @@ class Edits(Base):
         before = self.lines()
         path = self.export()
         self.edit(path, gid(2), **{"End": __import__("datetime").date(2026, 11, 20), "Done %": 80, "Line": "Dig deeper", "Depends on": f"{gid(3)}, {gid(4)}",
-                                   "On dashboard": "No"})
+                                   "On the dashboard": "No"})
         steps = self.steps()
         res, p = self.apply(path)
         self.assertTrue(res.applied, res.message)
@@ -166,7 +166,7 @@ class Edits(Base):
         ws.delete_rows(2)                           # line 1 is missing from the sheet
         row = ws.max_row + 1
         for label, v in {"ID": "TBD", "Line": "Extra", "Type": "Task", "Start": __import__("datetime").date(2026, 12, 1),
-                         "End": __import__("datetime").date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                         "End": __import__("datetime").date(2026, 12, 3), "On the dashboard": "Yes"}.items():
             ws.cell(row, head[label]).value = v
         wb.save(str(path))
         res, p = self.apply(path)
@@ -379,7 +379,7 @@ class Limit(Base):
         first = ws.max_row + 1
         for k in range(count):
             for label, v in {"ID": "TBD", "Line": f"New {k}", "Type": "Task", "Start": __import__("datetime").date(2026, 12, 1),
-                             "End": __import__("datetime").date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                             "End": __import__("datetime").date(2026, 12, 3), "On the dashboard": "Yes"}.items():
                 ws.cell(first + k, head[label]).value = v
         wb.save(str(path))
         return path, first

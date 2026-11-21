@@ -516,9 +516,9 @@ class PlainWords(IdCase):
         self.assertEqual(xi.plain("actions", "status must be one of Open, Closed (the cell says Sideways)"),
                          "Status must be one of Open, Closed (the cell says Sideways)")
         self.assertEqual(xi.plain("raid", "missing required field(s): type"), "Type is needed")
-        self.assertEqual(xi.plain("raid", "missing required field(s): type, description"), "Type and Description are needed")
+        self.assertEqual(xi.plain("raid", "missing required field(s): type, description"), "Type and Title are needed")
         self.assertEqual(xi.plain("milestones", "percent_complete must be a whole number from 0 to 100 (the cell says 101)"),
-                         "% complete must be a whole number from 0 to 100 (the cell says 101)")
+                         "Progress % must be a whole number from 0 to 100 (the cell says 101)")
         self.assertEqual(xi.plain("actions", "unknown label 'L0' (labels: none); add it in Settings first"),
                          "There is no label 'L0' (labels: none); add it in Settings first")
 
