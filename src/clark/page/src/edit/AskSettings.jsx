@@ -7,6 +7,7 @@ import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
+import { FilesAll, FilesProject } from "./FilesSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
@@ -214,6 +215,7 @@ function AskProject() {
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <FilesProject code={code} /> : null}
     {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
     </>
   );
@@ -232,6 +234,7 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <FilesAll /> : null}
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
     {classicTheme() ? <UsageAll /> : null}
