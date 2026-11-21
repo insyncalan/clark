@@ -171,7 +171,7 @@ class Forged(Base):
         self.assertEqual(self.dry(got["reply"], project="XYZ")[1]["code"], "no_reply")
         self.assertEqual(self.dry(got["reply"])[0], 200, "the wrong project did not use it up")
 
-    def test_archive_delete_and_more_than_five_stay_refused(self):
+    def test_archive_and_delete_stay_refused_and_more_than_five_are_cut(self):
         got = self.answer(change_line(op="archive", id=self.action), change_line(op=changes.DELETE, id=self.action))
         plans = self.dry(got["reply"])[1]["plans"]
         self.assertEqual([p["code"] for p in plans], ["not_yet", "not_yet"])
@@ -179,8 +179,8 @@ class Forged(Base):
         many = [change_line(op="new", kind="action", title=f"Task {i}", owner="Sam Lee") for i in range(6)]
         got = self.answer(*many)
         status, body = self.dry(got["reply"])
-        self.assertEqual((status, body["code"]), (400, "too_many"))
-        self.assertIn("isn't available yet", body["message"])
+        self.assertIn("change_limit", [f["kind"] for f in got["flags"]])
+        self.assertEqual((status, len(body["plans"])), (200, ask_apply.MAX_AT_ONCE), body)
         self.assertEqual(self.store.read("actions", "ABC").__len__(), 1)
 
 

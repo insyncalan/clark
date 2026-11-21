@@ -96,13 +96,13 @@ class SecretRefusal(unittest.TestCase):
 
     def test_the_three_notes_share_one_phrase_and_one_next_step(self):
         """#406: each note says "looks like a password or a key", then what happened, then its one step."""
-        notes = ((ask.SECRET, "Take it out"), (ask.SECRET_EARLIER, "Start a new chat"), (ask.secret_note(1), "Take it out"))
+        notes = ((ask.SECRET, "Take it out"), (ask.SECRET_EARLIER, "Start a new chat"))      # Row 1293: the left-out passage note is its own one line (ask_words.SECRET_LEFT_OUT)
         for words, step in notes:
             self.assertIn("looks like a password or a key", words)
             self.assertTrue(words.split(". ")[-1].startswith(step), words)
             self.assertNotIn("a secret", words)
         self.assertIn("so it wasn't sent", ask.SECRET)
-        self.assertIn("so it was left out", ask.secret_note(1))
+        self.assertIn("was left out", ask.secret_note(1))
         self.assertIs(ai_menu.SECRET_MESSAGE, ask.SECRET)
 
     def test_a_key_is_refused_in_those_words_and_the_value_is_not_repeated(self):

@@ -55,7 +55,7 @@ class AddTile(Base):
                 sid = self.visit(cdp, width=width, hash_="#usecases&p=ABC", wait_for="#usecases")
                 got = self.probe(cdp, sid, "#usecases " + ROW, "ucAddPage")
                 self.assertTrue(got["inRow"], got)
-                self.assertEqual(got["dashed"], "dashed")
+                self.assertEqual(got["dashed"], "dashed", "Row 1316 ruling 19-11: the Use cases + is dashed in Classic")
                 self.assertTrue(got["farRight"], got)
                 self.assertLessEqual(got["right"], 2, got)
                 self.assertEqual(got["label"], "Add use case")

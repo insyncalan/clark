@@ -12,11 +12,10 @@ RULE_LINES = [
     '/* Row 1316a (issue 1316: Crumb, Tabs and menus, Search; the prototype files are not on this box, so the sizes are by eye, +/-2 px, from the issue table). Classic only; the Cards look layers none of this. Bare lengths with no token: the 560px search width, the 34px left padding that clears the magnifier, the 9px/2px magnifier ring and the 5px handle, the 1px clip box of the visually hidden count. */',
     '.ucd-crumb, .ucf-crumb { font-weight: var(--weight-regular); font-size: var(--size-caption); text-transform: none; letter-spacing: normal; }',
     '#usecases #ucl-group .nch, #usecases #ucl-sort .nch, #usecases .vtabmenu .nch { display: none; }',
-    '#usecases #ucl-group, #usecases #ucl-sort { border-color: transparent; background: none; border-radius: var(--radius-sm); color: var(--text-muted); }',
-    '#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }',
+    '#usecases #ucl-group, #usecases #ucl-sort { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-width: 0; height: auto; min-height: 28px; padding: 0 10px; border: 1px solid var(--grey-500); border-radius: 6px; background: transparent; color: var(--text); font-size: var(--size-body); font-weight: 500; }',
+    '#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); }',
     '#usecases .vtabmenu::after { content: "\\2026"; font-size: var(--size-body); line-height: 1; letter-spacing: .05em; }',
-    '#usecases #ucAddPage.newb { border-color: var(--grey-500); color: var(--text-muted); }',
-    '#usecases #ucAddPage.newb:hover, #usecases #ucAddPage.newb:focus-visible, #usecases #ucAddPage.newb[aria-expanded="true"] { border-color: var(--grey-500); background: var(--surface); color: var(--text-muted); }',
+    '#usecases #ucAddPage.newb, #usecases #ucAddPage.newb:hover, #usecases #ucAddPage.newb:focus-visible, #usecases #ucAddPage.newb[aria-expanded="true"] { box-sizing: border-box; min-height: 28px; min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue); border-radius: 6px; background: transparent; color: var(--brand-blue); font-weight: 600; }      /* ruling 19-11: Group by, Sort by and + per the prototype (28px high, 6px radius, padding 0 10 / 0 8, + dashed brand 600); bare px have no token */',
     '#usecases .fline-row { max-width: 560px; }',
     '#usecases .fline { padding-left: 34px; }',
     '#usecases .fline::before { content: ""; position: absolute; left: 12px; top: 50%; width: 9px; height: 9px; margin-top: -8px; border: 2px solid var(--text-muted); border-radius: 50%; box-sizing: content-box; }',
@@ -32,6 +31,9 @@ RULE_LINES = [
     '/* Row 1316d (issue 1316, ruling 00:31; Classic only, Cards unchanged): the Use cases filter at rest is a box as in the prototype (pages/usecases.css:47: 34px high, 1px border, radius 6px). The border is --grey-500, the Classic token that equals the prototype --ui in light and in dark. Focus adds no ring and no colour (ruling 1137); a line the filter cannot read keeps its red. Bare lengths: 34px box height, 6px radius. */',
     '#usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }',
     '#usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }',
+    '/* Row 1316 gap (ruling 19-11): the 560px is the search box alone; the view icons stand beside it, not inside the 560. */',
+    '#usecases .fline-row { max-width: none; }',
+    '#usecases .fline-row > .fline { flex: 0 1 560px; }',
 ]
 
 
