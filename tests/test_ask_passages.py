@@ -243,7 +243,7 @@ class TheBudget(Folders):
         with mock.patch.object(ask_passages, "READ_SECONDS", -1.0):
             got = self.run_it("alpha")
         self.assertEqual(list(got.passages), [])
-        self.assertEqual(got.other, 2, "counted with the files past a cap")
+        self.assertEqual((got.other, got.limit), (0, 2), "counted with the files past a cap")
 
     def test_every_passage_fits_a_request(self):
         self.put(self.box, "long.txt", "x" * 50000)
