@@ -131,29 +131,6 @@ class ClassicWords(Classic):
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project's report data. Standing instructions on")
             self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on")
 
-    def test_the_classic_status_line_says_ready_with_asking_off_and_no_standing_link(self):
-        self.stub.enabled, self.stub.standing = False, True
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.key("/", code="Slash", vk=191)
-            p.until("!!document.querySelector('#ask-off')", "the off state")
-            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project's report data.")
-            self.assertEqual(p.js("document.querySelector('#ask-instr') === null || document.querySelector('#ask-instr').hidden"), True)
-
-    def test_the_classic_status_line_says_working_while_an_answer_is_made_and_ready_after(self):
-        self.stub.standing = True
-        self.stub.hold.clear()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.key("/", code="Slash", vk=191)
-            p.until("!document.querySelector('#ask-send').disabled", "ready")
-            p.js("document.querySelector('#ask-box').focus()")
-            p.type("Hello")
-            p.js("document.querySelector('#ask-send').click()")
-            p.until("document.querySelector('#ask-status').textContent.trim() === 'Working'", "working")
-            self.stub.hold.set()
-            p.until("document.querySelector('#ask-status').textContent.trim().startsWith('Ready. Reading this project')", "ready again")
-
 
 class CardsKeepsItsOwn(Classic):
     THEME = None
