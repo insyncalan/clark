@@ -41,6 +41,7 @@ const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking use
 // every 2 seconds while a folder is being read, and for a few more turns after a change, because the read starts just after the folder is saved.
 function useIndexLines(read, deps) {
   const [index, setIndex] = useState({});
+  const [projects, setProjects] = useState({});
   const [tick, setTick] = useState(0);
   const grace = useRef(0);
   useEffect(() => {
@@ -49,6 +50,7 @@ function useIndexLines(read, deps) {
       if (!live) return;
       const ix = r.status === 200 && r.body && r.body.index && typeof r.body.index === "object" ? r.body.index : {};
       setIndex(ix);
+      setProjects(r.status === 200 && r.body && r.body.projects && typeof r.body.projects === "object" ? r.body.projects : {});
       const reading = Object.keys(ix).some((k) => ix[k] && ix[k].state === "reading");
       if (reading || grace.current > 0) {
         if (!reading) grace.current -= 1;
@@ -57,7 +59,7 @@ function useIndexLines(read, deps) {
     });
     return () => { live = false; if (t) clearTimeout(t); };
   }, [tick, ...deps]);
-  return { index, again: () => { grace.current = 3; setTick((n) => n + 1); } };
+  return { index, projects, again: () => { grace.current = 3; setTick((n) => n + 1); } };
 }
 // The state the server's line stands for, for the screen-reader line (indexNote.js): "Indexing… N%" is reading, "100% indexed..." is done.
 function phaseOf(line) {
@@ -84,7 +86,9 @@ function LeftOut({ line, id, open }) {
   );
 }
 // The line is quiet text; the polite live region beside it speaks only at 0, 25, 50, 75 and 100 percent (Row 1371), not at every percent.
-function FolderLine({ line, id }) {
+// A failed or cleared folder's line ends in the words of its link ("Try again", "Index again"): they are drawn as a button that reads the folder again (row 1371).
+const AGAIN = { failed: LINKS.retry, cleared: LINKS.reindex };
+function FolderLine({ line, id, onAgain, projects }) {
   const [open, setOpen] = useState(false);
   const prev = useRef(null);
   const said = useRef("");
@@ -94,7 +98,12 @@ function FolderLine({ line, id }) {
   prev.current = next;
   if (!classicTheme()) return null;                  // its rules are the Classic theme's: Cards keeps the card as it was
   const why = leftOf(line) ? <> <button type="button" class="ask-left-btn" aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => setOpen(!open)}>{LINKS.why}</button></> : null;
-  return <><div class="ask-folder-line">{line ? line.line : ""}{why}</div><div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div><LeftOut line={line} id={id} open={open} /></>;
+  const word = line ? AGAIN[line.state] : null;
+  let text = line ? line.line : "";
+  if (line && line.state === "done" && projects && typeof projects.line === "string") text = projects.line;
+  const again = word && text.endsWith(word) ? <> <button type="button" class="ask-left-btn" data-ask-index-again onClick={onAgain}>{word}</button></> : null;
+  if (again) text = text.slice(0, text.length - word.length).trimEnd();
+  return <><div class="ask-folder-line">{text}{again}{why}</div><div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div><LeftOut line={line} id={id} open={open} /></>;
 }
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
@@ -136,6 +145,7 @@ function AskProject() {
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
   const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
+  const reindex = async () => { await askFoldersChange(code, "reindex"); again(); };
   const [modelName, setModelName] = useState("");      // row 1351 part 2: the model asking uses, as the server names it; empty until read or when it cannot be read
 
   useEffect(() => {
@@ -250,14 +260,14 @@ function AskProject() {
       {shared.length && Array.isArray(folders) ? (
         <ul class="ask-folders" id="ask-folders-shared">
           {shared.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} id={"ask-left-s" + i} /></li>
+            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} id={"ask-left-s" + i} onAgain={reindex} /></li>
           ))}
         </ul>
       ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
           {list.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} onAgain={reindex} /></li>
           ))}
         </ul>
       ) : null}
@@ -329,7 +339,8 @@ function AllFolders() {
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);
   const code = project.value;
-  const { index, again } = useIndexLines(() => askFoldersAllRead(code), [code]);
+  const { index, projects, again } = useIndexLines(() => askFoldersAllRead(code), [code]);
+  const reindex = async () => { await askFoldersChange(code, "reindex"); again(); };
 
   useEffect(() => {
     let live = true;
@@ -387,7 +398,7 @@ function AllFolders() {
       {list.length ? (
         <ul class="ask-folders" id="ask-all-folder-list">
           {list.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-a" + i} /></li>
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-a" + i} onAgain={reindex} projects={projects[p]} /></li>
           ))}
         </ul>
       ) : null}

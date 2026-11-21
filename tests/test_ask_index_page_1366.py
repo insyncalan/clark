@@ -107,7 +107,7 @@ class Page(Fixture):
             self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
             self.until(js, LIVE + " === 'Indexing started'", "said at the start")
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 1 of 1 projects'", "indexed")
             self.until(js, LIVE + " === '100% indexed'", "said when done")
 
     def test_the_line_in_the_all_projects_card_reads_reading_then_indexed_and_goes_with_its_folder(self):
@@ -124,7 +124,7 @@ class Page(Fixture):
                 look = js(self.LOOK % "#ask-all-folder-list .ask-folder-line")
                 self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, look))
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed (asked again within 2 s polls)")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 1 of 1 projects'", "indexed (asked again within 2 s polls)")
             self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-live').textContent === '100% indexed'", "said at 100%")
             js("document.querySelector('[data-ask-all-remove]').click()")
             self.until(js, "!!document.querySelector('#ask-all-folders-none')", "removed with its line")
@@ -139,7 +139,7 @@ class Wired(unittest.TestCase):
         self.assertIn('import { announce, LINKS } from "./indexNote.js";', self.SRC)
         self.assertIn(">{LINKS.why}</button>", self.SRC)
         self.assertIn('<div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div>', self.SRC)
-        self.assertIn('<div class="ask-folder-line">{line ? line.line : ""}', self.SRC)
+        self.assertIn('<div class="ask-folder-line">{text}{again}{why}</div>', self.SRC)
         self.assertNotIn("Show the files left out", self.SRC)
 
 
