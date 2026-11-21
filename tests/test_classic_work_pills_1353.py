@@ -24,6 +24,12 @@ MEASURE = ("JSON.stringify((() => { const out = {}, pr = document.createElement(
            "out[e.textContent] = {bg: c.backgroundColor, fg: c.color, bw: c.borderTopWidth, bs: c.borderTopStyle, bc: c.borderTopColor, rad: c.borderTopLeftRadius, want: probe(%s[e.textContent] || 'low')}; }"
            "pr.remove(); return out; })())")
 
+# the --wil-* variables the page (#work) must carry, compared with a .wil element's: same values in light and in dark
+VARS = ("th pr-bg pr-fg pr-bd prh-bg prh-fg prh-bd pru-bg pru-fg pru-bd ta-bg ta-fg tr-bg tr-fg ti-bg ti-fg td-bg td-fg th-bg th-fg add-bd add-fg").split()
+SAME = ("JSON.stringify((() => { const w = document.createElement('div'); w.className = 'wil'; document.body.appendChild(w); const out = {};"
+        "for (const n of %s) { const a = getComputedStyle(w).getPropertyValue('--wil-' + n).trim(), b = getComputedStyle(document.getElementById('work')).getPropertyValue('--wil-' + n).trim(); out[n] = [a, b]; }"
+        "w.remove(); return out; })())")
+
 
 class Pills(M.Look):
     def setUp(self):
@@ -38,6 +44,7 @@ class Pills(M.Look):
             p = self.show(cdp, width, dark=dark)
             p.js("location.hash = '#work&p=ABC&f=mode:all'")
             p.until("new Set([...document.querySelectorAll('#work .c-prio .wil-pr')].map((e) => e.textContent)).size > 3", "the page pills drew")
+            self.same = json.loads(p.js(SAME % json.dumps(VARS)))
             return json.loads(p.js(MEASURE % json.dumps(TOKENS)))
 
     def test_classic_pills_colour_border_and_radius(self):
@@ -46,6 +53,9 @@ class Pills(M.Look):
                 where = f"{'dark' if dark else 'light'} {width}"
                 got = self.look(width, dark)
                 self.assertEqual(set(got), set(TOKENS), where)
+                for n, (want, have) in self.same.items():
+                    self.assertNotEqual(want, "", (where, n))
+                    self.assertEqual(have, want, (where, n))
                 for word, g in got.items():
                     with self.subTest(where=where, pill=word):
                         self.assertEqual((g["bg"], g["fg"]), (g["want"]["bg"], g["want"]["fg"]), (where, got))
