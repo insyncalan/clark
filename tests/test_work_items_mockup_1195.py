@@ -501,8 +501,8 @@ class Classic(Look):
 
     def test_most_rows_50_with_51_items_draws_50_rows_then_show_all_gives_51_and_show_only_50_gives_50_at_1400_and_900(self):      # row 1359
         for k in range(51):
-            self.demo.action(description=f"Cap step {k}", owner="Cap Demo", due_date="2030-02-01")
-        ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Cap Demo"]})
+            self.demo.action(description=f"Pat step {k}", owner="Pat Demo", due_date="2030-02-01")
+        ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Pat Demo"]})
         for width in (1400, 900):
             with T.chrome() as cdp:
                 p = self.show(cdp, width)
