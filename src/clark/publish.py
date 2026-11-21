@@ -319,7 +319,7 @@ def _content(s, ctx=None):
     by an older or another clark, or by hand) never reaches the file. What is published is fields picked by name from the
     CHECKED value (section_bodies.published), never the stored text, and never passed through clean_html."""
     try:
-        text = check_section_body(s["type"], s.get("body"))
+        text = check_section_body(s["type"], s.get("body"), s.get("body"))      # row 1194: the section's own stored text rides along, so an entry it already holds (no description, a file ending outside the list) still publishes
     except StoreInvalid:
         return {} if s["type"] in section_bodies.VIEW_TYPES else None      # row 1234, row 1230: the use case summary and the Milestones section are never left out for its view setting: no setting, or a bad one, is the defaults
     if not text:

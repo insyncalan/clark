@@ -240,8 +240,8 @@ class Saved(Api):
         file ending in .zip) no longer checks. This test used to pin that every save was refused while such an entry was held (the
         whole section was locked until the editor removed it). It is changed to option A, because a report with one old entry could
         not be saved at all, not even to fix another line: a save keeps an entry the section already holds when it comes back
-        unchanged; a changed or new entry meets every rule; publish stays strict and leaves the whole section out until the old
-        entry is gone or fixed."""
+        unchanged; a changed or new entry meets every rule; publish reads the section's own stored text too, so the section is still
+        published with the old entry in it (Romanoff finding 21-11: dropping it silently was refused)."""
         for name, old, fixed, words in (
                 ("link with no words", a_link(label=""), a_link(label="Words now"), "Link 2: Enter a link description."),
                 ("file with an ending that is not allowed", a_file(name="old.zip"), a_file(name="old.exe"), "old.exe: " + doclinks.BAD_TYPE_TAIL)):
@@ -249,7 +249,7 @@ class Saved(Api):
                 ref = self.make("Fictional old " + name)
                 self.stored(ref, body([a_link(), old]))
                 built = publish.build(self.s, "ABC", now="2030-01-15")
-                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "publish is strict: the whole section is left out, the good link too")
+                self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 2, "publish keeps the old entry with the good link")
                 new = a_link(href="https://example.org/new", label="New")
                 status, got = self.save(ref, body([a_link(), old, new]))
                 self.assertEqual(status, 200, got)
@@ -257,7 +257,7 @@ class Saved(Api):
                                  old.get("name") or old["href"], "the old entry is stored as it was")
                 self.assertEqual(len(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"]), 3)
                 built = publish.build(self.s, "ABC", now="2030-01-15")
-                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "still strict after a save that kept the old entry")
+                self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 3, "still published after a save that kept the old entry")
                 before = self.snapshot()
                 changed = dict(old, **({"name": "old.exe", "rel": "Report files/old.exe"} if old["kind"] == "file" else {"href": "https://example.org/other"}))
                 status, got = self.save(ref, body([a_link(), changed]))
@@ -271,6 +271,28 @@ class Saved(Api):
                 built = publish.build(self.s, "ABC", now="2030-01-15")
                 self.assertEqual([i["href"] for i in next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]],
                                  ["https://example.org/plan"], "once the old entry is gone the section is published again")
+
+    def test_a_section_saved_with_a_no_description_link_still_publishes(self):
+        ref = self.make("Fictional saved before 1194 link")
+        self.stored(ref, body([a_link(), a_link(href="https://example.org/old", label="")]))
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        items = next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]
+        self.assertEqual([i["href"] for i in items], ["https://example.org/plan", "https://example.org/old"])
+
+    def test_a_section_saved_with_a_file_of_an_unlisted_ending_still_publishes(self):
+        ref = self.make("Fictional saved before 1194 file")
+        self.stored(ref, body([a_link(), a_file(name="old.zip")]))
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        items = next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[1]["name"], "old.zip")
+
+    def test_publish_still_refuses_what_was_never_stored_that_way(self):
+        """The relaxation is the stored text's own entries only: a body that is bad in another way is still left out."""
+        ref = self.make("Fictional bad body")
+        self.stored(ref, '{"v": 1, "items": [{"kind": "link", "href": "javascript:alert(1)", "label": "x"}]}')
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]})
 
     def test_a_stored_body_that_cannot_be_read_does_not_stop_a_good_save(self):
         """Mutation sweep (1194): what the section holds is only a place to keep old entries; if it cannot be read, the new content is checked on its own."""
@@ -306,7 +328,7 @@ class Saved(Api):
                 self.assertEqual(undone.get("skipped") or [], [], "nothing is left out of the put back")
                 self.assertEqual(self.s.read("report_sections", ref=ref)["body"], before)
 
-    def test_undo_waives_only_the_entries_the_log_holds_and_publish_stays_strict(self):
+    def test_undo_waives_only_the_entries_the_log_holds_and_the_section_still_publishes(self):
         ref = self.make("Fictional undo strict")
         old = a_link(label="")
         before = body([a_link(), old])
@@ -316,7 +338,7 @@ class Saved(Api):
         status, _ = self.undone(got["apply_id"])
         self.assertEqual(status, 200)
         built = publish.build(self.s, "ABC", now="2030-01-15")
-        self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "publish is still strict after the Undo")
+        self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 2, "the section still publishes after the Undo")
         status, got = self.save(ref, body([a_link(), dict(old, href="https://example.org/other")]))
         self.assertEqual((status, got["message"]), (400, "Link 2: Enter a link description."), "a changed entry after the Undo meets every rule")
         status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/n", label="")]))
