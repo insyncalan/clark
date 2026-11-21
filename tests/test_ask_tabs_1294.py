@@ -90,7 +90,7 @@ class Tabs(unittest.TestCase):
             js = self.show(cdp)
             self.until(js, "(document.querySelector('[data-ask-switch]') || {disabled: true}).disabled === false", "the switch can be pressed")
             js("document.querySelector('[data-ask-tab=all]').click()")
-            self.until(js, "!!document.querySelector('#ai-settings')", "All projects")
+            self.until(js, "!!document.querySelector('#ai-settings') && !/Checking/i.test(document.querySelector('#ai-settings').innerText)", "All projects, its first read settled")
             before = js("document.querySelector('#ai-settings').innerText")
             js("window.__ask_seen_checking = false; new MutationObserver(() => { if (/Checking/i.test(document.querySelector('#ask-state') ? document.querySelector('#ask-state').textContent : '')) window.__ask_seen_checking = true; }).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true})")
             js("document.querySelector('[data-ask-tab=project]').click()")
@@ -100,7 +100,7 @@ class Tabs(unittest.TestCase):
             js("document.querySelector('[data-ask-switch]').click()")
             self.until(js, "document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') === 'false'", "asking off for the project")
             js("document.querySelector('[data-ask-tab=all]').click()")
-            self.until(js, "!!document.querySelector('#ai-settings')", "All projects again")
+            self.until(js, "!!document.querySelector('#ai-settings') && !/Checking/i.test(document.querySelector('#ai-settings').innerText)", "All projects again, settled")
             self.assertEqual(js("document.querySelector('#ai-settings').innerText"), before, "the connections read the same")
 
     def test_no_tab_shows_money_and_no_file_path_or_prototype_note(self):

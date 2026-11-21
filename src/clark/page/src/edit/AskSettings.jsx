@@ -6,6 +6,7 @@ import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
@@ -215,6 +216,7 @@ function AskProject() {
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     {classicTheme() ? <UsageProject /> : null}
     {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
+    {classicTheme() ? <ChatsProject /> : null}
     </>
   );
 }
@@ -234,6 +236,7 @@ function AllProjects() {
     <AllInstructions />
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
+    {classicTheme() ? <ChatsAll /> : null}
     {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
     </>
