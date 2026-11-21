@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -94,7 +94,7 @@ class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, used_hook=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, indexer=None, used_hook=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -104,6 +104,7 @@ class AskService:
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
+        self.indexer = indexer                       # ask_index.Indexer or None (Row 1366): a finished index answers a question without opening a file
         self.used_hook = used_hook                   # Row 1306: called with each connector name read in an answer (the launcher writes the log line; an ask module never logs)
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.usage = ask_usage.AskUsage(self.data_dir)      # row 1294: questions and tokens this month, per project, kept on this computer
@@ -287,8 +288,11 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
-            found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home,
-                                             max(0, ask.MAX_PASSAGES - len(added) - len(data.passages)))
+            room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
+            if folders and self.indexer is not None and self.indexer.current(code, folders):
+                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
+            else:
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
@@ -314,10 +318,16 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
+        index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
+        if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
+            n = self.indexer.not_yet(code)
+            note = ask_index.answer_note({"not_yet": n}) if isinstance(n, int) else ""
+            if note:
+                index_note = {"index_note": note, "index_note_at": len(notes)}      # its own field, so a page that draws only some notes (Cards) never gets it
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -337,7 +347,7 @@ class AskService:
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
                      "read": ask_data.read_counts(data),
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": draft_via(reply.draft, conn),
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
