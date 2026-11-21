@@ -16,6 +16,7 @@ anything that is not JSON of the right shape; a refused request changes nothing.
 `message`; a refusal also has a stable `code`.
 """
 import re
+import sqlite3
 import threading
 from pathlib import Path
 
@@ -28,6 +29,10 @@ THEME_FIELDS = ("theme", "updated_at")
 CODE_FULL = re.compile(CODE_RE)
 CONNECTOR_FIELDS = ("is_on", "off", "updated_at")
 FILES_FIELDS = ("ask_files", "ask_files_off", "updated_at")
+DEFAULT_VALUES = ("review_days", "gantt_editor", "gantt_client", "gantt_name")      # row 1299 S6: the Defaults values install_defaults holds today
+DEFAULT_FIELDS = DEFAULT_VALUES + ("updated_at",)
+DEFAULT_DAYS = (1, 365)         # the same whole numbers a project's review_after_days may be (store.REVIEW_DAYS_RANGE)
+DEFAULT_NAME_MAX = 30           # the same length a project's gantt_tab_name may be (schema.sql's CHECK)
 
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was changed.",
@@ -47,6 +52,7 @@ MESSAGES = {
     "connector_off": "That connector is off.",
     "project_off": "That connector is off in this project.",
     "project_allowed": "That connector is no longer kept off in this project.",
+    "bad_default": "That is not a value this default can have. Nothing was changed.",
 }
 
 
@@ -200,6 +206,87 @@ class AppSettings:
                 if step is False:
                     return 409, self.fail("cant_save")
                 return self.answer_theme(store, None, step)
+            finally:
+                store.close()
+
+    # ----- the Defaults values (row 1299, S6) -----
+    # GET /api/defaults answers {ok, saved, defaults: {review_days, gantt_editor, gantt_client, gantt_name}}: the install's one row (install_defaults,
+    # row 1300). POST takes exactly one of {"review_days": 1..365}, {"gantt_editor": bool}, {"gantt_client": bool}, {"gantt_name": text of 1 to 30
+    # characters} or {"undo": apply_id}, and answers the same list. One change is one store step, so one history entry and one Undo. A project's own
+    # value and the rule "a project follows the default until it has its own" are not here: they wait for the ruling on how a project says "none".
+    def answer_defaults(self, store, message=None, apply_id=None):
+        ready = self.defaults_ready(store)
+        body = {"ok": True, "saved": ready, "defaults": self.defaults_of(store) if ready else None}
+        if message:
+            body["message"] = message
+        if apply_id:
+            body["apply_id"] = apply_id
+        return 200, body
+
+    def defaults_ready(self, store):
+        try:
+            return all(c in columns(store.con, "install_defaults") for c in DEFAULT_FIELDS) and bool(
+                store.con.execute("SELECT 1 FROM install_defaults WHERE id = 1").fetchone())
+        except sqlite3.Error:
+            return False
+
+    def defaults_of(self, store):
+        row = store.con.execute("SELECT review_days, gantt_editor, gantt_client, gantt_name FROM install_defaults WHERE id = 1").fetchone()
+        return {"review_days": row[0], "gantt_editor": bool(row[1]), "gantt_client": bool(row[2]), "gantt_name": row[3]}
+
+    def default_value(self, field, value):
+        """(True, the value as it is stored) when `value` is one `field` may hold, else (False, None). A bool is not a number here."""
+        if field == "review_days":
+            ok = type(value) is int and DEFAULT_DAYS[0] <= value <= DEFAULT_DAYS[1]
+            return ok, value
+        if field in ("gantt_editor", "gantt_client"):
+            return type(value) is bool, int(value) if type(value) is bool else None
+        text = value.strip() if type(value) is str else ""
+        return 1 <= len(text) <= DEFAULT_NAME_MAX, text
+
+    def read_defaults(self, _project=""):
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                return self.answer_defaults(store)
+            finally:
+                store.close()
+
+    def change_defaults(self, body):
+        if not isinstance(body, dict):
+            return 400, self.fail("bad_request")
+        if set(body) == {"undo"}:
+            asked, field = body["undo"], None
+            if not self.valid_step(asked):
+                return 400, self.fail("no_undo")
+        elif len(body) == 1 and set(body) <= set(DEFAULT_VALUES):
+            asked, field = None, next(iter(body))
+            good, stored = self.default_value(field, body[field])
+            if not good:
+                return 400, self.fail("bad_default")
+        else:
+            return 400, self.fail("bad_request")
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                if not self.defaults_ready(store):
+                    return 409, self.fail("not_ready")
+                if asked is not None:
+                    if self.undo(store, asked, "install_defaults", "1", DEFAULT_FIELDS) is None:
+                        return 409, self.fail("no_undo")
+                    return self.answer_defaults(store, MESSAGES["undone"])
+                if self.defaults_of(store)[field] == (bool(stored) if field in ("gantt_editor", "gantt_client") else stored):
+                    return self.answer_defaults(store, MESSAGES["same"])
+                step = self.save(store, lambda st: st.update("install_defaults", "1", {field: stored}))
+                if step is False:
+                    return 409, self.fail("cant_save")
+                return self.answer_defaults(store, None, step)
             finally:
                 store.close()
 
