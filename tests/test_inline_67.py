@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_inline_67
 Browser tests start headless Chrome through the harness against a real server whose change and undo are the real clark.changes
 over a real store in a temporary folder (fictional data), at 1400 and 900 px.
 """
+import json
 import shutil
 import sqlite3
 import tempfile
@@ -49,6 +50,9 @@ class Minimap(Base):
         status, body = self.real_change({"project": "ABC", "kind": "documents", "op": "new", "place": "report", "values": {
             "title": "Steering minutes", "kind": "Minutes", "url": "https://example.com/minutes", "date": ""}})
         self.assertEqual(status, 200, body)          # #74: with a document, Supporting documents (the last section) shows in View too
+        with self.store.step("dashboard", USER) as st:      # row 1266: the Headline and Documents (a Files and links template) show in View only with words or a link
+            st.update("report_sections", "ABC-S-001", {"body": json.dumps({"v": 1, "headline": "Fictional headline"})})
+            st.update("report_sections", "ABC-S-011", {"body": json.dumps({"v": 1, "items": [{"kind": "link", "href": "https://example.org/minutes", "label": "Steering minutes"}]})})
 
     def listed(self, p):
         return p.js(self.LISTED)
@@ -66,9 +70,9 @@ class Minimap(Base):
             p.js("document.querySelector('[data-id=\"ABC-S-001\"] [data-add]').click()")
             p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the Add a section box opened with Text chosen")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 11", "a section was added")
+            p.until("document.querySelectorAll('.secs > .sec').length === 12", "a section was added")
             listed = self.listed(p)
-            self.assertEqual(len(listed), 10)
+            self.assertEqual(len(listed), 11)
             self.assertNotIn("ABC-S-002", listed)
             self.assertEqual(listed[1], p.ids()[1], "the new section is listed in its place")
             p.view()
@@ -119,7 +123,7 @@ class Minimap(Base):
             p = self.visit(cdp)
             size(cdp, p, 1400)
             p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
-            p.until("document.querySelector('.toc-lines i.on') && document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-010'",
+            p.until("document.querySelector('.toc-lines i.on') && document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-011'",
                     "the last section is current at the bottom")
             p.js("window.scrollTo(0, 0)")
             p.until("document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-001'", "the first is current at the top")

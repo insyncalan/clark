@@ -278,6 +278,7 @@ class Dashboard(Base):
         return p, Drive(self, cdp, p.sid)
 
     def test_dashboard_menus(self):
+        self.demo.old_glance_and_docs()      # a new project's At a glance has the Health tile off (its pill is in the Headline); this drive opens the tile's own menu
         with chrome() as cdp:
             p, d = self.drive(cdp)
             for w, th in LOOKS:

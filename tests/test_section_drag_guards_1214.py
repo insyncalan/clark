@@ -79,8 +79,8 @@ class Fingers(Watching, Base):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                one = self.aim(p, "ABC-S-004", "bottom")
-                self.hold(p, "ABC-S-001", one)
+                one = self.aim(p, "ABC-S-006", "bottom")
+                self.hold(p, "ABC-S-003", one)
                 gx, gy = self.free_grip(p)
                 self.touch(p, "touchStart", {1: one, 2: (gx, gy)})
                 self.got(p, ["pointerdown"], f"{width} px: finger 2 went down", other=True)
@@ -91,7 +91,7 @@ class Fingers(Watching, Base):
                 self.assertEqual(p.js(GHOSTS), 1, f"{width} px: still one ghost, the second finger drew none (measured count)")
                 self.assertEqual(p.js("document.querySelectorAll('.drag-slot').length"), 1, f"{width} px: one slot")
                 self.touch(p, "touchEnd", {})
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5), f"{width} px: finger 1 dropped where it was")
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[:2] + IDS[3:6] + ["ABC-S-003"] + IDS[6:], 5), f"{width} px: finger 1 dropped where it was")
                 p.saved()
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")
@@ -100,8 +100,8 @@ class Fingers(Watching, Base):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                one = self.aim(p, "ABC-S-004", "bottom")
-                self.hold(p, "ABC-S-001", one)
+                one = self.aim(p, "ABC-S-006", "bottom")
+                self.hold(p, "ABC-S-003", one)
                 top = self.free_grip(p)
                 self.touch(p, "touchStart", {1: one, 2: top})
                 for step in range(3):
@@ -115,7 +115,7 @@ class Fingers(Watching, Base):
                 self.assertEqual(p.js(GHOSTS), 1, f"{width} px: finger 2 lifting did not end the drag")
                 self.assertEqual(self.ids_in_store(), IDS, f"{width} px: and dropped nothing")
                 self.touch(p, "touchEnd", {})            # finger 1 lifts
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5),
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[:2] + IDS[3:6] + ["ABC-S-003"] + IDS[6:], 5),
                                 f"{width} px: the drop is where finger 1 was, not where finger 2 went")
                 self.assertIsNone(p.js(MARKS), f"{width} px: nothing is left on the page")
                 p.saved()
@@ -159,16 +159,16 @@ class Saving(Gated):
                 p = self.at(cdp, width)
                 self.gate.clear()
                 self.arrived.clear()
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 x, y = (r["left"] + r["right"]) / 2, r["bottom"] - 2
-                p.drag("ABC-S-001", x, y, release=False)
+                p.drag("ABC-S-003", x, y, release=False)
                 p.until(p.SHOWN, f"{width} px: the drop target is shown before the release")
                 p.rested()      # 300 ms after the last move, also with CLARK_SLOW_CDP=0.15 (tests/test_section_drag_release_model_1277.py models the early drop)
                 p.mouse("mouseReleased", x, y, 0)       # the gate is shut: the drop stays being stored, so no wait for it
                 self.assertTrue(wait(lambda: len(self.arrived) == 1, 5), f"{width} px: the drop was sent")
                 self.assertEqual(self.ids_in_store(), IDS, f"{width} px: and is not stored yet")
                 p.until(f"!{GHOSTS}", "the first ghost went")
-                hx, hy, _ = p.box('[data-id="ABC-S-002"] [data-drag]')
+                hx, hy, _ = p.box('[data-id="ABC-S-006"] [data-drag]')
                 p.mouse("mousePressed", hx, hy, 1)
                 mark = p.js("__pe.length")
                 for step in range(1, 9):
@@ -181,7 +181,7 @@ class Saving(Gated):
                 self.quiet(p, f"{width} px: whatever the release sets going has come")
                 self.assertEqual(len(self.arrived), 1, f"{width} px: no second request")
                 self.gate.set()
-                want = IDS[1:4] + ["ABC-S-001"] + IDS[4:]
+                want = IDS[:2] + IDS[3:6] + ["ABC-S-003"] + IDS[6:]
                 self.assertTrue(wait(lambda: self.ids_in_store() == want, 5), f"{width} px: the first drop was stored, and only it")
                 p.order_is(want, f"{width} px: the page shows what was stored")
                 self.assertEqual(len(self.arrived), 1, f"{width} px: one request in all")
@@ -192,13 +192,13 @@ class Saving(Gated):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                r = p.rect("ABC-S-004")
-                p.drag("ABC-S-001", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
+                r = p.rect("ABC-S-006")
+                p.drag("ABC-S-003", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
                 p.saved()
-                p.order_is(IDS[1:4] + ["ABC-S-001"] + IDS[4:], f"{width} px: stored")
+                p.order_is(IDS[:2] + IDS[3:6] + ["ABC-S-003"] + IDS[6:], f"{width} px: stored")
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")
-                hx, hy, _ = p.box('[data-id="ABC-S-002"] [data-drag]')
+                hx, hy, _ = p.box('[data-id="ABC-S-006"] [data-drag]')
                 p.mouse("mousePressed", hx, hy, 1)
                 for step in range(1, 9):
                     p.mouse("mouseMoved", hx, hy + 60 * step, 1)
@@ -216,9 +216,9 @@ class Failed(Gated):
             for width in WIDTHS:
                 p = self.at(cdp, width)
                 self.failure = self.broken
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 x, y = (r["left"] + r["right"]) / 2, r["bottom"] - 2
-                p.drag("ABC-S-001", x, y)
+                p.drag("ABC-S-003", x, y)
                 p.until("!!document.querySelector('.toast.problem')", f"{width} px: a problem toast")
                 self.assertEqual(p.js("document.querySelector('.toast.problem .toast-text').textContent"), FAILED, f"{width} px: the page's own sentence")
                 p.order_is(IDS, f"{width} px: the preview is gone, the page shows the stored order")
@@ -227,9 +227,9 @@ class Failed(Gated):
                 self.failure = None
                 p.clear_toast()
                 p.until(p.IDLE, f"{width} px: the sections have glided back, so the rectangle below is where they are")
-                r = p.rect("ABC-S-004")
-                p.drag("ABC-S-001", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5), f"{width} px: the next drag works")
+                r = p.rect("ABC-S-006")
+                p.drag("ABC-S-003", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[:2] + IDS[3:6] + ["ABC-S-003"] + IDS[6:], 5), f"{width} px: the next drag works")
                 p.saved()
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")

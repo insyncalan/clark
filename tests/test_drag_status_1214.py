@@ -91,10 +91,10 @@ class DragStatus(tre.Base):
     def test_beside(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            r = p.rect(IDS[3])
+            r = p.rect(IDS[5])
             x, y = r["left"] + (r["right"] - r["left"]) * 0.2, (r["top"] + r["bottom"]) / 2
-            self.hold(p, IDS[0], x, y, f'Release to put "{T[IDS[0]]}" beside "{T[IDS[3]]}", half width each.')
-            self.release_and_hear(p, x, y, f'Moved "{T[IDS[0]]}" beside "{T[IDS[3]]}", half width each.')
+            self.hold(p, IDS[0], x, y, f'Release to put "{T[IDS[0]]}" beside "{T[IDS[5]]}", half width each.')
+            self.release_and_hear(p, x, y, f'Moved "{T[IDS[0]]}" beside "{T[IDS[5]]}", half width each.')
 
     def test_no_beside_at_900_where_a_pair_stacks(self):
         with chrome() as cdp:
@@ -114,7 +114,7 @@ class DragStatus(tre.Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
-                six, seven = IDS[4], IDS[5]                              # This week sits beside Next week
+                six, seven = IDS[3], IDS[4]                              # This week sits beside Next week
                 x, y = self.edge(p, seven, "bottom")
                 self.hold(p, seven, x, y, f'Release to make "{T[seven]}" full width.')
                 self.release_and_hear(p, x, y, f'"{T[seven]}" is now full width.')
