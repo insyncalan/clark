@@ -12,6 +12,8 @@ import { listProjects, readProject, sendProjectArchive } from "./projectsApi.js"
 import { openBox, closeBox } from "./boxes.js";
 import * as L from "../logic/projectsTable.js";
 import * as D from "../logic/dataCard.js";
+import { classicTheme } from "../components/Contents.jsx";
+import { ProjectsOverview } from "./ProjectsOverview.jsx";
 
 const REAL = { list: listProjects, read: readProject, archive: sendProjectArchive };
 
@@ -71,6 +73,8 @@ export function Projects({ api = REAL }) {
 
   const rows = showGone ? [...state.live, ...state.gone] : state.live;
   return (
+    <>
+    {classicTheme() ? <ProjectsOverview /> : null}      {/* row 1299 S3, Classic only: the overview above today's table */}
     <section class="frame setting projects" id="projects">
       <div class="proj-head">
         <h2 id="projects-h" tabIndex={-1}>{L.TITLE}</h2>
@@ -112,5 +116,6 @@ export function Projects({ api = REAL }) {
         </table>
       ) : null}
     </section>
+    </>
   );
 }

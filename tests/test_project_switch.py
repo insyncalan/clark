@@ -113,7 +113,7 @@ class TheFileHasNoSwitcher(unittest.TestCase):
     def test_the_published_page_has_no_menu_words(self):
         from _paths import SRC
         html = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for word in ("project-menu", "Project settings", "Switched to", "open items"):
+        for word in ("project-menu", "Switched to", "open items"):      # row 1299: "Project settings" is now also a Classic Settings group name in the bundle; the menu item is pinned by the app tests above
             self.assertNotIn(word, html)
 
 
