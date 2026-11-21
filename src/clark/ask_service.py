@@ -143,6 +143,20 @@ class AskService:
         finally:
             store.close()
 
+    def project_off(self, code):
+        """Row 1294: True when project `code` has asking turned off for itself, or the store can't be opened or can't say (never fails open). A project
+        that does not exist is not "off" here: the routes answer it as not found, and nothing is sent for it. The computer-wide switch is enabled()."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return True
+        try:
+            return store.read("projects", ref=code) is not None and store.ask_off_here(code)
+        except Exception:  # noqa: BLE001  a value that can't be read is off
+            return True
+        finally:
+            store.close()
+
     def files_allowed(self, code):
         """Row 1294: whether files may be added to a question in project `code` (the computer's Files switch on and the project not off); False when the
         store can't be opened or can't say (never fails open)."""
@@ -251,7 +265,7 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if platform.container_mode():                # Row 1293: refused before anything is read or sent
             return 409, self.fail("docker", ask_words.DOCKER)
-        if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
+        if not self.enabled() or self.project_off(code):                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
         try:
             ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
@@ -302,7 +316,7 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
-        if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
+        if not self.enabled() or self.project_off(code):                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
         run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
         with self.using_lock:
@@ -362,7 +376,7 @@ class AskService:
         code, name, page = body["project"], body["file"], body["page"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if not self.enabled():                       # fails closed, like the other ask routes: asking off, nothing is looked at
+        if not self.enabled() or self.project_off(code):                       # fails closed, like the other ask routes: asking off, nothing is looked at
             return 409, self.fail("asking_off", MESSAGES["open_asking_off"])   # same code, its own sentence (MESSAGES["asking_off"] is for the other routes)
         if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
             return 400, self.fail("bad_request")
@@ -433,7 +447,7 @@ class AskService:
         code = body["project"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # fails closed: nothing is read for a change while asking is off
+        if not self.enabled() or self.project_off(code):                       # fails closed: nothing is read for a change while asking is off
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         with self.replies_lock:
             held = self.replies.get(body["reply"])
@@ -460,7 +474,7 @@ class AskService:
             return 400, self.fail("change_bad_request")
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # and the save path reads the switch again inside its step
+        if not self.enabled() or self.project_off(code):                       # and the save path reads the switch again inside its step
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         return self.applier.apply(offer, code, confirm=confirm)
 
