@@ -944,12 +944,10 @@ table.items .weye { width: 30px; height: 30px; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Row 1270 (RAID cards, Classic only; the Cards look keeps shell.css as main has it): the card as the approved page draws it. A 4 px edge in the rating colour and a tinted band
-   under it, the whole description (no cut), a Latest update part, and the foot line pinned to the bottom so the foot lines line up across a row. Four across hold at 1400 (shell.css
-   goes two across up to 1400; a card is 226 px at 1101 px, and an owner name still fits whole at 1400); at 900 it is two across. Tokens only. */
+/* Row 1270 (Classic only): the RAID card. */
 @media (min-width: 1400px) { .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .raid-cards { align-items: stretch; }
-.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); display: flex; flex-direction: column; padding: 0 var(--space-4) var(--space-3); border-top: var(--space-1) solid var(--rc-edge); }
+.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); position: relative; display: flex; flex-direction: column; padding: 0 var(--space-4) var(--space-3); border-top: var(--space-1) solid var(--rc-edge); }
 .raid-card.rc-r { --rc-edge: var(--status-red-text); --rc-tint: var(--status-red-tint); --rc-ink: var(--status-red-text); }
 .raid-card.rc-a { --rc-edge: var(--status-amber-text); --rc-tint: var(--status-amber-tint); --rc-ink: var(--status-amber-text); }
 .raid-card.rc-g { --rc-edge: var(--status-green-text); --rc-tint: var(--status-green-tint); --rc-ink: var(--status-green-text); }
@@ -957,12 +955,10 @@ table.items .weye { width: 30px; height: 30px; }
 .raid-card p.raid-top { margin: 0 calc(-1 * var(--space-4)) var(--space-2); padding: var(--space-2) var(--space-4); background: var(--rc-tint); color: var(--rc-ink); }
 .raid-card .raid-title { white-space: normal; overflow: visible; text-overflow: clip; }
 .raid-rating { margin-left: auto; font-weight: var(--weight-medium); white-space: nowrap; }
-.raid-label { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+.raid-label, .raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
 .raid-latest { color: var(--text); }
 .raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); }
 .raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
-/* Row 1270 (Classic only): the part word above a RAID card's words (The risk, The issue, The action, The decision needed, The decision) is drawn as the card's other small labels: caption size, medium weight, muted. Bare length: the --space-2 gap above, as .raid-label. */
-.raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
@@ -973,30 +969,31 @@ table.items .weye { width: 30px; height: 30px; }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
-/* Row 1270, the card opens the Peek (mock-up states): the ID button is stretched over the whole card (::after), so the card is the click target and one tab stop. Hover: the shadow token, a grey-500 edge on the three plain sides (the rating edge on top stays) and the ID underlined. Focus: a 2 px ring in the focus colour, 2 px out, on the whole card (the button draws none). Selected, the card whose Peek is open: a 2 px brand-blue ring. */
-.raid-card { position: relative; }
+.ask-folder-line .ask-left-btn { display: inline; min-height: 0; font-size: inherit; }
+.ask-folder-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Row 1270: the ID button covers the card; hover, focus, selected. */
 .raid-card .raid-id { cursor: pointer; }
 .raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
 .raid-card .raid-id:focus-visible { outline: none; }
-.raid-card:hover { box-shadow: var(--shadow); border-left-color: var(--grey-500); border-right-color: var(--grey-500); border-bottom-color: var(--grey-500); }
+.raid-card:hover { box-shadow: var(--shadow); border-color: var(--rc-edge) var(--grey-500) var(--grey-500); }
 .raid-card .raid-id:hover { text-decoration: underline; }
 .raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
 
-/* Row 1270 (Classic only): the RAID cards picker, the count, Remove and the Also show on the card choices */
+/* Row 1270: the picker, Remove, Also show. */
 .rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
-.rce-pick, .rce-rm { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.rce-pick, .rce-rm, .rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-pick, .rce-rm, .rce-opts button { cursor: pointer; }
 .rce-pick:disabled { opacity: 0.4; cursor: default; }
-.rce-pick:focus-visible, .rce-rm:focus-visible, .rce-opts button:focus-visible, .rce-picker input:focus-visible, .rce-ck input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rce :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rce-rm { width: 36px; padding: 0; justify-self: end; align-self: start; }
-.rce-count { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-count, .rce-ck small, .rce-show legend, .rce-kind, .rce-rate { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-kind, .rce-rate { margin-right: var(--space-2); }
+.rce-ck small { display: block; }
 .rce-picker { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
-.rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .rce-opts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; }
-.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; background: transparent; color: var(--text); font: inherit; overflow-wrap: anywhere; }
 .rce-opts button:hover { background: var(--brand-blue-tint); }
 .rce-show { grid-column: 1 / -1; display: grid; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
-.rce-show legend { padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.rce-show legend { padding: 0; }
 .rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
-.rce-ck small { display: block; color: var(--text-muted); font-size: var(--size-caption); }
-.rce-kind, .rce-rate { color: var(--text-muted); font-size: var(--size-caption); margin-right: var(--space-2); }
