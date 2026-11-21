@@ -174,7 +174,7 @@ VOID = {"br", "hr", "img"}
 ALLOWED_TAGS = {"p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "code", "pre", "blockquote", "span", "div",
                 "ul", "ol", "li", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
 ALLOWED_ATTRS = {"a": ("href", "title"), "img": ("src", "alt", "title"), "td": ("colspan", "rowspan"),
-                 "th": ("colspan", "rowspan")}
+                 "th": ("colspan", "rowspan"), "span": ("class",)}
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]*", re.I)
 SPAN = re.compile(r"[0-9]{1,3}")
 
@@ -223,6 +223,8 @@ class _Cleaner(HTMLParser):
             if name == "src" and not DATA_IMAGE.fullmatch(value.strip()):
                 return                                            # an image that isn't embedded is dropped whole
             if name in ("colspan", "rowspan") and not SPAN.fullmatch(value.strip()):
+                continue
+            if name == "class" and value not in sanitise.COLOUR_CLASSES:       # row 1364: a span keeps only one of the six font colour classes
                 continue
             keep.append(f' {name}="{htmllib.escape(value.strip() if name == "src" else value, quote=True)}"')
         if tag == "img" and not any(a.startswith(" src=") for a in keep):

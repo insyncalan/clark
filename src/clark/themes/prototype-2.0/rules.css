@@ -943,6 +943,30 @@ table.items .weye { width: 30px; height: 30px; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Row 1364: font colour. The six colours are design tokens (never a hex); the same classes colour the text in the editor, in the page and in the published file. */
+.rt-c-grey { color: var(--text-muted); }
+.rt-c-brand { color: var(--brand-blue); }
+.rt-c-red { color: var(--tone-red-text); }
+.rt-c-amber { color: var(--tone-amber-text); }
+.rt-c-green { color: var(--tone-green-text); }
+.rt-c-blue { color: var(--tone-blue-text); }
+.rt-colour { position: relative; display: inline-flex; }
+.rt-A { font-weight: 700; line-height: 1.1; border-bottom: 3px solid var(--text); }
+.rt-pal { position: absolute; z-index: 31; top: calc(100% + 4px); left: 0; box-sizing: border-box; width: 208px; padding: 8px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 8px; box-shadow: 0 6px 18px rgba(14, 36, 48, .12); }
+.rt-pal.end { left: auto; right: 0; }
+.rt-pal-auto { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); cursor: pointer; }
+.rt-pal-auto:hover { background: var(--grey-100); }
+.rt-pal-auto:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rt-grid { display: grid; grid-template-columns: repeat(4, 32px); gap: 6px; margin-top: 6px; }
+.rt-sw { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--grey-200); border-radius: 6px; background: var(--surface);  font-size: var(--size-small); font-weight: 700; cursor: pointer; }
+.rt-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rt-sw[aria-checked="true"] { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.rt-A[data-colour="grey"] { border-bottom-color: var(--text-muted); } .rt-sw-grey { color: var(--text-muted); }
+.rt-A[data-colour="brand"] { border-bottom-color: var(--brand-blue); } .rt-sw-brand { color: var(--brand-blue); }
+.rt-A[data-colour="red"] { border-bottom-color: var(--tone-red-text); } .rt-sw-red { color: var(--tone-red-text); }
+.rt-A[data-colour="amber"] { border-bottom-color: var(--tone-amber-text); } .rt-sw-amber { color: var(--tone-amber-text); }
+.rt-A[data-colour="green"] { border-bottom-color: var(--tone-green-text); } .rt-sw-green { color: var(--tone-green-text); }
+.rt-A[data-colour="blue"] { border-bottom-color: var(--tone-blue-text); } .rt-sw-blue { color: var(--tone-blue-text); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

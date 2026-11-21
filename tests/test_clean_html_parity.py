@@ -63,6 +63,18 @@ REVIEWER_CASES = [
     '<a href="https://example.com/?a=1&copy=2&amp;b=3">q</a>', '&lt;script&gt;alert(1)&lt;/script&gt;', '<style>@import "x";</style>visible',
     '<title>t</title><b>bold</b>', '<svg/onload=alert(1)>', '<math href="javascript:alert(1)">x</math>']
 
+# Row 1364: font colour. A span stays only with exactly one of the six classes; every other span (class, style, case, space, repeat) is its text.
+COLOUR = [f'<p>a <span class="rt-c-{c}">b</span> c</p>' for c in ("grey", "brand", "red", "amber", "green", "blue")] + [
+    '<span class="rt-c-red">x</span>', '<span class="rt-c-red" style="color:#f00" id="i" onclick="f()">x</span>', '<span class=rt-c-red>x</span>', "<span class='rt-c-red'>x</span>",
+    '<SPAN CLASS="rt-c-red">x</SPAN>', '<span class="RT-C-RED">x</span>', '<span class=" rt-c-red">x</span>', '<span class="rt-c-red ">x</span>', '<span class="rt-c-red x">x</span>',
+    '<span class="rt-c-pink">x</span>', '<span class="rt-c-">x</span>', '<span class="">x</span>', '<span>x</span>', '<span style="color:#f00">x</span>', '<span class="rt-c-red" class="rt-c-blue">x</span>',
+    '<span class="rt-c-blue" class="rt-c-red">x</span>', '<span class="rt-c-red">x', '<span class="rt-c-red"><span class="rt-c-blue">x</span>y</span>', '<span class="rt-c-red"><span>x</span>y</span>',
+    '<span class="rt-c-red"><strong><em><s>x</s></em></strong></span>', '<strong><span class="rt-c-red">x</span></strong>', '<a href="https://a.example/"><span class="rt-c-red">x</span></a>',
+    '<span class="rt-c-red"><a href="https://a.example/">x</a></span>', '<ul><li><span class="rt-c-red">x</span></li></ul>', '<h2><span class="rt-c-green">x</span></h2>',
+    '<p><span class="rt-c-red">x</p><p>y</span></p>', '</span><span class="rt-c-red">x</span></span>', '<span class="rt-c-red"/>x', '<span class="rt-c-red">\u0130</span>',
+    '<span class="rt-c-red">&lt;b&gt;</span>', '<span class="&#114;t-c-red">x</span>', '<span class="rt&#45;c-red">x</span>', '<span class="rt-c-r\u0065d">x</span>',
+    '<span class="rt-c-red"></span>', '<p><span class="rt-c-red"></span></p>' * 7, '<p><span class="rt-c-red"> </span></p>' * 7, '<div><span class="rt-c-red">x</span></div><span class="rt-c-blue">y</span>']
+
 # Ours: the places where JavaScript and Python could part (case folding, white space, code points, entities, limits, odd syntax).
 OURS = [
     '<a href="http://x.example/">k</a>', '<a href="ma\u0131lto:a@b.example">dotless i</a>', '<a href="MA\u0130LTO:a@b.example">dotted I</a>',
@@ -283,7 +295,7 @@ def answer(fn, text):
 
 def build():
     """The corpus as [[input, python's clean, python's plain_text], ...] (duplicates dropped, order kept), with each part's size."""
-    parts = [("test_sanitise", from_test_sanitise()), ("hand-written (reviewer 78)", REVIEWER_CASES), ("hand-written (ours)", OURS),
+    parts = [("test_sanitise", from_test_sanitise()), ("hand-written (reviewer 78)", REVIEWER_CASES), ("hand-written (ours)", OURS), ("font colour (row 1364)", COLOUR),
              ("systematic", systematic()), ("random (the reviewer's generator)", reviewer_corpus(random.Random(66), RANDOM)),
              ("random (ours)", ours_corpus(random.Random(67), max(RANDOM // 4, 1000))),
              ("blank lines (#84)", BLANK), ("random blank lines (#84)", blank_corpus(random.Random(84), max(RANDOM // 4, 5000))), ("code points", code_points())]
@@ -315,6 +327,41 @@ class Parity(unittest.TestCase):
     def compare(self, items):
         with Page(chrome, {"ITEMS": items}) as page:
             return page.ev("CH.compare(ITEMS, 25)")
+
+    def test_six_font_colour_classes_agree_in_all_four_cleaners(self):
+        """Row 1364 (AP14): for each of the six classes, the editor's writer (core/richHtml.js toHtml, in the real editor page), the page's cleanHtml, the
+        authority sanitise.clean_html and the published file's cleaner (publish.clean_html) write the same bytes, alone and with strong, em, s and a link."""
+        import json
+        import _rich_page as rp
+        from clark import publish
+        names = ("grey", "brand", "red", "amber", "green", "blue")
+        marks = {"bold": [{"type": "bold"}], "none": [], "all": [{"type": "bold"}, {"type": "italic"}, {"type": "strike"}],
+                 "link": [{"type": "link", "attrs": {"href": "https://a.example/x"}}]}
+        docs, sources = [], []
+        for n in names:
+            for kind, extra in marks.items():
+                docs.append({"type": "doc", "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "a "}, {"type": "text", "text": "word & more", "marks": [{"type": "fontColour", "attrs": {"colour": n}}] + extra},
+                    {"type": "text", "text": " z"}]}]})
+        with rp.Harness(chrome) as h:
+            written = h.ev(f"{json.dumps(docs)}.map(function (d) {{ return CE.toHtml(d); }})")
+            pagecleaned = h.ev(f"{json.dumps(written)}.map(function (x) {{ return CE.cleanHtml(x); }})")
+        self.assertEqual(len(written), 24)
+        for n, w, pc in zip([n for n in names for _ in marks], written, pagecleaned):
+            with self.subTest(w):
+                self.assertEqual(w.count("<span"), 1, "ONE span")
+                self.assertIn(f'<span class="rt-c-{n}">', w)
+                self.assertIn("word &amp; more", w)
+                self.assertNotIn("style", w)
+                self.assertEqual(pc, w, "the page's cleaner")
+                self.assertEqual(sanitise.clean_html(w), w, "sanitise.py")
+                self.assertEqual(publish.clean_html(w), w, "the published file's cleaner")
+        # the spans as other tools write them: every one of the three cleaners that must decide (not the editor) gives the same
+        inputs = [f'<p>a <span class="rt-c-{n}">b</span></p>' for n in names] + [f'<p><span class="rt-c-{n}">b<strong>c</strong></span></p>' for n in names]
+        with Page(chrome, {"ITEMS": [[x, sanitise.clean_html(x), None] for x in inputs]}) as page:
+            self.assertEqual(page.ev("CH.compare(ITEMS.map(function (i) { return [i[0], i[1]]; }), 25)")["count"], 0)
+        for x in inputs:
+            self.assertEqual(publish.clean_html(sanitise.clean_html(x)), sanitise.clean_html(x))
 
     def test_the_tables_the_page_uses_are_the_ones_python_makes(self):
         self.assertEqual(sanitise_tables.main(["--check"]), 0, "run python3 dev/tools/sanitise_tables.py and commit the result")
