@@ -10,7 +10,7 @@ import { SLOTS } from "../../templates/Gallery.jsx";
 
 const WORDS = { added: "Picture added.", removed: "Picture taken out." };
 export const LONGEST = 1200;
-export const MOST = 400 * 1024;              // gallery.py PICTURE_MAX
+export const MOST = 400 * 1024;              // gallery.py V1_PICTURE_MAX: this page still sends version 1 bodies (test_gallery_v2_survivors keeps them equal)
 
 function itemsOf(v) {
   return v && v.items && typeof v.items === "object" && !Array.isArray(v.items) ? v.items : {};
