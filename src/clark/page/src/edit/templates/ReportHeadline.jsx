@@ -10,6 +10,7 @@ import { actionIcon } from "../../menuIcons.js";
 import { useSaver } from "./noteEdit.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { data } from "../../stores/report.js";
+import { startOr } from "../startingText.js";
 import { classicTheme } from "../../components/Contents.jsx";
 import { glanceShowsHealth } from "../../templates/glanceBody.js";
 
@@ -77,7 +78,7 @@ export function Edit({ section }) {
         </div> : null}
         <div class="tpl-rh-edit-text">
           <label class="tpl-lbl" for={`rh-h-${section.id}`}>Headline</label>
-          <Area id={`rh-h-${section.id}`} cls="tpl-rh-hin" value={saved.headline} label="Headline" placeholder="Headline: say where the project stands (no length limit)" onCommit={(headline) => write({ headline })} />
+          <Area id={`rh-h-${section.id}`} cls="tpl-rh-hin" value={saved.headline} label="Headline" placeholder={startOr("Headline: say where the project stands (no length limit)", "report-headline", "empty")} onCommit={(headline) => write({ headline })} />
           <label class="tpl-lbl" for={`rh-s-${section.id}`}>Supporting sentence</label>
           <Area id={`rh-s-${section.id}`} value={saved.sentence} label="Supporting sentence" placeholder="Why the project has this health (a line or two)" onCommit={(sentence) => write({ sentence })} />
         </div>

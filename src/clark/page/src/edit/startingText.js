@@ -25,6 +25,8 @@ export const STARTING_TEXT = {
   "gantt": { empty: ["No Gantt lines in the client view yet."] },
   "gantt-table": { empty: ["No Gantt lines in the client view yet."] },
   "plan-summary": { empty: ["Write here.", "Add a step."] },      // Plan summary keeps its description; "Write here." sits under an empty paragraph, "Add a step." under an empty list item
+  "report-headline": { empty: ["Add the headline: the one thing the reader should take away."] },      // the health pill and the supporting sentence keep their own words
+  "full-image": { caption: "Add a caption: what the picture shows.", empty: ["Add a picture: replace this sample with your own."] },      // At a glance has no entry: it draws live counts, so it is never empty
   "current-state": { empty: ["Say where the project stands."] },      // Header and Text: its starting title is "Header" (ruled 16-11, plan issue 1262)
 };
 
