@@ -59,7 +59,7 @@ class NoPrPath(unittest.TestCase):
             summ = os.path.join(d, "summary.md")
             rc, _ = run_main(mod, ["--check", "point-map"], {"GITHUB_STEP_SUMMARY": summ})
             self.assertEqual(rc, 0)
-            with open(summ) as f:
+            with open(summ, encoding='utf-8') as f:
                 self.assertIn("NOT CHECKED: merge_group has no pull request", f.read())
 
     def test_pr_number_path_is_unchanged(self):
@@ -93,7 +93,7 @@ class NoPrPath(unittest.TestCase):
 
 class WorkflowText(unittest.TestCase):
     def setUp(self):
-        self.text = WORKFLOW.read_text()
+        self.text = WORKFLOW.read_text(encoding="utf-8")
         self.code = "\n".join(ln for ln in self.text.splitlines() if not ln.lstrip().startswith("#"))
 
     def test_lists_merge_group_with_checks_requested(self):
