@@ -31,8 +31,8 @@ class SendKeyPick(AskRowLogic):
         self.assertEqual(got, ["Cmd+Enter", "Ctrl+Enter", "Cmd+Enter"])
 
     def test_the_row_carries_the_word_and_the_rest_of_the_row_is_unchanged(self):
-        got = self.js(LAYER + "const r = PAL.askRow('zzqx'); return [r.more, r.label, r.kind, r.first];")
-        self.assertEqual(got, ["Ctrl+Enter", "Ask “zzqx” in ask clark", "ask clark", False], "headless Chrome here reports Linux")
+        got = self.js(LAYER + "Object.defineProperty(navigator, 'userAgentData', {value: undefined, configurable: true}); Object.defineProperty(navigator, 'platform', {value: 'Linux x86_64', configurable: true}); const r = PAL.askRow('zzqx'); return [r.more, r.label, r.kind, r.first];")
+        self.assertEqual(got, ["Ctrl+Enter", "Ask “zzqx” in ask clark", "ask clark", False], "the platform is pinned to Linux, so a Mac run reads the same")
 
     def test_cards_has_no_hint_and_the_rest_of_the_row_is_the_same(self):
         got = self.js("const r = PAL.askRow('zzqx'); return [r.more, r.label, r.kind, r.first, r.id, r.disabled, r.question];")
@@ -57,6 +57,7 @@ class OnThePage(Base):
     def test_the_hint_reads_ctrl_enter_here_and_cmd_enter_on_a_mac_at_both_widths(self):
         with chrome() as cdp:
             p = self.visit(cdp)
+            p.js("Object.defineProperty(navigator, 'userAgentData', {value: undefined, configurable: true}); Object.defineProperty(navigator, 'platform', {value: 'Linux x86_64', configurable: true});")
             for w in (1400, 900):
                 p.width(w)
                 p.show()
