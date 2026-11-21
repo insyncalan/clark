@@ -28,6 +28,22 @@ class FeedbackTagMock(Base, unittest.TestCase):
                 self.assertEqual((m["mailH"], m["mailMin"], m["mailPad"], m["mailDisplay"]), (38, "38px", "0px 22px", "inline-flex"))
                 self.assertEqual(m["copyH"], 34)
 
+    def test_tag_and_dialog_box_values(self):
+        """AP1, AP7, AP13: tag top 58% / 13px / 600 / radius 10 0 0 10, dialog top 110 / width 360 / radius 14 0 0 14, added block and message radius 8 (feedback-tag.html :11, :14, :19). The navy (#062f3a) is only the sample page header in the mock-up and the shadow token stays (ruling 19:39), so neither is pinned."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width, "#settings&p=appearance", self.serve(), ready="#feedback-tag")
+                cdp.js("document.querySelector('#feedback-tag').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fbt-dlg')", sid)))
+                m = cdp.js("""(() => { const c = (e) => getComputedStyle(e), t = document.querySelector('#feedback-tag'), d = document.querySelector('.fbt-dlg');
+                  return { top: c(t).top, fs: c(t).fontSize, fw: c(t).fontWeight, rad: c(t).borderRadius, wm: c(t).writingMode, dTop: c(d).top, dRad: c(d).borderRadius,
+                    dW: d.getBoundingClientRect().width, addRad: c(d.querySelector('#fbt-added')).borderRadius, vh: innerHeight }; })()""", sid)
+                self.assertAlmostEqual(float(m["top"][:-2]), m["vh"] * .58, delta=.5)   # 58% of the viewport height
+                self.assertEqual((m["fs"], m["fw"], m["rad"], m["wm"]), ("13px", "600", "10px 0px 0px 10px", "vertical-rl"))
+                self.assertEqual((m["dTop"], m["dRad"], m["dW"]), ("110px", "14px 0px 0px 14px", 360))
+                self.assertEqual(m["addRad"], "8px")
+
+
 
 if __name__ == "__main__":
     unittest.main()
