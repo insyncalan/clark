@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from clark import __main__ as launcher  # noqa: E402
 from clark import platform as pl  # noqa: E402
 from clark import __version__ as clark_version  # noqa: E402
-from clark import brands, page, server  # noqa: E402
+from clark import brands, default_sections, page, server  # noqa: E402
 
 WAIT = 30           # seconds to wait for the address line, or for the process to stop
 
@@ -195,7 +195,7 @@ class RunsAsAProcess(TempFolder):
         self.assertEqual(get(port, "/api/projects")[0], 403, "the list needs the token like everything under /api/")
         sent = {"X-Clark-Token": token}                                    # #65: saving and Undo, each call on its own store
         sections = json.loads(get(port, "/api/data?project=TUL", headers=sent)[1])["data"]["report_sections"]
-        self.assertEqual(len(sections), 10)
+        self.assertEqual(len(sections), len(default_sections.DEFAULT_SECTIONS))
         first = sections[4]["id"]
         status, made = post(port, "/api/change", {"project": "TUL", "kind": "report_sections", "op": "update", "id": first,
                                                   "changes": {"title": "Renamed in the demo"}}, sent)

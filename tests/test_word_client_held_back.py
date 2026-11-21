@@ -20,6 +20,7 @@ import zipfile
 from pathlib import Path
 
 from _demo import DemoStore
+from clark.default_sections import DEFAULT_SECTIONS
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import publish_flow, to_client, word_route
 
@@ -183,7 +184,8 @@ class CleanReport(Setup, unittest.TestCase):
         with self.store.step("dashboard", USER) as st:
             st.create("documents", {"project": "ABC", "title": "Delivery plan", "kind": "Plan", "url": self.LINK, "sort_order": 1})
         # item 1188: the first section is a text section; its body (not the project's current_state) carries the rich text now
-        self.demo.update("report_sections", "ABC-S-001", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
+        first = next(f"ABC-S-{n:03d}" for n, d in enumerate(DEFAULT_SECTIONS, 1) if d["title"] in ("Current state", "Header"))      # the default text section that starts the report
+        self.demo.update("report_sections", first, {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
 
     def test_the_word_copy_saves_in_both_folders_with_its_link(self):
         status, got = self.word_export()
