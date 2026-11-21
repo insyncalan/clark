@@ -1,4 +1,4 @@
-"""Row 1267 close list: the grip's focus ring, the grip zoom kept for each place, and the Cards grip in dark.
+"""Row 1267 close list: the grip's focus ring when reached by keyboard (Classic and Cards), and the Cards grip bar in dark (seen against what is behind it, and on hover).
 
 Run: python3 dev/run_tests.py test_ms_grip_keep_1267
 Chrome launches at 1400 and 900 px. The Classic grip is the full-width bottom edge (row 1315); the Cards grip is the centred 64x24 one.
