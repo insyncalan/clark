@@ -61,6 +61,7 @@ class GroupInTheField(Base):
                 cdp.js("[...document.querySelectorAll('#fline-list .fopt')].find(o => o.textContent.startsWith('Status')).click()", sid)
                 self.until(cdp, sid, f"{LABEL} === 'Group by: Status'", "the icon menu follows")
                 self.assertEqual(cdp.js(CHIP, sid).replace("×", "").strip(), "Group by: Status")
+                self.assertEqual(cdp.js("document.querySelector('.fchip[data-chip-group] button').getAttribute('aria-label')", sid), "Remove the Group by filter", "the cross is named")
                 self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "no text is left in the box")
                 self.assertEqual(cdp.js("document.querySelector('.fchip[data-chip-group]').classList.contains('word')", sid), True, "the neutral chip")
                 self.assertEqual(cdp.js("document.querySelector('#viewMenu') !== null", sid), True, "the icon stays")
