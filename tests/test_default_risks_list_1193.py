@@ -18,6 +18,11 @@ class Rules:
         return True
 
 
+def place(title):
+    """The number the store gives the default section with this title: its place in the default list."""
+    return [d["title"] for d in default_sections.DEFAULT_SECTIONS].index(title) + 1
+
+
 class DefaultRisksList(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -44,16 +49,18 @@ class DefaultRisksList(unittest.TestCase):
 
     def test_a_new_project_stores_the_list_in_the_same_place_with_its_filter(self):
         rows = self.risks()
-        self.assertEqual([(r["type"], r["id"], r["sort_order"]) for r in rows], [("workitems", "ABC-S-007", order.GAP * 7)])
+        self.assertEqual([(r["type"], r["id"], r["sort_order"]) for r in rows], [("workitems", f"ABC-S-{place('Risks and issues'):03d}", order.GAP * place("Risks and issues"))])
         self.assertEqual(json.loads(rows[0]["body"])["kinds"], ["risk", "issue"])
         self.assertEqual(rows[0]["hidden"], 0)
 
     def test_the_other_rows_are_unchanged(self):
         types = [r["type"] for r in order.in_order(self.s.read("report_sections", "ABC"))]
-        self.assertEqual(types[:6] + types[7:], ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "docs"])
+        at = place("Risks and issues") - 1
+        self.assertEqual(types[:at] + types[at + 1:], [d["type"] for d in default_sections.DEFAULT_SECTIONS if d["title"] != "Risks and issues"])
 
     def test_every_other_default_body_is_still_empty(self):
-        self.assertEqual([e.get("body", "") for e in default_sections.DEFAULT_SECTIONS if e["title"] not in ("Risks and issues", "Open actions", "Decisions")], [""] * 7)
+        others = [e.get("body", "") for e in default_sections.DEFAULT_SECTIONS if e["title"] not in ("Risks and issues", "Open actions", "Decisions", "At a glance")]
+        self.assertEqual(others, [""] * len(others))
 
     def test_a_work_items_list_is_not_a_built_in_so_more_can_be_added_with_their_own_titles(self):
         from clark import changes

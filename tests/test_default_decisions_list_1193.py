@@ -19,6 +19,11 @@ ROWS = [
 ]
 
 
+def place(title):
+    """The number the store gives the default section with this title: its place in the default list."""
+    return [d["title"] for d in default_sections.DEFAULT_SECTIONS].index(title) + 1
+
+
 class DefaultDecisionsList(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -39,7 +44,7 @@ class DefaultDecisionsList(unittest.TestCase):
 
     def test_a_new_project_stores_the_list_in_the_same_place(self):
         rows = [r for r in order.in_order(self.s.read("report_sections", "ABC")) if r["title"] == "Decisions"]
-        self.assertEqual([(r["type"], r["id"], r["sort_order"], r["hidden"]) for r in rows], [("workitems", "ABC-S-009", order.GAP * 9, 0)])
+        self.assertEqual([(r["type"], r["id"], r["sort_order"], r["hidden"]) for r in rows], [("workitems", f"ABC-S-{place('Decisions'):03d}", order.GAP * place("Decisions"), 0)])
         self.assertEqual(json.loads(rows[0]["body"]), json.loads(default_sections.DECISIONS_LIST))
 
     def test_a_made_decision_is_kept_in_the_published_file_of_a_new_project(self):
