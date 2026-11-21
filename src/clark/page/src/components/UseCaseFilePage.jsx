@@ -1,6 +1,6 @@
 // One use case's own page in a published file (row 1111): the same layout and classes as the page the editor has (UseCaseDetail), read only.
 // It reads what the file holds (data.use_case_pages names, for each use case the client may see, the next steps and milestones to show),
-// draws no control and no History, and its Details card shows only the fields the file holds (status, commitment), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
+// draws no control and no History, and its Details card shows only the fields the file holds (the owner when it has one, status, commitment; never a last change), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, project, openWork, openPeek } from "../stores/report.js";
 import { isOpen, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
@@ -90,6 +90,7 @@ export function UseCaseFilePage({ id }) {
           <section class="ucf-card" aria-labelledby="ucf-h-det" data-ucf-details>
             <h2 id="ucf-h-det" class="ucf-ch">Details</h2>
             <dl class="ucf-kv">
+              {u.owner ? <><dt>Owner</dt><dd data-uc-owner>{u.owner}</dd></> : null}
               <dt>Status</dt><dd data-det-status>{u.status}</dd>
               {commitWord(u) ? <><dt>Commitment</dt><dd data-det-commit>{commitWord(u)}</dd></> : null}
             </dl>
@@ -98,8 +99,9 @@ export function UseCaseFilePage({ id }) {
             <h2 id="ucf-h-ms" class="ucf-ch">Milestones</h2>
             {ms.length ? <ul class="ucf-ms plain">{ms.map((m) => {
                 const st = milestoneRows([m], todayIso(), false)[0];
-                return <li key={m.id} data-ms={m.id}><button type="button" class="link ucf-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucf-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
+                return <li key={m.id} data-ms={m.id} data-how="work"><button type="button" class="link ucf-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
+                  <span class="ucf-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span>
+                  <span class="muted ucf-mshow" data-ms-how>Through work items</span></li>;     {/* the file names a milestone only through a shared next step (publish.client_use_cases), so this is always how it is reached */}
               })}</ul>
               : <p class="muted">No milestones are shared for this use case.</p>}
           </section>

@@ -1,4 +1,4 @@
-"""Row 875: a use case's owner is internal. Planted markers (the owner's text, and the name of the linked person) are set through the
+"""Row 875: a use case's owner is internal, except that (row 1479, ruled 20-11-2026) the published web page shows the owner text on the use case page; the Word report, the workbooks, the PDF and the Ask passages still never carry it. Planted markers (the owner's text, and the name of the linked person) are set through the
 real change route on a client-visible use case, then the page, the client copy, the Word report, the client workbook, the PDF text
 and the Ask passages are searched for them; the work items workbook does not export the owner, and an export then an import leaves
 the owner as it was.
@@ -64,13 +64,15 @@ class Planted(unittest.TestCase):
         local = (self.rig.local / "chosen.html").read_bytes().decode("utf-8")
         client = (self.rig.client / WANTED).read_bytes().decode("utf-8")
         self.assertIn("PUB-U-001", local, "the use case itself is published")
-        self.assertClean(local, "the page")
-        self.assertClean(client, "the client copy")
+        # row 1479 (the owner's ruling, 20-11-2026): the published web page shows a use case's Owner, as the text the editor holds; nothing else of the link
+        for text in (local, client):
+            self.assertIn(PERSON, text)
+            self.assertNotIn("owner_id", text)
 
-    def test_the_selected_data_has_no_owner_on_a_use_case(self):
+    def test_the_selected_data_has_the_owner_text_but_no_link_on_a_use_case(self):
         for row in self.published()["data"]["use_cases"]:
-            self.assertNotIn("owner", row)
-            self.assertNotIn("owner_id", row)
+            self.assertIn("owner", row)               # row 1479: the owner's text is published, for the use case page
+            self.assertNotIn("owner_id", row)         # never the link to the person
 
     def test_the_word_report(self):
         z = zipfile.ZipFile(io.BytesIO(docx_build.build(self.published())))

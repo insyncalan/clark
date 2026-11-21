@@ -54,14 +54,14 @@ class TheFilesUseCasePage(unittest.TestCase):
                     # every button on the file is one of the navigation openers: a work item tile, a milestone name, the open-all link
                     loose = js(cdp, sid, "[...document.querySelectorAll('[data-ucf] button, [data-ucf] [role=button], [data-ucf] [role=textbox], [data-ucf] [role=combobox]')].filter(b => !b.matches('[data-item], [data-ms-open], [data-open-all]')).length")
                     self.assertEqual(loose, 0, "no button on the file other than the tiles, the milestone names and open-all")
-                    # row 1111: the Details card is read only and holds only what the file carries (status, and commitment when set), never an owner or a last change
+                    # rows 1111 and 1479: the Details card is read only and holds only what the file carries (owner when set, status, commitment when set), never a last change or the dashboard choice
                     uc = pub["data"]["use_cases"][0]
                     det = js(cdp, sid, "(() => { const c = document.querySelector('[data-ucf-details]'); return c ? {labels: [...c.querySelectorAll('dt')].map(e => e.textContent), text: c.innerText, controls: c.querySelectorAll('input, textarea, select, button, a, [contenteditable=true]').length} : null; })()")
                     self.assertIsNotNone(det, "a Details card")
-                    self.assertEqual(det["labels"], ["Status"] + (["Commitment"] if uc.get("commitment") else []))
+                    self.assertEqual(det["labels"], (["Owner"] if uc.get("owner") else []) + ["Status"] + (["Commitment"] if uc.get("commitment") else []))
                     self.assertIn(uc["status"], det["text"])
                     self.assertEqual(det["controls"], 0, "the Details card is read only")
-                    for word in ("OWNER", "LAST CHANGE", "DASHBOARD"):
+                    for word in ("LAST CHANGE", "DASHBOARD"):
                         self.assertNotIn(word, det["text"].upper(), "a field the file does not carry")
                     self.assertNotIn("HISTORY", page.upper(), "no History in a published file")
                     self.assertNotIn("CHANGE STATUS", page.upper())

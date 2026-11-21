@@ -1606,6 +1606,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucf-foot .link { font-size: var(--size-body); }
 .ucf-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
 .ucf-ms .ucf-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 .ucf-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
 .ucf-hw { overflow-wrap: anywhere; }
 .ucf-hm { font-size: var(--size-caption); color: var(--text-muted); }
