@@ -115,7 +115,8 @@ def _merged(brand_css):
     note = None
     if brand is None:
         brand, note = {}, "The brand's colours file could not be read, so clark's standard colours were used in the workbook."
-    merged = dict(committed)
+    merged = {f"--{k}": f"#{v}" for k, v in base.EXPORT_TOKENS.items()}      # item 1390: the workbook's own tokens, under the committed and the brand's
+    merged.update(committed)
     merged.update({k: v.strip() for k, v in brand.items()})
     return ":root {\n" + "\n".join(f"{k}: {v};" for k, v in merged.items()) + "\n}", note
 
