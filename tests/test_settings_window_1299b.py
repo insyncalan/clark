@@ -151,9 +151,8 @@ class Window(Base):
                     self.assertEqual(r["radius"], "18px", "the radius is the mock-up's 18px (row 1299 ruling): 12px and 14px both fail here")
                     self.assertNotIn(r["radius"], ("12px", "14px"), "neither the large-radius token nor 14")
                     ring = {"light": "rgb(233, 237, 246)", "dark": "rgb(43, 56, 80)"}[mode]      # the mock-up's --line (#e9edf6, dark #2b3850), the row 1299 ruling
-                    tok = p.js("(() => { const e = document.createElement('i'); e.style.cssText = 'box-shadow:var(--shadow)'; document.body.appendChild(e); const v = getComputedStyle(e).boxShadow; e.remove(); return v; })()")
-                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px, {tok}", "a one pixel ring in the mock-up line colour drawn as a shadow (it takes no room), then the --shadow token's drop shadow, not a colour literal")
-                    self.assertTrue(tok.endswith(" 0px 8px 24px 0px"), "the token itself is 0 8px 24px (its colour is the theme's: dark mode has its own)")
+                    drop = {"light": "rgba(6, 47, 58, 0.18)", "dark": "rgba(0, 0, 0, 0.6)"}[mode]      # the mock-up's 0 12px 36px rgba(6,47,58,.18) (row 1299 ruling, mock pin 20-11); dark keeps the --shadow token's own colour
+                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px, {drop} 0px 12px 36px 0px", "a one pixel ring in the mock-up line colour drawn as a shadow (it takes no room), then the ruled 0 12px 36px drop shadow")
                     ground = {"light": "rgb(241, 243, 249)", "dark": "rgb(21, 31, 44)"}[mode]      # the mock-up's --win (#f1f3f9, dark #151f2c)
                     self.assertEqual(r["bg"], ground, "the window ground is the mock-up's --win in " + mode)
                     self.assertEqual(r["card"], self.token(p, "var(--surface)")["bg"], "the cards inside stay on the surface token (white in light) in " + mode)

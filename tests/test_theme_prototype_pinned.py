@@ -43,7 +43,7 @@ LIGHT = {
         '--gutter-rule': '#EEEBFB',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
-        '--set-ring': '#E9EDF6', '--set-win': '#F1F3F9',
+        '--set-ring': '#E9EDF6', '--set-win': '#F1F3F9', '--set-shadow': 'rgba(6, 47, 58, .18)',
         # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
         '--tile-on-bg': '#ECE9FB',
         '--tile-on-fg': 'var(--brand-blue)',
@@ -82,7 +82,7 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
-        '--set-ring': '#2B3850', '--set-win': '#151F2C',
+        '--set-ring': '#2B3850', '--set-win': '#151F2C', '--set-shadow': 'rgba(0, 0, 0, .6)',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
