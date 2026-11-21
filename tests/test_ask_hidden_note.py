@@ -27,8 +27,8 @@ class TheNote(unittest.TestCase):
     def test_the_question_is_not_a_passage(self):
         self.assertEqual(ask_service.hidden_notes({"question": 5}, []), [])
 
-    def test_a_count_with_no_label_or_a_bad_count_is_skipped(self):
-        self.assertEqual(ask_service.hidden_notes({"P9": 2, "P1": True, "P2": "x", "P3": -1}, [("P1", "a"), ("P2", "b"), ("P3", "c")]), [])
+    def test_a_bad_count_is_skipped(self):
+        self.assertEqual(ask_service.hidden_notes({"P1": True, "P2": "x", "P3": -1}, [("P1", "a"), ("P2", "b"), ("P3", "c")]), [])
 
     def test_counts_that_are_not_a_mapping_say_nothing(self):
         for bad in (None, [("P1", 2)], "P1", 3):

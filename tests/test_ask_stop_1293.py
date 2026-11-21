@@ -21,8 +21,15 @@ class Recording(ask.StubProvider):
         super().__init__(**kw)
         self.cancels = []
 
+    honours_cancel = True                        # as ask_claude.py does: a request that is already cancelled is ended before anything is sent
+    inside = None                                # a function called from inside the provider (a Stop pressed there)
+
     def ask(self, request):
         self.cancels.append(request.cancel)
+        if self.honours_cancel and request.cancel.is_set():
+            return ask.Failure(ask.STOPPED)
+        if self.inside:
+            self.inside()
         return super().ask(request)
 
 
@@ -94,8 +101,10 @@ class StopBeforeTheProvider(unittest.TestCase):
     def reaches_the_provider_cancelled(self, name, after_data):
         patch_service, patch_data = self.stop_inside(name, after_data)
         with patch_service, patch_data:
-            self.question()
+            status, got = self.question()
         self.assertTrue(self.provider.cancels and self.provider.cancels[-1].is_set(), "the provider is handed a cancelled request")
+        self.assertEqual((status, got["ok"], got["message"]), (200, False, ask.STOPPED), "the question itself ends as stopped")
+        self.assertEqual(self.provider.sent, [], "nothing left the machine")
 
     def test_a_stop_after_the_data_check_but_before_the_run_is_recorded_reaches_the_provider_cancelled(self):
         self.reaches_the_provider_cancelled("enabled", True)        # the gate is asked again just after the data check, before the run is recorded
@@ -112,8 +121,10 @@ class StopBeforeTheProvider(unittest.TestCase):
             return real(*a, **k)
 
         with mock.patch.object(ask, "ask_provider", stop_then_ask):
-            self.question()
+            status, got = self.question()
         self.assertTrue(self.provider.cancels and self.provider.cancels[-1].is_set(), "the provider is handed a cancelled request")
+        self.assertEqual((status, got["ok"], got["message"]), (200, False, ask.STOPPED), "the question itself ends as stopped")
+        self.assertEqual(self.provider.sent, [], "nothing left the machine")
 
 
 if __name__ == "__main__":

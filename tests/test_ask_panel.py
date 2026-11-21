@@ -395,7 +395,10 @@ class Panel(Base):
         self.stub.hold.clear()
         self.stub.late = True
         with chrome() as cdp:
-            p = self.opened(cdp)
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)      # 1400 px
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "the panel is open and ready")
             self.ask(p, "Summarise the risks")
             p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
             p.js("document.querySelector('#ask-stop').click()")

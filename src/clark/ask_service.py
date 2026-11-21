@@ -339,6 +339,8 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
+        if cancel.is_set():                          # row 1293 line 7: a Stop that came while the provider was finishing: the answer is not given and nothing is held (the tokens were spent, so they stay counted)
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
