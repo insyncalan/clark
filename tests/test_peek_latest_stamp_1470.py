@@ -48,7 +48,8 @@ class Page(unittest.TestCase):
         box = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         self.assertIn("`Last updated ${when}${upd && upd.who ? ` by ${upd.who}` : \"\"}${sourceBit(source)}`", box)
         self.assertIn("` · Source: ${s}`", box)
-        self.assertIn("`Created${made.who ? ` by ${made.who}` : \"\"}, ${at(made)}${sourceBit(source)}`", box)
+        self.assertIn("`${made.who ? ` by ${made.who}` : \"\"}, ${at(made)}${sourceBit(source)}`", box)
+        self.assertIn("<b data-pk-created-k>Created</b>{st.created}", box)      # "Created" bold, then "by <name>, <date time> · Source: <source>"
 
 
 if __name__ == "__main__":

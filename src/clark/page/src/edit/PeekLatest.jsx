@@ -112,7 +112,7 @@ export function useLatestStamp(id, now, stamp) {
   const source = got && got.ok && typeof got.view.source_words === "string" ? got.view.source_words : "";
   const at = (r) => String((r && r.when_text) || "").split(" - ")[0];      // "18-11-2026 16:40", without the note that the zone was not recorded
   const upd = rows.find(isUpdateRow), made = rows.filter((r) => r.kind === "Created").pop();
-  if (!now.trim() && made && at(made)) return { stamp: "", created: `Created${made.who ? ` by ${made.who}` : ""}, ${at(made)}${sourceBit(source)}` };
+  if (!now.trim() && made && at(made)) return { stamp: "", created: `${made.who ? ` by ${made.who}` : ""}, ${at(made)}${sourceBit(source)}` };    // the word "Created" is drawn bold by the box
   const when = at(upd) || stamp;
   return { stamp: when ? `Last updated ${when}${upd && upd.who ? ` by ${upd.who}` : ""}${sourceBit(source)}` : "", created: "" };
 }
@@ -137,7 +137,7 @@ export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "Wh
         {shown ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
       <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
       <div class="pk-lbox" data-pk-lbox>
-        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={st.created || placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
+        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={st.created ? <><b data-pk-created-k>Created</b>{st.created}</> : placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
         <div class="pk-lfoot" data-pk-latest-hint data-pk-hint><span><kbd class="pk-key">⌘ Enter</kbd> to save</span></div>
       </div>
       {st.stamp ? <div class="pk-last" data-pk-last>{st.stamp}</div> : null}
