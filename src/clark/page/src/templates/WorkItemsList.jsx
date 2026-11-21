@@ -103,9 +103,12 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord 
 }
 
 // Row 1199: the link under the table when the filter lists more rows than Most rows. Shown only on the page clark serves (View and Edit).
+export function AllButton({ list, all, onToggle }) {
+  return <button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button>;
+}
 export function ShowAll({ list, all, onToggle }) {
   if (!list.more) return null;
-  return <p class="wil-all"><button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button></p>;
+  return <p class="wil-all"><AllButton list={list} all={all} onToggle={onToggle} /></p>;
 }
 
 // Row 1268: the rows scroll inside a box as tall as the first Most rows (measured from the drawn rows, as the mock-up's fitScroll does), so
@@ -130,11 +133,12 @@ export function Scroller({ max, count, children, all }) {
 // Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them (View and Edit, never a published file), the link when there are more rows than Most rows; open, the box
 // shows every row and the link reads "Show only N". The Cards page gets the Scroller alone, exactly as before.
 const openLists = signal({});      // row 1195: the lists whose Show all items is open, by section id, so the Foot reads Showing N of N
-export function Listing({ max, count, sid, children }) {
+export function Listing({ max, count, sid, section, children }) {
   const all = !!openLists.value[sid];
   const setAll = (v) => { openLists.value = { ...openLists.value, [sid]: v }; };
   const on = classicTheme() && !fromFile.value && count > max;      // the served page only, as the Foot is: a published file has no link
-  return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
+  const inFoot = on && !!section && !!filterOf(section);      // row 1475: with a Foot under the rows, the link is drawn in the Foot's one row (Show all items left, Review all N items right)
+  return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on && !inFoot ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
 }
 
 // The foot under the rows (the served page only): "Showing N of M" in Edit, and the link to the Work items page on the same filter.
@@ -142,9 +146,18 @@ export function Foot({ section, total, max, edit, nameOf }) {
   const open = !!openLists.value[section.id] && classicTheme() && !fromFile.value;
   const filter = filterOf(section);
   if (!filter || !total) return null;
+  if (classicTheme() && !fromFile.value) {      // row 1475 (Classic, the served page): one footer row, Show all items (when there is one) and the count at the left, Review all N items at the right
+    const setAll = (v) => { openLists.value = { ...openLists.value, [section.id]: v }; };
+    return (
+      <div class="wil-foot" data-wil-foot="">
+        <span class="wil-foot-l">{total > max ? <AllButton list={{ max }} all={open} onToggle={() => setAll(!open)} /> : null}<span data-wil-count="">{footWords(total, max, open, true)}</span></span>
+        <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button>
+      </div>
+    );
+  }
   return (
     <div class="wil-foot" data-wil-foot="">
-      {edit || (classicTheme() && !fromFile.value) ? <span data-wil-count="">{footWords(total, max, open, classicTheme())}</span> : <span></span>}
+      {edit ? <span data-wil-count="">{footWords(total, max, open, classicTheme())}</span> : <span></span>}
       <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button>
     </div>
   );
@@ -173,7 +186,7 @@ export function View({ section, data }) {
   const draw = (cw, ord) => (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Listing max={list.max || rows.length} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} cw={cw} ord={ord} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Listing max={list.max || rows.length} count={rows.length} sid={section.id} section={section}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} cw={cw} ord={ord} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
