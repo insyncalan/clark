@@ -2,10 +2,9 @@
 history tabs (PeekActivity.jsx PeekHistory, the Updates tab) list the changes of that one field. This file now holds that.
 Run: python3 dev/run_tests.py test_peek_history_1082
 
-Cards is frozen (WO-M10803): the removal is Classic only. Part 1 is the source: the component and its style stay (Cards draws them), and the
-box draws the link only when classicTheme() is false. Part 2 is the page in a real browser at 1400 and 900 px, light and dark: seven stored changes of
-the Latest update; Classic (the <style id="theme"> layer) has no Show history link and the Updates tab counts and lists exactly those seven, newest
-first, drawn as text; Cards (no layer) still draws the Show history link, unchanged.
+The removal applies in both themes (no classicTheme() gate). Part 1 is the source: the component and its style stay, and the box does not draw
+the link. Part 2 is the page in a real browser at 1400 and 900 px, light and dark: seven stored changes of the Latest update; there is no Show
+history link and the Updates tab counts and lists exactly those seven, newest first, drawn as text.
 """
 import json
 import shutil
@@ -25,12 +24,12 @@ LAYER = "(function(){var s=document.createElement('style'); s.id='theme'; docume
 
 
 class Source(unittest.TestCase):
-    def test_the_link_is_drawn_for_cards_only_and_its_component_and_style_stay(self):
+    def test_the_link_is_not_drawn_and_its_component_and_style_stay(self):
         self.assertTrue((SRC / "edit" / "PeekLatestHistory.jsx").exists())
         box = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertIn("classicTheme()", box)
-        self.assertIn("{classic ? null : <PeekLatestHistory", box)
-        self.assertIn(".pk-lh-btn", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"), "Cards keeps its style: edit.css is not edited")
+        self.assertNotIn("classicTheme", box)
+        self.assertNotIn("<PeekLatestHistory", box)
+        self.assertIn(".pk-lh-btn", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"), "edit.css is not edited")
 
 
 class Browser(unittest.TestCase):
@@ -78,13 +77,6 @@ class Browser(unittest.TestCase):
                     self.assertIn("Version 6", first, "newest first (the Updates tab draws the change as a word diff: 6 kept, 7 added)")
                     self.assertIn("7", first)
                     self.assertFalse(cdp.js(f"!!document.querySelector({json.dumps(self.ROWS)} + ' b')", sid), "drawn as text, never as markup")
-
-    def test_cards_still_draws_the_show_history_link(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.load(cdp, width, classic=False)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid)), "Cards keeps its Show history link")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-lh-btn]').textContent", sid), "Show history")
 
 
 if __name__ == "__main__":

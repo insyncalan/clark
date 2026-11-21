@@ -2,7 +2,7 @@
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
 // writes the text for you; the box alone. Row 1179 (the owner, 14-11) lifts that for ONE control: the quiet "Draft with AI" button beside the heading
-// (DraftAi.jsx), and the right-click AI menu on selected text in the box; nothing changes in the text before Accept. Row 1258 (the owner, 16-11, "mockup rules"), Classic only (Cards is frozen): no 'Shown to the client' label on the box and no 'Show history' link under it; the history is the Updates tab under the body (PeekHistory). Item 1185: an action, a risk, an issue and (row 1195) a decision have a latest update (a milestone has its own box in MilestonePeek.jsx).
+// (DraftAi.jsx), and the right-click AI menu on selected text in the box; nothing changes in the text before Accept. Row 1258 (the owner, 16-11, "mockup rules"), in both themes: no 'Shown to the client' label on the box and no 'Show history' link under it; the history is the Updates tab under the body (PeekHistory). Item 1185: an action, a risk, an issue and (row 1195) a decision have a latest update (a milestone has its own box in MilestonePeek.jsx).
 import { signal } from "@preact/signals";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
@@ -13,8 +13,6 @@ import { showDate, todayIso } from "../workItems.js";
 import { changeFor, tableOf } from "./itemEdit.js";
 import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
-import { classicTheme } from "../components/Contents.jsx";
-import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 import { DraftButton, DraftPanel, useDraftAi } from "./DraftAi.jsx";
 import { richWords } from "../logic/richWords.js";
 import { placeFor, keyForField } from "../logic/aiPlaces.js";
@@ -99,7 +97,6 @@ export function PeekLatest({ row }) {
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
 export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "What changed? Add the latest update…" }) {
   const [open, setOpen] = useState(false);
-  const classic = classicTheme();      // row 1258: the new mock-up look (no Shown label, no Show history link) is Classic only; Cards keeps its old markup
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
@@ -112,15 +109,13 @@ export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "Wh
       onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
       onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
       <div class="pk-lab"><span id={`pk-latest-lab-${id}`}>Latest update</span>
-        <DraftButton ai={ai} />
-        {shown && !classic ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
+        <DraftButton ai={ai} /></div>
       <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
       <div class="pk-lbox" data-pk-lbox>
         <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
         <div class="pk-lfoot" data-pk-latest-hint data-pk-hint><span><kbd class="pk-key">⌘ Enter</kbd> to save</span></div>
       </div>
       {stamp ? <div class="pk-last" data-pk-last>last updated {stamp}</div> : null}
-      {classic ? null : <PeekLatestHistory key={`h-${id}`} id={id} />}
     </div>
   );
 }

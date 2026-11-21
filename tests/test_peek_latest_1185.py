@@ -26,7 +26,8 @@ class PeekSource(unittest.TestCase):
         ms = self.read("edit/MilestonePeek.jsx")
         self.assertNotIn('<Row name="Latest update"', ms, "row 1184: the milestone's box is above Details, not a row")
         self.assertIn("<LatestBox", ms, "the milestone uses the work item peek's box")
-        self.assertIn("{classic ? null : <PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "row 1258, Classic only: no Show history link; the Updates tab is the history (Cards is frozen and keeps it)")
+        self.assertNotIn("<PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "row 1258: no Show history link in any theme; the Updates tab is the history")
+        self.assertNotIn("classicTheme", self.read("edit/PeekLatest.jsx"), "no theme branch")
         peek = self.read("components/Peek.jsx")
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
         self.assertEqual(len(shown), 3, "a published work item, a published action (row 1181: its own file rows above the Details) and a published milestone each show it")
@@ -109,12 +110,6 @@ class MilestoneBox(Base):
     visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store,
                                                                 Fields.saved, Fields.toast_text)
     cur = GO_LIVE
-
-    def test_cards_keeps_the_show_history_link_on_the_milestone_box(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.visit_peek(cdp, width=width)
-                p.until("!!document.querySelector('#peek [data-pk-latest] [data-pk-lh-btn]')", "Cards draws the Show history link")
 
     def test_the_milestone_latest_update_saves_undoes_and_is_listed(self):
         for width in (1400, 900):

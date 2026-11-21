@@ -454,19 +454,10 @@ class Browser(unittest.TestCase):
                     self.assertIsNone(cdp.js(probe, sid), "the mock-up has no 'Shown to the client' label on the box")
                     self.assertNotIn("Shown to the client", cdp.js("document.querySelector('[data-pk-latest]').textContent", sid))
 
-    def test_cards_keeps_the_shown_to_the_client_label_on_a_shown_item_only(self):
-        shown, internal = self.kinds()
-        probe = "(l => l ? l.textContent.trim() : null)(document.querySelector('#peek [data-pk-latest] [data-pk-latest-client]'))"
-        for width in (1400, 900):
-            for ref, want in ((shown, "Shown to the client"), (internal, None)):
-                with self.subTest(width=width, ref=ref), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, ref, edit=True)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest]')", sid)), "the box is there")
-                    self.assertEqual(cdp.js(probe, sid), want)
-
-    def test_the_label_is_drawn_only_when_the_page_is_not_classic_row_1258(self):
+    def test_the_label_is_not_drawn_in_any_theme_row_1258(self):
         src = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertIn("{shown && !classic ?", src)
+        self.assertNotIn("classicTheme", src)
+        self.assertNotIn("pk-latest-client", src)
 
     # In dark: what a part is drawn with, read from the page itself. `ink` is the part's text colour, `ground` the colour it is drawn over
     # (its own background, or the first one behind it, transparent layers blended in), and `want(name)` the colour a dark token gives.
