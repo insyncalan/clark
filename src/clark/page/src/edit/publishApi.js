@@ -122,6 +122,8 @@ export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors",
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
 
+// Row 1046: the notices in the file or folder set in Settings. GET /api/notices answers {ok, why, notices}; read only.
+export const noticesRead = () => call("GET", "/api/notices");
 // The theme for this computer (row 1269): GET /api/theme answers {ok, theme: "classic" | "cards", saved}; POST takes {theme}.
 export const themeRead = () => call("GET", "/api/theme");
 export const themeChange = (theme) => call("POST", "/api/theme", { theme });
