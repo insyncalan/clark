@@ -26,7 +26,7 @@ import { lineOf, readLine } from "../../templates/workItemsLine.js";
 import { Tabs } from "./WorkItemsTabs.jsx";
 
 export const SAVED = "Work items list changed.";
-export const COLUMNS_MENU = "Columns";      // row 1268: the label of the menu a right click on a column heading opens
+export const COLUMNS_MENU = "Columns to show";      // row 1268: the label of the menu a right click on a column heading opens
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
 export const NO_MATCH = "No work items match this filter, so this section is left out of the published page. Change the filter to list some.";
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
