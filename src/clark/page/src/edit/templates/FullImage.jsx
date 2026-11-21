@@ -23,7 +23,7 @@ import { WORDS as W, fileNote, PRINT_WIDE, SMALL_WIDE, MOST_BYTES, SLOT_ORIGINAL
 const pct = (n) => `${(n * 100).toFixed(3)}%`;
 
 // The size of the stored original, once it has loaded.
-function useNatural(url) {
+export function useNatural(url) {
   const [nat, setNat] = useState(null);
   useEffect(() => {
     if (!url) { setNat(null); return undefined; }
