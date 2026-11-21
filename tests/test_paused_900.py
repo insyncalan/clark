@@ -19,6 +19,13 @@ class Recorder(test_server._Pipe):
 
 
 class Paused(unittest.TestCase):
+    def test_a_script_outside_a_test_is_not_paused(self):
+        p = Recorder()
+        test_server._IN_TEST[0] = False       # as in dev/tools/argos_shots.py, which borrows this pipe
+        p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+        self.assertEqual(len(p.sent), 1)
+        test_server._IN_TEST[0] = True
+
     def test_the_reason_is_the_stated_words(self):
         self.assertEqual(test_server.PAUSED_900, "paused until Bifrost online (21-11)")
 
