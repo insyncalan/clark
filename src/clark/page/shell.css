@@ -1756,6 +1756,17 @@ html:not([data-density="comfortable"]) .secs > .sec:first-child, html:not([data-
 }
 html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      /* the flat sections keep the drag drop-line */
 
+/* Font colour in rich text (#1364): six classes, each from one theme token (the file's policy allows hashed styles only, so no inline colour). */
+.rt-c-grey { color: var(--text-muted); }
+.rt-c-brand { color: var(--brand-blue); }
+.rt-c-red { color: var(--tone-red-text); }
+.rt-c-amber { color: var(--tone-amber-text); }
+.rt-c-green { color: var(--tone-green-text); }
+.rt-c-blue { color: var(--tone-blue-text); }
+/* In dark the brand blue is 6.98:1 on the surface, above the 4.5 floor; the strong blue (the filter chip's dark text, item 1290) is used for this text. */
+:root[data-theme=dark] .rt-c-brand { color: var(--brand-blue-strong); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .rt-c-brand { color: var(--brand-blue-strong); } }
+
 /* The rich editor (#66). Colours from the tokens only, so dark mode follows. The editor adds no <style> of its own (injectCSS is
    false), so the rules ProseMirror needs are here. */
 .rt { position: relative; margin: var(--space-2) 0; border: 1px solid var(--grey-300); border-radius: var(--radius-lg); background: var(--surface); }

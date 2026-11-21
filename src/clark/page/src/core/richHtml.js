@@ -8,8 +8,9 @@ import { cleanHtml } from "../logic/cleanHtml.js";
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const escAttr = (s) => esc(s).replace(/"/g, "&quot;");
 
-// Marks nest in one fixed order, so the same text always gives the same string: link outside, then strong, em, s.
-const ORDER = ["link", "bold", "italic", "strike"];
+// Marks nest in one fixed order, so the same text always gives the same string: link outside, then strong, em, s, colour.
+const ORDER = ["link", "bold", "italic", "strike", "fontColour"];
+const COLOURS = ["grey", "brand", "red", "amber", "green", "blue"];     // font colour (#1364): the mark's attrs.colour, written as the class rt-c-<name>
 const TAGS = { bold: "strong", italic: "em", strike: "s" };
 
 function text(node) {
@@ -19,6 +20,9 @@ function text(node) {
     if (m.type === "link") {
       const a = m.attrs && m.attrs.href;
       if (typeof a === "string" && a) s = `<a href="${escAttr(a)}" rel="noopener noreferrer">${s}</a>`;
+    } else if (m.type === "fontColour") {
+      const c = m.attrs && m.attrs.colour;
+      if (COLOURS.includes(c)) s = `<span class="rt-c-${c}">${s}</span>`;     // any other value is no colour: just the text
     } else if (TAGS[m.type]) s = `<${TAGS[m.type]}>${s}</${TAGS[m.type]}>`;
   }
   return s;
