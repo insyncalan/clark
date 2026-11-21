@@ -10,7 +10,6 @@ export const PLACE_OF = {
   "current.state": "current",        // Current state (the report's headline)
   "usecase.standing": "current",     // a use case's "Where it stands"
   "peek.latest_update": "current",   // an item's or milestone's Latest update (row 1005)
-  "milestone.description": "current", // a milestone's Description in its peek (row 1005)
   "textimage.text": "current",       // a Text and picture section's text (row 1005)
   "movement.internal_note": "current", // a milestone's Internal note on the Movement page (row 1005)
   "glance.health_reason": "current", // the At a glance Reason for the project's health (row 1005)
@@ -24,12 +23,14 @@ export const PLACE_OF = {
   "peek.risk_wording": "plain",
   // Words meant to reach a client: the milestone's client wording. Its client check applies (the place decides it).
   "milestone.client_wording": "client_message",
+  // One line, no AI (row 1288): a milestone's Description in its peek. The Link card words and the One document words are Not rich: a plain box, no entry.
+  "milestone.description": "plain",
   // The Movement form's one-line fields (row 1005): plain, like the other short fields.
   "movement.who": "plain",
   "movement.reason": "plain",
   "movement.source": "plain",
-  "raid.own_words": "plain",         // a RAID entry's Own words (row 1005)
-  // A picture's caption: one plain line (row 1005).
+  "raid.own_words": "plain",         // a RAID entry's Own words (row 1005); Full with the storage change (row 1288 part c)
+  // A picture's caption: one plain line (row 1005); Full with the storage change (row 1288 part c).
   "picture.caption": "plain",
   // The Draft email preview.
   "email.draft": "email",
