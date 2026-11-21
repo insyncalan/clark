@@ -434,15 +434,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
 #peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
 
-/* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). */
-.pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
-.pal-list { max-height: min(52vh, 420px); }
-.pal-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); min-height: 0; padding: var(--space-2) 10px; border-radius: 6px; font-size: var(--size-body); }
-.pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
-.pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
-.pal-why { grid-column: 2 / -1; padding-left: 0; }
-/* Row 1350 part 4 (Classic only): at 700px and below the row is two columns and the kind takes a line of its own above the label and the hint, as the mock-up's last media rule draws it (app.css line 1575). The bare length 700px is the mock-up's break and has no token. */
-@media (max-width: 700px) { .pal-row { grid-template-columns: minmax(0, 1fr) auto; } .pal-kind { grid-column: 1 / -1; } }
 /* Row 1194 (Documents and links; Classic only, Cards keeps the rows, buttons and form it has: its markup is the old one, see templates/DocLinks.jsx). The type badges' fills, the page icon, the row of the approved mockup, the Open and Download icon buttons and the Edit form's icon row. Every rule names the list (.tpl-dl-links) or the editor's group (.tpl-files-edit), so the base rules of shell.css and edit.css, which stay as they are, lose where both apply. */
 :root { /* --badge-ink (near-black 111111): code measurement, not from the mock (the mock's ink is a different near-black, 0E2430); the page icon's outline only */ --badge-pdf: #C62828; --badge-doc: #1F5FBF; --badge-xls: #1E7B45; --badge-ppt: #C4501B; --badge-jpg: #7B3FB8; --badge-png: #7B3FB8; --badge-txt: #5A6B77; --badge-url: #5B47D8; --badge-mail: #0E7C86; --badge-file: #5A6B77; --badge-ink: #111; }
 .tpl-dl-links .tpl-badge { height: 41px; min-width: 41px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
@@ -486,6 +477,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; }
 .tpl-files-edit .tpl-rename:hover { border-color: var(--grey-300); }
 .tpl-files-edit .tpl-dl-i { align-items: center; }
+/* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). */
+.pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
+.pal-list { max-height: min(52vh, 420px); }
+.pal-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); min-height: 0; padding: var(--space-2) 10px; border-radius: 6px; font-size: var(--size-body); }
+.pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
+.pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
+.pal-why { grid-column: 2 / -1; padding-left: 0; }
+/* Row 1350 part 4 (Classic only): at 700px and below the row is two columns and the kind takes a line of its own above the label and the hint, as the mock-up's last media rule draws it (app.css line 1575). The bare length 700px is the mock-up's break and has no token. */
+@media (max-width: 700px) { .pal-row { grid-template-columns: minmax(0, 1fr) auto; } .pal-kind { grid-column: 1 / -1; } }
 /* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). */
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
