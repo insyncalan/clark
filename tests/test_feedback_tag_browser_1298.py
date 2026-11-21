@@ -337,6 +337,9 @@ class FeedbackTagBrowser(unittest.TestCase):
         stub = ("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); "
                 "return Promise.resolve(new Response(JSON.stringify(%s), {status: %d})); }")
         notes = "document.querySelectorAll('[data-mail-note]').length"
+        # The stub keeps EVERY fetch the page makes; the page's own heartbeat (every 10 s) is one too, and on a slow runner it lands between the
+        # stub and the click, so the count is of calls to the route only, and the failure text lists what was recorded.
+        route = "window.__posts.filter((p) => p[0] === '/api/open-mail')"
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
             cdp.js(f"{BAR}.click()", sid)
@@ -346,8 +349,9 @@ class FeedbackTagBrowser(unittest.TestCase):
             hash_ = cdp.js("location.hash", sid)
             cdp.js(stub % ('{"ok": true}', 200), sid)
             cdp.js("document.querySelector('[data-fbt-mail]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("window.__posts.length", sid) == 1), where + ": one call to the route")
-            url, body = json.loads(cdp.js("JSON.stringify(window.__posts[0])", sid))
+            self.assertTrue(wait(lambda: cdp.js(route + ".length", sid) == 1),
+                            where + ": one call to the route; recorded " + str(cdp.js("JSON.stringify(window.__posts.map((p) => p[0]))", sid)))
+            url, body = json.loads(cdp.js("JSON.stringify(" + route + "[0])", sid))
             self.assertEqual(url, "/api/open-mail", where)
             self.assertEqual(json.loads(body), {"link": href}, where)
             self.assertEqual(cdp.js(notes, sid), 0, where + ": no note on success")

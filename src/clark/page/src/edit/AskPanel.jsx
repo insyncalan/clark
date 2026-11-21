@@ -230,7 +230,9 @@ export function AskPanel() {
       // #1293 A: what the claims check found follows the answer in the same small block, in the server's own words ([D] a quiet line, not a badge per source).
       // An answer that did not follow the form is shown whole, and its flag (unreadable or disguised) says so: that line is the banner.
       const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
-      const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
+      const shared = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
+      if (classicTheme() && typeof b.index_note === "string" && b.index_note) shared.splice(Math.min(Number.isInteger(b.index_note_at) ? b.index_note_at : shared.length, shared.length), 0, b.index_note);      // row 7 of 1366: the "still reading" note is the Classic theme's, in the place the server gave it
+      const extra = [...shared, ...found];
       const made = readDraft(b.draft);      // row 1292: a draft the answer carries opens beside the panel; nothing is in the report until it is added
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), items: Array.isArray(b.items) ? b.items : [], ...(readOf(b.read) ? { read: readOf(b.read) } : {}), ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
