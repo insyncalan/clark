@@ -4,6 +4,7 @@ milestone Latest update in the published file, and the few source checks that re
 import json
 import unittest
 
+from _new_page import reload_to_new_page_cdp
 from _paths import SRC
 from test_milestone_peek_828 import Fields
 from test_movement_page import GO_LIVE, Base
@@ -102,8 +103,7 @@ class MilestoneBox(Base):
         """The milestone peek on the Classic page: the layer is added before the page's script runs, then the page loads again."""
         p = self.visit_peek(cdp, width=width)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": LAYER_DOC}, p.sid)
-        p.js("location.reload()")
-        p.until("!!document.querySelector('#peek [data-rich=latest_update]') && !!document.getElementById('theme')", "the Classic peek drew")
+        reload_to_new_page_cdp(cdp, p.sid, ready="!!document.querySelector('#peek [data-rich=latest_update]') && !!document.getElementById('theme')", what="the Classic peek drew")
         return p
 
     visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store,
