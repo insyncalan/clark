@@ -427,6 +427,19 @@ class Classic(Base):
                 state = p.js(f"Array.from(document.querySelectorAll('{self.sec(ref, '[data-slot=\"0\"] .num-source button')}')).map(b => b.textContent + ':' + b.disabled).join()")
                 self.assertEqual(state, "Typed:false,Live:true")
 
+    def test_a_number_already_live_keeps_live_enabled_when_no_live_figure_is_offered(self):
+        ref = self.add("figures4", body(live("overdue"), typed(), count=4))
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("report_sections", "ABC"):
+                if r["type"] in ("actions", "raid", "decisions"):
+                    st.update("report_sections", r["id"], {"hidden": 1})
+        with chrome() as cdp:
+            p = self.sized(cdp, 1400, "light")
+            self.edit(p, ref)
+            state = lambda i: p.js(f"Array.from(document.querySelectorAll('{self.sec(ref, f'[data-slot=\"{i}\"] .num-source button')}')).map(b => b.textContent + ':' + b.disabled).join()")
+            self.assertEqual(state(0), "Typed:false,Live:false")
+            self.assertEqual(state(1), "Typed:false,Live:true")
+
     # --- Cards keeps its Edit ---------------------------------------------------------------------------------------------------------
     def test_cards_keeps_its_edit_the_source_select_and_no_count_control(self):
         self.s.close()
