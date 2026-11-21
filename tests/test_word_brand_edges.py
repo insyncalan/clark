@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_word_brand_edges      No browser; the templat
 """
 import io
 import os
+import random
 import re
 import tempfile
 import unittest
@@ -142,6 +143,66 @@ class FindEdges(unittest.TestCase):
                 self.assertEqual(word_brand.find(base), found.resolve())
             with mock.patch.object(docx_read, "MAX_FILE_BYTES", 9):
                 self.assertIsNone(word_brand.find(base))
+
+
+EVIL = '<!DOCTYPE r [<!ENTITY e "boom">]><x/>'
+
+
+class DoctypeInAnyPart(unittest.TestCase):
+    """Row 1383: a DOCTYPE or entity, spelled in plain ASCII (or UTF-8), is refused in every part whatever the part is named (the document points at parts by relationship). Not covered, and the same on main: a DOCTYPE hidden in UTF-16 or split by NUL bytes in a part other than word/document.xml and .rels."""
+
+    def refused(self, extra):
+        with self.assertRaises(WordRefused) as e:
+            word_brand.wrap(template(extra=extra), BUILT)
+        self.assertIn("could not be read safely", str(e.exception))
+
+    def test_a_part_with_an_odd_name_and_a_doctype_is_refused(self):
+        for name in ("word/document.dat", "word/header2", "word/styles2.XML.bak", "customXml/item1"):
+            with self.subTest(name=name):
+                self.refused([(name, HEAD + EVIL)])
+
+    def test_a_doctype_after_three_mib_of_prolog_is_refused(self):
+        self.refused([("word/more.dat", HEAD + "<!-- " + random.Random(7).randbytes(3 * 1024 * 1024 // 2).hex() + " -->" + EVIL)])
+
+    def test_the_brand_template_route_refuses_it_in_plain_words(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "brand" / "word" / "template.docx"
+            f.parent.mkdir(parents=True)
+            f.write_bytes(template(extra=[("word/other.dat", HEAD + EVIL)]))
+            with self.assertRaises(WordRefused) as e:
+                word_brand.on_template(BUILT, Path(d) / "brand")
+        self.assertIn("could not be read safely, so it was not opened", str(e.exception))
+
+    def test_the_first_and_the_last_member_are_scanned(self):
+        self.refused([("zzz.dat", HEAD + EVIL)])           # sorts after every other part
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:       # the bad part first
+            z.writestr(zipfile.ZipInfo("!first.dat", (2020, 1, 1, 0, 0, 0)), HEAD + EVIL)
+            for n, dd in parts(template()).items():
+                z.writestr(zipfile.ZipInfo(n, (2020, 1, 1, 0, 0, 0)), dd, zipfile.ZIP_DEFLATED)
+        with self.assertRaises(WordRefused):
+            word_brand.wrap(out.getvalue(), BUILT)
+
+    def test_a_doctype_in_the_main_document_is_refused_through_wrap(self):
+        t = rebuilt(template(), lambda n, d: (HEAD + EVIL.replace("<x/>", f'<w:document xmlns:w="{W}"><w:body><w:p/></w:body></w:document>')).encode() if n == "word/document.xml" else d)
+        with self.assertRaises(WordRefused) as e:
+            word_brand.wrap(t, BUILT)
+        self.assertIn("could not be read safely", str(e.exception))     # not the later "no body" refusal
+
+    def test_the_refusal_names_the_template(self):
+        with self.assertRaises(WordRefused) as e:
+            word_brand.wrap(template(extra=[("word/other.dat", HEAD + EVIL)]), BUILT)
+        self.assertTrue(str(e.exception).startswith(word_brand.NAME + " could not be read safely"), str(e.exception))
+
+    def test_a_doctype_at_the_very_first_byte_of_a_part_is_refused(self):
+        self.refused([("word/first.dat", EVIL)])
+        self.refused([("word/first2.dat", "<!ENTITY e 'x'>")])
+        self.refused([("word/ends.dat", "<!DOCTYPE")])               # the match runs to the last byte of the part
+
+    def test_a_clean_template_with_an_oddly_named_part_still_opens(self):
+        for name in ("word/clean.dat", "customXml/item", "word/x.XML.bak"):
+            with self.subTest(name=name):
+                self.assertTrue(word_brand.wrap(template(extra=[(name, b"<a>plain, no declaration</a>")]), BUILT))
 
 
 if __name__ == "__main__":
