@@ -177,6 +177,27 @@ class ChipStyles(Dash, Base):
                 self.assertEqual(g[7], token, f"edit {w} dark={dark}: colour is not --text-muted {token}")
 
 
+class EditKeepsHeadingRow(Dash, Base):
+    """Ruling (b): Edit keeps its heading row (.ucheads-ed) with the column names; View draws no heading row."""
+    css = theme.css("prototype-2.0")
+    NAMES = "[...document.querySelectorAll('.uc .ucheads > span')].map((s) => s.textContent)"
+    SHOWN = "(() => { const h = document.querySelector('.uc .ucheads'); return h && [h.classList.contains('ucheads-ed'), getComputedStyle(h).display, h.getBoundingClientRect().height > 0]; })()"
+
+    def test_edit_draws_the_ucheads_ed_row_with_its_column_names_and_view_does_not_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.open_page(cdp, w)
+                self.assertEqual(p.js(self.SHOWN), [False, "none", False], f"View {w}: no heading row")
+                p.js("document.querySelector('[data-mode=edit]').click()")
+                p.until("!!document.querySelector('.uc .ucheads-ed')", "Edit drew its heading row")
+                p.until("document.getAnimations().length === 0", "the animations to end")
+                self.assertEqual(p.js(self.SHOWN), [True, "grid", True], f"Edit {w}: heading row drawn")
+                self.assertEqual(p.js(self.NAMES), ["Ref", "Use case", "Status", "Commitment", "Next steps"], f"Edit {w}: column names")
+                p.js("document.querySelector('[data-mode=view]').click()")
+                p.until("!document.querySelector('.uc .ucheads-ed')", "back in View the Edit heading row is gone")
+                self.assertEqual(p.js(self.SHOWN), [False, "none", False], f"View again {w}")
+
+
 class CardsKeepsShared(Dash, Base):
     """Cards (no Theme layer) keeps the shared rules: the heading row is drawn, the badge is 600 (grey-300 outline) and the chip radius 4."""
     def test_cards_as_on_main(self):
