@@ -167,6 +167,33 @@ def help_pictures_path(inline, folder=None, shots=None, pins=None):
     return out
 
 
+SAMPLES_DIR = PAGE / "sample-pictures"
+SAMPLE_PINS = HERE / "sample_pins.json"
+
+
+def sample_pictures_path(inline, folder=None, pins=None):
+    """Row 1251: the module the editing page imports as `clark-sample-pictures`: a list of the six sample pictures (sample-1.png to
+    sample-6.png in page/sample-pictures/) as base64 data: URIs. Each file's SHA-256 must be its pin in sample_pins.json, or
+    PictureError. With inline=False (the published page) the list is empty, so no sample can reach a published file."""
+    folder = SAMPLES_DIR if folder is None else Path(folder)
+    pins = SAMPLE_PINS if pins is None else Path(pins)
+    found = []
+    if inline:
+        pinned = json.loads(pins.read_text(encoding="utf-8"))
+        for i in range(1, 7):
+            f = folder / f"sample-{i}.png"
+            if not f.is_file():
+                raise PictureError(f"Sample picture sample-{i}.png is missing.")
+            data = f.read_bytes()
+            if pinned.get(f.name) != hashlib.sha256(data).hexdigest():
+                raise PictureError(f"Sample picture {f.name} does not match its pin in sample_pins.json.")
+            found.append("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+    SHOWN_DIR.mkdir(exist_ok=True)
+    out = SHOWN_DIR / ("samplePictures.js" if inline else "samplePicturesNone.js")
+    out.write_text("export default " + json.dumps(found) + ";\n", encoding="utf-8")
+    return out
+
+
 def vendor_modules(vendor=None):
     """[(specifier, absolute path)] for the modules in vendor/preact/manifest.json, sorted. The manifest is data (#236): a module's
     path must be one of the manifest's own fingerprinted "files" entries, a plain relative path that stays inside the vendor
@@ -241,6 +268,7 @@ def preact_flags(held=True, inline_pictures=False):
             *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}",
+            f"--alias:clark-sample-pictures={sample_pictures_path(inline_pictures)}",      # row 1251, the editing page only
             f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}",      # the editing page only: see help_pictures_path
             *(f"--define:{name}={json.dumps(value)}" for name, value in limits.items()),
             f"--define:__CLARK_SECTION_HINTS__={json.dumps(default_sections.SECTION_HINTS)}"]      # items 1188, 1193: the editor's hint for an empty default text section; one source, default_sections.py
