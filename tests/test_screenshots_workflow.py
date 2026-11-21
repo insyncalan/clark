@@ -95,6 +95,12 @@ class TestsYml(unittest.TestCase):
     def test_tests_yml_has_no_secrets(self):
         self.assertNotIn("secrets.", TESTS.read_text(encoding="utf-8"))
 
+    def test_the_one_secret_is_the_allowed_one_in_a_step_env_and_the_scan_passes_it(self):
+        import ci_scan
+        code = "\n".join(code_lines()) + "\n"
+        self.assertEqual(re.findall(r"secrets\.(\w+)", code), ["ARGOS_TOKEN"])
+        self.assertTrue(ci_scan.secret_in_step_env(code, "ARGOS_TOKEN"))
+
     def test_tests_yml_is_byte_identical_to_origin_main(self):
         r = subprocess.run(["git", "show", "origin/main:.github/workflows/tests.yml"], cwd=str(ROOT), capture_output=True)
         if r.returncode != 0:

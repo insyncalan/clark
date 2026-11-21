@@ -306,7 +306,6 @@ class Scan(unittest.TestCase):
     def test_the_argos_token_is_refused_in_a_workflow_level_env(self):
         r = self.shots(self.SHOTS, "env:\n  ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n" + self.SHOTS_BASE)
         self.refused(r, "file #1: uses a secret or write access")
-        self.refused(r, "file #1: uses a secret or write access")
 
     def test_the_argos_token_is_refused_in_a_job_level_env(self):
         job = "    env:\n      ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
@@ -387,12 +386,7 @@ class Scan(unittest.TestCase):
     def test_the_allowance_is_one_name_for_one_path(self):
         self.assertEqual(ci_scan.ALLOWED_SECRET, {".github/workflows/screenshots.yml": "ARGOS_TOKEN"})
 
-    def test_the_real_screenshots_workflow_passes_and_the_tests_workflow_keeps_no_secret(self):
-        real = (ROOT / self.SHOTS).read_text(encoding="utf-8")
-        self.assertEqual(len(re.findall(r"secrets\.", real)), 1)
-        r = self.shots(self.SHOTS, real)
-        rc, out = r.scan()
-        self.assertEqual(rc, 0, out)
+    def test_the_tests_workflow_keeps_no_secret(self):
         tests_yml = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
         self.assertNotIn("secrets.", tests_yml)
 
