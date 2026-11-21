@@ -1,12 +1,24 @@
 // Row 1095: the earlier chats in the ask clark panel of one project, kept in this browser on this computer (a per-project store, like the page's other
-// remembered things). Newest first, at most KEEP of them; the title is the first question. Every read and write can fail: then nothing is kept.
+// remembered things). Newest first, at most the chosen number of them; the title is the first question. Every read and write can fail: then nothing is kept.
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { recall, remember } from "../logic/remember.js";
 import { HISTORY_UNTITLED } from "./askWords.js";
 import { nowMs } from "../workItems.js";
 
-export const KEEP = 30;
+// Row 1294: how many chats are kept for each project is a choice (Settings, All projects), kept in this browser like the chats themselves.
+export const KEEP_OPTIONS = [10, 20, 30, 50, 100];
+export const KEEP_DEFAULT = 30;
+const KEEP_KEY = "askChatsKeep";
+export const keepChoice = signal(readKeep());
+export function readKeep() { const n = recall(KEEP_KEY, KEEP_DEFAULT); return KEEP_OPTIONS.includes(n) ? n : KEEP_DEFAULT; }
+/** Chooses how many chats are kept. Lowering it drops the oldest chats at the next save (keepChat), not now. False when the browser refuses it. */
+export function setKeep(n) {
+  if (!KEEP_OPTIONS.includes(n)) return false;
+  const ok = remember(KEEP_KEY, n);
+  if (ok) keepChoice.value = n;
+  return ok;
+}
 export const MAX_TEXT = 20000;   // one turn kept at most this long, so 30 chats stay well inside the browser's store (about 5 MB)
 export const chatId = signal(null);      // the stored chat the panel is showing, or null for one not yet kept
 export const histOpen = signal(false);   // the list of earlier chats is showing in place of the chat
@@ -37,7 +49,7 @@ export function keepChat(turns, now = nowMs()) {
   const entry = { id, at: now, title: first.text.trim().slice(0, 120) || HISTORY_UNTITLED(when(now)), turns: kept.map(plain) };
   chatId.value = id;
   // The store can be full: drop the oldest other chat and try again, until the newest chat itself is kept (or nothing more can go).
-  const others = all.filter((c) => c.id !== id).slice(0, KEEP - 1);
+  const others = all.filter((c) => c.id !== id).slice(0, readKeep() - 1);
   for (;;) {
     if (remember(key(), [entry, ...others]) || !others.length) break;
     others.pop();
@@ -49,6 +61,15 @@ export function deleteChat(id) {
   remember(key(), chats().filter((c) => c.id !== id));
   if (chatId.value === id) chatId.value = null;
   histTick.value++;
+}
+
+/** Row 1294: every chat of the open project goes (this project only). Returns how many were cleared. */
+export function clearChats() {
+  const n = chats().length;
+  remember(key(), []);
+  chatId.value = null;
+  histTick.value++;
+  return n;
 }
 
 export function when(at) { return new Date(at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }

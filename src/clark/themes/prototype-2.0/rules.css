@@ -613,6 +613,17 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip.cchip { border-style: solid; border-color: var(--grey-200); background: transparent; color: var(--text-muted); }      /* every chip, Committed and both Planned, is the same muted pill: no fill, solid line (it beats the shell fill and dashed line) */
+/* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
+.ask-change-ref { font-weight: var(--weight-medium); }
+.ask-change-title { overflow-wrap: anywhere; }
+.ask-diff { display: flex; flex-direction: column; width: auto; }
+.ask-diff-row { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: baseline; padding: 3px 0; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ask-diff-field { flex: none; min-width: 6em; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ask-old { color: var(--text-muted); text-decoration: line-through; }
+.ask-new { padding: 0 var(--space-1); background: var(--grey-100); color: var(--text); font-weight: var(--weight-medium); border-radius: var(--radius-sm); }
+.ask-why { margin: 0; font-size: var(--size-caption); }
+.ask-change-actions { gap: var(--space-2); }
+
 /* Row 1396: the Legend is one always-visible row of the six states (13px), on the Milestones page and on the Dashboard, beside the details button as the prototype draws it; the hover card is not drawn. */
 .msl-bar .mlg-row { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; font-size: 13px; color: var(--text-muted); }
 .msl-bar .mlg-row .mst { font-size: 13px; }
