@@ -957,8 +957,8 @@ table.items .weye { width: 30px; height: 30px; }
 .rt-pal-auto { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .rt-pal-auto:hover { background: var(--grey-100); }
 .rt-pal-auto:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.rt-grid { display: grid; grid-template-columns: repeat(4, 32px); gap: 6px; margin-top: 6px; }
-.rt-sw { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--grey-200); border-radius: 6px; background: var(--surface);  font-size: var(--size-small); font-weight: 700; cursor: pointer; }
+.rt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.rt-sw { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 32px; border: 1px solid var(--grey-200); border-radius: 6px; background: var(--surface);  font-size: var(--size-small); font-weight: 700; cursor: pointer; }
 .rt-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .rt-sw[aria-checked="true"] { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .rt-A[data-colour="grey"] { border-bottom-color: var(--text-muted); } .rt-sw-grey { color: var(--text-muted); }

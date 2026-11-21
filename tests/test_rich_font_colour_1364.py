@@ -20,7 +20,7 @@ from _paths import ROOT
 from _publish import PublishedFile
 from test_dark_contrast import ratio
 from test_report_editor import EMPTY_BRANDING  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 from clark import changes, docx_build, excel, page, publish, sanitise, section_bodies
 from clark import theme as themes
@@ -199,7 +199,7 @@ class Ui(Base):
                 self.h.ev("window.unmount(); true")
 
     def test_swatch_grid_layout(self):
-        """AP5: six swatches, four to a row, each 32 x 32, gap 6, radius 6, a 1px line, an A in the colour on the surface."""
+        """AP5: six swatches, four to a row filling the grid (repeat(4, 1fr), column gap 6; 208 outer less border 2 and padding 16 is 190, so 43 wide), each 32 high, gap 6, radius 6, a 1px line, an A in the colour on the surface."""
         for width in self.both():
             with self.subTest(width=width):
                 self.mount_selected()
@@ -207,11 +207,15 @@ class Ui(Base):
                 sw = self.h.ev("[...document.querySelectorAll('.rt-pal .rt-sw')].map(function(e){ var r = e.getBoundingClientRect(), c = getComputedStyle(e);"
                                "return {x: r.left, y: r.top, w: r.width, h: r.height, text: e.textContent, border: c.borderTopWidth + ' ' + c.borderTopStyle, radius: c.borderTopLeftRadius, color: c.color}; })")
                 self.assertEqual(len(sw), 6)
-                self.assertTrue(all((s["w"], s["h"]) == (32, 32) for s in sw))
+                grid = self.h.ev("(function(){ var g = document.querySelector('.rt-pal .rt-grid'), r = g.getBoundingClientRect(), p = document.querySelector('.rt-pal'), c = getComputedStyle(g), pc = getComputedStyle(p);"
+                                 "return {gw: r.width, pw: p.getBoundingClientRect().width, pad: pc.paddingLeft, cols: c.gridTemplateColumns.split(' ').length, colgap: c.columnGap, rowgap: c.rowGap}; })()")
+                self.assertEqual((grid["pw"], grid["pad"], grid["gw"], grid["cols"], grid["colgap"], grid["rowgap"]), (208, "8px", 190, 4, "6px", "6px"))
+                self.assertTrue(all(s["h"] == 32 and abs(s["w"] - 43) < 0.01 for s in sw), "cells 43 wide (190 less three gaps of 6, over four), 32 high")
+                self.assertAlmostEqual(sw[3]["x"] + sw[3]["w"] - sw[0]["x"], 190, 2, "four columns fill the grid (208 less 2 border and 16 padding; the ruling's 192 leaves out the 1px border)")
                 self.assertEqual([s["y"] for s in sw[:4]], [sw[0]["y"]] * 4, "four in the first row")
                 self.assertEqual(sw[4]["y"], sw[5]["y"])
                 self.assertEqual(sw[4]["y"] - sw[0]["y"], 32 + 6, "two in the second row, a gap of 6 below")
-                self.assertEqual([sw[i + 1]["x"] - sw[i]["x"] for i in range(3)], [32 + 6] * 3, "a gap of 6 across")
+                self.assertEqual([round(sw[i + 1]["x"] - sw[i]["x"] - sw[i]["w"], 2) for i in range(3)], [6] * 3, "a gap of 6 across")
                 self.assertEqual(sw[4]["x"], sw[0]["x"])
                 self.assertEqual(self.rect(".rt-pal-auto")["b"] + 6, sw[0]["y"], "the grid sits 6 under Automatic")
                 self.assertTrue(all(s["border"] == "1px solid" and s["radius"] == "6px" and s["text"] == "A" for s in sw))
@@ -411,6 +415,24 @@ class Colour(PublishedFile, unittest.TestCase):
             want = pg.js("(function(){ var e = document.createElement('i'); document.body.appendChild(e); e.style.color = 'var(--tone-red-text)'; var c = getComputedStyle(e).color; e.remove(); return c; })()")
             self.assertEqual(pg.js("getComputedStyle(document.querySelector('span.rt-c-red')).color"), want)
             self.assertEqual(pg.js("document.querySelectorAll('span.rt-c-red[style]').length"), 0, "no inline style")
+
+    def test_published_peek_keeps_font_colour_1364(self):
+        """AP22: a coloured run in a rich field stays coloured in the published file's data and in the peek it draws (the six fixed classes only)."""
+        action = self.demo.action(description="An action", client_message="A note for the client")
+        sent = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": action, "changes": {"latest_update": self.RED}, "place": "peek"})
+        self.assertNotIn("error", json.dumps(sent).lower()[:80], sent)
+        path = self.publish()
+        text = path.read_text(encoding="utf-8")
+        self.assertIn('\\u003cspan class=\\"rt-c-red\\"\\u003ethe red words', text, "the span is in the file's data")
+        with chrome() as cdp:
+            pg = self.draw(cdp, path)
+            pg.js("[...document.querySelectorAll('.tab')].find(t => t.textContent.includes('Work items')).click()")
+            self.assertTrue(wait(lambda: pg.js("!!document.querySelector('#work tr[data-id=\"%s\"]')" % action), 5), "the action's row is drawn")
+            pg.js("document.querySelector('#work tr[data-id=\"%s\"]').click()" % action)
+            self.assertTrue(wait(lambda: pg.js("document.querySelectorAll('aside.peek span.rt-c-red').length") == 1, 5), "the peek shows the red words")
+            self.assertEqual(pg.js("document.querySelector('aside.peek span.rt-c-red').textContent"), "the red words")
+            want = pg.js("(function(){ var e = document.createElement('i'); document.body.appendChild(e); e.style.color = 'var(--tone-red-text)'; var c = getComputedStyle(e).color; e.remove(); return c; })()")
+            self.assertEqual(pg.js("getComputedStyle(document.querySelector('aside.peek span.rt-c-red')).color"), want)
 
     def test_word_export_colour_value(self):
         """AP17: Word writes each colour class as the token's concrete value of the palette in use (the committed look, and a brand's own values)."""
