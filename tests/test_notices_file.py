@@ -68,6 +68,36 @@ class SettingTest(Place):
             settings.set_notices_path(self.data, str(self.root / "n.json"))
         self.assertEqual((self.data / settings.FILE).read_text(encoding="utf-8"), "not json")
 
+    def _refused_and_untouched(self, file, before):
+        with self.assertRaises(ValueError) as e:
+            settings.set_notices_path(self.data, str(self.root / "n.json"))
+        self.assertEqual(str(e.exception), settings.NOTICES_UNREADABLE)
+        self.assertEqual(file.read_text(encoding="utf-8"), before)
+
+    def test_every_kind_of_unreadable_settings_file_is_refused_with_the_plain_message(self):
+        file = self.data / settings.FILE
+        big = json.dumps({"backups_kept": 7}) + " " * (settings.LIMIT + 1)
+        for text in ("not json", "[1, 2]", "[" * 20000 + "]" * 20000, big):
+            file.write_text(text, encoding="utf-8")
+            self._refused_and_untouched(file, text)
+
+    def test_a_symlinked_settings_file_is_refused_and_its_target_kept(self):
+        target = self.root / "real.json"
+        target.write_text(json.dumps({"backups_kept": 7}), encoding="utf-8")
+        link = self.data / settings.FILE
+        link.symlink_to(target)
+        self._refused_and_untouched(target, json.dumps({"backups_kept": 7}))
+        self.assertTrue(link.is_symlink())
+
+    def test_a_dangling_symlink_as_the_settings_file_is_refused_and_kept(self):
+        link = self.data / settings.FILE
+        link.symlink_to(self.root / "away.json")
+        with self.assertRaises(ValueError) as e:
+            settings.set_notices_path(self.data, str(self.root / "n.json"))
+        self.assertEqual(str(e.exception), settings.NOTICES_UNREADABLE)
+        self.assertTrue(link.is_symlink())
+        self.assertFalse((self.root / "away.json").exists())
+
     def test_a_settings_file_that_cannot_be_opened_is_never_replaced(self):
         file = self.data / settings.FILE
         file.write_text(json.dumps({"backups_kept": 7}), encoding="utf-8")
