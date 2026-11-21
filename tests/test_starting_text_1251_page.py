@@ -37,6 +37,8 @@ CASES = [
     ("gantt", "Fictional gantt", ["No Gantt lines in the client view yet."]),
     ("gantttable", "Fictional gt", ["No Gantt lines in the client view yet."]),
 ]
+FULL_PICTURE = "Add a picture: replace this sample with your own."
+FULL_CAPTION = "Add a caption: what the picture shows."
 ALL = sorted({w for _, _, ws in CASES for w in ws if w})
 SEEN = "(function(sel){var s=document.querySelector(sel);if(!s)return null;var t=s.innerText+'\\n';s.querySelectorAll('[placeholder]').forEach(function(e){t+=e.getAttribute('placeholder')+'\\n'});return t})"
 
@@ -90,6 +92,7 @@ class Page(Base):
             self.assertNotIn("Say what the picture shows.", text)
 
     def test_full_image_draws_the_picture_prompt_and_the_caption_prompt_in_edit_only(self):
+        # each width does all its checks inside its own pass, so a paused width never hides the other one's checks
         ref = self.make_one("imagecap", "Fictional full image", json.dumps({"v": 2}))
         sel = f"[data-id={json.dumps(ref)}]"
         pic_sel = f"[data-id={json.dumps(self.make_one('imagecap', 'Fictional full image with picture', json.dumps({'v': 2, 'pictures': {'original': GOOD}})))}]"      # the caption is offered once a picture is in
@@ -99,18 +102,15 @@ class Page(Base):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 p.edit()
                 p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(sel)} + ' [data-start=image]').textContent"), "Add a picture: replace this sample with your own.")
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(sel)} + ' [data-start=image]').textContent"), FULL_PICTURE, f"at {width}")
+                p.until(f"!!document.querySelector({json.dumps(pic_sel)} + ' [data-act=caption-add]')", "the picture is in")
+                p.js(f"document.querySelector({json.dumps(pic_sel)} + ' [data-act=caption-add]').click()")
+                p.until(f"!!document.querySelector({json.dumps(pic_sel)} + ' .tpl-pic-field')", "the caption field")
+                self.assertIn(FULL_CAPTION, p.js(f"{SEEN}({json.dumps(pic_sel)})"), f"the caption prompt at {width}")
                 p.view()
-            sel = pic_sel
-            p.edit()
-            p.until(f"!!document.querySelector({json.dumps(sel)} + ' [data-act=caption-add]')", "the picture is in")
-            p.js(f"document.querySelector({json.dumps(sel)} + ' [data-act=caption-add]').click()")
-            p.until(f"!!document.querySelector({json.dumps(sel)} + ' .tpl-pic-field')", "the caption field")
-            self.assertIn("Add a caption: what the picture shows.", p.js(f"{SEEN}({json.dumps(sel)})"))
-            p.view()
-            body = p.js("document.body.innerText + [...document.querySelectorAll('[placeholder]')].map(e => e.placeholder).join('\\n')")
-            for w in ("Add a picture: replace this sample with your own.", "Add a caption: what the picture shows."):
-                self.assertNotIn(w, body)
+                body = p.js("document.body.innerText + [...document.querySelectorAll('[placeholder]')].map(e => e.placeholder).join('\\n')")
+                for w in (FULL_PICTURE, FULL_CAPTION):
+                    self.assertNotIn(w, body, f"View shows {w!r} at {width}")
 
     def test_at_a_glance_has_no_starting_text(self):
         ref = self.make_one("glancetemplate", "Fictional glance")
@@ -144,6 +144,7 @@ class Cards(Base):
     def test_cards_edit_draws_none_of_the_words_and_no_prompt(self):
         refs = [self.make_one(t, ti) for t, ti, _ in CASES]
         refs.append(self.make_one("text", "Plan summary", "<h2>Where we are</h2><p></p><ul><li></li></ul>"))
+        refs.append(self.make_one("imagecap", "Fictional full image", json.dumps({"v": 2})))      # the full image: its picture prompt is Classic only
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertFalse(p.js("!!document.getElementById('theme')"), "this is a Cards page")
@@ -155,8 +156,27 @@ class Cards(Base):
                     p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
                     text = p.js(f"{SEEN}({json.dumps(sel)})")
                     self.assertFalse(p.js(f"!!document.querySelector({json.dumps(sel)} + ' [data-tpl-prompt]')"), f"{ref}: a prompt in Cards at {width}")
-                    for w in [w for w in ALL if w != "Add a picture."] + ["Add a step."]:          # "Add a picture." is also the old Image with caption hint
+                    for w in [w for w in ALL if w != "Add a picture."] + ["Add a step.", FULL_PICTURE, FULL_CAPTION]:          # "Add a picture." is also the old Image with caption hint
                         self.assertNotIn(w, text, f"{ref}: {w!r} in Cards at {width}")
+                p.view()
+
+    def test_cards_full_image_draws_no_picture_prompt_and_no_caption_prompt(self):
+        empty = self.make_one("imagecap", "Fictional full image", json.dumps({"v": 2}))
+        pic = self.make_one("imagecap", "Fictional full image with picture", json.dumps({"v": 2, "pictures": {"original": GOOD}}))
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "this is a Cards page")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                e, c = f"[data-id={json.dumps(empty)}]", f"[data-id={json.dumps(pic)}]"
+                p.until(f"!!document.querySelector({json.dumps(e)})", "the empty full image is drawn")
+                self.assertFalse(p.js(f"!!document.querySelector({json.dumps(e)} + ' [data-start]')"), f"a picture prompt in Cards at {width}")
+                self.assertNotIn(FULL_PICTURE, p.js(f"{SEEN}({json.dumps(e)})"), f"the picture prompt in Cards at {width}")
+                p.until(f"!!document.querySelector({json.dumps(c)} + ' [data-act=caption-add]')", "the picture is in")
+                p.js(f"document.querySelector({json.dumps(c)} + ' [data-act=caption-add]').click()")
+                p.until(f"!!document.querySelector({json.dumps(c)} + ' .tpl-pic-field')", "the caption field")
+                self.assertNotIn(FULL_CAPTION, p.js(f"{SEEN}({json.dumps(c)})"), f"the caption prompt in Cards at {width}")
                 p.view()
 
     def make_one(self, typ, title, body=None):
