@@ -382,3 +382,12 @@ export const SLASH_HINT_CLASSIC = {
   summary: "Summarise this week into a draft",
   overdue: "What is overdue?",
 };
+// Row 1365 S2: the warning for a source folder that holds people or contract material. APPROVED WORDING (WO-M7225); this is its one place.
+export const PEOPLE_CONTRACT_HEAD = "This folder holds people or contract material.";
+export const PEOPLE_CONTRACT_SAVED = (path) => `Saved folder: ${path}.`;
+export const PEOPLE_CONTRACT_COUNT = (count) => (count === 1 ? "It has 1 file named like " : `It has ${count} files named like `);
+export const PEOPLE_CONTRACT_AND = " and ";
+export const PEOPLE_CONTRACT_REST = ". When you ask a question, passages from matching files are sent to Claude. Choose other folders for asking, or keep this one.";
+export const PEOPLE_CONTRACT_CHOOSE = "Choose other folders";
+export const PEOPLE_CONTRACT_KEEP = "Keep it";
+export const PEOPLE_CONTRACT_LEAVE = "Leave these subfolders out";
