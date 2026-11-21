@@ -241,6 +241,19 @@ class Look:
             p.js(f"document.querySelectorAll('{sec} .tq-rm')[1].click()")
             self.assertTrue(wait(lambda: len(json.loads(self.body_of(ref))["quotes"]) == 1, 10), self.body_of(ref))
 
+    def test_the_remove_link_is_a_24px_target_at_1400_and_900(self):
+        """Ruling of 21-11: the Remove link in Edit is at least 24 px high (the 24 px rule), measured by its box, with nothing exempted in test_sizes."""
+        ref = self.make({"v": 1, "quotes": [Q("Fictional first."), Q("Fictional second.")]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                p.until(f"document.querySelectorAll('[data-id={json.dumps(ref)}] .tq-rm').length === 2", "two Remove links")
+                box = p.js(f"(() => {{ const r = document.querySelector('[data-id={json.dumps(ref)}] .tq-rm').getBoundingClientRect(); return {{h: r.height, w: r.width}}; }})()")
+                self.assertGreaterEqual(box["h"], 24, box)
+                self.assertGreaterEqual(box["w"], 24, box)
+
     def test_edit_add_is_off_at_six(self):
         ref = self.make({"v": 1, "quotes": [Q(f"Fictional {i}.") for i in range(6)]})
         with chrome() as cdp:

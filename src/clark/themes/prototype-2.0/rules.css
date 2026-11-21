@@ -813,7 +813,7 @@ html { overscroll-behavior-y: none; }
 /* Row 1271, Edit in place (Classic only): the quote is typed in the box where View shows it, wraps and grows with its words, the name and role under it. */
 .tpl-quote-pe .tq-head { display: flex; align-items: baseline; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--size-caption); color: var(--text-muted); text-align: left; }
 .tpl-quote-pe .tq-count { margin-left: auto; white-space: nowrap; }
-.tpl-quote-pe .tq-rm { border: 0; background: none; padding: 2px var(--space-1); font: inherit; color: var(--brand-blue); text-decoration: underline; cursor: pointer; }
+.tpl-quote-pe .tq-rm { display: inline-flex; align-items: center; min-height: 24px; border: 0; background: none; padding: 2px var(--space-1); font: inherit; color: var(--brand-blue); text-decoration: underline; cursor: pointer; }
 .tpl-quote-pe .tq-rm:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .tpl-quote-pe .tpl-field.tq-words { display: block; min-height: calc(2 * 1.4em + 12px); padding: 6px 10px; border-color: var(--control-edge); font-family: var(--font-head); font-size: var(--size-h3); line-height: 1.4; color: var(--heading); resize: none; field-sizing: content; overflow-wrap: anywhere; text-align: inherit; }
 .tpl-quote-pe .tq-by { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-2) var(--space-3); margin-top: var(--space-3); }
