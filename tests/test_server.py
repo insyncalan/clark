@@ -1550,6 +1550,21 @@ class _Pipe:
     # close-on-blur that real focus would add to) sets `cdp.FOCUS_EMULATION = False` on its own pipe before it navigates.
     FOCUS_EMULATION = True
 
+    # A macOS runner can report prefers-reduced-motion: reduce, which switches off every rule under no-preference. Tests read the app as a
+    # user with no motion setting (no-preference); a test that needs reduce emulates it itself after attach (that call passes through).
+    MOTION_EMULATION = True
+    NO_MOTION_SETTING = {"name": "prefers-reduced-motion", "value": "no-preference"}
+
+    def with_motion_default(self, params):
+        """The params of an Emulation.setEmulatedMedia call with the no-preference default added when the call does not name
+        prefers-reduced-motion itself (the features are replaced per call, so a colour-scheme-only call would drop it). A copy."""
+        params = dict(params or {})
+        features = list(params.get("features") or [])
+        if self.MOTION_EMULATION and not any(isinstance(f, dict) and f.get("name") == "prefers-reduced-motion" for f in features):
+            features.append(dict(self.NO_MOTION_SETTING))
+        params["features"] = features
+        return params
+
     NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
     NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
 
@@ -1568,7 +1583,14 @@ class _Pipe:
                     self._call_once("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
                 except RuntimeError:
                     pass                    # a target without the Emulation domain simply stays as it was
+            if sid and self.MOTION_EMULATION:
+                try:
+                    self._call_once("Emulation.setEmulatedMedia", {"features": [dict(self.NO_MOTION_SETTING)]}, sid)
+                except RuntimeError:
+                    pass
             return attached
+        if method == "Emulation.setEmulatedMedia" and self.MOTION_EMULATION:
+            params = self.with_motion_default(params)
         if method != "Runtime.evaluate":
             return self._call_once(method, params, session)
         end = time.monotonic() + self.NAVIGATION_WAIT
@@ -1643,13 +1665,14 @@ class PipeFocus(unittest.TestCase):
     def test_attaching_turns_on_focus_emulation_for_that_session(self):
         p = self.pipe()
         p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
-        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1"),
+                                  ("Emulation.setEmulatedMedia", "S1")])
 
     def test_a_pipe_switched_off_leaves_the_page_unfocused(self):
         p = self.pipe()
         p.FOCUS_EMULATION = False
         p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
-        self.assertEqual(p.sent, [("Target.attachToTarget", None)])
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setEmulatedMedia", "S1")])
 
     def test_other_calls_are_left_alone(self):
         p = self.pipe()
@@ -1668,7 +1691,7 @@ class PipeFocus(unittest.TestCase):
         p._call_once = spy
         got = p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
         self.assertEqual(got, {"sessionId": "S1"})
-        self.assertEqual(seen[-1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
+        self.assertEqual(seen[1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
 
     def test_an_attach_answer_with_no_session_gets_no_emulation_call(self):
         for answer in ({}, None, "S1", {"sessionId": ""}):
@@ -1687,6 +1710,78 @@ class PipeFocus(unittest.TestCase):
             return {"sessionId": "S1"}
         p._call_once = once
         self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
+
+    def test_attaching_sets_no_preference_motion_for_that_session(self):
+        p = self.pipe()
+        seen = []
+        once = p._call_once
+        p._call_once = lambda m, params=None, session=None: seen.append((m, params, session)) or once(m, params, session)
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(seen[-1], ("Emulation.setEmulatedMedia",
+                                    {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, "S1"))
+
+    def test_a_pipe_with_motion_emulation_off_sends_no_motion_call(self):
+        p = self.pipe()
+        p.MOTION_EMULATION = False
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+
+    def test_a_target_without_the_emulation_domain_for_motion_still_attaches(self):
+        p = self.pipe()
+
+        def once(method, params=None, session=None):
+            if method == "Emulation.setEmulatedMedia":
+                raise RuntimeError({"code": -32601, "message": "not found"})
+            return {"sessionId": "S1"}
+        p._call_once = once
+        self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
+
+
+class PipeMotionMerge(unittest.TestCase):
+    """Emulation.setEmulatedMedia through the shared pipe keeps the no-preference motion default (no browser: a fake records)."""
+
+    DEFAULT = {"name": "prefers-reduced-motion", "value": "no-preference"}
+
+    def sent_params(self, params, off=False):
+        p = _Pipe(0, 0)
+        got = []
+        p._call_once = lambda method, prm=None, session=None: got.append((method, prm, session)) or {}
+        if off:
+            p.MOTION_EMULATION = False
+        p.call("Emulation.setEmulatedMedia", params, "S1")
+        return got
+
+    def test_a_colour_scheme_call_gets_the_default_appended(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme]}),
+                         [("Emulation.setEmulatedMedia", {"features": [scheme, self.DEFAULT]}, "S1")])
+
+    def test_a_call_naming_reduced_motion_passes_through_unchanged(self):
+        reduce = {"name": "prefers-reduced-motion", "value": "reduce"}
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme, reduce]})[0][1], {"features": [scheme, reduce]})
+
+    def test_an_element_that_is_not_a_dict_names_nothing_and_stays(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        odd = ["text", None, 7]
+        self.assertEqual(self.sent_params({"features": [scheme] + odd})[0][1], {"features": [scheme] + odd + [self.DEFAULT]})
+
+    def test_an_empty_features_list_gets_the_default(self):
+        self.assertEqual(self.sent_params({"features": []})[0][1], {"features": [self.DEFAULT]})
+
+    def test_a_call_with_other_params_keeps_them(self):
+        self.assertEqual(self.sent_params({"media": "print", "features": []})[0][1], {"media": "print", "features": [self.DEFAULT]})
+
+    def test_the_callers_params_are_not_changed(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        params = {"features": [scheme]}
+        self.sent_params(params)
+        self.assertEqual(params, {"features": [{"name": "prefers-color-scheme", "value": "dark"}]})
+
+    def test_with_motion_emulation_off_nothing_is_added(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme]}, off=True)[0][1], {"features": [scheme]})
+        self.assertEqual(self.sent_params({"features": []}, off=True)[0][1], {"features": []})
 
 
 if __name__ == "__main__":
