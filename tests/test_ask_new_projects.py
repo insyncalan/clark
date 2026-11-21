@@ -7,10 +7,11 @@ Fictional data only.
 """
 import sqlite3
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import app_settings, ask_apply, changes, store as st
+from clark import app_settings, ask_apply, ask_data, ask_service, changes, history, store as st
 from test_ask_route import Base
 
 
@@ -74,6 +75,23 @@ class Columns(unittest.TestCase):
         with mock.patch.object(st, "columns", lambda _con, _table: []):      # a file without the two columns
             self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC"), self.s.ask_allowed("ABC")), (False, True, False))
 
+    def test_a_database_error_reads_as_off_never_on(self):
+        real = self.s.con
+
+        class Locked:
+            def execute(self, sql, *args):
+                if sql.startswith("SELECT ask_"):
+                    raise sqlite3.OperationalError("locked")
+                return real.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(real, name)
+        with mock.patch.object(self.s, "con", Locked()):
+            self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC")), (False, True))
+
+    def test_the_history_names_the_starting_value(self):
+        self.assertEqual(history.FIELD_NAMES["app_settings"]["ask_new_projects"], "Asking for new projects")
+
 
 class TheRoute(Base):
     def setUp(self):
@@ -126,6 +144,49 @@ class TheRoute(Base):
         self.assertEqual(api("POST", "/api/ask-new-projects", {"undo": 999999})[0], 409)
         self.assertEqual(api("GET", "/api/ask-new-projects?project=PUB&x=1")[0], 400)
 
+    def test_the_same_value_says_so_and_a_bad_body_is_refused_in_each_part(self):
+        api = self.s.api
+        self.assertEqual(api("POST", "/api/ask-new-projects", {"on": True})[1].get("message"), app_settings.MESSAGES["same"])
+        self.assertEqual(api("POST", "/api/ask-new-projects", {"project": "PUB", "off_here": False})[1].get("message"), app_settings.MESSAGES["same"])
+        self.assertEqual(api("POST", "/api/ask-new-projects", {"project": "PUB", "off_here": "yes"})[0], 400)
+        self.assertEqual(api("POST", "/api/ask-new-projects", {"project": 5, "off_here": True})[0], 400)
+        self.assertEqual(api("POST", "/api/ask-new-projects", {"project": "not a code", "off_here": True})[0], 400)
+        self.assertEqual(api("GET", "/api/ask-new-projects?project=NOPE")[0], 404)
+        service = self.s.httpd.app_settings
+        self.assertEqual((service.read_new("not a code")[0], service.read_new(5)[0]), (400, 400))
+
+    def test_the_project_gate_of_every_ask_route_refuses_before_anything_else(self):
+        self.flags(off_here=1)
+        s = self.service
+        self.assertEqual(s.open_source({"project": "PUB", "file": "a/b.pdf", "page": None})[1]["code"], "asking_off")
+        self.assertEqual(s.change_dry({"project": "PUB", "reply": "x"})[1]["code"], "asking_off")
+        self.assertEqual(s.change_apply({"project": "PUB", "offer": "x"})[1]["code"], "asking_off")
+        with mock.patch.object(ask_data, "project_data") as read:
+            self.assertEqual(self.question()[0], 409)
+        read.assert_not_called()
+
+    def test_a_project_turned_off_while_the_question_is_read_sends_nothing(self):
+        real = ask_data.project_data
+
+        def turn_off(*a, **k):
+            self.flags(off_here=1)
+            return real(*a, **k)
+        with mock.patch.object(ask_data, "project_data", turn_off):
+            status, got = self.question()
+        self.assertEqual((status, got["code"]), (409, "asking_off"), got)
+        self.assertEqual(self.provider.sent, [])
+
+    def test_project_off_is_false_for_an_unknown_project_and_true_when_it_cannot_say(self):
+        s = self.service
+        self.assertEqual((s.project_off("PUB"), s.project_off("NOPE")), (False, False))
+        self.flags(off_here=1)
+        self.assertTrue(s.project_off("PUB"))
+        self.flags(off_here=0)
+        with mock.patch.object(s, "reader", side_effect=sqlite3.OperationalError("locked")):
+            self.assertTrue(s.project_off("PUB"))
+        with mock.patch.object(st.Store, "read", side_effect=RuntimeError("x")):
+            self.assertTrue(s.project_off("PUB"))
+
     def test_an_undo_of_another_routes_step_is_refused(self):
         status, got = self.s.api("POST", "/api/ask-enabled", {"enabled": False})
         self.assertEqual(status, 200, got)
@@ -165,6 +226,25 @@ class TheChangesPath(unittest.TestCase):
         status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertEqual((status, body["code"]), (409, "asking_off"), body)
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
+        self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
+        self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
+
+    def test_the_apply_reads_the_projects_own_asking_itself(self):
+        plan = SimpleNamespace(request={"project": "ABC"}, op="add")
+        self.assertIsNone(self.ask.check_data(plan))
+        self.off()
+        with self.assertRaises(ask_apply.Refusal) as got:
+            self.ask.check_data(plan)
+        self.assertEqual((got.exception.code, got.exception.status), ("asking_off", 409))
+
+    def test_the_change_looks_at_the_project_before_the_item_and_again_inside_its_step(self):
+        self.off()
+        status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": "NOPE-1", "changes": {"status": "Closed"}}, dry=False)
+        self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
+        with self.s.step("dashboard", USER) as step:
+            step.update("projects", "ABC", {"ask_off": 0})
+        with mock.patch.object(st.Store, "ask_allowed", side_effect=[True, False]):      # the project is turned off between the two looks
+            status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
         self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
 
