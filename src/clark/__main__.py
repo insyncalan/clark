@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, notices_file, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_index, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, notices_file, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -522,7 +522,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
     args = p.parse_args(argv)
-    store, scratch, code, handler = None, None, None, None
+    store, scratch, code, handler, indexer = None, None, None, None, None
     try:
         try:
             if args.demo and args.data:
@@ -601,6 +601,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
             brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
+        indexer = ask_index.Indexer(store.path.parent)      # Row 1366: the background reader of the saved folders; stopped in the finally below
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         draft_seam = draft_email_feed.make(
             store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
@@ -617,11 +618,11 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
                      safety=safety.Safety(store.path, roots), logs=logs, mail=mail_open.MailOpen(),
-                     ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
+                     ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent, indexer=indexer),
                      ask_instructions=standing_instructions.StandingInstructions(store.path, roots),
                      ask_commands=ask_commands_service.AskCommandsService(store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots), notices=notices_file.Notices(store.path.parent),
-                     ask=ask_service.AskService(store.path, asker, roots, used_hook=log_connector_used), ai_connect=connect,      # #54: Settings › AI applies to every question
+                     ask=ask_service.AskService(store.path, asker, roots, indexer=indexer, used_hook=log_connector_used), ai_connect=connect,      # #54: Settings › AI applies to every question
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
@@ -640,6 +641,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         print("Stopped.", file=out, flush=True)
         return 0
     finally:
+        if indexer is not None:
+            indexer.shutdown()
         if handler is not None:
             logging.getLogger("clark").removeHandler(handler)
         if store is not None:

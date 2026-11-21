@@ -1190,8 +1190,8 @@ def ask_folders_route(method):
             return handler.send(404, error_body("not_found"))
         if not req:                          # a GET: the project comes from the address
             query = parse_qs(urlsplit(handler.path).query)
-            if query.get("scope") == ["all"] and "project" not in query:      # row 1294: the folders for all projects
-                status, body = service.read_all()
+            if query.get("scope") == ["all"]:      # row 1294: the folders for all projects
+                status, body = service.read_all((query.get("project") or [None])[0])
                 return handler.send(status, body)
             req = ((query.get("project") or [""])[0],)
         elif method == "change" and isinstance(req[0], dict) and req[0].get("scope") == "all":
