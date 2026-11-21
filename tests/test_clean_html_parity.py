@@ -362,6 +362,9 @@ class Parity(unittest.TestCase):
             self.assertEqual(page.ev("CH.compare(ITEMS.map(function (i) { return [i[0], i[1]]; }), 25)")["count"], 0)
         for x in inputs:
             self.assertEqual(publish.clean_html(sanitise.clean_html(x)), sanitise.clean_html(x))
+        # the published file's own pass decides alone on a span a hand-edited file carries
+        for bad in ("rt-c-purple", "x rt-c-red", "RT-C-RED", ""):
+            self.assertEqual(publish.clean_html(f'<p><span class="{bad}">b</span></p>'), "<p>b</p>", bad)
 
     def test_the_tables_the_page_uses_are_the_ones_python_makes(self):
         self.assertEqual(sanitise_tables.main(["--check"]), 0, "run python3 dev/tools/sanitise_tables.py and commit the result")

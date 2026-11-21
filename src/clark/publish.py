@@ -227,6 +227,8 @@ class _Cleaner(HTMLParser):
             if name == "class" and value not in sanitise.COLOUR_CLASSES:       # row 1364: a span keeps only one of the six font colour classes
                 continue
             keep.append(f' {name}="{htmllib.escape(value.strip() if name == "src" else value, quote=True)}"')
+        if tag == "span" and not keep:
+            return                                                # no colour class: unwrapped, its text stays
         if tag == "img" and not any(a.startswith(" src=") for a in keep):
             return
         if tag == "a":
