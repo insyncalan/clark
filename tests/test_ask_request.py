@@ -6,6 +6,7 @@ Fictional data only. No file, network or process is used.
 import dataclasses
 import hashlib
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import ask, edit_ai
@@ -98,15 +99,22 @@ class Limits(unittest.TestCase):
         self.assertEqual(ask.TOO_MUCH, "That needs too much text to send. Ask a narrower question.")
         self.assertEqual(ask.BAD_INPUT, "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark.")
 
-    def test_the_passage_budget_is_forty_thousand_characters(self):
-        self.assertEqual(ask.BUDGET, 40000)
-        each = ask.Passage("a.md", "x" * 4000)
-        r = ask.build_request("Q?", [each] * 10)                                    # exactly 40,000: none left out
-        self.assertEqual((len(r.passages), r.left_out), (10, 0))
-        r = ask.build_request("Q?", [each] * 10 + [ask.Passage("b.md", "y")])       # one character over: the passage that does not fit is left out
-        self.assertEqual((len(r.passages), r.left_out), (10, 1))
-        self.assertNotIn("b.md", r.text)
+    def test_the_passage_budget_is_300000_tokens_at_4_characters(self):
+        self.assertEqual(ask.BUDGET, 300_000 * 4)
+        self.assertEqual(ask.BUDGET, 1_200_000)
+        self.assertEqual(ask.MAX_REQUEST, ask.BUDGET + 30000)
+        each = ask.Passage("a.md", "x" * ask.MAX_PASSAGE)
+        r = ask.build_request("Q?", [each] * 10)                                    # well inside it
+        self.assertEqual(r.left_out, 0)
+        with mock.patch.object(ask, "MAX_PASSAGES", 1000):
+            n = ask.BUDGET // ask.MAX_PASSAGE
+            r = ask.build_request("Q?", [each] * n)                                 # exactly 1,200,000: none left out
+            self.assertEqual((len(r.passages), r.left_out), (n, 0))
+            r = ask.build_request("Q?", [each] * n + [ask.Passage("b.md", "y")])    # one character over: the passage that does not fit is left out
+            self.assertEqual((len(r.passages), r.left_out), (n, 1))
+            self.assertNotIn("b.md", r.text)
 
+    @mock.patch.object(ask, "BUDGET", 40000)      # a small budget for this test only, so a few passages reach it; the real value is pinned above
     def test_over_the_budget_the_least_relevant_go_and_the_order_stays(self):
         each = lambda name, word: ask.Passage(name, word + " " + "x" * 3990)
         ps = [each("a.md", "plan"), each("b.md", "tea"), each("c.md", "Quasar"), each("d.md", "coffee"), each("e.md", "Quasar"),
@@ -133,8 +141,9 @@ class Limits(unittest.TestCase):
 
     def test_a_long_chat_drops_the_oldest_turns_first_instead_of_refusing(self):
         turns = [("user" if i % 2 == 0 else "assistant", chr(65 + i) * ask.MAX_TURN) for i in range(ask.MAX_EARLIER_TURNS)]
-        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)] * 10, earlier=turns)
-        self.assertLessEqual(len(r.text), ask.MAX_REQUEST)
+        with mock.patch.object(ask, "MAX_REQUEST", 70000):                 # the rule at a small ceiling: ten full passages and ten full turns
+            r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)] * 10, earlier=turns)
+        self.assertLessEqual(len(r.text), 70000)
         self.assertGreater(r.dropped_turns, 0)
         self.assertNotIn("A" * 50, r.text)                                 # the oldest went
         self.assertIn(chr(65 + ask.MAX_EARLIER_TURNS - 1) * 50, r.text)    # the newest stayed
@@ -217,6 +226,7 @@ class Ranking(unittest.TestCase):
         self.assertEqual(self.kept(["first", six, "ABC-A-002 only"], q, 2), ([0, 2], 1))        # 7 beats 6
         self.assertEqual(self.kept(["first", seven, "ABC-A-002 only"], q, 2), ([0, 1], 1))      # 7 ties 7: the earlier passage stays
 
+    @mock.patch.object(ask, "BUDGET", 40000)      # a small budget for this test only, so a few passages reach it; the real value is pinned above
     def test_an_over_long_passage_and_the_budget_cut_are_both_counted(self):
         ps = [ask.Passage("big.md", "x" * (ask.MAX_PASSAGE + 1))] + [ask.Passage("a.md", "y" * 3000)] * 14
         r = ask.build_request("Q?", ps)
@@ -228,6 +238,7 @@ class Ranking(unittest.TestCase):
         self.assertEqual(self.kept(["first", "plain filler", "THE QUASAR IS HERE"], "quasar", 2), ([0, 2], 1))       # capitals in the passage
         self.assertEqual(self.kept(["first", "alpha beta gamma", "abc-a-002"], "ABC-A-002 alpha beta gamma", 2), ([0, 2], 1))
 
+    @mock.patch.object(ask, "BUDGET", 40000)      # a small budget for this test only, so a few passages reach it; the real value is pinned above
     def test_too_many_passages_and_over_the_budget_together(self):
         n = ask.MAX_PASSAGES + 5
         r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 3000)] * n)

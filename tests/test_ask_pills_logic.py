@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_ask_pills_logic
 Quick tier: no browser. The module is bundled by the pinned esbuild and run in node (skips without node).
-Draft killers: they fail while askPills.js does not exist. The words are the words in askWords.js at this commit.
+Draft killers: they fail while askPills.js does not exist. The words are the words in askWords.js today and stand in for the ruled ones.
 """
 import json
 import re
