@@ -1,4 +1,4 @@
-"""Row 1055: Help names the real way in. The ? key opens Help when Single-key shortcuts is on; with it off the profile circle menu's
+"""Row 1055: Help names the real way in. The ? key opens Help when Single-key slash commands are on; with it off the profile circle menu's
 Help item is the way, because the top bar has no Help button and no key binds Alt+/ to Help.
 
 Quick tier: reads files, starts no browser.
