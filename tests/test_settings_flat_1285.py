@@ -31,9 +31,9 @@ class Flat(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme):
                     g = self.got(t.NAME, width, scheme)
-                    self.assertEqual(g["n"], 5, "the captions stay in the page for a screen reader")
+                    self.assertEqual(g["n"], 4, "the captions stay in the page for a screen reader (row 1299: Classic has the four groups You, All projects, Project settings, Help and about)")
                     self.assertEqual(g["drawn"], 0, g)
-                    self.assertEqual(g["lines"], ["1px"] * 4, "one thin divider between every pair of the five groups")
+                    self.assertEqual(g["lines"], ["1px"] * 3, "one thin divider between every pair of the four groups")
                     if scheme == "dark":
                         for c, bg in zip(g["colours"], g["bgs"]):
                             self.assertNotIn(c, ("transparent", "rgba(0, 0, 0, 0)"), "the divider colour is visible in dark")
