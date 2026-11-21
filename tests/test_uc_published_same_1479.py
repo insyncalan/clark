@@ -65,6 +65,9 @@ window.clarkMountOne = (id, which, ref, owner, bare) => {
 SHAPE = """(() => {
   const root = document.querySelector('[data-ucd],[data-ucf]'), n = (c) => String(c).replace(/\\buc[df]-/g, 'uc-');
   const noted = !!root.querySelector('[data-ms-note]'), nums = root.querySelectorAll('[data-ms]').length;
+  const histAny = [...root.querySelectorAll('h2')].some((h) => /History/.test(h.textContent));
+  const how1 = root.querySelector('[data-ms-how]'), name1 = how1 && how1.parentElement.querySelector('[data-ms-open]');
+  const howcss = how1 ? { basis: getComputedStyle(how1).flexBasis, fs: parseFloat(getComputedStyle(how1).fontSize), nameFs: parseFloat(getComputedStyle(name1).fontSize), under: how1.getBoundingClientRect().top >= name1.getBoundingClientRect().bottom - 1 } : null;
   const hist = root.querySelector('[aria-labelledby=ucd-h-hist]'); if (hist) hist.remove();
   const note = root.querySelector('[data-ms-note]'); if (note) note.remove();
   const txt = (e) => e ? e.textContent.replace(/\\s+/g, ' ').trim() : null;
@@ -79,7 +82,7 @@ SHAPE = """(() => {
     lum: (() => { const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
       let bg = null, e = root.querySelector('section'); while (e && !bg) { const c = getComputedStyle(e).backgroundColor; if (!/rgba?\\(.*, 0\\)$/.test(c) && c !== 'transparent') bg = c; e = e.parentElement; }
       return { bg: lum(bg || getComputedStyle(document.body).backgroundColor), fg: lum(getComputedStyle(root.querySelector('h1')).color) }; })(),
-    dts: [...root.querySelectorAll('dt')].map(txt), hist: !!hist,
+    dts: [...root.querySelectorAll('dt')].map(txt), hist: !!hist, histAny, howcss,
     how: [...root.querySelectorAll('[data-ms-how]')].map(txt), noted, nums, owner: txt(root.querySelector('[data-uc-owner]')), word: txt(root.querySelector('[data-word]')),
     classes: [...classes].sort(), landmarks: [...root.querySelectorAll('nav,h1,h2,section,dl,ul')].map((e) => e.tagName + (e.getAttribute('aria-labelledby') ? '' : '')),
   };
@@ -106,6 +109,14 @@ class OneComponent(unittest.TestCase):
                 self.assertTrue(own not in code, f"{name} writes its own {own}")
             # the editor's History is its one own card (a slot of the layout); the file's page has none
             self.assertEqual(code.count(f"{prefix}-card"), 1 if prefix == "ucd" else 0, name)
+            if prefix == "ucf":
+                # AP2 and AP4 by source: the file's page gives the layout no slot that draws a control, a hint, an add row, a note or the History card, and writes no control of its own
+                for slot in ("acts=", "top=", "stdHint=", "addWork=", "addMs=", "msNote=", "after="):
+                    self.assertNotIn(slot, code, f"{name} gives the layout a {slot} slot: a control or a History card")
+                for tag in ("<button", "<input", "<textarea", "<select", "contenteditable", "History"):
+                    self.assertNotIn(tag, code, f"{name} writes {tag}")
+            else:
+                self.assertIn("after={(", code, "the editor's History card is the layout's after slot")
         lay = self.text("UseCaseLayout.jsx")
         for need in ("Where it stands", "Work items", "Details", "Milestones", "data-open-all", "data-ms-open", "data-item"):
             self.assertIn(need, lay)
@@ -209,6 +220,8 @@ class SamePage(unittest.TestCase):
                 with self.subTest(width=width, scheme=scheme):
                     fi = self.shape("file", width, scheme)
                     self.assertFalse(fi["hist"], "no History card in the published page")
+                    self.assertFalse(fi["histAny"], "no card or heading called History, whatever its id")
+                    self.assertTrue(self.shape("editor", width, scheme)["histAny"], "the editor's page keeps its History card (the layout's after slot)")
                     self.assertNotIn("History", fi["cards"])
                     self.assertNotIn("Show all", fi["body"])
                     self.assertNotIn("took it off the dashboard", fi["body"])
@@ -234,6 +247,12 @@ class SamePage(unittest.TestCase):
                     self.assertEqual(fi["nums"], len(fi["how"]), "one label for each milestone")
                     self.assertFalse(fi["noted"], "no explanation line")
                     self.assertNotIn("means", " ".join(fi["how"]))
+                    if width == 1400:
+                        # shell.css row 1479: `.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small) }`, the label on its own line under the milestone name, smaller than the name
+                        c = fi["howcss"]
+                        self.assertEqual(c["basis"], "100%", "the label takes the whole line")
+                        self.assertTrue(c["under"], "the label is under the milestone name")
+                        self.assertLess(c["fs"], c["nameFs"], "the label is smaller than the name")
 
     def test_no_control_word_and_no_changing_element(self):
         gone = ("Change status", "On the dashboard", "Click the text to change it", "Add an owner", "Add a next step", "Link an existing work item", "Add a milestone", "...")
