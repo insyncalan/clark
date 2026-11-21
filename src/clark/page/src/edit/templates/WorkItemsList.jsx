@@ -108,6 +108,7 @@ export function Edit({ section }) {
   };
   const colMenu = at ? (
     <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
+      {classicTheme() ? <h5 class="cols-head" role="presentation" aria-hidden="true">Columns to show</h5> : null}
       {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
         <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
           <Icon name={columnIcon(c)} cls="mi" /><span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>

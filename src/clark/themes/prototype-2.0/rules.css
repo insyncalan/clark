@@ -348,6 +348,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cols-menu .ck[data-on]::before { content: "\2713"; }
 #usecases .ddmenu.cols-menu { width: 280px; }      /* slice B: the Use cases Columns menu is 280px wide, 260px at 900 and narrower (spec: extra.css .cols-menu) */
 @media (max-width: 900px) { #usecases .ddmenu.cols-menu { width: 260px; } }
+.cols-menu .cols-head { margin: 4px 10px 6px; font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); color: var(--text-muted); text-transform: none; }      /* row 1499: the Work items Columns menu heading (the mock-up .ctxm h5: 12px, 600, muted, margin 4px 10px 6px) */
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
 /* Row 1347: the ask clark Draft sheet as the prototype draws it. It slides in from the right over --dur-layout (translateX 110% of its width, to none; transform only, so its place is unchanged) and its close button draws the arrow, not the X. Classic only; none of it under reduced motion. */
