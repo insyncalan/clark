@@ -385,6 +385,17 @@ class Eye(Base):
                 self.assertLess(pill["x"] + pill["w"], self.box(p, self.on, ".tpl-rh-text")["x"], "the pill stays beside the text, also at 900")
                 print(f"view {width} {theme}: title {title['fs']}/{title['fw']}, pill {pill['w']:.0f} x {pill['h']:.0f} {pill['fs']}/{pill['fw']}, headline {head['fs']}/{head['fw']}, text column {self.box(p, self.on, '.tpl-rh-text')['w']:.0f} px", flush=True)
 
+    def test_the_pill_icon_is_14_px_and_the_headline_is_the_text_colour_at_1400_and_900_in_light_and_dark(self):
+        for width, theme in ((1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")):
+            with self.subTest(width=width, theme=theme), chrome() as cdp:
+                p = self.sized(cdp, width, theme)
+                p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-pill svg')", "drew")
+                icon = p.js(f"(function(){{ var r = document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-pill svg').getBoundingClientRect(); return [r.width, r.height]; }})()")
+                self.assertEqual(icon, [14, 14], "mock-up pill icon is 14 px, not 16")
+                got = p.js(f"getComputedStyle(document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-h')).color")
+                want = p.js("(function(){ var e = document.createElement('i'); e.style.color = 'var(--text)'; document.body.appendChild(e); var c = getComputedStyle(e).color; e.remove(); return c; })()")
+                self.assertEqual(got, want, "the headline colour is var(--text)")
+
     # --- Half width and sizes -------------------------------------------------------------------------------------------------
     def test_half_width_fits_with_the_pill_and_without_at_1400_and_900(self):
         with self.store.step("dashboard", USER) as st:
