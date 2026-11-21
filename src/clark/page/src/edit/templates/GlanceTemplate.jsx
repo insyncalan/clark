@@ -26,7 +26,7 @@ export const WORDS = {
   showHealth: "Show project health here",                                                                                                    // group 3
   healthHidden: "Project health is hidden completely", healthShown: "Project health is shown",                                                // group 10
   hintEye: "The eye on Project health hides it completely.", hintAdd: "Use Add a tile to make your own. Click the pencil on your own tile to edit it.",   // group 12 (Cards keeps these)
-  hint: "Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin removes it from the strip. Add a tile brings it back.",   // row 1336: the owner of the ticket must confirm these closing words (the ticket's proposal said 'the bin deletes it')
+  hint: "Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. Add a tile brings it back.",   // row 1336: the closing words are the ticket's: the bin deletes it
   perRow: "Tiles on a line", halfNote: "Half width always shows 2 on a line.",                                                               // group 13
 };
 

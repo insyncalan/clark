@@ -13,7 +13,7 @@ import unittest
 from test_server import chrome, wait
 from test_theme_glance_edit_1336 import ClassicEdit, tearDownModule  # noqa: F401
 
-HINT = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin removes it from the strip. "
+HINT = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. "
         "Add a tile brings it back.")
 OWN = {"id": "t1", "label": "Fictional own tile", "figure": "7", "tag": "Fine", "note": "Fictional note", "tone": "green"}
 PROBE = """(function(sel){ function rel(el, cell){ var r = el.getBoundingClientRect(), c = cell.getBoundingClientRect();
@@ -146,3 +146,21 @@ class Controls(ClassicEdit):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HintAndToastSource(unittest.TestCase):
+    """The hint closing words and the bin toast, read from the source so they are pinned without a browser."""
+
+    SRC = (__import__("pathlib").Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/templates/GlanceTemplate.jsx").read_text(encoding="utf-8")
+
+    def test_the_hint_line_in_the_source_is_the_approved_one(self):
+        self.assertIn('hint: "' + HINT + '"', self.SRC)
+
+    def test_the_bin_says_it_deletes_and_never_removes_it_from_the_strip(self):
+        self.assertIn("the bin deletes it. Add a tile brings it back.", self.SRC)
+        self.assertNotIn("from the strip", self.SRC.split("hint:")[1].split("\n")[0])
+
+    def test_the_bin_toast_is_removed_colon_and_the_tile_name(self):
+        line = [l for l in self.SRC.splitlines() if l.lstrip().startswith("const del = ")][0]
+        self.assertIn("`Removed: ${titleOf(key)}`", line)
+        self.assertNotIn("Deleted", line)
