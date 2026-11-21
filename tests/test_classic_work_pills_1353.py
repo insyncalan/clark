@@ -3,11 +3,11 @@
 Run: python3 dev/run_tests.py test_classic_work_pills_1353
 What is asserted, per pill (Low, Medium, High, Urgent):
   colour   the fill and the text are the row 1409 pair, read from the page itself through a probe element that names the --pri-* tokens (no literals here);
-  border   the border colour is the fill colour (rules.css, the --pri-* pair). The border WIDTH is not asserted: on the page row .wil-pr has no --wil-pr-bd, so the 1px line drops (measured 0px none); that is open for a ruling;
+  border   the border colour is the fill colour (rules.css, the --pri-* pair). the border is 1px solid (the --wil-pr-* variables are defined for '.wil, #work', so the line shows on the page row);
   radius   6px.
 Ticket 1353 history: items 3 and 4 of its first table (Urgent red / High amber / rest grey, and the widened --wil-pr-* scope) are superseded by the row 1409 ruling
 (Low green, Medium amber, High red, Urgent maroon; ruling 20-11). Items 5 and 6 (border from the page variables, radius 6 not 999) are accepted: the radius is 6px,
-and the border is built as the one-pixel line in the fill colour. The Cards class skips: the pills are a Classic-layer look.
+and the border is the one-pixel solid line in the fill colour (Romanoff ruling 21-11). The Cards class skips: the pills are a Classic-layer look.
 """
 import json
 
@@ -50,6 +50,7 @@ class Pills(M.Look):
                     with self.subTest(where=where, pill=word):
                         self.assertEqual((g["bg"], g["fg"]), (g["want"]["bg"], g["want"]["fg"]), (where, got))
                         self.assertNotEqual(g["bg"], "rgba(0, 0, 0, 0)", (where, got))
+                        self.assertEqual((g["bw"], g["bs"]), ("1px", "solid"), (where, got))
                         self.assertEqual(g["bc"], g["bg"], (where, got))
                         self.assertEqual(g["rad"], "6px", (where, got))
                 self.assertEqual(len({g["bg"] for g in got.values()}), 4, (where, got))
