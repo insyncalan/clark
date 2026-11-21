@@ -26,7 +26,7 @@ import { lineOf, readLine } from "../../templates/workItemsLine.js";
 import { Tabs } from "./WorkItemsTabs.jsx";
 
 export const SAVED = "Work items list changed.";
-export const COLUMNS_MENU = "Columns";      // row 1268: the label of the menu a right click on a column heading opens
+export const COLUMNS_MENU = "Columns to show";      // row 1268: the label of the menu a right click on a column heading opens
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
 export const NO_MATCH = "No work items match this filter, so this section is left out of the published page. Change the filter to list some.";
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
@@ -108,6 +108,7 @@ export function Edit({ section }) {
   };
   const colMenu = at ? (
     <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
+      {classicTheme() ? <h5 class="cols-head" role="presentation" aria-hidden="true">Columns to show</h5> : null}
       {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
         <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
           <Icon name={columnIcon(c)} cls="mi" /><span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
