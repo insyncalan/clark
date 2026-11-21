@@ -127,9 +127,9 @@ class Handed(Cut):
         seen = {}
         real_data, real_build = ask_data.project_data, ask.build_request
 
-        def data(store, code, question="", budget=ask.BUDGET, as_at=None):
+        def data(store, code, question="", budget=ask.BUDGET, as_at=None, limit=None):
             seen["project"] = budget
-            return real_data(store, code, question, budget, as_at)
+            return real_data(store, code, question, budget, as_at, limit)
 
         def build(*a, **k):
             seen["cap"] = k.get("max_request")
