@@ -396,7 +396,8 @@ class Scan:
                 bad.append("file #%d: uses a secret or write access" % tag)
             named = re.findall(r"secrets\.(\w+)", code)
             allowed = ALLOWED_SECRET.get(e.path)
-            if named and not (allowed and named == [allowed] and secret_in_step_env(code, allowed)):
+            bare = len(re.findall(r"\bsecrets\b", code))     # also toJSON(secrets) and secrets['X']: in the allowed file only the one named use may exist
+            if (named or (allowed and bare)) and not (allowed and bare == 1 and secret_in_step_env(code, allowed)):
                 bad.append("file #%d: uses a secret or write access" % tag)
             if re.search(r"^\s*(?:self-hosted|runs-on:.*self-hosted)", code, re.M):
                 bad.append("file #%d: runs on a self-hosted machine" % tag)
