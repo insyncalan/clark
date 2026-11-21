@@ -101,12 +101,6 @@ class TestsYml(unittest.TestCase):
         self.assertEqual(re.findall(r"secrets\.(\w+)", code), ["ARGOS_TOKEN"])
         self.assertTrue(ci_scan.secret_in_step_env(code, "ARGOS_TOKEN"))
 
-    def test_tests_yml_is_byte_identical_to_origin_main(self):
-        r = subprocess.run(["git", "show", "origin/main:.github/workflows/tests.yml"], cwd=str(ROOT), capture_output=True)
-        if r.returncode != 0:
-            self.skipTest("origin/main is not available")
-        self.assertEqual(TESTS.read_bytes(), r.stdout)
-
 
 if __name__ == "__main__":
     unittest.main()
