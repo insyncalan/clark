@@ -121,6 +121,16 @@ class LoadNotices(unittest.TestCase):
             got = run([with_test(installed=installed)])
             self.assertEqual(got["steps"][0]["shown"], shown, installed)
 
+    def test_a_non_string_installed_is_ignored_and_a_later_answer_without_it_keeps_the_earlier_one(self):
+        def with_test(**extra):
+            r = ok("old", **extra)
+            r["body"]["notices"][0]["test"] = {"installedBelow": "1.0.7"}
+            return r
+        got = run([with_test(installed="1.0.7"), with_test(), with_test(installed=None), with_test(installed=5), with_test(installed="1.0.5")])
+        self.assertEqual([s["shown"] for s in got["steps"]], [[], [], [], [], ["old"]])
+        got = run([with_test(installed=5), with_test(installed=None)])
+        self.assertEqual([s["shown"] for s in got["steps"]], [s["shown"] for s in run([with_test(), with_test()])["steps"]])
+
     def test_the_timer_starts_once_and_stops(self):
         got = run([ok("a")] * 3)
         self.assertEqual(got["afterStart"]["set"], [got["refresh"]])
