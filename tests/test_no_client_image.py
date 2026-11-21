@@ -141,9 +141,6 @@ class NoClientImage(unittest.TestCase):
         self.assertEqual(hp.pin_problems(ROOT / HELP_DIR, help_pins(), hp.shot_ids()), [])
         self.assertEqual(set(help_pins()), help_names())
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_a_sample_picture_is_allowed_only_as_the_pinned_bytes(self):
         png = b"\x89PNG made-up sample bytes"
         path = SAMPLE_DIR + "sample-1.png"
@@ -151,3 +148,8 @@ if __name__ == "__main__":
         self.assertEqual([p for p, _ in problems({path: png + b"x"}, sample_pinned={"sample-1.png": SHA(png).hexdigest()})], [path])
         self.assertEqual([p for p, _ in problems({SAMPLE_DIR + "other.png": png}, sample_pinned={"sample-1.png": SHA(png).hexdigest()})], [SAMPLE_DIR + "other.png"])
         self.assertEqual([p for p, _ in problems({path: png})], [path])
+
+
+if __name__ == "__main__":
+    unittest.main()
+
