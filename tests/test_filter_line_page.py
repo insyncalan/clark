@@ -1495,7 +1495,7 @@ class Line(unittest.TestCase):
                 cdp.js("localStorage.clear()", sid)
 
     # ---- #640: the field list on click, the x, the core tabs, the tab's arrow and + New view ----
-    FIELDS_ALL = ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "has:", "no:"]
+    FIELDS_ALL = ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "has:", "no:", "group:"]
 
     def hints_visible(self, cdp, sid):
         return cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid) == "visible"
