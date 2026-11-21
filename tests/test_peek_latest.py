@@ -1,6 +1,7 @@
 """The peek's Latest update and the 'Last updated' stamp, and the overdue and weekend warning bar (v0.9 prototype parity). Row 1077:
 the Draft chip is gone from every peek (ruling 1), so nothing here presses it; test_peek_ruled_1077.py pins its absence.
 Run: python3 dev/run_tests.py test_peek_latest
+Row 1470: StampServer and StampPage pin the stamp "Last updated <date> <time> by <name> · Source: <source>" and the Created entry (server side, and the page source; no browser).
 
 Part 1 is clark/changes.py: an action's latest_update is one more field of the work-item change (plain text, line breaks allowed, 1000
 characters at most, blank clears it), one step and one Undo, and a decision has one too (item 1185: a risk and an issue; row 1195: a decision). Part 2 is the source and the built page.
@@ -13,7 +14,8 @@ import unittest
 from _editor_checks import for_url
 from datetime import datetime, timezone
 
-from _paths import ROOT
+from _paths import ROOT, SRC as _SRC
+from _demo import USER, DemoStore
 import _testpage as testpage
 
 from clark import activity_read, changes, sneak  # noqa: E402
@@ -22,6 +24,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 from test_work_filters import click, where  # noqa: E402
 
+STAMP_SRC = _SRC / "clark" / "page" / "src" if not (_SRC / "components").is_dir() else _SRC
 OVERDUE, WEEKEND = "TUL-A-002", "TUL-A-006"       # demo data at 28-10-2026 (a Wednesday): due 22-10-2026, and Saturday 07-11-2026
 
 
@@ -177,6 +180,47 @@ class Source(unittest.TestCase):
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
         self.assertIn("latestOn && forItem && tools.PeekLatest", peek)
         self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
+
+
+# Row 1470: the stamp wording, the Source and the Created entry.
+class StampServer(unittest.TestCase):
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        s = self.demo.store
+        self.read = activity_read.make_read(s.path, s.data_for)
+
+    def test_the_source_alone_and_the_created_entry_with_who_and_when(self):
+        a = self.demo.action(source="Excel import, 2026-10-01, plan.xlsx")
+        got = self.read("ABC", a)
+        self.assertEqual(got["source_words"], "Excel import, 01-10-2026, plan.xlsx")
+        self.assertEqual(got["source"], got["source_words"] + " by " + USER)
+        made = [r for r in got["rows"] if r["kind"] == "Created"]
+        self.assertTrue(made)
+        self.assertEqual(made[-1]["who"], USER)
+        self.assertRegex(made[-1]["when_text"], r"^\d{2}-\d{2}-\d{4} \d{2}:\d{2}")
+
+    def test_no_source_words_is_an_empty_string(self):
+        a = self.demo.action(source="demo")
+        self.demo.store.con.execute("UPDATE actions SET source = '' WHERE id = ?", (a,))
+        self.demo.store.con.commit()
+        self.assertEqual(self.read("ABC", a)["source_words"], "")
+
+
+class StampPage(unittest.TestCase):
+    def test_the_latest_update_gate_is_the_file_not_the_mode(self):
+        peek = (STAMP_SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("const latestOn = !!tools && !fromFile.value;", peek)
+        self.assertIn("Latest = latestOn && forItem && tools.PeekLatest", peek)
+        self.assertIn("MsLatest = latestOn && tools.PeekMsLatest", peek)
+        self.assertNotIn("Latest = editing &&", peek)
+
+    def test_the_stamp_wording(self):
+        box = (STAMP_SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertIn("`Last updated ${when}${upd && upd.who ? ` by ${upd.who}` : \"\"}${sourceBit(source)}`", box)
+        self.assertIn("` · Source: ${s}`", box)
+        self.assertIn("`${made.who ? ` by ${made.who}` : \"\"}, ${at(made)}${sourceBit(source)}`", box)
+        self.assertIn("<b data-pk-created-k>Created</b>{st.created}", box)      # "Created" bold, then "by <name>, <date time> · Source: <source>"
 
 
 class Browser(unittest.TestCase):
