@@ -2,6 +2,7 @@
 // (Overdue actions, High risks and issues, Decisions needed: the same figures as the At a glance tiles). A field is saved when it
 // is left (or its choice made): one change() each, so one step and one Undo. A figure with a label and no number (or the other way
 // round) is saved and waits: the line under it says it stays out of the published page. The preview above is what View shows.
+import { StartPrompt } from "../StartPrompt.jsx";
 // Row 1263 (one Numbers card, approved mock-up): the count is 3 or 4, the body's own or (an older section, no migration) its type's. In the
 // Classic theme the card has the count control "Numbers 3 | 4" and a Typed | Live switch per number; Cards keeps its Edit as it was.
 import { change } from "../../stores/changes.js";
@@ -61,7 +62,7 @@ export function figuresEdit(type) {
             <Seg cls="num-count" label="Numbers" items={COUNTS.map((n) => [n, String(n)])} on={count} onPick={setCount} />
           </div>
         ) : null}
-        {shown.length ? <FigureRow list={shown} type={type} count={count} /> : <p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p>}
+        {shown.length ? <FigureRow list={shown} type={type} count={count} /> : <><StartPrompt id="figures-4" /><p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p></>}
         <div class={`tpl-slots n${places}`}>
           {slots.map((s, i) => (
             <fieldset class="tpl-slot" key={i} data-slot={i}>

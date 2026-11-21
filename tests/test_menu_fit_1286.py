@@ -124,19 +124,20 @@ class MenuFit(Base):
             self.close(cdp, sid)
 
     def test_the_view_menu_goes_above_its_button_and_scrolls_when_short_of_room(self):
-        """The View menu opens under its button; in a short window it goes above the button (8 px clear of it) and its height is the room above the button, under the sticky header, minus 12 px (96 px at least), and it scrolls."""
+        """The View menu opens under its button; in a short window it goes above the button (4 px clear of it) and its height is the room above the button, under the sticky header, minus 12 px (96 px at least), and it scrolls."""
         with chrome() as cdp:
             sid = self.loaded(cdp)
             for h in (240, 280):
                 self.look(cdp, sid, 900, h, "light")
                 tap(cdp, sid, "#viewMenu")
                 self.inside(cdp, sid, "#viewMenuList", "View menu", (900, h, "light"))
+                self.until(cdp, sid, "[document.querySelector('#viewMenuList'), document.querySelector('#viewMenu')].every(e => e.getAnimations().length === 0)", "the View menu and its button stopped moving")  # the menu drops in 4 px and the button eases 1 px: measure them settled
                 got = cdp.js(f"({MEASURE})('#viewMenuList')", sid)
                 btn = cdp.js("(() => { const r = document.querySelector('#viewMenu').getBoundingClientRect(); return {top: Math.round(r.top), bottom: Math.round(r.bottom), header: Math.round(document.querySelector('.top').getBoundingClientRect().bottom)}; })()", sid)
                 self.assertGreater(got["scroll"], got["client"], got)
                 self.assertIn(got["oy"], ("auto", "scroll"), got)
                 self.assertLessEqual(got["bottom"], got["h"] - 8, got)
-                self.assertLessEqual(abs(got["bottom"] - (btn["top"] - 8)), 1, (got, btn))       # above the button: 4 px calc offset from its wrapper, which sits 4 px over the button
+                self.assertLessEqual(abs(got["bottom"] - (btn["top"] - 4)), 1, (got, btn))       # above the button: 4 px calc offset from its wrapper, whose top is the button's top (the button eases 1 px up under the pointer, hence the 1 px slack)
                 self.assertLessEqual(abs((got["bottom"] - got["top"]) - max(96, btn["top"] - 12 - btn["header"])), 1, (got, btn))  # the room above the button, under the sticky header, less 4 + 8 px (never under 96 px; the header is read from the page, M5c)
                 self.close(cdp, sid)
 
