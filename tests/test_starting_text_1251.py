@@ -28,6 +28,9 @@ WANT = {
     "one-doc": {"empty": ["Add the file."]},
     "plan-summary": {"empty": ["Write here.", "Add a step."]},
     "current-state": {"empty": ["Say where the project stands."]},
+    # answers file lines 1 and 2 (report headline, full image); line 3: At a glance has NO entry
+    "report-headline": {"empty": ["Add the headline: the one thing the reader should take away."]},
+    "full-image": {"caption": "Add a caption: what the picture shows.", "empty": ["Add a picture: replace this sample with your own."]},
     # slice 2
     "figures-4": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
     "figures-3": {"empty": ["Pick what each number shows."]},

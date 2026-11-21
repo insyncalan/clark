@@ -16,10 +16,8 @@ LIB = PAGE_SRC / "logic" / "templates.js"
 START = PAGE_SRC / "edit" / "startingText.js"
 EDIT = PAGE_SRC / "edit" / "templates"
 
-# Templates with no entry in STARTING_TEXT: each draws its own hint or its own live numbers (needle must be in the Edit part).
+# Templates with no entry in STARTING_TEXT (At a glance, answers file line 3: no starting text and no hint): it draws its own live numbers (needle must be in the Edit part).
 OWN_WORDS = {
-    "report-headline": ("ReportHeadline.jsx", "{HINT}"),
-    "full-image": ("FullImage.jsx", "{W.hint}"),
     "glance-template": ("GlanceTemplate.jsx", None),      # three live counts: not a blank box
 }
 PICTURE_TYPES = {"imagecap": ("ImageCap.jsx", "sample={classicLook()}"), "textimage": ("TextImage.jsx", "sample={classicLook()}"),
@@ -83,7 +81,7 @@ class NoEmptyTemplate(unittest.TestCase):
 
     def test_no_prompt_is_blank(self):
         have = prompts()
-        self.assertGreaterEqual(len(have), 22)
+        self.assertGreaterEqual(len(have), 24)
         for tid, words in have.items():
             self.assertTrue(words and all(w.strip() for w in words), tid)
 
