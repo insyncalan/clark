@@ -19,6 +19,7 @@ from urllib.parse import unquote
 from clark import docx_build as _b
 from clark import docx_read as _r
 from clark import word_template
+from clark.excel_picture import has_doctype
 from clark.docx_read import WordRefused
 
 REL_PATH = ("word", "template.docx")
@@ -67,6 +68,8 @@ def _local(tag):
 
 
 def _parse(data, name):
+    if has_doctype(data):
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} holds a DOCTYPE or entity, which clark does not read.")
     try:
         return ET.fromstring(data)
     except ET.ParseError:
