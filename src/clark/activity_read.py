@@ -40,17 +40,20 @@ def has_item(data, item_id):
     return any(isinstance(r, dict) and r.get("id") == item_id for t in TABLES for r in (data.get(t) or []))
 
 
-def source_line(con, item_id, events=None):
-    """The Source line for the Peek: the item's stored `source` words by NAME (source_name: the last part of any path, the date day first;
-    row 1077); row 1258: no " by <name>" (the mock-up draws the source line without one). A published file carries the name itself
-    (publish.select), so it asks no server. `events` is no longer read (kept so a caller that passes it still works). "" when the row has none (the table name is from TABLES, never a caller's)."""
+def _source_words(con, item_id):
+    """(the item's stored `source` by name, the table it is in); ("", None) when the item is in none."""
     for table in TABLES:
         row = con.execute("SELECT source FROM " + table + " WHERE id = ?", (item_id,)).fetchone()
         if row is not None:
-            break
-    else:
-        return ""
-    return source_name(row[0])                                           # the stored text has YYYY-MM-DD and may hold a path; the person reads DD-MM-YYYY and the name. The column is untouched
+            return source_name(row[0]), table
+    return "", None
+
+
+def source_line(con, item_id, events=None):
+    """The Source line for the Peek: the item's stored `source` words by NAME (source_name: the last part of any path, the date day first;
+    row 1077); row 1258: no " by <name>" (the mock-up draws the source line without one). A published file carries the name itself
+    (publish.select), so it asks no server. `events` is no longer read (kept so a caller that passes it still works). "" when the row has none."""
+    return _source_words(con, item_id)[0]                                # the stored text has YYYY-MM-DD and may hold a path; the person reads DD-MM-YYYY and the name. The column is untouched
 
 
 def source_path(con, item_id):
@@ -74,11 +77,12 @@ def make_read(path, data_for):
             view = history.activity_for_item(con, item_id, "all", ROW_LIMIT)
             source = source_line(con, item_id)
             path_as_written = source_path(con, item_id)
+            source_words = _source_words(con, item_id)[0]
             refused = changes.undo_refusals(Store(con, path), code, {r["step"] for r in view["rows"] if isinstance(r.get("step"), int)})
         finally:
             con.close()
         rows = [_row(dict(r, undo_refused=refused.get(r.get("step"), ""))) for r in view["rows"]]
         return {"rows": rows, "empty": "" if rows else "Nothing has changed on this item yet.",
-                "closing": CLOSING if view["closing"] else "", "source": source,
+                "closing": CLOSING if view["closing"] else "", "source": source, "source_words": source_words,   # row 1470: the Source alone, for the Latest update stamp
                 "source_path": path_as_written}
     return read

@@ -127,7 +127,7 @@ class Server(unittest.TestCase):
 
 
 class Source(unittest.TestCase):
-    LINES = ("Latest update", "last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
+    LINES = ("Latest update", "Last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
 
     def test_each_line_is_in_the_source_and_the_edit_page_and_not_in_a_published_file(self):
         src = "".join((ROOT / "src/clark/page/src/edit" / f).read_text(encoding="utf-8") for f in ("PeekLatest.jsx", "peekLatest.js"))
@@ -136,7 +136,7 @@ class Source(unittest.TestCase):
         for line in self.LINES:
             self.assertIn(line, src, line)
             self.assertIn(line, built, line)
-        for line in ("Move a week on", "last updated", "pk-warnbar"):
+        for line in ("Move a week on", "Last updated", "pk-warnbar"):
             self.assertNotIn(line, view, "the published page carries none of it: " + line)
 
     def test_the_page_says_the_two_new_refusals_in_its_own_words(self):
@@ -177,7 +177,7 @@ class Source(unittest.TestCase):
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
-        self.assertIn("editing && forItem && tools.PeekLatest", peek)
+        self.assertIn("latestOn && forItem && tools.PeekLatest", peek)
         self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
@@ -399,18 +399,18 @@ class Browser(unittest.TestCase):
     def test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change(self):
         a = self.action(OVERDUE)
         utc = datetime.strptime(a["updated_at"][:16], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone()
-        want = "last updated " + utc.strftime("%d-%m-%Y %H:%M")
+        want = "Last updated " + utc.strftime("%d-%m-%Y %H:%M")
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 got = lambda: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('[data-pk-last]'))", sid)
-                self.assertEqual(got(), want)
+                self.assertEqual(got().split(" by ")[0].split(" · ")[0], want)      # row 1470: the name and the Source follow when known
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))
                 self.open_box(cdp, sid)                                   # row 1077: a save through the box moves the stamp (Draft is gone)
                 self.type_in(cdp, sid, " Stamp moves.")
                 self.save_key(cdp, sid)
                 self.assertTrue(wait(lambda: len(sent) == 1), "one save")
-                self.assertTrue(wait(lambda: got() != want), "the stamp is the one clark wrote")
+                self.assertTrue(wait(lambda: got().split(" by ")[0].split(" · ")[0] != want), "the stamp is the one clark wrote")
 
     def test_a_risk_and_an_issue_show_the_box_save_and_undo_it_and_a_decision_shows_it_too(self):
         """Item 1185: the box, the save, the Undo and the history on the other kinds, at both widths."""
@@ -530,7 +530,7 @@ class Browser(unittest.TestCase):
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")
-                self.assertTrue(stamp["shown"] and stamp["text"].startswith("last updated "), stamp)
+                self.assertTrue(stamp["shown"] and stamp["text"].startswith("Last updated "), stamp)
                 self.assertEqual(stamp["ink"], self.want(cdp, sid, "--text-muted"))
                 self.assertGreaterEqual(stamp["ratio"], 4.5, stamp)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))
