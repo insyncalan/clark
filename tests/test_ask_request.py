@@ -220,6 +220,10 @@ class Ranking(unittest.TestCase):
             got = self.kept(["first", "alpha beta gamma", "zz " + ref], f"{ref} alpha beta gamma", 2)
             self.assertEqual(got, ([0, 2], 1), ref)
 
+    def test_a_lower_case_id_in_the_question_is_plain_words_not_an_item_id(self):
+        q = "abc-a-002 alpha beta gamma"        # lower case is not an ID shape: the 3-word passage (3) beats the one that holds the text (2)
+        self.assertEqual(self.kept(["first", "alpha beta gamma", "abc-a-002 only"], q, 2), ([0, 1], 1))
+
     def test_an_item_id_counts_as_exactly_five_words(self):
         q = "ABC-A-002 alpha bravo charlie delta echo foxtrot golf"        # the ID passage scores 5 + its 2 words (abc, 002) = 7
         six, seven = "alpha bravo charlie delta echo foxtrot", "alpha bravo charlie delta echo foxtrot golf"
