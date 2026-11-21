@@ -108,6 +108,21 @@ class PerFolder(Base):
         self.assertEqual(seen[-1], (str(self.a), 4, 4))
 
 
+class LiveBeatsSaved(Base):
+    def test_row_1371_a_folder_read_again_says_indexing_not_the_finished_line_of_its_last_read(self):
+        self.put(self.a, "one.txt", "alpha river")
+        self.put(self.b, "two.txt", "beta ocean")
+        folders = [str(self.a), str(self.b)]
+        self.assertTrue(ask_index.refresh(self.data, "ABC", folders, self.home))
+        done = ask_index.folder_status(self.data, "ABC", folders)
+        self.assertEqual(done[str(self.a)]["state"], "done")
+        self.assertEqual(done[str(self.a)]["line"], "100% indexed")
+        got = ask_index.folder_status(self.data, "ABC", folders, {str(self.a): (1, 4)})
+        self.assertEqual(got[str(self.a)], {"state": "reading", "line": "Indexing\u2026 25%"})
+        self.assertEqual(got[str(self.b)], done[str(self.b)])
+        self.assertEqual(ask_index.folder_status(self.data, "ABC", folders, {}), done)
+
+
 class Worker(Base):
     def test_a_run_in_the_background_shows_reading_then_indexed_and_busy_returns_to_zero(self):
         self.put(self.a, "one.txt", "alpha river")
