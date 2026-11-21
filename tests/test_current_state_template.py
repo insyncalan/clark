@@ -26,23 +26,23 @@ class CurrentStateTemplate(unittest.TestCase):
         self.store = self.demo.store
 
     def first(self):
-        return next(s for s in self.store.data_for("ABC")["report_sections"] if s["id"] == "ABC-S-001")
+        return next(s for s in self.store.data_for("ABC")["report_sections"] if s["id"] == "ABC-S-003")
 
     def test_the_default_section_is_the_library_template(self):
         tpl = re.search(r'\{ id: "current-state", name: "([^"]+)", kind: "text", fit: \[([^\]]*)\], type: "([^"]+)", title: "([^"]+)", body: "([^"]*)"',
                         (SRC / "logic" / "templates.js").read_text(encoding="utf-8"))
         self.assertIsNotNone(tpl, "the library card is in templates.js")
         name, fit, typ, title, body = tpl.groups()
-        d = default_sections.DEFAULT_SECTIONS[0] if hasattr(default_sections, "DEFAULT_SECTIONS") else self.first()
+        d = next(s for s in default_sections.DEFAULT_SECTIONS if s["title"] == "Header")      # row 1266: the third section, after Headline and At a glance
         self.assertEqual((typ, body), (d["type"], d.get("body", "")))
-        self.assertEqual((d["title"], title), ("Current state", "Current state"), "row 1251: Cards keeps Current state; Classic adds it as Header (see test_starting_text_1251)")
+        self.assertEqual((d["title"], title), ("Header", "Current state"), "row 1266: the default is titled Header; the library card keeps its own title (see test_starting_text_1251)")
         self.assertEqual(name, "Header and Text")
         self.assertIn('"half"', fit)
 
     def test_the_template_words_reach_the_published_file(self):
         with self.store.step("dashboard", USER) as st:
-            st.update("report_sections", "ABC-S-001", {"body": SAID})
-        sec = next(s for s in publish.build(self.store, "ABC", now="2030-01-15")["published"]["sections"] if s["id"] == "ABC-S-001")
+            st.update("report_sections", "ABC-S-003", {"body": SAID})
+        sec = next(s for s in publish.build(self.store, "ABC", now="2030-01-15")["published"]["sections"] if s["id"] == "ABC-S-003")
         self.assertIn("Scanning is two thirds done.", sec["body"])
 
     def test_the_built_in_current_type_is_not_drawn_in_a_file(self):

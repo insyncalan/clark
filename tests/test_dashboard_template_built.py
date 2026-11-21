@@ -14,11 +14,10 @@ from _paths import SRC
 from clark import default_sections
 
 PENDING = {      # built-in type -> the row whose template replaces it
-    "glance": 1190, "usecases": 1191, "milestones": 1192,
-    "docs": 1194,      # rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions are Work items lists now
+    "usecases": 1191, "milestones": 1192,      # row 1266: the default At a glance is the glance template and the default Documents is the Files and links template, so glance and docs left PENDING
 }
 OLDER = {"current", "tracker"}       # still read and drawn, no longer a default: "current" (row 1188) and the Progress tracker (#189)
-OLD_REPORTS = {"raid", "actions", "decisions"}      # no longer a default (rows 8 to 10 of 1193), still drawn for a report that has them
+OLD_REPORTS = {"raid", "actions", "decisions", "glance", "docs"}      # no longer a default (rows 8 to 10 of 1193), still drawn for a report that has them
 PAGE = SRC / "clark" / "page" / "src"
 
 

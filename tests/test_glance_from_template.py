@@ -28,7 +28,7 @@ def run(expr):
 
 class GlanceFromTemplate(unittest.TestCase):
     def default(self):
-        return [d for d in default_sections.DEFAULT_SECTIONS if d["type"] == "glance"]
+        return [d for d in default_sections.DEFAULT_SECTIONS if d["type"] == "glancetemplate"]
 
     def test_the_new_project_has_one_glance_section(self):
         self.assertEqual(len(self.default()), 1)
