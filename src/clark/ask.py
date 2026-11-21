@@ -51,7 +51,8 @@ LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks li
 SECRET = f"That {LOOKS_LIKE}, so it wasn't sent. Take it out and try again."      # the typed question and the selected text (ai_menu.SECRET_MESSAGE is this same note)
 SECRET_EARLIER = f"An earlier message {LOOKS_LIKE}, so this chat can't be sent. Start a new chat and try again."
 LEFT_OUT = "Left out to keep this question under the size limit: {n} {passages}."   # the ruled words (row 1294); the page shows it as it comes
-WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
+WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)      # the plain words of a question, for ranking passages (ask_data uses this one too)
+ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")      # an item ID a question names
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 INSTRUCTIONS_SECRET = f"The standing instructions {LOOKS_LIKE}, so nothing was sent. Take it out in Settings and ask again."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
@@ -312,7 +313,7 @@ def _head(today, partial):
 def _ranked(chosen, question):
     """The positions in `chosen`, best first: plain keyword overlap with the question (an item ID it names counts most), the first always first."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
-    ids = set(re.findall(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b", question or ""))
+    ids = set(ID_PATTERN.findall(question or ""))
 
     def score(i):
         text = chosen[i][1].casefold()

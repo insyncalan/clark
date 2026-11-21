@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from clark import glance, publish, sanitise
 from clark import ask
 from clark import milestones, timefmt
-from clark.ask import BUDGET, MAX_PASSAGE, Passage
+from clark.ask import BUDGET, ID_PATTERN, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
 KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
@@ -39,8 +39,6 @@ SHOWN = {
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
 }
-WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
-ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
 _TAG = re.compile(r"<[^>]*>")
 
 
