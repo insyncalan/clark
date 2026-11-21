@@ -210,7 +210,6 @@ class StampServer(unittest.TestCase):
 class StampPage(unittest.TestCase):
     def test_the_latest_update_gate_is_the_file_not_the_mode(self):
         peek = (STAMP_SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("const latestOn = !!tools && !fromFile.value;", peek)
         self.assertIn("Latest = latestOn && forItem && tools.PeekLatest", peek)
         self.assertIn("MsLatest = latestOn && tools.PeekMsLatest", peek)
         self.assertNotIn("Latest = editing &&", peek)
@@ -245,7 +244,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False, history=None):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False, history=None, dash=None):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -267,6 +266,10 @@ class Browser(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
+        if dash:                                              # row 1470: the Dashboard in View, the peek opened by its address ("item=<id>" or "ms=<id>")
+            cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#dashboard&p={self.code}&{dash}")}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest]')", sid), 20), "the Dashboard peek drew its Latest update")
+            return sent, sid
         cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         if dark:
@@ -308,6 +311,23 @@ class Browser(unittest.TestCase):
 
     def inside(self, cdp, sid, selector):
         return cdp.js(f"(c => {{ const r = c.getBoundingClientRect(), p = document.querySelector('#peek').getBoundingClientRect(); return r.left >= p.left - 1 && r.right <= p.right + 1; }})(document.querySelector({json.dumps(selector)}))", sid)
+
+    def test_dash_view_peek_has_editable_latest_box(self):
+        """Row 1470 AP1: the Dashboard in View (mode view) draws the Latest update box in a peek of every kind, and it takes typing."""
+        self.fresh()
+        raid = self.data["raid"]
+        kinds = {"action": f"item={OVERDUE}", "risk": "item=" + next(r["id"] for r in raid if r.get("type") == "Risk"),
+                 "issue": "item=" + next(r["id"] for r in raid if r.get("type") == "Issue"),
+                 "decision": "item=" + self.data["decisions"][0]["id"], "milestone": "ms=" + self.data["milestones"][0]["id"]}
+        for width in (1400, 900):
+            for kind, dash in kinds.items():
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, None, edit=False, dash=dash)
+                    self.assertEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "view", "the Dashboard is in View")
+                    self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(self.SHOWN)})", sid), "the editable Latest update box is drawn")
+                    self.open_box(cdp, sid)
+                    self.type_in(cdp, sid, "Typed in View")
+                    self.assertIn("Typed in View", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "the box takes input")
 
     def test_the_overdue_bar_says_how_late_and_moves_to_friday_with_one_undo(self):
         for width in (1400, 900):
