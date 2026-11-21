@@ -627,6 +627,28 @@ class InThePage(ClassicPage):
             self.assertFalse(p.js("!!document.querySelector('.toast')"), "no toast")
             self.assertEqual(len(self.sent), sent, "nothing was sent")
 
+    def test_tabbing_through_a_label_less_link_saves_nothing(self):
+        """Row 1194 (PR 1628): an old link with no label shows its address as the name; focus then blur with no typing is not a rename. Widths 1400 and 900."""
+        ref = self.add(None)
+        self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (body([{"kind": "link", "href": "https://example.org/old"}, a_file("Plan v2.pdf")]), ref))      # stored as an old row was: no label, written past the new check
+        self.store.con.commit()
+        sel = f"[data-id={json.dumps(ref)}]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 2", "the rows drew")
+                shown = p.js(f"[...document.querySelectorAll('{sel} input[data-rename-input]')].map(i => i.value)")
+                self.assertTrue(shown[0] and shown[1], shown)
+                sent = len(self.sent)
+                for n in (0, 1):
+                    p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{n}]; el.focus(); el.blur(); }})()")
+                time.sleep(0.5)
+                self.assertFalse(p.js("!!document.querySelector('.toast')"), "no toast")
+                self.assertEqual(len(self.sent), sent, "nothing was sent")
+                self.assertNotIn("label", json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0])
+
     def test_the_page_icon_colours_are_the_badge_tokens_not_literals(self):
         """Row 1194 read (colour literals): the drawn icon takes its colours from the --badge-* tokens, none is a hex literal."""
         src = (SRC / "clark" / "page" / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")

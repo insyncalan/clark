@@ -56,8 +56,9 @@ function ClassicEdit({ section }) {
   // The name is a box in place: Enter or leaving it saves, Esc puts the old name back, an empty or unchanged name is as it was.
   const rename = (n, typed, box) => {
     const words = oneLine(typed), item = raw[n];
-    const was = item ? item.label || (item.kind === "file" ? item.name : "") : "";
-    if (!words || !item || words === was) { if (box) box.value = was || (item && item.href) || ""; return; }
+    const shown = item ? docItems({ content: { items: [item] } })[0] : null;
+    const was = shown ? shown.label || shown.name || shown.shown : "";      // the DISPLAYED name: a label-less old link shows its address or file name, and focus then blur is not a rename
+    if (!words || !item || words === was) { if (box) box.value = was; return; }
     if (labelProblem(words)) { setProblem(labelProblem(words)); if (box) box.value = was; return; }
     save(raw.map((x, i) => (i === n ? { ...x, label: words } : x)), W.RENAMED);
   };
