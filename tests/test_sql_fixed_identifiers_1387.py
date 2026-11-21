@@ -25,6 +25,7 @@ FIXED_NAMES = {
     ("store.py", "name"): "name of GANTT_PROJECT_COLUMNS, a constant tuple",
     ("store.py", "definition"): "text of GANTT_PROJECT_COLUMNS, a constant tuple",
     ("store.py", "text"): "item of OWNER_COLUMNS, a constant tuple",
+    ("store.py", "column"): "item of ASK_FILES_COLUMNS, a constant tuple of fixed column text (migrate_ask_files)",
     ("store.py", "where"): "literal clauses joined with AND; values are ? parameters",
     ("store.py", "col"): "column of REVERT_REFS (constants) or a literal column name in the same function",
     ("store.py", "f"): "a column name taken from the table's own columns (cols) before the statement is made",
