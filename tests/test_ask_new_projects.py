@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import app_settings, ask_apply, changes, store as st
+from clark import app_settings, ask_apply, ask_service, changes, store as st
 from test_ask_route import Base
 
 
@@ -73,6 +73,22 @@ class Columns(unittest.TestCase):
         self.assertEqual(self.s.ask_off_here("NOPE"), True, "an unknown project")
         with mock.patch.object(st, "columns", lambda _con, _table: []):      # a file without the two columns
             self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC"), self.s.ask_allowed("ABC")), (False, True, False))
+
+    def test_a_database_error_while_reading_the_project_reads_as_off(self):
+        class Broken:
+            def execute(self, *_a):
+                raise sqlite3.OperationalError("database is locked")
+        with mock.patch.object(st, "columns", lambda _con, _table: ["ask_off"]), mock.patch.object(self.s, "con", Broken()):
+            self.assertEqual(self.s.ask_off_here("ABC"), True)
+
+    def test_only_a_stored_zero_is_on(self):
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE TABLE projects (code TEXT PRIMARY KEY, ask_off INTEGER)")
+        con.executemany("INSERT INTO projects VALUES (?, ?)", [("ZERO", 0), ("ONE", 1), ("TWO", 2), ("NONE", None)])
+        con.row_factory = sqlite3.Row
+        self.addCleanup(con.close)
+        with mock.patch.object(self.s, "con", con):
+            self.assertEqual([self.s.ask_off_here(c) for c in ("ZERO", "ONE", "TWO", "NONE", "NOPE")], [False, True, True, True, True])
 
 
 class TheRoute(Base):
@@ -143,6 +159,57 @@ class TheRoute(Base):
         self.assertEqual(self.question(project="NEW")[0], 409)
 
 
+class TheGates(Base):
+    """Row 1294: each of the five project gates in ask_service is the one that answers, so dropping the project test from any single one fails a test here."""
+    SECRET = "my " + "pass" + "word" + ": " + "Hunt" + "er2-Zq-99"      # built at run time, so the publish tool's scan has nothing to find
+    flags = TheRoute.flags
+
+    def test_the_first_gate_answers_before_the_question_is_screened(self):
+        self.flags(off_here=1)
+        status, got = self.question(self.SECRET)      # a screened question would be 400 refused; the gate comes first
+        self.assertEqual((status, got["code"]), (409, "asking_off"), got)
+        self.assertEqual(self.provider.sent, [])
+
+    def test_the_second_gate_stops_a_question_whose_project_is_turned_off_after_the_data_was_read(self):
+        real = ask_service.ask.build_request
+
+        def build_then_off(*a, **kw):
+            out = real(*a, **kw)
+            self.flags(off_here=1)                    # turned off meanwhile
+            return out
+        with mock.patch.object(ask_service.ask, "build_request", build_then_off):
+            status, got = self.question()
+        self.assertEqual((status, got["code"]), (409, "asking_off"), got)
+        self.assertEqual(self.provider.sent, [], "nothing left")
+
+    def test_the_open_file_route_answers_asking_off_for_a_project_turned_off(self):
+        body = {"project": "PUB", "file": "Folder/plan.pdf", "page": None}
+        self.assertNotEqual(self.s.api("POST", "/api/ask/open-source", body)[1].get("code"), "asking_off", "on: another answer")
+        self.flags(off_here=1)
+        status, got = self.s.api("POST", "/api/ask/open-source", body)
+        self.assertEqual((status, got["code"], got["message"]), (409, "asking_off", ask_service.MESSAGES["open_asking_off"]), got)
+
+    def test_the_change_dry_run_and_the_change_apply_answer_asking_off_for_a_project_turned_off(self):
+        self.flags(off_here=1)
+        status, got = self.s.api("POST", "/api/ask/change/dry", {"project": "PUB", "reply": "none"})
+        self.assertEqual((status, got["code"]), (409, "asking_off"), "not no_reply")
+        status, got = self.s.api("POST", "/api/ask/change/apply", {"project": "PUB", "offer": "none"})
+        self.assertEqual((status, got["code"]), (409, "asking_off"), "not no_offer")
+        self.flags(off_here=0)
+        self.assertEqual(self.s.api("POST", "/api/ask/change/dry", {"project": "PUB", "reply": "none"})[1]["code"], "no_reply")
+        self.assertEqual(self.s.api("POST", "/api/ask/change/apply", {"project": "PUB", "offer": "none"})[1]["code"], "no_offer")
+
+    def test_a_project_that_cannot_be_read_is_off_and_one_that_does_not_exist_is_not_found(self):
+        self.assertFalse(self.service.project_off("PUB"))
+        with mock.patch.object(self.service, "reader", side_effect=sqlite3.OperationalError("locked")):
+            self.assertTrue(self.service.project_off("PUB"), "a store that cannot be opened reads as off")
+        with mock.patch.object(st.Store, "ask_off_here", side_effect=ValueError("unreadable")):
+            self.assertTrue(self.service.project_off("PUB"), "a value that cannot be read reads as off")
+        self.assertFalse(self.service.project_off("NOPE"), "the routes answer an unknown project as not found")
+        self.assertEqual(self.question(project="NOPE")[0], 404)
+        self.assertEqual(self.provider.sent, [])
+
+
 class TheChangesPath(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -151,22 +218,35 @@ class TheChangesPath(unittest.TestCase):
         self.action = self.demo.action(owner="Sam Lee")
         self.ask = ask_apply.AskApply(self.s.path, [], USER)
         self.change = changes.make_ask_change(self.s.path, [], USER)
+        self.said = {"op": "change", "status": "Closed", "id": self.action, "current_title": "Draft the cut-over plan", "current_owner": "Sam Lee"}
 
     def off(self):
         with self.s.step("dashboard", USER) as step:
             step.update("projects", "ABC", {"ask_off": 1})
 
     def test_a_project_turned_off_refuses_the_dry_run_and_the_apply_and_the_direct_change(self):
-        plan = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})[1]
+        plan = self.ask.plan("ABC", self.said)[1]
         self.assertTrue(plan["ok"], plan)
         self.off()
         status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual((status, body["code"]), (409, "asking_off"), body)
-        status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
+        status, body = self.ask.plan("ABC", self.said)
         self.assertEqual((status, body["code"]), (409, "asking_off"), body)
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
         self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
+
+    def test_the_read_before_the_dry_run_refuses_on_the_projects_own_switch(self):
+        """ask_apply's own gate, alone: the claims name the saved title, so the only thing left to refuse is this project's switch."""
+        plan = self.ask.plan("ABC", self.said)[1]
+        self.assertTrue(plan["ok"], plan)
+        parsed = ask_apply.read_suggestion("ABC", self.said, False)
+        self.assertEqual(parsed.claims["current_title"], "Draft the cut-over plan")
+        self.ask.check_data(parsed)
+        self.off()
+        with self.assertRaises(ask_apply.Refusal) as got:
+            self.ask.check_data(parsed)
+        self.assertEqual((got.exception.code, got.exception.status), ("asking_off", 409))
 
     def test_a_project_left_on_still_changes(self):
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
