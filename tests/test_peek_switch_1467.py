@@ -61,6 +61,21 @@ class Switch(base.Peeks):
                     after = cdp.js(f"({SPOT})({json.dumps(ref)})", sid)
                     self.assertEqual(after, before, "the page and the clicked row stay where they were")
 
+    def test_the_peek_takes_the_focus_on_close_without_scrolling_the_page_row_1467(self):
+        """Close takes the focus with preventScroll set: a spy on focus() sees the option, so the test is red when the option is dropped."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.ready(cdp, width)
+                ref = cdp.js(ROWS, sid)[len(cdp.js(ROWS, sid)) // 2]
+                self.place(cdp, sid, ref)
+                cdp.js("(() => { window.__focusSpy = []; const f = HTMLElement.prototype.focus;"
+                       " HTMLElement.prototype.focus = function (o) { window.__focusSpy.push({ close: this.hasAttribute('data-pk-close'), prevent: !!(o && o.preventScroll) }); return f.apply(this, arguments); }; })()", sid)
+                self.press(cdp, sid, ref)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)), "the peek opened ")
+                calls = [c for c in cdp.js("window.__focusSpy", sid) if c["close"]]
+                self.assertTrue(calls, "Close took the focus when the peek opened")
+                self.assertTrue(all(c["prevent"] for c in calls), f"every focus on Close says preventScroll: {calls}")
+
     def test_a_click_on_another_row_switches_the_open_peek(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
