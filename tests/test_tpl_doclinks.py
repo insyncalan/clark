@@ -431,6 +431,16 @@ class InThePage(ClassicPage):
                     "[li.querySelector('.tpl-badge').textContent, li.querySelector('.tpl-name').textContent, "
                     "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
 
+    def test_the_email_link_icon_is_an_envelope_with_an_at_badge_and_no_page(self):
+        """Row 1194 round 3 (Alan 18-11, pick D 'Envelope with @', the mock's 41 x 41 icon): a filled circle with '@' on an envelope, no page behind it."""
+        ref = self.add([a_link(href="mailto:team@example.org", label="Team")])
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
+            got = p.js(f"(() => {{ const s = document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg'); const r = s.getBoundingClientRect();"
+                       " return [s.getAttribute('viewBox'), !!s.querySelector('rect'), !!s.querySelector('circle'), s.querySelector('text').textContent, s.querySelectorAll('path').length, Math.round(r.width), Math.round(r.height)]; })()")
+            self.assertEqual(got, ["0 0 41 41", True, True, "@", 1, 41, 41], "an envelope (rect + flap), a filled circle, '@', no page path, 41 x 41")
+
     def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
         ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])
         empty = self.add([], "Fictional empty papers")
@@ -439,7 +449,7 @@ class InThePage(ClassicPage):
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
             self.assertEqual(self.entries(p, ref), [
                 ["URL", "The plan", "SPAN", None],
-                ["MAIL", "Team", "SPAN", None],
+                ["@", "Team", "SPAN", None],
                 ["PDF", "Plan v2.pdf", "SPAN", None]], "in the editor's View a name stays plain text")
             self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.getAttribute('aria-label') + ' ' + a.getAttribute('href'))"),
                              ["Open The plan https://example.org/plan", "Open Team mailto:team@example.org"], "a link gets Open only")
@@ -685,7 +695,7 @@ class MockupLook(InThePage):
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-facts')].map(e => e.textContent)"),
                                  ["Word · 88 KB", "Image · 1.1 MB", "File · 2 KB", "Web link · example.org", "Email link · pmo@example.com"], w)
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => e.textContent)"),
-                                 ["DOC", "PNG", "TXT", "URL", "MAIL"], w)
+                                 ["DOC", "PNG", "TXT", "URL", "@"], w)
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
                                  [41] * 5, f"a page icon 41 px tall at {w}")
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} a.tpl-act')].map(a => !!a.querySelector('svg') && a.textContent.trim() === '' && "
@@ -751,7 +761,7 @@ class MockupLook(InThePage):
                 self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
 
     def test_values_the_code_measured_and_the_ones_the_mock_gives_are_pinned_and_labelled(self):
-        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: --badge-ink 111 as a hex without the hash (the page icon outline), the header's padding-right 112px,
+        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: the header's padding-right 112px,
         the icon row's margin -56px (see the title-line pin above). From the mock: the link box width 340px and top 54px (its .pop), the note's padding 10px 14px (its .al)."""
         ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
         sel = f"[data-id={json.dumps(ref)}]"
@@ -760,7 +770,7 @@ class MockupLook(InThePage):
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
             for w in self.widths(p, cdp):
-                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "#111", f"code measurement, not from the mock, at {w}")
+                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "#0E2430", f"the mock's ink (page icon outline), at {w}")
                 self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sel} .sec-head') || document.querySelector('{sel}').closest('.sec').querySelector('.sec-head')).paddingRight"), "112px", f"code measurement, not from the mock, at {w}")
                 p.js(f"document.querySelector('{sel} [data-open-link]').click()")
                 p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")

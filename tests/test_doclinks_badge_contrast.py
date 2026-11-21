@@ -6,6 +6,10 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
 THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
+# Row 1194 round 3 (Alan 18-11, approved mock-up; Jarvis ruling 19-11: no exemption for accessibility, the mock's colours win): these page-icon fills are the
+# mock's own and white text on them measures below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08). The narrowest named exemption: exactly these five, so a
+# sixth kind that falls under 4.5:1 still fails here.
+MOCK_BELOW_4_5 = {"PDF", "XLS", "PPT", "PNG", "TXT"}
 
 
 def lum(h):
@@ -39,7 +43,10 @@ class BadgeContrast(unittest.TestCase):
             bg = val(re.search(r"background:\s*var\((--badge-[a-z]+)\)", rule.group(1)).group(1))
             fg = re.search(r"(?<!-)color:\s*var\((--badge-ink)\)", rule.group(1))
             r = ratio(val(fg.group(1)) if fg else "#fff", bg)
-            self.assertGreaterEqual(r, 4.5, "%s published badge %.2f:1" % (kind, r))
+            if kind in MOCK_BELOW_4_5:
+                self.assertLess(r, 4.5, "%s is named as below 4.5:1 in MOCK_BELOW_4_5: take it out of the exemption" % kind)
+            else:
+                self.assertGreaterEqual(r, 4.5, "%s published badge %.2f:1" % (kind, r))
 
     def test_the_editor_icon_band_text_reaches_4_5_on_every_kind(self):
         """Code measurement, not mock: the same 4.5:1 rule for the drawn page icon's band."""
@@ -49,11 +56,14 @@ class BadgeContrast(unittest.TestCase):
         for kind in KINDS:
             self.assertIn(kind, band)
             r = ratio(tok[text.get(kind, "--white")], tok[band[kind]])
-            self.assertGreaterEqual(r, 4.5, "%s editor icon band %.2f:1" % (kind, r))
+            if kind in MOCK_BELOW_4_5:
+                self.assertLess(r, 4.5, "%s is named as below 4.5:1 in MOCK_BELOW_4_5: take it out of the exemption" % kind)
+            else:
+                self.assertGreaterEqual(r, 4.5, "%s editor icon band %.2f:1" % (kind, r))
 
 
     def test_the_editor_page_icon_band_is_the_tile_colour_on_every_kind(self):
-        """F4 (ruling 20-11 23:0x): the editor's page icon follows the tile palette (C62828 1E7B45 C4501B 7B3FB8 5A6B77, white text), not the mock's page-icon palette."""
+        """Row 1194 round 3 (Alan 18-11, the approved mock-up): the editor's page icon and the published tile use the mock's page-icon palette (E8410C 1E9B4B E8601C 6B46C1 E0358B F2A400, white text); the outline ink is 0E2430."""
         src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         band = table(src, "BAND")
         css = THEME.read_text(encoding="utf-8")
@@ -61,7 +71,8 @@ class BadgeContrast(unittest.TestCase):
         for kind in KINDS:
             rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
             self.assertEqual(band[kind], re.search(r"background:\s*var\((--badge-[a-z]+)\)", rule.group(1)).group(1), "%s: page icon band token = tile token" % kind)
-        self.assertEqual([tok["--badge-" + k].upper() for k in ("pdf", "xls", "ppt", "jpg", "txt")], ["#C62828", "#1E7B45", "#C4501B", "#7B3FB8", "#5A6B77"])
+        self.assertEqual([tok["--badge-" + k].upper() for k in ("pdf", "xls", "ppt", "jpg", "png", "txt")], ["#E8410C", "#1E9B4B", "#E8601C", "#6B46C1", "#E0358B", "#F2A400"])
+        self.assertEqual(tok["--badge-ink"].upper(), "#0E2430")
         self.assertEqual(table(src, "BAND_TEXT"), {}, "white text on every band")
 
 

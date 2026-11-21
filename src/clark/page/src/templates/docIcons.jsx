@@ -16,13 +16,21 @@ const GLYPHS = {
   PNG: <path d="M11 11h6v5h-6zM23 11h6v5h-6zM17 16h6v5h-6zM11 21h6v5h-6zM23 21h6v5h-6z" fill={COLOURS.PNG} stroke="none" />,
   TXT: <path d="M13 11h14v14H13zM16 15h8M16 19h8" stroke={COLOURS.TXT} />,
   URL: <g transform="translate(8.5 7) scale(.95)" stroke={COLOURS.URL}><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1" transform="scale(.75) translate(-2 -1)" /></g>,
-  MAIL: <><rect x="11" y="11" width="18" height="13" rx="1.5" stroke={COLOURS.MAIL} /><path d="M11 13l9 6 9-6" stroke={COLOURS.MAIL} /></>,
 };
 const INK = "var(--badge-ink)";
 
 // The icon for a label (PDF DOC XLS PPT JPG PNG TXT URL MAIL, else FILE): 41px tall, the height of a row's two text lines.
 export function PageIcon({ label }) {
-  if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] ? label : "FILE"}`}>{label}</span>;
+  if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] || label === "MAIL" ? label : "FILE"}`}>{label}</span>;
+  if (label === "MAIL") return (            // Alan's pick D (18-11): an envelope with an @ badge, no page behind it (the mock's Email link icon, 41 x 41)
+    <span class="tpl-badge tpl-page tpl-mail">
+      <svg viewBox="0 0 41 41" width="41" height="41" aria-hidden="true" focusable="false">
+        <g fill="none" stroke={COLOURS.MAIL} stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="30" height="22" rx="3.5" /><path d="M5 11l14 10 14-10" /></g>
+        <circle cx="32" cy="30" r="8" fill={COLOURS.MAIL} />
+        <text x="32" y="34" text-anchor="middle" font-size="11" font-weight="700" fill="var(--white)" font-family="Inter, system-ui, sans-serif">@</text>
+      </svg>
+    </span>
+  );
   const key = GLYPHS[label] ? label : "FILE";
   return (
     <span class="tpl-badge tpl-page">
