@@ -560,8 +560,8 @@
    {
     "id": "keep-the-use-cases",
     "g": "The report",
-    "t": "Keep the use case summary",
-    "w": "Dashboard › Use case summary",
+    "t": "Keep the use cases",
+    "w": "Dashboard › Use cases",
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then a heading line (Ref, Use case, Status, Commitment, Next steps) and one slim row each: the ID, the name, the headline, the status, the commitment (in View, a dash when none; in Edit, a Set commitment button) and the open next steps. Until a number is set in Configure, the first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter cover every use case on the dashboard. On a use case’s own page, **Add a milestone** links it to a milestone and **Unlink** takes the link away; a milestone one of its work items has shows there by itself, as through work items. Each is one step you can undo, and History says who did it.",
@@ -984,7 +984,7 @@
         "Project health with its reason, and the count tiles."
        ],
        [
-        "Use case summary",
+        "Use cases",
         "A strip of counts, then a row per use case that opens in place."
        ],
        [
@@ -1151,7 +1151,7 @@
         "Full or half"
        ],
        [
-        "Use case summary",
+        "Use cases",
         "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
         "Full"
        ],

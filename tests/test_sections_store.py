@@ -15,7 +15,7 @@ from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 TEN = (
-    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
+    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use cases", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 8, 9 and 10 of item 1193
     ("docs", "Supporting documents", 0))

@@ -23,7 +23,7 @@ OPEN_ACTIONS_BODY = '{"caption":"","columns":["type","id","owner","due","priorit
 DEFAULT_SECTIONS = (
     {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
-    {"type": "usecases", "title": "Use case summary"},
+    {"type": "usecases", "title": "Use cases"},
     {"type": "milestones", "title": "Milestones"},
     {"type": "text", "title": "This week", "beside": 1},
     {"type": "text", "title": "Next week"},

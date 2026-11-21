@@ -163,7 +163,7 @@ class ReportSectionsHasNoNeedsFromYou(unittest.TestCase):
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
         """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
         names = [r[0] for r in self.TABLE[2]]
-        self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Current state, This week, Next week"])
+        self.assertEqual(names, ["At a glance", "Use cases", "Milestones", "Current state, This week, Next week"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
         for t in ("raid", "actions", "decisions", "needs"):
