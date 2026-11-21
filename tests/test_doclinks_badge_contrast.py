@@ -6,7 +6,7 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
 THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
-# Row 1194 round 3 (Alan 18-11, approved mock-up; Jarvis ruling 19-11: no exemption for accessibility, the mock's colours win): these page-icon fills are the
+# Row 1194 round 3 (approved mock-up 18-11; ruling 19-11: no exemption for accessibility, the mock's colours win): these page-icon fills are the
 # mock's own and white text on them measures below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08). The narrowest named exemption: exactly these five, so a
 # sixth kind that falls under 4.5:1 still fails here.
 MOCK_BELOW_4_5 = {"PDF", "XLS", "PPT", "PNG", "TXT"}
@@ -63,7 +63,7 @@ class BadgeContrast(unittest.TestCase):
 
 
     def test_the_editor_page_icon_band_is_the_tile_colour_on_every_kind(self):
-        """Row 1194 round 3 (Alan 18-11, the approved mock-up): the editor's page icon and the published tile use the mock's page-icon palette (E8410C 1E9B4B E8601C 6B46C1 E0358B F2A400, white text); the outline ink is 0E2430."""
+        """Row 1194 round 3 (the approved mock-up, 18-11): the editor's page icon and the published tile use the mock's page-icon palette (E8410C 1E9B4B E8601C 6B46C1 E0358B F2A400, white text); the outline ink is 0E2430."""
         src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         band = table(src, "BAND")
         css = THEME.read_text(encoding="utf-8")

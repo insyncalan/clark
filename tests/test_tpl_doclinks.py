@@ -241,7 +241,7 @@ class Saved(Api):
         whole section was locked until the editor removed it). It is changed to option A, because a report with one old entry could
         not be saved at all, not even to fix another line: a save keeps an entry the section already holds when it comes back
         unchanged; a changed or new entry meets every rule; publish reads the section's own stored text too, so the section is still
-        published with the old entry in it (Romanoff finding 21-11: dropping it silently was refused)."""
+        published with the old entry in it (finding of 21-11: dropping it silently was refused)."""
         for name, old, fixed, words in (
                 ("link with no words", a_link(label=""), a_link(label="Words now"), "Link 2: Enter a link description."),
                 ("file with an ending that is not allowed", a_file(name="old.zip"), a_file(name="old.exe"), "old.exe: " + doclinks.BAD_TYPE_TAIL)):
@@ -432,7 +432,7 @@ class InThePage(ClassicPage):
                     "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
 
     def test_the_email_link_icon_is_an_envelope_with_an_at_badge_and_no_page(self):
-        """Row 1194 round 3 (Alan 18-11, pick D 'Envelope with @', the mock's 41 x 41 icon): a filled circle with '@' on an envelope, no page behind it."""
+        """Row 1194 round 3 (approved 18-11, pick D 'Envelope with @', the mock's 41 x 41 icon): a filled circle with '@' on an envelope, no page behind it."""
         ref = self.add([a_link(href="mailto:team@example.org", label="Team")])
         with chrome() as cdp:
             p = self.visit(cdp)
