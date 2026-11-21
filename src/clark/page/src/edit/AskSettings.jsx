@@ -8,6 +8,7 @@ import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, AS
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
+import { FilesAll, FilesProject } from "./FilesSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
@@ -260,9 +261,10 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
-    {classicTheme() ? <UsageProject /> : null}
     {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
+    {classicTheme() ? <FilesProject code={code} /> : null}
     {classicTheme() ? <ChatsProject /> : null}
+    {classicTheme() ? <UsageProject /> : null}
     </>
   );
 }
@@ -280,6 +282,7 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <FilesAll /> : null}
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
     {classicTheme() ? <ChatsAll /> : null}
