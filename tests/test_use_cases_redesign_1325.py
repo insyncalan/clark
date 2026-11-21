@@ -9,7 +9,7 @@ Contract the build must meet (the names are the Work items names, so the build c
   R1  `#usecases table.items`, ONE `thead tr.colh`, headers Use case / Where it stands / Status / Owner / Next steps / Milestone and a last cell
       holding the Columns button; rows `tbody tr[data-uc]` with td.c-item (.t title, .meta2 grey line "UC 1.1 · Committed"), td.c-where,
       td.c-status (.pill), td.c-owner (.av and .on), td.c-steps (.stp text, .prg bar with an inner i), td.c-ms (Milestone), td.c-eye (.weye);
-      head, tabs with counts, `.fline` filter box, `.fline-tail` with the List/Board pair and the Group by / Sort by icon buttons.
+      head, tabs with counts, `.fline` filter box, `.fline-tail` with the List/Board pair and the Group by / Sort by labelled buttons (icon buttons until Row 1316 follow-up).
   R2  a use case hidden from the client: `tr.off`, all row text #667391, pill unfilled with a ring, grey avatar, crossed-out eye.
   R3  `button[aria-label=Columns]` in the last th; its menu `.cols-menu` of role=menuitemcheckbox rows; Use case and Status locked.
   R4  grouped by Status: one heading button per group, one column header, shut group hides its rows (the heading look is the grouped-heading row's).
@@ -148,11 +148,12 @@ class Redesign:
                 self.assertEqual(g["tabs"], [["All use cases", "4"], ["On the dashboard", "2"], ["Committed", "1"], ["At risk", "2"]])
                 self.assertTrue(g["fline"], "the filter box with its count")
                 self.assertEqual(g["lsw"], ["List", "Board"], "the list/board pair")
-                self.assertEqual(g["icons"], 2, "the Group by and Sort by icon buttons")
+                self.assertEqual(g["icons"], 2, "the Group by and Sort by buttons (labelled since Row 1316 follow-up)")
                 self.assertEqual([r["ref"].split(" · ")[0] for r in g["rows"]], ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])
                 self.assertTrue(g["noScroll"])
-                for r in g["rows"]:
-                    self.assertEqual(r["rule"][:2], ["1px", "solid"], "a thin row rule under every row: " + r["uc"])
+                for i, r in enumerate(g["rows"]):
+                    last = i == len(g["rows"]) - 1   # Row 1405: no line under the last row
+                    self.assertEqual(r["rule"][:2], ["0px", "none"] if last else ["1px", "solid"], "a thin row rule under every row but the last: " + r["uc"])
                     self.assertTrue(r["eye"], "the eye is the last cell")
                     for k, hide in enumerate(NAMES):
                         left = r["left"][k]
@@ -168,9 +169,7 @@ class Redesign:
                 self.assertEqual(one["av"], "PD")
                 self.assertEqual(g["rows"][3]["av"], None, "no owner, no avatar")
                 self.assertEqual(one["stp"], "1 next step")
-                self.assertEqual(one["prgH"], 4)
-                self.assertAlmostEqual(one["prgFill"], 0.5, delta=0.02, msg="1 of 2 work items closed")
-                self.assertAlmostEqual(g["rows"][1]["prgFill"], 0.0, delta=0.02)
+                self.assertEqual(one["prgH"], 0, "Row 1399: the prototype draws no progress bar under the next steps (it stays in the markup, not drawn)")
                 if w == 1400:
                     self.assertTrue(one["onVis"] and one["onText"] == "Pat Demo", "1400: the owner's name beside the avatar")
                     self.assertTrue(one["msVis"] and (one["ms"] or "").strip(), "the milestone cell names the linked milestone")
@@ -186,8 +185,12 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
+                for k in ("av", "gutter"):   # Row 1399 and Row 1405: th, td and vtab are the prototype's on Use cases and no longer equal to Work items (pinned in test_use_cases_rows_1399 and test_use_cases_box_1405); not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
+                    if k == "vtab":   # row 1394: the Work items tab is the prototype's 15px, padding 9px 10px 8px, 3px underline (its own look); the weight, colours and side padding stay the same on both pages
+                        keep = (1, 2, 4, 6)
+                        self.assertEqual([uc[k][i] for i in keep], [wk[k][i] for i in keep], k + ": weight, colour, side padding and underline colour the same as Work items")
+                        continue
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 
     # R2 ---------------------------------------------------------------------------------------------------------------------------

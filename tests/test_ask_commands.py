@@ -1,4 +1,4 @@
-"""#1295: the files of ask clark shortcuts (ask_commands.py): read, write, validate, remove, reset. No browser.
+"""#1295: the files of ask clark slash commands (ask_commands.py): read, write, validate, remove, reset. No browser.
 
 Run: python3 dev/run_tests.py test_ask_commands
 """
@@ -153,8 +153,8 @@ class AskCommandsKillersTest(unittest.TestCase):
         self.assertIn("only lower case", ac.name_problem("ab\u00e9"))
 
     def test_problems_lists_all_in_order_and_survives_odd_values(self):
-        self.assertEqual(ac.problems("x"), ["That shortcut could not be read."])
-        self.assertEqual(ac.problems(None), ["That shortcut could not be read."])
+        self.assertEqual(ac.problems("x"), ["That slash command could not be read."])
+        self.assertEqual(ac.problems(None), ["That slash command could not be read."])
         odd = ac.problems({"name": "check", "menu": 5, "text": ["x"], "scope": "item", "result": "answer"})
         self.assertEqual(len(odd), 2)
         self.assertIn("menu", odd[0])
@@ -176,7 +176,7 @@ class AskCommandsKillersTest(unittest.TestCase):
         for bad in ("../x", "a/b", "", "A", "a.json", "-a"):
             with self.assertRaises(ac.Refused, msg=bad) as cm:
                 self.s._file(bad)
-            self.assertIn("not a shortcut's name", str(cm.exception))
+            self.assertIn("That is not a name a slash command can have.", str(cm.exception))
         self.assertEqual(self.s._file("who"), self.d / "who.json")
 
     def test_write_of_a_non_record_says_it_could_not_be_read(self):
@@ -329,6 +329,9 @@ class AskCommandsKillersRound2Test(unittest.TestCase):
         self.assertEqual(ac.name_problem("Check"), "Use lower case letters only in the name.")
         self.assertEqual(ac.name_problem("a_b"), "The name can have only lower case letters, numbers and hyphens.")
         self.assertEqual(ac.name_problem("a b"), "The name cannot have spaces. Use a hyphen instead.")
+        self.assertEqual(ac.name_problem("a"), "The name needs at least 2 characters.")
+        self.assertEqual(ac.name_problem("a" * 25), "The name can be at most 24 characters.")
+        self.assertEqual(ac.name_problem("1ab"), "The name must start with a letter.")
         self.assertEqual(ac.problems({**GOOD, "menu": "m" * 71}), ["The line in the menu can be at most 70 characters."])
         self.assertEqual(ac.problems({**GOOD, "menu": ""}), ["Say what it does in the menu, in a few words."])
         self.assertEqual(ac.problems({**GOOD, "text": "t" * 1001}), ["The instructions can be at most 1,000 characters."])
@@ -344,13 +347,13 @@ class AskCommandsKillersRound2Test(unittest.TestCase):
             self.s.write({**GOOD, "name": "cmd-%02d" % i})
         with self.assertRaises(ac.Refused) as cm:
             self.s.write({**GOOD, "name": "one-more"})
-        self.assertEqual(str(cm.exception), "You can keep 20 shortcuts in a project. Remove one to add another.")
+        self.assertEqual(str(cm.exception), "You can keep 20 slash commands in a project. Remove one to add another.")
 
     def test_a_save_that_fails_before_the_side_file_exists_is_refused_not_crashed(self):
         with mock.patch.object(Path, "write_text", side_effect=OSError("full")):
             with self.assertRaises(ac.Refused) as cm:
                 self.s.write(GOOD)
-        self.assertEqual(str(cm.exception), "That shortcut could not be saved. Nothing was changed.")
+        self.assertEqual(str(cm.exception), "That slash command could not be saved. Nothing was changed.")
         self.assertEqual(list(self.root.rglob("*.json*")), [])
 
 

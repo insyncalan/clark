@@ -70,7 +70,7 @@ class Look(PublishedFile, Setup):
             p.js("(() => { const sh = new CSSStyleSheet(); sh.replaceSync(%s); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sh]; })()" % json.dumps(EDIT_RULE))
             p.js("""(() => { const box = document.querySelector('.msl-box'); if (%s) box.setAttribute('style', '--msl-cols: 400px 300px 150px 90px; --msl-cols-w: 400px 300px 150px 90px');
               const hc = document.createElement('div'); hc.className = 'msl-hc'; hc.style.display = 'grid'; hc.innerHTML = '<span>a</span><span>b</span><span>c</span><span id="hp">d</span>';
-              const ul = box.querySelector('ul'); ul.parentNode.insertBefore(hc, ul); })()""" % ("true" if saved else "false"))
+              const ul = box.querySelector('.msl-row').parentNode; ul.parentNode.insertBefore(hc, ul); })()""" % ("true" if saved else "false"))
             res = p.js(PROBE)
             more = p.js("""(() => { const t = (e) => getComputedStyle(e).gridTemplateColumns;
               return {cells: t(document.querySelector('.msl-cells')), head: t(document.querySelector('.msl-hc')), classicDefault: document.querySelector('.msl-cells').matches('.msl-box[data-place="page"]:not([style*="--msl-cols:"]) .msl-cells')}; })()""")
@@ -98,7 +98,7 @@ class Look(PublishedFile, Setup):
                         self.assertTrue(r["hasBar"])
                         self.assertAlmostEqual(r["fillW"] / r["barW"], pct / 100, delta=.01, msg=name)
                         self.assertEqual(r["barH"], 6)
-                        self.assertEqual(r["weight"], "700", "the percent is bold")
+                        self.assertEqual(r["weight"], "600", "the percent is 600 (row 1396 ruling)")
                         self.assertEqual(r["numAlign"], "right")
                         self.assertEqual(r["tab"], "tabular-nums")
                         self.assertEqual(r["numColor"], r["heading"], "the percent is the heading colour (row 1315)")
@@ -149,7 +149,7 @@ class ProgressRulesPinned(unittest.TestCase):
         start = rules.index("/* Row 1315, progress part")
         got = [l for l in rules[start:].split("\n/* Row ", 2)[0].split("\n") if l.strip()]
         self.assertEqual(got, [
-            '/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */',
-            '.msl-box[data-place="page"] .msl-prog .num { min-width: 2.75rem; text-align: right; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; color: var(--heading); }',
+            '/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a right-aligned percent at weight 600. */',
+            '.msl-box[data-place="page"] .msl-prog .num { min-width: 36px; width: 2.75rem; flex: none; text-align: right; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--heading); }      /* min-width 36px is the ticket value (prototype); it is inert beside the fixed 2.75rem slot, which keeps every bar the same length */',
             '@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }',
         ])

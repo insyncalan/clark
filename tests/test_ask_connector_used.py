@@ -5,22 +5,25 @@ The command is faked (nothing is started); the run goes through the real ClaudeC
 Run: python3 dev/run_tests.py test_ask_connector_used
 """
 import json
+import logging
 import os
 import shutil
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
 import _publish_fixture as plant
+from clark import log as clog
 from clark import ask, ask_claude as ac, ask_connector_screen as scr, ask_connectors, ask_service
 from clark import ask_connector_stream as cs
 from clark.store import open_store
 from test_ask_connector_wiring import LIST_M365, P, PATH, final, got, stream, use
 
-LINE = "Used: Read your mail (3 messages)"
+LINE = "Used: Mail"
 
 
 def mail(i="1", text='[{"s": "a"}, {"s": "b"}, {"s": "c"}]'):
@@ -86,7 +89,7 @@ class TheAnswer(Base):
         self.provider.connector_runner = lambda: LIST_M365
         self.out = stream(*mail(), use("2", f"{P}__outlook_calendar_search"), got("2", '[{"e": 1}]'), final("Fine.\nCITE: P1"))
         body = self.ask()
-        self.assertEqual(body["used"]["line"], "Used: Read your mail (3 messages), Read your calendar (1 event)")
+        self.assertEqual(body["used"]["line"], "Used: Mail, Calendar")
         self.assertEqual(body["used"]["used"], ["Mail", "Calendar"])
         self.assertEqual([s["part"] for s in body["used"]["sources"]], ["Mail", "Calendar"])
         self.assertTrue(all(s["from_connector"] is True for s in body["used"]["sources"]))
@@ -94,21 +97,44 @@ class TheAnswer(Base):
     def test_a_countless_answer_shows_no_count(self):
         self.turn_on()
         self.out = stream(*mail(text="Subject: Lunch"), final("Fine.\nCITE: P1"))
-        self.assertEqual(self.ask()["used"]["line"], "Used: Read your mail")
+        self.assertEqual(self.ask()["used"]["line"], "Used: Mail")
 
-    def test_a_connector_on_but_nothing_called_carries_empty_used_and_no_note(self):
+    def test_the_service_calls_the_hook_once_per_connector_used_and_never_with_content(self):
         self.turn_on()
-        body = self.ask()
-        self.assertEqual(body["used"], {"line": "", "used": [], "not_used": [], "sources": []})
-        self.assertNotIn("", body["notes"])
-        self.assertEqual(body["notes"], [])
+        self.turn_on("calendar")
+        self.out = stream(*mail(text='[{"s": "SECRET-SUBJECT"}]'), use("2", f"{P}__outlook_calendar_search"), got("2", '[{"e": 1}]'), final("Fine.\nCITE: P1"))
+        seen = []
+        self.service.used_hook = seen.append
+        self.ask()
+        self.assertEqual(seen, ["Mail", "Calendar"])
 
-    def test_a_refused_run_is_no_answer_with_no_used_data(self):
+    def test_no_hook_call_when_no_connector_was_used(self):
         self.turn_on()
-        self.out = stream(*mail(text="a​b"), final("Fine.\nCITE: P1"))
-        status, body = self.service.ask({"project": "PUB", "question": "What is the state of the plan?"})
-        self.assertFalse(body["ok"])
-        self.assertNotIn("used", body)
+        seen = []
+        self.service.used_hook = seen.append
+        self.ask()
+        self.assertEqual(seen, [])
+
+    def test_a_hook_that_fails_does_not_stop_the_answer(self):
+        self.turn_on()
+        self.out = stream(*mail(), final("Fine.\nCITE: P1"))
+        def boom(part):
+            raise OSError("disk")
+        self.service.used_hook = boom
+        self.assertTrue(self.ask()["ok"])
+
+    def test_the_launcher_hook_writes_one_timed_line_with_the_name_only(self):
+        from clark import __main__ as main
+        log = clog.Log(self.d / "logs", clock=lambda: datetime(2026, 11, 20, 14, 5, 9))
+        handler = clog.install(log, "clark.main")
+        self.addCleanup(logging.getLogger("clark.main").removeHandler, handler)
+        for part in ("Unknown", "Mail", "Calendar", "Teams", "SharePoint and OneDrive", "Todoist"):
+            main.log_connector_used(part)
+        lines = "".join(f.read_text(encoding="utf-8") for f in (self.d / "logs").glob("clark-*.log")).splitlines()
+        self.assertEqual(len(lines), 5, lines)
+        self.assertTrue(lines[0].startswith("2026-11-20 14:05:09 INFO "), lines[0])
+        self.assertTrue(all(" INFO " in ln for ln in lines), lines)
+        self.assertEqual([ln.split("ask used connector ")[1] for ln in lines], ["Mail", "Calendar", "Teams", "SharePoint and OneDrive", "Todoist"])
 
 
 class WithNoConnector(Base):
@@ -140,7 +166,7 @@ class WithNoConnector(Base):
     def test_the_helper_carries_not_used_and_names_only_the_parts_used(self):
         line = scr.used_line(scr.screen_all([("outlook_email_search", "[1]"), ("teams_list_chats", "a\u200bb")]))
         self.assertEqual(ask_service.connector_used(line),
-                         {"line": "Used: Read your mail (1 message). Not used: Teams chats has hidden characters", "used": ["Mail"],
+                         {"line": "Used: Mail. Not used: Teams chats has hidden characters", "used": ["Mail"],
                           "not_used": ["Teams chats has hidden characters"], "sources": [{"part": "Mail", "from_connector": True}]})
 
     def test_the_connector_used_helper_is_none_for_none(self):
