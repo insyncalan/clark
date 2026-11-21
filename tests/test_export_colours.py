@@ -30,6 +30,9 @@ class ExportColours(unittest.TestCase):
         css["--white"] = "FFFFFF"                     # tokens.css writes it as #fff
         wrong = {}
         for name, hexa in excel_colours.TOKENS.items():
+            if name in excel_colours.EXPORT_TOKENS:      # item 1390: tokens only the workbook reads; tokens.css (a pinned page file) must not carry them
+                self.assertNotIn(f"--{name}", css, name)
+                continue
             have = css.get(f"--{name}")
             if have is None:
                 wrong[name] = "not in tokens.css"
@@ -38,7 +41,7 @@ class ExportColours(unittest.TestCase):
         self.assertEqual(wrong, {}, "the export table is not what tokens.css says")
 
     def test_the_word_file_uses_the_same_table(self):
-        self.assertEqual(docx_build.TOKENS, excel_colours.TOKENS)
+        self.assertEqual(docx_build.TOKENS, {k: v for k, v in excel_colours.TOKENS.items() if k not in excel_colours.EXPORT_TOKENS})      # item 1390: bar the workbook-only tokens
 
     def test_the_old_demo_palette_is_gone_from_the_code(self):
         text = (ROOT / "src" / "clark" / "excel_colours.py").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "docx_build.py").read_text(encoding="utf-8")
@@ -110,6 +113,8 @@ class FontsAndNothingWrittenByHand(unittest.TestCase):
         """Every string in the code (not a docstring or a comment) of the modules that make Word, Excel and email files."""
         for name in ("docx_build", "excel_colours", "excel", "excel_cover", "draft_email"):
             found = written_by_hand((ROOT / "src" / "clark" / f"{name}.py").read_text(encoding="utf-8"))
+            if name == "excel_colours":      # item 1390: the one place the workbook-only tokens are written, as the hex they are
+                found = [t for t in found if t not in excel_colours.EXPORT_TOKENS.values()]
             self.assertEqual(found, [], f"{name} writes a colour or font name of its own")
 
     def test_the_scan_finds_each_kind_of_hand_written_value(self):
