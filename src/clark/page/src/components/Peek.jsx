@@ -218,14 +218,15 @@ export function Peek({ tools }) {
   const box = useRef(null), back = useRef(null), pending = useRef(""), pendingKind = useRef("item"), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
+  const dashView = !!tools && !fromFile.value && classicTheme();      // row 1470: the Latest update box is drawn on a Dashboard peek in View too (Classic; a published file stays read only)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const History = editing && tools.PeekHistory;      // row 1180: the history tabs (All, Activity, Updates, Source) under the body
-  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = msEditing && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
+  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = (msEditing || dashView) && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
-  const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
+  const Warn = editing && forItem && tools.PeekWarn, Latest = (editing || dashView) && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
   const Source = !!tools && !fromFile.value && tools.PeekSource;

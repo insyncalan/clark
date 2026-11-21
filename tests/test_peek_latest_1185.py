@@ -1,14 +1,16 @@
-"""Row 1185: the Latest update box on a risk, an issue and a milestone peek in a real browser (1400 and 900: save, one Undo, the history link), the
+"""Row 1470 (v1.3): the Dashboard peek draws the editable Latest update box in View and in Edit (Classic), above Details, with the mock-up's stamp and Created entry.
+Row 1185: the Latest update box on a risk, an issue and a milestone peek in a real browser (1400 and 900: save, one Undo, the history link), the
 milestone Latest update in the published file, and the few source checks that remain (the box itself is covered in test_peek_latest). Run: python3 dev/run_tests.py test_peek_latest_1185
 """
 import json
+import sys
 import unittest
 
-from _paths import SRC
+from _paths import ROOT, SRC
 from test_milestone_peek_828 import Fields
 from test_movement_page import GO_LIVE, Base
 from _demo import USER, DemoStore
-from clark import changes, publish
+from clark import activity_read, changes, publish
 import test_peek_latest
 from test_server import chrome, wait
 
@@ -65,7 +67,111 @@ class RaidBox(unittest.TestCase):
                     self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "the link is there after the Undo")
 
 
+DASH_ITEMS = (("TUL-007", "risk", "item"), ("TUL-010", "issue", "item"), ("TUL-A-001", "action", "item"), ("TUL-D-013", "decision", "item"), ("TUL-M-001", "milestone", "milestone"))
+PANEL = "#peek [data-pk-latest]"
+
+
+class DashPeek(unittest.TestCase):
+    """Row 1470: the peek opened from the Dashboard (Classic page), in View and in Edit, at 1400 and 900."""
+    load, open_box, type_in, save_key, toast, fresh, refused = (_B.load, _B.open_box, _B.type_in, _B.save_key, _B.toast, _B.fresh, _B.refused)
+    HOLD, SHOWN, BOX = _B.HOLD, _B.SHOWN, _B.BOX
+    setUp = _B.setUp
+
+    def each(self, check, items=DASH_ITEMS, modes=("view", "edit"), dark=False):
+        """`check(cdp, sid, sent, ref, label, mode)` for every item, mode and width, each in its own browser and subTest."""
+        for width in (1400, 900):
+            for mode in modes:
+                for ref, label, kind in items:
+                    with self.subTest(width=width, mode=mode, kind=label), chrome() as cdp:
+                        sent, sid = self.load(cdp, width, ref, edit=False, dash=mode, kind=kind, classic=True, dark=dark)
+                        check(cdp, sid, sent, ref, label, mode)
+
+    def test_dash_view_peek_has_editable_latest_box(self):
+        def check(cdp, sid, sent, ref, label, mode):
+            self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(PANEL + ' [data-pk-lbox] [data-rich=latest_update]')})", sid), "the box is drawn")
+            self.assertTrue(cdp.js(f"/Draft with AI/.test(document.querySelector({json.dumps(PANEL)}).textContent)", sid), "with Draft with AI")
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, f"{label} dash words")
+            self.save_key(cdp, sid)
+            self.assertTrue(wait(lambda: f"{label} dash words" in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)), "it is editable: the saved words are shown")
+            self.assertEqual(len(sent), 1, "one request")
+            self.assertIn(f"{label} dash words", sent[0]["changes"]["latest_update"])
+        self.each(check)
+
+    def test_latest_panel_above_details_1400_900(self):
+        def check(cdp, sid, sent, ref, label, mode):
+            r = cdp.js("(() => { const p = document.querySelector('#peek [data-pk-latest]'), b = p.querySelector('[data-pk-lbox]'), v = b.querySelector('.rt-view'), c = getComputedStyle(b), t = getComputedStyle(v),"
+                       " dl = document.querySelector('#peek dl'); return { top: b.getBoundingClientRect().top, dl: dl ? dl.getBoundingClientRect().top : null, bt: c.borderTopWidth, rad: c.borderTopLeftRadius, pt: t.paddingTop, pl: t.paddingLeft, fs: t.fontSize, lh: t.lineHeight, minh: v.getBoundingClientRect().height }; })()", sid)
+            self.assertIsNotNone(r["dl"], "the Details are drawn")
+            self.assertLess(r["top"], r["dl"], "the Latest panel sits above Details")
+            self.assertEqual((r["bt"], r["rad"], r["pt"], r["pl"], r["fs"], r["lh"]), ("1px", "12px", "12px", "14px", "15px", "23.25px"), r)
+            self.assertGreaterEqual(r["minh"], 84, "min-height 84")
+        self.each(check)
+
+    def test_client_visible_keeps_eye_in_dashboard_peek(self):
+        def check(cdp, sid, sent, ref, label, mode):
+            t = cdp.js("(() => { const e = document.querySelector('#peek [data-pk-client], #peek [data-pk-client-read]'); return e ? [e.textContent.trim(), e.querySelectorAll('svg').length, e.hasAttribute('data-pk-client-read')] : null; })()", sid)
+            self.assertIsNotNone(t, "the Client visible line is drawn")
+            self.assertEqual(t[2], mode == "view", "the read-only line in View, the clickable one in Edit")
+            self.assertRegex(t[0], r"Client visible|Client not visible|Shown to the client|Hidden from the client")
+            self.assertGreaterEqual(t[1], 1, "its eye icon is kept")
+        self.each(check, items=DASH_ITEMS[:3])
+        self.each(check, items=DASH_ITEMS[3:4], modes=("edit",))      # a decision's View peek has no Client visible line (it never had one)
+
+    def test_latest_panel_dark_1400_900(self):
+        def check(cdp, sid, sent, ref, label, mode):
+            r = cdp.js("(() => { const p = document.querySelector('#peek [data-pk-latest]'), b = p.querySelector('[data-pk-lbox]'), c = getComputedStyle(b), l = p.querySelector('[data-pk-last]'); return { bg: c.backgroundColor, bc: c.borderTopColor, st: l ? getComputedStyle(l).color : null }; })()", sid)
+            self.assertEqual(r["bg"], "rgb(25, 36, 64)", "--soft 192440")
+            self.assertEqual(r["bc"], "rgb(37, 50, 77)", "--line 25324D")
+            if r["st"] is not None:
+                self.assertEqual(r["st"], "rgb(154, 169, 189)", "--muted 9AA9BD")
+        self.each(check, items=DASH_ITEMS[:3], dark=True)
+
+    def test_never_updated_item_shows_created_entry_and_first_save_replaces_it(self):
+        def check(cdp, sid, sent, ref, label, mode):
+            shown = lambda: cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)
+            self.assertTrue(wait(lambda: shown().startswith("Created by Demo Author, ")), shown())
+            self.assertRegex(shown(), r"^Created by Demo Author, \d{2}-\d{2}-\d{4} \d{2}:\d{2} · Source: Demo data \(fictional\)$")
+            self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid), "no stamp: nothing has been updated")
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "First update")
+            self.save_key(cdp, sid)
+            self.assertTrue(wait(lambda: shown() == "First update"), "the first saved update replaces the Created entry: " + shown())
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)), "and the stamp appears")
+            rows = activity_read.make_read(self.store.path, self.store.data_for)(self.code, ref)["rows"]
+            self.assertTrue([r for r in rows if r["kind"] == "Created"], "the Created entry stays in the Activity")
+        self.each(check, items=(DASH_ITEMS[0], DASH_ITEMS[3], DASH_ITEMS[4]))
+
+    def test_old_item_history_carries_user_and_source_1470(self):
+        """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; one with both shows them."""
+        import sqlite3
+
+        def old(store):
+            con = sqlite3.connect(str(store.path))
+            con.execute("UPDATE applies SET by_user = ''")
+            con.execute("UPDATE actions SET source = '' WHERE id = 'TUL-A-001'")
+            con.commit()
+            con.close()
+        for width in (1400, 900):
+            for prep, want in ((old, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}$"), (None, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2} by Demo Author · Source: Demo data \(fictional\)$")):
+                with self.subTest(width=width, old=prep is not None), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash="view", classic=True, prep=prep)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)))
+                    self.assertRegex(cdp.js("document.querySelector('#peek [data-pk-last]').textContent.trim()", sid), want)
+
+
 class MilestonePublished(unittest.TestCase):
+    def test_a_published_file_peek_has_no_editable_box_and_the_dashboard_view_box_never_reaches_it_1470(self):
+        """AP7: the file's page carries no box, no editor field and no new stamp wording, and the View box is gated on a live (not file) peek."""
+        sys.path.insert(0, str(ROOT / "dev" / "tools"))
+        import build_page
+        page = build_page.build(build_page.ENTRY_VIEW)
+        for needle in ("data-pk-latest", "contenteditable", "Last updated", "Created by"):
+            self.assertNotIn(needle, page, needle)
+        peek = (PAGE / "components/Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("const dashView = !!tools && !fromFile.value && classicTheme();", peek, "the View box needs live tools and no file")
+        self.assertIn("(editing || dashView) && forItem && tools.PeekLatest", peek)
+
     """The milestone Latest update in the published (client) file, through the real change route and the real build."""
     def setUp(self):
         self.demo = DemoStore()

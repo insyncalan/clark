@@ -94,6 +94,40 @@ class Box(unittest.TestCase):
                 self.assertIn("Latest update of", self.toast(cdp, sid))
 
 
+class Stamp1470(unittest.TestCase):
+    """Row 1470 (Classic): the stamp under the Latest update box reads "Last updated <date> <time> by <name> · Source: <source>", the name and the Source only when clark recorded them."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    HOLD = _B.HOLD
+    setUp = _B.setUp
+    DATE = r"Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}"
+
+    @staticmethod
+    def prep(user=True, source=True):
+        def make(store):
+            import sqlite3
+            con = sqlite3.connect(str(store.path))
+            if not user:
+                con.execute("UPDATE applies SET by_user = ''")
+            if not source:
+                con.execute("UPDATE actions SET source = '' WHERE id = 'TUL-A-001'")
+            con.commit()
+            con.close()
+        return make
+
+    def test_stamp_has_name_date_time_source_and_omits_unknown(self):
+        cases = ((True, True, rf"^{self.DATE} by Demo Author · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
+                 (True, False, rf"^{self.DATE} by Demo Author$"), (False, False, rf"^{self.DATE}$"))
+        for width in (1400, 900):
+            for mode in ("view", "edit"):
+                for user, source, want in cases:
+                    with self.subTest(width=width, mode=mode, user=user, source=source), chrome() as cdp:
+                        sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True, prep=self.prep(user, source))
+                        self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")), "the stamp reads as asked")
+                        r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, ml: c.marginLeft, left: s.getBoundingClientRect().left, box: document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().left }; })()", sid)
+                        self.assertEqual((r["svg"], r["fs"], r["mt"], r["ml"]), (0, "12px", "6px", "2px"), r)
+                        self.assertAlmostEqual(r["left"] - r["box"], 2, delta=1, msg="at the left of the box (margin 2), not right-aligned as row 1257 had it")
+
+
 del _B
 
 
