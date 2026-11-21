@@ -499,6 +499,25 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
+    def test_most_rows_50_with_51_items_draws_50_rows_then_show_all_gives_51_and_show_only_50_gives_50_at_1400_and_900(self):      # row 1359
+        for k in range(51):
+            self.demo.action(description=f"Cap step {k}", owner="Cap Demo", due_date="2030-02-01")
+        ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Cap Demo"]})
+        for width in (1400, 900):
+            with T.chrome() as cdp:
+                p = self.show(cdp, width)
+                sec = f'[data-id="{ref}"]'
+                p.until(f"!!document.querySelector('{sec} .wil-all-b')", f"{width}: the link is drawn")
+                n = lambda: p.js(f"(() => {{ const b = document.querySelector('{sec} .wil-scroll'), r0 = b.getBoundingClientRect(); return [...b.querySelectorAll('.wil-table tbody tr')].filter(r => r.getBoundingClientRect().top < r0.bottom - 2).length; }})()")      # rows that start inside the box
+                word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+                self.assertEqual((n(), word()), (50, "Show all items"), width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 50'", f"{width}: open")
+                self.assertEqual(n(), 51, width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", f"{width}: closed")
+                self.assertEqual(n(), 50, width)
+
     def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         probe = lambda sec: f"(() => {{ const s = document.querySelector('{sec}'); const v = (q) => [...s.querySelectorAll(q)].filter((e) => e.offsetParent).length; return [v('.wil-views'), v('[data-wil-line]'), v('[data-wil-add], .wil-add'), v('[data-wil-gear]')]; }})()"
