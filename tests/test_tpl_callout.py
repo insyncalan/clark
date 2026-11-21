@@ -2,6 +2,7 @@
 Run: python3 dev/run_tests.py test_tpl_callout
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
+from _classic_page import classic
 import json
 import unittest
 
@@ -47,14 +48,19 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+NEW_ICON_NAMES = ("Lightning", "Eye", "Table", "Gear", "Sparkle", "Two ways", "Warning triangle")
+
+
 class Words(unittest.TestCase):
     """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
 
     def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
         from clark.section_kinds import callout
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
-        self.assertEqual(len(callout.ICONS), 21)
+        self.assertEqual(len(callout.ICONS), 27)
         self.assertIn("shield", callout.ICONS)
+        self.assertEqual(callout.ICONS["warning"], "Warning triangle")
+        self.assertNotIn("warn", callout.ICONS)
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
@@ -95,6 +101,17 @@ class Page(n.PageChecks):
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
     FIELD, TYPED = "Callout title", "Fictional new title"
     CHANGED = lambda self, body: json.loads(body)["title"] == "Fictional new title"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        classic(self)          # the starting text is a Classic look; Cards keeps its old words
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            shown = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit').textContent + ' ' + [...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit [placeholder]')].map(e => e.getAttribute('placeholder')).join(' ')")
+            self.assertIn('Write the one thing the reader must see.', shown)
+            self.assertIn('Empty for now: add a title or some words. It stays out of the published page until then.', shown)
 
     def test_the_tone_is_a_word_and_not_colour_alone(self):
         ref = self.make(self.GOOD)
@@ -285,7 +302,14 @@ class Page(n.PageChecks):
             self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 21, "20 icons and No icon")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 27, "26 icons and No icon")
+            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
+            for n in NEW_ICON_NAMES:
+                self.assertIn(n, names, "each new icon is in the picker")
+            self.assertEqual(names.count("Warning triangle"), 1, "one triangle entry")
+            self.assertNotIn("Warning", names, "the old name is not shown beside it")
+            self.assertNotIn("Magnifier", names)
+            self.assertNotIn("Person", names)
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
