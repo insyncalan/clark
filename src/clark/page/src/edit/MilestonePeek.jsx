@@ -7,6 +7,7 @@
 // Latest update box (PeekMsLatest) above Details, then the rows Description, Agreed date (read only), Achieved on (an achieved milestone's alone),
 // Workstream, Use case (one link, through the use cases' own msadd and msremove), Client wording (greyed while the milestone is not shown to the client)
 // and the Client visible line. Description and Client wording are on the one rich editor (item 1005).
+import { classicTheme } from "../components/Contents.jsx";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
 import { changeMilestone, changeSteps, say } from "../stores/changes.js";
@@ -245,12 +246,13 @@ function UseCase({ m }) {
 
 // The Client visible line, as the other peeks' (PeekProps.jsx ClientLine): the eye, "Client visible" or "Client not visible"; one click is the page's own report_hidden step.
 const isOn = (m) => !(!m.client_visible && m.client_visible !== undefined) && !leftOutIds(data.value).includes(m.id);
+// Row 1285: the Classic look draws the same switch row as the other peeks (PeekProps.jsx).
 function MsClientLine({ m }) {
   const internal = !m.client_visible && m.client_visible !== undefined, on = isOn(m);
   return (
     <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client data-ms-visible aria-pressed={on ? "true" : "false"} disabled={internal}
       onClick={() => setMsHidden(m.id, on, m.name).then(() => reread(project.value))}>
-      <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
+      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : (classicTheme() ? "Hidden from the client" : "Client not visible")}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
     </button>
   );
 }

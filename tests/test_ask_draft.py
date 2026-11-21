@@ -6,9 +6,12 @@ beside the panel with the words of the mock-up and an editable body; nothing is 
 section and a new one; a replace and an add are each one step that Undo takes back; Esc and the close button leave the report as it was; closing
 the panel closes the draft. Fictional text only.
 """
+import pathlib
 import time
 import unittest
 
+import _testpage as testpage
+from clark import page, theme as themes
 from test_ask_panel import Panel, Stub
 from test_server import chrome
 
@@ -46,6 +49,7 @@ class Draft(Panel):
             self.assertEqual(p.js("document.querySelector('#ask-draft-doc').getAttribute('contenteditable')"), "true")
             self.assertEqual(p.js("document.querySelector('#ask-draft-add').textContent"), "Add to the report")
             self.assertEqual(p.js("document.querySelector('#ask-draft-copy').textContent"), "Copy")
+            p.until("document.querySelector('#ask-draft').getAnimations().length === 0", "the slide-in has finished")      # row 1347: Classic slides in, so measure its place at rest
             left = p.js("document.querySelector('#ask-draft').getBoundingClientRect().right")
             panel = p.js("document.querySelector('#ask-panel').getBoundingClientRect().left")
             self.assertAlmostEqual(left, panel, delta=2, msg="the draft's right edge is the panel's left edge")
@@ -273,6 +277,83 @@ def _icons_test(self):
 
 
 Draft.test_the_add_menu_gives_every_line_an_icon = _icons_test
+
+def _motion_test(self):
+    """Row 1347 (Classic): the Draft slides in over 380 ms from translateX 110% of its width, and the close button draws the arrow, at 1400 and 900. Cards keeps its sheet as it was: no animation, the X."""
+    for theme, anim, d in (("prototype-2.0", "ask-draft-in", 'path("M 5 12 H 19 M 13 6 L 19 12 L 13 18")'), (None, "none", 'path("M 18 6 L 6 18 M 6 6 L 18 18")')):
+        if theme:
+            self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css(theme))
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                got = p.js("(() => { const s = getComputedStyle(document.querySelector('#ask-draft')); return [s.animationName, s.animationDuration, s.animationTimingFunction]; })()")
+                self.assertEqual(got[0], anim, (theme, width))
+                if theme:
+                    self.assertEqual(got[1], "0.38s", width)
+                    self.assertEqual(got[2], "cubic-bezier(0.16, 1, 0.3, 1)", width)
+                    frames = p.js("(() => { for (const sh of document.styleSheets) for (const r of sh.cssRules) { const k = r.cssRules ? [...r.cssRules].find((x) => x.name === 'ask-draft-in') : null; if (k) return [k.cssRules[0].style.transform, k.cssRules[1].style.transform]; } return null; })()")
+                    self.assertEqual(frames, ["translateX(110%)", "none"], width)
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#ask-draft-close svg path')).d"), d, (theme, width))
+
+
+Draft.test_the_draft_slides_in_and_closes_with_an_arrow = _motion_test
+
+def _button_test(self):
+    """Row 1347: in Classic the card's Open the draft button is the prototype's blue rectangle and the card is the prototype's card, at 1400 and 900. Cards (no Theme layer) keeps its old button."""
+    for theme in ("prototype-2.0", None):
+        if theme:
+            self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css(theme))
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                b = p.js("(() => { const e = document.querySelector('[data-ask-draftcard] button'), s = getComputedStyle(e); return [e.textContent, s.backgroundColor, s.borderTopColor, s.color, s.fontSize, s.paddingTop + ' ' + s.paddingRight, s.borderTopLeftRadius, Math.abs(e.parentElement.getBoundingClientRect().right - 13 - e.getBoundingClientRect().right) < 1, s.flexShrink, e.className]; })()")
+                if theme:
+                    self.assertEqual(b[:9], ["Open the draft", "rgb(59, 91, 219)", "rgb(59, 91, 219)", "rgb(255, 255, 255)", "13px", "4px 10px", "6px", True, "0"], (theme, width))
+                    c = p.js("(() => { const s = getComputedStyle(document.querySelector('[data-ask-draftcard]')); return [s.display, s.columnGap, s.borderTopWidth, s.borderTopLeftRadius, s.paddingTop + ' ' + s.paddingLeft, s.marginTop]; })()")
+                    self.assertEqual(c, ["flex", "10px", "1px", "10px", "10px 12px", "10px"], (theme, width))
+                    d = p.js("(() => { const e = document.querySelector('[data-ask-draftcard] button'); e.style.transition = 'none'; document.documentElement.setAttribute('data-theme', 'dark'); const s = getComputedStyle(e); const r = [s.backgroundColor, s.borderTopColor]; document.documentElement.removeAttribute('data-theme'); return r; })()")
+                    self.assertEqual(d, ["rgb(57, 98, 254)", "rgb(57, 98, 254)"], ("dark", theme, width))
+                else:
+                    self.assertEqual(b[9], "btn primary", width)
+                    self.assertNotEqual(b[1], "rgb(59, 91, 219)", width)
+
+
+Draft.test_the_open_the_draft_button_is_the_prototypes_blue_rectangle_in_classic_only = _button_test
+
+def _blue_named_exception_test(self):
+    """Row 1347: the blue is a named exception (ruling 19-11): the three values live once, as --adc- custom properties on the button rule; hover and dark read them by var(), and no other rule of the block holds a colour literal."""
+    rules = (pathlib.Path(themes.__file__).parent / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+    block = rules.split("/* Row 1347 (Classic only; Cards is not touched)")[1].split(".ad-count")[0]
+    for lit in ("#3B5BDB", "#2F4AC0", "#3962FE", "rgba(57,98,254,.22)"):
+        self.assertEqual(rules.count(lit), 1, lit)
+    lines = [l for l in block.split("\n")[1:] if l.strip()]
+    for l in lines:
+        if "--adc-blue:" not in l:
+            self.assertNotRegex(l, r"#[0-9a-fA-F]{3,8}\b|rgba?\(", l)
+    self.assertIn(":hover { background: var(--adc-blue-hover); border-color: var(--adc-blue-hover);", block)
+    self.assertEqual(block.count("var(--adc-blue-dark)"), 4)
+Draft.test_the_draft_ready_blue_is_a_named_exception_through_custom_properties = _blue_named_exception_test
+
+def _empty_test(self):
+    """Row 1347: in Classic the Add menu says (empty) or (N words now) with the title bold; Cards keeps a plain label (no bold title) that ends (N words now), never (empty)."""
+    for theme in ("prototype-2.0", None):
+        if theme:
+            self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css(theme))
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "the menu opened")
+            got = p.js("[...document.querySelectorAll('#ask-draft-menu [data-kind=replace]')].map(b => [b.textContent, !!b.querySelector('b')])")
+            self.assertTrue(got, theme)
+            if theme:
+                self.assertTrue(all(x[1] and (x[0].endswith(" now)") or x[0].endswith(" (empty)")) and "(0 words now)" not in x[0] for x in got), got)
+            else:
+                self.assertTrue(all((not x[1]) and x[0].endswith(" now)") and "(empty)" not in x[0] for x in got), got)
+
+
+Draft.test_the_add_menu_says_empty_in_classic_only = _empty_test
 
 for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:

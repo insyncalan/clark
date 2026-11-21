@@ -43,13 +43,22 @@ def help_pins():
     return json.loads((ROOT / "dev" / "tools" / "help_pins.json").read_text(encoding="utf-8"))
 
 
+SAMPLE_DIR = "src/clark/page/sample-pictures/"      # Row 1251: the six sample pictures (sample-1.png to sample-6.png), pinned in dev/tools/sample_pins.json
+
+
+def sample_pins():
+    """{file name: SHA-256} of each sample picture, from dev/tools/sample_pins.json (build_page refuses a picture that does not match)."""
+    import json
+    return json.loads((ROOT / "dev" / "tools" / "sample_pins.json").read_text(encoding="utf-8"))
+
+
 SHA = hashlib.sha256
 DATA_B64 = re.compile(r"data:image/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]{16,})", re.I)
 DATA_RAW = re.compile(r"""data:image/[a-z0-9.+-]+,([^"')\s]{16,})""", re.I)
 TEXT = re.compile(r"\.(css|js|jsx|mjs|html|htm|py|json|md|txt|xml)$", re.I)
 
 
-def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR, help_dir=HELP_DIR, help_ok=(), help_pinned=None):
+def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR, help_dir=HELP_DIR, help_ok=(), help_pinned=None, sample_pinned=None):
     """[(path, what)] for {path: bytes}: an image file that is not a pinned icon, or a data:image picture that is not one."""
     ok = set(pinned.values())
     out = []
@@ -60,6 +69,8 @@ def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR, help_dir=HELP
             if path.startswith(help_dir) and path[len(help_dir):] in help_ok and data.startswith(b"\x89PNG") \
                     and (help_pinned or {}).get(path[len(help_dir):]) == SHA(data).hexdigest():
                 continue                      # a listed Help picture (a name from help_shots.json), a real PNG, and the very bytes pinned
+            if path.startswith(SAMPLE_DIR) and data.startswith(b"\x89PNG") and (sample_pinned or {}).get(path[len(SAMPLE_DIR):]) == SHA(data).hexdigest():
+                continue                      # Row 1251: a sample picture, a real PNG, and the very bytes pinned in sample_pins.json
             if not (path.startswith(icon_dir) and path[len(icon_dir):] in pinned and SHA(data).hexdigest() == pinned[path[len(icon_dir):]]):
                 out.append((path, "an image that is not clark's own icon"))
         elif TEXT.search(path):
@@ -83,7 +94,7 @@ def tracked_files():
 
 class NoClientImage(unittest.TestCase):
     def test_no_client_image_is_committed(self):
-        found = problems(tracked_files(), help_ok=help_names(), help_pinned=help_pins())
+        found = problems(tracked_files(), help_ok=help_names(), help_pinned=help_pins(), sample_pinned=sample_pins())
         self.assertEqual(found, [], "only clark's own icon may be a picture here; a client's logo or picture stays in the folder git ignores")
 
     def test_the_icon_set_on_disk_is_the_pinned_one(self):
@@ -130,5 +141,15 @@ class NoClientImage(unittest.TestCase):
         self.assertEqual(hp.pin_problems(ROOT / HELP_DIR, help_pins(), hp.shot_ids()), [])
         self.assertEqual(set(help_pins()), help_names())
 
+    def test_a_sample_picture_is_allowed_only_as_the_pinned_bytes(self):
+        png = b"\x89PNG made-up sample bytes"
+        path = SAMPLE_DIR + "sample-1.png"
+        self.assertEqual(problems({path: png}, sample_pinned={"sample-1.png": SHA(png).hexdigest()}), [])
+        self.assertEqual([p for p, _ in problems({path: png + b"x"}, sample_pinned={"sample-1.png": SHA(png).hexdigest()})], [path])
+        self.assertEqual([p for p, _ in problems({SAMPLE_DIR + "other.png": png}, sample_pinned={"sample-1.png": SHA(png).hexdigest()})], [SAMPLE_DIR + "other.png"])
+        self.assertEqual([p for p, _ in problems({path: png})], [path])
+
+
 if __name__ == "__main__":
     unittest.main()
+
