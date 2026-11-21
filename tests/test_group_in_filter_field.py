@@ -31,6 +31,9 @@ class GroupInTheField(Base):
     def type(self, cdp, sid, text):
         cdp.call("Input.insertText", {"text": text}, sid)
 
+    def settle(self, cdp, sid):
+        cdp.call("Runtime.evaluate", {"expression": "new Promise(f => setTimeout(f, 700))", "awaitPromise": True}, sid)
+
     def open_list(self, cdp, sid):
         self.key(cdp, sid, "ArrowDown", "ArrowDown", 40)
         self.until(cdp, sid, "!!document.querySelector('#fline-list .fopt')", "the list")
@@ -80,6 +83,27 @@ class GroupInTheField(Base):
             click(cdp, sid, "#fline-x")
             self.until(cdp, sid, f"{LABEL} === 'Group by: Workstream'", "Clear all resets the grouping")
             self.assertEqual(cdp.js(CHIP, sid), "")
+
+    def test_a_word_not_yet_passed_by_the_caret_is_not_taken(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.focus(cdp, sid)
+            self.type(cdp, sid, " b")
+            self.key(cdp, sid, "Home", "Home", 36)
+            self.type(cdp, sid, "group:due")
+            self.settle(cdp, sid)
+            self.assertEqual(cdp.js(LABEL, sid), "Group by: Workstream", "the caret is still at the end of the word: nothing is taken")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "group:due b")
+
+    def test_another_field_word_offers_its_own_values_not_the_group_choices(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.focus(cdp, sid)
+            self.type(cdp, sid, "type:")
+            self.key(cdp, sid, "ArrowDown", "ArrowDown", 40)
+            self.until(cdp, sid, "!!document.querySelector('#fline-list .fopt')", "the list")
+            self.assertEqual(cdp.js("document.querySelector('#fline-list').textContent.includes('Nothing')", sid), False)
+            self.assertEqual(cdp.js("document.querySelector('#fline-list').textContent.includes('Action')", sid), True)
 
     def test_on_the_board_seven_choices_and_a_chip_without_a_cross(self):
         with chrome() as cdp:
