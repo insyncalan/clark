@@ -32,7 +32,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     while ((n = w.nextNode())) { const re = /\\S+/g; let m; while ((m = re.exec(n.data))) { const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
       if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) broken.push(m[0]); } } });
   const btn = q('#npBtn'), w = btn.querySelector('.w'), wr = w.getBoundingClientRect(), br = btn.getBoundingClientRect();
-  return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'),
+  return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'), barPad: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((k) => g(bar, k)).join(' '),
     barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'].map((k) => g(cur, k)).join(' '),
     marker: (() => { const m = getComputedStyle(cur, '::before'), r = cur.getBoundingClientRect(); return [m.content, m.position, m.left, m.top, m.bottom, m.width, m.borderTopLeftRadius, Math.round(r.height)].join('|'); })(),
     cardRadius: g(card, 'borderTopLeftRadius'), cardShadow: g(card, 'boxShadow'),
@@ -100,6 +100,7 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["barBg"], c["grey50"], tag + ": the sidebar is the soft grey panel (row 1356)")
             self.assertEqual(c["barRadius"], "10px", tag + ": the panel radius is 10 (row 1356)")
             self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
+            self.assertEqual(c["barPad"], "8px 4px 8px 4px" if width_is_wide(tag) else "4px 4px 8px 4px", tag + ": the panel padding is 8px 4px (row 1356; at 900 the top is 4px, item 1177)")
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
             self.assertEqual(c["curRadius"], "10px 10px 10px 10px", tag + ": the open page chip has radius 10 on all four corners (ruling 20-11, prototype settings.css:34)")
