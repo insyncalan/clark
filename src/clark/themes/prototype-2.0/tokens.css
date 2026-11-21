@@ -10,6 +10,8 @@
   --page-bg: #f7f9fc; --page-grad: linear-gradient(90deg, #fcfdfe, #f7f9fc);
   --band-bg: #F3F5FB; --line-soft: #E9EDF6; --gutter-rule: #EEEBFB;
   --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
+  --ms-amber-shape: #C58A00;      /* row 1396: the amber milestone dot, as the prototype's --amber-shape draws it */
+  --tile-on-bg: #ECE9FB; --tile-on-fg: var(--brand-blue);      /* row 1395: the chosen layout tile of the Work items toolbar */
   --sec-band-bg: rgba(255, 255, 255, .72);      /* row 1311: the white panel of every other section, over the Whisper page gradient */
 }
 :root[data-theme=dark] {
@@ -22,6 +24,8 @@
   --page-bg: #121a2a; --page-grad: linear-gradient(90deg, #0f1523, #121a2a);
   --band-bg: #1A2638; --line-soft: #222E42; --gutter-rule: #2A2650;
   --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
+  --ms-amber-shape: #E0A620;
+  --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
   --sec-band-bg: rgba(255, 255, 255, .04);
 }
 @media (prefers-color-scheme: dark) {
@@ -35,6 +39,8 @@
     --page-bg: #121a2a; --page-grad: linear-gradient(90deg, #0f1523, #121a2a);
     --band-bg: #1A2638; --line-soft: #222E42; --gutter-rule: #2A2650;
     --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
+    --ms-amber-shape: #E0A620;
+    --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
     --sec-band-bg: rgba(255, 255, 255, .04);
   }
 }
