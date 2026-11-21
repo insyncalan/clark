@@ -23,7 +23,7 @@ class HelpWordsB(unittest.TestCase):
             "a mark per milestone with its name and date below it; a name that has no room shows when you point at the mark or tab to it.",
             "a dashed red ring on its expected date, joined by a dashed line to its agreed date",
             "and again as “Expected”, in a dashed red outline.",
-            "one line says that the backup was restored and, when it put back over data that was there, that your data from before is kept in case you need it.",
+            "one line says that the backup was restored; when it put back over data that was there, the line adds that your data from before is kept in case you need it.",
             "The words you typed in the box show as their own Search: chip among the filters.",
         ):
             self.assertEqual(HELP.count(s), 1, s)
@@ -44,7 +44,7 @@ class HelpWordsB(unittest.TestCase):
         self.assertIn('row.kind === "decision" ? "Decider" : "Owner"', pk)
 
     def test_old_sentences_gone(self):
-        for s in ("a faint mark on its expected date", "again, faintly, as", "one line says that the backup was restored; when it put back",
+        for s in ("a faint mark on its expected date", "again, faintly, as", "restored and that your data from before is kept",
                   "with its name and date below.", "Each project has **Open**, **Edit**"):
             self.assertNotIn(s, HELP, s)
 
