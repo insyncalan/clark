@@ -152,6 +152,7 @@ class ReviewTest(Rig):
 
     def test_an_unsigned_update_is_reviewed_while_the_release_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
+        mock.patch.object(updates, "FIRST_SIGNED", (1, 3, 4)).start()          # the fake download is 0.3.1, older than the first signed release
         self.addCleanup(mock.patch.stopall)
         os.unlink(str(self.download) + ".sig")
         status, body = self.up.review({"from": "downloads"})
