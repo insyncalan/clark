@@ -7,6 +7,7 @@ Run: python3 dev/run_tests.py test_tpl_imagecap_half_1223
 Needs Chrome (the harness): fails, never skips, without it. Fictional data only."""
 import unittest
 
+import test_server  # noqa: F401  the browser harness, named so the browser tier reads this file as a browser test
 import test_tpl_imagecap_full_page as base
 
 HALF = 640
