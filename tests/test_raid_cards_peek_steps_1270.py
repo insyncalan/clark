@@ -24,7 +24,7 @@ def seed(self):
     with self.store.step("dashboard", USER) as st:
         ids = {
             "risk": st.create("raid", {"project": "ABC", "type": "Risk", "description": "Kiln roof may leak", "raised": "2026-10-01", "source": "demo",
-                                       "latest_update": "RISKLATEST", "client_message": "RISKWORDS"}),
+                                       "latest_update": "RISKLATEST", "client_message": "RISKWORDS", "impact": "High", "likelihood": "High"}),
             "decision": st.create("decisions", {"project": "ABC", "decision": "Use the blue vendor", "source": "demo", "status": "Pending",
                                                 "needed_by": "2030-02-05", "latest_update": "DECISIONLATEST", "client_message": "DECISIONWORDS"}),
             "action": st.create("actions", {"project": "ABC", "description": "Agree the plan", "raised": "2026-10-01", "source": "demo",
@@ -110,11 +110,13 @@ class ViewPeek(PageBase, Steps):
 
 
 class PickerRows(PageBase):
+    def arr(self, p, expr):
+        return json.loads(p.js(f"JSON.stringify({expr})"))
+
     def test_a_picker_row_says_the_kind_and_the_rating_and_the_search_finds_a_word_or_an_id(self):
         """Ticket 1270, the picker: each row has the ID, the kind, the rating word (risk and issue) and the whole text; search by ID or any word."""
         ids = seed(self)
         with self.store.step("dashboard", USER) as st:
-            st.update("raid", ids["risk"], {"priority": "High"})
             st.update("report_sections", ids["sec"], {"body": json.dumps({"v": 2, "across": 3, "cards": []})})
         q = f"[data-id={json.dumps(ids['sec'])}]"
         rows = lambda p: self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick + '|' + b.textContent)")
@@ -125,7 +127,7 @@ class PickerRows(PageBase):
             p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
             row = next(r for r in rows(p) if r.startswith(ids["risk"] + "|"))
             self.assertIn("Risk", row)
-            self.assertIn("Red", row, "the rating word")
+            self.assertIn("Red Kiln", row, "the rating word, then the text")
             self.assertIn("Kiln roof may leak", row, "the whole text")
             act = next(r for r in rows(p) if r.startswith(ids["action"] + "|"))
             self.assertIn("Action", act)

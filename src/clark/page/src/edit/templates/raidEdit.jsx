@@ -134,7 +134,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
           <input type="search" aria-label="Pick an item" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
           <ul class="rce-opts" role="listbox" aria-label="Pick an item">
             {pickable().map((o) => (
-              <li key={o.id} role="option" aria-selected="false"><button type="button" data-pick={o.id} onClick={() => pick(o.id)}><b>{o.id}</b> <span class="rce-kind">{kindWords(o.row, o.kind)}</span>{ratingOf(o.row, o.kind).word ? <span class="rce-rate">{ratingOf(o.row, o.kind).word}</span> : null} {o.text}</button></li>
+              <li key={o.id} role="option" aria-selected="false"><button type="button" data-pick={o.id} onClick={() => pick(o.id)}><b>{o.id}</b> <span class="rce-kind">{kindWords(o.row, o.kind)}</span> {ratingOf(o.row, o.kind).word ? <><span class="rce-rate">{ratingOf(o.row, o.kind).word}</span> </> : null}{o.text}</button></li>
             ))}
           </ul>
           {pickable().length === 0 ? <p class="quiet rce-none">No item matches</p> : null}
