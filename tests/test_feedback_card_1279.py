@@ -11,6 +11,7 @@ from clark import theme
 
 import test_feedback_tab as base
 from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome through the base class above, so the tier reader sees it)
+from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome through the base class above, so the tier reader sees it)
 
 MEASURE = """(function () {
   const r = (s) => document.querySelector(s).getBoundingClientRect();
