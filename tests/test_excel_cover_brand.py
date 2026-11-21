@@ -47,7 +47,7 @@ class Base(unittest.TestCase):
 
     def cover_sheet(self, branding):
         self.export(branding)
-        return load_workbook(self.path)["Cover"]
+        return load_workbook(self.path)["Report"]
 
     def put_wave(self, data=WAVE):
         (self.brand / "assets").mkdir(exist_ok=True)
@@ -138,7 +138,7 @@ class Wave(Base):
         self.assertEqual(drawing.count("<xdr:pic>"), 2)
         self.assertIn("<xdr:row>2</xdr:row>", drawing, "the picture row is under the title and the subtitle")
         self.assertEqual(z.read("xl/drawings/_rels/drawing1.xml.rels").decode().count("<Relationship "), 2)
-        ws = load_workbook(self.path)["Cover"]
+        ws = load_workbook(self.path)["Report"]
         self.assertEqual(ws.row_dimensions[3].height, pic.WAVE_ROW_POINTS)
         self.assertEqual(ws.freeze_panes, "A4")
 
@@ -203,9 +203,9 @@ class Band(Base):
         self.assertEqual(ws["A3"].border.bottom.style, "thick")
         self.assertEqual(ws["A3"].fill.fgColor.rgb[-6:], excel.colours.TOKENS["brand-navy"])
 
-    def test_f_the_subtitle_has_the_long_date(self):
+    def test_f_the_subtitle_is_the_dashboard_header_and_long_date_still_reads(self):
         got = cover.subtitle({"week_ending": "2026-10-30", "client_name": "Sample Client"})
-        self.assertEqual(got, "Weekly report · Week ending Friday 30 October 2026 · for Sample Client")
+        self.assertEqual(got, "Weekly report · Week ending 30-10-2026")
         self.assertEqual(cover.long_date("2026-01-05"), "Monday 5 January 2026")
         self.assertEqual(cover.long_date("not a day"), "not a day")
         self.assertEqual(cover.long_date(""), "")
@@ -213,7 +213,7 @@ class Band(Base):
 
     def test_f_the_workbook_cell_says_it(self):
         ws = self.cover_sheet(self.brand)
-        self.assertEqual(ws["A2"].value, "Weekly report · Week ending Friday 30 October 2026 · for Sample Client")
+        self.assertEqual(ws["A2"].value, "Weekly report · Week ending 30-10-2026")
 
 
 class NotOnThePublishedPage(unittest.TestCase):
