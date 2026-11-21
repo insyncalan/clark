@@ -101,6 +101,7 @@ export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "m
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];
 export const WORKING = "Working";
+export const CLASSIC_WORKING_LINE = "Working. You can close this: it carries on.";      // row 1292, Classic only: the status line while an answer is made; Cards keeps WORKING
 // Row 1220: messages typed while an answer is made wait above the box. These words need approval.
 const waitingCount = (n) => (n === 1 ? "1 message is" : `${n} messages are`);
 export const QUEUE_LABEL = "Messages waiting to be sent";

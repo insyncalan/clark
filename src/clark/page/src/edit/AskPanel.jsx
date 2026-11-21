@@ -371,7 +371,7 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? (classic ? W.CLASSIC_WORKING_LINE : W.WORKING) : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
         {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{classic ? W.CLASSIC_STANDING : W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
