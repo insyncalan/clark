@@ -93,9 +93,10 @@ class ClassicOrder(unittest.TestCase):
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 js("document.querySelector('[data-ask-tab=all]').click()")
-                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-all') && !!document.querySelector('#ask-safety') && !!document.querySelector('#slash-all')"), 20), f"all tab at {w}")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-all') && !!document.querySelector('#ask-safety') && !!document.querySelector('#ask-chats-all') && !!document.querySelector('#slash-all')"), 20), f"all tab at {w}")
                 for a, b, what in (("#slash-all", "#ask-all-folders", "Slash commands before Source folders"),
                                    ("#ask-all-folders", "#ask-safety", "Source folders before Changes and safety"),
+                                   ("#ask-chats-all", "#ask-safety", "Chats before Changes and safety"),
                                    ("#ask-safety", "#ask-usage-all", "Changes and safety before Usage")):
                     self.assertTrue(js(BEFORE % (a, b)), f"{what} at {w}: {js(HEADS)}")
                 last = js("(()=>{const s=[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')]; return s[s.length-1].id;})()")
