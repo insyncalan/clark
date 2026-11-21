@@ -48,6 +48,18 @@ class Paused(unittest.TestCase):
             with self.assertRaises(unittest.SkipTest):
                 p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
 
+    def test_a_skip_inside_a_subtest_does_not_leave_a_failing_test(self):
+        class Case(unittest.TestCase):
+            def runTest(self):
+                p = Recorder()
+                with self.subTest(width=900):
+                    p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+                self.assertEqual(1, 2, "a count the paused half would have made")
+        result = unittest.TestResult()
+        Case().run(result)
+        self.assertEqual((len(result.failures), len(result.errors)), (0, 0))
+        self.assertGreaterEqual(len(result.skipped), 1)
+
     def test_switched_off_a_width_of_900_runs_again(self):
         p = Recorder()
         with mock.patch.object(test_server, "PAUSED_900", None):

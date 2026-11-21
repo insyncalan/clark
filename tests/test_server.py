@@ -1506,10 +1506,34 @@ class WaitToast(unittest.TestCase):
 PAUSED_900 = "paused until Bifrost online (21-11)"      # ONE switch: set to None (or revert this commit) and every 900 px case runs again
 
 
+_HIT_900 = [False]       # set when the running test reached a 900 px window
+
+
 def pause_900(method, params):
-    """Skip the test when it is about to set a 900 px window (a pipe class that overrides call() calls this itself)."""
+    """Skip the test when it is about to set a 900 px window (a pipe class that overrides call() calls this itself).
+    A SkipTest raised inside a `with self.subTest(...)` skips only that sub-test and the test goes on, so the test is also marked here
+    (see _call_with_900_pause): whatever the rest of it then fails on (a count short by the 900 half) is the pause, not a defect."""
     if PAUSED_900 and method == "Emulation.setDeviceMetricsOverride" and (params or {}).get("width") == 900:
+        _HIT_900[0] = True
         raise unittest.SkipTest(PAUSED_900)
+
+
+_call_test_method = unittest.TestCase._callTestMethod
+
+
+def _call_with_900_pause(self, method):
+    _HIT_900[0] = False
+    try:
+        return _call_test_method(self, method)
+    except unittest.SkipTest:
+        raise
+    except Exception:
+        if _HIT_900[0]:
+            raise unittest.SkipTest(PAUSED_900)       # it went on past a skipped 900 px half and failed on what that half would have done
+        raise
+
+
+unittest.TestCase._callTestMethod = _call_with_900_pause
 
 
 class _Pipe:
