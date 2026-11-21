@@ -577,7 +577,7 @@ GUARD_ALLOWED = {
 # allows exactly that many uses of the word in each file below (one each) and no more; a second use there, or the word in any
 # other file, is refused. Add a path here (with its exact count) only when a file really needs the name.
 TEMPLATE_NAME_PATHS = {"src/clark/page/src/help/helpContent.json": 1, "tests/test_help_content.py": 1,
-                       "tests/test_help_shown.py": 1}
+                       "tests/test_help_shown.py": 1, "src/clark/page/src/logic/templates.js": 1}   # row 868: the template chip's name
 TEMPLATE_LIMIT_KIND = ("more uses of the page-template name than this file may hold (one). "
                        "Remove the extra use, or ask for the limit to be raised")
 GUARD_ALLOWED.update({path: ({reveal("Onaare"): count}, "a page template that shares its name with a person")
