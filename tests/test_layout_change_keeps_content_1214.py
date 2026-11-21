@@ -108,13 +108,13 @@ class LayoutKeepsContent(Base):
             p.edit()
             order = self.ids_in_store()
             flags = self.beside_flags()
-            self.assertEqual((flags["ABC-S-005"], flags["ABC-S-006"]), (1, 0), "This week and Next week are a pair to start with")
-            p.menu("ABC-S-006", "full")
-            p.until("!document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left')", "the old partner is alone")
+            self.assertEqual((flags["ABC-S-004"], flags["ABC-S-005"]), (1, 0), "This week and Next week are a pair to start with")
+            p.menu("ABC-S-005", "full")
+            p.until("!document.querySelector('[data-id=\"ABC-S-004\"]').classList.contains('slot-left')", "the old partner is alone")
             flags = self.beside_flags()
-            self.assertEqual((flags["ABC-S-005"], flags["ABC-S-006"]), (0, 0), "neither half is beside anything now")
+            self.assertEqual((flags["ABC-S-004"], flags["ABC-S-005"]), (0, 0), "neither half is beside anything now")
             self.assertEqual(self.ids_in_store(), order, "nothing moved")
-            for ref in ("ABC-S-005", "ABC-S-006"):
+            for ref in ("ABC-S-004", "ABC-S-005"):
                 p.until(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')", ref + " is full width")
 
 
