@@ -114,6 +114,67 @@ class WorkItems(Base):
         row = self.s.read("actions", ref=self.action)
         self.assertEqual((row["owner"], row["due_date"]), ("Sam Lee", None))
 
+    def test_a_plan_carries_the_items_title_and_a_plain_why(self):         # row 1292 step S4: the card's heading and its Why line
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz",
+                             "why": "It was handed over on Monday.\x00 <b>x</b>"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertEqual(plan["why"], "It was handed over on Monday. <b>x</b>", "controls dropped; the page draws it as text")
+        self.assertNotIn("why", plan["after"], "why is not a field of the item")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Kim Roe"})["why"])
+        self.assertEqual(len(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "x" * 900})["why"]), ask_apply.MAX_WHY)
+        self.assertEqual(ask_apply.MAX_WHY, 300)
+        self.assertEqual(len(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "y" * 300})["why"]), 300)
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "a\x7fb~c"})["why"], "ab~c", "DEL dropped, ~ kept")
+        self.assertIsNone(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
+        self.refused({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Lee Poe", "why": 5}, "not_a_change")
+
+    def test_a_plan_carries_the_items_current_owner_for_a_change_only(self):         # row 1293 line 4: the card shows the owner
+        with self.s.step("dashboard", USER) as st:
+            risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier slips", "raised": "2026-10-01",
+                                      "owner": "Rita Fox", "source": "demo"})
+            dec = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal",
+                                          "source": "demo"})
+            st.update("milestones", self.demo.milestone, {"owner": "Mo Ito"})
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.action, "actions"), "status": "Closed"})["owner"], "Sam Lee")
+        self.assertEqual(self.planned({"op": "change", **self.cur(risk, "raid"), "status": "Closed"})["owner"], "Rita Fox")
+        self.assertEqual(self.planned({"op": "change", **self.cur(dec, "decisions"), "needed_by": "2030-01-05"})["owner"], "Dev Lal", "a decision's owner is made_by")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.milestone, "milestones"), "status": "Done"})["owner"], "Mo Ito")
+        self.assertIsNone(self.planned({"op": "change", **self.cur(self.demo.use_case, "use_cases"), "status": "Flag"})["owner"], "a use case has none")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "Zed Ng"})["owner"], "a new item shows what it creates")
+
+    def cur(self, ref, table):
+        """The id and the title the item has now: a change names the title it is about (row 1293)."""
+        return {"id": ref, "current_title": self.s.read(table, ref=ref)[ask_apply.TITLE[table]]}
+
+    def blank_owner(self, owner):
+        """An action whose stored owner is exactly `owner` (the store makes a missing owner TBC, so a blank one is written straight in)."""
+        ref = self.demo.action()
+        self.s.con.execute("UPDATE actions SET owner = ? WHERE id = ?", (owner, ref))
+        self.s.con.commit()
+        return ref
+
+    def test_a_tbc_owner_is_passed_through_as_stored(self):         # ruling 20-11 on 2035: TBC shows 'Owner: TBC'
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick a venue", "status": "Pending", "made_by": "TBC", "source": "demo"})
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.action(owner="TBC"), "actions"), "status": "Closed"})["owner"], "TBC")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.action(owner=None), "actions"), "status": "Closed"})["owner"], "TBC", "a missing owner is stored as TBC")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.blank_owner("tbc"), "actions"), "status": "Closed"})["owner"], "tbc", "as stored, not respelt")
+        self.assertEqual(self.planned({"op": "change", **self.cur(dec, "decisions"), "needed_by": "2030-01-05"})["owner"], "TBC", "a decision's TBC too")
+
+    def test_a_blank_owner_or_a_new_item_has_no_owner_to_show(self):
+        for blank in ("", "   "):
+            self.assertIsNone(self.planned({"op": "change", **self.cur(self.blank_owner(blank), "actions"), "status": "Closed"})["owner"], f"{blank!r}")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "TBC"})["owner"], "a new item, even with TBC")
+
+    def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # #1292 sweep A: kills after-for-before
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertNotEqual(plan["after"].get("description"), plan["title"])
+
+    def test_the_rule_for_a_change_asks_for_a_short_reason(self):         # #1292 sweep A: the prompt line that makes the model send why
+        rule = [r for r in ask.RULES.split("\n") if r.startswith("7.")][0]
+        self.assertIn('"status": "Closed", "why": "one short reason"}', rule)
+
     def test_an_offer_is_used_once(self):
         plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.applied(plan["offer"])
