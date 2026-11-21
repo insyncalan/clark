@@ -33,9 +33,9 @@ function ViewText({ html }) {
 }
 
 // A template's Edit part, from the tools (edit/templates/); the quiet line if the tools have none for it.
-function TemplateEdit({ section, tools }) {
+function TemplateEdit({ section, tools, slot }) {
   const Edit = tools.templateEdit ? tools.templateEdit(section.type) : null;
-  return Edit ? <Edit section={section} tools={tools} /> : <p class="quiet">Not shown on this page yet.</p>;
+  return Edit ? <Edit section={section} tools={tools} slot={slot} /> : <p class="quiet">Not shown on this page yet.</p>;
 }
 
 export function Section({ section, index, count, slot, anchor, tools, clean }) {
@@ -66,7 +66,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
       </header>
       {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} section={section} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} section={section} />
-        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
+        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} slot={slot} /> : <tpl.view section={section} data={data.value} clean={clean} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
