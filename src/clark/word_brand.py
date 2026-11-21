@@ -19,6 +19,7 @@ from urllib.parse import unquote
 from clark import docx_build as _b
 from clark import docx_read as _r
 from clark import word_template
+from clark.excel_picture import has_doctype
 from clark.docx_read import WordRefused
 
 REL_PATH = ("word", "template.docx")
@@ -67,6 +68,8 @@ def _local(tag):
 
 
 def _parse(data, name):
+    if has_doctype(data):
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} holds a DOCTYPE or entity, which clark does not read.")
     try:
         return ET.fromstring(data)
     except ET.ParseError:
@@ -176,8 +179,8 @@ def merged_numbering(raw, mine, shift):
 
 def wrap(template, built):
     infos, parts = word_template._load(template, NAME)
-    for n in sorted(parts):                                # a DOCTYPE or entity is refused in any part, as when reading
-        if n.endswith((".xml", ".rels")) and _r.DOCTYPE.search(parts[n].decode("utf-8", "replace")):
+    for n in sorted(parts):                                # a plain-text (ASCII/UTF-8) DOCTYPE or entity is refused in any part, whatever it is named; UTF-16 or NUL-split spellings are only caught in word/document.xml and .rels (by the reader), not in other parts
+        if _r.DOCTYPE.search(parts[n].decode("utf-8", "replace")):
             raise _r._not_safe(NAME)
     with zipfile.ZipFile(io.BytesIO(built)) as z:
         mine = {i.filename: z.read(i.filename) for i in z.infolist()}
