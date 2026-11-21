@@ -53,6 +53,14 @@ class Slice:
                 self.assertEqual(m[0], want)
                 self.assertEqual(m[1:], [True, True], "right-aligned under its button, on screen")
 
+    def test_columns_menu_is_named_columns_to_show_while_the_button_stays_columns(self):
+        with chrome() as cdp:
+            p = self.open_page(cdp, 1400)
+            p.js("document.querySelector('#usecases button[aria-label=Columns]').click()")
+            p.until("document.querySelector('.cols-menu')", "the chooser opened")
+            self.assertEqual(p.js("document.querySelector('.cols-menu').getAttribute('aria-label')"), "Columns to show")
+            self.assertEqual(p.js("document.querySelector('#usecases button[aria-label=Columns]').title"), "Choose the columns")
+
 
 class Classic(Slice, Redesign, Base):
     css = theme.css("prototype-2.0")

@@ -62,7 +62,7 @@ class ColumnsMenu(base.InThePage):
             self.assertEqual(got, {k: [v] for k, v in want.items()}, "each column line has one icon, named as columnIcon names it")
             self.assertEqual(got["Owner"], ["user"])
 
-    def test_plain_f10_does_not_open_the_menu_and_shift_f10_does_and_the_menu_is_named_columns(self):
+    def test_plain_f10_does_not_open_the_menu_and_shift_f10_does_and_the_menu_is_named_columns_to_show(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with chrome() as cdp:
             p = self.show(cdp)
@@ -73,7 +73,7 @@ class ColumnsMenu(base.InThePage):
             self.assertFalse(p.js("!!document.querySelector('.cols-menu')"), "F10 alone is not the menu key")
             p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent({key % 'true'})")
             p.until("!!document.querySelector('.cols-menu')", "Shift+F10 opened the menu")
-            self.assertEqual(p.js("document.querySelector('.cols-menu').getAttribute('aria-label')"), "Columns")
+            self.assertEqual(p.js("document.querySelector('.cols-menu').getAttribute('aria-label')"), "Columns to show")
             self.assertEqual(p.js("[...document.querySelectorAll('.cols-menu .ck')].every(e => e.getAttribute('aria-hidden') === 'true')"), True, "the tick glyph is hidden from readers")
 
     def test_headings_are_column_headers_and_rows_show_a_pointer_in_edit(self):
