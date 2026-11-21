@@ -44,6 +44,20 @@ class WindowsZipTest(unittest.TestCase):
                 package.assert_no_native_windows("windows", {bad: (b"x", 0o644)})
         package.assert_no_native_windows("mac", {"clark/clark.cmd": (b"x", 0o644)})
 
+    def test_the_refusal_names_five_of_the_bad_files_and_a_linux_build_is_not_asked(self):
+        bad = {f"clark/run{n}.cmd": (b"x", 0o644) for n in range(7)}
+        with self.assertRaises(package.Refused) as said:
+            package.assert_no_native_windows("windows", bad)
+        self.assertEqual(str(said.exception).count("clark/run"), 5)
+        package.assert_no_native_windows("linux", bad)
+
+    def test_the_generated_tar_is_not_counted_as_a_changed_file(self):
+        def status(root, paths):
+            return "".join(f" M {p}\n" for p in paths if p == release_files.IMAGE_TAR)
+        with mock.patch.object(package, "uncommitted", status):
+            names = package.download_content("windows", package.ROOT)
+        self.assertTrue(any(n.endswith(release_files.IMAGE_TAR) for n in names))
+
     def test_what_it_holds(self):
         self.assertIn("clark/docker/compose.yaml", self.names)
         self.assertIn("clark/docker/clark-runtime.tar", self.names)

@@ -7,6 +7,7 @@ nothing is asked over the network. Each check's ready and fix words are checked,
 """
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -448,6 +449,53 @@ class Words(DoctorCase):
             code, lines = self.run_doctor(version=(3, 8, 0), health=lambda p, m: launch.NOT_CLARK)
         self.assertEqual(code, 1)
         self.assertEqual(lines[-1], "2 things to fix before clark can start. Fix each one, then run python3 -m clark.doctor again.")
+
+
+class SavedFolders(unittest.TestCase):
+    def folder(self, tables):
+        """A data folder whose database holds `tables`: {name: (column, [values])}."""
+        folder = Path(tempfile.mkdtemp(prefix="clark-saved-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        con = sqlite3.connect(folder / "clark.db")
+        try:
+            for name, columns in tables.items():
+                con.execute(f"CREATE TABLE {name} ({', '.join(columns[0])})")
+                for row in columns[1]:
+                    con.execute(f"INSERT INTO {name} VALUES ({', '.join('?' for _ in row)})", row)
+            con.commit()
+        finally:
+            con.close()
+        return folder
+
+    def words(self, count):
+        folder = self.folder({"source_folders": (["path"], [(f"/fictional/gone-{n}",) for n in range(count)])})
+        return doctor.check_saved_folders(doctor.Seen(data=str(folder), home="/home/nobody")).words
+
+    def test_the_more_wording_starts_after_three_missing_folders(self):
+        three = self.words(3)
+        self.assertIn("/fictional/gone-0, /fictional/gone-1, /fictional/gone-2.", three)
+        self.assertNotIn("more", three)
+        four = self.words(4)
+        self.assertIn("/fictional/gone-0, /fictional/gone-1, /fictional/gone-2 and 1 more.", four)
+        self.assertNotIn("gone-3", four)
+
+    def test_an_older_database_without_the_publications_table_gives_its_folders(self):
+        folder = self.folder({"source_folders": (["path"], [("/fictional/a",)])})
+        self.assertEqual(doctor.saved_paths(folder), ["/fictional/a"])
+
+    def test_a_database_error_that_is_not_a_missing_table_is_raised(self):
+        folder = self.folder({"source_folders": (["path"], [("/fictional/a",)]), "publications": (["client_path"], [("/fictional/b",)])})
+        with self.assertRaises(sqlite3.OperationalError):
+            doctor.saved_paths(folder)
+
+    def test_the_client_path_alone_is_read_and_empty_paths_and_repeats_are_left_out(self):
+        folder = self.folder({"source_folders": (["path"], [("",), ("/fictional/a",)]),
+                              "publications": (["local_path", "client_path"], [("", "/fictional/b"), ("/fictional/a", None)])})
+        self.assertEqual(doctor.saved_paths(folder), ["/fictional/a", "/fictional/b"])
+
+    def test_a_home_relative_data_source_is_a_folder_the_check_can_read(self):
+        line = doctor.check_docker(doctor.Seen(environ={"CLARK_DATA_SOURCE": "~/clark-data"}, home="/home/nobody"))
+        self.assertEqual(line.kind, doctor.READY)
 
 
 class FromTheTopFolder(unittest.TestCase):
