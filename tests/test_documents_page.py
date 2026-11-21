@@ -160,6 +160,7 @@ class Archive(Page):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
+            done = 0                  # rounds that ran: the count of archived documents (a paused 900 px round leaves none)
             for i, ((width, dark), ref) in enumerate(zip(WIDTHS, refs)):
                 title = f"Board pack {i}"          # each round leaves its document archived (the last Undo), so the count grows by one
                 row = f"[...document.querySelectorAll('{sec} .docs-arch li')].find(li => li.querySelector('.tpl-name').textContent === {json.dumps(title)})"
@@ -182,7 +183,7 @@ class Archive(Page):
                     p.saved()
                     p.until(f"!!document.querySelector('{sec} .docs-arch')", "the Archived list is drawn")
                     p.clear_toast()
-                    p.until(f"document.querySelector('{sec} .docs-arch summary').textContent === 'Archived ({i + 1})'", "the Archived count")
+                    p.until(f"document.querySelector('{sec} .docs-arch summary').textContent === 'Archived ({done + 1})'", "the Archived count")
                     p.js(f"document.querySelector('{sec} .docs-arch').open = true")
                     self.assertEqual(p.js(f"{row}.querySelector('.docs-arch-text').textContent"),
                                      f"{title} Archived · Report · 10-01-2030", msg="an archived row says its title, Archived, kind and date")
@@ -202,6 +203,7 @@ class Archive(Page):
                     p.until(f"!{names}.includes({json.dumps(title)}) && !!{row}", "Undo of Restore archived it again")
                     self.assertEqual(self.archived(ref), 1, msg="Undo of Restore archives the document again")
                     p.clear_toast()
+                    done += 1
             self.assertEqual(self.archived(keep), 0, msg="the other document was never touched")
             p.view()
             p.until(f"!!document.querySelector('{sec} .docs-list')", "View drew the list")
