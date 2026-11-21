@@ -452,7 +452,8 @@ def _plural(n, one, many):
 def line_for(counts, reading=None):
     """The status line of one folder. `reading` is (done, total) while it is being read; `counts` the counts of its last full read."""
     if reading is not None:
-        return f"Reading {reading[0]} of {reading[1]} {_plural(reading[1], 'file', 'files')}."
+        done, total = reading
+        return f"Indexing\u2026 {min(99, done * 100 // total) if total > 0 else 0}%"
     total = sum(counts.get(n, 0) for n in NAMES)
     out = [f"Indexed {counts.get('indexed', 0)} of {total} {_plural(total, 'file', 'files')}."]
     t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))

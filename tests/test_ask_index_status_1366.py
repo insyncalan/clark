@@ -25,13 +25,15 @@ class Words(unittest.TestCase):
         c = {"indexed": 180, "type": 242, "online_only": 8, "too_long": 2, "safety": 4}
         self.assertEqual(ask_index.line_for(c), "Indexed 180 of 436 files. 242 are of a type clark can't read yet. 8 are online only and were not opened. "
                                                 "2 PDFs are too long. 4 look like a password or a key and were left out.")
-        self.assertEqual(ask_index.line_for(None, (180, 422)), "Reading 180 of 422 files.")
+        self.assertEqual(ask_index.line_for(None, (180, 422)), "Indexing… 42%")
 
     def test_the_approved_singular_lines(self):
         c = {"indexed": 1, "type": 1, "online_only": 1, "too_long": 1, "safety": 1}
         self.assertEqual(ask_index.line_for(c), "Indexed 1 of 5 files. 1 is of a type clark can't read yet. 1 is online only and was not opened. "
                                                 "1 PDF is too long. 1 looks like a password or a key and was left out.")
-        self.assertEqual(ask_index.line_for(None, (1, 422)), "Reading 1 of 422 files.")
+        self.assertEqual(ask_index.line_for(None, (1, 422)), "Indexing… 0%")
+        self.assertEqual(ask_index.line_for(None, (422, 422)), "Indexing… 99%")
+        self.assertEqual(ask_index.line_for(None, (0, 0)), "Indexing… 0%")
 
     def test_only_the_reasons_above_zero_appear(self):
         self.assertEqual(ask_index.line_for({"indexed": 3, "type": 0, "safety": 2}), "Indexed 3 of 5 files. 2 look like a password or a key and were left out.")
@@ -114,7 +116,7 @@ class Worker(Base):
         self.assertTrue(ix.start("ABC", [str(self.a)]))
         self.assertTrue(entered.wait(5))
         self.assertEqual(ix.busy, 1)
-        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)], {"state": "reading", "line": "Reading 0 of 1 file."})
+        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)], {"state": "reading", "line": "Indexing… 0%"})
         self.assertFalse(ix.current("ABC", [str(self.a)]))
         gate.set()
         self.assertTrue(ix.wait_idle(5))
