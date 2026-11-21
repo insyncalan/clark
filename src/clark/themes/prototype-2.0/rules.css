@@ -941,6 +941,27 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
+/* Row 1046 (Classic only; Cards draws no bell): the notices bell, left of search; the popup is a non-modal dialog under it. The bell is drawn only when the Classic theme layer is on (TopBar.jsx), so these rules are in the theme and not in the shell. */
+.bell-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+.tb-bell { position: relative; }
+.bell-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--brand-cyan); color: var(--pill-fg); font-size: var(--size-caption); font-weight: 700; line-height: 16px; text-align: center; }
+.bell-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 340px; max-width: calc(100vw - 24px); max-height: 70vh; overflow: auto; box-sizing: border-box; padding: 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); text-align: left; font-size: var(--size-body); }
+.bell-pop:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.bell-title { flex: 1; }
+.bell-link { all: unset; cursor: pointer; text-decoration: underline; color: inherit; font-size: var(--size-body); }
+.bell-link:focus-visible, .bell-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-list { list-style: none; margin: 0; padding: 0; }
+.bell-item { padding: 8px 0; border-top: 1px solid var(--border); }
+.bell-item p { margin: 0 0 4px; }
+.bell-read { opacity: .65; }
+.bell-sev { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.bell-sev-ico { width: 16px; height: 16px; flex: none; }
+.bell-date { margin-left: auto; font-weight: 400; }
+.bell-ttl { font-weight: 600; }
+.bell-acts { display: flex; gap: 12px; align-items: center; }
+.bell-act { all: unset; cursor: pointer; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--radius-sm); }
+.bell-empty { margin: 0; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
