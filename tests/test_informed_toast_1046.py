@@ -76,6 +76,20 @@ class InformedToast(Base):
             self.assertTrue(p.js(f"document.querySelector('{INF} .toast-text').textContent.includes('Newer.')"), "the newer words, and still there 5 seconds after them")
             p.until(GONE, "gone 8 seconds after the newer one", 5)
 
+    def test_a_second_message_is_a_new_element_so_its_bar_and_clock_start_again(self):
+        with chrome() as cdp:
+            p = self.start(cdp)
+            p.js(f"document.querySelector('{INF}').dataset.first = '1'")
+            p.js("window.clarkPage.sayInformed('Newer.', 'Database refreshed')")
+            p.until(f"(() => {{ const t = document.querySelector('{INF}'); return !!t && t.textContent.includes('Newer.'); }})()", "the newer words are drawn")
+            self.assertTrue(p.js(f"document.querySelector('{INF}').dataset.first === undefined"), "a new id makes a new element (the key), not the old one re-worded")
+
+    def test_it_sits_in_its_own_slot_72px_above_the_bottom(self):
+        with chrome() as cdp:
+            p = self.start(cdp)
+            off = p.js(f"window.innerHeight - document.querySelector('.toasts-informed').getBoundingClientRect().bottom")
+            self.assertAlmostEqual(off, 72, delta=1, msg="the informed slot's bottom edge is 72px above the window bottom")
+
     def test_a_change_message_does_not_replace_it(self):
         with chrome() as cdp:
             p = self.start(cdp)
@@ -89,6 +103,8 @@ class InformedToast(Base):
             self.assertTrue(p.js(f"!!document.querySelector('{INF}')"), "the informed message is still there beside it")
             boxes = p.js(f"(() => {{ const a = document.querySelector('{INF}').getBoundingClientRect(), b = document.querySelector('.toast [data-undo]').closest('.toast').getBoundingClientRect(); return a.bottom <= b.top + 1 || b.bottom <= a.top + 1; }})()")
             self.assertTrue(boxes, "they do not overlap")
+            off = p.js(f"window.innerHeight - document.querySelector('.toasts-informed').getBoundingClientRect().bottom")
+            self.assertAlmostEqual(off, 72, delta=1, msg="the informed slot keeps its slot with a change message beside it")
 
 
 if __name__ == "__main__":
