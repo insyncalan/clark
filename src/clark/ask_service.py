@@ -63,7 +63,7 @@ APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
 MAX_REPLIES = 20
 PASSAGE_SHOWN = 600        # characters of a source passage shown beside a change that came from it
-PROJECT_SHARE = ask.BUDGET // 2     # characters of the budget the project's own data may take (half: 600,000); the folders get the rest
+PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
 
 
 class Started(threading.Event):

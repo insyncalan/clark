@@ -122,18 +122,16 @@ class BudgetEdge(unittest.TestCase):
     def test_one_char_over_a_whole_number_adds_nothing(self):
         self.assertEqual(len(ask_data.choose(self.passages, "q", 10099)[0]), 100)
 
-    def test_the_project_share_is_half_the_budget(self):
-        self.assertEqual((ask.BUDGET, ask_service.PROJECT_SHARE), (1_200_000, 600_000))
-
     def test_a_project_over_the_share_is_cut_at_the_share_and_the_count_is_said(self):
-        many = [ask.Passage("p", "x" * 100) for _ in range(6001)]        # 600,100 characters: one passage over the share
+        whole = ask_service.PROJECT_SHARE // 100
+        many = [ask.Passage("p", "x" * 100) for _ in range(whole + 1)]        # one passage over the share
         kept, left = ask_data.choose(many, "q", ask_service.PROJECT_SHARE)
-        self.assertEqual((len(kept), left), (6000, 1))
+        self.assertEqual((len(kept), left), (whole, 1))
         self.assertEqual(ask_data.left_out_lines([("actions", len(kept), len(many))]),
-                         ["Sent 6000 of 6001 actions (the closest to your question); 1 was left out."])
+                         [f"Sent {whole} of {whole + 1} actions (the closest to your question); 1 was left out."])
 
     def test_exactly_the_share_is_kept_whole(self):
-        kept, left = ask_data.choose(many := [ask.Passage("p", "x" * 100) for _ in range(6000)], "q", ask_service.PROJECT_SHARE)
+        kept, left = ask_data.choose(many := [ask.Passage("p", "x" * 100) for _ in range(ask_service.PROJECT_SHARE // 100)], "q", ask_service.PROJECT_SHARE)
         self.assertEqual((len(kept), left), (len(many), 0))
 
     def test_no_keyword_hit_keeps_path_order(self):

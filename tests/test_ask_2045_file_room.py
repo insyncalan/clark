@@ -26,10 +26,10 @@ class FileRoom(Base):
     def test_a_project_at_the_passage_limit_plus_a_file_is_not_refused(self):
         self.fill(300)
         seen, p1, p2 = self.spy()
-        with p1, p2:
+        with mock.patch.object(ask_service, "PROJECT_SHARE", 600000), p1, p2:      # a share wide enough that the passage limit, not the characters, is what stops the project
             status, got = self.question("What is open?", files=[f("note.txt", b"ZQ-FILE-ROOM the vendor moved")])
         self.assertEqual(status, 200, got)
-        self.assertEqual(seen["project_passages"], ask.MAX_PASSAGES - 1)      # the project filled every place but the file's (on the old 25,000 share it never gets there)
+        self.assertEqual(seen["project_passages"], ask.MAX_PASSAGES - 1)      # the project filled every place but the file's
         (text,) = self.provider.sent
         self.assertIn("ZQ-FILE-ROOM", text)
 
