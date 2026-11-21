@@ -1,0 +1,58 @@
+# Bifrost step 7: the three delivery checks of the pipeline, run on every pull request without the tower.
+# REPORT-ONLY first: a FAIL is written to the log and the job summary and the job still succeeds.
+# TO FLIP ENFORCEMENT: change BIFROST_ENFORCE below from "0" to "1" (one line), then make the three checks required.
+# TO ROLL BACK: delete this file (and .github/bifrost/). The "Tests passed" workflow is not touched.
+# Reads GitHub with GET only, using this job's own GITHUB_TOKEN (contents read, pull requests read). No other token.
+# LEGACY pull requests (body written before the Point map format) pass. The plan repo is private, so a ticket the job
+# token cannot read is reported as NOT CHECKED, never as a failure.
+name: Bifrost checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+concurrency:
+  group: bifrost-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  BIFROST_ENFORCE: "0"
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  bifrost-closes-guard:
+    name: bifrost-closes-guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/bifrost
+      - run: python3 .github/bifrost/ci_run.py --check closes-guard --pr ${{ github.event.pull_request.number }}
+
+  bifrost-point-map:
+    name: bifrost-point-map
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/bifrost
+      - run: python3 .github/bifrost/ci_run.py --check point-map --pr ${{ github.event.pull_request.number }}
+
+  bifrost-test-exists:
+    name: bifrost-test-exists
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/bifrost
+      - run: python3 .github/bifrost/ci_run.py --check test-exists --pr ${{ github.event.pull_request.number }}
