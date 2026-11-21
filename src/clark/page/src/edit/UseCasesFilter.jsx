@@ -3,6 +3,7 @@
 // words) and this page's own remembered state, so nothing typed here reaches the Work items line or its memory. No Try row (the approved design
 // takes it away). An Edit part: the published file has no Use cases page.
 import { LineBox } from "../components/FilterLine.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { LINE } from "./useCasesLine.js";
 
 // The box's element ids: the input keeps the old search box's id (it is that box's successor, and the tests and the keys know it by that name).
@@ -11,5 +12,5 @@ const CTX = {};
 
 /** `f` is the page's state, `rows` its rows, `now()` reads the line as it is this moment and `apply(text)` makes `text` the line. */
 export function UseCasesFilter({ f, rows, now, apply, tail = null }) {
-  return <LineBox line={f.line} now={now} apply={apply} rows={rows} ctx={CTX} extra={LINE} ids={IDS} label="Search use cases" tail={tail} />;
+  return <LineBox line={f.line} now={now} apply={apply} rows={rows} ctx={CTX} extra={LINE} ids={IDS} label="Search use cases" placeholder={classicTheme() ? "Search use cases, or try status:Flag" : undefined} tail={tail} />;
 }
