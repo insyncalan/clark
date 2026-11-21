@@ -126,6 +126,21 @@ class Panel(Base):
             p.until("document.querySelector('#ask-panel') === null", "closed by escape")
             p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", "focus returned after escape")
 
+    def test_ctrl_j_and_cmd_j_open_it_and_press_again_closes_it(self):
+        """Row 1292 rule 2: Ctrl or Cmd + J opens the panel and the same key closes it; the key held down does not flip it again."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for mod in ("ctrlKey", "metaKey"):
+                send = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', %s: true, bubbles: true, cancelable: true, repeat: %%s}))" % mod
+                p.js(send % "false")
+                p.until("!!document.querySelector('#ask-panel')", "opened by " + mod)
+                p.js(send % "true")
+                time.sleep(0.4)
+                self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "a held key is not a second press")
+                p.js(send % "false")
+                p.until("document.querySelector('#ask-panel') === null", "closed by " + mod)
+
     def test_focus_that_moved_on_after_it_closed_stays_where_it_went(self):
         """Putting focus back waits a moment; if a peek or another control took focus in that moment, it is not pulled away."""
         with chrome() as cdp:

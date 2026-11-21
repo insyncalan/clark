@@ -50,7 +50,6 @@ export const RICH_FIELDS = {
   linkcard: "linkcard.text",
   onedoc: "onedoc.text",
   callout: "callout.text",
-  client_message: "milestone.client_wording",
   caption: "picture.caption",
   mv_who: "movement.who",
   mv_reason: "movement.reason",
