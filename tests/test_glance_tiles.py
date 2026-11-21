@@ -34,12 +34,23 @@ def expected(data):
     }
 
 
+def builtin_glance(store, codes):
+    """Row 1266: a new project starts with the template glance; these tests are the built-in one's, which an existing project keeps, so it takes the template's place."""
+    with store.step("dashboard", "tester") as st:
+        for code in codes:
+            for row in store.read("report_sections", code):
+                if row["type"] == "glancetemplate":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": code, "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
+
+
 class Tiles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         need_chrome()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.projects = cls.store.read("projects")
+        builtin_glance(cls.store, [p["code"] for p in cls.projects])
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.projects}
         for code, d in cls.data.items():     # Decisions needed is hidden until shown (#45): these tests count it, so its row says shown
             d["glance_tiles"] = [{"project": code, "tile": t, "hidden": 0, "outline": "", "sort_order": n * 10} for n, t in enumerate(("health", "overdue", "risks", "decisions"), 1)]
@@ -99,6 +110,7 @@ class Tiles(unittest.TestCase):
         from test_report_editor import DemoStore, EMPTY_BRANDING, USER
         demo = DemoStore()
         self.addCleanup(demo.close)
+        builtin_glance(demo.store, ["ABC"])
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(__import__("shutil").rmtree, folder, True)
         done = publish.publish(demo.store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)

@@ -28,6 +28,10 @@ def plant(self):
         self.uc2 = st.create("use_cases", {"project": "ABC", "title": "Payment runs", "status": "Flag", "ref": "1.2",
                                            "headline": "One supplier file still fails", "standing": "<p>Two of three files load.</p>", "source": "demo"})
         st.update("use_cases", uc, {"ref": "1.1", "headline": "Matching is live", "standing": "<p>Live for two suppliers.</p>"})
+        for row in self.store.read("report_sections", "ABC"):      # row 1266: a new project starts with the template glance; this file tests the built-in one, which an existing project keeps, so it takes the template's place
+            if row["type"] == "glancetemplate":
+                st.cancel("report_sections", row["id"])
+                st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
     self.a_open = d.action(description="Chase the supplier file", owner="Pat Demo", due_date=LONG, use_case=uc)
     self.a_secret = d.action(description="ZQ-sensitive step", owner="Sam Demo", due_date=LONG, use_case=uc)
     self.a_off = d.action(description="ZQ-client-off step", owner="Lee Demo", due_date=LONG, use_case=uc, client_visible=0)
