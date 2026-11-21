@@ -125,7 +125,7 @@ class Server(unittest.TestCase):
 
 
 class Source(unittest.TestCase):
-    LINES = ("Latest update", "last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
+    LINES = ("Latest update", "Last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
 
     def test_each_line_is_in_the_source_and_the_edit_page_and_not_in_a_published_file(self):
         src = "".join((ROOT / "src/clark/page/src/edit" / f).read_text(encoding="utf-8") for f in ("PeekLatest.jsx", "peekLatest.js"))
@@ -134,7 +134,7 @@ class Source(unittest.TestCase):
         for line in self.LINES:
             self.assertIn(line, src, line)
             self.assertIn(line, built, line)
-        for line in ("Move a week on", "last updated", "pk-warnbar"):
+        for line in ("Move a week on", "Last updated", "pk-warnbar"):
             self.assertNotIn(line, view, "the published page carries none of it: " + line)
 
     def test_the_page_says_the_two_new_refusals_in_its_own_words(self):
@@ -175,7 +175,7 @@ class Source(unittest.TestCase):
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
-        self.assertIn("editing && forItem && tools.PeekLatest", peek)
+        self.assertIn("latestOn && forItem && tools.PeekLatest", peek)
         self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
@@ -201,7 +201,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False, history=None):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -209,8 +209,11 @@ class Browser(unittest.TestCase):
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
+        read = activity_read.make_read(self.store.path, self.store.data_for)
+        if history is not None:                               # row 1470: the item's history as the test writes it: {"rows": [...newest first], "source_words": "..."}
+            read = lambda code, ref, real=read: dict(real(code, ref), **history)
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
-                    sneak=sneak.make_read(self.store.data_for), activity=activity_read.make_read(self.store.path, self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
+                    sneak=sneak.make_read(self.store.data_for), activity=read, change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -395,18 +398,52 @@ class Browser(unittest.TestCase):
     def test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change(self):
         a = self.action(OVERDUE)
         utc = datetime.strptime(a["updated_at"][:16], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone()
-        want = "last updated " + utc.strftime("%d-%m-%Y %H:%M")
+        want = "Last updated " + utc.strftime("%d-%m-%Y %H:%M")
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 got = lambda: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('[data-pk-last]'))", sid)
-                self.assertEqual(got(), want)
+                self.assertEqual(got().split(" by ")[0].split(" · ")[0], want)      # row 1470: the name and the Source follow when known
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))
                 self.open_box(cdp, sid)                                   # row 1077: a save through the box moves the stamp (Draft is gone)
                 self.type_in(cdp, sid, " Stamp moves.")
                 self.save_key(cdp, sid)
                 self.assertTrue(wait(lambda: len(sent) == 1), "one save")
-                self.assertTrue(wait(lambda: got() != want), "the stamp is the one clark wrote")
+                self.assertTrue(wait(lambda: got().split(" by ")[0].split(" · ")[0] != want), "the stamp is the one clark wrote")
+
+    def test_row_1470_created_entry_names_the_first_creator_date_time_and_source_and_drops_what_is_unknown(self):
+        row = lambda kind, who, when: {"kind": kind, "who": who, "when_text": when, "field": "Latest update"}
+        created = lambda cdp, sid: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-latest] [data-rich] .quiet'))", sid)
+        for width in (1400, 900):
+            with self.subTest(width=width, known=True), chrome() as cdp:       # newest first: the first Created row is the last one
+                hist = {"rows": [row("Created", "Zed Newer", "21-11-2026 10:00"), row("Created", "Ann First", "01-10-2026 09:30 - zone not recorded")],
+                        "source_words": "Excel import, 01-10-2026, plan.xlsx"}
+                sent, sid = self.load(cdp, width, OVERDUE, seed="", history=hist)
+                self.assertTrue(wait(lambda: created(cdp, sid).startswith("Created")), "the Created entry")
+                self.assertEqual(created(cdp, sid), "Created by Ann First, 01-10-2026 09:30 \u00b7 Source: Excel import, 01-10-2026, plan.xlsx")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-created-k]').textContent", sid), "Created")
+            with self.subTest(width=width, known=False), chrome() as cdp:
+                hist = {"rows": [row("Created", "", "01-10-2026 09:30")], "source_words": ""}
+                sent, sid = self.load(cdp, width, OVERDUE, seed="", history=hist)
+                self.assertTrue(wait(lambda: created(cdp, sid).startswith("Created")), "the Created entry")
+                self.assertEqual(created(cdp, sid), "Created, 01-10-2026 09:30")
+
+    def test_row_1470_a_comment_row_is_never_read_as_the_update_in_the_stamp(self):
+        row = lambda kind, who, when: {"kind": kind, "who": who, "when_text": when, "field": "Latest update"}
+        last = lambda cdp, sid: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('[data-pk-last]'))", sid)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:                  # the comment is the newest row; the update under it is the one named
+                hist = {"rows": [row("Comment", "Mallory", "20-11-2026 08:00"), row("Changed", "Ann", "19-11-2026 07:15")], "source_words": "Excel import"}
+                sent, sid = self.load(cdp, width, OVERDUE, history=hist)
+                self.assertTrue(wait(lambda: " by " in last(cdp, sid)), "the name")
+                self.assertEqual(last(cdp, sid), "Last updated 19-11-2026 07:15 by Ann \u00b7 Source: Excel import")
+            with self.subTest(width=width, only="comment"), chrome() as cdp:
+                hist = {"rows": [row("Comment", "Mallory", "20-11-2026 08:00")], "source_words": ""}
+                sent, sid = self.load(cdp, width, OVERDUE, history=hist)
+                self.assertTrue(wait(lambda: last(cdp, sid).startswith("Last updated")), "the stamp")
+                self.assertNotIn("Mallory", last(cdp, sid))
+                self.assertNotIn("20-11-2026 08:00", last(cdp, sid))
+                self.assertNotIn(" by ", last(cdp, sid))
 
     def test_a_risk_and_an_issue_show_the_box_save_and_undo_it_and_a_decision_shows_it_too(self):
         """Item 1185: the box, the save, the Undo and the history on the other kinds, at both widths."""
@@ -526,7 +563,7 @@ class Browser(unittest.TestCase):
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")
-                self.assertTrue(stamp["shown"] and stamp["text"].startswith("last updated "), stamp)
+                self.assertTrue(stamp["shown"] and stamp["text"].startswith("Last updated "), stamp)
                 self.assertEqual(stamp["ink"], self.want(cdp, sid, "--text-muted"))
                 self.assertGreaterEqual(stamp["ratio"], 4.5, stamp)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))

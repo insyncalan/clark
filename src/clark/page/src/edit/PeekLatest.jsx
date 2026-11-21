@@ -7,9 +7,10 @@ import { signal } from "@preact/signals";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
-import { data } from "../stores/report.js";
+import { data, project } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
+import { readActivity } from "./activityApi.js";
 import { changeFor, tableOf } from "./itemEdit.js";
 import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
@@ -95,6 +96,27 @@ export function PeekLatest({ row }) {
   return <LatestBox id={row.id} now={rec && rec.latest_update ? String(rec.latest_update) : ""} stamp={rec ? stampText(rec.updated_at) : ""} shown={!!row.client} save={save} />;
 }
 
+// Row 1470: the stamp under the box and, for an item nobody has updated, its Created entry. One read of the item's history gives the name of who
+// wrote the newest update, its date and time, and the Source; each is left out when not known (the date and time are always there, from `stamp`).
+const isUpdateRow = (r) => r.field === "Latest update" && r.kind !== "Created" && r.kind !== "Comment";
+const sourceBit = (s) => (s ? ` · Source: ${s}` : "");
+export function useLatestStamp(id, now, stamp) {
+  const [got, setGot] = useState(null);
+  const d = data.value;
+  useEffect(() => {
+    let live = true;
+    readActivity(project.value, id).then((r) => { if (live) setGot(r); });
+    return () => { live = false; };
+  }, [id, d]);                                                      // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = got && got.ok ? got.view.rows : [];
+  const source = got && got.ok && typeof got.view.source_words === "string" ? got.view.source_words : "";
+  const at = (r) => String((r && r.when_text) || "").split(" - ")[0];      // "18-11-2026 16:40", without the note that the zone was not recorded
+  const upd = rows.find(isUpdateRow), made = rows.filter((r) => r.kind === "Created").pop();
+  if (!now.trim() && made && at(made)) return { stamp: "", created: `${made.who ? ` by ${made.who}` : ""}, ${at(made)}${sourceBit(source)}` };    // the word "Created" is drawn bold by the box
+  const when = at(upd) || stamp;
+  return { stamp: when ? `Last updated ${when}${upd && upd.who ? ` by ${upd.who}` : ""}${sourceBit(source)}` : "", created: "" };
+}
+
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
 export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "What changed? Add the latest update…" }) {
   const [open, setOpen] = useState(false);
@@ -104,6 +126,7 @@ export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "Wh
   savedHtml = html;
   const ai = useDraftAi(), place = placeFor(keyForField("latest_update"));      // "current", for all four kinds (the field name decides, not the kind)
   const save = (value) => (lastSave = send(value));
+  const st = useLatestStamp(id, String(now || ""), stamp);
   return (
     <div class="pk-latest" data-pk-latest
       onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
@@ -114,10 +137,10 @@ export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "Wh
         {shown ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
       <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
       <div class="pk-lbox" data-pk-lbox>
-        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
+        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={st.created ? <><b data-pk-created-k>Created</b>{st.created}</> : placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
         <div class="pk-lfoot" data-pk-latest-hint data-pk-hint><span><kbd class="pk-key">⌘ Enter</kbd> to save</span></div>
       </div>
-      {stamp ? <div class="pk-last" data-pk-last>last updated {stamp}</div> : null}
+      {st.stamp ? <div class="pk-last" data-pk-last>{st.stamp}</div> : null}
       <PeekLatestHistory key={`h-${id}`} id={id} />
     </div>
   );

@@ -70,7 +70,7 @@ class Box(unittest.TestCase):
             if not has:
                 continue
             r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { t: s.textContent.trim(), svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, gap: s.getBoundingClientRect().top - document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().bottom }; })()", sid)
-            self.assertTrue(re.fullmatch(r"last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}", r["t"]), r)
+            self.assertTrue(re.fullmatch(r"Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}( by [^·]+)?( · Source: .+)?", r["t"]), r)
             self.assertEqual((r["svg"], r["fs"], r["mt"]), (0, "12px", "6px"))
             self.assertAlmostEqual(r["gap"], 6, delta=1)
 
