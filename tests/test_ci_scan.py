@@ -287,6 +287,20 @@ class Scan(unittest.TestCase):
         self.assertIn("workflow files follow the rules", out)
         self.assertNotIn("REFUSED", out)
 
+    def test_a_bare_secrets_reference_is_refused_in_the_argos_workflow(self):
+        for key, extra in {"toJSON of all secrets": "          B: ${{ toJSON(secrets) }}\n",
+                           "index form": "          B: ${{ secrets['ARGOS_TOKEN'] }}\n",
+                           "index form of another name": "          B: ${{ secrets['OTHER'] }}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + extra)
+                self.refused(r, "file #1: uses a secret or write access")
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + "        env:\n          B: ${{ toJSON(secrets) }}\n")
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_bare_secrets_word_is_not_refused_in_other_files(self):
+        r = self.shots(".github/workflows/other.yml", self.SHOTS_BASE.replace("echo hi", "echo secrets are kept elsewhere"))
+        self.assertNotIn("uses a secret or write access", r.scan()[1])
+
     def test_a_second_or_other_secret_is_refused_in_the_argos_workflow(self):
         for key, extra in {"second use": "          B: ${{ secrets.ARGOS_TOKEN }}\n", "other name": "          B: ${{ secrets.OTHER }}\n",
                            "inherit": "    secrets: inherit\n"}.items():
