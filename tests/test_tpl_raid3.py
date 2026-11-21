@@ -324,6 +324,7 @@ class PageSide(PageBase):
         q = f"[data-id={json.dumps(sec)}]"
         stored = lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
         changes_sent = lambda: len([s for s in self.sent if s[0] == "change"])
+        limit = 8 if self.TYPE == "raid4" else 3      # the one RAID cards card holds eight; the old three-across type holds three
 
         def pick(p, item):
             p.js(f"document.querySelector('{q} .rce-pick').click()")
@@ -335,7 +336,7 @@ class PageSide(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('{q} .rce-first')", "the first-step line is shown")
             self.assertIn("Choose an item", p.js(f"document.querySelector('{q} .rce-first').textContent"))
-            self.assertEqual(p.js(f"document.querySelector('{q} .rce-count').textContent"), "0 of 8 picked")
+            self.assertEqual(p.js(f"document.querySelector('{q} .rce-count').textContent"), f"0 of {limit} picked")
             p.js(f"document.querySelector('{q} .rce-pick').click()")
             p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
             offered = self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick)")
@@ -344,13 +345,13 @@ class PageSide(PageBase):
             p.js(f"document.querySelector('{q} .rce-pick').click()")
             pick(p, ids["risk"])
             self.assertTrue(self.wait_for(lambda: len(stored()["cards"]) == 1), "the first pick is saved")
-            p.until(f"document.querySelector('{q} .rce-count').textContent === '1 of 8 picked'", "the count follows")
+            p.until(f"document.querySelector('{q} .rce-count').textContent === '1 of {limit} picked'", "the count follows")
             self.assertEqual(changes_sent(), 1, "one pick, one request")
             self.assertEqual(stored()["cards"][0]["id"], ids["risk"])
             p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card added.'", "the page has taken the saved pick (toast)")
             pick(p, ids["action"])
             self.assertTrue(self.wait_for(lambda: len(stored()["cards"]) == 2), "the second pick is saved")
-            p.until(f"document.querySelector('{q} .rce-count').textContent === '2 of 8 picked'", "the count follows")
+            p.until(f"document.querySelector('{q} .rce-count').textContent === '2 of {limit} picked'", "the count follows")
             self.assertEqual(changes_sent(), 2)
             self.assertNotIn(ids["risk"], self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick)"), "an item is on one card only")
             before = stored()

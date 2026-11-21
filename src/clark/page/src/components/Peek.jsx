@@ -14,7 +14,8 @@ import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
 import { closesPeek } from "../peek/outside.js";
-import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
+import { itemIds, milestoneIds, around, placeIn, fromCard } from "../peek/list.js";
+import { richOrPlain } from "../logic/richOrPlain.js";
 import { holdScroll } from "../core/holdScroll.js";
 import { Icon } from "./Icon.jsx";
 import { classicTheme } from "./Contents.jsx";
@@ -133,8 +134,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}
       {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
-      {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
-      {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
+      {!editing && fromFile.value && row.client_message && !fromCard(row.id) ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
+      {!editing && (fromFile.value || fromCard(row.id)) && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={latestHtml(row)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed" icon={slim ? "clock" : undefined}>{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
@@ -172,6 +173,8 @@ export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head
 // A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (the editing index: richOrPlain,
 // the cleaner), so the cleaner is never in the published bundle (tests: "the cleaner is not in a published file").
 const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools && tools.richOf ? tools.richOf(value) : "");
+// Row 1270: an item's Latest update as the peek draws it. A published file's is already clean; the author's View draws what is stored as the editor shows it (CleanProse cleans it again).
+const latestHtml = (row) => { if (fromFile.value) return String(row.latest_update || ""); try { return richOrPlain(row.latest_update || ""); } catch (e) { return ""; } };
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
 function MilestoneFields({ m, tools }) {
@@ -399,9 +402,9 @@ export function Peek({ tools }) {
       <div>
           {Latest && row ? <Latest key={row.id} row={row} /> : MsLatest && m ? <MsLatest key={m.id} m={m} /> : null}      {/* item 1181: the Latest update sits above the Details */}
           {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
-            {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
-              {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
-              {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
+            {!editing && (fromFile.value || fromCard(row.id)) && ((row.client_message && !fromCard(row.id)) || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
+              {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={latestHtml(row)} /></Row> : null}
+              {row.client_message && !fromCard(row.id) ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
             </dl> : null}
             <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} onFile={fromFile.value} />
           </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}

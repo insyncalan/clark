@@ -7,7 +7,7 @@ import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
 import { putCard } from "../../logic/putCard.js";
 import { publishable } from "../../logic/publishable.js";
-import { MANY, acrossOf, bodyOf, kindOfId, kindWords, latestOf, parse, rowOf, rulesOf, shows, titleOf } from "../../templates/raid.js";
+import { MANY, acrossOf, bodyOf, kindOfId, kindWords, latestOf, parse, ratingOf, rowOf, rulesOf, shows, titleOf } from "../../templates/raid.js";
 
 const GROUPS = [["raid", "Risks and issues"], ["actions", "Actions"], ["decisions", "Decisions"]];
 const cut = (s, n) => { const c = Array.from(s); return c.length > n ? `${c.slice(0, n - 1).join("").trimEnd()}…` : s; };
@@ -127,14 +127,14 @@ export function RaidEdit({ section, size: base, choice = false }) {
       ) : null}
       <div class="rce-bar">
         <button type="button" class="rce-pick" aria-expanded={picking} disabled={cards.length >= size} onClick={() => setPicking(!picking)}>Pick an item</button>
-        <span class="rce-count">{`${cards.length} of ${MANY} picked`}</span>
+        <span class="rce-count">{`${cards.length} of ${size} picked`}</span>
       </div>
       {picking ? (
         <div class="rce-picker">
           <input type="search" aria-label="Pick an item" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
           <ul class="rce-opts" role="listbox" aria-label="Pick an item">
             {pickable().map((o) => (
-              <li key={o.id} role="option" aria-selected="false"><button type="button" data-pick={o.id} onClick={() => pick(o.id)}><b>{o.id}</b> {o.text}</button></li>
+              <li key={o.id} role="option" aria-selected="false"><button type="button" data-pick={o.id} onClick={() => pick(o.id)}><b>{o.id}</b> <span class="rce-kind">{kindWords(o.row, o.kind)}</span>{ratingOf(o.row, o.kind).word ? <span class="rce-rate">{ratingOf(o.row, o.kind).word}</span> : null} {o.text}</button></li>
             ))}
           </ul>
           {pickable().length === 0 ? <p class="quiet rce-none">No item matches</p> : null}
