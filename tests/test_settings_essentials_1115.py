@@ -1,7 +1,7 @@
 """Row 1115, S3: the Essentials card, first on the Settings Profile page, in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
-Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder,
+Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder,
 Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
@@ -11,7 +11,7 @@ from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key shortcuts", "Backups", "Publishing folder", "Asking on or off"]
+NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking on or off"]
 ROWS = """[...document.querySelectorAll('#essentials .set-row')].map(r => r.querySelector('.set-row-text label').textContent)"""
 
 
@@ -23,6 +23,7 @@ STUB = r"""(() => {
   window.fetch = (url, opts) => {
     if (String(url).startsWith("/api/ask-enabled")) {
       if (opts && opts.method === "POST") asking = JSON.parse(opts.body).enabled;
+      else window.__askReads = (window.__askReads || 0) + 1;      // the reads the page has made, so a test can tell the row has asked again
       return Promise.resolve(reply({ ok: true, ask_enabled: asking, saved: true }));
     }
     if (String(url).startsWith("/api/backups/copy-folder")) return Promise.resolve(reply({ ok: true, folder: "/tmp/essentials-copy", message: "Saved." }));
@@ -98,7 +99,7 @@ class Essentials(test_settings_head.Head):
                     p.until("document.documentElement.dataset.motion === 'reduce' && document.querySelector('[data-ess-motion]').getAttribute('aria-checked') === 'false'", "Motion off reduces motion")
                     p.js("document.querySelector('[data-ess-motion]').click()")
                     p.until("!document.documentElement.dataset.motion", "Motion on again")
-                    # Single-key shortcuts: the same switch as in Personal
+                    # Single-key slash commands: the same switch as in Personal
                     p.js("document.querySelector('[data-ess-keys]').click()")
                     p.until("document.querySelector('[data-ess-keys]').getAttribute('aria-checked') === 'false'", "the keys switch is off")
                     self.to_page(p, "appearance")
@@ -125,8 +126,11 @@ class Essentials(test_settings_head.Head):
                     self.to_page(p, "claude")
                     p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
                     self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
+                    reads = p.js("window.__askReads || 0")
                     self.to_page(p, "profile")
-                    p.until("!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
+                    # the row first draws with the answer the Asking card left, enabled, and only then asks again (an effect after the paint): wait for that read to be made and answered,
+                    # or the click lands on the old state and a newer read can overtake it
+                    p.until(f"(window.__askReads || 0) > {reads} && !!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled && !/Checking/.test(document.getElementById('ess-ask-line').textContent)", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
                     p.js("document.querySelector('[data-ess-ask]').click()")
                     p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
                     self.to_page(p, "claude")
