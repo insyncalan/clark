@@ -82,7 +82,7 @@ class Spacing(unittest.TestCase):
         cls.store.close()
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def check(self, got, where, pad=PAD):
+    def check(self, got, where, pad=PAD, classic=False):      # classic: a published file is drawn in the Classic Theme (row 1396): 9 px above and below, 20 px at the left, the line at 22 in the light line-soft grey
         rows = got["rows"]
         self.assertGreater(len(rows), 5, f"{where}: every milestone is on the page")
         self.assertEqual(got["all"], "Show the first 5", f"{where}: the words after Show all")
@@ -90,7 +90,7 @@ class Spacing(unittest.TestCase):
         self.assertFalse(got["listScroll"], f"{where}: nothing scrolls inside the list")
         for i, r in enumerate(rows):
             last = i == len(rows) - 1
-            self.assertEqual((r["padTop"], r["padBottom"]), (pad, pad), f"{where}: row {i} has {pad} px above and below")
+            self.assertEqual((r["padTop"], r["padBottom"]), (9, 9) if classic else (pad, pad), f"{where}: row {i} has {pad} px above and below")
             # The rail and its dot are as they were: a 2 px grey-200 line down the left, a 12 px ring on it half way down the row.
             self.assertEqual((r["rail"]["w"], r["rail"]["style"], r["rail"]["colour"]), (2, "solid", got["grey200"]), f"{where}: row {i} rail")
             self.assertEqual((r["dot"]["w"], r["dot"]["h"], r["dot"]["ring"], r["dot"]["round"]), (12, 12, 2, "50%"), f"{where}: row {i} dot")
@@ -102,10 +102,11 @@ class Spacing(unittest.TestCase):
             line = r["line"]
             self.assertIsNotNone(line, f"{where}: a line under row {i}")
             self.assertEqual((line["pos"], line["h"], line["bottom"], line["right"]), ("absolute", 1, 0, 0), f"{where}: row {i} line is 1 px along the row's foot")
-            self.assertEqual(line["left"], r["padLeft"], f"{where}: row {i} line starts at the text")
+            self.assertEqual((line["left"], r["padLeft"]), (22, 20) if classic else (r["padLeft"], r["padLeft"]), f"{where}: row {i} line starts at the text")
             self.assertGreater(line["left"], 0, f"{where}: row {i} line stays off the rail")
-            self.assertEqual(line["colour"], got["grey200"], f"{where}: row {i} line is the rail's grey")
-            self.assertEqual(line["colour"], r["rail"]["colour"], f"{where}: row {i} line and rail are one colour")
+            if not classic:
+                self.assertEqual(line["colour"], got["grey200"], f"{where}: row {i} line is the rail's grey")
+                self.assertEqual(line["colour"], r["rail"]["colour"], f"{where}: row {i} line and rail are one colour")
             self.assertTrue(r["touchesNext"], f"{where}: row {i + 1} starts where row {i} ends, so the line sits between them")
 
     def test_the_live_page_at_1400_and_900_light_and_dark(self):
@@ -141,7 +142,7 @@ class Spacing(unittest.TestCase):
                     show_all(cdp, sid)
                     for dens, pad in PADS.items():
                         cdp.js(f"document.documentElement.dataset.density = '{dens}'", sid)
-                        self.check(cdp.js(LOOK, sid), f"published {dens} {scheme} {width}px", pad)
+                        self.check(cdp.js(LOOK, sid), f"published {dens} {scheme} {width}px", pad, classic=True)
 
 
 class Stylesheet(unittest.TestCase):

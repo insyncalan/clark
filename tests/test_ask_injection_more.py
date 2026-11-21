@@ -142,6 +142,12 @@ class TheRulesAreOnlyTheSystemPrompt(tcl.Fake):
 class ALongChat(unittest.TestCase):
     QUESTION = "Where are we on the plan?"
 
+    def setUp(self):       # the dropping rule is the same at any size: these cases keep to the small sizes the passages and turns were written for
+        for name, value in (("BUDGET", 40000), ("MAX_REQUEST", 70000)):
+            patcher = mock.patch.object(ask, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def passages(self):
         return [ask.Passage(f"notes/{i}.md", chr(97 + i) * ask.MAX_PASSAGE) for i in range(ask.BUDGET // ask.MAX_PASSAGE)]
 
@@ -192,6 +198,13 @@ class ALongChat(unittest.TestCase):
 
 
 class ALongChatOverTheRoute(tc.Base):
+    def setUp(self):
+        super().setUp()
+        for name, value in (("BUDGET", 40000), ("MAX_REQUEST", 70000)):
+            patcher = mock.patch.object(ask, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def test_a_long_chat_is_sent_under_the_ceiling_and_the_person_is_told(self):
         self.provider.reply = "Fine.\nCITE: P1"
         self.files = tuple(ask.Passage(f"notes/{i}.md", chr(97 + i) * ask.MAX_PASSAGE) for i in range(8))
