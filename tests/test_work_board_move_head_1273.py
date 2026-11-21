@@ -31,14 +31,14 @@ class MoveHead(wb.Base):
                 click(cdp, sid, f"[data-move='{a}']")
                 self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
                 heads = cdp.js("[...document.querySelectorAll('.ddmenu .mh')].map(h => h.textContent)", sid)
-                self.assertEqual(heads, [f"Move {a} to", "Move to Workstream"])
+                self.assertEqual(heads, [f"Move {a} to", "Move to Workstream"])   # the lane head is not in capitals: code measurement, not mock
                 tt = cdp.js("[...document.querySelectorAll('.ddmenu .mh')].map(h => getComputedStyle(h).textTransform)", sid)
                 self.assertEqual(tt, ["uppercase", "none"], "only the card's head is drawn in capitals")
 
                 # the capitals rule reads the tokens (a probe set to the same tokens resolves to the same px), on the card's head only
-                probe = cdp.js("""(() => { const m = document.querySelector('.ddmenu'); const p = document.createElement('span'); p.style.cssText = 'font-size:var(--size-caption);letter-spacing:var(--tracking-caps);font-weight:var(--weight-medium)'; m.appendChild(p); const q = getComputedStyle(p); const r = [q.fontSize, q.letterSpacing, q.fontWeight]; p.remove(); return r; })()""", sid)
+                probe = cdp.js("""(() => { const m = document.querySelector('.ddmenu'); const p = document.createElement('span'); p.style.cssText = 'font-size:var(--size-caption);letter-spacing:.08em;font-weight:var(--weight-regular)'; m.appendChild(p); const q = getComputedStyle(p); const r = [q.fontSize, q.letterSpacing, q.fontWeight]; p.remove(); return r; })()""", sid)
                 head = cdp.js("(() => { const q = getComputedStyle(document.querySelector('.ddmenu .mh.caps.mh-card')); return [q.fontSize, q.letterSpacing, q.fontWeight]; })()", sid)
-                self.assertEqual(head, probe, "the card's head takes the caption size, the caps tracking and the medium weight")
+                self.assertEqual(head, probe, "the card's head takes the caption size, .08em tracking and the normal weight")
                 self.assertNotEqual(probe[1], "normal")
                 # the Move to line is a centred flex row; the tick is on the RIGHT of the word (ruling 9A), the text starts at x36 (10 + 16 icon + 10)
                 row = cdp.js("""(() => { const ck = document.querySelector('.ddmenu [role="menuitem"] > .ck'); if (!ck) return null; const it = ck.parentElement; const q = getComputedStyle(it);

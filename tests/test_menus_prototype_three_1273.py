@@ -79,8 +79,8 @@ class ThreeMenus(unittest.TestCase):
     def test_the_capitals_rule_sets_size_tracking_and_weight_on_both_heads(self):
         for sel in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card"):
             self.assertEqual(decls(sel, "font-size"), "var(--size-caption)", sel)
-            self.assertEqual(decls(sel, "letter-spacing"), "var(--tracking-caps)", sel)
-            self.assertEqual(decls(sel, "font-weight"), "var(--weight-medium)", sel)
+            self.assertEqual(decls(sel, "letter-spacing"), ".08em", sel)   # the prototype .mh
+            self.assertEqual(decls(sel, "font-weight"), "var(--weight-regular)", sel)   # .mh sets no weight: normal, not 600
 
     def test_move_to_items_centre_their_row(self):
         self.assertEqual(decls(MOVE + ' [role="menuitem"]', "display"), "flex")
