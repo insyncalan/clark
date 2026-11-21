@@ -131,7 +131,7 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }
 .wil-table .num { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); line-height: normal; }
 .wil-table .due-l { font-size: calc(var(--size-caption) - 1.5px); line-height: normal; }
-/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons keep the pill, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */
+/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons are 8px navy rectangles too, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */
 h1, h2, h3 { font-weight: var(--weight-medium); }
 .btn, .seg { border-radius: var(--radius); }
 :root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: var(--radius); }
@@ -147,6 +147,7 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 @media (min-width: 1000px) {
   .cnt-grid { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: 28px; align-items: start; }
   html[data-density] #report.frame .cnt-grid > .secs { margin-left: 0; }      /* the comfortable-density pull of 28px to the left would run under the column */
+  #report.frame:has(> .cnt-grid) { padding-left: 0; }      /* row 1318 follow-up: measured at 1400, the column sat at x=105 = main 52.5 + 24 padding + the frame's 28px left padding; the prototype's .wrap has no such padding */
   .cnt { display: block; position: sticky; top: calc(var(--topbar) + var(--space-4)); max-height: calc(100vh - var(--topbar) - var(--space-6)); overflow-y: auto; }
 }
 .cnt-h { margin: 0 0 var(--space-2); font-size: 13px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
@@ -223,11 +224,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1316a (issue 1316: Crumb, Tabs and menus, Search; the prototype files are not on this box, so the sizes are by eye, +/-2 px, from the issue table). Classic only; the Cards look layers none of this. Bare lengths with no token: the 560px search width, the 34px left padding that clears the magnifier, the 9px/2px magnifier ring and the 5px handle, the 1px clip box of the visually hidden count. */
 .ucd-crumb, .ucf-crumb { font-weight: var(--weight-regular); font-size: var(--size-caption); text-transform: none; letter-spacing: normal; }
 #usecases #ucl-group .nch, #usecases #ucl-sort .nch, #usecases .vtabmenu .nch { display: none; }
-#usecases #ucl-group, #usecases #ucl-sort { border-color: transparent; background: none; border-radius: var(--radius-sm); color: var(--text-muted); }
-#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+#usecases #ucl-group, #usecases #ucl-sort { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-width: 0; height: auto; min-height: 28px; padding: 0 10px; border: 1px solid var(--grey-500); border-radius: 6px; background: transparent; color: var(--text); font-size: var(--size-body); font-weight: 500; }
+#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); }
 #usecases .vtabmenu::after { content: "\2026"; font-size: var(--size-body); line-height: 1; letter-spacing: .05em; }
-#usecases #ucAddPage.newb { border-color: var(--grey-500); color: var(--text-muted); }
-#usecases #ucAddPage.newb:hover, #usecases #ucAddPage.newb:focus-visible, #usecases #ucAddPage.newb[aria-expanded="true"] { border-color: var(--grey-500); background: var(--surface); color: var(--text-muted); }
+#usecases #ucAddPage.newb, #usecases #ucAddPage.newb:hover, #usecases #ucAddPage.newb:focus-visible, #usecases #ucAddPage.newb[aria-expanded="true"] { box-sizing: border-box; min-height: 28px; min-width: 28px; padding: 0 8px; border: 1px dashed var(--brand-blue); border-radius: 6px; background: transparent; color: var(--brand-blue); font-weight: 600; }      /* ruling 19-11: Group by, Sort by and + per the prototype (28px high, 6px radius, padding 0 10 / 0 8, + dashed brand 600); bare px have no token */
 #usecases .fline-row { max-width: 560px; }
 #usecases .fline { padding-left: 34px; }
 #usecases .fline::before { content: ""; position: absolute; left: 12px; top: 50%; width: 9px; height: 9px; margin-top: -8px; border: 2px solid var(--text-muted); border-radius: 50%; box-sizing: content-box; }
@@ -243,6 +243,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1316d (issue 1316, ruling 00:31; Classic only, Cards unchanged): the Use cases filter at rest is a box as in the prototype (pages/usecases.css:47: 34px high, 1px border, radius 6px). The border is --grey-500, the Classic token that equals the prototype --ui in light and in dark. Focus adds no ring and no colour (ruling 1137); a line the filter cannot read keeps its red. Bare lengths: 34px box height, 6px radius. */
 #usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }
 #usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }
+/* Row 1316 gap (ruling 19-11): the 560px is the search box alone; the view icons stand beside it, not inside the 560. */
+#usecases .fline-row { max-width: none; }
+#usecases .fline-row > .fline { flex: 0 1 560px; }
 
 /* Row 1324-A (Option A, ruling 18-11; Classic only, Cards keeps its bordered group cards): Group by draws a heading on the page, no card: the name, the count, one hairline under it; the column names once on top (the published list draws them only in this Theme, see UseCasesTab.jsx); 18 px above each group. The name column is 64 px, the rows' own width. */
 .wgroup.ucl-group, .wgroup.ucp-group { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
@@ -265,8 +268,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. */
 @media (min-width: 900px) {
   .set-bar { background: var(--grey-50); border-radius: 10px; }   /* Row 1356: the prototype's panel fill (soft, F6F8FC) and radius 10 */
-  .set-group-name { text-transform: none; letter-spacing: normal; }
-  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
+  .set-group-name { text-transform: none; letter-spacing: normal; font-size: 14px; font-weight: 600; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 10px; }
+  .set-chip[aria-current]::before { top: 7px; bottom: 7px; left: 0; width: 3px; border-radius: 3px; }   /* ruling 20-11 (prototype settings.css:34-37): the chip is 10px on all four corners and the 3px marker is drawn inside it, 7px from its top and bottom */
+  .set-chip { min-height: 36px; }
 }
 
 /* Row 1317 (Settings cards): the cards have radius 14 and no shadow (re-audit line "cards radius 12 + shadow vs radius 14 none"). Classic only. */
@@ -404,6 +409,20 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Item 1314 gap, + New view (Classic only): the brand-blue link at the far right of the tab row, as the prototype's .vnew; the dashed + square after it sits right beside it, not apart. */
+.fvrow > .vnew { margin-left: auto; color: var(--brand-blue); }
+.fvrow > .vnew:hover { color: var(--brand-blue); }
+.fvrow > .vnew + * { margin-left: 0; }
+/* Row 1315, gaps (Classic only): the Week / Month / Quarter buttons are 28px high with weight 600 on all three, and the Today name is weight 600. The switch position is Row 1355's and its fill is Row 1313's / the ruling of 19-11: not touched here. */
+#milestones .cal-sc button, #milestones .cal-sc button[aria-current="true"] { min-height: 28px; font-weight: var(--weight-medium); }
+#milestones .mv[data-look="classic"] .mv-today b { font-weight: var(--weight-medium); }
+/* Row 1318 (Classic only): the Contents heading is spaced .08em and the current entry is the body text colour, as in the prototype list. */
+.cnt-h { letter-spacing: .08em; }
+.cnt li a.on { color: var(--text); }
+/* Row 1319, spec 19-11: the page h1 sits 4px above what follows (the .head h1 and cover h1 keep their own margins), and a text segment button is 3px 14px, 28px tall, weight 600 (the two-icon switch, icon tiles and the top bar's switch keep theirs). */
+.frame h1:not(.head h1):not(.cover h1) { margin-bottom: 4px; }
+.seg:not(.lsw):not(.icons):not(.modes) button { padding: 3px 14px; min-height: 28px; font-weight: 600; }
+.seg:not(.modes):not(.lsw) { border-radius: 6px; }   /* ruled 20-11: a segmented control is radius 6 (buttons stay 8; the top bar's switch keeps its own) */
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }
@@ -449,6 +468,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1358 (Classic only): a pressed main button or mode pill keeps easing its glow over the same 0.12 s as its press sink (the shared press rule lists only the transform, so the glow snapped). */
 :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+/* Row 1358 part 2 (Classic only): the corners of the Milestones text tabs and the Use cases Group by, Sort by and New view controls are 6px, as the prototype draws them (the shared token is 8px, and the two icon buttons took 4px). */
+.mv-txt, #usecases #ucl-group, #usecases #ucl-sort, #usecases #ucAddPage.newb { border-radius: 6px; }
 
 /* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
 @media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
@@ -531,6 +552,11 @@ html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.2
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--grey-200); }
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
 @media (max-width: 1180px) { html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell.health { border-right: 0; } }
+/* Row 1345 at 900 and below (ruled: one column, content at x=20, right margin 24; prototype 2.0 index.html lines 88 and 92). No token holds 20 or 24, so they are bare lengths. */
+@media screen and (max-width: 900px) {
+  html:has(.rbar + #report .cnt-grid) main { padding-left: 20px; padding-right: 24px; }
+  html:has(.rbar + #report .cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }
+}
 /* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
 .ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. */
@@ -659,10 +685,78 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-pr[data-pri="Medium"] { border-color: var(--pri-medium-bg); }
 .wil-pr[data-pri="High"] { border-color: var(--pri-high-bg); }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
+/* Row 1285 (Classic only; Cards keeps its captions and its amber bar): the Settings menu is a flat list, so the group captions are not drawn (kept for a screen reader) and one thin line sits between every pair of groups (four), at 1400 and 900; and the overdue bar in a peek keeps its buttons but is a quiet 13px muted note with text links, no amber border or tint. Bare lengths: measured from the mock-up (Row 1285 spec table). */
+.set-group-name { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.set-nav > .set-group, .set-nav > .set-group:first-child { margin-top: 0; }
+.set-nav > .set-group + .set-group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }
+.pk-warnbar { margin-bottom: 12px; padding: 0; border: 0; border-radius: 0; background: none; }
+.pk-warnbar .pk-warn { font-size: 13px; color: var(--text-muted); }
+.pk-warnbar .pk-fix { gap: var(--space-1) var(--space-3); margin-top: var(--space-1); }
+.pk-warnbar .pk-fix button { min-height: 24px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--brand-blue); font-size: 13px; font-weight: 600; text-decoration: underline; }
+.pk-warnbar .pk-fix button:hover { background: none; }
+/* Row 1285 (Classic only; measured values of the approved peek mock-up, the spec table on the ticket): the Latest update label sits 18px under what is above it, the Draft with AI button pads 4px 8px, the save-key footer has a 10px gap and 10px right padding, and its key is 11px at weight 600 with radius 5 and padding 0 5px. Bare lengths: no token holds these. */
+.pk-lab { margin-top: 18px; }
+.pk-ai { padding: 4px 8px; }
+.pk-lfoot { gap: 10px; padding-right: 10px; }
+.pk-key { padding: 0 5px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+/* Row 1285 ruling (Classic only; Cards keeps every one of these). Settings at 900 (the 900 to 1099 list): the chip looks as the Settings sidebar chip of row 1401 does, 15px text and the open page in the brand colour on the Work items tile fill (the same two tokens), geometry as built; the row 1401 rule itself comes with that row. Bare lengths: measured from the mock-up (Row 1285 spec table). */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .set-chip { font-size: 15px; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--tile-on-bg); color: var(--tile-on-fg); }
+}
+/* The milestone peek's four tiles keep their full text: it wraps at words and the tile grows in height, with the padding as built and no ellipsis. */
+.pk-chips.ms .pkc .pkc-v { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: break-word; }
+.pk-chips.ms .pkc-btn { align-self: stretch; height: auto; }
+/* Show history is a row like the other Details rows: its word at the left, a chevron at the right, 36px high as the mock-up's rows (the .dg row, min-height 36). Bare lengths: measured from the mock-up (Row 1285 spec table). */
+.pk-lh-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; margin: 0; color: var(--text-muted); font-size: var(--size-small); text-decoration: none; }
+.pk-lh-btn .pk-lh-car { display: inline-flex; }
+.pk-lh-car svg { width: 16px; height: 16px; }
+.pk-lh-btn[aria-expanded="true"] .pk-lh-car { transform: rotate(180deg); }
+/* The client line is a row of its own: the label at the left, the mock-up's switch (.sw: 40 x 22, a 18px knob 2px in) at the right. The words stay as they are. Bare lengths: measured from the mock-up (Row 1285 spec table). */
+.pk-row[data-pk-client-row] .pk-client { display: flex; width: 100%; justify-content: space-between; min-height: 36px; }
+.pk-client .pk-sw { display: block; position: relative; flex: none; width: 40px; height: 22px; margin-left: auto; border-radius: 999px; background: var(--grey-300); }
+.pk-client .pk-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); /* Row 1285 measured spec: the knob shadow of the mock-up; no shadow token fits (--shadow is 0 8px 24px). */ transition: left var(--dur-instant) var(--ease-out); }
+.pk-client.on .pk-sw { background: var(--brand-blue); }
+.pk-client.on .pk-sw::after { left: 20px; }
+/* The mock-up's .val look on the value of every Details property row (not the decision rows alone): padding 4px 8px, margin-left -8px, radius 8px, weight 500; the soft fill on hover. Bare lengths: measured from the mock-up (Row 1285 spec table). */
+.pk-details-body .pk-fields > .pk-row:not([data-pk-client-row]) dd .pk-pick { padding: 4px 8px; margin-left: -8px; border: 0; border-radius: 8px; font-weight: 500; }
+.pk-details-body .pk-fields > .pk-row:not([data-pk-client-row]) > dd:not(:has(.pk-pick, .pk-rich, .rt, input, textarea, button)) { font-weight: 500; }
+/* The chips row: 6px under it as the mock-up's .flat, and the small word under a decision's owner and date is the mock-up's pill (11px, weight 700, padding 0 8px, fully round). */
+.pk-chips { margin-bottom: 6px; }
+.pkc-sub.word { padding: 0 8px; border-radius: 999px; background: var(--status-red-tint); color: var(--status-red-text); font-size: 11px; font-weight: 700; }
 /* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1357 (Use cases page, Classic only): item 2, Group by and Sort by keep their icons and take the prototype's button line (1px, the prototype's --ui is this theme's --grey-500) and 6px corners, 28px high; item 6, the status pill is 13px weight 600 as the prototype's pill; item 9, the left rule has square corners (border-radius 0). */
+#usecases #ucl-group, #usecases #ucl-sort { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 28px; height: 28px; box-sizing: border-box; font-weight: 500; }
+#usecases .pill { font-size: 13px; font-weight: 600; height: 20px; line-height: 20px; padding: 0 10px; }
+/* Row 1357 follow-up (Classic only): item 2, Group by and Sort by weight 500 (usecases.css line 10); item 3, + New view has 6px corners; item 6, the pill is 20px high with line-height 20px and padding 0 10px (usecases.css line 73). Row 1358 follow-up: the glow of the main buttons eases on hover over the press time, and + New view on the Work items saved-views row takes the brand colour and the far right (work.css line 43). */
+#usecases #ucl-viewNew { border-radius: 6px; }
+:root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):hover { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+#work .vnew, #work .vnew:hover { color: var(--brand-blue); margin-left: auto; }
+.frame.ucl { border-radius: 0; }
+/* Row 1197: the Gantt toolbar as the approved mock-up draws it. Bar gap 6px, margin 4px 0 10px, icon buttons 34px (the grouped ones 36 wide), the zoom-fit button 34px high, and one divider between zoom in and the filter. */
+[data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 10px; }
+[data-gantt] .gt-bar .gt-ib { width: 34px; height: 34px; }
+[data-gantt] .gt-bar .gt-grp .gt-ib { width: 36px; }
+[data-gantt] .gt-bar .gt-zf { height: 34px; }
+[data-gantt] .gt-bar .gt-sep { height: 22px; margin: 0 6px; }
+/* Row 1197 (measured values of the approved mock-up): the zoom percentage is 56 wide with 14px words, the plan has no gap above the toolbar, and the Show menu is 240 wide, radius 12, padding 6, rows 8px 10px and 14px words (the 10px gap is left at the 8 grid, the menus one-look test pins it). */
+[data-gantt] .gt-bar .gt-zf { min-width: 56px; font-size: var(--size-body); }
+.gp-plan { margin-top: 0; }
+/* Row 1197 (Classic, Edit): no Cover band; the title box and its label sit on one flat line at the plan's left edge, 44 high with 6px below (the mock-up's .r1). */
+.gp-flat { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 6px; background: none; }
+.gp-flat-l { font-size: var(--size-caption); color: var(--text-muted); }
+.gp-flat .gp-title { flex: 1; min-width: 4ch; padding: 6px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-body); cursor: text; }
+.gp-flat .gp-title:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-gantt] .gt-pop { min-width: 240px; border-radius: var(--radius-lg); padding: 6px; }
+[data-gantt] .gt-pop button { padding: 8px 10px; gap: 10px; font-size: var(--size-body); }
+/* Row 1316 gap (Classic only): the Dashboard-section text tabs (.mv-txt, Calendar and Timeline scale) take the grey 1px frame and dividers of the other controls, radius 6, 28px high, weight --weight-medium. Bare lengths: 6px radius, 28px. */
+.mv-txt { border-color: var(--grey-500); border-radius: 6px; }
+.mv-txt button { min-height: 28px; font-weight: var(--weight-medium); }
+.mv-txt button:not(:first-of-type) { border-left-color: var(--grey-500); }
+
 /* Row 1346 (Classic only; Cards keeps its own width): the Draft sheet is the room left of the ask panel less 24 px, never wider than 560, so it stays on the screen at 1400 and 900 (the panel's width arrives as --ad-r from AskDraft.jsx). */
 #ask-draft.ask-draft { width: min(560px, calc(100% - var(--ad-r, 320px) - 24px)); min-width: 0; }
 
@@ -676,6 +770,14 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1319, segment size (Classic only; Cards layers none of this): the text segmented control (.seg, not the header mode switch .modes nor .lsw, which keep the --radius), the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px and weight 600 (--weight-medium); the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
+/* Row 1319, values and their source (ticket 1319, spec table, prototype index.html:49-51): radius 6px = "Segmented control: border 1px, radius 6px" (calc of the 8px --radius less 2px, no new token); min-height 28px and padding 3px 14px = "buttons padding 3px 14px, min-height 28px"; the crumb 13px = "Crumb: normal case, 13px" (--size-caption). Amendment AP4 (the lead amendment): "not .lsw/.icons/.modes", so the layout switch is left out. */
+.seg:not(.modes):not(.lsw), .mv-txt { border-radius: calc(var(--radius) - 2px); }
+.seg:not(.icons):not(.modes):not(.lsw) button { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
+.crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
+/* Row 1319, header mode switch (Classic only; Cards keeps the aqua pill): the pressed half of View | Edit is a white fill with navy text, as the prototype draws it (.seg button[aria-pressed="true"] { white fill, navy text }). The sliding thumb is what paints the fill, so it takes --white; with the glide off the button itself takes it. Text stays --pill-fg, the navy the page already uses on that half. */
+:root:not([data-motion="reduce"]) .modes.seg.glide::before, .modes.seg:not(.glide) button[aria-pressed="true"] { background-color: var(--white); background-image: none; }
+.modes.seg button[aria-pressed="true"] { color: var(--pill-fg); }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
 html { overscroll-behavior-y: none; }
 /* Row 1349, ask clark button in Classic: the badge is a 9 by 9 dot at the top right corner of the button (cyan when an answer is ready, amber while one is made), ringed in the bar colour; the words stay in the button's aria-label. Bare values with no token: the 9px dot, the 4px offset of the dot's top and right edges (top: 4px, right: 4px, measured from the padding edge inside the 1px border, so 5px from the button's outer edge) and the 2px ring, as in the prototype. */
@@ -690,7 +792,9 @@ html { overscroll-behavior-y: none; }
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
 .hdr-id, .top-id { max-width: 50%; }
 .hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
+/* Row 1293 (ruling R-1293 (b), duplicate note marker, Classic only): the note above Apply when a new item has the same kind, title and owner as one already there; Apply stays. A 3px bar in --status-amber on the left, then --space-2 of padding. Bare length: the 3px bar width (a rule weight, as the Row 1318 .tpl-rh-warn bar). Pinned by tests/test_ask_rulings_page_1293.py. */
+.ask-duplicate { margin: 0; border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
+/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 72 / 190 / 176 / 104 px as the prototype page draws them (the ticket's left column, ruled final) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
 table.items td { border-top-color: var(--grey-200); }
@@ -701,7 +805,7 @@ table.items .ico.r { color: var(--status-red-text); }
 table.items .ico.g { color: var(--status-green-text); }
 table.items tbody tr:hover { background: var(--band-bg); }
 table.items .weye { width: 30px; height: 30px; }
-@media (min-width: 901px) { table.items .c-status { width: 76px; } table.items .c-owner { width: 170px; } table.items .c-due { width: 134px; } table.items .c-prio { width: 104px; } }
+@media (min-width: 901px) { table.items .c-status { width: 72px; } table.items .c-owner { width: 190px; } table.items .c-due { width: 176px; } table.items .c-prio { width: 104px; } }
 /* Row 1394: the Work items view tabs as the prototype draws them (Classic only; Cards keeps shell.css). Tabs 15px with padding 9px 10px 8px and a 3px underline, count pills 13px with padding 1px 8px and min-width 22 (grey; the open tab brand-tinted), + New view padding 6px 12px. */
 #work .vtab { padding: 9px 10px 8px; min-height: 0; font-size: 15px; border-bottom-width: 3px; }
 #work .vtab em { padding: 1px 8px; min-width: 22px; background: var(--tone-grey-tint); color: var(--text-muted); }
@@ -713,9 +817,17 @@ table.items .weye { width: 30px; height: 30px; }
 #work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
 #work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
 #work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
+/* Row 1279 (Classic only): the Settings Feedback card. Each label sits above its own box (block, a --space-1 gap, a --space-3 step from the box above), both boxes run the card's width, the message box is several lines tall, and both take the one clark input look (the 8px --radius, the --control-edge border, the surface fill) the other Settings cards use. */
+#feedback label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
+#feedback textarea.grow, #feedback input.grow { display: block; box-sizing: border-box; flex: none; width: 100%; padding: var(--space-1) 10px; border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-body); }
+#feedback textarea.grow { min-height: calc(5 * var(--leading) * var(--size-body) + 2 * var(--space-1) + 2px); resize: vertical; }
+/* Row 1279 (option b of the ruling of 20-11): under the disabled Copy as text button a muted line, the existing NOTHING_YET words, at the --size-caption 13px; the markup is drawn only in Classic and only while the button is disabled. */
+#feedback [data-feedback-hint] { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
+/* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
+.ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
