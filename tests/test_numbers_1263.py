@@ -414,6 +414,19 @@ class Classic(Base):
             self.edit(p, ref)
             self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
+    def test_live_is_disabled_when_no_live_figure_is_offered_at_1400_and_900(self):
+        ref = self.add("figures4", body(typed(), count=4))
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("report_sections", "ABC"):
+                if r["type"] in ("actions", "raid", "decisions"):
+                    st.update("report_sections", r["id"], {"hidden": 1})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.sized(cdp, width, "light")
+                self.edit(p, ref)
+                state = p.js(f"Array.from(document.querySelectorAll('{self.sec(ref, '[data-slot=\"0\"] .num-source button')}')).map(b => b.textContent + ':' + b.disabled).join()")
+                self.assertEqual(state, "Typed:false,Live:true")
+
     # --- Cards keeps its Edit ---------------------------------------------------------------------------------------------------------
     def test_cards_keeps_its_edit_the_source_select_and_no_count_control(self):
         self.s.close()
