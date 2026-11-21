@@ -219,7 +219,7 @@ class Words(unittest.TestCase):
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
-                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
+                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
                     "No local folder yet.", "Choose folder", "Asking on or off",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
@@ -259,7 +259,7 @@ class Words(unittest.TestCase):
                     "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                     "Comfortable", "Each Dashboard section is its own card, with room between them.",
                     "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
-                    "Keys", "Single-key shortcuts",            # #193
+                    "Keys", "Single-key slash commands",            # #193
                     "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
                 ]),
                 ('reports', 'Reports', [
