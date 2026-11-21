@@ -16,6 +16,7 @@ import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
 import { ownToast } from "../BarToast.jsx";
 import { todayIso } from "../../workItems.js";
+import { TipParts } from "../../components/ItemRows.jsx";
 import { canPick, changeFor, newPersonChange, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
@@ -46,7 +47,8 @@ function refocus(k, around) {
   }, 0);
 }
 
-export function Cell({ row, field, said, keep, tip, children, place, scope }) {      // row 1287: `scope` is the list or section the cell is in; it only keeps the open key apart, so one item shown in two lists never opens both pickers
+export function Cell({ row, field, said, keep, tip: tipIn, tipSay, children, place, scope }) {      // row 1287: `scope` is the list or section the cell is in; it only keeps the open key apart, so one item shown in two lists never opens both pickers
+  const tip = tipIn || (tipSay && tipSay.tip);
   const button = useRef(null);
   if (!canPick(row, field)) {
     const why = whyFixed(row, field);                       // a RAID item's priority: say why a click does nothing
@@ -94,7 +96,7 @@ export function Cell({ row, field, said, keep, tip, children, place, scope }) { 
     <>
       <button type="button" class="cell-pick" ref={button} tabIndex={place ? 0 : -1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
-        onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
+        onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span>{tipSay ? <TipParts say={tipSay} /> : null}</button>
       {open ? <Picker row={row} place={place} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}
     </>
   );
