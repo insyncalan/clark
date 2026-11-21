@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { source, tidyContacts, PERSON_FIELDS, LIMITS } from "../../templates/notes.js";
 import { Field, saveContent } from "./noteEdit.jsx";
+import { StartPrompt } from "../StartPrompt.jsx";
 
 const BLANK = { name: "", role: "", email: "", phone: "" };
 const FIELD_WORDS = { name: "Name", role: "Role", email: "Email", phone: "Phone" };
@@ -61,6 +62,7 @@ export function Edit({ section }) {
       {rows.length < LIMITS.people
         ? <button type="button" class="btn sm" onClick={() => { draft.current = [...rows, { ...BLANK }]; setRows(draft.current); }}>Add a person</button>
         : <p class="quiet">A contacts section holds {LIMITS.people} people at most.</p>}
+      {rows.length === 0 ? <StartPrompt id="contacts" /> : null}
       {rows.length === 0 ? <p class="quiet">Empty for now: add a person. It stays out of the published page until then.</p> : null}
     </div>
   );

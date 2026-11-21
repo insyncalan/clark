@@ -82,7 +82,7 @@ class Boxes(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ask-instructions-all-help').innerText"), approved)
         from clark import ask
         size = ai_connect.SIZE_LINE.format(tokens=ask.BUDGET // 4, chars=ask.BUDGET)
-        self.assertIn("about 10,000 tokens (40,000 characters of passages)", size)
+        self.assertIn("about 300,000 tokens (1,200,000 characters of passages)", size)
 
     def test_undo_in_the_toast_puts_the_old_text_back_in_the_box(self):
         self.svc.change({"scope": "all", "text": "Old words."})

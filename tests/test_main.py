@@ -460,6 +460,12 @@ class InProcess(TempFolder):
         (call,) = serve.calls
         self.assertIsNone(call.get("ai"))
 
+    def test_the_launcher_wires_the_used_hook_into_the_ask_service(self):
+        # Row 1306: without this argument the 'ask used connector <name>' line is never written in a real run
+        code, out, err, serve = self.run_main("--port", "8123")
+        (call,) = serve.calls
+        self.assertIs(call["ask"].used_hook, launcher.log_connector_used)
+
     def test_the_server_gets_the_stores_data_and_the_built_page_and_the_change_and_undo_handlers(self):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))

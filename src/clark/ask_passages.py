@@ -16,7 +16,7 @@ could not be read (scanned, encrypted, damaged, too big, too slow) is counted in
 WHAT COMES BACK. `FolderData`: the chosen passages (each labelled with a name inside its folder, never a path), `left_out` (how
 many did not fit the budget), `safety` (how many files were left out for safety, with the listing's own count), `pdf` and
 `other` (files of a type not read), `stopped` (the listing was cut short) and `secret_labels` (#215: files left out whole because
-the text looks like a password or a key, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too). No path, no file text and no reason that holds a
+the text looks like a password or a key, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too) and `limit` (files not opened because the limit for one question was reached: the file, byte, character or time cap; kept apart from `other`, which is the type). No path, no file text and no reason that holds a
 path is returned or logged here.
 """
 import codecs
@@ -49,6 +49,7 @@ class FolderData:
     stopped: bool = False      # the listing was cut short by a cap
     secret_labels: tuple = ()  # labels of files left out because they look like a password or a key (already counted in `safety`)
     pdf_reasons: tuple = ()    # (label, code) for each PDF not read; codes are pdf_reader.REASONS
+    limit: int = 0             # readable files not opened because a read cap was reached (files, bytes, characters or time); never counted in `other`
 
 
 def _lines_of_word(data, name):
@@ -89,7 +90,7 @@ def _label(root, path, prefix=None):
 
 def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES):
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note."""
-    safety = pdf = other = 0
+    safety = pdf = other = limit = 0
     secret_labels, pdf_reasons = [], []
     cut = 0                                   # PDF pages and parts that were not read or did not fit the part cap
     usable = []
@@ -122,7 +123,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             safety += 1
             continue
         if files_read >= MAX_FILES_READ or bytes_read >= MAX_BYTES_READ or chars >= MAX_CHARS or time.monotonic() > deadline:
-            other += 1
+            limit += 1
             continue
         files_read += 1
         try:
@@ -176,4 +177,4 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]
-    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels), tuple(pdf_reasons))
+    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels), tuple(pdf_reasons), limit)

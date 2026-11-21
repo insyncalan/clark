@@ -99,7 +99,7 @@ class BudgetEdge(unittest.TestCase):
 
     def test_all_180_fit_under_the_budget(self):
         kept, left = ask_data.choose(self.passages, "q", 40000)
-        self.assertEqual((len(kept), left), (180, 0))      # 180 x 100 = 18,000 chars, under the 40,000 budget
+        self.assertEqual((len(kept), left), (180, 0))      # 180 x 100 = 18,000 chars, under the 1,200,000 budget
 
     def test_one_char_below_drops_the_last_passage(self):
         kept, left = ask_data.choose(self.passages, "q", 17999)

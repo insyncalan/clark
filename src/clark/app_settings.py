@@ -9,6 +9,7 @@ The switch belongs to this computer, not to a project: nothing is sent to Claude
 the ask route itself reads store.ask_enabled() before anything is sent (ask_service.py). `saved` is false for a data file that
 cannot keep the switch yet; the switch then reads as off (store.ASK_WHEN_MISSING), and a change is refused in plain words rather
 than looking saved.
+Row 1294 adds GET and POST /api/ask-files in the same way (the Files switch: see the section at the end).
 Row 1306 adds GET and POST /api/ask-connectors in the same way (the connector switches: see the section at the end).
 Every change is one store step, so it is one entry in the history and one Undo. A body with any other field is refused, and so is
 anything that is not JSON of the right shape; a refused request changes nothing. Every answer is (status, {ok, ...}) with a plain
@@ -18,14 +19,15 @@ import re
 import threading
 from pathlib import Path
 
-from clark import ask_connectors, ask_index, platform
-from clark.store import CODE_RE, CONNECTORS, HIDDEN_CONNECTORS, THEMES, Invalid, open_store
+from clark import ask_connectors, ask_index, ask_words, platform
+from clark.store import CODE_RE, CONNECTORS, HIDDEN_CONNECTORS, THEMES, Invalid, columns, open_store
 
 SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
 ASK_FIELDS = ("ask_enabled", "updated_at")
 THEME_FIELDS = ("theme", "updated_at")
 CODE_FULL = re.compile(CODE_RE)
 CONNECTOR_FIELDS = ("is_on", "off", "updated_at")
+FILES_FIELDS = ("ask_files", "ask_files_off", "updated_at")
 
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was changed.",
@@ -94,6 +96,8 @@ class AppSettings:
     # ----- the ask switch -----
     def answer_ask(self, store, message=None, apply_id=None):
         body = {"ok": True, "ask_enabled": store.ask_enabled(), "saved": store.settings_ready()}
+        if platform.container_mode():             # Row 1293: Settings says asking is not available in Docker
+            body["docker"], body["docker_line"] = True, ask_words.DOCKER
         if message:
             body["message"] = message
         if apply_id:
@@ -330,3 +334,95 @@ class AppSettings:
         except Invalid:
             return None
         return (True, project) if done.get("reversed") else None
+
+
+    # ----- the Files switch (row 1294) -----
+    # GET /api/ask-files[?project=CODE] answers {ok, saved, on, off_here, allowed}: `on` is this computer's switch (On until turned off), `off_here` the project's own
+    # turn-off (false without a project), `allowed` is on and not off_here (false without a project). POST takes exactly one of {"on": bool} (every project),
+    # {"project", "off_here": bool} (that project alone) or {"undo": apply_id}; every POST answers the same body. Only the two flags are kept. The ask route reads
+    # the same two flags again for every question that carries files (ask_service.py), so a stale page cannot send one.
+    def answer_files(self, store, project=None, message=None, apply_id=None):
+        on = store.ask_files_on()
+        off_here = bool(project) and store.ask_files_off_here(project)
+        body = {"ok": True, "saved": "ask_files" in columns(store.con, "app_settings") and store.settings_ready(), "on": on, "off_here": off_here,
+                "allowed": bool(project) and on and not off_here}
+        if message:
+            body["message"] = message
+        if apply_id:
+            body["apply_id"] = apply_id
+        return 200, body
+
+    def read_files(self, project=None):
+        if project is not None and (type(project) is not str or not CODE_FULL.fullmatch(project)):
+            return 400, self.fail("bad_project")
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                if project is not None and not self.project_known(store, project):
+                    return 404, self.fail("bad_project")
+                return self.answer_files(store, project)
+            finally:
+                store.close()
+
+    def change_files(self, body):
+        if not isinstance(body, dict):
+            return 400, self.fail("bad_request")
+        keys = set(body)
+        if keys == {"undo"}:
+            if not self.valid_step(body["undo"]):
+                return 400, self.fail("no_undo")
+            kind = "undo"
+        elif keys == {"on"}:
+            kind = "global"
+            if type(body["on"]) is not bool:
+                return 400, self.fail("bad_value")
+        elif keys == {"project", "off_here"}:
+            kind = "project"
+            if type(body["off_here"]) is not bool:
+                return 400, self.fail("bad_value")
+            if type(body["project"]) is not str or not CODE_FULL.fullmatch(body["project"]):
+                return 400, self.fail("bad_project")
+        else:
+            return 400, self.fail("bad_request")
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                if not store.settings_ready() or "ask_files" not in columns(store.con, "app_settings"):
+                    return 409, self.fail("not_ready")
+                if kind == "undo":
+                    rows = store.step_rows(body["undo"])
+                    project = next((str(r["key"]) for r in rows if r["table"] == "projects"), None)
+                    if not rows or not all((r["table"], str(r["key"])) in (("app_settings", "1"), ("projects", project)) and r["field"] in FILES_FIELDS
+                                           and r["via"] == "dashboard" for r in rows):
+                        return 409, self.fail("no_undo")
+                    try:
+                        done = store.undo(body["undo"], self.by_user(), place="menu")
+                    except Invalid:
+                        return 409, self.fail("no_undo")
+                    if not done.get("reversed"):
+                        return 409, self.fail("no_undo")
+                    return self.answer_files(store, project, MESSAGES["undone"])
+                if kind == "global":
+                    if store.ask_files_on() == body["on"]:
+                        return self.answer_files(store, None, MESSAGES["same"])
+                    step = self.save(store, lambda st: st.update("app_settings", "1", {"ask_files": 1 if body["on"] else 0}))
+                    if step is False:
+                        return 409, self.fail("cant_save")
+                    return self.answer_files(store, None, None, step)
+                project = body["project"]
+                if not self.project_known(store, project):
+                    return 404, self.fail("bad_project")
+                if store.ask_files_off_here(project) == body["off_here"]:
+                    return self.answer_files(store, project, MESSAGES["same"])
+                step = self.save(store, lambda st: st.update("projects", project, {"ask_files_off": 1 if body["off_here"] else 0}))
+                if step is False:
+                    return 409, self.fail("cant_save")
+                return self.answer_files(store, project, None, step)
+            finally:
+                store.close()

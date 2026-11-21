@@ -4,10 +4,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
-import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
+import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
@@ -196,6 +198,7 @@ function AskProject() {
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
+      {classicTheme() && askDocker.value ? <p class="muted" id="ask-docker" data-ask-docker>{askDocker.value}</p> : null}
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
@@ -257,7 +260,9 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
-    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
+    {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
+    {classicTheme() ? <ChatsProject /> : null}
     </>
   );
 }
@@ -277,6 +282,8 @@ function AllProjects() {
     <AllInstructions />
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
+    {classicTheme() ? <ChatsAll /> : null}
+    {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
     </>
   );

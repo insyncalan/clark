@@ -40,7 +40,7 @@ class PlanWidth(E2E):
                         with self.subTest(width=width, layout=layout, edit=edit):
                             want = "edit" if edit else "view"
                             if br.js("document.querySelector('#gantt-page').dataset.mode") != want:
-                                br.click(f"[data-gp-mode={want}]")      # the pill's button names the mode it goes to
+                                br.click(f".modes [data-mode={want}]" if self.theme and "cards" not in self._testMethodName else f"[data-gp-mode={want}]")      # Classic: the pill; Cards: the text button, which names the mode it goes to
                             br.until(f"document.querySelector('#gantt-page').dataset.mode === '{want}'", want)
                             band = br.js(EDGES + "(document.querySelector('#gantt-page').getBoundingClientRect())")
                             plan = br.js(EDGES + "(document.querySelector('[data-gp-plan]').getBoundingClientRect())")

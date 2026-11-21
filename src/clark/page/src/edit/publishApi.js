@@ -102,6 +102,9 @@ export const askFoldersAllRead = (project) => call("GET", "/api/ask-folders?scop
 export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });
 export const askFoldersAllChange = (action, path) => call("POST", "/api/ask-folders", { scope: "all", action, path });
 
+// Usage in tokens (row 1294): GET answers {ok, title, asking, projects: [{code, name, questions, tokens}], all: {questions, tokens}, note}.
+export const askUsageRead = () => call("GET", "/api/ask-usage");
+
 // The standing instructions of asking (row 1294): GET answers {ok, all, project, saved, max}; POST takes {scope: "all" | "project", project?, text} or {scope, project?, undo}.
 export const askInstructionsRead = (project) => call("GET", `/api/ask-instructions?project=${encodeURIComponent(project || "")}`);
 export const askInstructionsChange = (body) => call("POST", "/api/ask-instructions", body);

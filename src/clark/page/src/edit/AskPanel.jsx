@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
@@ -24,6 +24,7 @@ import { sourcesOf, kindOf } from "./askCite.js";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
+import { nowMs } from "../workItems.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -84,12 +85,13 @@ export function AskPanel() {
   const classic = classicTheme();
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
   const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
   useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
+  const [secs, setSecs] = useState(0);
+  const [quip, setQuip] = useState("");
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -130,8 +132,14 @@ export function AskPanel() {
     else el.scrollTop = el.scrollHeight;
   }, [list.length, busy]);
   useEffect(() => {
-    if (!busy) { setQuip(""); return undefined; }
-    let t = null;
+    if (!busy) { setSecs(0); setQuip(""); return undefined; }
+    if (classicTheme()) {      // row 1292, Classic only: the working line counts seconds from the send
+      const from = nowMs();
+      setSecs(0);
+      const c = setInterval(() => setSecs((nowMs() - from) / 1000), 1000);
+      return () => clearInterval(c);
+    }
+    let t = null;      // Cards keeps its quips, as before
     setQuip(drawQuip());
     const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
     tick();
@@ -355,7 +363,7 @@ export function AskPanel() {
       onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
-      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
+      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">
@@ -371,7 +379,9 @@ export function AskPanel() {
       {state === "off" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
-      {state === "signed-out" ? (
+      {classic && panelDocker.value && state !== "off" ? (
+        <p class="ask-off" id="ask-docker" data-ask-docker>{panelDocker.value}</p>
+      ) : state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       {showHist ? (
@@ -422,7 +432,7 @@ export function AskPanel() {
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
                 <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
-                <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
+                <button type="button" class={classicTheme() ? "btn sm pri ask-draftcard-open" : "btn primary"} onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
             {t.sources && t.sources.length ? (
@@ -437,7 +447,7 @@ export function AskPanel() {
       {busy ? (
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          {classic ? <span class="ask-quip ask-step" id="ask-step" aria-hidden="true">{W.workingLine(askProvider.value, secs)}</span> : <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>}
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
@@ -481,7 +491,7 @@ export function AskPanel() {
           <p class="ask-files-note">{F.SCREEN_LINE} {F.THIS_QUESTION_LINE}</p>
         </div>
       ) : null}
-      <form class="ask-form" onSubmit={send}>
+      {classic && panelDocker.value && state !== "off" ? null : <form class="ask-form" onSubmit={send}>
         {subject.value ? (
           <p class="ask-chip" id="ask-chip" data-ask-chip={subject.value.id}>
             <Icon name="sparkle" />
@@ -524,7 +534,7 @@ export function AskPanel() {
             </button>
           )}
         </div>
-      </form>
+      </form>}
     </aside>
     <AskDraft />
     </>

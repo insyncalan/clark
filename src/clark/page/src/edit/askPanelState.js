@@ -14,6 +14,7 @@ const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
 
 export const panelOpen = signal(false);
+export const panelDocker = signal("");                  // Row 1293: the server's "not available in the Docker version" sentence when clark runs in Docker, else ""
 export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
 export const panelState = signal("checking");        // "checking" | "unknown" (the check failed: nothing is claimed) | "off" (the server said off) | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
@@ -42,6 +43,12 @@ function initialWidth() {
 export function setWidth(w, keep) {
   panelWidth.value = clampWidth(w);
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
+}
+
+/** Row 1292: a double-click on the grip puts the panel back to its usual width and forgets the kept one, so the next visit opens at the usual width too. */
+export function resetWidth() {
+  panelWidth.value = clampWidth(DEFAULT);
+  try { localStorage.removeItem(KEY); } catch (e) { /* only a convenience */ }
 }
 
 /** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
@@ -91,6 +98,7 @@ function apply(b) {
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
   panelStanding.value = b.standing_instructions === true;
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
+  panelDocker.value = b.docker === true && typeof b.why === "string" && b.why.length <= 300 ? b.why : "";
   if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
 }
@@ -175,11 +183,11 @@ export function installAskKeys() {
       if (draft.value && e.target && e.target.closest && e.target.closest("#ask-draft")) return;      // row 1292: Esc in the Draft is the Draft's (it closes its menu, then itself), the panel stays
       e.preventDefault(); closePanel(); return;
     }
-    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
+    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette. Row 1292: pressed again it closes it (closing never stops an answer).
     if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
       if (otherLayer() || helpOpen.value) return;
       e.preventDefault();
-      if (!e.repeat) openPanel();
+      if (!e.repeat) { if (panelOpen.value) closePanel(); else openPanel(); }
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;

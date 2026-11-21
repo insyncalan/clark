@@ -93,9 +93,9 @@ function ItemChips({ row, tools, editing }) {
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} subTone={classicTheme() && row.kind === "decision" ? "word" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
-        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : decisionDateWord(row) ? "word" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }
@@ -127,8 +127,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       {row.kind === "decision" ? <>
         {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
         {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
-        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
-        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+        <Row name="Revisit" ms="revisit">{editing && classicTheme() && !row.revisit ? <span class="muted" data-pk-prompt>Add when to look at this again.</span> : text(row.revisit)}</Row>      {/* row 1285: in Edit an empty Revisit says what to add; the view keeps the dash */}
+        <Row name="Replaces" ms="replaces">{editing && classicTheme() && !row.replaces ? <span class="muted" data-pk-prompt>Add the decision this replaces.</span> : text(row.replaces)}</Row>
       </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}
@@ -215,7 +215,7 @@ export function Edge() {
 
 export function Peek({ tools }) {
   const p = peek.value;
-  const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
+  const box = useRef(null), back = useRef(null), pending = useRef(""), pendingKind = useRef("item"), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
@@ -241,7 +241,7 @@ export function Peek({ tools }) {
     said.value = { text: "", n: 0 };
     const close = box.current && box.current.querySelector("[data-pk-close]");
     if (close) {
-      close.focus();
+      close.focus({ preventScroll: true });      // row 1467: taking the focus never scrolls the page behind
       // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
       if (classicTheme() && !keyedLast) {
         close.setAttribute("data-quiet", "");
@@ -264,12 +264,15 @@ export function Peek({ tools }) {
       if (!elsewhere && el && el.isConnected && el.focus) el.focus();
     };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
+  // Row 1467 P5: a switch to another item says the new one to a screen reader: its id and title, no other words (a step says its own place instead).
+  const sawId = useRef("");
+  useEffect(() => { const id = p ? p.id : ""; const was = sawId.current; sawId.current = id; if (id && was && was !== id && !stepped.current) { const t = p.kind === "milestone" ? ((data.value.milestones || []).find((x) => x.id === id) || {}).name : (rows.value.find((r) => r.id === id) || {}).title; say(`${id}: ${t || ""}`); } }, [p && p.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // After a step the focus is never left on a button that has just turned off (Next at the last item) or on the page: it goes to Close.
   useEffect(() => {
     if (!p || !stepped.current) return;
     stepped.current = false;
     const a = document.activeElement, close = box.current && box.current.querySelector("[data-pk-close]");
-    if (close && (!a || a === document.body || (a.disabled && box.current.contains(a)))) close.focus();
+    if (close && (!a || a === document.body || (a.disabled && box.current.contains(a)))) close.focus({ preventScroll: true });
   }, [p && p.id]);                                        // eslint-disable-line react-hooks/exhaustive-deps
   // The peek follows the list's cursor: an arrow key that moves the focus to another row or card shows that item (the row's own key
   // handler moves the cursor; this only watches where the focus lands, so a Tab or a click away never moves the peek).
@@ -297,7 +300,7 @@ export function Peek({ tools }) {
   // Esc closes the words box first, then the peek; two slashes outside a field open the words box (Edit only). Up and Down on one of the
   // peek's own buttons step to the item before or after (#246); every other arrow is left to whatever it was aimed at (#289).
   // Closing with an unsaved Latest update shows the bar (Save and close, Discard, Keep editing) instead of closing (row 1180).
-  const askClose = () => { if (tools && tools.peekDirty && tools.peekDirty()) unsaved.value = true; else closePeek(); };
+  const askClose = () => { pending.current = ""; if (tools && tools.peekDirty && tools.peekDirty()) unsaved.value = true; else closePeek(); };
   const stepBy = (dir) => {
     const q = peek.value;                                 // the peek now, not the one this handler was made for: a second key can come before the redraw
     if (!q) return;
@@ -338,10 +341,33 @@ export function Peek({ tools }) {
     const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) askClose(); };
     // A mouse press on Close keeps the focus in the open editor: taking it would save the update before the bar can ask.
     const hold = (e) => { if (e.target.closest && e.target.closest("[data-pk-close]")) e.preventDefault(); };
+    // Row 1467: a click on another item's row switches the peek. With an unsaved Latest update in the open peek the click asks first, as Close does
+    // (the bar: Save and close, Discard, Keep editing); the press keeps the focus in the editor so that leaving it does not save the update unasked.
+    // Three kinds of opener: a work item's row or card, a milestone's row (or its name link), a use case page's step or work item. Each gives the id and the kind to switch to.
+    const opener = (t) => {
+      if (!t || !t.closest || t.closest("#peek")) return null;
+      const w = t.closest("#work tr[data-id], #work article[data-id], .wl-row[data-id], .wil-table tr[data-id]");
+      if (w) return { id: w.dataset.id, kind: "item" };
+      const m = t.closest(".msl-row[data-ms], [data-ms-open]");
+      if (m) return { id: m.dataset.ms || m.dataset.msOpen, kind: "milestone" };
+      const u = t.closest("[data-item], [data-stepid], li[data-step]");
+      const id = u && (u.dataset.item || u.dataset.stepid || (u.querySelector("[data-stepid]") || {}).dataset?.stepid);
+      return id ? { id, kind: "item" } : null;
+    };
+    const dirty = () => !!(tools && tools.peekDirty && tools.peekDirty());
+    const keepFocus = (e) => { if (opener(e.target) && dirty()) e.preventDefault(); };
+    const ask = (e) => {
+      const row = opener(e.target);
+      if (!row || !dirty()) return;
+      e.stopPropagation(); e.preventDefault();
+      pending.current = row.id; pendingKind.current = row.kind; unsaved.value = true;
+    };
     document.addEventListener("pointerdown", press, true);
     document.addEventListener("mousedown", hold, true);
+    document.addEventListener("mousedown", keepFocus, true);
+    document.addEventListener("click", ask, true);
     document.addEventListener("click", click);
-    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("mousedown", hold, true); document.removeEventListener("click", click); };
+    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("mousedown", hold, true); document.removeEventListener("mousedown", keepFocus, true); document.removeEventListener("click", ask, true); document.removeEventListener("click", click); };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // Closed: the panel slides out. Its node is kept as it mounts and the copy is made in a layout effect, not while rendering.
   useLayoutEffect(() => {
@@ -362,7 +388,7 @@ export function Peek({ tools }) {
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
         more={MoreBtn && row ? <MoreBtn row={row} /> : MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null} />
-      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={closePeek} onDone={() => { unsaved.value = false; }} /> : null}
+      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={() => { const to = pending.current; pending.current = ""; if (to) openPeek(to, pendingKind.current); else closePeek(); }} onDone={() => { unsaved.value = false; }} /> : null}
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <PeekIdLine id={p.id} />
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>

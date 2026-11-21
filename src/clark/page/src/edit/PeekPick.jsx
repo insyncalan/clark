@@ -8,6 +8,7 @@ import { data } from "../stores/report.js";
 import { changeCell, refresh } from "../stores/changes.js";
 import { tableOf } from "./itemEdit.js";
 import { MenuPick } from "./cells/MenuPick.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { fieldIcon } from "../menuIcons.js";
 
 const NAMES = { workstream: "Workstream", milestone: "Milestone", use_case: "Use case" };
@@ -37,7 +38,8 @@ export function PeekPick({ row, field }) {
   const list = withIcon(field, choicesOf(field, now));
   const text = (v) => (list.find((c) => c.value === v) || { text: "" }).text;
   const said = (v) => text(v);
-  const shown = row[field === "use_case" ? "uc" : field] || NONE[field];
+  // Row 1285: under the Classic look the empty Use case button says "Select use case" (the menu's clearing entry stays "No use case").
+  const shown = row[field === "use_case" ? "uc" : field] || (field === "use_case" && classicTheme() ? "Select use case" : NONE[field]);
   const close = (back) => { setOpen(false); if (back && button.current) button.current.focus(); };
   const pick = (value) => {
     close(true);

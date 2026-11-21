@@ -104,6 +104,7 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.last_tokens = None            # row 1294: the tokens the chosen command reported for the last answered question, None when none were
         self.last_line = None              # row 1306: the whole UsedLine of the last answered question's connector run, None when none (or ChatGPT)
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
@@ -111,6 +112,11 @@ class Chosen(ask.Provider):
 
     def _active(self):
         return self.pick() or (None, None, False)
+
+    def most_chars(self):
+        """Row 1293: the longest request text the chosen model takes, None when nothing is connected (the fixed budget then applies)."""
+        provider, model, _prefer = self._active()
+        return provider.most_chars(model) if provider is not None else None
 
     @property
     def label(self):
@@ -123,10 +129,12 @@ class Chosen(ask.Provider):
 
     def ask(self, request):
         provider, model, prefer = self._active()
+        self.last_tokens = None
         self.last_line = None
         if provider is None:
             return ask.Failure(self.off_words)
         got = provider.ask(request, model, prefer=prefer)
+        self.last_tokens = getattr(provider.command, "last_tokens", None) if isinstance(got, str) else None      # row 1294: read at once, before a choice can change
         self.last_line = getattr(provider.command, "last_line", None) if isinstance(got, str) else None      # row 1306: read at once, before a choice can change
         return got
 

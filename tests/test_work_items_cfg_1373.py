@@ -19,7 +19,7 @@ MEASURE = ("JSON.stringify((() => { const s = %s, q = (x) => document.querySelec
            "const top = r(box).top - g.bottom, bw = r(box).width, ckr = r(ck), selr = r(sel), rowh = r(ckl).height; ck.focus(); const kf = c(ck); const f = {w: kf.outlineWidth, o: kf.outlineOffset, c: kf.outlineColor}; sel.focus(); const sf = c(sel);"
            "return {box: {w: bw, top: top, pad: bc.paddingTop + ' ' + bc.paddingLeft, rad: bc.borderTopLeftRadius, sh: bc.boxShadow, bord: bc.borderTopWidth + ' ' + bc.borderTopColor, gap: bc.rowGap},"
            "h4: {fs: c(q('.wil-cfg h4')).fontSize, fw: c(q('.wil-cfg h4')).fontWeight, ff: c(q('.wil-cfg h4')).fontFamily}, label: {fs: c(lab).fontSize, fw: c(lab).fontWeight}, legend: {fs: c(lg).fontSize, fw: c(lg).fontWeight},"
-           "sel: {h: selr.height, rad: sc.borderTopLeftRadius, pad: sc.paddingLeft + ' ' + sc.paddingRight, fw: sc.fontWeight, bg: sc.backgroundColor, bord: sc.borderTopWidth + ' ' + sc.borderTopColor, focus: sf.outlineWidth + ' ' + sf.outlineOffset + ' ' + sf.outlineColor},"
+           "sel: {w: selr.width, h: selr.height, rad: sc.borderTopLeftRadius, pad: sc.paddingLeft + ' ' + sc.paddingRight, fw: sc.fontWeight, bg: sc.backgroundColor, bord: sc.borderTopWidth + ' ' + sc.borderTopColor, focus: sf.outlineWidth + ' ' + sf.outlineOffset + ' ' + sf.outlineColor},"
            "ck: {w: ckr.width, h: ckr.height, rowh: rowh, fs: c(ckl).fontSize, fw: c(ckl).fontWeight, gap: c(ckl).columnGap, focus: f}}; })())")
 
 
@@ -49,6 +49,10 @@ class Measured(M.Look):
             p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
             return json.loads(p.js(MEASURE % json.dumps(sec)))
 
+    def test_classic_select_is_270_wide_at_1400(self):
+        got = self.look(1400)
+        self.assertEqual(got["sel"]["w"], 270, got)  # .wil-cfg .wil-sel select, 1400
+
     def test_classic_box_is_the_mockup_box_at_1400(self):
         got = self.look(1400)
         b = got["box"]
@@ -67,10 +71,58 @@ class Measured(M.Look):
         self.assertEqual(k["focus"], {"w": "2px", "o": "1px", "c": "rgb(91, 71, 216)"}, got)
 
 
+    def test_label_to_field_gap_is_4px_at_1400_and_900(self):
+        # mock-up line 61: .cfg label{display:flex;flex-direction:column;gap:4px}
+        for w in (1400, 900):
+            ref = self.add(LIST)
+            with T.chrome() as cdp:
+                p = self.show(cdp, w)
+                sec = f'[data-id="{ref}"]'
+                p.edit()
+                p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "drew")
+                p.js(f"document.querySelector('{sec} [data-wil-gear]').click()")
+                p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
+                got = json.loads(p.js("JSON.stringify((() => { const l = document.querySelector('%s .wil-cfg .wil-sel'), c = getComputedStyle(l), s = l.querySelector('span').getBoundingClientRect(), f = l.querySelector('select,input').getBoundingClientRect(); return {row: c.rowGap, disp: c.display, between: f.top - s.bottom}; })())" % sec))
+            self.assertEqual((got["row"], got["between"]), ("4px", 4), (w, got))
+
+    PINS = ("JSON.stringify((() => { const s = %s, q = (x) => document.querySelector(s + ' ' + x), c = (e) => getComputedStyle(e), r = (e) => e.getBoundingClientRect();"
+            "const box = q('.wil-cfg'), opts = q('.wil-opts'), oc = c(opts), lab = q('.wil-sel > span'), sel = q('.wil-sel select'), lg = q('.wil-f legend');"
+            "return {cols: oc.gridTemplateColumns.split(' '), disp: oc.display, rowGap: oc.rowGap, colGap: oc.columnGap, labelGap: r(sel).top - r(lab).bottom, h4m: c(q('.wil-cfg h4')).marginTop + ' ' + c(q('.wil-cfg h4')).marginBottom,"
+            "legPad: c(lg).paddingBottom, right: c(box).right, parentRight: r(box.offsetParent).right - r(box).right, boxW: r(box).width}; })())")
+
+    def test_classic_grid_gaps_label_heading_legend_and_right_edge_at_1400(self):
+        """Each pin goes red when its CSS value changes: opts grid 1fr 1fr, gap 4px 10px, label 4px above select, h4 margin 0, legend padding-bottom 4, box right 0."""
+        ref = self.add(LIST)
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "drew")
+            p.js(f"document.querySelector('{sec} [data-wil-gear]').click()")
+            p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
+            got = json.loads(p.js(self.PINS % json.dumps(sec)))
+        self.assertEqual(got["disp"], "grid", got)
+        self.assertEqual(len(got["cols"]), 2, got)                                  # two columns
+        self.assertEqual(got["cols"][0], got["cols"][1], got)                       # 1fr 1fr: equal
+        self.assertEqual(2 * float(got["cols"][0][:-2]) + 10, 300 - 30, got)         # and they fill the 270 inside the box (300, 14 padding, 1 line) with the 10 gap
+        self.assertEqual((got["rowGap"], got["colGap"]), ("4px", "10px"), got)       # gap 4px 10px
+        self.assertEqual(got["labelGap"], 4, got)                                   # label 4px above the select
+        self.assertEqual(got["h4m"], "0px 0px", got)                                # h4 margin 0
+        self.assertEqual(got["legPad"], "4px", got)                                 # legend padding-bottom 4
+        self.assertEqual(got["right"], "0px", got)                                  # box right 0 ...
+        self.assertEqual(got["parentRight"], 0, got)                                # ... and flush with its parent's right edge
+
+
 class CardsMeasured(Measured):
     classic = False
 
     def test_classic_box_is_the_mockup_box_at_1400(self):
+        self.skipTest("Classic only")
+
+    def test_classic_select_is_270_wide_at_1400(self):
+        self.skipTest("Classic only")
+
+    def test_classic_grid_gaps_label_heading_legend_and_right_edge_at_1400(self):
         self.skipTest("Classic only")
 
     def test_cards_box_keeps_320_and_12_padding(self):

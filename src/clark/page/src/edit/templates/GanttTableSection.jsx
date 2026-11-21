@@ -2,6 +2,7 @@
 // note that the lines are chosen on the Gantt page. With no eye-on line (the View's isEmpty, the Gantt section's rule) the chart's own sentence
 // stands in for the table, as the Gantt section's Edit says it. Nothing here changes a line. Given { section, tools }.
 import { data } from "../../stores/report.js";
+import { StartPrompt } from "../StartPrompt.jsx";
 import { View, isEmpty } from "../../components/GanttTableSection.jsx";
 import { WORDS } from "../../gantt/logic/gantt.js";
 import { NOTE } from "./GanttSection.jsx";
@@ -11,6 +12,7 @@ export const LEFT_OUT = "No Gantt line has its eye turned on, so this section is
 export function Edit({ section }) {
   return (
     <div class="tple" data-tpl="gantttable">
+      {isEmpty(section, data.value) ? <StartPrompt id="gantt-table" /> : null}
       {isEmpty(section, data.value) ? <p class="gt-none" data-g-none>{WORDS.noLines}</p> : <View section={section} data={data.value} />}
       {isEmpty(section, data.value) ? <p class="quiet tple-empty" data-tpl-gantt-left-out>{LEFT_OUT}</p> : null}
       <p class="quiet tple-empty" data-tpl-gantt-note>{NOTE}</p>

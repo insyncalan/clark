@@ -491,6 +491,21 @@ def start_log(data_folder, projects, home=None, scratch=None):
     return log, clog.install(log), log_routes.Logs(log, counts=lambda: {"projects": len(projects())})
 
 
+def log_connector_used(part):
+    """Row 1306: one log line 'ask used connector <name>' (the log adds the time) for a connector an answer read; the name only, never what it
+    returned. A log message must be a fixed text, so each name has its own line."""
+    if part == "Mail":
+        LOG.info("ask used connector Mail")
+    elif part == "Calendar":
+        LOG.info("ask used connector Calendar")
+    elif part == "Teams":
+        LOG.info("ask used connector Teams")
+    elif part == "SharePoint and OneDrive":
+        LOG.info("ask used connector SharePoint and OneDrive")
+    elif part == "Todoist":
+        LOG.info("ask used connector Todoist")
+
+
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
          change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
@@ -607,7 +622,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_instructions=standing_instructions.StandingInstructions(store.path, roots),
                      ask_commands=ask_commands_service.AskCommandsService(store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
-                     ask=ask_service.AskService(store.path, asker, roots, indexer=indexer), ai_connect=connect,      # #54: Settings › AI applies to every question
+                     ask=ask_service.AskService(store.path, asker, roots, indexer=indexer, used_hook=log_connector_used), ai_connect=connect,      # #54: Settings › AI applies to every question
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),

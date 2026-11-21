@@ -129,7 +129,7 @@ class FlagRule(unittest.TestCase):
     def test_through_the_writer_a_bad_flag_is_refused_in_words_and_nothing_is_written(self):
         writes = (("actions", self.ref, "client_visible"), ("milestones", self.demo.milestone, "client_visible"),
                   ("milestones", self.demo.milestone, "state_set"), ("use_cases", self.demo.use_case, "client_visible"),
-                  ("projects", "ABC", "active"))
+                  ("projects", "ABC", "active"), ("app_settings", "1", "ask_files"), ("projects", "ABC", "ask_files_off"))
         for table, ref, field in writes:
             for bad in REFUSED:
                 before = list(self.s.con.iterdump())
