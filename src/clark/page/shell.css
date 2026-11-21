@@ -1763,7 +1763,7 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .rt-c-amber { color: var(--tone-amber-text); }
 .rt-c-green { color: var(--tone-green-text); }
 .rt-c-blue { color: var(--tone-blue-text); }
-/* In dark the brand blue is 4.44:1 on the surface, below the 4.5 floor; the strong blue (the filter chip's dark text, item 1290) is above it. */
+/* In dark the brand blue is 6.98:1 on the surface, above the 4.5 floor; the strong blue (the filter chip's dark text, item 1290) is used for this text. */
 :root[data-theme=dark] .rt-c-brand { color: var(--brand-blue-strong); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .rt-c-brand { color: var(--brand-blue-strong); } }
 

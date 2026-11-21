@@ -4,9 +4,11 @@ Contrast: each of the six colours (from the token the class names) on the surfac
 Run: python3 dev/run_tests.py test_font_colour_1364
 """
 import json
+import pathlib
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 
 from _paths import ROOT
@@ -75,6 +77,11 @@ class PublishCleaner(unittest.TestCase):
         self.assertEqual(publish.clean_html('<span class="rt-c-red" style="color:#f00" id="i" onclick="a()">x</span>'),
                          '<span class="rt-c-red">x</span>')
 
+    def test_colour_class_only_survives_on_a_span(self):
+        for tag in ("p", "strong", "em", "a", "li", "blockquote"):
+            got = publish.clean_html(f'<{tag} class="rt-c-red">x</{tag}>')
+            self.assertNotIn("rt-c-", got, tag)
+
     def test_last_class_wins_like_the_page(self):
         self.assertEqual(publish.clean_html('<span class="rt-c-blue" class="x">x</span>'), "<span>x</span>")
 
@@ -106,6 +113,21 @@ class ToHtml(unittest.TestCase):
         self.assertEqual(got[1:5], ["<p>x</p>"] * 4)               # not in the set: no colour, the text stays
         self.assertEqual(got[5], '<p><a href="https://x.example/" rel="noopener noreferrer"><em><s><span class="rt-c-blue">x</span></s></em></a></p>')
         self.assertEqual(got[6:], [f'<p><span class="rt-c-{n}">t</span></p>' for n in WANT])
+
+    def test_emission_itself_drops_an_unknown_colour(self):
+        # cleanHtml would strip a stray class later, so read richHtml's own output: its cleaner is swapped for a pass-through in a copy
+        core = ROOT / "src" / "clark" / "page" / "src" / "core"
+        with tempfile.TemporaryDirectory() as tmp:
+            (pathlib.Path(tmp) / "core").mkdir()
+            (pathlib.Path(tmp) / "logic").mkdir()
+            (pathlib.Path(tmp) / "package.json").write_text('{"type":"module"}')
+            (pathlib.Path(tmp) / "logic" / "cleanHtml.js").write_text("export const cleanHtml = (s) => s;")
+            shutil.copy(core / "richHtml.js", pathlib.Path(tmp) / "core" / "richHtml.js")
+            script = SCRIPT
+            done = subprocess.run(["node", "--input-type=module", "-e", script], cwd=pathlib.Path(tmp) / "core", capture_output=True, text=True, check=True)
+        got = json.loads(done.stdout)
+        self.assertEqual(got[1:5], ["<p>x</p>"] * 4)
+        self.assertEqual(got[0], '<p><strong><span class="rt-c-red">a&lt;b</span></strong></p>')
 
 
 if __name__ == "__main__":
