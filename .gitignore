@@ -20,3 +20,6 @@ dist/
 # The generated pages (#495): built by dev/tools/build_page.py in CI, by run_tests.py, at first source run and by package.py
 src/clark/page/page.html
 src/clark/page/page-view.html
+
+# The PNGs dev/tools/argos_shots.py saves
+screenshots/
