@@ -1,6 +1,6 @@
 """Row 1232: the Word export of Text and Image Side by Side (a textimage section, an older Text and image section reads the same). The section
 heading, the words, the framed image with its caption (small ones at their own size) and the section is left out when it has neither words nor
-image. Fictional data only. Run: python3 dev/run_tests.py test_docx_textimage_1232"""
+image. Fictional data only. Run: python3 dev/run_tests.py test_docx_textimage"""
 import base64
 import io
 import re
@@ -37,6 +37,12 @@ class Word(unittest.TestCase):
         self.assertIn("Fictional words about the visit.", doc)
         self.assertIn("Fictional caption", doc)
         self.assertIn("Site visit", doc)
+        self.assertEqual(len([n for n in names if n.startswith("word/media/")]), 1)
+
+    def test_word_export_carries_framed_image_1232(self):      # the approved body's named test (DoD17): words, caption, one framed image, image after the words on the right
+        doc, names = word({"v": 2, "html": "<p>Fictional words about the visit.</p>", "image": uri(png(1200, 600)), "caption": "Fictional caption", "alt": "Fictional alt", "side": "right"})
+        self.assertLess(doc.index("Fictional words about the visit."), doc.index("<w:drawing>"))
+        self.assertIn("Fictional caption", doc)
         self.assertEqual(len([n for n in names if n.startswith("word/media/")]), 1)
 
     def test_an_old_text_and_image_section_opens_the_same_words_image_caption_and_description(self):
