@@ -1,5 +1,6 @@
 """A fresh store with fictional demo data, for the store tests (#31)."""
 import shutil
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -7,6 +8,18 @@ import _paths  # noqa: F401  (puts src/ on the path)
 from clark.store import open_store
 
 USER = "Demo User"
+
+
+def old_glance_and_docs(path, project="ABC"):
+    """A report made before row 1266 has the built-in At a glance and Supporting documents sections; a new project's are the glance and
+    Files and links templates. Tests of the built-in ones give the project's two rows the older types (nothing changes when it has none)."""
+    con = sqlite3.connect(str(path))
+    try:
+        con.execute("UPDATE report_sections SET type = 'glance', body = '' WHERE project = ? AND type = 'glancetemplate'", (project,))
+        con.execute("UPDATE report_sections SET type = 'docs', title = 'Supporting documents' WHERE project = ? AND type = 'doclinks'", (project,))
+        con.commit()
+    finally:
+        con.close()
 
 
 class DemoStore:
@@ -47,6 +60,9 @@ class DemoStore:
         with self.store.step("dashboard", USER) as st:
             for i, r in enumerate(rows):
                 st.create("report_sections", {"project": project, "sort_order": i, **r})
+
+    def old_glance_and_docs(self, project="ABC"):
+        old_glance_and_docs(self.store.path, project)
 
     def action(self, **values):
         base = {"project": "ABC", "description": "Draft the cut-over plan", "raised": "2026-10-01", "source": "demo"}

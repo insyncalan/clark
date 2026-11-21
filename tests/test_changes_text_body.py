@@ -15,9 +15,17 @@ from pathlib import Path
 from _demo import USER, DemoStore
 from _paths import SRC
 from clark import changes, publish, sanitise, server as sv
+from clark.default_sections import DEFAULT_SECTIONS
 from test_changes import Api, KIND
 
-CURRENT, THIS_WEEK, NEXT_WEEK = "ABC-S-001", "ABC-S-005", "ABC-S-006"
+
+
+def default_id(*titles):
+    """The id the store gives the default section with one of these titles: <CODE>-S-<its place in the default list>."""
+    return next(f"ABC-S-{n:03d}" for n, d in enumerate(DEFAULT_SECTIONS, 1) if d["title"] in titles)
+
+
+CURRENT, THIS_WEEK, NEXT_WEEK = default_id("Current state", "Header"), default_id("This week"), default_id("Next week")
 DIRTY = ('<p onclick="x()">Words <strong>bold</strong> <em>soft</em></p>'
          '<script>window.ZQ_RAN=1</script><style>p{color:red}</style><img src="x" onerror="window.ZQ_RAN=1">'
          '<a href="javascript:window.ZQ_RAN=1">ZQ-BAD-LINK</a><a href="&#106;avascript:window.ZQ_RAN=1">ZQ-ENC-LINK</a>'
@@ -240,7 +248,7 @@ class Refusing(TextBody):
 
     def test_a_section_of_another_type_is_still_refused_a_text_body(self):
         for row in self.rows():
-            if row["type"] in ("text", "needs", "tracker", "usecases", "milestones", "workitems"):
+            if row["type"] in ("text", "needs", "tracker", "usecases", "milestones", "workitems", "reportheadline", "glancetemplate", "doclinks"):
                 continue
             with self.subTest(type=row["type"]):
                 self.refused_body(row["id"], "<p>x</p>", changes.NO_BODY_HERE)
