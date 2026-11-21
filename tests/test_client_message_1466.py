@@ -27,11 +27,11 @@ class Words(unittest.TestCase):
                 self.assertIsNone(hit, "Client wording is on a built page" + (": " + html[hit.start() - 60:hit.end() + 40] if hit else ""))
                 self.assertIn("Client Message", html)
 
-    def test_the_history_label_for_client_message_is_client_message(self):
+    def test_the_history_label_for_client_message_stays_message_to_the_client(self):
         from clark import history
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
-                self.assertEqual(history.field_name(table, "client_message"), "Client Message")
+                self.assertEqual(history.field_name(table, "client_message"), "Message to the client")
 
     def test_the_row_editor_label_and_toasts_say_client_message_of(self):
         html = page.page_html(tp.EMPTY_BRANDING, view=False)
