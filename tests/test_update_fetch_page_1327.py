@@ -27,7 +27,7 @@ class Fetch(InBrowser):
         self.assertEqual(self.text("#update-line"), "Version 0.3.2 is ready to download.")
         self.assertEqual(self.text("[data-download]"), "Download")
         self.assertEqual(self.text("[data-check]"), "Check now")
-        self.assertIn("never installs by itself", self.text("#update-hint"))
+        self.assertIn("never installs by itself", self.text("#update-checked"))      # Row 1327 table row 2: the sentence is in the Last checked row
         self.assertIn("Faster Dashboard.", self.text("#update-notes"))
         self.click("[data-download]")
         self.assertEqual(self.calls(), ["status", "download", "status"], "one click starts the download and asks again; nothing is installed")
@@ -83,7 +83,7 @@ class Fetch(InBrowser):
     def test_an_older_server_with_no_newest_block_draws_the_card_as_before(self):
         self.replies(status=OK(STATUS))
         self.mount()
-        self.assertEqual(self.text("[data-review]"), "Review 0.3.1")
+        self.assertEqual(self.text("[data-review]"), "Review")      # Row 1327 table row 3
         self.assertFalse(self.present("[data-check]") or self.present("[data-download]"))
 
     def test_every_state_fits_and_reads_at_1400_and_900(self):
