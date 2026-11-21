@@ -37,7 +37,7 @@ class Classic(Base, unittest.TestCase):
             self.assertEqual(g["hint"], "Drag the bottom edge to zoom")
 
 F = """(() => { const cs = (e, p) => getComputedStyle(e)[p], sw = document.querySelector('.msv-sw'), bs = [...sw.querySelectorAll('.msv-b')];
-  return { border: cs(sw, 'borderTopWidth'), bc: cs(sw, 'borderTopColor'), rad: cs(sw, 'borderTopLeftRadius'), h: bs.map((b) => Math.round(b.getBoundingClientRect().height)),
+  return { border: cs(sw, 'borderTopWidth'), bc: cs(sw, 'borderTopColor'), rad: cs(sw, 'borderTopLeftRadius'), h: bs.map((b) => Math.round(b.getBoundingClientRect().height)), minH: bs.map((b) => cs(b, 'minHeight')), pad: bs.map((b) => cs(b, 'padding')),
     div: cs(bs[1], 'borderLeftWidth') + ' ' + cs(bs[1], 'borderLeftColor'), ui: getComputedStyle(document.documentElement).getPropertyValue('--grey-500').trim() }; })()"""
 
 
@@ -47,6 +47,7 @@ class Frame(Base, unittest.TestCase):
             time.sleep(0.8)
             g = cdp.js(F, sid)
             self.assertEqual((g["border"], g["rad"], g["h"]), ("1px", "6px", [28, 28]), g)
+            self.assertEqual((g["minH"], g["pad"]), (["28px", "28px"], ["3px 14px", "3px 14px"]), g)      # the Row 1315 button rule: min-height 28px, padding 3px 14px (without it the older rules give 12px sides and no min-height)
             ui = "rgb(%d, %d, %d)" % tuple(int(g["ui"][i:i + 2], 16) for i in (1, 3, 5))      # --grey-500, light and dark
             self.assertEqual(g["bc"], ui, g)
             self.assertEqual(g["div"], "1px " + ui, g)
