@@ -269,6 +269,66 @@ class Page(unittest.TestCase):
         w = self.val("(function(){ const a = document.querySelector('.tpl-sbs-edit-pic').getBoundingClientRect().width, b = document.querySelector('.tpl-sbs-edit-words').getBoundingClientRect().width; return a / b; })()")
         self.assertGreater(w, 1.5, "two thirds for the image")
 
+    # -- AP10: spec rows 5, 7-11, 15, 16 (values are from the mock-up CSS text, NOT measured in a browser), 1400 only --
+    def hover(self, selector):
+        r = self.val(f"(function(){{ const r = document.querySelector('{selector}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, self.sid)
+
+    def test_ap10_row5_remove_turns_red_BE3A2B_on_hover_and_only_there(self):
+        self.with_image()
+        self.hover(".tpl-sbs-bar [data-act=remove]")
+        self.until("document.querySelector('.tpl-sbs-bar [data-act=remove]').matches(':hover')", "hovered")
+        self.assertEqual(self.val("getComputedStyle(document.querySelector('.tpl-sbs-bar [data-act=remove]')).color"), "rgb(190, 58, 43)")
+        self.hover(".tpl-sbs-bar [data-act=replace]")
+        self.until("document.querySelector('.tpl-sbs-bar [data-act=replace]').matches(':hover')", "moved")
+        self.assertNotEqual(self.val("getComputedStyle(document.querySelector('.tpl-sbs-bar [data-act=remove]')).color"), "rgb(190, 58, 43)")
+
+    def test_ap10_rows7_to_11_the_groups_and_their_names_at_full_and_half_width(self):
+        names = "[...document.querySelectorAll('.tpl-sbs-bar [role=group]')].map(g => [g.getAttribute('aria-label'), [...g.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))])"
+        self.with_image()
+        shape = ["Fill the height of the text", "Shape 4:3", "Shape square", "Whole image"]
+        self.assertEqual(self.val(names), [
+            ["Shape", shape], ["Where the image sits", ["Image on the left", "Image on the right", "Swap image and text"]],
+            ["Width of the image", ["Image takes a third", "Image takes a half", "Image takes two thirds"]], ["Crop", ["Crop\u2026", "Reset framing"]]])
+        self.assertEqual(self.val("[...document.querySelectorAll('.tpl-sbs-bar > button')].map(b => b.getAttribute('aria-label'))"), ["Replace the image", "Remove the image"])
+        self.with_image(slot="left")
+        got = self.val(names)
+        self.assertEqual(got[0], ["Shape", ["Wide (16:9)"] + shape[1:]])
+        self.assertEqual(got[1], ["Where the image sits", ["Image on top", "Image underneath", "Swap image and text"]])
+        self.assertEqual([g[0] for g in got], ["Shape", "Where the image sits", "Crop"], "no width group at half width")
+
+    def test_ap10_row15_an_empty_description_has_a_red_border_BE3A2B_and_a_described_image_has_none(self):
+        alt = "[...document.querySelectorAll('.tpl-pic-field input')].find(i => i.id.endsWith('-alt'))"
+        self.with_image()
+        self.assertEqual(self.val(f"getComputedStyle({alt}).borderTopColor"), "rgb(190, 58, 43)")
+        self.assertEqual(self.val(f"{alt}.closest('.tpl-pic-field').querySelector('label').textContent"), "Describe the image")
+        self.with_image({"alt": "A fictional hall"})
+        self.assertFalse(self.val("!!document.querySelector('[data-alt-note]')"))
+        self.assertNotEqual(self.val(f"getComputedStyle({alt}).borderTopColor"), "rgb(190, 58, 43)")
+
+    def test_ap10_row16_gap_22_and_the_columns_third_half_two_mirrored_when_the_image_is_on_the_right(self):
+        def cols(extra):
+            self.with_image(extra)
+            return self.val("(function(){ const q = (c) => document.querySelector(c).getBoundingClientRect(); const a = q('.tpl-sbs-edit-pic'), b = q('.tpl-sbs-edit-words');"
+                            " const gap = a.left < b.left ? b.left - a.right : a.left - b.right; return [Math.round(a.width / (a.width + b.width) * 100) / 100, Math.round(gap)]; })()")
+        self.assertEqual(cols({"side": "left", "share": "third"}), [0.33, 22], "left third: 1fr 2fr, gap 22")
+        self.assertEqual(cols({"side": "left"})[0], 0.5)
+        self.assertEqual(cols({"side": "left", "share": "two"})[0], 0.67)
+        self.assertEqual(cols({"share": "third"})[0], 0.33, "mirrored when the image is on the right")
+        self.assertEqual(cols({"share": "two"})[0], 0.67)
+
+    def test_ap10_row16_fill_makes_the_image_column_as_high_as_the_text_min_230_and_half_width_is_wide_16_9(self):
+        col = "(function(){ const h = (c) => document.querySelector(c).getBoundingClientRect().height; return [h('.tpl-sbs-edit-pic'), h('.tpl-sbs-edit-words'), h('.tpl-sbs-edit-frame')]; })()"
+        self.with_image({"side": "left", "html": "<p>" + "A fictional sentence about a hall. " * 120 + "</p>"})
+        pic, text, frame = self.val(col)
+        self.assertGreater(text, 400)
+        self.assertLessEqual(abs(pic - text), 1, "the image column is as high as the text")
+        self.assertGreater(frame, 300, "the frame fills the column above the toolbar")
+        self.with_image({"side": "left", "html": "<p>Short.</p>"})
+        self.assertGreaterEqual(self.val(col)[2], 230, "never lower than 230")
+        self.with_image(slot="left")
+        self.assertAlmostEqual(self.val("(function(){ const r = document.querySelector('.tpl-sbs-edit-frame img').getBoundingClientRect(); return r.width / r.height; })()"), 16 / 9, delta=0.02)
+
 
 if __name__ == "__main__":
     unittest.main()
