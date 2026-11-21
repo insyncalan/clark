@@ -125,7 +125,7 @@ class Words(unittest.TestCase):
 
 class EditPage(unittest.TestCase):
     def test_the_edit_page_asks_for_no_more_than_a_version_1_body_takes(self):
-        text = (ROOT / "src/clark/page/src/edit/templates/Gallery.jsx").read_text()
+        text = (ROOT / "src/clark/page/src/edit/templates/Gallery.jsx").read_text(encoding="utf-8")
         most = re.search(r"export const MOST = (\d+) \* 1024;", text)
         self.assertTrue(most, "MOST is one number of KiB")
         self.assertEqual(int(most.group(1)) * 1024, gallery.V1_PICTURE_MAX, "Edit still sends version 1 bodies, so a picture over this is refused by the server")
