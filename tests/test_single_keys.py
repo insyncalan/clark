@@ -227,7 +227,7 @@ class PageKeys(Base):
             p.until(EDIT, "Space presses a focused button when off")
 
     def test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus(self):
-        """Row 849: Settings › Personal › Keys. Each press says 'Single-key shortcuts are off' / 'are on' with one Undo that puts it back, and
+        """Row 849: Settings › Personal › Keys. Each press says 'Single-key slash commands are off' / 'are on' with one Undo that puts it back, and
         the focus stays on the switch so Space or Enter turns it back too. Light and dark, 1400 and 900, View and Edit."""
         sw = "document.querySelector('fieldset.keys [role=switch]')"
         text = "(document.querySelector('.toast .toast-text') || {}).textContent"
@@ -243,16 +243,16 @@ class PageKeys(Base):
                         p.view() if mode == "view" else p.edit()
                         self.settings_box(p)
                         p.js(f"{sw}.focus(); {sw}.click()")
-                        p.until(f"{text} === 'Single-key shortcuts are off'", f"{where}: the toast says off")
+                        p.until(f"{text} === 'Single-key slash commands are off'", f"{where}: the toast says off")
                         self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, f"{where}: one Undo")
                         self.assertTrue(p.js(f"document.activeElement === {sw}"), f"{where}: focus stays on the switch")
                         p.key(" ", code="Space", vk=32)                                    # the keyboard turns it back on
-                        p.until(f"{text} === 'Single-key shortcuts are on'", f"{where}: the toast says on")
+                        p.until(f"{text} === 'Single-key slash commands are on'", f"{where}: the toast says on")
                         self.assertTrue(p.js(f"document.activeElement === {sw}"), f"{where}: focus still on the switch")
                         p.js(f"{sw}.click()")
-                        p.until(f"{text} === 'Single-key shortcuts are off'", f"{where}: off again")
+                        p.until(f"{text} === 'Single-key slash commands are off'", f"{where}: off again")
                         p.js("document.querySelector('.toast [data-undo]').click()")       # Undo puts it back and says so, with no second Undo
-                        p.until(f"{text} === 'Single-key shortcuts are on'", f"{where}: Undo says on")
+                        p.until(f"{text} === 'Single-key slash commands are on'", f"{where}: Undo says on")
                         self.assertEqual(p.js(f"{sw}.getAttribute('aria-checked')"), "true", f"{where}: Undo turned it back on")
                         self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 0, f"{where}: no Undo of an Undo")
                         p.js("clarkPage.show('dashboard')")
@@ -268,7 +268,7 @@ class PageKeys(Base):
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr').length > 0", "the key table drew")
             rows = p.js("[...document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr')].map(r => r.textContent)")
-            hit = [r for r in rows if "Single-key shortcuts" in r]
+            hit = [r for r in rows if "Single-key slash commands" in r]
             self.assertEqual(len(hit), 3, "the V row, the E row and the O S P T C row each say it")
             self.assertFalse([r for r in rows if r.startswith("?") and "Single-key" in r], "? is not a letter key: it is not covered")
             self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit) and any(r.startswith("O") for r in hit))
@@ -295,9 +295,9 @@ class PageKeys(Base):
             self.settings_box(p)
             self.assertEqual(p.js("document.querySelectorAll('fieldset.keys input').length"), 0, "no checkbox")
             self.assertEqual(p.js("document.querySelector('fieldset.keys button.switch').getAttribute('role')"), "switch")
-            self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key shortcuts')"), 0)
+            self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key slash commands')"), 0)
             self.assertTrue(p.js("document.getElementById('keys-line').textContent.startsWith('Letter keys such as V and E')"), "the line describes it")
-            self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-label')"), "Single-key shortcuts", "the switch has a name of its own")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-label')"), "Single-key slash commands", "the switch has a name of its own")
             p.js("document.querySelector('fieldset.keys [role=switch]').focus()")
             state = "document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')"
             for key, code, vk, text in ((" ", "Space", 32, " "), ("Enter", "Enter", 13, "\r")):

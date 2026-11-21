@@ -17,6 +17,7 @@ import { templateFor } from "../templates/index.js";
 import { ItemRows } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
 import { isChanged, WORD } from "../stores/changed.js";
+import { classicTheme } from "./Contents.jsx";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
@@ -46,16 +47,19 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
+  const classic = classicTheme();      // row 1408: Classic marks a changed section with a line under the title that runs and fades; Cards keeps the tint, the bar and the word Changed
+  const sweep = classic && changed;
+  const title = editing ? <tools.Title section={section} /> : section.title;
   const tpl = templateFor(section.type);
   const shows = sectionShows(section);      // item 1272: a section can show without its tile or its heading
   return (
-    <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
+    <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed && !classic ? " is-changed" : ""}${sweep ? " sec-sweep" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
-        <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
+        <h2 class="sec-h">{classic ? <span class="sec-t">{title}</span> : title}</h2>
         {editing && tools.AskAbout ? <tools.AskAbout kind="section" id={section.id} name={section.title} /> : null}
-        {changed ? <span class="tag chg">{WORD}</span> : null}
+        {!classic && changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && notShownTag(shows) ? <span class="tag hid" data-not-shown>{notShownTag(shows)}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
@@ -66,7 +70,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
-        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} empty={tools.richHint(section)} />
+        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} empty={tools.richHint(section)} prompts={tools.richPrompts(section)} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : clean && (section.type === "current" || (!editing && section.type === "text"))     // row 850: Edit draws the Current state text too (read only: the project's headline text has no write kind yet, see edit/richSave.js)

@@ -58,6 +58,7 @@ class ProjectData:
     secret: int = 0
     today: str = ""                     # #1293 B: the report's as-at day as DD-MM-YYYY ("" when it is not a day)
     counts: tuple = ()                  # #1293 B: (kind, rows sent, rows in all) for each kind that has rows
+    cut: int = 0                        # Row 1293: how many row lines were longer than MAX_PASSAGE and were cut (the Used line says so)
 
 
 def _is_day(value):
@@ -119,6 +120,11 @@ def _cut_screened(label, lines):
     in either half. A line that looks like a secret is left out. Returns (passages, left_out_count)."""
     keep = [x for x in lines if len(x) <= MAX_PASSAGE or not ask._secret(x)]
     return _cut(label, keep), len(lines) - len(keep)
+
+
+def long_rows(lines):
+    """Row 1293: how many of `lines` are cut by _cut (longer than MAX_PASSAGE) and still sent (a secret-looking one is left out whole)."""
+    return sum(1 for x in lines if len(x) > MAX_PASSAGE and not ask._secret(x))
 
 
 def _score(words, ids, passage):
@@ -238,14 +244,17 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
     selected = own_rows(inputs)
     project = dict(publish.select(inputs)["data"].get("project") or {})
     project["current_state"] = publish.clean_html((inputs["data"].get("project") or {}).get("current_state") or "") or project.get("current_state")    # a hidden Current state section does not change what is read
-    passages, secret = _cut_screened(LABELS["project"], project_lines(project))
+    own = project_lines(project)
+    passages, secret = _cut_screened(LABELS["project"], own)
+    cut = long_rows(own)
     totals = {}
     for kind in KIND_ORDER:
         rows = [row_line(kind, r) for r in selected[kind]]
         more, n = _cut_screened(LABELS[kind], rows)
+        cut += long_rows(rows)
         passages += more
         secret += n
         totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
     chosen, left = choose(passages, question, budget, ask.MAX_PASSAGES)     # the request takes at most MAX_PASSAGES: more is refused
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
-    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts)
+    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, cut)

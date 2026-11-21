@@ -53,7 +53,7 @@ DOC_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml"
 HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 ROOT = f'xmlns:w="{NS_W}" xmlns:r="{NS_R}"'
 
-TOKENS = dict(colours_table.TOKENS)
+TOKENS = {k: v for k, v in colours_table.TOKENS.items() if k not in colours_table.EXPORT_TOKENS}      # item 1390: the workbook-only tokens are not Word's
 HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
@@ -773,14 +773,14 @@ def section_glancetemplate(published, ctx, title, sec):
 def section_callout(published, ctx, title, sec):
     """Row 1272 (1291), ruling M8780: a callout as a text block, in Dashboard order: the heading (the callout's own title, else "Callout"; left out when its
     heading is off), one bold line "Category: <category>. Colour: <colour>. Icon: <icon>." (empty parts left out; Plain and No icon say nothing extra),
-    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). An empty callout is left out."""
+    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). A callout is left out only when its title, category, colour, icon and words are all empty (row 1272, ruling M8851)."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     cat, col, ico = (str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name"))
     parts = [f"{label}: {w}." for label, w in (("Category", cat), ("Colour", "" if col == "Plain" else col), ("Icon", ico)) if w]
     line = " ".join(parts)
     name = str(c.get("title") or "").strip()
     body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
-    if not (name or body):
+    if not (name or line or body):
         return ""
     inner = (para(run(line, bold=True), "TableText") if line else "") + body
     out = _heading(name or "Callout") if c.get("heading", True) else ""
