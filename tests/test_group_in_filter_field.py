@@ -116,6 +116,17 @@ class GroupInTheField(Base):
             self.until(cdp, sid, "document.querySelectorAll('#fline-list .fopt').length === 7", "seven choices")
             self.assertNotIn("Nothing", [r[0] for r in cdp.js(ROWS, sid)])
 
+    def test_on_the_board_typed_group_nothing_says_it_is_for_the_table_only(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width, preset={"view": "board", "group": "status"})
+                self.until(cdp, sid, f"{CHIP}.startsWith('Group by: Status')", "the chip")
+                self.focus(cdp, sid)
+                self.type(cdp, sid, "group:nothing ")
+                self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.includes('table only')", "the sentence")
+                self.assertEqual(cdp.js("document.querySelector('#fline-msg').textContent", sid), "Nothing is for the table only.")
+                self.assertEqual(cdp.js(CHIP, sid).replace("×", "").strip(), "Group by: Status", "the grouping is unchanged")
+
 
 if __name__ == "__main__":
     unittest.main()

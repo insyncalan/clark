@@ -49,3 +49,16 @@ export function takeGroup(text, caret, g) {
   }
   return id === null ? null : { id, text: out + s.slice(at), caret: caret - back };
 }
+
+/** The sentence for a complete `group:value` word (a space follows it) that names a choice the page does not offer but the table does: `g.tableOnly` is
+ *  [[id, label]] (on the board, "Nothing"). "" when there is none. */
+export function groupMissing(g, text, caret) {
+  if (!g || !(g.tableOnly || []).length) return "";
+  const s = String(text || ""), re = /(^|\s)group:([^\s"]+)(?=\s)/gi;
+  let m, out = "";
+  while ((m = re.exec(s))) {
+    const end = m.index + m[0].length, x = slug(m[2]), t = g.tableOnly.find(([id, label]) => low(id) === x || slug(label) === x);
+    if (end < caret && t) out = `${t[1]} is for the table only.`;
+  }
+  return out;
+}

@@ -15,7 +15,7 @@ import { actionIcon, groupIcon } from "../menuIcons.js";
 import { work, setWork, announce } from "../stores/work.js";
 import { say, sayLocalUndo } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup, DEFAULT_STATE } from "../logic/board.js";
-import { groupOptions, takeGroup, chipText } from "../logic/groupWord.js";
+import { groupOptions, takeGroup, chipText, groupMissing } from "../logic/groupWord.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
@@ -386,7 +386,8 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused && inBox ? caret : undefined, extra);
   const matches = Q.rowsFor(rows, line, ctx, extra).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
-  const notes = [...words, ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
+  const tableOnly = groupMissing(grouping, draft, caret);      // row 1304: typed group:nothing on the board
+  const notes = [...(tableOnly ? words.filter((m) => !m.startsWith("There is no “group” filter")) : words), ...(tableOnly ? [tableOnly] : []), ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
   const options = focused ? groupOptions(Q.withCounts(Q.suggestions(draft, caret, rows, ctx, extra), chips, rows, ctx, extra), draft, caret, grouping) : [];
   const groupChip = chipText(grouping);
   const wordNow = Q.wordAt(draft, caret).word;
@@ -561,7 +562,7 @@ export function FilterLine({ board, tools, add = null }) {
   const w = work.value, onBoard = !!board && w.view === "board";
   const grouping = fromFile.value ? null : {      // row 1304: Group by offered in the box; the same choices and the same state as the Group by icon menu
     choices: GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => [x.id, x.label]), current: onBoard ? boardGroup(w.group) : w.group, def: DEFAULT_STATE.group,
-    onPick: (id) => pickLayout(`group:${id}`), onClear: () => pickLayout(`group:${DEFAULT_STATE.group}`), removable: !onBoard,
+    onPick: (id) => pickLayout(`group:${id}`), onClear: () => pickLayout(`group:${DEFAULT_STATE.group}`), removable: !onBoard, tableOnly: onBoard ? [["nothing", "Nothing"]] : [],
   };
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
