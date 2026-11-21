@@ -12,14 +12,14 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform, reach
+from clark import ask_index, platform, reach
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 PATH_LIMIT = 1000
 MAX_FOLDERS = 20
 SHARED_FILE = "ask_folders_all.json"      # row 1294: the folders for all projects, kept beside the data (a list of full paths, in the order they were added)
-ACTIONS = ("add", "remove", "undo", "choose")
+ACTIONS = ("add", "remove", "undo", "choose", "reindex")
 PICK_PROMPT = "Choose a folder asking may read"
 WIDE_PLACES = ("/Volumes", "/private/var", "/var", "/private/var/folders", "/private/tmp", "/tmp")   # other disks, and the system's working files (a teammate: LOW)
 
@@ -135,14 +135,14 @@ class AskFolders:
             return 400, self.fail("bad_project_code")
         if action not in ACTIONS:
             return 400, self.fail("bad_action")
-        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action == "choose" else {"project", "action", "path"}
+        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action in ("choose", "reindex") else {"project", "action", "path"}
         if set(body) - allowed or (allowed - {"project", "action"}) - set(body):
             return 400, self.fail("bad_request")
         if action == "undo":
             asked = body["apply_id"]
             if type(asked) is not int or not 1 <= asked < 2 ** 63:
                 return 400, self.fail("no_undo")
-        elif action == "choose":
+        elif action in ("choose", "reindex"):
             asked = None
         else:
             asked = body["path"]
@@ -165,6 +165,8 @@ class AskFolders:
                     return self.remove(store, code, asked)
                 if action == "choose":
                     return self.choose(store, code)
+                if action == "reindex":
+                    return self.reindex_again(code)
                 return self.add(store, code, asked)
             finally:
                 store.close()
@@ -174,6 +176,7 @@ class AskFolders:
         out = {"ok": True, "folders": shared_folders(self.data_dir)}
         if self.indexer is not None and isinstance(code, str) and PROJECT_CODE.fullmatch(code):
             out["index"] = self.indexer.status_for(code, self.all_folders(code))
+            out["projects"] = self.projects_indexed(out["folders"])
         return 200, out
 
     def all_folders(self, code):
@@ -191,6 +194,26 @@ class AskFolders:
             if p not in out:
                 out.append(p)
         return out[:MAX_FOLDERS]
+
+    def reindex_again(self, code):
+        """Try again / Index again (row 1371): read this project's folders again, and say whether a read was started."""
+        if self.indexer is None:
+            return 200, {"ok": True, "started": False}
+        return 200, {"ok": True, "started": bool(self.indexer.again(code, self.all_folders(code)))}
+
+    def projects_indexed(self, folders):
+        """{folder: {"done": projects whose index holds a finished read of it, "all": projects not archived}} (row 1371, the All projects tab)."""
+        try:
+            store = self.store()
+            try:
+                codes = [r["code"] for r in store.read("projects") if not r.get("archived")]
+            finally:
+                store.close()
+        except Exception:                                   # noqa: BLE001 the note is optional
+            return {}
+        held = {c: ask_index.indexed_folders(self.data_dir, c) for c in codes}
+        return {f: {"done": sum(1 for c in codes if f in held[c]), "all": len(codes), "line": ask_index.projects_note(sum(1 for c in codes if f in held[c]), len(codes))}
+                for f in folders}
 
     def reindex(self, codes):
         """Start the background read for these projects (None: every project that is not archived). Never raises, never waits."""

@@ -590,9 +590,39 @@ def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
     return out
 
 
-def folder_status(data_dir, code, folders, live=None):
-    """{folder: {"state": "reading" | "done", "line": text}} for the folders that have something to say. `live` is the worker's
-    {folder: (done, total)} for the run in progress; a folder with no index yet and no run says nothing."""
+def indexed_folders(data_dir, code):
+    """The folders (as saved text) that the project's index holds a finished read of; empty when it has no index or none finished."""
+    db = _open_read(data_dir, code)
+    if db is None:
+        return set()
+    try:
+        row = db.execute("SELECT v FROM meta WHERE k='folders'").fetchone()
+        return set(json.loads(row[0])) if row else set()
+    except (sqlite3.Error, ValueError, TypeError):
+        return set()
+    finally:
+        db.close()
+
+
+def projects_note(done, total):
+    return f"Indexed for {done} of {total} projects"
+
+
+WAITING_LINE = "Waiting to index"
+PAUSED_LINE = "Indexing paused. It carries on when clark is open"
+FAILED_LINE = "Could not index this folder. Try again"
+CLEARED_LINE = "Not indexed. Index again"
+
+
+def updating_line(n):
+    return f"Updating\u2026 {n} {_plural(n, 'file', 'files')} changed"
+
+
+def folder_status(data_dir, code, folders, live=None, queued=False, changed=None, failed=False, cleared=False, paused=False):
+    """{folder: {"state": ..., "line": text}} for the folders that have something to say. State is "reading", "updating" (files changed
+    since the last read, `changed` is {folder: n}), "done", "waiting" (a run is queued or running and has not reached the folder),
+    "paused", "failed" or "cleared". `live` is the worker's {folder: (done, total)} for the run in progress; a folder with no index
+    yet and no run says nothing."""
     saved = {}
     db = _open_read(data_dir, code)
     if db is not None:
@@ -607,12 +637,21 @@ def folder_status(data_dir, code, folders, live=None):
     out = {}
     for f in folders or ():
         f = str(f)
-        if live and f in live:
-            out[f] = {"state": "reading", "line": line_for(None, live[f])}
+        if cleared:
+            out[f] = {"state": "cleared", "line": CLEARED_LINE}
+        elif live and f in live:
+            n = (changed or {}).get(f, 0)
+            out[f] = {"state": "updating", "line": updating_line(n)} if n > 0 else {"state": "reading", "line": line_for(None, live[f])}
+        elif failed:
+            out[f] = {"state": "failed", "line": FAILED_LINE}
         elif f in saved:
             out[f] = {"state": "done", "line": done_line(saved[f])}
             if left.get(f):
                 out[f]["left"] = left[f]
+        elif live is not None or queued:
+            out[f] = {"state": "waiting", "line": WAITING_LINE}
+        elif paused:
+            out[f] = {"state": "paused", "line": PAUSED_LINE}
     return out
 
 
@@ -630,19 +669,21 @@ def current(data_dir, code, folders):
         db.close()
 
 
-def stale(data_dir, code, folders, home=None):
-    """True when the files now in `folders` differ from the ones the index holds: a file new, gone (or no longer readable), or with another
-    size or modified time. Lists the folders the way `refresh` does and reads no file. A file changed to the same size AND the same modified
-    time cannot be seen this way (no content hash: that would mean reading every file on every question)."""
+def _diff(data_dir, code, folders, home=None):
+    """Yields one item for each file that differs from the index: the folder it is in, or None when no folder can be named (a file gone,
+    or the whole index to be read again). Lists the folders the way `refresh` does and reads no file."""
     db = _open_read(data_dir, code)
     if db is None:
-        return True
+        yield None
+        return
     try:
         if not _screen_ok(db):
-            return True                              # read again so the text is screened again
+            yield None                               # read again so the text is screened again
+            return
         kept = {r[0]: (r[1], r[2]) for r in db.execute("SELECT label, size, mtime_ns FROM files")}
     except sqlite3.Error:
-        return True
+        yield None
+        return
     finally:
         db.close()
     usable, _bad = _unusable(folders, data_dir, home)
@@ -662,12 +703,32 @@ def stale(data_dir, code, folders, home=None):
                 if label is None:
                     continue
                 st = os.stat(path)
-                if kept.get(label) != (st.st_size, st.st_mtime_ns):
-                    return True
                 seen.add(label)
+                if kept.get(label) != (st.st_size, st.st_mtime_ns):
+                    yield str(folder)
     except OSError:
+        yield None
+        return
+    for _gone in set(kept) - seen:
+        yield None
+
+
+def stale(data_dir, code, folders, home=None):
+    """True when the files now in `folders` differ from the ones the index holds: a file new, gone (or no longer readable), or with another
+    size or modified time. Reads no file. A file changed to the same size AND the same modified time cannot be seen this way (no content
+    hash: that would mean reading every file on every question)."""
+    for _ in _diff(data_dir, code, folders, home):
         return True
-    return bool(set(kept) - seen)
+    return False
+
+
+def changes(data_dir, code, folders, home=None):
+    """{folder: how many of its files changed} since the index was read (row 1371); a file gone or an unreadable list counts for no folder."""
+    out = {}
+    for f in _diff(data_dir, code, folders, home):
+        if f is not None:
+            out[f] = out.get(f, 0) + 1
+    return out
 
 
 def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES):
@@ -697,6 +758,9 @@ class Indexer:
         self.busy = 0
         self.checked = {}                    # code -> when the Settings poll last looked for changed files
         self.resumed = {}                    # code -> when an unfinished index was last started again
+        self.failed = set()                  # codes whose last run raised: no automatic retry, the person asks again (row 1371)
+        self.cleared = set()                 # codes whose index the person cleared: not built again until they ask
+        self.changed = {}                    # code -> {folder: files changed} for a run that updates an index already made
         self.stop = threading.Event()
         self.thread = None
 
@@ -718,6 +782,8 @@ class Indexer:
                 return False
             if code not in self.queue:
                 self.busy += 1
+            self.failed.discard(code)
+            self.cleared.discard(code)
             self.queue[code] = list(folders)
             if self.thread is None or not self.thread.is_alive():
                 self.thread = threading.Thread(target=self._work, name="ask-index", daemon=True)
@@ -749,11 +815,13 @@ class Indexer:
                 self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t))
                 if not self._on():
                     remove(self.data_dir, code)      # asking was turned Off while it ran
-            except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the next start tries again
-                pass
+            except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the person asks again
+                with self.wake:
+                    self.failed.add(code)
             finally:
                 with self.wake:
                     self.live.pop(code, None)
+                    self.changed.pop(code, None)
                     self.busy -= 1
                     self.wake.notify_all()
 
@@ -762,6 +830,17 @@ class Indexer:
             if code in self.live:
                 self.live[code][folder] = (done, total)
 
+    def again(self, code, folders):
+        """The person asks for the folders to be read again (Try again, Index again): clears a failure or a cleared index and starts a run."""
+        return self.start(code, folders)
+
+    def clear(self, code):
+        """The person clears the index: it is deleted, and nothing builds it again until they ask (row 1371)."""
+        with self.wake:
+            self.cleared.add(code)
+            self.failed.discard(code)
+        remove(self.data_dir, code)
+
     def status_for(self, code, folders):
         if not self._on():
             remove(self.data_dir, code)
@@ -769,22 +848,29 @@ class Indexer:
         with self.wake:
             live = dict(self.live[code]) if code in self.live else None
             idle = code not in self.queue and code not in self.live
-            due = idle and time.monotonic() - self.checked.get(code, -STALE_POLL_SECONDS) >= STALE_POLL_SECONDS
+            held = code in self.failed or code in self.cleared
+            due = idle and not held and time.monotonic() - self.checked.get(code, -STALE_POLL_SECONDS) >= STALE_POLL_SECONDS
             if due:
                 self.checked[code] = time.monotonic()
         if due and folders and not path_for(self.data_dir, code).exists():
             self.start(code, folders)               # the index file is gone: build it again, so the line and the next question have it
-            with self.wake:
-                live = dict(self.live[code]) if code in self.live else None
         elif due and folders and not current(self.data_dir, code, folders):
             self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
-            with self.wake:
-                live = dict(self.live[code]) if code in self.live else None
         elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
-            self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
+            ch = changes(self.data_dir, code, folders, self.home)
             with self.wake:
-                live = dict(self.live[code]) if code in self.live else None
-        return folder_status(self.data_dir, code, folders, live)
+                self.changed[code] = ch
+            if not self.start(code, folders):       # a file changed since the last read: read again, so the line stays right
+                with self.wake:
+                    self.changed.pop(code, None)
+        with self.wake:
+            live = dict(self.live[code]) if code in self.live else None
+            queued = code in self.queue
+            failed, cleared = code in self.failed, code in self.cleared
+            changed = dict(self.changed.get(code) or {})
+        paused = bool(folders) and live is None and not queued and not failed and not cleared and not current(self.data_dir, code, folders) \
+            and path_for(self.data_dir, code).exists()
+        return folder_status(self.data_dir, code, folders, live, queued, changed, failed, cleared, paused)
 
     def resume(self, code, folders):
         """Start the read again for an index that is not finished (its first pass was stopped or failed). At most once every
