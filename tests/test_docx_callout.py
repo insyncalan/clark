@@ -25,6 +25,13 @@ def with_callout(value, title="Heads up", sid="s-callout"):
     return p
 
 
+def direct(content):
+    """A published callout section written straight, as the Word writer reads it (the publish gate is not in play)."""
+    p = publish.select(fx.inputs())
+    p["sections"].append({"id": "s-direct", "type": "callout", "title": "Heads up", "beside": 0, "content": content})
+    return p
+
+
 def document(data):
     return zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
 
@@ -150,6 +157,34 @@ class Words(unittest.TestCase):
         got = "\n".join(texts(docx_build.build(with_callout({"title": "T", "paras": ["First para", "Second para"]}))))
         self.assertIn("First para", got)
         self.assertIn("Second para", got)
+
+    def test_a_callout_with_only_a_category_colour_or_icon_is_written(self):
+        for value, line in (({"category": "Policy"}, "Category: Policy."), ({"colour_name": "Amber"}, "Colour: Amber."), ({"icon_name": "Flag"}, "Icon: Flag.")):
+            got = texts(docx_build.build(direct(value)))
+            at = got.index("Callout")
+            self.assertEqual(got[at:at + 2], ["Callout", line], value)
+
+    def test_a_callout_with_only_a_title_is_written_as_its_heading(self):
+        got = texts(docx_build.build(direct({"title": "ZQ-TITLE-ONLY"})))
+        self.assertIn("ZQ-TITLE-ONLY", got)
+        self.assertNotIn("Callout", got)
+
+    def test_all_five_fields_empty_writes_nothing(self):
+        for value in ({}, {"category": "", "colour_name": "Plain", "icon_name": ""}):
+            self.assertNotIn("Callout", texts(docx_build.build(direct(value))), value)
+
+    def test_category_only_with_heading_off_is_the_line_alone(self):
+        got = texts(docx_build.build(direct({"category": "Policy", "heading": False})))
+        self.assertIn("Category: Policy.", got)
+        self.assertNotIn("Callout", got)
+
+    def test_category_only_tile_on_is_shaded_and_tile_off_is_plain(self):
+        on = document(docx_build.build(direct({"category": "Policy", "colour": "amber", "colour_name": "Amber"})))
+        off = document(docx_build.build(direct({"category": "Policy", "colour": "amber", "colour_name": "Amber", "tile": False})))
+        self.assertIn("w:fill=", on)
+        self.assertNotIn("w:fill=", off[off.index("Category: Policy"):])
+        self.assertIn("Category: Policy. Colour: Amber.", off)
+        self.assertEqual(on.count("<w:tbl>"), off.count("<w:tbl>") + 1)
 
     def test_an_empty_callout_adds_nothing(self):
         self.assertNotIn("Heads up", "\n".join(texts(docx_build.build(with_callout({})))))
