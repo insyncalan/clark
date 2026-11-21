@@ -217,8 +217,8 @@ function AskProject() {
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
     {classicTheme() ? <FilesProject code={code} /> : null}
-    {classicTheme() ? <ChatsProject /> : null}
     {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <ChatsProject /> : null}
     </>
   );
 }
