@@ -103,7 +103,7 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             cdp.js("try { localStorage.setItem('clark.msp.view', JSON.stringify('move')); } catch (e) {}", sid)
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#ms-summary')", sid)), "the Milestones page drew")
+            self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('h1')].some(h => h.textContent === 'Milestones')", sid)), "the Milestones page drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mspage-switch], [data-mspv], #movement, .mvm-card').length", sid), 0,
                              "a published file has neither the switch nor Movement")
             self.assertNotIn("never published", cdp.js("document.body.textContent", sid))

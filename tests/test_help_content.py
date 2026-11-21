@@ -523,5 +523,14 @@ class ProfileCircleWords(unittest.TestCase):
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
+class MilestonesHelpLine(unittest.TestCase):
+    """Row 1329: the Milestones line of Where things are is true for both looks, and the Movement entries stay."""
+    def test_the_line_is_exact_and_the_movement_entries_stay(self):
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones. Where the page has a **Plan** and **Movement** switch, **Movement** shows slippage, for you and the team only."), 1)
+        for kept in ("handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Milestones and Movement"):
+            self.assertIn(kept, text, kept)
+
+
 if __name__ == "__main__":
     unittest.main()
