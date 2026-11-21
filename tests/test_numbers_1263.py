@@ -366,6 +366,25 @@ class Classic(Base):
             self.assertEqual(self.stored(ref)["figures"], [live("overdue")], "a blank typed place is not stored; the count is kept")
             self.assertEqual(self.stored(ref)["count"], 4)
 
+    def test_pressing_the_button_already_pressed_does_nothing_and_an_edit_never_gives_an_old_body_a_count(self):
+        ref = self.add("figures4", body(*FOUR[:2]))
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.sized(cdp, width, "light")
+                self.edit(p, ref)
+                click = lambda sel, name: p.js(f"Array.from(document.querySelectorAll('{self.sec(ref, sel)}')).find(b => b.textContent === '{name}').click()")
+                steps = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+                click(".num-count button", "4")                       # already pressed: no step
+                click('[data-slot="0"] .num-source button', "Typed")  # already pressed: no step
+                self.assertEqual(self.stored(ref), body(*FOUR[:2]))
+                self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps, "a re-press is no step")
+                click('[data-slot="2"] .num-source button', "Live")   # a real edit of an old body: saved without a count
+                p.saved()
+                self.assertEqual(self.stored(ref), body(*FOUR[:2], live("overdue")), "no count written into an old body")
+                self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1)
+                with self.store.step("dashboard", USER) as st:        # back to the old body for the next width
+                    st.update("report_sections", ref, {"body": store_module.check_section_body("figures4", json.dumps(body(*FOUR[:2])))})
+
     # --- Edit: the look, measured against the mock-up at 1400 and 900, light and dark ---------------------------------------------
     def test_the_count_and_source_switches_are_the_mock_ups_size_in_light_and_dark_at_1400_and_900(self):
         ref = self.add("figures4", body(typed(), count=4))
