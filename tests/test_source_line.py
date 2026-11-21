@@ -24,17 +24,17 @@ class TheLine(unittest.TestCase):
     def source(self, ref):
         return self.read("ABC", ref)["source"]
 
-    def test_by_hand_names_the_creator(self):
+    def test_by_hand_says_the_words_and_no_creator(self):
         a = self.demo.action(source="Added by hand in clark")
-        self.assertEqual(self.source(a), "Added by hand in clark by " + USER)
+        self.assertEqual(self.source(a), "Added by hand in clark")
 
-    def test_an_import_line_keeps_its_words_and_adds_by(self):
+    def test_an_import_line_keeps_its_words_and_adds_no_by(self):
         a = self.demo.action(source="Excel import, 2026-10-01, plan.xlsx")
-        self.assertEqual(self.source(a), "Excel import, 01-10-2026, plan.xlsx by " + USER)
+        self.assertEqual(self.source(a), "Excel import, 01-10-2026, plan.xlsx")
 
     def test_a_word_import_date_is_shown_day_first(self):
         a = self.demo.action(source="Word import, 2026-11-07, notes.docx, under Risks")
-        self.assertEqual(self.source(a), "Word import, 07-11-2026, notes.docx, under Risks by " + USER)
+        self.assertEqual(self.source(a), "Word import, 07-11-2026, notes.docx, under Risks")
 
     def test_the_stored_column_is_not_changed(self):
         a = self.demo.action(source="Excel import, 2026-10-01, plan.xlsx")
@@ -45,7 +45,7 @@ class TheLine(unittest.TestCase):
     def test_digits_that_are_not_a_date_stay_as_they_are(self):
         for text in ("Ref 12345-67-89 from the PMO", "Ticket 2026-13-45 filed", "Batch 20261001 and 2026-10-1", "Added by hand in clark"):
             a = self.demo.action(source=text)
-            self.assertEqual(self.source(a), text + " by " + USER, text)
+            self.assertEqual(self.source(a), text, text)
 
     def test_no_words_shows_no_by_even_with_a_creator(self):
         a = self.demo.action(source="demo")
@@ -58,7 +58,7 @@ class TheLine(unittest.TestCase):
         a = self.demo.action(source="demo")
         with self.demo.store.step("dashboard", "Someone Else") as st:
             st.update("actions", a, {"priority": "High"})
-        self.assertEqual(self.source(a), "demo by " + USER)
+        self.assertEqual(self.source(a), "demo")
 
     def test_no_creator_step_shows_no_by(self):
         a = self.demo.action(source="demo")
@@ -69,15 +69,15 @@ class TheLine(unittest.TestCase):
 
     def test_a_milestone_and_a_decision_have_it_too(self):
         # The read gives every kind the same line; the Peek draws it for items only (Peek.jsx `forItem`), not for milestones.
-        self.assertEqual(self.source(self.demo.milestone), "demo by " + USER)
+        self.assertEqual(self.source(self.demo.milestone), "demo")
         with self.demo.store.step("dashboard", USER) as st:
             d = st.create("decisions", {"project": "ABC", "decision": "Go with option B", "status": "Pending", "source": "Excel import, 2026-11-07, log.xlsx"})
-        self.assertEqual(self.source(d), "Excel import, 07-11-2026, log.xlsx by " + USER)
+        self.assertEqual(self.source(d), "Excel import, 07-11-2026, log.xlsx")
 
     def test_a_path_in_the_stored_words_shows_its_last_part_only(self):
         # row 1077: the name, never the path (the column keeps the path)
         a = self.demo.action(source="Excel import, 2026-10-01, /Volumes/share/ZQ-FOLDER/plan.xlsx")
-        self.assertEqual(self.source(a), "plan.xlsx by " + USER, "row 1077, strict: a path publishes only its file name, no prefix words")
+        self.assertEqual(self.source(a), "plan.xlsx", "row 1077, strict: a path publishes only its file name, no prefix words")
         row = self.demo.store.con.execute("SELECT source FROM actions WHERE id = ?", (a,)).fetchone()
         self.assertIn("ZQ-FOLDER", row[0])
 

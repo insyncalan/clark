@@ -25,6 +25,7 @@ from urllib.parse import quote
 from _paths import SRC  # noqa: F401  (first: puts src/ on the path)
 import _publish_fixture as fx
 from clark import activity_read, changes, excel, word_route
+from clark.store import OP_MADE
 from clark import excel_import as xi
 from clark.source_name import source_name
 from openpyxl import load_workbook
@@ -269,7 +270,7 @@ class Lines(Hostile):
         with self.rig.store.step("dashboard", who) as st:
             ref = st.create("actions", {"project": "PUB", "description": "Made by a named person", "raised": "2026-10-20",
                                         "source": f"/Users/{WHO}/{DIR}/{KEEP}"})
-        line = activity_read.source_line(self.rig.store.con, ref, [{"op": activity_read.OP_MADE, "ref": ref, "table": "actions", "by_user": who}])
+        line = activity_read.source_line(self.rig.store.con, ref, [{"op": OP_MADE, "ref": ref, "table": "actions", "by_user": who}])
         for part in (DIR, WHO, "/"):
             self.assertNotIn(part, line, "the live Source line is the name too")
         for where, data in self.publish_all().items():
