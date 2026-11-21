@@ -66,7 +66,7 @@ class Published(unittest.TestCase):
 
     def hide_section(self):
         con = sqlite3.connect(str(self.s.path))
-        con.execute("UPDATE report_sections SET hidden = 1 WHERE project = 'ABC' AND type = 'docs'")
+        con.execute("UPDATE report_sections SET hidden = 1 WHERE project = 'ABC' AND type IN ('docs', 'doclinks')")      # row 1266: a new project's list is Files and links
         con.commit()
         con.close()
 

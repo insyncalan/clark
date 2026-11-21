@@ -111,6 +111,7 @@ class Seed(Base):
         self.assertEqual(json.loads(bodies[9]), json.loads(default_sections.DECISIONS_LIST))
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
         self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], want, "item 1193: This week and Next week start empty too")
+        self.assertNotIn("Header", default_sections.SECTION_HINTS)               # row 1251: the Header starting text is the page's own (startingText.js)
         self.assertNotIn("Summary", default_sections.SECTION_HINTS)               # item 1266: no Summary in the default report
         self.assertEqual(default_sections.SECTION_HINTS["This week"], "List what was done this week, and what moved forward.")
         self.assertEqual(default_sections.SECTION_HINTS["Next week"], "List what is planned for next week, and who is doing it.")

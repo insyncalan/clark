@@ -8,7 +8,6 @@ tests/test_sections_store.py pins this list.
 """
 CURRENT_STATE_PREFILL = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."   # item 1188: the editor's hint for the first section, never its body (a client must not read instruction text); the page gets it from the build (dev/tools/build_page.py)
 SECTION_HINTS = {          # item 1193: the guiding sentence of each text section that has one; the editor's hint only, never a body
-    "Header": CURRENT_STATE_PREFILL,
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }

@@ -537,6 +537,10 @@ def select(inputs):
     given, deleted = inputs.get("sections"), bool(inputs.get("sections_deleted"))      # row 906: every section deleted is not "no sections yet"
     sections = sorted(given or ([] if deleted else DEFAULT_SECTIONS), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))
     hidden_types = globals()["hidden_types"](given, deleted)
+    if given and any(s.get("type") == "doclinks" and not s.get("hidden") for s in given) and not any(s.get("type") == "docs" for s in given) and any(
+            r.get("archived") == 0 and r.get("project", code) == code for r in inputs.get("documents") or ()):      # row 1266: a project made with the Files and links list still has its rows in the documents table; they stay in the client's report, in a Documents section the file adds
+        sections = [*sections, {"id": "s-docs", "type": "docs", "title": "Documents", "body": "", "beside": 0, "hidden": 0, "sort_order": max(s.get("sort_order", 0) for s in sections) + 1}]
+        hidden_types = hidden_types - {"docs"}
     hidden_ids = set(inputs.get("hidden") or ())
     blocked = _excluded_labels(inputs.get("label_rules"))
     item_labels = d.get("labels") or {}

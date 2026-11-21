@@ -106,7 +106,7 @@ class ExcelCells(unittest.TestCase):
         step = GUIDES["send-the-workbook-out"]["steps"][4]["d"]
         for sentence in (
             "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for.",
-            "Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words.",
+            "Then come the sections the published page shows, in the report’s order: the Header, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words.",
             "A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs.",
         ):
             self.assertIn(sentence, step)

@@ -28,7 +28,7 @@ FIRST = "ABC-S-003"
 
 
 def leaks(text):
-    return [h for h in HINTS.values() if h in text]
+    return [h for h in (LINE, *HINTS.values()) if h in text]
 
 
 def tearDownModule():
@@ -147,7 +147,7 @@ class Browser(unittest.TestCase):
             self.assertNotIn(LINE, cdp.js(f"{first}.textContent", sid))
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid), 15))
-            self.assertEqual(cdp.js(f"{first}.querySelector('[data-rich=body] .quiet').textContent", sid), LINE, "Edit: the hint")
+            self.assertEqual(cdp.js(f"{first}.querySelector('[data-rich=body] .quiet').textContent", sid), "Click to write.", "Edit: Cards gives a Header section the field's own line (its starting text is a Classic look)")
             for t in TITLES[1:]:                                                                        # item 1193
                 one = f"document.querySelector('[data-id=\"{IDS[t]}\"]')"
                 self.assertEqual(cdp.js(f"{one}.querySelector('[data-rich=body] .quiet').textContent", sid), HINTS[t], f"Edit: the hint of {t}")

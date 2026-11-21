@@ -75,9 +75,9 @@ class HelpWords(unittest.TestCase):
     """Help must not promise what the Screen tests above show is not there."""
 
     def test_write_the_weekly_report_names_the_three_editors_the_screen_has(self):
-        """Current state is a text section with an editor (see the screen test above), and the default report has no Summary (row 1266)."""
+        """The Header is a text section with an editor (see the screen test above), and the default report has no Summary (row 1266)."""
         steps = " ".join(TASK["write-the-weekly-report"]["s"])
-        self.assertIn("text under **Current state**, **This week** or **Next week**", steps)
+        self.assertIn("text under **Header**, **This week** or **Next week**", steps)
         self.assertNotIn("**Summary**", steps)
 
     def test_change_an_item_in_the_peek_does_not_say_priority_owner_and_due_can_be_clicked_there(self):

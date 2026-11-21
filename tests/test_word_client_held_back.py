@@ -203,6 +203,48 @@ class CleanReport(Setup, unittest.TestCase):
         self.assertNotIn("<w:", text)
 
 
+class DocumentsKeptUnderTheNewDefaults(Setup, unittest.TestCase):
+    """Row 1266: a new project starts with Files and links (doclinks) and no Supporting documents section. A project that already has
+    rows in the documents table keeps them in the published file a client gets, with the default sections (the Word copy has never listed documents)."""
+    LINK = "https://example.org/delivery-plan"
+    TITLE = "Delivery plan for the pilot"
+
+    def plant(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("documents", {"project": "ABC", "title": self.TITLE, "kind": "Plan", "url": self.LINK, "sort_order": 1})
+
+    def test_the_default_sections_have_no_supporting_documents_section(self):
+        types = [s["type"] for s in self.store.data_for("ABC")["report_sections"]]
+        self.assertIn("doclinks", types)
+        self.assertNotIn("docs", types)
+
+    def test_the_published_file_lists_the_document_and_draws_a_documents_section(self):
+        from clark import publish
+        built = publish.build(self.store, "ABC", now="2030-01-15")
+        text = built["body"].decode("utf-8")
+        self.assertIn(self.TITLE, text)
+        self.assertIn(self.LINK, text)
+
+    def test_a_report_that_has_a_supporting_documents_section_gets_no_second_one(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "docs", "title": "Supporting documents", "sort_order": 990})
+        from clark import publish
+        sections = publish.build(self.store, "ABC", now="2030-01-15")["published"]["sections"]
+        self.assertEqual([s["type"] for s in sections].count("docs"), 1)
+
+    def test_hiding_the_files_and_links_section_keeps_the_documents_out_of_the_file(self):
+        with sqlite3.connect(self.store.path) as con:
+            con.execute("UPDATE report_sections SET hidden = 1 WHERE project = 'ABC' AND type = 'doclinks'")
+        from clark import publish
+        self.assertNotIn(self.TITLE, publish.build(self.store, "ABC", now="2030-01-15")["body"].decode("utf-8"))
+
+    def test_a_report_with_no_files_and_links_section_either_is_not_given_a_documents_section(self):
+        with sqlite3.connect(self.store.path) as con:
+            con.execute("DELETE FROM report_sections WHERE project = 'ABC' AND type = 'doclinks'")
+        from clark import publish
+        self.assertNotIn(self.TITLE, publish.build(self.store, "ABC", now="2030-01-15")["body"].decode("utf-8"))
+
+
 LEFT_OUT_TEXT = "Renegotiate the supplier penalty clause before the March audit"
 SECTION_TEXT = "Our fallback is to drop the second vendor if pricing slips"
 
