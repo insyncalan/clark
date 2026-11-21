@@ -25,13 +25,13 @@ LOGIC = PAGE_SRC / "logic"
 # The editors the plan names, with the place each must have.
 WANTED = {
     "section.body": "current", "current.state": "current", "usecase.standing": "current", "notes.section": "notes",
-    "peek.latest_update": "current", "milestone.description": "current",      # row 1005: the two peek fields that are the one rich editor now
+    "peek.latest_update": "current", "milestone.description": "plain",      # row 1288: the milestone Description is One line (no AI), the Latest update is Full
     "textimage.text": "current",      # row 1005: the Text and picture section's text is the one rich editor now
     "movement.internal_note": "current", "glance.health_reason": "current", "callout.text": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
-    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is the one editor, one plain line
-    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "plain",      # row 1005: the Movement form's one-line fields
+    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is one plain line until part (c) of row 1288 makes it Full
+    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "plain",      # row 1005: the Movement form's one-line fields; a RAID entry's own words stay one line until part (c) of row 1288
 }
-RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "callout.text")
+RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "textimage.text", "movement.internal_note", "glance.health_reason", "callout.text")
 # The section title is a one-line plain field and stays out of the AI.
 LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place; row 1292: the Draft beside the ask panel is the answer's own text, so it offers no AI of its own
 
@@ -106,6 +106,11 @@ class Table(PageCase):
             names = [a or b for a, b in keys]
             self.assertTrue(names, name)
             self.assertEqual([k for k in names if names.count(k) > 1], [], f"{name} repeats a key")
+
+    def test_the_milestone_description_is_one_line_so_its_place_is_plain(self):
+        """Row 1288: the milestone Description is One line (plain, no AI); its RichField line stays."""
+        self.assertEqual(self.fields["description"], "milestone.description")
+        self.assertEqual(self.page.ev("AP.placeFor('milestone.description')"), "plain")
 
     def test_every_place_is_one_of_the_servers_five(self):
         for key, place in self.place_of.items():

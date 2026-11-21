@@ -215,6 +215,30 @@ class InThePage(PageBase):
                 self.assertEqual(got["text"], ["ZQ one", "ZQ two"], kind)
                 self.assertNotIn("html", got, kind)
 
+    def test_the_words_box_saves_exactly_the_limit_and_refuses_one_over_at_1400_and_900(self):
+        """Row 1288: the limits are the store's: 3 paragraphs of 400 (Link preview), 6 of 600 (One document); one more paragraph or character is refused, nothing saved."""
+        refs = {"linkcard": (self.add("linkcard", text=LEGACY), 3, 400), "onedoc": (self.add("onedoc", text=LEGACY), 6, 600)}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for width, ch in ((1400, "a"), (900, "b")):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for kind, (ref, lines, each) in refs.items():
+                    sec = f"[data-id={json.dumps(ref)}]"
+                    p.until(f"!!document.querySelector({json.dumps(sec + ' textarea')})", f"{kind} has a plain box")
+                    fill = lambda v: p.js(f"(() => {{ const t = document.querySelector({json.dumps(sec + ' textarea')}); t.value = {json.dumps(v)}; t.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                    for over in ("\n".join([ch * each] * (lines + 1)), "\n".join([ch * each] * (lines - 1) + [ch * (each + 1)])):
+                        before = self.store.read("report_sections", ref=ref)["body"]
+                        fill(over)
+                        p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                        p.until(f"!!document.querySelector({json.dumps(sec + ' [role=alert]')})", f"{kind} refuses one over at {width}")
+                        self.assertIn(f"{lines} paragraphs of {each} characters at most", p.js(f"document.querySelector({json.dumps(sec + ' [role=alert]')}).textContent"))
+                        self.assertEqual(self.store.read("report_sections", ref=ref)["body"], before, f"{kind}: nothing saved")
+                    ok = [ch * each] * lines
+                    fill("\n".join(ok))
+                    p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                    self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=ref)["body"]).get("text") == ok, 15), f"{kind}: exactly the limit saves at {width}")
+
     def test_old_html_words_stay_exactly_as_stored_until_the_box_is_typed_in_and_old_lines_with_markup_read_as_text(self):
         """Row 1288 (review): a save that does not touch the words (a new title, a new label) keeps the stored html byte for byte, so the
         published page and the exports of an old card read as before; old lines with markup characters show as text in the box; emptying the box
