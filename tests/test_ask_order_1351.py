@@ -85,7 +85,7 @@ class ClassicOrder(unittest.TestCase):
         self.addCleanup(shutil.rmtree, d, True)
         self.s.httpd.app_settings = service(make_db(d))
 
-    def test_slash_folders_safety_usage_on_all_and_slash_last_on_project(self):
+    def test_slash_folders_safety_usage_on_all_and_slash_after_standing_instructions_on_project(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
@@ -102,8 +102,7 @@ class ClassicOrder(unittest.TestCase):
                 self.assertEqual(last, "ask-usage-all", f"Usage is last on the All tab at {w}")
                 js("document.querySelector('[data-ask-tab=project]').click()")
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders-card') && !!document.querySelector('#slash-project')"), 20), f"project tab at {w}")
-                last = js("(()=>{const s=[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')]; return s[s.length-1].id;})()")
-                self.assertEqual(last, "slash-project", f"Slash commands are last on the project tab at {w}")
+                self.assertTrue(js(BEFORE % ("#ask-instructions-own-card", "#slash-project")), f"Standing instructions before Slash commands at {w}: {js(HEADS)}")
 
 
 if __name__ == "__main__":
