@@ -809,6 +809,8 @@ html { overscroll-behavior-y: none; }
 .tip-parts .tp-kind { font-weight: 600; }
 .tip-parts .tp-dot { color: var(--text-muted); }
 .tip-parts .tp-late { color: var(--status-red-text); font-weight: 600; }
+/* Row 1251 (Classic only): the sample picture an empty picture slot starts with: one of six pictures made by clark and inlined in Edit only, never saved or published; it fills the slot's width in the 16 / 9 shape of the files (bare length: that shape). */
+.tpl-pic-sample { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--grey-200); }
 /* Row 1272 (Callout, Classic only; the Cards look layers none of this and shell.css is untouched): the library card's sketch is look B, a tinted box with a 45% edge, no stripe, an icon dot and two bars (the category word, the words); and in Edit a Plain callout, which has no box, draws a dashed border and the mock-up's padding so it can be found (the approved page's .pe .pc.pe-box.k-plain: 1px dashed muted text colour, space-2 above and below, space-3 at the sides; View draws none and no outline is used). Bare value: the 1px edge width (ruling: the callout's own 1px edge, shell.css .tpl-callout, and the mock-up's 1px). */
 .ad-sk.sk-callout-b { grid-template-columns: var(--space-4) minmax(0, 1fr); grid-template-rows: 1fr 1fr; align-items: center; column-gap: var(--space-2); border: 1px solid color-mix(in srgb, var(--status-blue) 45%, var(--brand-blue-tint)); background: var(--brand-blue-tint); }
 .ad-sk.sk-callout-b i { height: var(--space-2); background: color-mix(in srgb, var(--status-blue-text) 55%, var(--brand-blue-tint)); }
