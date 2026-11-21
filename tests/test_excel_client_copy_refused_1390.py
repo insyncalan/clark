@@ -36,6 +36,35 @@ class ClientCopyRefused(unittest.TestCase):
         self.assertEqual(str(cm.exception), SENTENCE)
         self.assertEqual(demo.store.read("projects", ref="ABC"), steps)
 
+    def _client_copy(self, d, rename=None):
+        import test_gantt_excel_export as ge
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(publish.select(ge.plant(gantt_tab_name="Gantt")))))
+        if rename:
+            for ws in wb.worksheets:
+                ws.title = rename + str(wb.worksheets.index(ws))      # no sheet is called Gantt any more; the mark stays
+        self.assertIn(excel.CLIENT_COPY_NAME, wb.defined_names)
+        wb.save(str(d / "client.xlsx"))
+
+    def test_a_client_copy_with_no_gantt_sheet_is_refused_by_the_mark(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        d = Path(tempfile.mkdtemp(prefix="clark-cc-"))
+        self.addCleanup(shutil.rmtree, d, True)
+        self._client_copy(d, rename="Other")
+        with self.assertRaises(Invalid) as cm:
+            xi.read_workbook(demo.store, d / "client.xlsx", "ABC", state_path=d / "s.json", allow_unrecorded=True)
+        self.assertEqual(str(cm.exception), SENTENCE)
+
+    def test_a_client_copy_is_refused_when_only_some_sheets_are_asked_for(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        d = Path(tempfile.mkdtemp(prefix="clark-cc-"))
+        self.addCleanup(shutil.rmtree, d, True)
+        self._client_copy(d)
+        with self.assertRaises(Invalid) as cm:
+            xi.read_workbook(demo.store, d / "client.xlsx", "ABC", state_path=d / "s.json", allow_unrecorded=True, sheets={"actions"})
+        self.assertEqual(str(cm.exception), SENTENCE)
+
     def test_the_editors_own_file_is_not_refused(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
