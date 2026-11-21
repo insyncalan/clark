@@ -142,6 +142,20 @@ class AskService:
         finally:
             store.close()
 
+    def files_allowed(self, code):
+        """Row 1294: whether files may be added to a question in project `code` (the computer's Files switch on and the project not off); False when the
+        store can't be opened or can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return False
+        try:
+            return store.ask_files_allowed(code) is True
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return False
+        finally:
+            store.close()
+
     def connectors_now(self, code, chosen):
         """The connectors of `chosen` that are still On for project `code`, read now; none when the store can't say (never fails open)."""
         try:
@@ -243,7 +257,8 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         try:
-            added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
+            # item 1292 S14: the files of this question only, screened like any passage; nothing is kept. Row 1294: the Files switch is read now, only for a question that carries files
+            added = ask_files.passages(body.get("files"), self.files_allowed(code) if body.get("files") else True)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
