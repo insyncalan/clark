@@ -328,10 +328,8 @@ class AskService:
             self.runs.append(run)
         on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
         run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
-        if cancel.is_set():                          # a Stop that came between the first look and the record going in: nothing is sent
-            with self.using_lock:
-                self.runs.remove(run)
-            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
+        if cancel.is_set():                          # a Stop that came before the record went in: the request goes out cancelled, so the provider never starts it
+            run.cancel.set()
         try:
             reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
