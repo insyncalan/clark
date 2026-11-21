@@ -77,6 +77,7 @@ class Bell(Base):
                 p.until("document.querySelector('#bell-btn').getAttribute('aria-label') === 'Notifications, 2 unread'", "one read")
                 p.js("document.querySelector('#bell-all').click()")
                 p.until("!document.querySelector('#bell-btn .bell-badge') && !document.querySelector('#bell-all')", "all read: no badge")
+                self.assertTrue(p.js("!!document.querySelector('#bell-btn')"), "the bell stays while its popup is open, even with nothing unread")
                 self.assertEqual(p.js("document.querySelector('.bell-empty') ? 1 : 0"), 0, "the three notices stay listed, read")
                 p.key("Escape", 0, "Escape", 27)
                 p.until("!document.querySelector('#bell-pop')", "Esc closed the popup")
@@ -98,6 +99,38 @@ class Bell(Base):
             self.assertEqual(p.js("document.querySelector('.bell-act').textContent"), "Open Settings")
             p.js("document.querySelector('.bell-act').click()")
             p.until("!document.querySelector('#bell-pop')", "the action closed the popup")
+            p.until("location.hash.indexOf('#settings') === 0", "the action opened the Settings page")
+
+    def test_the_badge_shows_for_one_and_for_many(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.push(p, 1)
+            p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+            self.assertEqual(p.js("[...document.querySelectorAll('#bell-btn .bell-badge')].map(e => e.textContent)"), ["1"], "one unread: the badge shows 1")
+            self.push(p, 2)
+            p.until("document.querySelector('#bell-btn').getAttribute('aria-label') === 'Notifications, 2 unread'", "two unread")
+            self.assertEqual(p.js("[...document.querySelectorAll('#bell-btn .bell-badge')].map(e => e.textContent)"), ["2"])
+
+    def test_the_popup_closes_on_an_outside_click_and_stays_on_an_inside_one(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.push(p, 2)
+            p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+            p.js("document.querySelector('#bell-btn').click()")
+            p.until("!!document.querySelector('#bell-pop')", "the popup opened")
+            p.js("document.querySelector('.bell-ttl').dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")
+            p.js("new Promise(r => setTimeout(r, 200))")
+            self.assertTrue(p.js("!!document.querySelector('#bell-pop')"), "a press inside leaves it open")
+            p.until("(document.body.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})), !document.querySelector('#bell-pop'))", "a press outside closed it")
+
+    def test_the_date_is_day_month_year(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("window.clarkPage.pushNotices([{id:'d', severity:'info', title:'Dated', body:'', date:'2026-11-03'}])")
+            p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+            p.js("document.querySelector('#bell-btn').click()")
+            p.until("!!document.querySelector('.bell-date')", "the date shows")
+            self.assertEqual(p.js("document.querySelector('.bell-date').textContent"), "03-11-2026")
 
     def test_the_popup_shadow_is_the_token_not_a_literal(self):
         import re
