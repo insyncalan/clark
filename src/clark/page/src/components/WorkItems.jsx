@@ -177,7 +177,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </label> : null}
         </td>
       ) : null}
-      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
+      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tipSay={iconWords(row, pill, today)}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
       <td class="c-item" data-col="item">
         <div class="tcell">
           <span class="tx">
