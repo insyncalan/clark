@@ -75,3 +75,45 @@ jobs:
             exit 0
           fi
           python3 .github/bifrost/ci_run.py --check test-exists --pr ${{ github.event.pull_request.number }}
+
+  # BIFROST A1: the release-label gate. A no-op (NOT CHECKED, job succeeds) until the owner sets BIFROST_RELEASE_TAG and
+  # BIFROST_FULL_FILE and BIFROST_PLAN_REPO below. The plan repo is private, so with the job token the gate may also report NOT CHECKED.
+  bifrost-release-label:
+    name: bifrost-release-label
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BIFROST_RELEASE_TAG: ""    # release tag to check, e.g. v1.3.5; empty = not checked
+      BIFROST_FULL_FILE: ""      # path inside the checkout of the FULL list (one row number per line); empty = not checked
+      BIFROST_PLAN_REPO: ""      # owner/name of the plan repo whose issues carry the release label; empty = not checked
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          fetch-depth: 0
+      - name: run check
+        run: |
+          if [ ! -f .github/bifrost/release_label_gate.py ]; then
+            echo "NOT CHECKED: gate not on base branch yet (bootstrap PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "$BIFROST_RELEASE_TAG" ] || [ -z "$BIFROST_FULL_FILE" ] || [ -z "$BIFROST_PLAN_REPO" ] || [ ! -f "$BIFROST_FULL_FILE" ]; then
+            echo "NOT CHECKED: no release tag / FULL list supplied" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          out="$(mktemp)"
+          rc=0
+          python3 .github/bifrost/release_label_gate.py --tag "$BIFROST_RELEASE_TAG" --repo "$BIFROST_PLAN_REPO" --code-repo . --full-file "$BIFROST_FULL_FILE" > "$out" 2>&1 || rc=$?
+          cat "$out"
+          cat "$out" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -eq 0 ]; then
+            exit 0
+          elif [ "$rc" -eq 2 ]; then
+            echo "NOT CHECKED: the gate could not read GitHub or git (exit 2)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [ "$BIFROST_ENFORCE" = "1" ]; then
+            echo "FAIL: release-label gate (BIFROST_ENFORCE=1)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "FAIL (report-only, BIFROST_ENFORCE=0): release-label gate exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0
