@@ -56,6 +56,7 @@ MESSAGES = {
 }
 FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
+UNREADY = ("busy", "no_data")      # row 1293 line 10: a dry run refused for these saved nothing and read nothing, so the reply may be tried again
 PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
 APPLY_FIELDS = {"project", "offer", "confirm"}
@@ -430,6 +431,8 @@ class AskService:
                 return 409, self.fail("shown_already")
             held.shown = True
         status, out = self.applier.plan_all(code, list(held.changes), held.from_source)
+        if status != 200 or any(p.get("code") in UNREADY for p in out["plans"]):
+            held.shown = False                       # row 1293 line 10: a dry run that could not be made does not use the reply up
         if status != 200:
             return status, out
         return 200, {"ok": True, "plans": out["plans"], "from_source": held.from_source, "passages": list(held.passages)}
