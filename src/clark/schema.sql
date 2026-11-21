@@ -330,6 +330,7 @@ CREATE TABLE IF NOT EXISTS source_folders (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   path    TEXT NOT NULL,
   sort_order INTEGER NOT NULL,
+  excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000),     -- row 1365 (schema version 34): the subfolders left out, a JSON list of relative paths
   PRIMARY KEY (project, path)
 );
 
