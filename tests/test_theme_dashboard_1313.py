@@ -37,7 +37,7 @@ LINES = [
     '.mv-txt > span { display: none; }',
     '.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }',
     '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }',
-    'html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+    'html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
     '@media (max-width: 900px) {',
     '  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }',
