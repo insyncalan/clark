@@ -8,9 +8,14 @@ const TOKEN = /\[\[(.+?)\]\]|\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\((#|go:)([^)]+
 
 const keys = (k) => k.split(/\+(?!$)/).map((p, i) => [i ? "+" : "", <kbd>{p === "Mod" ? (MAC ? "⌘" : "Ctrl") : KEY_NAMES[p] || p}</kbd>]);
 
+const classic = () => typeof document !== "undefined" && !!document.getElementById("theme");
+// Row 1285 (Classic only): the peek's line is "Shown to the client" in Classic, so Help names it so there; Cards keeps "Client visible".
+const CLASSIC_WORDS = [[/Client visible/g, "Shown to the client"]];
+const forTheme = (s) => (classic() ? CLASSIC_WORDS.reduce((a, [re, to]) => a.replace(re, to), s) : s);
+
 /** The text as page parts. `mark` (optional) lets a search highlight plain stretches. */
 export function Md({ text }) {
-  const s = String(text == null ? "" : text), out = [];
+  const s = forTheme(String(text == null ? "" : text)), out = [];
   let last = 0, m;
   TOKEN.lastIndex = 0;
   while ((m = TOKEN.exec(s))) {
