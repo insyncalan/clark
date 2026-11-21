@@ -4,6 +4,11 @@
 // A column marked `locked` is always shown: the title (or name) and the status, so a row can always be understood.
 import { recall, remember, forget } from "./remember.js";
 
+// Row 1499 (Classic only): on Work items the Status is an ordinary line of the menu and can be turned off; only the Item (the title) is always shown.
+// The Cards look keeps the Status locked as before. The Classic look is the one whose page carries the layered Theme (the element with id "theme").
+const classicNow = () => typeof document !== "undefined" && !!document.getElementById("theme");
+export const lockedIn = (table, c) => !!c.locked && !(table === "work" && c.id === "status" && classicNow());
+
 export const TABLE_COLUMNS = {
   work: [
     { id: "status", label: "Status", locked: true, standard: true },
@@ -52,14 +57,14 @@ export const standardIds = (table) => defsOf(table).filter((c) => c.standard).ma
 export function shownIds(table, chosen) {
   if (!Array.isArray(chosen)) return standardIds(table);
   const set = new Set(chosen.filter((c) => typeof c === "string"));
-  const got = defsOf(table).filter((c) => c.locked || set.has(c.id)).map((c) => c.id);
+  const got = defsOf(table).filter((c) => lockedIn(table, c) || set.has(c.id)).map((c) => c.id);
   return got.length ? got : standardIds(table);
 }
 
 /** The ids after pressing `id` in the menu: on becomes off and off becomes on; a locked column does not change. */
 export function toggled(table, shown, id) {
   const def = defsOf(table).find((c) => c.id === id);
-  if (!def || def.locked) return shownIds(table, shown);
+  if (!def || lockedIn(table, def)) return shownIds(table, shown);
   const now = new Set(shownIds(table, shown));
   if (now.has(id)) now.delete(id); else now.add(id);
   return shownIds(table, [...now]);

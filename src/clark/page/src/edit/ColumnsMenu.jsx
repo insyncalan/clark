@@ -9,7 +9,8 @@ import { project } from "../stores/report.js";
 import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds } from "../logic/tableColumns.js";
+import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds, lockedIn } from "../logic/tableColumns.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
 
@@ -48,7 +49,21 @@ export function useColumns(table, css = false) {
     set(next);
     announce.value = W.UNRULED_ANNOUNCE(label, next.includes(id));
   };
-  const menu = at ? (
+  // Row 1499 (Classic, Work items): the mock-up's menu: a heading, a tick line for each column but the Item, no locked line, no standard reset.
+  const mock = table === "work" && classicTheme();
+  const menu = at && mock ? (
+    <MenuPanel label={W.UNRULED_MOCK_HEADING} cls="cols-menu cols-mock" anchor={at} fixed="start" boxRef={box} onClose={close}>
+      <h5 class="cols-head">{W.UNRULED_MOCK_HEADING}</h5>
+      {defsOf(table).filter((c) => c.id !== "item").map((c) => {
+        const on = shown.includes(c.id) || lockedIn(table, c);
+        return (
+          <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={c.label} tabIndex={-1} onClick={() => press(c.id, c.label)}>
+            <span class="tk" aria-hidden="true">{on ? "✓" : ""}</span>{c.label}
+          </button>
+        );
+      })}
+    </MenuPanel>
+  ) : at ? (
     <MenuPanel label={W.UNRULED_MENU_LABEL} cls="cols-menu" anchor={at} fixed="start" boxRef={box} onClose={close}>
       {defsOf(table).map((c) => {
         const on = shown.includes(c.id);

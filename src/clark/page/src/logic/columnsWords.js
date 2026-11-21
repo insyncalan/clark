@@ -7,3 +7,5 @@ export const UNRULED_LOCKED_REASON = "Always shown, so a row can be understood."
 export const UNRULED_STANDARD = "Show the standard columns";
 export const UNRULED_ANNOUNCE = (label, on) => `${label} column ${on ? "shown" : "hidden"}.`;
 export const UNRULED_ANNOUNCE_STANDARD = "Standard columns shown.";
+// Row 1499: the heading and the label of the Columns menu on Work items in the Classic look (approved in NEW-WORDS, row 1499, 21-11 04:44).
+export const UNRULED_MOCK_HEADING = "Columns to show";

@@ -103,7 +103,7 @@ function GhostRow({ row, today, Eye, group, onMotionEnd, cols = STD }) {
   const due = dueCell(row, today), pill = clientPill(row, today), o = ownerOf(row.owner);
   return (
     <tr class="leaving" role="presentation" aria-hidden="true" inert onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "m-out") onMotionEnd(row.id); }}>
-      <td class="c-status"><ItemIcon row={row} pill={pill} today={today} plain /></td>
+      {cols.includes("status") ? <td class="c-status"><ItemIcon row={row} pill={pill} today={today} plain /></td> : null}
       <td class="c-item"><div class="tcell"><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group, metaLess(cols))}</span></span></div></td>
       {cols.includes("owner") ? <td class="c-owner">{o.text}</td> : null}
       {cols.includes("due") ? <td class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td> : null}
@@ -177,7 +177,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </label> : null}
         </td>
       ) : null}
-      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
+      {cols.includes("status") ? <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td> : null}
       <td class="c-item" data-col="item">
         <div class="tcell">
           <span class="tx">
