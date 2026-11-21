@@ -1524,7 +1524,7 @@ class _Pipe:
         prefers-reduced-motion itself (the features are replaced per call, so a colour-scheme-only call would drop it). A copy."""
         params = dict(params or {})
         features = list(params.get("features") or [])
-        if self.MOTION_EMULATION and not any(f.get("name") == "prefers-reduced-motion" for f in features):
+        if self.MOTION_EMULATION and not any(isinstance(f, dict) and f.get("name") == "prefers-reduced-motion" for f in features):
             features.append(dict(self.NO_MOTION_SETTING))
         params["features"] = features
         return params
@@ -1723,6 +1723,11 @@ class PipeMotionMerge(unittest.TestCase):
         reduce = {"name": "prefers-reduced-motion", "value": "reduce"}
         scheme = {"name": "prefers-color-scheme", "value": "dark"}
         self.assertEqual(self.sent_params({"features": [scheme, reduce]})[0][1], {"features": [scheme, reduce]})
+
+    def test_an_element_that_is_not_a_dict_names_nothing_and_stays(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        odd = ["text", None, 7]
+        self.assertEqual(self.sent_params({"features": [scheme] + odd})[0][1], {"features": [scheme] + odd + [self.DEFAULT]})
 
     def test_an_empty_features_list_gets_the_default(self):
         self.assertEqual(self.sent_params({"features": []})[0][1], {"features": [self.DEFAULT]})
