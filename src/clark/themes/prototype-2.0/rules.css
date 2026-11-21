@@ -941,6 +941,17 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
+/* Row 1288 ("/" menu 4C, the ticket's measured sizes; colours, line and shadow are the Theme's tokens): the panel is radius 12, 1px border, padding 4, min-width 180; the filter box margin 1px 3px 4px, padding 5px 9px, 1px border, radius 8, 13px; rows padding 4px 10px, gap 10, 13.5px, radius 6; the rule margin 3px 0. */
+.rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
+.rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
+.rt-slash .rt-slash-filter { margin: 1px 3px 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); min-height: 1lh; }
+.rt-slash .rt-slash-filter:empty::before { content: attr(data-ph); }
+.rt-slash .rt-slash-rule { margin: 3px 0; border: 0; border-top: 1px solid var(--line-soft); }
+/* Row 1288, tight menus (Classic only; shell.css keeps the old 32 high for Cards): the rich editor's buttons are 34 high and every float panel of it (the Text style menu, the more-blocks menu, the / list, the selection bubble) is radius 12, padding 4, with rows of 4px 10px at 13.5px: the measured values of the chosen mock-up (ticket comment 19-11 21:37). */
+.rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
+.rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
+.rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
 /* Row 1288: the editor bubble ends with Ask AI in purple words only. */
 .rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
 .rt-bar .rt-more { min-width: 40px; gap: 2px; }
