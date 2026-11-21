@@ -3,6 +3,7 @@ Where the tag shows (Help, Settings but not Version and updates), the dialog, th
 (no phone width). Real page over the fictional demo data. Required: fails, never skips, without Chrome. The names of the Settings and Help addresses (#settings&p=TUL&s=...)
 and of the Help peek are read from the code, not yet run; selectors marked ASSUMED must be checked on the first run."""
 import json
+import time
 import unittest
 
 import test_filter_line_keys as K
@@ -173,6 +174,55 @@ class FeedbackTagBrowser(unittest.TestCase):
                     self.assertEqual(round(cdp.js(f"{DLG}.getBoundingClientRect().width", sid)), 360)
                     self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == width - 360), "tag beside the dialog")
 
+    def test_slide_in_easing_and_distance_are_pinned(self):
+        """Row 1298 follow-up: the dialog's slide is 0.4 s on cubic-bezier(.22, 1, .36, 1), translateX(100%) to 0 (pins the CSS values, not just the animation's name)."""
+        with chrome() as cdp:
+            for width in WIDTHS:
+                self.open_page(cdp, width)
+                sid = self.sid
+                self.look(cdp, sid, "light", reduce=False)
+                self.open_help(cdp, sid)
+                cdp.js(f"{BAR}.click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)))
+                where = f"{width} px"
+                self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationDuration", sid), "0.4s", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationTimingFunction", sid), "cubic-bezier(0.22, 1, 0.36, 1)", where)
+                frames = cdp.js(f"{DLG}.getAnimations()[0].effect.getKeyframes().map(k => k.transform)", sid)
+                self.assertEqual(frames, ["translateX(100%)", "translateX(0px)"], where)
+
+    def test_tag_pulls_out_five_px_on_hover_and_on_focus(self):
+        """Row 1298 follow-up: the tag's padding-right is 7 px at rest and 12 px (+5) on hover and on keyboard focus; the transition is 0.15 s (padding) and 0.3 s (right)."""
+        pad = f"parseFloat(getComputedStyle({BAR}).paddingRight)"
+        with chrome() as cdp:
+            for width in WIDTHS:
+                self.open_page(cdp, width)
+                sid = self.sid
+                self.look(cdp, sid, "light", reduce=False)
+                self.open_help(cdp, sid)
+                where = f"{width} px"
+                self.assertEqual(cdp.js(pad, sid), 7, where + ": at rest")
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionProperty", sid), "padding-right, right", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionDuration", sid), "0.15s, 0.3s", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionTimingFunction", sid), "cubic-bezier(0.25, 1, 0.5, 1), cubic-bezier(0.22, 1, 0.36, 1)", where)
+                box = cdp.js(f"(() => {{ const r = {BAR}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{BAR}.matches(':hover') && {pad} === 12", sid)), where + ": hover pulls out +5 px")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, sid)
+                self.assertTrue(wait(lambda: cdp.js(pad, sid) == 7), where + ": back at rest")
+                self.press(cdp, sid, "Tab")
+                self.press(cdp, sid, "Tab", shift=True)
+                cdp.js(f"{BAR}.focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{BAR}.matches(':focus-visible') && {pad} === 12", sid)), where + ": focus pulls out +5 px")
+
+    def test_approved_words_exactly(self):
+        """Row 1298 follow-up: the dialog's lead line and the tag's aria-label are exactly the approved words."""
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-label')", sid), "Give feedback", where)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where)
+            self.assertEqual(cdp.js(f"{DLG}.querySelector('.fbt-head + p').textContent", sid), "Tell us what is wrong or what you would like to see.", where)
+
     def test_reduced_motion_has_no_slide(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
@@ -285,20 +335,32 @@ class FeedbackTagBrowser(unittest.TestCase):
     # ---- row 1298: the mail button uses the open-mail route (row 1297), as Settings, Feedback does
     def test_mail_click_goes_through_mailClick(self):
         note = "No mail app opened. Use Copy as text and paste it into your mail."
-        stub = ("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); "
+        # Only the route is answered by the stub; every other fetch (heartbeat, diagnostics, health) goes to the real fetch and is not recorded as a route call.
+        stub = ("window.__real = window.__real || window.fetch.bind(window); window.__posts = []; "
+                "window.fetch = (u, i) => { if (String(u) !== '/api/open-mail') return window.__real(u, i); window.__posts.push([String(u), i && i.body]); "
                 "return Promise.resolve(new Response(JSON.stringify(%s), {status: %d})); }")
         notes = "document.querySelectorAll('[data-mail-note]').length"
+        # The stub keeps EVERY fetch the page makes; the page's own heartbeat (every 10 s) is one too, and on a slow runner it lands between the
+        # stub and the click, so the count is of calls to the route only, and the failure text lists what was recorded.
+        route = "window.__posts.filter((p) => p[0] === '/api/open-mail')"
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
             cdp.js(f"{BAR}.click()", sid)
             cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'The page is slow'); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fbt-mail]').hasAttribute('href')", sid)), where)
-            href = cdp.js("document.querySelector('[data-fbt-mail]').getAttribute('href')", sid)
+            read = "document.querySelector('[data-fbt-mail]').getAttribute('href')"
+            href = cdp.js(read, sid)
+            for _ in range(2):   # settle: late diagnostics/health replies change the link, so read again after 100 ms until it holds
+                time.sleep(0.1)
+                href = cdp.js(read, sid)
+            time.sleep(0.1)
+            self.assertEqual(cdp.js(read, sid), href, where + ": the mail link settled")
             hash_ = cdp.js("location.hash", sid)
             cdp.js(stub % ('{"ok": true}', 200), sid)
             cdp.js("document.querySelector('[data-fbt-mail]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("window.__posts.length", sid) == 1), where + ": one call to the route")
-            url, body = json.loads(cdp.js("JSON.stringify(window.__posts[0])", sid))
+            self.assertTrue(wait(lambda: cdp.js(route + ".length", sid) == 1),
+                            where + ": one call to the route; recorded " + str(cdp.js("JSON.stringify(window.__posts.map((p) => p[0]))", sid)))
+            url, body = json.loads(cdp.js("JSON.stringify(" + route + "[0])", sid))
             self.assertEqual(url, "/api/open-mail", where)
             self.assertEqual(json.loads(body), {"link": href}, where)
             self.assertEqual(cdp.js(notes, sid), 0, where + ": no note on success")

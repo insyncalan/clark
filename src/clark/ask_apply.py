@@ -37,7 +37,8 @@ MAX_OFFERS = 50
 OP_NEW, OP_CHANGE = "new", "change"
 NOT_YET_OPS = tuple("archive remove restore".split()) + (changes.DELETE,)      # made, not spelt: a lone delete string reads as SQL to the writer test
 CLAIMS = ("current_title", "current_owner")
-FORM = ("op", "kind", "id", "project", "source") + CLAIMS
+MAX_WHY = 300                     # row 1292 step S4: the card's one-line reason, plain text
+FORM = ("op", "kind", "id", "project", "source", "why") + CLAIMS
 KINDS = {"action": ("actions", None), "risk": ("raid", "Risk"), "issue": ("raid", "Issue"),
          "assumption": ("raid", "Assumption"), "dependency": ("raid", "Dependency"), "decision": ("decisions", None),
          "milestone": ("milestones", None), "use case": ("use_cases", None)}
@@ -129,6 +130,7 @@ class Plan:
     request: dict
     claims: dict
     from_source: bool
+    why: object = None
 
 
 def read_suggestion(project, change, from_source=False):
@@ -150,6 +152,11 @@ def read_suggestion(project, change, from_source=False):
     source = change.get("source")
     if source is not None and not (isinstance(source, str) and SOURCE_ID.fullmatch(source)):
         raise Refusal("not_a_change", NOT_A_CHANGE)
+    why = change.get("why")
+    if why is not None and not isinstance(why, str):
+        raise Refusal("not_a_change", NOT_A_CHANGE)
+    if why is not None:
+        why = " ".join("".join(c for c in why if c >= " " and c != "\x7f").split())[:MAX_WHY] or None
     claims = {k: change[k] for k in CLAIMS if change.get(k) is not None}
     if any(not isinstance(v, str) for v in claims.values()):
         raise Refusal("not_a_change", NOT_A_CHANGE)
@@ -193,7 +200,7 @@ def read_suggestion(project, change, from_source=False):
         request = {"project": project, "kind": table, "op": changes.NEW, "values": fields}
     else:
         request = {"project": project, "kind": table, "op": changes.UPDATE, "id": ref, "changes": fields}
-    return Plan(table, op, ref, request, claims, bool(from_source) or source is not None)
+    return Plan(table, op, ref, request, claims, bool(from_source) or source is not None, why)
 
 
 @dataclass
@@ -205,6 +212,14 @@ class Offer:
     at: float
     ref: object = None            # Row 1293: the item a change is about (None for a new item)
     stale: str = ""               # Row 1293: the sentence to give when another change to the same item has been saved first ("" when not)
+
+
+def _owner_shown(before, plan):
+    """The owner the card shows beside the title: the stored owner of a changed item; none for a new item, a use case, or a blank owner. TBC is shown as stored (ruling 20-11)."""
+    if plan.op != OP_CHANGE or plan.table not in OWNER:
+        return None
+    owner = (before or {}).get(OWNER[plan.table])
+    return owner if isinstance(owner, str) and owner.strip() else None
 
 
 class AskApply:
@@ -315,7 +330,10 @@ class AskApply:
         offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock(),
                                 plan.ref if plan.op == OP_CHANGE else None))
         out = {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
-               "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields, "needs_confirm": plan.from_source}
+               "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
+               "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None,
+               "owner": _owner_shown(before, plan), "why": plan.why,
+               "needs_confirm": plan.from_source}
         if plan.op == OP_NEW:
             said = self.duplicate_of(plan, after, earlier)
             if said:
