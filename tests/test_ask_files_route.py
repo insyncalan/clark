@@ -666,8 +666,8 @@ class TheMigration(unittest.TestCase):
                    "CREATE TABLE projects (code TEXT)", "INSERT INTO projects VALUES ('P')")
         self.run_step(con)
         self.run_step(con)
-        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_enabled", "ask_files"])
-        self.assertEqual(st.columns(con, "projects"), ["code", "ask_files_off"])
+        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_enabled", "ask_files", "ask_new_projects"])
+        self.assertEqual(st.columns(con, "projects"), ["code", "ask_files_off", "ask_off"])
         self.assertEqual(tuple(con.execute("SELECT id, ask_enabled, ask_files FROM app_settings").fetchone()), (1, 0, 1))
         self.assertEqual(tuple(con.execute("SELECT code, ask_files_off FROM projects").fetchone()), ("P", 0))
         with self.assertRaises(sqlite3.IntegrityError):
@@ -680,7 +680,7 @@ class TheMigration(unittest.TestCase):
         con = bare("CREATE TABLE app_settings (id INTEGER, ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1)))", "INSERT INTO app_settings VALUES (1, 0)")
         self.run_step(con)
         self.assertEqual(con.execute("SELECT ask_files FROM app_settings").fetchone()[0], 0)
-        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_files"])
+        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_files", "ask_new_projects"])
         self.assertEqual([r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")], ["app_settings"], "no projects table was made")
 
     def test_the_step_is_number_33_in_the_list(self):
