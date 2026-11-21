@@ -6,12 +6,16 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./updateApi.js";
 import * as L from "../logic/update.js";
+import { classicTheme } from "../components/Contents.jsx";
+import { FormattedAnswer } from "./AskFormat.jsx";   // row 1278: release notes are markdown; drawn by the safe renderer ask clark uses (text nodes only), Copy still gives the original
 
-const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers };
+const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers,
+  check: A.checkUpdate, download: A.downloadUpdate, cancel: A.cancelUpdate };
+const FETCH_ACTIVE = ["avail", "downloading", "checking", "ready", "failed"];
 const realCopy = (t) => navigator.clipboard.writeText(t);
 
 Update.chip = L.TITLE;                                              // the Settings chip says the card's heading (components/Views.jsx)
-export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
+export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy, pollMs = 700 }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
   const [panel, setPanel] = useState(null);           // null, or {id, view, reinstall}
   const opener = useRef("[data-review]");
@@ -32,6 +36,36 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     } else setState({ phase: "failed", st: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); return () => clearTimeout(disarm.current); }, []);
+
+  // The newest-version block (logic/update.js fetchView): while the server looks or downloads, the page asks again every pollMs.
+  async function refresh() {
+    const r = await api.status();
+    if (r.status === 200 && r.body && r.body.ok === true) setState({ phase: "ready", st: L.statusView(r.body), message: "" });
+    else setState({ phase: "failed", st: null, message: L.answerWords(r.status, r.body) });
+  }
+  const fkind = state.st ? state.st.fetch.kind : "none";
+  useEffect(() => {
+    if (!["looking", "downloading", "checking"].includes(fkind)) return undefined;
+    const t = setTimeout(refresh, pollMs);
+    return () => clearTimeout(t);
+  }, [fkind, state.st]);
+
+  async function fetchCall(call, back) {
+    setBusy(true);
+    setMsg(null);
+    const r = await call();
+    if (!(r.status === 200 && r.body && r.body.ok === true)) setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    await refresh();
+    setBusy(false);
+    refocus(back);
+  }
+  const checkNow = () => fetchCall(api.check, "[data-check]");
+  const download = () => fetchCall(api.download, "[data-fetch-cancel]");
+  const cancelFetch = (back) => fetchCall(api.cancel, back);
+  async function installFetched(id) {
+    setBusy(true);
+    await restarted(await api.install(id), "[data-fetch-install]");
+  }
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
   const toUndo = () => requestAnimationFrame(() => { const b = document.querySelector("#update [data-undo]"); if (b && (!document.activeElement || document.activeElement === document.body)) b.focus(); });      // the question closed: the focus goes back to Undo update, unless the person has already moved on
@@ -109,6 +143,52 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   const st = state.st;
+  const reviewButton = st && st.review ? <div class="row"><button type="button" class="btn pri" data-review aria-describedby="update-hint" disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button></div> : null;
+  // The newest version on the releases page, drawn by its kind (logic/update.js fetchView): the words are L.FETCH and L.FETCH_LABELS.
+  function fetchBlock(f) {
+    const F = L.FETCH, B = L.FETCH_LABELS;
+    const btn = (cls, attr, label, fn) => <button type="button" class={"btn " + cls} {...{ [attr]: true }} disabled={busy} onClick={fn}>{label}</button>;
+    if (f.kind === "looking") return <p id="update-line">{F.looking}</p>;
+    if (f.kind === "latest") return <><p id="update-line">{F.latest(f.version, f.when)}</p><div class="row">{btn("", "data-check", B.checkNow, checkNow)}</div></>;
+    if (f.kind === "offline") return <><p id="update-line" class="upd-state">{f.message}</p><div class="row">{btn("", "data-check", B.tryAgain, checkNow)}</div></>;
+    if (f.kind === "avail") {
+      return (
+        <div class="upd-up" id="update-avail">
+          <p id="update-line"><b>{F.ready(f.version)}</b></p>
+          {f.notes ? <details class="update-files"><summary>{F.notesLabel}</summary>{classicTheme() ? <div class="update-notes" id="update-notes"><FormattedAnswer text={f.notes} /></div> : <pre class="update-notes" id="update-notes">{f.notes}</pre>}</details> : null}
+          {f.note ? <p class="muted">{f.note}</p> : null}
+          <div class="row">{btn("pri", "data-download", B.download, download)} {btn("", "data-check", B.checkNow, checkNow)}</div>
+          <p class="muted upd-hint" id="update-hint">{F.quiet}</p>
+        </div>
+      );
+    }
+    if (f.kind === "downloading") {
+      return (
+        <div class="upd-up" id="update-downloading">
+          <p id="update-line"><b>{F.downloading(f.version)}</b></p>
+          <div class="row"><div class="upd-pg" role="progressbar" aria-label={F.downloading(f.version)} aria-valuenow={f.pct} aria-valuemin="0" aria-valuemax="100"><i style={{ width: f.pct + "%" }} /></div>
+            <span class="muted" id="update-pct">{F.progress(f.pct)}</span> {btn("", "data-fetch-cancel", B.cancel, () => cancelFetch("[data-download]"))}</div>
+          <p class="muted upd-hint" id="update-hint">{F.downloadingHint}</p>
+        </div>
+      );
+    }
+    if (f.kind === "checking") return <div class="upd-up" id="update-checking"><p id="update-line"><b>{F.downloading(f.version)}</b></p><p class="muted upd-hint" id="update-hint">{F.checkingHint}</p></div>;
+    if (f.kind === "ready") {
+      return (
+        <div class="upd-up" id="update-ready">
+          <p id="update-line"><b>{F.downloaded(f.version)}</b></p>
+          <p class="muted upd-hint" id="update-hint">{F.willChange(f.add, f.replace, f.remove)}</p>
+          <div class="row">{btn("pri", "data-fetch-install", B.install, () => installFetched(f.id))} {btn("", "data-fetch-cancel", B.notNow, () => cancelFetch("[data-check]"))}</div>
+        </div>
+      );
+    }
+    return (
+      <div class="upd-up" id="update-failed">
+        <p id="update-line" class="error" role="alert">{f.message || F.didNotFinish}</p>
+        <div class="row">{btn("pri", "data-download", B.downloadAgain, download)} {btn("", "data-check", B.checkNow, checkNow)}</div>
+      </div>
+    );
+  }
   return (
     <section class="frame setting" id="update">
       <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
@@ -123,9 +203,10 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
           <div class="upd-c" role="group" aria-labelledby="update-row-l" id="update-row">
             {st.blocked ? <p id="update-blocked">{st.blocked}</p> : (
               <>
-                {st.review ? <div class="row"><button type="button" class="btn pri" data-review aria-describedby="update-hint" disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button></div>
-                  : <p id="update-line">{st.line}</p>}
-                {st.review && !st.version ? null
+                {st.fetch.kind !== "none" ? fetchBlock(st.fetch) : null}
+                {st.fetch.kind === "none" || !st.review || FETCH_ACTIVE.includes(st.fetch.kind) ? null : reviewButton}
+                {st.fetch.kind !== "none" ? null : st.review ? reviewButton : <p id="update-line">{st.line}</p>}
+                {st.fetch.kind !== "none" || (st.review && !st.version) ? null
                   : <p class="muted upd-hint" id="update-hint">{st.review ? L.HINTS.ready(st.version) : L.HINTS.upToDate}</p>}
               </>
             )}
@@ -162,7 +243,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
       {panel ? (
         <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePanel(); } }}>
           <p id="update-heading" tabIndex={-1} ref={heading}><b>{panel.view.heading}</b></p>
-          <pre class="update-notes" id="update-notes">{panel.view.notes}</pre>
+          {classicTheme() ? <div class="update-notes" id="update-notes"><FormattedAnswer text={panel.view.notes} /></div> : <pre class="update-notes" id="update-notes">{panel.view.notes}</pre>}
           {panel.view.hasNotes ? <div class="row"><button type="button" class="btn sm" data-copy onClick={copyNotes}>{L.LABELS.copy}</button></div> : null}
           {panel.view.byHand ? <p>{panel.view.byHand}</p> : null}
           <details class="update-files">

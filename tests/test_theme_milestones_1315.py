@@ -92,7 +92,7 @@ class Computed(unittest.TestCase):
                     sid = self.load(cdp, w, scheme, "prototype-2.0")
                     tag = f"{scheme} {w}"
                     c = lambda s, p: self.css(cdp, sid, s, p)
-                    dark = c("#milestones h1", "color")      # the heading colour is the active fill, as in the Dashboard
+                    dark = "rgb(43, 56, 80)" if scheme == "dark" else "rgb(6, 47, 58)"      # the active fill since row 1354: the prototype's navy, or #2b3850 in dark
                     self.assertEqual(c('#milestones .msv-b[data-msvb="line"]', "backgroundColor"), dark, tag)
                     self.assertNotEqual(c('#milestones .msv-b[data-msvb="cal"]', "backgroundColor"), dark, tag)
                     self.assertEqual(c('#milestones [data-scale-b="month"]', "backgroundImage"), "none", tag)      # a filled active scale button, the rows 1313 and 1319 rules
@@ -134,8 +134,7 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c("#milestones .msv", "borderTopWidth"), "0px", tag)
                     self.assertEqual(c("#milestones .msv", "boxShadow"), "none", tag)
                     self.assertEqual(c("#milestones .msv", "paddingLeft"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "right"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "top"), "0px", tag)
+                    self.assertEqual(c("#milestones .msv-sw", "position"), "absolute", tag)      # row 1355: at the top left of the page, not in the right corner
                     self.assertEqual(c("#pubm", "borderTopWidth"), "1px", tag)      # a published file keeps its card
                     self.assertEqual(c("#other .msv", "borderTopWidth"), "1px", tag)
                     self.assertNotEqual(c("#other .msv", "boxShadow"), "none", tag)

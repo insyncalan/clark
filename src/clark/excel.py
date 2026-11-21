@@ -173,7 +173,7 @@ TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description
             "use_cases": "title"}
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
-LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
+LOCKED = PatternFill("solid", fgColor=colours.TOKENS["locked-fill"])      # item 1390: the Cover's grey (E7E7E7), for a column the import never reads
 # The default (committed, no brand) palette, which the constants above and the functions below use when no `pal` is given. An export
 # builds its own with excel_palette.palette(branding=...) (item 711): the local brand's light values over the committed ones.
 DEFAULT_PAL = excel_palette.committed()
@@ -186,7 +186,7 @@ class Styles:
         self.header = PatternFill("solid", fgColor=pal.header_fill)
         self.header_font = Font(name=pal.font, bold=True, color=pal.header_text)
         self.body_font = Font(name=pal.font, size=11)
-        self.locked = PatternFill("solid", fgColor=pal.tokens["grey-100"])
+        self.locked = PatternFill("solid", fgColor=pal.tokens["locked-fill"])
 
 
 def _pal(pal):
@@ -194,7 +194,7 @@ def _pal(pal):
 # The ID column (#85d, BRD FR-70d). Every sheet is protected with no password (item 727), so a locked cell is not changed by
 # mistake; Excel then refuses to sort a protected range, and a person who needs to sort chooses Review, Unprotect Sheet.
 # The protection is a convenience only: the import never reads it and is still the guard (a changed existing ID is refused for
-# that row; a row with no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words
+# that row; a row with no ID is a new item and gets the next free ID). The ID column is shaded grey (LOCKED fill, E7E7E7) and these words
 # are pinned by a test.
 ID_NOTE = ("IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to "
            "another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
@@ -784,13 +784,6 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
     for value, name in values.items():
         rule = Rule(type="cellIs", operator="equal", formula=['"' + value + '"'], dxf=_dxf(name, pal))
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
-
-
-def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
-    """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
-    green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
-    rule = Rule(type="expression", formula=[late_formula(date_col, col, open_states)], dxf=_dxf("red", pal), stopIfTrue=True)
-    ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
 def late_formula(date_col, status_col, open_states):
@@ -1411,9 +1404,6 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             elif field in PEOPLE:
                 add_note(ws, col, n_rows, "Owner" if field == "owner" else "Made by",
                          "Type the person's name.")
-            if field == "status" and (table, "due_date") in colours.LATE:
-                add_late_status_rule(ws, col, n_rows, get_column_letter([f for _, f in cols].index("due_date") + 1),
-                                     colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
             if (table, field) in colours.LATE:

@@ -9,6 +9,7 @@ import { askEnabledRead, askEnabledChange, words } from "./publishApi.js";
 
 export const askOn = signal(false);               // false until the server says otherwise
 export const askStatus = signal("loading");      // "loading" | "ready" | "unavailable"
+export const askDocker = signal("");              // Row 1293: the server's sentence when clark runs in Docker (asking is not available there), else ""
 export const askSaved = signal(true);            // false: this computer's saved data cannot keep the choice yet (it reads as off)
 
 let loading = null;
@@ -25,6 +26,7 @@ export function loadAsk(force) {
     if (r.status === 200 && b && b.ok === true && typeof b.ask_enabled === "boolean") {
       askOn.value = b.ask_enabled;
       askSaved.value = b.saved !== false;
+      askDocker.value = b.docker === true && typeof b.docker_line === "string" && b.docker_line.length <= 300 ? b.docker_line : "";
       askStatus.value = "ready";
     } else {
       askOn.value = false;

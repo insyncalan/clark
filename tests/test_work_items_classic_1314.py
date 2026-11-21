@@ -1,7 +1,7 @@
 """Row 1314: the Classic Work items page as the prototype draws it, in the Classic theme layer only.
 
 Run: python3 dev/run_tests.py test_work_items_classic_1314
-Covers the filter underline, the joined square layout pair with a grey chosen half, and the heading hairlines. Cards (shell.css) must not carry any of it.
+Covers the filter underline, the joined layout pair at radius 8 (item 1392) with a grey chosen half, and the heading hairlines. Cards (shell.css) must not carry any of it.
 """
 import re
 import unittest
@@ -32,8 +32,8 @@ class ClassicRules(unittest.TestCase):
         self.assertIn("background: none", b)
         self.assertIn("margin-right: 0", block(".fline-tail"))
 
-    def test_layout_pair_is_square_and_chosen_half_is_grey_not_aqua(self):
-        self.assertIn("border-radius: var(--radius-sm)", block(".vicons .lsw, .vicons .btn.sm.vgb"))
+    def test_layout_pair_is_radius_8_and_chosen_half_is_grey_not_aqua(self):
+        self.assertIn("border-radius: var(--radius)", block(".vicons .lsw, .vicons .btn.sm.vgb"))
         b = block('.vicons .seg.lsw button[aria-pressed="true"]')
         self.assertIn("background-color: var(--grey-100)", b)
         self.assertIn("color: var(--heading)", b)
@@ -99,16 +99,16 @@ class Browser(Base):
                 self.assertNotEqual(got["style"], "none", got)
 
     def test_the_pressed_layout_tile_is_grey_in_both_modes(self):
-        # Row 1314 draws the chosen layout tile grey with the heading colour, not navy and white.
+        # Row 1314 draws the chosen layout tile light, not navy and white; row 1395 gives it the brand tint and brand glyph in light (--tile-on-bg, --tile-on-fg), dark gives it the brand tint and the brand colour.
         probe = ("(() => { const b = document.querySelector('#work [data-lay=table]'), s = getComputedStyle(b), t = (v, p) => { const e = document.createElement('i'); e.style[p] = 'var(' + v + ')'; document.body.append(e); const c = getComputedStyle(e)[p]; e.remove(); return c; }; "
-                 "return {pressed: b.getAttribute('aria-pressed'), bg: s.backgroundColor, fg: s.color, wantBg: t('--grey-100', 'backgroundColor'), wantFg: t('--heading', 'color'), icon: getComputedStyle(b.querySelector('svg') || b).color}; })()")
+                 "return {pressed: b.getAttribute('aria-pressed'), bg: s.backgroundColor, fg: s.color, wantBg: t('--tile-on-bg', 'backgroundColor'), wantFg: t('--tile-on-fg', 'color'), icon: getComputedStyle(b.querySelector('svg') || b).color}; })()")
         for width in (1400, 900):
             for mode in ("light", "dark"):
                 with self.subTest(width=width, mode=mode), chrome() as cdp:
                     sid = self.visit(cdp, width=width)
                     cdp.js("document.documentElement.dataset.theme = %r" % mode, sid)
                     # the tile eases its colour over a moment: wait until it has settled on the grey of this mode
-                    self.until(cdp, sid, "(() => { const e = document.createElement('i'); e.style.backgroundColor = 'var(--grey-100)'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return getComputedStyle(document.querySelector('#work [data-lay=table]')).backgroundColor === c; })()", "the tile settled on the grey")
+                    self.until(cdp, sid, "(() => { const e = document.createElement('i'); e.style.backgroundColor = 'var(--tile-on-bg)'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return getComputedStyle(document.querySelector('#work [data-lay=table]')).backgroundColor === c; })()", "the tile settled on the grey")
                     got = cdp.js(probe, sid)
                     self.assertEqual(got["pressed"], "true", got)
                     self.assertEqual(got["bg"], got["wantBg"], got)
