@@ -53,6 +53,24 @@ class Gap1315b(Base, unittest.TestCase):
             self.assertEqual(m["sw"]["div"], ["1px", "rgb(135, 148, 179)"], m)
             self.assertEqual(m["sc"]["div"], ["1px", "rgb(135, 148, 179)"], m)
 
+    def test_frame_padding_divider_hold_at_900_by_source_and_by_look(self):
+        # 900 px: the three rules sit at the top level, in no media query, and no max-width 900 rule changes the Milestones switch buttons.
+        block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[0]
+        for l in block.splitlines()[1:]:
+            self.assertTrue(l.startswith("#milestones "), l)      # column 0, so not nested in an @media block
+        wide = RULES.split("/* Row 1315 fill", 1)[0] + RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[1]
+        for chunk in wide.split("@media (max-width: 900px)")[1:]:
+            inner = chunk.split("\n", 1)[0]
+            self.assertNotIn("#milestones .msv-b", inner)
+            self.assertNotIn("#milestones .cal-sc", inner)
+        with chrome() as cdp:
+            sid = self.show(cdp, 900, "light")      # skipped with the stated reason while test_server.PAUSED_900 is set; runs when it is switched off
+            m = cdp.js(M, sid)
+            for k in ("sw", "sc"):
+                self.assertEqual(m[k]["pad"], "14px 14px", (k, m))
+                self.assertEqual(m[k]["border"], "1px", (k, m))
+            self.assertEqual(m["sw"]["div"], ["1px", "rgb(135, 148, 179)"], m)
+
 
 if __name__ == "__main__":
     unittest.main()
