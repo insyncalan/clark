@@ -393,6 +393,17 @@ class Classic(Plumbing, unittest.TestCase):
         self.draw(content(), 1400)
         self.assertIsNone(self.js("document.querySelector('.tpl-sbs-heading')"), "no heading, none drawn")
 
+    def test_heading_from_a_stored_body_is_drawn_above(self):
+        # the heading read out of a stored body (shown() reads it), not content handed straight in
+        from clark.section_kinds import textimage
+        body = json.dumps(textimage._check_v2({"v": 2, "html": WORDS, "heading": "Fictional stored visit", "pictures": {"original": IMG}}))
+        for width in (1400, 900):
+            self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+            self.js(f"F.mount({json.dumps({'id': 'ABC-S-001', 'type': 'textimage', 'body': body})}, 'full')")
+            with self.subTest(width=width):
+                self.assertTrue(wait(lambda: self.js("!!document.querySelector('.tpl-sbs-heading')")), "the heading drew")
+                self.assertEqual(self.js("(document.querySelector('.tpl-sbs-heading')||{}).textContent"), "Fictional stored visit")
+
 
 class CardsHeading(Plumbing, unittest.TestCase):
     def test_cards_markup_has_no_heading(self):
