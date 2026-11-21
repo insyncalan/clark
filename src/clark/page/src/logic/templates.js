@@ -40,10 +40,10 @@ export const TEMPLATES = [
     description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
   { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
-  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
+  // Row 1263 (approved 18-11-2026, mock-up fully approved): one Numbers card for three or four numbers. Its type stays figures4 (the count, 3 or 4, is in
+  // the body); sections stored as figures3 or figures4 are read by the same card (no migration). The description is the old four-numbers card's.
+  { id: "figures-4", name: "Numbers", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
-  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
-    description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
   // Row 1264 slice 9: the glance template (type glancetemplate), its own card (the built-in At a glance card is gone, row 1411). The words are
   // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
   { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
@@ -150,7 +150,6 @@ export const SKETCHES = {
   "text": ["grid-template-rows:repeat(3,1fr)", ["", "width:80%", "width:60%"]],
   "text-image": ["grid-template-columns:1.4fr 1fr", ["", IMG]],
   "figures-4": ["grid-template-columns:repeat(4,1fr)", ["", "", "", ""]],
-  "figures-3": ["grid-template-columns:repeat(3,1fr)", ["", "", ""]],
   "gallery": ["grid-template-columns:repeat(3,1fr)", [IMG, IMG, IMG]],
   "table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "raid-3": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--brand-blue)"]],

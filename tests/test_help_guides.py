@@ -266,7 +266,7 @@ class ShippedGuides(unittest.TestCase):
     def test_the_words_the_guides_use_for_the_templates_are_the_templates_names(self):
         templates = (SRC / "clark" / "page" / "src" / "logic" / "templates.js").read_text(encoding="utf-8")
         text = " ".join(s["d"] for g in SHIPPED for s in g["steps"])
-        for name in re.findall(r"\*\*(Key figures, four|Callout|Text and pictures|Figures|Work items|Files and links|People and dates|Notes)\*\*", text):
+        for name in re.findall(r"\*\*(Numbers|Callout|Text and pictures|Figures|Work items|Files and links|People and dates|Notes)\*\*", text):
             self.assertIn(f'"{name}"', templates, name)
 
     def test_search_finds_each_guide_and_its_steps(self):
