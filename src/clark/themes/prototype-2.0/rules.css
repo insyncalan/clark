@@ -531,6 +531,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cal-ms { font-size: var(--size-caption); padding: 1px 4px; }
 .cal-ms:not(:hover):not(.ghost) { background: var(--band-bg); }
 .cal-ms span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+/* Row 1366: the status line under a saved folder (Classic); empty until the server has something to say */
+.ask-folder-line { flex: 0 0 100%; margin-top: 2px; font-size: var(--size-caption); font-weight: 400; color: var(--text-muted); }
+.ask-folder-line:empty { position: absolute; width: 0; height: 0; margin: 0; overflow: hidden; }
 /* Row 1404: the At a glance strip as the prototype draws it. The "of N" note sits in the figure line (14px, muted; Glance.jsx puts it there under Classic only), the label is Inter 400, the figure is Inter in the text colour with normal line height (amber and red keep their status colour). */
 .glance .fig .k { font-weight: var(--weight-regular); }
 .glance .fig .v { font-family: var(--font-label); letter-spacing: normal; line-height: normal; color: var(--text); }
@@ -621,6 +624,14 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
 
+/* Row 1366 row 6: the files left out of a folder (Settings, Source folders) */
+.ask-left-out { flex: 0 0 100%; }
+.ask-left-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; color: var(--brand-blue); font-size: 14px; cursor: pointer; }
+.ask-left-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.ask-left-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
+.ask-left-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
+.ask-left-name { color: var(--text); }
 /* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
 .ask-change-ref { font-weight: var(--weight-medium); }
 .ask-change-title { overflow-wrap: anywhere; }
