@@ -822,6 +822,12 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1298 follow-up (Classic only): the Feedback tag dialog at the mock-up's measures. The tag is 29px wide (15px line + 14px padding; it grew 5px more on hover as before), the kind chips are 13.5px, the added-automatically block is 12.5px with 8px 10px padding, the mail link is a real button (inline-flex, 38px tall like the Row 1319 primary buttons, an anchor ignored min-height) and Copy is 34px tall. */
+.fbt-tag { line-height: 15px; }
+.fbt-kind { font-size: 13.5px; }
+.fbt-added { font-size: 12.5px; padding: 8px 10px; }
+.fbt-dlg [data-fbt-mail] { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 22px; text-decoration: none; }
+.fbt-dlg [data-fbt-copy] { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; }
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
