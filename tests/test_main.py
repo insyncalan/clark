@@ -449,6 +449,31 @@ class InProcess(TempFolder):
         self.assertIsInstance(call["notices"], launcher.notices_file.Notices)
         self.assertEqual(call["notices"].data_dir, data)
 
+    def test_the_bell_and_the_ask_seams_share_one_data_folder_and_reading_writes_nothing(self):
+        # row 1814: the same folder (the database's parent) goes to Notices, ask_commands and ask_folders; reading with nothing set writes nothing
+        data = self.tmp / "bell-same"
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        (call,) = serve.calls
+        self.assertEqual((call["notices"].data_dir, call["ask_commands"].data_dir, call["ask_folders"].data_dir), (data, data, data))
+        before = sorted(p.name for p in data.iterdir())
+        self.assertEqual(call["notices"].read(), (200, {"ok": True, "why": "off", "notices": []}))
+        self.assertEqual(sorted(p.name for p in data.iterdir()), before)
+
+    def test_a_database_with_no_folder_gives_the_bell_the_current_folder_and_writes_nothing_there(self):
+        # row 1814: Path(":memory:").parent is "."; the bell reads that folder and creates nothing in it
+        here = self.tmp / "cwd-none"
+        here.mkdir()
+        was = os.getcwd()
+        os.chdir(here)
+        try:
+            folder = pathlib.Path(":memory:").parent
+            self.assertEqual(folder, pathlib.Path("."))
+            self.assertEqual(launcher.notices_file.Notices(folder).read(), (200, {"ok": True, "why": "off", "notices": []}))
+            self.assertEqual(list(here.iterdir()), [])
+        finally:
+            os.chdir(was)
+
     def test_a_data_folder_that_has_data_does_not_get_the_demo(self):
         data = self.tmp / "old-data"
         from clark import store as clark_store
