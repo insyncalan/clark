@@ -88,11 +88,13 @@ export function requestFor(table, ids, changes, { confirm = false, place = "bulk
 export const needsConfirm = (n) => n > CONFIRM_ABOVE;
 export const confirmWords = (n) => `Change ${n} items?`;
 
+const kindOf = (table) => (table === "raid" ? "risk" : "action");
+
 /** What a picker chooses from, for a control: [{value, text}]. `ctx` has the active workstreams and the milestones. */
 export function choicesFor(table, id, ctx = {}) {
   if (id === "status") return (STATUSES[table] || []).map((s) => ({ value: s, text: s, ...statusIcon({ kind: table === "raid" ? "risk" : "action" }, s, ctx.today || "") }));
-  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
-  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
+  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p, kindOf(table)) }));
+  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p, ...priorityIcon(p, kindOf(table)) }));
   if (id === "workstream") return (ctx.workstreams || []).map((w) => ({ value: w, text: w, ...fieldIcon("workstream") })).concat([{ value: "", text: "No workstream", ...fieldIcon("workstream", true) }]);
   if (id === "milestone") return (ctx.milestones || []).map((m) => ({ value: m.id, text: m.name, ...fieldIcon("milestone") })).concat([{ value: "", text: "No milestone", ...fieldIcon("milestone", true) }]);
   return [];
