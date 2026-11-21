@@ -150,9 +150,9 @@ class SideBySideEdit(PageBase):
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 fits = p.js(f"(function(){{var s=document.querySelector('{sel}'), r=s.getBoundingClientRect();"
-                            "return s.scrollWidth <= s.clientWidth + 1 && [...s.querySelectorAll('.tpl-edit input:not([type=file]), .ti-bar, .tpl-sbs-frame')]"
-                            ".every(e => {var i=e.getBoundingClientRect(); return i.right <= r.right + 1 && i.left >= r.left - 1;});})()")
-                self.assertTrue(fits, f"Edit fits at {width} px")
+                            "return [s.scrollWidth, s.clientWidth, ...[...s.querySelectorAll('.tpl-edit input:not([type=file]), .ti-bar, .tpl-sbs-frame')]"
+                            ".map(e => {var i=e.getBoundingClientRect(); return [e.className, Math.round(i.left - r.left), Math.round(r.right - i.right)];})];})()")
+                self.assertTrue(fits[0] <= fits[1] + 1 and all(a >= -1 and b >= -1 for _, a, b in fits[2:]), (width, fits))
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             box = p.js(f"(function(){{var b=document.querySelector('{sel} .ti-bar button').getBoundingClientRect(), r=document.querySelector('{sel} .ti-bar').getBoundingClientRect();"
                        f"return {{w: b.width, h: b.height, gap: getComputedStyle(document.querySelector('{sel} .ti-bar')).columnGap, radius: getComputedStyle(document.querySelector('{sel} .ti-bar')).borderTopLeftRadius}};}})()")
