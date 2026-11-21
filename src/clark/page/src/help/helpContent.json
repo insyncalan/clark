@@ -137,7 +137,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Export to Word, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
+    "Publish, Preview, Export to Excel, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
     ""
    ],
    [
@@ -278,10 +278,10 @@
     "id": "word-in-and-out",
     "g": "Every week",
     "t": "Export to Word",
-    "w": "Profile circle › Export to Word",
+    "w": "Settings › Data › Export to Word…",
     "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
+     "Press your profile circle, choose **Settings**, and on the **Data** card press **Export to Word…**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
      "To bring a Word file in, press your profile circle, choose **Settings**, and on the **Data** card press **Import from Word…**."
@@ -909,10 +909,9 @@
      [
       "ul",
       [
-       "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
-       "**Export to Word**: the report saved as a Word file, without publishing the web page.",
+       "**Publish…**: the Publish box, on the Dashboard.",
        "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Settings**: opens Settings. Until you add your name, the top line is a link to Settings too.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
@@ -1758,7 +1757,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page."
+      "In Settings › Data, Export to Word… saves the Word file on its own, without publishing the web page."
      ]
     ]
    },
@@ -2488,7 +2487,7 @@
    "s": [
     "In Edit you change the report itself: its text, its tiles and its sections.",
     "Add a section from the **Add a section** box, and rename any heading in place.",
-    "Your profile circle’s menu has **Publish**, **Export to Word** and **Export to Excel**.",
+    "Your profile circle’s menu has **Publish** and **Export to Excel**.",
     "Press **View** to see the report as it will read."
    ],
    "full": "howto-arrange-the-report"
