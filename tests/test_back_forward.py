@@ -30,7 +30,7 @@ from clark import order, publish, server as sv
 from clark.store import open_store
 from test_page import navigate
 from _editor_checks import after_reload, for_project, set_project_and_wait
-from test_server import _Pipe, chrome, wait
+from test_server import _Pipe, chrome, pause_900, wait
 from _new_page import reload_to_new_page
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
@@ -556,6 +556,7 @@ class Watching(_Pipe):
     """The harness's pipe, keeping the events Chrome sends (the harness drops them), as tests/test_publish.py has it."""
 
     def call(self, method, params=None, session=None):
+        pause_900(method, params)
         self.n += 1
         msg = {"id": self.n, "method": method, "params": params or {}}
         if session:
