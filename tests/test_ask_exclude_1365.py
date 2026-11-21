@@ -1,7 +1,7 @@
 """Row 1365: Leave these subfolders out. A person keeps a whole folder for asking and leaves named subfolders out of it.
 
 Run: python3 dev/run_tests.py test_ask_exclude_1365
-Pins: the one place for the rules (ask_exclude.py), the schema step 33 (source_folders.excluded, default nothing left out, forward only, a second
+Pins: the one place for the rules (ask_exclude.py), the schema step 34 (source_folders.excluded, default nothing left out, forward only, a second
 run changes nothing), what the store accepts, that the folder walk (reach.readable_files, which the question's reader uses) never enters a left-out
 subfolder and that it takes nothing from the caps, that the reader never opens a file in one, that a list that cannot be read means the folder is not
 read at all, and the route action that saves the flagged subfolders. Made-up names only; no file is read by the name scan.
@@ -115,15 +115,15 @@ class Base(unittest.TestCase):
 
 
 class Schema(Base):
-    def test_a_new_file_has_the_column_with_nothing_left_out_and_step_33_is_in_the_table(self):
+    def test_a_new_file_has_the_column_with_nothing_left_out_and_step_34_is_in_the_table(self):
         s = self.store()
         with s.step("dashboard", "tester", place="menu") as step:
             step.create("projects", {"code": "ABC", "name": "Example Programme"})
             step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 0})
         self.assertEqual(s.read("source_folders", "ABC")[0]["excluded"], "[]")
-        self.assertEqual(st.SCHEMA_VERSION, 33)
-        self.assertIn((33, st.migrate_source_exclusions), st.MIGRATIONS)
-        self.assertEqual(st.EXCLUDED_STEP, 33)
+        self.assertEqual(st.SCHEMA_VERSION, 34)
+        self.assertIn((34, st.migrate_source_exclusions), st.MIGRATIONS)
+        self.assertEqual(st.EXCLUDED_STEP, 34)
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")
