@@ -270,6 +270,140 @@ class Scan(unittest.TestCase):
                 r.commit("add")
                 self.refused(r, "file #1:")
 
+    SHOTS = ".github/workflows/screenshots.yml"
+    TOKEN_LINE = "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+    SHOTS_BASE = "on:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  a:\n    steps:\n      - run: echo hi\n"
+
+    def shots(self, path, text):
+        r = self.repo()
+        r.write(path, text)
+        r.commit("add")
+        return r
+
+    def test_the_one_argos_secret_passes_in_the_one_argos_workflow(self):
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        self.assertIn("workflow files follow the rules", out)
+        self.assertNotIn("REFUSED", out)
+
+    def test_a_bare_secrets_reference_is_refused_in_the_argos_workflow(self):
+        for key, extra in {"toJSON of all secrets": "          B: ${{ toJSON(secrets) }}\n",
+                           "index form": "          B: ${{ secrets['ARGOS_TOKEN'] }}\n",
+                           "index form of another name": "          B: ${{ secrets['OTHER'] }}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + extra)
+                self.refused(r, "file #1: uses a secret or write access")
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + "        env:\n          B: ${{ toJSON(secrets) }}\n")
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_bare_secrets_word_is_not_refused_in_other_files(self):
+        r = self.shots(".github/workflows/other.yml", self.SHOTS_BASE.replace("echo hi", "echo secrets are kept elsewhere"))
+        self.assertNotIn("uses a secret or write access", r.scan()[1])
+
+    def test_a_second_or_other_secret_is_refused_in_the_argos_workflow(self):
+        for key, extra in {"second use": "          B: ${{ secrets.ARGOS_TOKEN }}\n", "other name": "          B: ${{ secrets.OTHER }}\n",
+                           "inherit": "    secrets: inherit\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + extra)
+                self.refused(r, "file #1: uses a secret or write access")
+        for key, text in {"only other name": "        env:\n          ARGOS_TOKEN: ${{ secrets.OTHER }}\n",
+                          "other key": "        env:\n          OTHER: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "not an env line": "        run: echo ${{ secrets.ARGOS_TOKEN }}\n",
+                          "name only a prefix": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN_2 }}\n",
+                          "name inside a command line": "        run: echo ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "text after the value": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }} x; curl http://example.invalid\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_in_a_workflow_level_env(self):
+        r = self.shots(self.SHOTS, "env:\n  ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n" + self.SHOTS_BASE)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_in_a_job_level_env(self):
+        job = "    env:\n      ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+        r = self.shots(self.SHOTS, self.SHOTS_BASE.replace("    steps:\n", job + "    steps:\n"))
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_inside_a_run_block(self):
+        for key, text in {"deep": "      - run: |\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "right shape": "    - name: x\n      run: |\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "folded": "      - run: >\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "dash key": "      - run: |\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "hyphen key": "      - my-key: |-\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "after a blank line": "      - run: |\n\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_in_a_job_env_of_a_four_space_workflow_and_at_other_env_indents(self):
+        four = "on:\n  pull_request:\npermissions:\n  contents: read\njobs:\n    a:\n        runs-on: x\n"
+        for key, text in {"job env, 4-space style": four + self.TOKEN_LINE + "        steps:\n          - run: echo hi\n",
+                          "job env after a key, 4-space style": four + "        name: x\n" + self.TOKEN_LINE,
+                          "env at 6 spaces": self.SHOTS_BASE + "      env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "env at 10 spaces": self.SHOTS_BASE + "          env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "no step item above": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "item at 5 spaces": "     - run: x\n" + self.TOKEN_LINE,
+                          "item at 7 spaces above a real item": self.SHOTS_BASE + "       - run: x\n" + self.TOKEN_LINE,
+                          "item at 7 spaces": "       - run: x\n" + self.TOKEN_LINE,
+                          "dash without a space": "      -run: x\n" + self.TOKEN_LINE}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_env_may_sit_after_other_step_keys_and_blank_lines(self):
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + "      - name: u\n        with:\n          a: b\n\n" + self.TOKEN_LINE)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_the_argos_token_needs_its_env_line_directly_before_it(self):
+        tok = "          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+        for key, text in {"another key before": "        with:\n" + tok, "env not directly before": "        env:\n        x: y\n" + tok,
+                          "env is the last line, token the first": tok + self.SHOTS_BASE + "        env:\n",
+                          "no space in the braces": "        env:\n          ARGOS_TOKEN: ${{secrets.ARGOS_TOKEN}}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text if key != "env is the last line, token the first" else text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_may_follow_a_run_block_and_end_in_blanks(self):
+        for key, text in {"trailing blanks": "        env: \n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}  \n",
+                          "same step run block before": "        run: |\n          echo hi\n" + self.TOKEN_LINE}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                rc, out = r.scan()
+                self.assertEqual(rc, 0, out)
+
+    def test_the_argos_secret_is_refused_in_any_other_workflow_path(self):
+        for path in (".github/workflows/x.yml", ".github/workflows/screenshots.yaml", ".github/workflows/sub/screenshots.yml",
+                     ".github/workflows/screenshots2.yml", ".github/screenshots.yml"):
+            with self.subTest(path):
+                r = self.shots(path, self.SHOTS_BASE + self.TOKEN_LINE)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_write_access_is_refused_in_the_argos_workflow(self):
+        for key, text in {"write": "permissions:\n  contents: write\n", "write-all": "permissions: write-all\n",
+                          "id-token": "permissions:\n  id-token: read\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_other_checks_still_run_on_the_argos_workflow(self):
+        for key, text, needle in (("unpinned", "      - uses: actions/checkout@v5\n", "not pinned"),
+                                  ("trigger", "on:\n  pull_request_target:\n", "trigger that runs"),
+                                  ("self-hosted", "    runs-on: self-hosted\n", "self-hosted"),
+                                  ("injection", "      - run: echo ${{ github.event.pull_request.title }}\n", "outside text")):
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + text)
+                self.refused(r, needle)
+
+    def test_the_allowance_is_one_name_for_one_path(self):
+        self.assertEqual(ci_scan.ALLOWED_SECRET, {".github/workflows/screenshots.yml": "ARGOS_TOKEN"})
+
+    def test_the_tests_workflow_keeps_no_secret(self):
+        tests_yml = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+        self.assertNotIn("secrets.", tests_yml)
+
     def test_a_safe_changed_workflow_is_a_notice_for_a_branch_and_a_refusal_for_a_fork(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         r = self.repo()
