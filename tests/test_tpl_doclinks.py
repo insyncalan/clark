@@ -440,6 +440,10 @@ class InThePage(ClassicPage):
             got = p.js(f"(() => {{ const s = document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg'); const r = s.getBoundingClientRect();"
                        " return [s.getAttribute('viewBox'), !!s.querySelector('rect'), !!s.querySelector('circle'), s.querySelector('text').textContent, s.querySelectorAll('path').length, Math.round(r.width), Math.round(r.height)]; })()")
             self.assertEqual(got, ["0 0 41 41", True, True, "@", 1, 41, 41], "an envelope (rect + flap), a filled circle, '@', no page path, 41 x 41")
+            self.assertEqual(p.js(f"(() => {{ const s = document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg'); return [s.getAttribute('role'), s.getAttribute('aria-label'), s.hasAttribute('aria-hidden'), Math.round(s.querySelector('text').getBoundingClientRect().height)]; }})()")[:3],
+                             ["img", "Email link", False], "the icon keeps the accessible name 'Email link' (ruled 21-11)")
+            self.assertEqual(p.js(f"parseFloat(document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg text').getAttribute('font-size')) * parseFloat(document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg text').getAttribute('transform').match(/scale\\(([0-9.]+)\\)/)[1])").__round__(1), 11.0,
+                             "the mock's @ is 11 px (ruled 21-11): 13 px glyph scaled, as the badge labels are, so the 13 px floor test stays whole")
 
     def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
         ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])

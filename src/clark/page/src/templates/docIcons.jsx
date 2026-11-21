@@ -24,10 +24,10 @@ export function PageIcon({ label }) {
   if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] || label === "MAIL" ? label : "FILE"}`}>{label}</span>;
   if (label === "MAIL") return (            // The approved pick D (18-11): an envelope with an @ badge, no page behind it (the mock's Email link icon, 41 x 41)
     <span class="tpl-badge tpl-page tpl-mail">
-      <svg viewBox="0 0 41 41" width="41" height="41" aria-hidden="true" focusable="false">
+      <svg viewBox="0 0 41 41" width="41" height="41" role="img" aria-label="Email link" focusable="false">
         <g fill="none" stroke={COLOURS.MAIL} stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="30" height="22" rx="3.5" /><path d="M5 11l14 10 14-10" /></g>
         <circle cx="32" cy="30" r="8" fill={COLOURS.MAIL} />
-        <text x="32" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="var(--white)" font-family="Inter, system-ui, sans-serif">@</text>
+        <text transform="translate(32 34) scale(0.8462)" text-anchor="middle" font-size="13" font-weight="700" fill="var(--white)" font-family="Inter, system-ui, sans-serif">@</text>
       </svg>
     </span>
   );
