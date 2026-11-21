@@ -10,7 +10,7 @@ import json
 import unittest
 
 from _paths import SRC  # noqa: F401
-from test_use_case_one_page_1479 import ENTRY, SamePage as _Base, UC, FIXED_DATE, chrome, page_target, wait, need_chrome, tearDownModule  # noqa: F401
+from test_uc_published_same_1479 import ENTRY, SamePage as _Base, UC, FIXED_DATE, chrome, page_target, wait, need_chrome, tearDownModule  # noqa: F401
 
 ENTRY2 = ENTRY + """
 import { UCEDIT } from "./edit/UseCasesEdit.jsx";
@@ -27,14 +27,17 @@ window.clarkPatch = (src) => { data.value = new Function("d", "return (" + src +
 
 
 class Slots(_Base):
-    """Reuses the build and the server of the same-page test; its own test is switched off here."""
-    test_same_cards_same_order_same_text_and_one_uc_in_the_reference = None
+    """Reuses the build and the server of the same-page test; its own AP1, AP3, AP4 and AP6 tests are switched off here."""
+    test_published_and_editor_pages_have_the_same_cards_in_the_same_order = None
+    test_details_shows_owner_and_not_last_change = None
+    test_no_history_card = None
+    test_reference_is_not_doubled_on_either_page = None
 
     @classmethod
     def setUpClass(cls):
         import tempfile, shutil
         from unittest import mock
-        from test_use_case_one_page_1479 import build_page
+        from test_uc_published_same_1479 import build_page
         from pathlib import Path
         need_chrome()
         cls.tmp = tempfile.mkdtemp(prefix="clark-uc1479s-")
