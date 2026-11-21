@@ -484,7 +484,7 @@ class Milestone(Base):
             self.assertEqual(len([s for s in self.sent if "latest_update" in s[1].get("changes", {})]), 1, "saved once")
             self.assertEqual(self.sent[-1][1]["place"], "peek")
             p.until("!!document.querySelector('#peek [data-pk-last]')", "the stamp")
-            self.assertTrue(re.search(r"last updated\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}", p.js("document.querySelector('#peek [data-pk-last]').innerText")))
+            self.assertTrue(re.search(r"Last updated\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}", p.js("document.querySelector('#peek [data-pk-last]').innerText")))
             self.undo(p)
             self.saved("latest_update", None)
         with chrome() as cdp:

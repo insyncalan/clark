@@ -89,7 +89,7 @@ class TheLine(unittest.TestCase):
 
     def test_the_read_still_has_its_other_keys(self):
         a = self.demo.action()
-        self.assertEqual(set(self.read("ABC", a)), {"rows", "empty", "closing", "source", "source_path"})   # row 1180: source_path is the hover text of the peek's Source tab
+        self.assertEqual(set(self.read("ABC", a)), {"rows", "empty", "closing", "source", "source_path", "source_words"})   # row 1180: source_path is the hover text of the peek's Source tab
 
 
 class PublishedByName(unittest.TestCase):
