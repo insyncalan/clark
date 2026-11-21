@@ -1,7 +1,7 @@
 """Row 1329 (Classic): the Milestones head of a published file for a project with no milestone says "No milestones yet.".
 
 Run: python3 dev/run_tests.py test_ms_empty_published_1329
-A published file is read with fromFile on; a change that draws the head only for the editor (or blanks the words in a file) fails here.
+A published file is read with fromFile on; a change that draws the head only for the editor (or blanks the words in a file) fails here, and so does a head that still draws the forecast-summary paragraph (#ms-summary) in Classic.
 """
 import shutil
 import tempfile
@@ -16,6 +16,7 @@ from test_server import chrome, wait
 
 
 REAL_PAGE_HTML = page.page_html
+GONE = "[document.querySelectorAll('#ms-summary').length, document.querySelectorAll('#milestones .head-sub-off').length, document.querySelectorAll('[data-mspage-switch], [data-mspv]').length]"      # Row 1329 AP1, AP2
 
 
 class EmptyPublished(unittest.TestCase):
@@ -41,6 +42,7 @@ class EmptyPublished(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#milestones .pub') !== null || document.querySelector('section.milestones.pub') !== null", sid), True, "drawn as a published file")
                 self.assertEqual(cdp.js("(document.querySelector('#milestones .head-sub') || {textContent: ''}).textContent.trim()", sid), "No milestones yet.")
                 self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 0)
+                self.assertEqual(cdp.js(GONE, sid), [0, 0, 0], "Classic draws no forecast-summary paragraph (#ms-summary), no head-sub-off, no Plan | Movement switch")
 
     def test_a_published_file_whose_only_milestone_is_cancelled_says_no_milestones_yet(self):
         # row 1329: a file drops cancelled rows for the client, so the head reads them as none; the rows read without the client flag would say "The only milestone is cancelled."
@@ -59,6 +61,7 @@ class EmptyPublished(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones .head')", sid), 10), "the head drew")
             self.assertEqual(cdp.js("(document.querySelector('#milestones .head-sub') || {textContent: ''}).textContent.trim()", sid), "No milestones yet.")
             self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 0)
+            self.assertEqual(cdp.js(GONE, sid), [0, 0, 0], "Classic draws no forecast-summary paragraph (#ms-summary), no head-sub-off, no Plan | Movement switch")
 
 
 if __name__ == "__main__":
