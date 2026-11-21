@@ -18,9 +18,10 @@ EMPTY = ""
 TONES = ("info", "decision", "warning")
 # #1272: colour and icon are named, so a reader who cannot tell colours apart is told the name in words (Word, Excel, the published page).
 COLOURS = {"plain": "Plain", "violet": "Violet", "amber": "Amber", "red": "Red", "green": "Green", "grey": "Grey"}
-ICONS = {"none": "No icon", "info": "Information", "question": "Question", "warning": "Warning", "alert": "Alert", "check": "Tick", "clock": "Clock",
+ICONS = {"none": "No icon", "info": "Information", "question": "Question", "warning": "Warning triangle", "alert": "Alert", "check": "Tick", "clock": "Clock",
          "cal": "Calendar", "flag": "Flag", "lock": "Lock", "key": "Key", "bulb": "Light bulb", "star": "Star", "bell": "Bell",
-         "megaphone": "Megaphone", "doc": "Document", "link": "Link", "people": "People", "money": "Money", "chart": "Chart", "shield": "Shield"}
+         "megaphone": "Megaphone", "doc": "Document", "link": "Link", "people": "People", "money": "Money", "chart": "Chart", "shield": "Shield",
+         "flash": "Lightning", "eye": "Eye", "table": "Table", "gear": "Gear", "sparkle": "Sparkle", "fork": "Two ways"}
 TONE_LOOK = {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")}    # what an older callout's tone drew
 TONE_WORDS = {"info": "Information", "decision": "Decision needed", "warning": "Warning"}    # the word an older callout drew
 CATEGORY_MAX = 30

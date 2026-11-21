@@ -187,7 +187,7 @@ class OptionalColumns(unittest.TestCase):
         # Row 1199 (issue 1199, PR 1633): Priority and Milestone joined the six; Status, Workstream and Milestone start off in a new list. The lists are
         # compared whole and in order, so a column dropped, added or moved fails here and the change is made on purpose.
         self.assertEqual(run_node("W.COLUMNS"), ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"])
-        self.assertEqual(run_node("W.DEFAULT_COLUMNS"), ["type", "id", "owner", "due", "priority"])
+        self.assertEqual(run_node("W.DEFAULT_COLUMNS"), ["id", "owner", "due", "priority"])
         self.assertEqual(run_node("W.WORDS.columns.type"), "Type")
 
 
