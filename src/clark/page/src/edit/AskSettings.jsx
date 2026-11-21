@@ -14,6 +14,7 @@ import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
+import { announce, LINKS } from "./indexNote.js";
 import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
@@ -58,26 +59,42 @@ function useIndexLines(read, deps) {
   }, [tick, ...deps]);
   return { index, again: () => { grace.current = 3; setTick((n) => n + 1); } };
 }
-// The files left out of a folder (Row 1366 row 6, Classic only): a text button opens a plain list, name then reason; collapsed by default; the server cuts it at 200 and says how many more.
-function LeftOut({ line, id }) {
-  const [open, setOpen] = useState(false);
+// The state the server's line stands for, for the screen-reader line (indexNote.js): "Indexing… N%" is reading, "100% indexed..." is done.
+function phaseOf(line) {
+  const t = line && typeof line.line === "string" ? line.line : "";
+  const m = /^Indexing\u2026 (\d+)%$/.exec(t);
+  if (m) return { phase: "reading", read: Number(m[1]), total: 100 };
+  return t.startsWith("100% indexed") ? { phase: "done", read: 1, total: 1 } : null;
+}
+// The files left out of a folder (Row 1366 row 6, Classic only): the "(why)" link on the line opens a plain list, name then reason; collapsed by default; the server cuts it at 200 and says how many more.
+function leftOf(line) {
   const left = line && line.left && Array.isArray(line.left.files) ? line.left : null;
-  if (!left || !left.files.length || !classicTheme()) return null;
+  return left && left.files.length ? left : null;
+}
+function LeftOut({ line, id, open }) {
+  const left = leftOf(line);
+  if (!left || !open) return null;
   return (
     <div class="ask-left-out">
-      <button type="button" class="ask-left-btn" aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => setOpen(!open)}>Show the files left out</button>
-      {open ? (
-        <ul class="ask-left-list" id={id}>
-          {left.files.map((f, i) => <li key={i}><span class="ask-left-name">{f[0]}</span> <span class="ask-left-why">{f[1]}</span></li>)}
-          {left.more > 0 ? <li class="ask-left-more">{`and ${left.more} more`}</li> : null}
-        </ul>
-      ) : null}
+      <ul class="ask-left-list" id={id}>
+        {left.files.map((f, i) => <li key={i}><span class="ask-left-name">{f[0]}</span> <span class="ask-left-why">{f[1]}</span></li>)}
+        {left.more > 0 ? <li class="ask-left-more">{`and ${left.more} more`}</li> : null}
+      </ul>
     </div>
   );
 }
+// The line is quiet text; the polite live region beside it speaks only at 0, 25, 50, 75 and 100 percent (Row 1371), not at every percent.
 function FolderLine({ line, id }) {
+  const [open, setOpen] = useState(false);
+  const prev = useRef(null);
+  const said = useRef("");
+  const next = phaseOf(line);
+  const spoken = announce(prev.current, next);
+  if (spoken) said.current = spoken;
+  prev.current = next;
   if (!classicTheme()) return null;                  // its rules are the Classic theme's: Cards keeps the card as it was
-  return <><div class="ask-folder-line" role="status" aria-live="polite">{line ? line.line : ""}</div><LeftOut line={line} id={id} /></>;
+  const why = leftOf(line) ? <> <button type="button" class="ask-left-btn" aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => setOpen(!open)}>{LINKS.why}</button></> : null;
+  return <><div class="ask-folder-line">{line ? line.line : ""}{why}</div><div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div><LeftOut line={line} id={id} open={open} /></>;
 }
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
