@@ -175,6 +175,7 @@ ALLOWED_TAGS = {"p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup
                 "ul", "ol", "li", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
 ALLOWED_ATTRS = {"a": ("href", "title"), "img": ("src", "alt", "title"), "td": ("colspan", "rowspan"),
                  "th": ("colspan", "rowspan")}
+COLOUR_CLASSES = ("rt-c-grey", "rt-c-brand", "rt-c-red", "rt-c-amber", "rt-c-green", "rt-c-blue")   # font colour (#1364): the one class a span keeps
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]*", re.I)
 SPAN = re.compile(r"[0-9]{1,3}")
 
@@ -227,6 +228,8 @@ class _Cleaner(HTMLParser):
             keep.append(f' {name}="{htmllib.escape(value.strip() if name == "src" else value, quote=True)}"')
         if tag == "img" and not any(a.startswith(" src=") for a in keep):
             return
+        if tag == "span" and given.get("class") in COLOUR_CLASSES:
+            keep.append(f' class="{given["class"]}"')
         if tag == "a":
             keep.append(' rel="noopener noreferrer"')
         self.out.append(f"<{tag}{''.join(keep)}>")
