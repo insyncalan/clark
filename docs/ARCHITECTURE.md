@@ -26,7 +26,7 @@ Proposal by a teammate (technical architect), 27-10-2026. For the project lead (
 | **Client output checks** | Make sure nothing team-only reaches a client file | `client_leak.py` (guarded), `client_output.py`, `client_check.py`. See open point 2 |
 | **ask clark** | The built-in assistant: works on clark's own data and searches the user's source folders (see "ask clark" below) | `edit_ai.py` (guarded), `search.py` (the index and "what to read first"), `reach.py` (guarded, cut down to clark's folders) |
 
-Left out on purpose: mail, Teams, calendars, transcripts, the sweep, minutes, the VIP check, the update and backup engines (these come later if clark needs them), and anything from creaite's private repos.
+Left out on purpose: transcripts (mail, Teams, calendars and SharePoint are read only through a connector the person turns on in Settings, `ask_connector_args.py`), the sweep, minutes, the VIP check, the update and backup engines (these come later if clark needs them), and anything from creaite's private repos.
 
 Each copy is listed in the reuse record before it's used, and is taken from the release tag. Copies of guarded files get a second reader (`RULES.md`).
 

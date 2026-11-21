@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { openFile } from "../router.js";
 import { ClientMenu } from "./ClientMenu.jsx";
+import { classicTheme } from "./Contents.jsx";
 import { coverLine } from "../logic/cover.js";
 import { pastReportsOf } from "../logic/clientMenu.js";
 import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
@@ -107,10 +108,10 @@ export function TopBar({ tools }) {
         ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
         : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
       {file
-        ? <div class="top-id"><Name class="top-name" id="project-name">{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
+        ? <div class="top-id"><Name class="top-name" id="project-name" title={classicTheme() ? shownName : undefined}>{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
         : <div class="hdr-id">{/* item 1177: the editor's one header: the project name (a button that opens the project list), then "Weekly report" and the week (a button that opens the calendar); no "for <client>" and no banner under it */}
             {(() => {
-              const who = ProjectSwitch ? <ProjectSwitch name={name} header /> : <span class="hdr-project hdr-static" id="project-name">{name || project.value || "No project open"}</span>;
+              const who = ProjectSwitch ? <ProjectSwitch name={name} header /> : <span class="hdr-project hdr-static" id="project-name" title={classicTheme() ? name || project.value || "No project open" : undefined}>{name || project.value || "No project open"}</span>;
               return view.value === "dashboard" && status.value === "ready" ? <h1 class="hdr-h1">{who}</h1> : who;      /* the Dashboard keeps its one level-1 heading: the project name, same size and same click (item 1177 took its cover); the Gantt page has its own in its cover, and the other pages have theirs */
             })()}
             <p class="hdr-line"><b class="hdr-kind">Weekly report</b>{HeaderDate ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><HeaderDate /></> : weekEnding ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><span class="hdr-date hdr-static num">Week ending {shownDate(weekEnding)}</span></> : null}</p>
