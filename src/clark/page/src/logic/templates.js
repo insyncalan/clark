@@ -44,7 +44,7 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
-  // Row 1264 slice 9: the glance template (type glancetemplate), its own card beside the built-in At a glance card (that name is taken). The words are
+  // Row 1264 slice 9: the glance template (type glancetemplate), its own card (the built-in At a glance card is gone, row 1411). The words are
   // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
   { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
     description: "Three counts, an optional project health and tiles of your own.",
@@ -109,10 +109,7 @@ export const LATER = [
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
 // Row 1407: Risks and issues, Open actions and Decisions are not in this list; the Work items list (its views in filterLine.js) covers them.
-// Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
-// so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
-const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
-                      holds: ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"] };
+// Row 1411: the built-in At a glance card is gone too (the glance template is its own card).
 // Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
 // so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
 const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
@@ -123,7 +120,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
                                  holds: ["Heading", "Timeline or Calendar · live", "Milestone list · live"] };
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
+  builtIn("current", "Current state", "text"), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
   builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
@@ -177,8 +174,11 @@ export const SKETCHES = {
   "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
   "glance-template": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-green)"]],      // row 1264: low tiles, a tone edge on each
-  "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
+  "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],      // kept: the Cards look is frozen (row 1411 removes only the card)
 };
+
+// Row 1272: the Classic Theme's own sketch for a template (look B for the Callout); Cards keeps SKETCHES. The shapes are drawn by themes/prototype-2.0/rules.css (.sk-callout-b).
+export const CLASSIC_SKETCHES = { "callout": ["", ["grid-row:1 / 3;width:var(--space-4);height:var(--space-4);border-radius:50%", "width:40%", "width:80%"]] };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
 export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
@@ -244,6 +244,8 @@ export function besideState(sections, after, template) {
 // before anything is sent.
 // Row 1261: health shows once. A new Report headline starts with its pill off when At a glance already shows the health (a new project starts with the built-in one), on otherwise.
 export const REPORT_HEADLINE_NO_PILL = '{"pill":false,"v":1}';      // section_kinds/reportheadline.py START
+// Row 1251: Header and Text starts with the title Header in Classic (the page has <style id="theme">); Cards keeps Current state (its look is frozen).
+const startTitle = (t) => (t.id === "current-state" && typeof document !== "undefined" && document.getElementById("theme") ? "Header" : t.title);
 export function plan(sections, id, after, beside = false) {
   const t0 = find(id);
   const t = t0 && t0.type === "reportheadline" && glanceShowsHealth(sections) ? { ...t0, start: REPORT_HEADLINE_NO_PILL } : t0;
@@ -255,9 +257,9 @@ export function plan(sections, id, after, beside = false) {
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
-    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
+    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: startTitle(t), ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
              words: `${t.name} added, beside the section above.`, template: t };
   }
   // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
-  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
+  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: startTitle(t), ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }
