@@ -120,14 +120,14 @@ class Chats(ThemedTabs):
     ORDER = "[...document.querySelectorAll('section.frame.setting')].map(e => e.id)"
 
     def test_the_cards_follow_the_ticket_order_chats_after_instructions_and_folders(self):
-        # Ticket 1294, test 1: on the All tab Chats comes after instructions and folders; on a project tab Chats is last.
+        # Ticket 1294, test 1: on the All tab Chats comes after instructions and folders; on a project tab Usage is last, Chats directly before it.
         with chrome() as cdp:
             js = self.show(cdp)
             self.until(js, "!!document.querySelector('#ask-chats-project')", "the project tab")
             ids = js(self.ORDER)
             self.assertLess(ids.index("ask-folders-card"), ids.index("ask-instructions-own-card"))
             self.assertLess(ids.index("ask-instructions-own-card"), ids.index("ask-chats-project"))
-            self.assertEqual(ids[-1], "ask-chats-project", "Chats is last on a project tab")
+            self.assertEqual(ids[-2:], ["ask-chats-project", "ask-usage-project"], "Usage is last, Chats directly before it")
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.until(js, "!!document.querySelector('#ask-chats-all')", "the All tab")
             ids = js(self.ORDER)

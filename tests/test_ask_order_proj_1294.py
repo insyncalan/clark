@@ -1,7 +1,7 @@
-"""Row 1294 (ticket order, mock-up A8): on a project's tab the last cards run Standing instructions, Slash commands, Files, usage, then Chats last (on main Chats is its own card after usage, and its test pins Chats last).
+"""Row 1294 (ticket order, mock-up A8): on a project's tab the last cards run Standing instructions, Slash commands, Files, Chats, then Usage last (Chats directly before Usage).
 
 Run: python3 dev/run_tests.py test_ask_order_proj_1294
-Real browser at 1400 and 900, Classic. The Files card is the project's own turn-off of the global switch (FilesProject); the usage card is the last section of the page."""
+Real browser at 1400 and 900, Classic. The Files card is the project's own turn-off of the global switch (FilesProject); the Usage card is the last section of the page."""
 import os
 import shutil
 import tempfile
@@ -16,7 +16,7 @@ from test_server import Running, chrome, wait
 from clark import page
 
 WIDTHS = (1400, 900)
-IDS = ["ask-instructions-own-card", "slash-project", "ask-files-project", "ask-usage-project", "ask-chats-project"]
+IDS = ["ask-instructions-own-card", "slash-project", "ask-files-project", "ask-chats-project", "ask-usage-project"]
 ALL_IDS = "[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')].map(s => s.id)"
 
 
@@ -28,7 +28,7 @@ class ProjectTabEnd(unittest.TestCase):
         self.addCleanup(shutil.rmtree, d, True)
         self.s.httpd.app_settings = service(make_db(d))
 
-    def test_the_project_tab_ends_with_slash_commands_files_then_usage_at_both_widths(self):
+    def test_the_project_tab_ends_with_slash_commands_files_chats_then_usage_at_both_widths(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
@@ -40,8 +40,8 @@ class ProjectTabEnd(unittest.TestCase):
                 got = js(ALL_IDS)
                 at = [got.index(i) for i in IDS]
                 self.assertEqual(at, sorted(at), f"order at {w}: {got}")
-                self.assertEqual(got[-1], "ask-chats-project", f"the Chats card is the last card at {w}: {got}")
-                self.assertEqual(got[-4:], ["slash-project", "ask-files-project", "ask-usage-project", "ask-chats-project"], f"at {w}: {got}")
+                self.assertEqual(got[-1], "ask-usage-project", f"the Usage card is the last card at {w}: {got}")
+                self.assertEqual(got[-4:], ["slash-project", "ask-files-project", "ask-chats-project", "ask-usage-project"], f"at {w}: {got}")
                 self.assertEqual(js("document.querySelector('#ask-files-project h2').textContent"), "Files in ABC")
 
 
