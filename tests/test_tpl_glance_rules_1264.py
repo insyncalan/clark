@@ -318,7 +318,7 @@ class Registered(unittest.TestCase):                                            
         self.assertTrue(gt.READY is True)
 
     def test_t17_step_29_lets_an_older_file_keep_the_type_and_a_second_run_changes_nothing(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 32)
+        self.assertEqual(store_module.SCHEMA_VERSION, 33)
         self.assertEqual(starter_check.SCHEMA_VERSION, store_module.SCHEMA_VERSION)
         self.assertEqual(dict(store_module.MIGRATIONS)[29], store_module.migrate_glance_template_section_type)
         self.assertEqual(store_module.GLANCE_TEMPLATE_STEP, 29)

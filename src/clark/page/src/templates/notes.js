@@ -9,9 +9,10 @@ export const TONES = ["info", "decision", "warning"];
 export const TONE_WORDS = { info: "Information", decision: "Decision needed", warning: "Warning" };
 // item 1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
 export const COLOURS = { plain: "Plain", violet: "Violet", amber: "Amber", red: "Red", green: "Green", grey: "Grey" };
-export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning", alert: "Alert", check: "Tick", clock: "Clock",
+export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning triangle", alert: "Alert", check: "Tick", clock: "Clock",
   cal: "Calendar", flag: "Flag", lock: "Lock", key: "Key", bulb: "Light bulb", star: "Star", bell: "Bell", megaphone: "Megaphone", doc: "Document",
-  link: "Link", people: "People", money: "Money", chart: "Chart", shield: "Shield" };
+  link: "Link", people: "People", money: "Money", chart: "Chart", shield: "Shield",
+  flash: "Lightning", eye: "Eye", table: "Table", gear: "Gear", sparkle: "Sparkle", fork: "Two ways" };
 export const TONE_LOOK = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
 export const LIMITS = { category: 30, title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
 
@@ -85,6 +86,12 @@ export const PROMPTS = { title: "Add a title: what the reader must see", words: 
 // item 1272 decision 4, the shared part: whether a section shows its tile and its heading, for every type. A callout keeps the two switches in its own content (slice 2);
 // any other type reads the same two flags from the section itself (`tile`, `heading`: false turns it off) once the store carries them. Nothing else in the page
 // asks the section type, so the store step only has to fill these two fields.
+// item 1272: the tag Edit puts beside a section whose tile or heading View does not draw, as the ticket's mock-up words it. The one place these words live.
+export const NOT_SHOWN = { tile: "Tile not shown in View", heading: "Heading not shown in View", both: "Heading and tile not shown in View" };
+export function notShownTag(shows) {
+  return shows.tile && shows.heading ? "" : !shows.tile && !shows.heading ? NOT_SHOWN.both : shows.tile ? NOT_SHOWN.heading : NOT_SHOWN.tile;
+}
+
 export function sectionShows(section) {
   const c = section.type === "callout" ? tidyCallout(source(section)) : section;
   return { tile: c.tile !== false, heading: c.heading !== false };

@@ -15,11 +15,11 @@ from test_server import Running, chrome, wait
 
 from clark import page
 
-ALL_NOTE = ("Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
+ALL_NOTE = ("Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
             "On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.")
 WIDTHS = (1400, 900)
 FAKE = """
-window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false, steps: [], urls: []};
+window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}, {id: 'todoist', label: 'Todoist', on: true, off_here: false}], fail: false, none: false, steps: [], urls: []};
 const real = window.fetch;
 window.fetch = function (url, opts) {
   if (String(url).indexOf('/api/ask-connectors') < 0) return real.apply(this, arguments);
@@ -103,6 +103,17 @@ class Connectors(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-connector-said]').innerText"), "Mail turned off for ABC only. Undo")
             self.assertEqual(js("window.__c.calls.slice(-1)[0].project"), "ABC")
             self.assertEqual(js("window.__c.calls.slice(-1)[0].off_here"), True)
+
+    def test_the_todoist_switch_is_never_drawn_even_when_the_server_lists_it_as_on(self):
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-connector]').length") == 2, 10))
+            self.assertEqual(js("document.querySelector('#ask-connectors').innerText.indexOf('Todoist')"), -1)
+            self.assertFalse(js("!!document.querySelector('[data-connector=todoist]')"))
+        with chrome() as cdp:
+            js = self.show(cdp, "project", "window.__c.list.forEach((c) => { c.on = true; });")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-connector-here]').length") == 2, 10))
+            self.assertFalse(js("!!document.querySelector('[data-connector-here=todoist]')"))
 
     def test_none_found_says_so_and_an_unreachable_server_offers_no_switch(self):
         with chrome() as cdp:
