@@ -313,7 +313,8 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
@@ -482,6 +483,17 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
+
+
+def hidden_notes(hidden, passages):
+    """Row 1293: one plain line for each passage sent that holds hidden characters (the counts of Request.hidden, which the passage
+    keeps: it is sent unchanged). The question's own count is not a passage and gets none."""
+    out = []
+    for pid, label in passages:
+        n = hidden.get(pid) if isinstance(hidden, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool) and n >= 1:
+            out.append(f"{label}: this passage has {n} hidden {'character' if n == 1 else 'characters'}.")
+    return out
 
 
 def draft_via(draft, conn):
