@@ -440,6 +440,15 @@ class InProcess(TempFolder):
         self.assertEqual(call["projects"](), [])
         self.assertEqual(call["demo"].status()[1], {"ok": True, "demo": False})
 
+    def test_the_bell_reads_the_notices_set_in_the_data_folder(self):
+        # row 1046: the launcher passes a Notices over the data folder itself (not None, not the database file)
+        data = self.tmp / "bell-data"
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        (call,) = serve.calls
+        self.assertIsInstance(call["notices"], launcher.notices_file.Notices)
+        self.assertEqual(call["notices"].data_dir, data)
+
     def test_a_data_folder_that_has_data_does_not_get_the_demo(self):
         data = self.tmp / "old-data"
         from clark import store as clark_store
@@ -470,7 +479,7 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_commands", "ask_folders", "ask_instructions", "brand_picture", "change", "data_for", "demo", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "mail", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_body", "section_image", "sneak", "undo", "updater", "use_cases",
+        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_commands", "ask_folders", "ask_instructions", "brand_picture", "change", "data_for", "demo", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "mail", "milestones", "movement", "notices", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_body", "section_image", "sneak", "undo", "updater", "use_cases",
                                         "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #282: updater (Settings, Version and updates); #345: publication_mark (Archive and Restore); item 444: excel_import and project_save; item 1297: mail (the mail-app opener seam); #731: demo
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
