@@ -67,7 +67,7 @@ class Look(unittest.TestCase):
                 self.assertGreaterEqual(s["w"], 96, f"{w}: the style button keeps its own width")
                 h.ev("document.querySelector('.rt-bar .rt-style').click()")
                 self.assertEqual(self.read(h, ".rt-bar [role=menu]", PANEL), PANEL_WANT, f"{w}: style menu panel")
-                self.assertEqual(self.read(h, ".rt-bar [role=menu] [role=menuitemradio]", ROW), ROW_WANT, f"{w}: style menu row")
+                self.assertEqual(self.read(h, ".rt-bar [role=menu] [role=menuitemradio]", ROW), {"p": "7px 10px 7px 10px", "f": "15px"}, f"{w}: style menu row (AP3: the Style menu keeps the 15px prototype rows)")
                 h.key("Escape", 0, "Escape", 27)
                 h.ev("document.querySelector('.rt-bar .rt-more') && document.querySelector('.rt-bar .rt-more').click()")
                 if h.ev("!!document.querySelector('.rt-bar .rt-more')"):

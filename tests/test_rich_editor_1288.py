@@ -1,0 +1,201 @@
+"""Row 1288: the Classic rich editor's measured values and places, by the names the ticket's Definition of done uses (computed style, 1400 and 900).
+
+Run: python3 dev/run_tests.py test_rich_editor_1288
+Covers AP1, AP2, AP3, AP4, AP6, AP7, AP8, AP13. The other APs are pinned by test_slash_menu_4c_1288 (AP5, AP9), test_rich_storage_1288c (AP11, AP12),
+test_tpl_rich_words and test_milestone_peek_828 (AP10). Chrome is required: the test fails, never skips, without it.
+"""
+import json
+import re
+import unittest
+from unittest import mock
+
+from _paths import ROOT
+
+import _rich_page as rp  # noqa: E402
+import build_page  # noqa: E402
+from clark import page, theme  # noqa: E402,F401
+from test_server import chrome  # noqa: E402
+
+WIDTHS = (1400, 900)
+JS = ROOT / "src" / "clark" / "page" / "src"
+BOX = ("(b => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return {w: r.width, h: r.height, mw: c.minWidth, r: c.borderTopLeftRadius,"
+       " p: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, g: c.columnGap, f: c.fontSize, col: c.color, bg: c.backgroundColor,"
+       " bc: c.borderTopColor, m: c.marginTop + ' ' + c.marginRight + ' ' + c.marginBottom + ' ' + c.marginLeft}; })(%s)")
+Q = "document.querySelector(%s)"
+
+
+def setUpModule():       # the Classic theme's rules are appended to the page's own CSS (as test_rich_menus_tight_1288 does), and the theme layer marks the page Classic
+    orig, css = build_page.page_css, theme.css("prototype-2.0")
+    p = mock.patch.object(build_page, "page_css", lambda *a, **k: orig(build_page.ENTRY) + "\n" + css)      # the served page's CSS: it holds edit.css, where the AI menu's rules are
+    p.start()
+    unittest.addModuleCleanup(p.stop)
+
+
+def layer(h):
+    h.ev("var o = document.getElementById('theme'); if (o) o.remove(); var s = document.createElement('style'); s.id = 'theme'; s.textContent = '/* classic */'; document.head.appendChild(s); true")
+
+
+def box(h, sel):
+    assert h.until(f"!!document.querySelector({json.dumps(sel)})"), f"{sel} is not drawn"
+    return h.ev(BOX % (Q % json.dumps(sel)))
+
+
+def rgb(s):
+    if s.startswith("color("):          # color(srgb 0.48 0.53 0.65): channels 0 to 1
+        return [round(float(x) * 255) for x in re.findall(r"[\d.]+", s)[:3]]
+    return [int(x) for x in re.findall(r"\d+", s)[:3]]
+
+
+class Editor(unittest.TestCase):
+    def open(self, h, w, value="<p>Some words here</p>", ai="current"):
+        layer(h)
+        h.resize(w)
+        h.mount(value, ai=ai)
+
+    def test_toolbar_has_one_quote_divider_dropdown_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                names = h.ev("[...document.querySelectorAll('.rt-bar .rt-btn')].map(b => b.getAttribute('aria-label') || b.textContent)")
+                self.assertEqual([n for n in names if "Quote" in n or "Divider" in n], ["More blocks: Quote, Divider"], f"{w}: {names}")
+                more = box(h, ".rt-bar .rt-more")
+                self.assertEqual((more["h"], more["r"]), (34, "8px"), f"{w}: {more}")
+                self.assertGreaterEqual(more["w"], 34, w)
+                self.assertEqual(h.ev("document.querySelector('.rt-bar .rt-more').title"), "More blocks: Quote, Divider", w)
+                self.assertEqual(h.ev("document.querySelector('.rt-bar .rt-more').getAttribute('aria-label')"), "More blocks: Quote, Divider", w)
+                bold = box(h, ".rt-bar .rt-btn[aria-label='Bold']")
+                self.assertEqual((bold["w"], bold["h"], bold["r"]), (34, 34, "8px"), f"{w}: {bold}")
+
+    def test_style_button_box_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                s = box(h, ".rt-bar .rt-style")
+                self.assertEqual((s["p"], s["g"], s["f"]), ("0px 8px 0px 10px", "10px", "15px"), f"{w}: {s}")
+                self.assertGreaterEqual(s["w"], 150, f"{w}: {s}")
+                self.assertEqual(s["mw"], "150px", w)
+
+    def test_style_menu_own_size_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                h.ev("document.querySelector('.rt-bar .rt-style').click(); true")
+                menu = box(h, ".rt-bar [role=menu]")
+                self.assertEqual(menu["mw"], "224px", f"{w}: {menu}")
+                self.assertGreaterEqual(menu["w"], 224, w)
+                sizes = h.ev("Object.fromEntries([...document.querySelectorAll('.rt-bar [role=menu] [role=menuitemradio]')].map(b => [b.dataset.kind, getComputedStyle(b).fontSize]))")
+                self.assertEqual(sizes, {"paragraph": "15px", "h1": "20px", "h2": "18px", "h3": "16px"}, f"{w}: each line at its own size")
+                row = box(h, ".rt-bar [role=menu] [data-kind=paragraph]")
+                self.assertEqual(row["p"], "7px 10px 7px 10px", f"{w}: {row}")
+                self.assertEqual(h.ev("document.querySelector('.rt-bar [role=menu] [aria-checked=true]').dataset.kind"), "paragraph", f"{w}: the tick is on the current style")
+                h.key("Escape", 0, "Escape", 27)
+
+    def test_bubble_style_menu_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                h.select_all()
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+                names = h.ev("[...document.querySelectorAll('.rt-bubble > *')].map(b => b.querySelector('.rt-style') ? 'STYLE' : (b.getAttribute('aria-label') || b.textContent))")
+                self.assertEqual(names, ["STYLE", "Bold", "Italic", "Strikethrough", "Link", "Ask AI…"], f"{w}: {names}")
+                ask = box(h, ".rt-bubble [data-rt-bubble-ai]")
+                self.assertEqual((ask["col"], ask["p"], ask["f"], ask["h"]), ("rgb(70, 53, 184)", "0px 10px 0px 10px", "13px", 34), f"{w}: {ask}")
+                self.assertEqual(box(h, ".rt-bubble .rt-btn[aria-label='Bold']")["w"], 34, w)
+                self.assertEqual(h.ev("getComputedStyle(document.querySelector('.rt-bubble')).columnGap"), "6px", w)
+                h.ev("document.querySelector('.rt-bubble .rt-style').click(); true")
+                self.assertTrue(h.until("document.querySelectorAll('.rt-bubble [role=menu] [role=menuitemradio]').length === 4"), w)
+                h.ev("document.querySelector('.rt-bubble [data-kind=h2]').click(); true")
+                self.assertTrue(h.until("!!document.querySelector('.rt-host h2')"), f"{w}: the bubble's style menu sets the style")
+
+    def test_ai_menu_colours_and_widths_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                h.select_all()
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+                h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                m = box(h, "[data-ai-menu]")
+                self.assertGreaterEqual(m["w"], 210, f"{w}: {m}")
+                self.assertEqual(m["mw"], "210px", w)
+                self.assertEqual(rgb(box(h, ".aim-gl")["col"]), [0x3B, 0x6F, 0xD4], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-improve')")["col"]), [0x7C, 0x4D, 0xFF], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-structure')")["col"]), [0x2F, 0x7D, 0x4A], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-ask')")["col"]), [0xB7, 0x79, 0x1F], w)
+                lines = h.ev("[...document.querySelectorAll('[data-ai-option]')].map(b => [b.getBoundingClientRect().height < 34, !!b.title, !b.querySelector('.aim-ds'), b.title])")
+                self.assertTrue(lines and all(a and b and c for a, b, c, _ in lines), f"{w}: one line per item, the description is the tooltip: {lines}")
+                self.assertTrue(all(t for *_, t in lines), w)
+                self.assertEqual(h.ev("(() => { const e = document.querySelector('.aim-opt'); return getComputedStyle(e).borderTopLeftRadius; })()"), "6px", w)
+                self.assertIn("rgb(230, 238, 252)", h.ev("[...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (e) { return []; } }).map(r => r.cssText).filter(t => /aim-opt:hover/.test(t)).join(' ')"), w)
+
+    def test_menus_tight_computed_values_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.open(h, w)
+                h.select_all()
+                h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                m = box(h, ".aim")
+                self.assertEqual((m["r"], m["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {m}")
+                self.assertEqual(h.ev("getComputedStyle(document.querySelector('.aim')).borderTopWidth"), "1px", w)
+                o = box(h, ".aim-opt")
+                self.assertEqual((o["p"], o["g"], o["f"], o["r"]), ("4px 10px 4px 10px", "10px", "13.5px", "6px"), f"{w}: {o}")
+                gl = box(h, ".aim-gl")
+                self.assertEqual((gl["f"], gl["p"]), ("10.5px", "4px 10px 1px 10px"), f"{w}: {gl}")
+                self.assertEqual(box(h, ".aim hr")["m"], "3px 0px 3px 0px", w)
+                h.key("Escape", 0, "Escape", 27)
+                h.ev("window.unmount(); true")
+                self.open(h, w)
+                h.ev("document.querySelector('.rt-bar .rt-more').click(); true")
+                p = box(h, ".rt-bar [role=menu]")
+                self.assertEqual((p["r"], p["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {p}")
+                r = box(h, ".rt-bar [role=menu] [role=menuitem]")
+                self.assertEqual((r["p"], r["f"], r["r"]), ("4px 10px 4px 10px", "13.5px", "6px"), f"{w}: {r}")
+
+    def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
+        with rp.Harness(chrome) as h:
+            palette = {(0x46, 0x35, 0xB8), (0x7C, 0x4D, 0xFF), (0x2F, 0x7D, 0x4A), (0x3B, 0x6F, 0xD4), (0xB7, 0x79, 0x1F), (0x9E, 0x7B, 0xFF)}
+            for w in WIDTHS:
+                self.open(h, w)
+                grab = ("[...document.querySelectorAll(%s)].filter(e => !e.hasAttribute('data-rt-bubble-ai')).flatMap(e => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.borderTopColor]; })")
+                seen = {}
+                seen["toolbar"] = h.ev(grab % json.dumps(".rt-bar .rt-btn, .rt-bar .rt-sep"))
+                h.ev("document.querySelector('.rt-bar .rt-style').click(); true")
+                self.assertTrue(h.until("!!document.querySelector('.rt-bar [role=menu]')"), f"{w}: style menu")
+                seen["style menu"] = h.ev(grab % json.dumps(".rt-bar [role=menu], .rt-bar [role=menu] [role=menuitemradio], .rt-bar [role=menu] .mi, .rt-bar [role=menu] .ck"))
+                h.ev("window.unmount(); true")
+                self.open(h, w)
+                h.select_all()
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble')"), f"{w}: bubble")
+                seen["bubble"] = h.ev(grab % json.dumps(".rt-bubble, .rt-bubble .rt-btn"))
+                h.ev("window.unmount(); true")
+                h.mount("", ai="current")
+                h.type("/")
+                self.assertTrue(h.until("!!document.querySelector('.rt-slash')"), f"{w}: slash")
+                seen["slash"] = h.ev(grab % json.dumps(".rt-slash, .rt-slash .rt-opt:not(.rt-ask), .rt-slash .rt-slash-filter"))
+                for where, cols in seen.items():
+                    self.assertTrue(cols, f"{w} {where}: nothing read")
+                    for c in cols:
+                        t = tuple(rgb(c))
+                        self.assertNotIn(t, palette, f"{w} {where}: {c} is a palette colour")
+                        if len(re.findall(r"\d+", c)) >= 3 and "rgba" in c and c.endswith(", 0)"):
+                            continue
+                        self.assertLessEqual(max(t) - min(t), 60, f"{w} {where}: {c} is a colour, not a grey")
+
+
+class Places(unittest.TestCase):
+    def test_ai_places_new_places_1288(self):
+        src = (JS / "logic" / "aiPlaces.js").read_text(encoding="utf-8")
+        put = lambda k: re.search(r'"' + re.escape(k) + r'":\s*"(\w+)"', src)
+        self.assertEqual(put("milestone.description").group(1), "plain")                # One line
+        self.assertIsNone(put("linkcard.text"))                                          # Not rich: no place
+        self.assertIsNone(put("onedoc.text"))
+        self.assertEqual(put("raid.own_words").group(1), "current")                      # Full
+        self.assertEqual(put("picture.caption").group(1), "current")
+        self.assertEqual(put("milestone.client_wording").group(1), "client_message")
+        for gone in ("linkcard", "onedoc"):
+            self.assertNotRegex(src, r"\b" + gone + r":")
+        fields = src.split("RICH_FIELDS")[1]
+        self.assertEqual(len(re.findall(r"^\s+(\w+):", fields, re.M)), len(set(re.findall(r"^\s+(\w+):", fields, re.M))), "no field listed twice")
+
+
+if __name__ == "__main__":
+    unittest.main()

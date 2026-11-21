@@ -75,8 +75,9 @@ def check(test, name, look, m):
     for r in m["rows"]:
         if name in PICKERS or name in PILL_MENU:
             continue
-        test.assertEqual(r["fs"], "15px" if three else "13.5px" if name in TIGHT else "14px", f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
-        if not three:
+        own = {"Heading 1": "20px", "Heading 2": "18px", "Heading 3": "16px"}.get(r["t"].lstrip("\u2713"), "15px") if name == "text-style" else None      # row 1288 AP3: the Style menu draws each line at its own size (Text 15px)
+        test.assertEqual(r["fs"], own or ("15px" if three else "13.5px" if name in TIGHT else "14px"), f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
+        if not three and name != "text-style":      # the Style menu has the prototype rows (row 1288 AP3)
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
