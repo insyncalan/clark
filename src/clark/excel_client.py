@@ -142,7 +142,7 @@ def headline_line(published):
     for s in published["sections"]:
         if s.get("type") == "reportheadline":
             c = s.get("content") if isinstance(s.get("content"), dict) else {}
-            health = c.get("health")
+            health = c.get("health") if c.get("pill") is not False else ""      # row 1261: the eye is off, no health word
             words = (reportheadline.WORDS.get(health) if isinstance(health, str) and health else "", c.get("headline"), c.get("sentence"))
             line = " · ".join(str(w).strip() for w in words if isinstance(w, str) and w.strip())
             if line:
