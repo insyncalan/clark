@@ -1,0 +1,56 @@
+Updating clark with Docker
+
+Your data is not in the clark folder. It stays where it is. A newer clark
+folder finds it again.
+
+To update:
+  1. Open PowerShell or Command Prompt in the clark folder you use
+     now. (Both take the same lines below.) Type this and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
+  2. Rename the old clark folder to clark-old. Then unzip the new download into the
+     folder that held it (the folder that now holds clark-old and clark-data).
+     If you use Extract All, change the folder it shows to that folder first.
+     The new folder is called clark and finds the folder clark-data again.
+     (The old folder stays as clark-old, if you want to go back.)
+  3. In the same window, go to the new clark folder: type cd and a space,
+     drag the new folder into the window and press Enter. In Command Prompt,
+     type cd /d and a space instead, if the new folder is on another drive.
+     If a new zip carries a changed runtime image, run
+     docker load -i docker\clark-runtime.tar again before the up command.
+  4. Type this and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
+  5. Open http://127.0.0.1:8766 in Chrome.
+
+Sometimes the new clark keeps your data in a newer form than the old one did.
+If so, it first makes a copy of your data. The copy is in the backups folder,
+inside your data folder. Its name ends in -migrate.db. Then it brings your data
+up to date. clark keeps the 14 newest of these copies, or the number you chose under
+"How many backups to keep" in Settings (never fewer than 3).
+
+If clark will not start and the message says "start from the newer clark folder.
+Nothing was changed.", a newer clark has already used your data. Start from
+that newer clark folder instead. To see what Docker said, type this in the
+folder:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
+
+To go back to the old clark:
+  1. Stop the new clark. Type the down command from step 1 in the new folder.
+  2. Check whether the new clark brought your data up to date. If it did, the
+     old clark will not open your data and will tell you so. In that case, put
+     back the copy made before the update. To see the copies, type this in the
+     new folder:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml run --rm clark python3 -m clark restore --data /data
+     Then type the same line again, with the name of the -migrate.db copy added
+     at the end.
+  3. To go back: rename clark to clark-new, rename clark-old back to clark,
+     then type the up command in that folder.
+
+Under Docker, Install from a file in Settings does not apply: update by
+starting from the newer clark folder.
+
+Check the download: the release page shows a long number (called SHA-256) for
+the zip. Type this in PowerShell:
+        Get-FileHash -Algorithm SHA256 clark-<version>-windows.zip
+In Command Prompt, type this:
+        certutil -hashfile clark-<version>-windows.zip SHA256
+The number it shows must match the one on the release page.

@@ -1,0 +1,20 @@
+# Windows override for docker/compose.yaml (item 635). compose.yaml names a Mac folder (~/Library/Application Support/clark) as the
+# default data folder; on Windows the data is kept in a folder called clark-data, beside the unzipped clark folder, shared in as a bind
+# mount (not a Docker named volume). In the unzipped clark folder, in PowerShell or Command Prompt:
+#   docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d        then open http://127.0.0.1:8766
+#   docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down         to stop it (the data stays in the folder)
+# The folder is beside the clark folder, not inside it, so swapping the clark folder for a newer download cannot lose the data, and
+# compose.yaml shares the clark folder read-only. To use another folder, name it in CLARK_DATA_DIR as compose.yaml says.
+# The /data mount here replaces the one in compose.yaml (the two are matched by their target, /data). The relative path is read from
+# the folder of the first -f file, docker, so ../.. is the folder that holds the clark folder. Compose resolves it on the computer; the
+# container only sees the text, so the doctor cannot check that folder for OneDrive and reports the Docker check as not finished.
+services:
+  clark:
+    volumes:
+      - type: bind
+        source: ${CLARK_DATA_DIR:-../../clark-data}
+        target: /data
+        bind:
+          create_host_path: true
+    environment:
+      CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-../../clark-data}"

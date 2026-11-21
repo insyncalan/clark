@@ -103,10 +103,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
-    for i, part in enumerate(path.parts):
-        if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+    spans = [(m.group(), m.end()) for m in re.finditer(r"[^\\/]+", host)]   # the Mac or Windows path read by name, whatever the separator
+    for name, end in spans:
+        if name.lower().startswith("onedrive"):
+            return Path(host[:end])                          # the path as written up to that name: a Windows drive and backslashes stay
     return None
 
 
@@ -216,6 +216,36 @@ def onedrive_roots(home=None, on=None):
     home = Path(home or Path.home())
     found = list((home / "Library" / "CloudStorage").glob("OneDrive*")) + list(home.glob("OneDrive*"))
     return sorted(p for p in found if p.is_dir())
+
+
+PROBE_WAIT = 15     # issue 635: seconds a doctor probe (docker, netsh) may take before it counts as one that could not answer
+
+
+def docker_os(run=None):
+    """What Docker Desktop is running, as `docker info --format {{.OSType}}` says it: "linux" or "windows"; None when docker can't be
+    run or answers with an error (not installed, or Docker Desktop not started). Changes nothing."""
+    try:
+        done = _run(["docker", "info", "--format", "{{.OSType}}"], run, PROBE_WAIT)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    words = (done.stdout or "").strip().lower()
+    return words if done.returncode == 0 and words in ("linux", "windows") else None
+
+
+def reserved_ports(run=None):
+    """The TCP port ranges Windows has set aside, as (first, last) pairs from `netsh interface ipv4 show excludedportrange
+    protocol=tcp`; [] when it answers with its table and no range in it (nothing is set aside); None when that can't be run or its
+    answer has no table. Changes nothing."""
+    try:
+        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run, PROBE_WAIT)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    if done.returncode != 0:
+        return None
+    ranges = [(int(a), int(b)) for a, b in re.findall(r"^\s*(\d+)\s+(\d+)\b", done.stdout or "", re.MULTILINE)]
+    if not ranges and not re.search(r"^\s*-{3,}\s+-{3,}", done.stdout or "", re.MULTILINE):    # the table's ruled line, whatever the language
+        return None
+    return ranges
 
 
 def _dropbox_name(name):
@@ -501,7 +531,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
         if root is not None:
             path = host_shown(os.environ["CLARK_DATA_SOURCE"])   # (written without the user's name) and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
-        kind = account_free(root.name)                       # the tenant folder ("OneDrive - Name") is the company: only a tenant-free name is ever said
+        kind = account_free(re.split(r"[\\/]+", str(root).rstrip("\\/"))[-1])   # the tenant folder ("OneDrive - Name") is the company: only a tenant-free name is ever said
         named = "" if kind.lower() == "onedrive" else f" ({kind})"
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {account_free(shown(path))} because it is inside OneDrive{named}. OneDrive "
@@ -634,9 +664,11 @@ def run_program(args, cwd=None, run=None):
                                    text=True, check=False)
 
 
-def _run(args, run=None):
-    """Start a program from an argument list (never through a shell) and return the finished process."""
-    return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)
+def _run(args, run=None, timeout=None):
+    """Start a program from an argument list (never through a shell) and return the finished process. With `timeout` (seconds) a
+    program that has not finished by then is stopped and subprocess.TimeoutExpired is raised."""
+    extra = {} if timeout is None else {"timeout": timeout}
+    return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False, **extra)
 
 
 def open_file(path, run=None, on=None):

@@ -74,7 +74,7 @@ class ReadmeLinks(unittest.TestCase):
 
     def test_both_ways_to_start_and_the_check_are_there(self):
         for words in ("Two ways to start clark", "bash docker/start.command", "bash clark.command --check",
-                      "bash clark.command --demo --open", "Application Support/clark", "`.app`", "http://localhost:8766"):
+                      "bash clark.command --demo --open", "Application Support/clark", "`.app`", "http://127.0.0.1:8766"):
             self.assertIn(words, README)
 
     def test_no_bare_module_command(self):

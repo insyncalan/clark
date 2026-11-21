@@ -4,7 +4,7 @@ files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packagi
 Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE] [--extra-folder PATH]...   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --app                       # also writes dist/clark.app (row 836; needs a Mac: osacompile)
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
-     python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
+     python3 dev/tools/package.py windows [--image-tar FILE]      # item 624: the clark folder, docker/ and the runtime image tar; no .exe, .cmd or python folder
 
 clark.app (row 836) is the same download as an app a person double-clicks: osacompile (part of every Mac) compiles the
 AppleScript source dev/tools/clark_applet.applescript into an applet bundle, and the clark folder the zip would unzip to
@@ -63,7 +63,7 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, START_HERE_NAMES, SYSTEMS, TOP,  # noqa: E402,F401
+from clark.release_files import (EXTRA_TOP, GENERATED, IMAGE_TAR, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, START_HERE_NAMES, SYSTEMS, TOP,  # noqa: E402,F401
                                  ZIP_README, place, protected, source, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
@@ -137,11 +137,12 @@ already use Docker, use Docker instead. You only need Docker and Chrome.
      window and press Return.
   3. Type this and press Return (the first time it takes a few minutes):
         bash docker/start.command
-  4. Open Chrome and go to http://localhost:8766
+  4. Open Chrome and go to http://127.0.0.1:8766
      To keep clark as its own app, choose the Install clark button at the
      right end of Chrome's address bar. Open it from there on later days.
   5. To stop clark, type this in the same folder and press Return:
         docker compose -f docker/compose.yaml down
+To update later, read docker/UPDATE.txt.
 Use the clark download, not a copy of the source code: a copy of the source
 has no built page, and Docker stops with a message saying so.
 Start Docker from the clark folder.
@@ -161,7 +162,7 @@ IMPORTANT: Never open the same data from clark.command and from Docker at the
 same time: stop one before you start the other.
 To use another port, put it in front of the command, for example:
         CLARK_PORT=8800 bash docker/start.command
-then open http://localhost:8800 instead.
+then open http://127.0.0.1:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
 Docker, Docker Desktop is not running yet.
@@ -236,6 +237,43 @@ and press Return. Nothing you do there is kept.
 """
 
 
+START_HERE_WINDOWS = """\
+Getting started on Windows
+
+These steps are for Windows. You only need Docker and Chrome.
+
+What is in this folder: README.md says what clark is. START-HERE.md is this
+page. docker holds the files for starting clark with Docker. branding holds
+your own logo and colours, if you add them. The program files are in a hidden
+folder called .app: you do not need to open it.
+
+  1. Open Docker Desktop and wait until it says it is running.
+  2. Open PowerShell or Command Prompt, type cd and a space, drag this folder
+     into the window and press Enter.
+  3. The first time only, type this and press Enter:
+        docker load -i docker\\clark-runtime.tar
+  4. Type this and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
+  5. Open Chrome and go to http://127.0.0.1:8766
+  6. To stop clark, type this in the same folder and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
+Your data is kept in a folder called clark-data, beside this folder and not in
+it, so replacing this folder with a newer download cannot lose it. To update,
+rename this folder to clark-old, then unzip the newer download into the folder
+that held it, so clark-data is found again.
+To see what Docker has said, type this in the same folder:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
+
+Updating clark: the file docker\\UPDATE-windows.txt has the steps, for
+PowerShell and for Command Prompt. In short: stop the old clark, rename this folder
+to clark-old, unzip the newer download into the folder that held it, and start
+the new folder.
+Your data is not in the clark folder, so it is still there.
+"""
+
+IMAGE_PLACEHOLDER = b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n"
+
+
 class Refused(Exception):
     """A plain one-line reason the zip can't be built."""
 
@@ -269,6 +307,8 @@ def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
+        if item in GENERATED:
+            continue
         try:
             found = tracked(root, [item]) if item.endswith("/") else [item]
         except subprocess.TimeoutExpired:
@@ -309,7 +349,7 @@ def with_extra_folders(text, names):
 
 
 def start_here(system, for_client=False, root=ROOT, extra=()):
-    text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
+    text = START_HERE_WINDOWS if system == "windows" else START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
     names = [n for n in EXTRA_SENTENCES if n in extra]       # intake first, then meet clark
     if names:
         text = with_extra_folders(text, names)
@@ -549,7 +589,7 @@ def extra_content(folders):
 def entries(system, root=ROOT, extra_folders=()):
     """Every name in the zip, in order."""
     top = top_folder(root)
-    return sorted([f"{top}/{place(p)}" for p in files(system, root) + [START_HERE]]
+    return sorted([f"{top}/{place(p)}" for p in files(system, root) + [START_HERE] + [g for g in GENERATED if g in listed(system)]]
                   + [f"{top}/{n}" for n in extra_content(extra_folders)])
 
 
@@ -592,13 +632,13 @@ def entry(name, mode):
 
 
 def download_content(system, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-                     released=None, min_from="0.0.0", extra_folders=()):
+                     released=None, min_from="0.0.0", extra_folders=(), image_tar=None):
     """Everything the download for `system` holds, after every refusal: {name in the zip (with the top folder): (bytes, mode)},
     the manifest included. The zip (build) and the app bundle (build_app) are both written from this, so the two can't drift."""
     if system in NOT_BUILT_YET:
         raise Refused(f"The {system.capitalize()} download isn't built yet. Only the Mac one is: package.py mac")
     if system not in SYSTEMS:
-        raise Refused(f"There is no download for {system!r}. Choose mac.")
+        raise Refused(f"There is no download for {system!r}. Choose mac or windows.")
     root = Path(root)
     if release and not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version(root)):
         raise Refused(f"Version {version(root)} is not a release number (it must be three numbers, like 0.3.1). "
@@ -626,7 +666,7 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
         raise Refused(f"A release or a client zip carries {ZIP_README} as its README.md, and that file is missing. "
                       "Nothing was written. Restore it, then build again.")
     extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
-    changed = [] if dirty else changed_files(uncommitted(root, [zip_source(p, root) for p in listed(system)]))
+    changed = [] if dirty else changed_files(uncommitted(root, [zip_source(p, root) for p in listed(system) if p not in GENERATED]))
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
                       "Commit them first, or add --dirty to build from them as they are.")
@@ -636,8 +676,23 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
     top = top_folder(root)
     content = {f"{top}/{place(p)}": (placed_bytes(p, (root / zip_source(p, root)).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
                for p in names}
+    for g in GENERATED:
+        if g in listed(system):
+            tar = IMAGE_PLACEHOLDER
+            if image_tar:
+                try:
+                    tar = Path(image_tar).read_bytes()
+                except OSError:
+                    tar = b""
+            if release and (not image_tar or not tar or tar == IMAGE_PLACEHOLDER):
+                raise Refused("A release zip for Windows holds the real runtime image tar, built in CI: give it with --image-tar, "
+                              "and the file must exist and not be empty. Nothing was written.")
+            if image_tar and not tar:
+                raise Refused("The runtime image tar can't be read or is empty. Check the --image-tar file, then build again. Nothing was written.")
+            content[f"{top}/{place(g)}"] = (tar, FILE_MODE)
     content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
     content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
+    assert_no_native_windows(system, content)       # after the extra folders, so they are checked too (item 624)
     if for_client:
         shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
@@ -648,11 +703,23 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
     return content
 
 
+NATIVE_WINDOWS = re.compile(r"\.(exe|cmd|bat|dll)\Z|(^|/)python[0-9.]*(\.exe)?(/|\Z)", re.I)
+
+
+def assert_no_native_windows(system, content):
+    """The Windows zip holds no .exe, .cmd (or .bat, .dll) and no python folder or python.exe (item 624): Docker runs it all."""
+    if system != "windows":
+        return
+    bad = sorted(n for n in content if NATIVE_WINDOWS.search(n.split("/", 1)[-1]))
+    if bad:
+        raise Refused("The Windows download must hold no .exe, .cmd or python folder, and it would hold: " + ", ".join(bad[:5]) + ". Nothing was written.")
+
+
 def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-          released=None, min_from="0.0.0", extra_folders=()):
+          released=None, min_from="0.0.0", extra_folders=(), image_tar=None):
     """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
     and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
-    content = download_content(system, root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
+    content = download_content(system, root, dirty, for_client, banned, release, notes, released, min_from, extra_folders, image_tar)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)
@@ -888,6 +955,7 @@ def main(argv=None):
     p.add_argument("--extra-folder", metavar="PATH", action="append", default=[],
                    help="put this folder's files at the top of the clark folder under the folder's own name "
                         f"({', '.join(EXTRA_TOP)}); repeat for more; at most 5 MB in all; never committed")
+    p.add_argument("--image-tar", metavar="FILE", help="Windows only: the runtime image tar built in CI (item 624); without it a placeholder goes in and --release refuses")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
     p.add_argument("--app", action="store_true",
                    help=f"also build {APP_NAME} (row 836), the same download as an app a person double-clicks: needs a Mac ({OSACOMPILE}, {CODESIGN})")
@@ -900,7 +968,7 @@ def main(argv=None):
             target, app = build_both(args, notes)
         else:
             target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
-                           notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+                           notes=notes, min_from=args.min_from, extra_folders=args.extra_folder, image_tar=args.image_tar)
             app = None
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
