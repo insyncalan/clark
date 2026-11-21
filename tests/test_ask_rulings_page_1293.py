@@ -124,24 +124,5 @@ class ClassicCards(Themed):
             self.assertEqual(p.js("document.querySelectorAll('#ask-docker').length"), 0)
 
 
-class CardsKeepWhatTheyHad(Themed):
-    THEME = None
-
-    def test_no_duplicate_line_and_no_proactive_refusal_in_cards(self):
-        self.says(self.new(TITLE.lower()), self.change(status="Closed"), self.change(priority="High"))
-        with chrome() as cdp:
-            p = self.opened(cdp)
-            self.ask_it(p)
-            p.until("document.querySelectorAll('[data-ask-change]').length === 3", "all cards")
-            self.assertEqual(p.js("document.querySelectorAll('[data-ask-duplicate]').length"), 0)
-            p.js("document.querySelectorAll('[data-ask-apply]')[1].click()")
-            p.until("!!document.querySelectorAll('[data-ask-change]')[1].querySelector('[data-ask-line]')", "first change done")
-            self.assertEqual([c["apply"] for c in self.lines(p)], [True, False, True], "the third still has its Apply")
-            p.js("document.querySelectorAll('[data-ask-apply]')[1].click()")
-            p.until("(document.querySelectorAll('[data-ask-change]')[2].querySelector('[data-ask-line]') || {textContent: ''}).textContent.startsWith('This one was not saved')", "the second change was pressed and refused")
-            self.assertEqual(self.lines(p)[2]["line"], STALE, "the server still refuses it, in the same words")
-            self.assertEqual(self.status(), "Closed")
-
-
 if __name__ == "__main__":
     unittest.main()

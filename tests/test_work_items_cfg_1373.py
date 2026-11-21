@@ -71,6 +71,20 @@ class Measured(M.Look):
         self.assertEqual(k["focus"], {"w": "2px", "o": "1px", "c": "rgb(91, 71, 216)"}, got)
 
 
+    def test_label_to_field_gap_is_4px_at_1400_and_900(self):
+        # mock-up line 61: .cfg label{display:flex;flex-direction:column;gap:4px}
+        for w in (1400, 900):
+            ref = self.add(LIST)
+            with T.chrome() as cdp:
+                p = self.show(cdp, w)
+                sec = f'[data-id="{ref}"]'
+                p.edit()
+                p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "drew")
+                p.js(f"document.querySelector('{sec} [data-wil-gear]').click()")
+                p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
+                got = json.loads(p.js("JSON.stringify((() => { const l = document.querySelector('%s .wil-cfg .wil-sel'), c = getComputedStyle(l), s = l.querySelector('span').getBoundingClientRect(), f = l.querySelector('select,input').getBoundingClientRect(); return {row: c.rowGap, disp: c.display, between: f.top - s.bottom}; })())" % sec))
+            self.assertEqual((got["row"], got["between"]), ("4px", 4), (w, got))
+
     PINS = ("JSON.stringify((() => { const s = %s, q = (x) => document.querySelector(s + ' ' + x), c = (e) => getComputedStyle(e), r = (e) => e.getBoundingClientRect();"
             "const box = q('.wil-cfg'), opts = q('.wil-opts'), oc = c(opts), lab = q('.wil-sel > span'), sel = q('.wil-sel select'), lg = q('.wil-f legend');"
             "return {cols: oc.gridTemplateColumns.split(' '), disp: oc.display, rowGap: oc.rowGap, colGap: oc.columnGap, labelGap: r(sel).top - r(lab).bottom, h4m: c(q('.wil-cfg h4')).marginTop + ' ' + c(q('.wil-cfg h4')).marginBottom,"
