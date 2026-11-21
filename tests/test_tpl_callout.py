@@ -66,6 +66,15 @@ class Words(unittest.TestCase):
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
                          {"v": 1, "tone": "warning", "category": "Warning", "colour": "red", "icon": "warning", "tile": True, "heading": True})
 
+    def test_the_decision_suggestion_icon_is_fork_named_two_ways_and_the_warning_icon_is_named_warning_triangle(self):
+        from pathlib import Path
+        from clark.section_kinds import callout
+        self.assertEqual(callout.words({"v": 1, "icon": "fork"})["icon_name"], "Two ways")
+        self.assertEqual(callout.words({"v": 1, "icon": "warning"})["icon_name"], "Warning triangle")
+        self.assertNotIn("twoways", callout.ICONS)
+        jsx = (Path(callout.__file__).parent.parent / "page" / "src" / "edit" / "templates" / "Callout.jsx").read_text(encoding="utf-8")
+        self.assertIn('decision: ["amber", "fork"]', jsx)
+
     def test_words_alone_carries_the_category_colour_and_icon(self):
         from clark.section_kinds import callout
         self.assertEqual(callout.words({"v": 1, "tone": "warning", "category": "Budget", "colour": "grey", "icon": "shield"}),
@@ -275,7 +284,7 @@ class Page(n.PageChecks):
 
     def test_edit_each_suggestion_sets_its_own_colour_and_icon(self):
         from test_server import wait
-        for label, want in (("Use Decision needed", ("Decision needed", "amber", "question", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
+        for label, want in (("Use Decision needed", ("Decision needed", "amber", "fork", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
             ref = self.make({**GOOD, "tone": "warning"})
             with self.subTest(label=label), chrome() as cdp:
                 p = self.visit(cdp)
@@ -333,8 +342,8 @@ class Page(n.PageChecks):
             got = json.loads(self.body_of(ref))
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
-    def test_edit_the_decision_icon_is_the_question_mark_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
-        """Row 1272 rulings 17-11 (mock-up B wins): the Decision suggestion keeps the question icon; the title text and the words text start where the
+    def test_edit_the_decision_icon_is_two_ways_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
+        """Row 1272 (read of PR 2089 of 20-11: Two ways): the Decision suggestion sets the Two ways icon (key fork); the title text and the words text start where the
         category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
         for width in (1400, 900):
             ref = self.make(GOOD)
@@ -346,7 +355,7 @@ class Page(n.PageChecks):
                 p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
                 p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.body_of(ref))["icon"], "question")
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "fork")
                 p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
                 left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
                     return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};
