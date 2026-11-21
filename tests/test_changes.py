@@ -135,15 +135,17 @@ class Refusals(Api):
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
         self.refused(self.req("new", values={"type": "tracker", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
         self.refused(self.req("new", values={"type": "needs"}), changes.NEW_TYPE_WORDS)      # item 1158: no new Needs from you section
-        self.refused(self.req("new", values={"type": "glance"}), changes.NEW_TYPE_WORDS)      # rows 1193-8 to 10: a built-in the report already has (a new project has no raid, actions or decisions section now, so those can be added)
-        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
+        self.refused(self.req("new", values={"type": "usecases"}), changes.NEW_TYPE_WORDS)      # rows 1193-8 to 10: a built-in the report already has (a new project has no raid, actions or decisions section now, so those can be added)
+        self.refused(self.req("new", values={"type": "milestones", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", id="ABC-S-001"), "That change doesn't take 'id'.")
         self.refused(self.req("new", changes={"title": "x"}), "That change doesn't take 'changes'.")
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-002", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (ABC-S-001 is a text section since item 1188; a text section takes one: test_changes_text_body)
+        with self.s.step("dashboard", USER) as st:                        # row 1266: no default section is a built-in without a body now, so one (the older At a glance) is added for this
+            plain = st.create(KIND, {"project": "ABC", "type": "glance", "title": "Plain glance", "sort_order": 99})
+        self.refused(self.req("update", id=plain, changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (a text section takes one: test_changes_text_body)
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")
@@ -247,7 +249,7 @@ class Refusals(Api):
                         self.req("delete", id=theirs), self.req("delete", id="ABC-S-999")):
             with self.subTest(request=request):
                 self.refused(request, words)            # another project's and a missing one: the same words
-        self.assertEqual(self.s.read(KIND, ref=theirs)["title"], "Current state")
+        self.assertEqual(self.s.read(KIND, ref=theirs)["title"], default_sections.DEFAULT_SECTIONS[0]["title"])
         for op, key in (("move", "before"), ("new", "after")):
             for ref in (theirs, "ABC-S-999", "nonsense"):
                 with self.subTest(op=op, ref=ref):
@@ -941,7 +943,7 @@ class OlderProject(Api):
         return self.ok(op, project=self.code, **more)
 
     def test_each_first_change_seeds_the_defaults_in_its_own_step_and_undo_takes_back_only_the_change_and_the_seed_stays(self):
-        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems")]    # publish leaves "docs" out, and a Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions)
+        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "doclinks", "workitems", "reportheadline", "glancetemplate")]    # publish leaves out "docs", and a template or Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions; row 1266: a bare project has no headline, no glance tile and no document to print)
         no_this_week = [t for t in defaults if t != "This week"]
         cases = (                                   # op, what it asks (S-005 is This week, S-008 Open actions), sections and published after
             ("new", {"values": {"title": "Only me"}}, 11, defaults + ["Only me"]),
