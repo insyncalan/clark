@@ -531,6 +531,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cal-ms { font-size: var(--size-caption); padding: 1px 4px; }
 .cal-ms:not(:hover):not(.ghost) { background: var(--band-bg); }
 .cal-ms span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+/* Row 1366: the status line under a saved folder (Classic); empty until the server has something to say */
+.ask-folder-line { flex: 0 0 100%; margin-top: 2px; font-size: var(--size-caption); font-weight: 400; color: var(--text-muted); }
+.ask-folder-line:empty { position: absolute; width: 0; height: 0; margin: 0; overflow: hidden; }
 /* Row 1404: the At a glance strip as the prototype draws it. The "of N" note sits in the figure line (14px, muted; Glance.jsx puts it there under Classic only), the label is Inter 400, the figure is Inter in the text colour with normal line height (amber and red keep their status colour). */
 .glance .fig .k { font-weight: var(--weight-regular); }
 .glance .fig .v { font-family: var(--font-label); letter-spacing: normal; line-height: normal; color: var(--text); }
@@ -613,6 +616,14 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip.cchip { border-style: solid; border-color: var(--grey-200); background: transparent; color: var(--text-muted); }      /* every chip, Committed and both Planned, is the same muted pill: no fill, solid line (it beats the shell fill and dashed line) */
+/* Row 1366 row 6: the files left out of a folder (Settings, Source folders) */
+.ask-left-out { flex: 0 0 100%; }
+.ask-left-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; color: var(--brand-blue); font-size: 14px; cursor: pointer; }
+.ask-left-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.ask-left-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
+.ask-left-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
+.ask-left-name { color: var(--text); }
 /* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
 .ask-change-ref { font-weight: var(--weight-medium); }
 .ask-change-title { overflow-wrap: anywhere; }
@@ -822,6 +833,12 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1298 follow-up (Classic only): the Feedback tag dialog at the mock-up's measures. The tag is 29px wide (15px line + 14px padding; it grew 5px more on hover as before), the kind chips are 13.5px, the added-automatically block is 12.5px with 8px 10px padding, the mail link is a real button (inline-flex, 38px tall like the Row 1319 primary buttons, an anchor ignored min-height) and Copy is 34px tall. */
+.fbt-tag { line-height: 15px; }
+.fbt-kind { font-size: 13.5px; }
+.fbt-added { font-size: 12.5px; padding: 8px 10px; }
+.fbt-dlg [data-fbt-mail] { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 22px; text-decoration: none; }
+.fbt-dlg [data-fbt-copy] { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; }
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
