@@ -139,6 +139,39 @@ class GroupInTheField(Base):
             self.settle(cdp, sid)
             self.assertEqual(cdp.js("document.querySelectorAll('#fline-list .fopt').length", sid), 0, "Nothing is not a grouping of the board")
 
+    def test_a_taken_word_with_the_caret_among_the_spaces_after_it_keeps_the_caret_after_the_text_before_it(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.focus(cdp, sid)
+            self.type(cdp, sid, "x    ab")
+            self.key(cdp, sid, "Home", "Home", 36)
+            self.key(cdp, sid, "ArrowRight", "ArrowRight", 39)
+            self.key(cdp, sid, "ArrowRight", "ArrowRight", 39)
+            self.type(cdp, sid, "group:due ")
+            self.until(cdp, sid, f"{LABEL} === 'Group by: Due'", "the word is taken")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "x ab")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').selectionStart", sid), 2, "the caret stays after the text in front of the word")
+
+    def test_on_the_board_group_nothing_with_the_caret_at_the_word_end_says_nothing_yet(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, preset={"view": "board", "group": "status"})
+            self.until(cdp, sid, f"{CHIP}.startsWith('Group by: Status')", "the chip")
+            self.focus(cdp, sid)
+            self.type(cdp, sid, " b")
+            self.key(cdp, sid, "Home", "Home", 36)
+            self.type(cdp, sid, "group:nothing")
+            self.settle(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('#fline-msg').textContent.includes('always grouped')", sid), False)
+
+    def test_on_the_board_the_icon_menu_never_offers_nothing(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, preset={"view": "board", "group": "status"})
+            self.until(cdp, sid, f"{CHIP}.startsWith('Group by: Status')", "the chip")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the menu opened")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList').textContent.includes('Nothing')", sid), False)
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList').textContent.includes('Workstream')", sid), True)
+
     def test_on_the_board_typed_group_nothing_says_a_board_is_always_grouped(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
