@@ -101,6 +101,33 @@ class Look:
                 self.assertEqual(p.js(f"(function(){{ var q = {qq}, now = getComputedStyle(q).maxWidth; q.style.maxWidth = '62ch'; var want = getComputedStyle(q).maxWidth; q.style.maxWidth = ''; return now === want; }})()"), True, "the words are at most 62ch wide")
                 self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
+    def test_the_quote_colours_are_the_tokens_in_light_and_dark_at_1400_and_900(self):
+        """Ruling of 21-11: dark is tokens only; the mark, the rule, the name and the role are pinned in both schemes at both widths."""
+        ref = self.make({"v": 1, "quotes": [Q("Fictional first.", "Sam Example", "Fictional sponsor")], "align": "centre"})
+        seen = {}
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width), chrome() as cdp:
+                    p = self.visit(cdp)
+                    self._at(cdp, p, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(scheme)})")
+                    one = f"{self._quotes(ref)}.querySelector('.tpl-quote')"
+                    tok = ("(v, prop) => { const i = document.createElement('i'); i.style[prop] = v; document.body.append(i);"
+                           " const c = getComputedStyle(i)[prop]; i.remove(); return c; }")
+                    got = p.js(f"(() => {{ const tok = {tok}; const by = {one}.querySelector('.tpl-quote-by');"
+                               f" return {{mark: getComputedStyle({one}, '::before').color, markWant: tok('var(--brand-blue)', 'color'),"
+                               f" rule: getComputedStyle(by, '::before').backgroundColor, ruleWant: tok('var(--brand-blue)', 'backgroundColor'),"
+                               f" name: getComputedStyle({one}.querySelector('.tpl-quote-name')).color, nameWant: tok('var(--heading)', 'color'),"
+                               f" role: getComputedStyle({one}.querySelector('.tpl-quote-role')).color, roleWant: tok('var(--text-muted)', 'color')}}; }})()")
+                    self.assertEqual(got["mark"], got["markWant"], got)
+                    self.assertEqual(got["rule"], got["ruleWant"], got)
+                    self.assertEqual(got["name"], got["nameWant"], got)
+                    self.assertEqual(got["role"], got["roleWant"], got)
+                    seen[(scheme, width)] = (got["mark"], got["name"], got["role"])
+        self.assertNotEqual(seen[("light", 1400)][1], seen[("dark", 1400)][1], "the name colour follows the scheme")
+        self.assertEqual(seen[("light", 1400)], seen[("light", 900)])
+        self.assertEqual(seen[("dark", 1400)], seen[("dark", 900)])
+
     def test_left_is_the_default_and_three_to_a_row_when_stored(self):
         plain = self.make({"v": 1, "quotes": [Q("Fictional a."), Q("Fictional b."), Q("Fictional c.")]})
         three = self.make({"v": 1, "quotes": [Q("Fictional a."), Q("Fictional b."), Q("Fictional c.")], "perRow": 3})
