@@ -98,6 +98,7 @@ class Seen:
     """Records and checks every menu a Drive reads."""
     names = set()
     leaving = None
+    live = None
 
 
 def setUpModule():
@@ -117,9 +118,16 @@ def setUpModule():
         # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
         self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
         check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
+        if name == "gantt-add-below-table" and self.look_is[0] == 1400 and Seen.live is None:     # row 1286 (PR 2092), 1400 only: the fade copy's line padding equals the live Gantt menu's (12px at the sides)
+            read = "(b => { const c = getComputedStyle(b); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; })"
+            Seen.live = self.js(f"(r => {read}([...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop().querySelector('button')))({json.dumps(root)})")
+            copy = self.js(f"(() => {{ const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const r = {read}(d.firstChild); d.remove(); return r; }})()")
+            self.t.assertEqual(copy, Seen.live, "the fade copy's line padding equals the live menu's")
+            self.t.assertEqual(Seen.live, "6px 12px 6px 12px", "the live Gantt menu keeps 12px at the sides")
         if not Seen.leaving:     # row 1463: the fade copy of a Gantt menu (body > .gt-menu.leaving, edit.css) keeps the box padding and the line padding: read its computed values from a copy on the page
             Seen.leaving = self.js("(() => { const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const b = d.firstChild, p = e => { const c = getComputedStyle(e); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }; const r = [p(d), p(b)]; d.remove(); return r; })()")
-            self.t.assertEqual(Seen.leaving, ["4px 4px 4px 4px", "6px 10px 6px 10px"], "the fading Gantt menu: box padding and line padding")
+            self.t.assertEqual(Seen.leaving[0], "4px 4px 4px 4px", "the fading Gantt menu: box padding")
+            self.t.assertEqual(Seen.leaving[1], "6px 12px 6px 12px", "the fading Gantt menu: line padding is 12px at the sides (Row 1286)")
         Seen.names.add(name)
         return got
     start(mock.patch.object(T.Drive, "lines", lines))
