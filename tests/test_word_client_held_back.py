@@ -181,8 +181,9 @@ class CleanReport(Setup, unittest.TestCase):
         self.visible = "See the plan"
         with self.store.step("dashboard", USER) as st:
             st.create("documents", {"project": "ABC", "title": "Delivery plan", "kind": "Plan", "url": self.LINK, "sort_order": 1})
+            st.create("report_sections", {"project": "ABC", "type": "docs", "title": "Supporting documents", "sort_order": 990})      # row 1266: the default Documents section lists only the files it is given, so a Supporting documents section keeps the document in the report
         # item 1188: the first section is a text section; its body (not the project's current_state) carries the rich text now
-        self.demo.update("report_sections", "ABC-S-001", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
+        self.demo.update("report_sections", "ABC-S-003", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
 
     def test_the_word_copy_saves_in_both_folders_with_its_link(self):
         status, got = self.word_export()
@@ -287,6 +288,8 @@ class LeftOutDocumentPastedIntoKeptDocument(Cases, unittest.TestCase):
         self.look_at = plant_document(self.demo)
         self.visible = f"Draft of the {DOC_TITLE}"
         plant_document(self.demo, title=self.visible, url="https://docs.example.com/kept-one", archived=0)
+        with self.store.step("dashboard", USER) as st:      # row 1266: the default Documents section lists only the files it is given, so the kept document is drawn by a Supporting documents section
+            st.create("report_sections", {"project": "ABC", "type": "docs", "title": "Supporting documents", "sort_order": 990})
 
 
 class LeftOutGanttLinePasted(Cases, unittest.TestCase):
