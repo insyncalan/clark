@@ -331,7 +331,8 @@ class Saved(Api):
         for label in ("New words", ""):
             with self.subTest(label=label):
                 status, got = self.save(ref, body([a_link(), dict(old, label=label)]))
-                self.assertEqual((status, got["message"]), (400, "old.zip: " + doclinks.BAD_TYPE_TAIL))
+                self.assertEqual(status, 400, got)
+                self.assertEqual(got["message"], "old.zip: " + doclinks.BAD_TYPE_TAIL)
         self.assertEqual(self.snapshot(), before)
         status, got = self.save(ref, body([a_link(), old]))
         self.assertEqual(status, 200, got)
