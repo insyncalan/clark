@@ -126,6 +126,14 @@ class StopBeforeTheProvider(unittest.TestCase):
         self.assertEqual((status, got["ok"], got["message"]), (200, False, ask.STOPPED), "the question itself ends as stopped")
         self.assertEqual(self.provider.sent, [], "nothing left the machine")
 
+    def test_a_stop_pressed_inside_the_provider_drops_the_answer(self):
+        self.provider.inside = self.service.stop        # the provider is running, then finishes with an answer after the Stop
+        status, got = self.question()
+        self.assertEqual((status, got["ok"], got["code"], got["message"]), (200, False, "no_answer", ask.STOPPED))
+        self.assertNotIn("answer", got, "the finished answer is not given")
+        self.assertEqual(self.service.cancels, set(), "nothing is held")
+        self.assertEqual(self.service.usage.month(self.service.today())[CODE]["questions"], 1, "the question was answered at the provider, so it stays counted")
+
 
 if __name__ == "__main__":
     unittest.main()
