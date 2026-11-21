@@ -61,6 +61,22 @@ const note = (id) => ({ id, title: "T " + id, body: "One sentence.", date: new D
 })();
 """
 
+STATE_PROBE = r"""
+const ops = %s;
+const out = { steps: [] };
+(async () => {
+  for (const [op, arg] of ops) {
+    if (op === "push") NS.pushNotices(arg.map((id) => note(id)));
+    if (op === "one") NS.readOne(arg);
+    if (op === "all") NS.readAll();
+    out.steps.push({ announced: NS.announced.value, read: NS.readIds.value.slice(), unread: NS.unread.value.slice(), writes: store.writes.length, saved: store.value });
+  }
+  console.log(JSON.stringify(out));
+})();
+"""
+STATE_SHIM = SHIM + "const store = { value: %s, writes: [] };\nglobalThis.localStorage = { getItem: () => store.value, setItem: (k, v) => { store.value = v; store.writes.push(v); } };\n"
+NOTE = 'const note = (id) => ({ id, title: "T " + id, body: "One sentence.", date: "2999-01-01" });\n'
+
 
 def bundle():
     if "code" not in _BUNDLE:
@@ -84,6 +100,19 @@ def run(answers):
         done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
         assert done.returncode == 0, done.stderr
         return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def run_state(ops, stored="[]"):
+    """Runs pushNotices, readOne and readAll in order with a fake localStorage that holds `stored` and counts its writes."""
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("no node")
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "probe.js"
+        script.write_text(STATE_SHIM % json.dumps(stored) + bundle() + ";\n" + NOTE + STATE_PROBE % json.dumps(ops), encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout.strip().splitlines()[-1])["steps"]
 
 
 def ok(*ids, **extra):
@@ -139,6 +168,40 @@ class LoadNotices(unittest.TestCase):
         self.assertEqual(got["afterStart"]["cleared"], 0)
         self.assertEqual(got["afterStop"]["cleared"], 1, "a second stop clears nothing")
         self.assertEqual(got["afterRestart"]["set"], 2, "after a stop a start sets the timer again")
+
+
+class ReadState(unittest.TestCase):
+    def test_one_new_notice_announces_its_title_and_several_announce_a_count(self):
+        steps = run_state([["push", ["a"]], ["push", ["a", "b"]], ["push", ["a", "b", "c", "d"]]])
+        self.assertEqual([s["announced"] for s in steps], ["", "T b", "2 new notifications"])
+        self.assertEqual(run_state([["push", ["a"]], ["push", ["a", "b", "c"]]])[1]["announced"], "2 new notifications")
+
+    def test_an_already_read_id_is_not_announced(self):
+        steps = run_state([["push", ["a"]], ["one", "b"], ["push", ["a", "b", "c"]]])
+        self.assertEqual([s["announced"] for s in steps], ["", "", "T c"])
+        steps = run_state([["push", ["a"]], ["one", "b"], ["one", "c"], ["push", ["a", "b", "c"]]])
+        self.assertEqual(steps[3]["announced"], "")
+
+    def test_the_read_list_is_pruned_to_the_pushed_ids_and_saved_only_when_it_changed(self):
+        steps = run_state([["push", ["a", "b"]], ["push", ["a", "b"]], ["push", ["b"]]], stored='["a", "b", "gone"]')
+        self.assertEqual([s["read"] for s in steps], [["a", "b"], ["a", "b"], ["b"]])
+        self.assertEqual([s["writes"] for s in steps], [1, 1, 2])
+        self.assertEqual(steps[2]["saved"], '["b"]')
+
+    def test_readOne_marks_one_notice_read_once_and_saves_it(self):
+        steps = run_state([["push", ["a", "b"]], ["one", "a"], ["one", "a"], ["one", "b"]])
+        self.assertEqual([s["read"] for s in steps], [[], ["a"], ["a"], ["a", "b"]])
+        self.assertEqual([s["unread"] for s in steps], [["a", "b"], ["b"], ["b"], []])
+        self.assertEqual(steps[3]["saved"], '["a","b"]')
+        self.assertEqual(steps[1]["writes"], 1)
+
+    def test_readAll_marks_every_shown_notice_read_and_saves_the_list(self):
+        steps = run_state([["push", ["a", "b", "c"]], ["one", "b"], ["all"]])
+        self.assertEqual(steps[2]["read"], ["b", "a", "c"])
+        self.assertEqual(sorted(steps[2]["read"]), ["a", "b", "c"])
+        self.assertEqual(steps[2]["unread"], [])
+        self.assertEqual(json.loads(steps[2]["saved"]), steps[2]["read"])
+        self.assertEqual(steps[2]["writes"], 2)
 
 
 if __name__ == "__main__":
