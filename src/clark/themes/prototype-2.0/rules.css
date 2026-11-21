@@ -509,7 +509,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cal-g { border-top-color: var(--line-soft); border-left-color: var(--line-soft); }
 .cal-d { border-right-color: var(--line-soft); border-bottom-color: var(--line-soft); }
 .cal-d.out { background: transparent; }
-.cal-g > .cal-d:nth-child(7n+6), .cal-g > .cal-d:nth-child(7n) { background: var(--grey-50); }
+.cal-g > .cal-d.we { background: var(--grey-50); }
 .cal-d.today { box-shadow: inset 0 0 0 2px var(--brand-blue); }
 .cal-d.today .cal-n { background: transparent; color: var(--brand-blue); font-weight: var(--weight-semibold); }
 .cal-dow span { font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: 0; text-transform: none; padding: 4px 6px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
