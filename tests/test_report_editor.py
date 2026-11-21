@@ -300,6 +300,8 @@ class Modes(Base):
             self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
             self.assertTrue(p.js("!!document.querySelector('.secs > .sec[data-type=milestones] .msv, .secs > .sec[data-type=milestones] [data-no-milestones]')"),
                             "View: the milestones section is drawn, not the plain line")
+            for kind in ("reportheadline", "glancetemplate", "doclinks"):      # each left out of View on its own while it has nothing to draw (no health, no tile, no document), present in Edit
+                self.assertEqual(p.js(f"document.querySelectorAll('.secs > .sec[data-type={kind}]').length"), 0, f"View: an empty {kind} section is left out")
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
@@ -308,6 +310,8 @@ class Modes(Base):
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
             self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Header", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
+            for kind in ("reportheadline", "glancetemplate", "doclinks"):
+                self.assertEqual(p.js(f"document.querySelectorAll('.secs > .sec[data-type={kind}]').length"), 1, f"Edit: the {kind} section is there to edit")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
