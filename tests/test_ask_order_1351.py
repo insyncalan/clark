@@ -15,7 +15,7 @@ from test_ask_settings import make_db, service
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
-from clark import page
+from clark import page, theme
 
 WIDTHS = (1400, 900)
 HEADS = "[...document.querySelectorAll('#ask-tabs ~ section.frame.setting > h2')].map(h => h.textContent)"
@@ -69,6 +69,41 @@ class Order(unittest.TestCase):
                 self.assertTrue(js("document.querySelector('#ai-settings').compareDocumentPosition(document.querySelector('#ask-connectors')) & 4"), "model card before connectors")
                 self.assertTrue(js("document.querySelector('#ask-connectors').compareDocumentPosition(document.querySelector('#ask-instructions-all-card')) & 4"), "connectors before the standing instructions")
                 self.assertTrue(js("document.querySelector('#ask-instructions-all-card').compareDocumentPosition(document.querySelector('#ask-all-folders')) & 4"), "instructions before the source folders")
+
+
+BEFORE = "document.querySelector(%r).compareDocumentPosition(document.querySelector(%r)) & 4"
+
+
+class ClassicOrder(unittest.TestCase):
+    """Classic draws the Slash commands, Changes and safety and Usage cards; their order on both tabs, at both widths."""
+
+    def setUp(self):
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code),
+                         page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme.CLASSIC))
+        self.addCleanup(self.s.close)
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        self.s.httpd.app_settings = service(make_db(d))
+
+    def test_slash_folders_safety_usage_on_all_and_slash_last_on_project(self):
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
+            js = lambda e: cdp.js(e, sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab]')"), 20))
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                js("document.querySelector('[data-ask-tab=all]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-all') && !!document.querySelector('#ask-safety') && !!document.querySelector('#slash-all')"), 20), f"all tab at {w}")
+                for a, b, what in (("#slash-all", "#ask-all-folders", "Slash commands before Source folders"),
+                                   ("#ask-all-folders", "#ask-safety", "Source folders before Changes and safety"),
+                                   ("#ask-safety", "#ask-usage-all", "Changes and safety before Usage")):
+                    self.assertTrue(js(BEFORE % (a, b)), f"{what} at {w}: {js(HEADS)}")
+                last = js("(()=>{const s=[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')]; return s[s.length-1].id;})()")
+                self.assertEqual(last, "ask-usage-all", f"Usage is last on the All tab at {w}")
+                js("document.querySelector('[data-ask-tab=project]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders-card') && !!document.querySelector('#slash-project')"), 20), f"project tab at {w}")
+                last = js("(()=>{const s=[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')]; return s[s.length-1].id;})()")
+                self.assertEqual(last, "slash-project", f"Slash commands are last on the project tab at {w}")
 
 
 if __name__ == "__main__":

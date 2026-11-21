@@ -234,8 +234,8 @@ function AllProjects() {
     <AllInstructions />
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
-    {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
+    {classicTheme() ? <UsageAll /> : null}
     </>
   );
 }
