@@ -427,6 +427,28 @@ class Eye(Base):
                         self.assertLessEqual(part["right"], block["right"] + 1, f"{rest} inside the section in Edit")
 
 
+    def test_two_column_row_is_two_equal_halves_with_a_24_px_gap_at_1400_and_one_full_width_column_at_900(self):
+        with self.store.step("dashboard", USER) as st:
+            for ref in (self.on, self.off):
+                st.update("report_sections", ref, {"beside": 1})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.sized(cdp, width, "light")
+                p.until(f"!!document.querySelector('[data-id=\"{self.off}\"] .tpl-rh-text')", "drew")
+                m = p.js("(function(){ var g = document.querySelector('.secs'), cs = getComputedStyle(g), a = document.querySelector('.slot-left').getBoundingClientRect(), b = document.querySelector('.slot-right').getBoundingClientRect(), "
+                         "gr = g.getBoundingClientRect(), pl = parseFloat(cs.paddingLeft), pr = parseFloat(cs.paddingRight); "
+                         "return {aw: a.width, bw: b.width, al: a.left, bl: b.left, ar: a.right, br: b.right, at: a.top, bt: b.top, ab: a.bottom, inner: gr.width - pl - pr, gap: parseFloat(cs.columnGap), cl: gr.left + pl}; })()")
+                print(f"two-column row {width}: {m}", flush=True)
+                if width == 1400:
+                    self.assertAlmostEqual(m["aw"], m["bw"], delta=0.5, msg=f"two equal halves: {m}")
+                    self.assertAlmostEqual(m["bl"] - m["ar"], 24, delta=0.5, msg=f"24 px between the halves: {m}")
+                    self.assertAlmostEqual(m["aw"] + m["bw"], m["inner"] - 24, delta=0.5, msg=f"the halves sum to the container minus 24: {m}")
+                else:
+                    self.assertAlmostEqual(m["aw"], m["inner"], delta=0.5, msg=f"first column is the full container: {m}")
+                    self.assertAlmostEqual(m["bw"], m["inner"], delta=0.5, msg=f"second column is the full container: {m}")
+                    self.assertAlmostEqual(m["al"], m["bl"], delta=0.5, msg=f"same left edge: {m}")
+                    self.assertGreaterEqual(m["bt"], m["ab"] - 0.5, f"the second column sits below the first: {m}")
+
     # --- contrast (WCAG 2.x AA, 4.5:1) in both themes: headline, supporting sentence and pill text, from the computed colours ----------
     def test_the_headline_the_sentence_and_the_pill_text_pass_4_5_to_1_in_light_and_dark(self):
         js = """(function(ref, rest){
