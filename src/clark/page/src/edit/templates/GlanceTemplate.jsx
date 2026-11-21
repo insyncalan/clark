@@ -49,7 +49,7 @@ function actions(section, u, own) {
     if (before === key || (before === null ? at === order.length - 1 : order[at + 1] === before)) return Promise.resolve(null);
     return send(withChange(u, { order: moved(u.order, key, before, drawn) }), `${titleOf(key)} moved.`, tile(key, "[data-tile-grip]"));
   };
-  const del = (key) => send(withChange(u, { hide: [key, true] }), `Removed: ${titleOf(key)}`, at(".tileadd"));      // row 1336: the bin on a built-in tile takes it off the strip with an Undo; the stored body is the hidden flag, so the published-file rule is the one it was (Add a tile brings it back)
+  const del = (key) => send(withChange(u, { hide: [key, true] }), `Deleted: ${titleOf(key)}`, at(".tileadd"));      // row 1336: the bin on a built-in tile takes it off the strip with an Undo; the stored body is the hidden flag, so the published-file rule is the one it was (Add a tile brings it back)
   return {
     del,
     hide: (key, hidden) => send(withChange(u, { hide: [key, hidden] }),

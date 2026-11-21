@@ -131,7 +131,7 @@ class Controls(ClassicEdit):
             p.js(f"document.querySelector({self.q('[data-tile=overdue] [data-tile-bin]')}).click()")
             p.until(f"!document.querySelector({self.q('[data-tile=overdue]')})", "the tile left the strip")
             self.assertTrue(wait(lambda: self.body().get("builtin", {}).get("overdue", {}).get("hidden") is True, 10), self.body())
-            self.assertEqual(self.toast(p).split("Undo")[0].strip(), "Removed: Overdue actions")
+            self.assertEqual(self.toast(p).split("Undo")[0].strip(), "Deleted: Overdue actions")
             self.undo(p)
             p.until(f"!!document.querySelector({self.q('[data-tile=overdue]')})", "undone: the tile is back")
             self.assertTrue(wait(lambda: not self.body().get("builtin"), 10), self.body())
@@ -160,7 +160,7 @@ class HintAndToastSource(unittest.TestCase):
         self.assertIn("the bin deletes it. Add a tile brings it back.", self.SRC)
         self.assertNotIn("from the strip", self.SRC.split("hint:")[1].split("\n")[0])
 
-    def test_the_bin_toast_is_removed_colon_and_the_tile_name(self):
+    def test_the_bin_toast_is_deleted_colon_and_the_tile_name(self):
         line = [l for l in self.SRC.splitlines() if l.lstrip().startswith("const del = ")][0]
-        self.assertIn("`Removed: ${titleOf(key)}`", line)
-        self.assertNotIn("Deleted", line)
+        self.assertIn("`Deleted: ${titleOf(key)}`", line)
+        self.assertNotIn("Removed", line)
