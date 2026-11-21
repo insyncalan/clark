@@ -706,7 +706,7 @@ class Reading(Base):
         ix.refresh(self.data, "P1", [self.box])
         self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)], {"state": "done", "line": "Indexed 1 of 1 file."})
         got = ask_index.folder_status(self.data, "P1", [self.box], live={str(self.box): (1, 4)})
-        self.assertEqual(got[str(self.box)], {"state": "reading", "line": "Reading 1 of 4 files."})
+        self.assertEqual(got[str(self.box)], {"state": "reading", "line": "Indexing… 25%"})
         got = ask_index.folder_status(self.data, "P1", [self.box], live={})
         self.assertEqual(got[str(self.box)]["state"], "done")
 

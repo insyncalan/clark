@@ -34,7 +34,7 @@ const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
-// The status line under each folder (Row 1366): the server says what it has read ("Reading 180 of 422 files." then "Indexed ..."). It is asked again
+// The status line under each folder (Row 1366): the server says what it has read ("Indexing… 42%" then "Indexed ..."). It is asked again
 // every 2 seconds while a folder is being read, and for a few more turns after a change, because the read starts just after the folder is saved.
 function useIndexLines(read, deps) {
   const [index, setIndex] = useState({});

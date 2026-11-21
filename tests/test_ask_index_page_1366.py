@@ -123,7 +123,7 @@ class Page(Fixture):
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.until(js, "!!document.querySelector('#ask-all-folder-list .ask-folder-line')", "list")
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Reading 0 of 1 file.'", "reading")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 look = js(self.LOOK % "#ask-all-folder-list .ask-folder-line")
