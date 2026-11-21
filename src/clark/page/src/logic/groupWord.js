@@ -58,7 +58,7 @@ export function groupMissing(g, text, caret) {
   let m, out = "";
   while ((m = re.exec(s))) {
     const end = m.index + m[0].length, x = slug(m[2]), t = g.tableOnly.find(([id, label]) => low(id) === x || slug(label) === x);
-    if (end < caret && t) out = `${t[1]} is for the table only.`;
+    if (end < caret && t) out = "A board is always grouped, so choose one of its seven groupings.";
   }
   return out;
 }
