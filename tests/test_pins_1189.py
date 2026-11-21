@@ -47,6 +47,7 @@ class PublishedSections(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        self.demo.old_glance_and_docs()
 
     def set_hidden(self, typ, hidden):
         with self.store.step("dashboard", USER) as st:

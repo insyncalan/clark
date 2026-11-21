@@ -7,7 +7,7 @@ documents, the glance tiles, the current state) are never touched. A deleted bui
 import sqlite3
 import unittest
 
-from _demo import USER
+from _demo import USER, old_glance_and_docs
 from clark import as_at, changes, client_filters, excel_cover, glance, publish, store as store_module
 from test_changes import Api, KIND
 
@@ -18,9 +18,14 @@ BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions",
 class Base(Api):
     def setUp(self):
         super().setUp()
+        self.old_glance_and_docs_rows()
         self.old_actions_row()
         self.old_decisions_row()
         self.old_raid_row()
+
+    def old_glance_and_docs_rows(self):
+        """row 1266: a new project starts with the glance and Files and links templates; an existing report still has the built-in At a glance and Supporting documents sections, which these tests are about."""
+        old_glance_and_docs(self.path)
 
     def old_raid_row(self):
         """row 1193-8: a new project starts with Risks and issues as a Work items list; an existing report still has the built-in raid section, which these tests are about."""

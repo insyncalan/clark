@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from _demo import USER, DemoStore
+from _demo import USER, DemoStore, old_glance_and_docs
 from clark import glance as g, publish, sanitise
 from test_glance import ON, PLANTED_MARKER, RULES, action, data, decision, raid, sections, use_case
 
@@ -212,6 +212,7 @@ class Shape(unittest.TestCase):
 class WholeFile(unittest.TestCase):
     def test_a_real_publish_carries_glance_and_a_hidden_tile_is_not_in_the_bytes(self):
         with DemoStore() as store, tempfile.TemporaryDirectory() as out:
+            old_glance_and_docs(store.path)
             with store.step("dashboard", USER) as st:
                 st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "due_date": "2026-10-10",
                                       "client_visible": 1, "source": "demo"})

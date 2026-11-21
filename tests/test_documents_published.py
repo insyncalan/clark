@@ -44,6 +44,7 @@ class Published(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
+        self.demo.old_glance_and_docs()
         self.change = changes.make_change(self.s.path, [], USER)
         self.n = 0
 

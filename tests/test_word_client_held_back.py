@@ -39,6 +39,7 @@ class Setup:
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        self.demo.old_glance_and_docs()
         self.tmp = Path(tempfile.mkdtemp(prefix="clark-held-back-")).resolve()
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.local, self.word_local, self.client = self.tmp / "Local", self.tmp / "WordLocal", self.tmp / "Client"
