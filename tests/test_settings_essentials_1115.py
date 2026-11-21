@@ -23,6 +23,7 @@ STUB = r"""(() => {
   window.fetch = (url, opts) => {
     if (String(url).startsWith("/api/ask-enabled")) {
       if (opts && opts.method === "POST") asking = JSON.parse(opts.body).enabled;
+      else window.__askReads = (window.__askReads || 0) + 1;      // the reads the page has made, so a test can tell the row has asked again
       return Promise.resolve(reply({ ok: true, ask_enabled: asking, saved: true }));
     }
     if (String(url).startsWith("/api/backups/copy-folder")) return Promise.resolve(reply({ ok: true, folder: "/tmp/essentials-copy", message: "Saved." }));
@@ -125,8 +126,11 @@ class Essentials(test_settings_head.Head):
                     self.to_page(p, "claude")
                     p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
                     self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
+                    reads = p.js("window.__askReads || 0")
                     self.to_page(p, "profile")
-                    p.until("!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
+                    # the row first draws with the answer the Asking card left, enabled, and only then asks again (an effect after the paint): wait for that read to be made and answered,
+                    # or the click lands on the old state and a newer read can overtake it
+                    p.until(f"(window.__askReads || 0) > {reads} && !!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled && !/Checking/.test(document.getElementById('ess-ask-line').textContent)", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
                     p.js("document.querySelector('[data-ess-ask]').click()")
                     p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
                     self.to_page(p, "claude")

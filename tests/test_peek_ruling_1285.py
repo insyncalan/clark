@@ -192,11 +192,14 @@ class Settings900(unittest.TestCase):
                 g = cdp.js("(() => { const tok = (v) => { const i = document.createElement('i'); i.style.color = v; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };"
                            " const cs = [...document.querySelectorAll('.set-chip')], cur = document.querySelector('.set-chip[aria-current]'), k = getComputedStyle(cur);"
                            " const tile = document.createElement('i'); tile.style.backgroundColor = 'var(--tile-on-bg)'; document.body.append(tile); const tb = getComputedStyle(tile).backgroundColor; tile.remove();"
-                           " return {n: cs.length, sizes: [...new Set(cs.map(e => getComputedStyle(e).fontSize))], cut: cs.filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1).map(e => e.textContent), bg: k.backgroundColor, fg: k.color, tb, tf: tok('var(--tile-on-fg)')}; })()", sid)
+                           " const dk = document.createElement('i'); dk.style.backgroundColor = 'var(--brand-blue-tint)'; document.body.append(dk); const db = getComputedStyle(dk).backgroundColor; dk.remove();"
+                           " return {n: cs.length, sizes: [...new Set(cs.map(e => getComputedStyle(e).fontSize))], cut: cs.filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1).map(e => e.textContent), bg: k.backgroundColor, fg: k.color, tb, tf: tok('var(--tile-on-fg)'), db, df: tok('var(--status-blue-text)')}; })()", sid)
                 self.assertGreater(g["n"], 5)
                 self.assertEqual(g["sizes"], ["15px"], g)
                 self.assertEqual(g["cut"], [], g)
-                self.assertEqual((g["bg"], g["fg"]), (g["tb"], g["tf"]), g)
+                # light: the Work items tile tokens (the 1285 ruling); dark: the row 1401 chip keeps its own dark tokens (test_settings_sidebar_1401)
+                want = (g["tb"], g["tf"]) if scheme == "light" else (g["db"], g["df"])
+                self.assertEqual((g["bg"], g["fg"]), want, g)
                 if scheme == "light":
                     self.assertEqual(g["tb"], "rgb(236, 233, 251)")
                     self.assertEqual(g["tf"], "rgb(91, 71, 216)")
