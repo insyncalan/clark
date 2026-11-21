@@ -21,6 +21,9 @@ export function percent(read, total) {
   return read >= total ? 100 : Math.min(p, 99);
 }
 
+// A finished folder with nothing read says so; the server counts a read of zero files as "No files to index" too.
+const noFiles = (s) => !(s.total > 0) || s.read === 0;
+
 /** The note of the All projects tab: how many projects are indexed. */
 export const projectsNote = (done, all) => `Indexed for ${done} of ${all} projects`;
 
@@ -34,7 +37,7 @@ export function note(s) {
   if (st.phase === "failed") return { text: FAILED, link: "retry" };
   if (st.phase === "cleared") return { text: CLEARED, link: "reindex" };
   if (st.phase === "done") {
-    if (!(st.total > 0)) return { text: NO_FILES, link: "" };
+    if (noFiles(st)) return { text: NO_FILES, link: "" };
     const out = st.left_out > 0;
     let text = "100% indexed";
     if (out) text += `. ${plural(st.left_out, "file", "files")} could not be read`;
@@ -46,7 +49,7 @@ export function note(s) {
 /** The milestone (0, 25, 50, 75, 100) a state has reached, or -1 when it is not a reading state. */
 export function milestone(s) {
   if (!s) return -1;
-  if (s.phase === "done") return s.total > 0 ? 100 : -1;
+  if (s.phase === "done") return noFiles(s) ? -1 : 100;
   if (s.phase !== "reading") return -1;
   const p = percent(s.read, s.total);
   return ANNOUNCE_AT.filter((m) => m <= p && m < 100).pop();

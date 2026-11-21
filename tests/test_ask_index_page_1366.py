@@ -97,6 +97,19 @@ class Page(Fixture):
                     self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, q, look))
                     self.assertEqual(look["color"], muted, (w, q))
 
+    def test_the_live_region_says_the_start_then_100_percent_indexed_at_the_default_width(self):
+        """No window resize here, so this runs while the 900 px cases are paused: the region speaks at the start and when done."""
+        self.gate.clear()
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            LIVE = "document.querySelector('#ask-all-folder-list .ask-folder-live').textContent"
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
+            self.until(js, LIVE + " === 'Indexing started'", "said at the start")
+            self.gate.set()
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed")
+            self.until(js, LIVE + " === '100% indexed'", "said when done")
+
     def test_the_line_in_the_all_projects_card_reads_reading_then_indexed_and_goes_with_its_folder(self):
         self.gate.clear()
         ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})

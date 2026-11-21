@@ -53,6 +53,8 @@ class IndexNote(unittest.TestCase):
 
     def test_no_readable_files_is_not_100_percent(self):
         self.assertEqual(note({"phase": "done", "total": 0})["text"], "No files to index")
+        self.assertEqual(note({"phase": "done", "read": 0, "total": 4, "left_out": 4}), {"text": "No files to index", "link": ""})
+        self.assertEqual(run('[m.milestone({phase:"done",read:0,total:4}), m.announce({phase:"reading",read:0,total:4},{phase:"done",read:0,total:4})]'), [-1, ""])
 
     def test_percent_is_files_read_and_never_100_while_one_is_unread(self):
         self.assertEqual(run("[m.percent(1,3), m.percent(199,200), m.percent(3,3), m.percent(9,3), m.percent(0,0)]"), [33, 99, 100, 100, 0])

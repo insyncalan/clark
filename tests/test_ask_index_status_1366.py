@@ -26,6 +26,8 @@ class DoneLine(unittest.TestCase):
         self.assertEqual(ask_index.done_line({"indexed": 3, "type": 1}), "100% indexed. 1 file could not be read")
         self.assertEqual(ask_index.done_line({"indexed": 3, "type": 2, "safety": 10}), "100% indexed. 12 files could not be read")
         self.assertEqual(ask_index.done_line({}), "No files to index")
+        self.assertEqual(ask_index.done_line({"type": 2, "safety": 1}), "No files to index")      # files, but none readable: not "100% indexed"
+        self.assertEqual(ask_index.done_line({"indexed": 0, "online_only": 4}), "No files to index")
 
 
 class Words(unittest.TestCase):

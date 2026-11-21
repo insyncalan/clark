@@ -471,8 +471,8 @@ def line_for(counts, reading=None):
 def done_line(counts):
     """The status line of a folder whose read is finished (row 1371): the share read, and how many files could not be read; the page's "(why)" lists them."""
     total = sum(counts.get(n, 0) for n in NAMES)
-    if total <= 0:
-        return "No files to index"
+    if total <= 0 or counts.get("indexed", 0) <= 0:
+        return "No files to index"          # nothing was readable: never "100% indexed"
     unread = max(total - counts.get("indexed", 0), 0)
     return "100% indexed" + (f". {unread} {_plural(unread, 'file', 'files')} could not be read" if unread else "")
 
