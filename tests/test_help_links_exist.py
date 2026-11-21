@@ -172,7 +172,8 @@ class HelpLinksExist(unittest.TestCase):
     def test_the_settings_pages_agree_with_each_other(self):
         if not PAGES_JS.exists():
             if "const GROUPS = [" in VIEWS_JSX:      # row 1024 stage 1: the router's list of pages and the menu's are the same pages
-                self.assertEqual(sorted(SETTINGS_PAGES), sorted(k for k, _, _ in ENTRIES), "router.SETTINGS_PAGES and the pages of Views.jsx GROUPS differ")
+                old = ["folder", "theme"] if "const OLD_SLUGS = " in VIEWS_JSX else []      # row 1299 S1a: two old slugs still open, and show the page that now holds their cards
+                self.assertEqual(sorted(SETTINGS_PAGES), sorted([k for k, _, _ in ENTRIES] + old), "router.SETTINGS_PAGES and the pages of Views.jsx GROUPS differ")
                 return
             self.skipTest("this tree has the list of cards, not one page at a time")
         keys = [k for k, _, _ in ENTRIES if k != "published"]

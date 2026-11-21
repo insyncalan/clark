@@ -103,7 +103,7 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
             self.assertEqual(c["curRadius"], "10px 10px 10px 10px", tag + ": the open page chip has radius 10 on all four corners (ruling 20-11, prototype settings.css:34)")
-            self.assertEqual(c["marker"], '""|absolute|0px|7px|7px|3px|3px|36', tag + ": the 3px marker is inside the chip, 7px from top and bottom, radius 3 (prototype settings.css:37)")
+            self.assertEqual(c["marker"], '""|absolute|0px|7px|7px|3px|3px|' + ("40" if tag.endswith(" 900") else "36"), tag + ": the 3px marker is inside the chip, 7px from top and bottom, radius 3 (prototype settings.css:37); row 1299 S1a: at 900 the open chip is Projects overview, which takes two lines, so 40 high")
             self.assertEqual((c["barRadius"], c["groupSize"], c["groupWeight"]), ("10px", "14px", "600"), tag + ": panel radius 10, group name 14px 600")
             if width_is_wide(tag):
                 self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")

@@ -31,12 +31,11 @@ OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")])])]
-NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Appearance", [("Personal", "personal-h")]),
-                       ("theme", "Theme", [("Theme", "theme-settings-h")])]),      # row 1299 1a: the mock-up's four groups, in its order
-              ("All projects", [("projects", "Projects", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
-              ("Project settings", [("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]), ("folder", "Folder", [("Publishing", "client-folder-h")]),
-                                    ("brand", "Brand", [("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]), ("claude", "ask clark", [("Asking", "ask-settings-h")]),
-                                    ("data", "Export and import", [("Data", "data-card-h")])]),
+NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Look", [("Personal", "personal-h"), ("Theme", "theme-settings-h")])]),      # row 1299 S1a: the four groups of the mock-up, in its order
+              ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
+              ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]),
+                                    ("brand", "Brand and publishing", [("Brands", "brands-h"), ("Publishing", "client-folder-h")]), ("people", "People", [("People", "people-h")]),
+                                    ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Data", [("Data", "data-card-h")])]),
               ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]),
                                   ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"

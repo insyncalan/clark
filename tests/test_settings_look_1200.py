@@ -59,7 +59,7 @@ LOOK = """(() => {
 PAGE_READY = [("profile", "!!document.querySelector('#ess-name') && !!document.querySelector('[data-ess-copy-suggestion]') && !!document.querySelector('#ess-safety-copy-box')"),
               ("appearance", "!!document.querySelector('.seg')"),
               ("backups", "!!document.querySelector('[data-copy-suggestion]') && !!document.querySelector('#safety-copy-box') && !!document.querySelector('#safety-h')"),
-              ("folder", "!!document.querySelector('#client-folder-paste') && !!document.querySelector('#local-folder h3')"),
+              ("brand", "!!document.querySelector('#client-folder-paste') && !!document.querySelector('#local-folder h3')"),
               ("reports", "!!document.querySelector('#gantt-name') && !!document.querySelector('#gantt-setting .set-reset')")]
 
 

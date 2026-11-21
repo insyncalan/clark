@@ -90,7 +90,7 @@ class Browser(unittest.TestCase):
                 sid = self.visit(cdp, s.port, width, "light", "#settings")
                 self.until(cdp, sid, "document.querySelector('#npBtn')", "the first page")
                 chips = cdp.js("[...document.querySelectorAll('.set-chip')].map(c => c.textContent).join('|')", sid)
-                for gone in ("Folder", "Reports"):      # the pages whose cards need a project
+                for gone in ("Reports and pages",):      # the page whose cards need a project (row 1299 S1a: the Folder page is now part of Brand and publishing, which keeps the Brands card)
                     self.assertNotIn(gone, chips.split("|"))
                 for slug, kept in (("appearance", "personal-h"), ("data", "data-card-h"), ("backups", "safety-h"), ("logs", "diagnostics-h"), ("projects", "projects-h")):
                     self.open_page(cdp, sid, slug, f"document.getElementById('{kept}')")
@@ -145,7 +145,7 @@ class Browser(unittest.TestCase):
                         self.assertFalse(any(gone in h for h in heads), f"{gone} card still shown: {heads}")
                     chips = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-chip')].map(c => c.textContent.trim()))", sid))
                     self.assertTrue(chips, "the section chips show")
-                    for gone in ("Folder", "Reports"):
+                    for gone in ("Reports and pages",):
                         self.assertNotIn(gone, chips, f"{gone} item still shown")
                     probe = json.loads(cdp.js(self.PROBE, sid))
                     for which in ("import", "export"):

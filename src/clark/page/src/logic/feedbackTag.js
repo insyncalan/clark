@@ -27,7 +27,7 @@ export const EMPTY_SEND = "Please write a line first.";
 /** True when a send (copy or mail) has nothing to send: the message is empty or only spaces. */
 export function emptySend(form) { return !text(form && form.message).trim(); }
 // Settings pages' names (Views.jsx GROUPS); "" is the first page, Projects.
-const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", theme: "Theme", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Export and import", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
+const SETTINGS_NAMES = { "": "Projects overview", projects: "Projects overview", people: "People", profile: "Profile", folder: "Brand and publishing", brand: "Brand and publishing", theme: "Look", appearance: "Look", reports: "Reports and pages", backups: "Backups", data: "Data", claude: "ask clark", logs: "Logs and diagnostics", version: "Version and updates" };
 
 function text(x) { return x == null ? "" : String(x); }
 const kindOf = (k) => (KINDS.includes(k) ? k : DEFAULT_KIND);

@@ -214,9 +214,7 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
-                    ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
-                     "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
+            menu = ["You", "Profile", "Look", "All projects", "Projects overview", "Backups", "Project settings", "Reports and pages", "Brand and publishing", "People", "ask clark", "Data", "Help and about", "Version and updates", "Logs and diagnostics"]      # row 1299 S1a
             pages = [
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
@@ -227,7 +225,7 @@ class Words(unittest.TestCase):
                     "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                     "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
                 ]),
-                ('projects', 'Projects', [
+                ('projects', 'Projects overview', [
                     "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                     "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                     "NAME", "CODE", "CLIENT", "WORKSTREAMS", "ITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive"
@@ -237,7 +235,9 @@ class Words(unittest.TestCase):
                     "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                     "The people list could not be read. Reload the page. If it happens again, restart clark. Try again"
                 ]),
-                ('folder', 'Folder', [
+                ('brand', 'Brand and publishing', [
+                    "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
+                    "Brands can't be shown right now. Restart clark the usual way and try again. Try again",
                     "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                     "LOCAL FOLDER", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
                     "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
@@ -246,23 +246,17 @@ class Words(unittest.TestCase):
                     "into it when you tick To client; OneDrive then uploads it.",
                     "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer."
                 ]),
-                ('brand', 'Brand', [
-                    "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
-                    "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
-                ]),
-                ('theme', 'Theme', [
-                    "Theme", "Classic", "The only theme clark has."      # row 1363: one choice, nothing read from the server
-                ]),
-                ('appearance', 'Appearance', [
+                ('appearance', 'Look', [
                     "Personal",    # #45: Settings › Personal, the section styles
                     "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
                     "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                     "Comfortable", "Each Dashboard section is its own card, with room between them.",
                     "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
                     "Keys", "Single-key slash commands",            # #193
-                    "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
+                    "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                    "Theme", "Classic", "The only theme clark has."      # row 1363: one choice, nothing read from the server
                 ]),
-                ('reports', 'Reports', [
+                ('reports', 'Reports and pages', [
                     "Freshness",          # #160: the project's "Not reviewed after (days)"
                     "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
                     "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
@@ -276,7 +270,7 @@ class Words(unittest.TestCase):
                     "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                     "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
                 ]),
-                ('data', 'Export and import', [
+                ('data', 'Data', [
                     "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                     "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)

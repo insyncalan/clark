@@ -76,7 +76,7 @@ class SettingsBar(Base):
                                     "the bar is under the top bar: " + p.js("'scrollY=' + scrollY + ' docH=' + document.documentElement.scrollHeight + ' bar top=' + document.querySelector('.set-bar').getBoundingClientRect().top + ' top bar bottom=' + document.querySelector('.top').getBoundingClientRect().bottom + ' --topbar=' + getComputedStyle(document.documentElement).getPropertyValue('--topbar')"))
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).backgroundColor"), p.js("getComputedStyle(document.body).backgroundColor"),
                                      "the bar is on the page's own ground")
-                    for name, head_id in (("Backups", "safety-h"), ("Appearance", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Folder", "client-folder-h")):
+                    for name, head_id in (("Backups", "safety-h"), ("Look", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Brand and publishing", "client-folder-h")):
                         self.chip(p, name)
                         p.until(f"!!document.getElementById('{head_id}') && ({MARKED} || {{}}).textContent === '{name}'", f"{name} opened its page")
                         self.settle(p)

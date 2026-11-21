@@ -116,7 +116,7 @@ class OnThePage(unittest.TestCase):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width, "#settings&p=MOSS", ".set-chip")
-                cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()", sid)
+                cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Look').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#personal [data-appearance] .seg button')", sid)), "Personal drew")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)", sid),
                                  ["System", "Light", "Dark"])

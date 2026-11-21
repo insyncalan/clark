@@ -154,7 +154,7 @@ class Essentials(test_settings_head.Head):
         with chrome() as cdp:
             p = self.settings(cdp, 1400, "light")
             for slug, sel in (("profile", "#about-name"), ("appearance", "[data-theme-pick=dark]"), ("appearance", "input[name=density]"), ("appearance", "#personal .switch"),
-                              ("backups", "#safety-copy-box"), ("folder", "#local-folder [data-choose-local]"), ("claude", "[data-ask-switch]")):
+                              ("backups", "#safety-copy-box"), ("brand", "#local-folder [data-choose-local]"), ("claude", "[data-ask-switch]")):
                 self.to_page(p, slug)
                 p.until(f"!!document.querySelector({sel!r})", sel + " stays in its own card")
             self.to_page(p, "profile")
