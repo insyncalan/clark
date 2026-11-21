@@ -29,11 +29,12 @@ const textSections = (sections) => (Array.isArray(sections) ? sections : []).fil
 
 /** The menu: one "Replace" for each Text section (the one the draft is for first), then "Add as a new Text section" after that section (when the
  * draft is for one) and at the end. [{kind: "replace" | "add", id, after, label}]. */
-export function choices(sections, pref) {
+export function choices(sections, pref, classic = false) {
   const text = textSections(sections);
   const out = [...text.filter((s) => s.id === pref), ...text.filter((s) => s.id !== pref)].map((s) => {
     const n = wordsIn(s.body);
-    return { kind: "replace", id: s.id, after: null, label: `Replace the text of ${s.title || "this section"} (${n} ${n === 1 ? "word" : "words"} now)` };
+    const title = s.title || "this section", tail = n || !classic ? `(${n} ${n === 1 ? "word" : "words"} now)` : "(empty)";      // row 1347: Classic says (empty) for a section with no text; Cards keeps (0 words now)
+    return { kind: "replace", id: s.id, after: null, title, tail, label: `Replace the text of ${title} ${tail}` };
   });
   const at = text.find((s) => s.id === pref);
   if (at) out.push({ kind: "add", id: "", after: at.id, label: `Add as a new Text section after ${at.title || "this section"}` });
