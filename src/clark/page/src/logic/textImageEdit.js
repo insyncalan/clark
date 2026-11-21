@@ -19,7 +19,6 @@ export const FIELDS = {
   heading: "Heading", optional: "optional", text: "Text", describe: "Describe the image", describeHint: "for people who cannot see it",
   noDescription: "No description yet.", caption: "Caption",
 };
-export const SAID = { shape: "Image shape saved.", position: "Image position saved.", share: "Image width saved.", added: "Image added.", replaced: "Image replaced.", removed: "Image taken out.", heading: "Heading saved." };
 
 // The width the section is drawn at: a section that shares its row is half width.
 export const isHalf = (slot) => slot === "left" || slot === "right";

@@ -92,6 +92,10 @@ class Storing(unittest.TestCase):
         self.assertEqual(node("T.setting('share', 'half')"), {"share": ""})
         self.assertEqual(node("T.setting('shape', 'fill')"), {"shape": ""})
 
+    def test_the_three_shares_are_read_back_as_stored(self):
+        for share in ("third", "half", "two"):
+            self.assertEqual(node(f"T.chosen({{v: 2, share: {json.dumps(share)}}})")["share"], share)
+
     def test_swap_flips_this_widths_choice_and_leaves_the_other_width_alone(self):
         self.assertEqual(node("T.swapped({v: 2}, false)"), {"side": "left"})
         self.assertEqual(node("T.swapped({v: 2, side: 'left'}, false)"), {"side": ""})
@@ -108,3 +112,9 @@ class Storing(unittest.TestCase):
         self.assertEqual(node("T.fileNote(1800, 1200)"),
                          "1,800 × 1,200 px file. Made smaller for print to 3,000 px at most (300 dpi). The published page carries only the part you see.")
         self.assertEqual(node("T.fileNote(0, 0)"), "")
+        self.assertEqual(node("T.fileNote(1800, 0)"), "", "a width with no height says nothing")
+        self.assertEqual(node("T.fileNote(0, 1200)"), "")
+
+    def test_wide_at_half_width_has_its_own_icon_and_the_others_keep_theirs(self):
+        self.assertEqual([s["icon"] for s in node("T.shapes(true)")], ["16:9", "4:3", "square", "whole"])
+        self.assertEqual([s["icon"] for s in node("T.shapes(false)")], ["fill", "4:3", "square", "whole"])

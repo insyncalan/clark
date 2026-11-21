@@ -20,7 +20,7 @@ import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
 import { slots } from "../../logic/placement.js";
 import { WORDS as W, MOST_BYTES, SLOT_ORIGINAL as ORIGINAL } from "../../logic/fullImageWords.js";
-import { TOOLBAR, GROUP, NAMES, FIELDS, SAID, SHARES, isHalf, positions, chosen, setting, swapped, shapes, fileNote, PRINT_WIDE } from "../../logic/textImageEdit.js";
+import { TOOLBAR, GROUP, NAMES, FIELDS, SHARES, isHalf, positions, chosen, setting, swapped, shapes, fileNote, PRINT_WIDE } from "../../logic/textImageEdit.js";
 
 const noBreaks = (html) => html.replace(/[\r\n]+/g, " ");
 const richOf = (v) => (typeof v.html === "string" && v.html ? v.html : "");
@@ -59,7 +59,7 @@ export function SideBySide({ section }) {
     try {
       const made = await shrink(file, { longest: 8000, widest: PRINT_WIDE, most: MOST_BYTES });
       if (!made.ok) { say("problem", made.message); return; }
-      const said = original ? SAID.replaced : SAID.added;
+      const said = original ? W.replaced : W.added;
       if (!(await sendPicture(section, ORIGINAL, made.data, said))) return;
       if (made.from && made.from > made.width) await saveWords(section, { from_w: made.from }, said);
     } finally { setBusy(false); }
@@ -67,7 +67,7 @@ export function SideBySide({ section }) {
   async function remove() {
     if (busy) return;
     setBusy(true);
-    try { await sendPicture(section, ORIGINAL, null, SAID.removed); } finally { setBusy(false); }
+    try { await sendPicture(section, ORIGINAL, null, W.removed); } finally { setBusy(false); }
   }
   const pick = () => input.current && input.current.click();
   const onDrop = (e) => {
@@ -88,25 +88,25 @@ export function SideBySide({ section }) {
   return (
     <div class="tpl-edit tpl-ti-edit tpl-sbs-edit" data-half={half ? "1" : undefined}>
       {empty ? <p class="quiet tpl-hint">Add some words, an image or both. Until then this section stays out of the published page.</p> : null}
-      <LineField section={section} field="heading" label={withHint(FIELDS.heading, FIELDS.optional)} value={v.heading} max={300} words={SAID.heading} />
+      <LineField section={section} field="heading" label={withHint(FIELDS.heading, FIELDS.optional)} value={v.heading} max={300} words={"Text saved."} />
       <div class={cls}>
         {framed ? (
           <figure class="tpl-sbs-fig">
             <div class="tpl-sbs-frame"><img src={framed} alt={v.alt || ""} style={at} draggable={false} /></div>
             <div class="fi-bar ti-bar" role="toolbar" aria-label={TOOLBAR} aria-orientation="horizontal" data-busy={busy ? "1" : undefined} ref={bar} onKeyDown={onKeyDown} onFocusIn={onFocusIn}>
               <div class="ti-grp" role="group" aria-label={GROUP.shape}>
-                {shapes(half).map((s) => <Btn key={s.key} icon={s.icon} name={s.name} act={`shape-${s.key}`} on={c.shape === s.key} disabled={busy} onClick={() => put(setting("shape", s.key), SAID.shape)} />)}
+                {shapes(half).map((s) => <Btn key={s.key} icon={s.icon} name={s.name} act={`shape-${s.key}`} on={c.shape === s.key} disabled={busy} onClick={() => put(setting("shape", s.key), W.framed)} />)}
               </div>
               <Sep />
               <div class="ti-grp" role="group" aria-label={GROUP.position}>
-                {positions(half).map((p) => <Btn key={p.key} icon={p.key === "bottom" ? "under" : p.key} name={NAMES[p.key]} act={`pos-${p.key}`} on={c[p.field] === p.value} disabled={busy} onClick={() => put(setting(p.field, p.value), SAID.position)} />)}
-                <Btn icon="swap" name={NAMES.swap} act="swap" disabled={busy} onClick={() => put(swapped(v, half), SAID.position)} />
+                {positions(half).map((p) => <Btn key={p.key} icon={p.key === "bottom" ? "under" : p.key} name={NAMES[p.key]} act={`pos-${p.key}`} on={c[p.field] === p.value} disabled={busy} onClick={() => put(setting(p.field, p.value), W.framed)} />)}
+                <Btn icon="swap" name={NAMES.swap} act="swap" disabled={busy} onClick={() => put(swapped(v, half), W.framed)} />
               </div>
               {half ? null : (
                 <>
                   <Sep />
                   <div class="ti-grp" role="group" aria-label={GROUP.share}>
-                    {SHARES.map((k) => <Btn key={k} icon={k} name={NAMES[k]} act={`share-${k}`} on={c.share === k} disabled={busy} onClick={() => put(setting("share", k), SAID.share)} />)}
+                    {SHARES.map((k) => <Btn key={k} icon={k} name={NAMES[k]} act={`share-${k}`} on={c.share === k} disabled={busy} onClick={() => put(setting("share", k), W.framed)} />)}
                   </div>
                 </>
               )}
