@@ -51,6 +51,7 @@ async function applyOne(turn, index, plan, confirmed) {
   if (r.status === 200 && b && b.ok === true && Number.isInteger(b.apply_id)) {
     const step = b.undoable === false ? null : b.apply_id;
     keepCard(turn, index, { state: "done", line: W.DONE_LINE, step });
+    if (classicTheme() && Array.isArray(b.stale)) markStale(turn, b.stale);      // row 1293: another change to this item, now out of date, shows the server's line in place of its Apply
     reread(project.value);
     return step;
   }
@@ -123,6 +124,19 @@ export function ChangeCards({ turn }) {
       {plans.map((plan, i) => <ChangeCard key={i} plan={plan} turn={turn} index={i} passages={passages.length} />)}
     </div>
   );
+}
+
+/** Row 1293: the cards of `turn` whose offer the server says is stale get the server's line and no Apply (the card's "failed" state, which has none). */
+function markStale(turn, stale) {
+  const said = new Map(stale.filter((x) => x && typeof x.offer === "string").map((x) => [x.offer, fixedLine(x.message, W.NOT_SAVED_LINE)]));
+  turns.value = turns.value.map((t) => {
+    if (t.plans !== turn.plans) return t;
+    const cards = { ...(t.cards || {}) };
+    (t.plans || []).forEach((p, i) => {
+      if (p && said.has(p.offer) && ((cards[i] && cards[i].state) || "offered") === "offered") cards[i] = { ...(cards[i] || {}), state: "failed", line: said.get(p.offer) };
+    });
+    return { ...t, cards };
+  });
 }
 
 // The card's state (offered | saving | done | undoing | undone | failed, its line and Undo step) lives on the turn, not in the card, so it
@@ -217,6 +231,9 @@ function ChangeCard({ plan, turn, index, passages }) {
           <label><input type="checkbox" data-ask-confirm checked={ticked} onChange={(e) => setTicked(e.currentTarget.checked)}
             onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} /> {W.CONFIRM_BOX}</label>
         </div>
+      ) : null}
+      {classicTheme() && state === "offered" && typeof plan.duplicate === "string" && plan.duplicate ? (
+        <p class="ask-duplicate" data-ask-duplicate>{fixedLine(plan.duplicate, "")}</p>      // Row 1293: a warning above Apply; Apply stays
       ) : null}
       {state === "offered" && live ? (
         <div class="ask-change-actions">
