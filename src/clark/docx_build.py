@@ -53,7 +53,7 @@ DOC_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml"
 HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 ROOT = f'xmlns:w="{NS_W}" xmlns:r="{NS_R}"'
 
-TOKENS = dict(colours_table.TOKENS)
+TOKENS = {k: v for k, v in colours_table.TOKENS.items() if k not in colours_table.EXPORT_TOKENS}      # item 1390: the workbook-only tokens are not Word's
 HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
