@@ -93,13 +93,13 @@ export function Head({ type, id }) {
 
 export const listClass = (type, mode) => `wl irows is-${mode}${type === "decisions" ? " is-dec" : ""}`;
 
-function Row({ row, today, words, inFile, type, pick: Pick }) {
+function Row({ row, today, words, inFile, type, pick: Pick, scope }) {
   const pill = clientPill(row, today), who = ownerOf(row.owner), date = dueField(row);
   const title = words[row.id];
   const risk = row.kind === "risk" || row.kind === "issue";
   const late = inFile ? "" : lateWord(row, today);
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
-  const P = (field, said, children, extra) => (Pick ? <Pick row={row} field={field} said={said} {...(extra || {})}>{children}</Pick> : children);      // row 1287: in View the Edit cell picker round the four values (status, owner, date, priority), never round the title
+  const P = (field, said, children, extra) => (Pick ? <Pick row={row} field={field} said={said} scope={scope} {...(extra || {})}>{children}</Pick> : children);      // row 1287: in View the Edit cell picker round the four values (status, owner, date, priority), never round the title
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
       <span class="c-ico">{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} />, { keep: true })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
@@ -114,13 +114,13 @@ function Row({ row, today, words, inFile, type, pick: Pick }) {
   );
 }
 
-export function ItemRows({ type, pick }) {
+export function ItemRows({ type, pick, scope }) {
   const inFile = fromFile.value, list = rowsFor(type), today = todayOf(), words = (inFile ? wordings : viewWords)(data.value || {});
   if (!list.length) return <p class="quiet" data-nothing>{NOTHING}</p>;
   return (
     <ul class={listClass(type, inFile ? "file" : "view")}>
       <Head type={type} id={!inFile} />
-      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} pick={inFile ? null : pick} />)}
+      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} pick={inFile ? null : pick} scope={scope} />)}
     </ul>
   );
 }

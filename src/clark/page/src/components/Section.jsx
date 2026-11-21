@@ -75,7 +75,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean, pic
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : clean && (section.type === "current" || (!editing && section.type === "text"))     // row 850: Edit draws the Current state text too (read only: the project's headline text has no write kind yet, see edit/richSave.js)
         ? <ViewText html={clean(section.type === "current" ? ((data.value && data.value.project) || {}).current_state : section.body)} />
-        : KINDS[section.type] ? (editing ? <tools.ItemRowsEdit type={section.type} section={section} /> : <ItemRows type={section.type} pick={pick} />)     // risks and issues, actions, decisions: their rows (A-D5)
+        : KINDS[section.type] ? (editing ? <tools.ItemRowsEdit type={section.type} section={section} /> : <ItemRows type={section.type} pick={pick} scope={section.id} />)     // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );

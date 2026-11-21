@@ -46,13 +46,13 @@ function refocus(k, around) {
   }, 0);
 }
 
-export function Cell({ row, field, said, keep, tip, children, place }) {
+export function Cell({ row, field, said, keep, tip, children, place, scope }) {      // row 1287: `scope` is the list or section the cell is in; it only keeps the open key apart, so one item shown in two lists never opens both pickers
   const button = useRef(null);
   if (!canPick(row, field)) {
     const why = whyFixed(row, field);                       // a RAID item's priority: say why a click does nothing
     return why ? <span class="cell-fixed" data-fixed={`${row.id}:${field}`} title={why}>{children}</span> : children;
   }
-  const k = place ? `${place}:${key(row, field)}` : key(row, field), open = openCell.value === k, Picker = PICKERS[field];
+  const k = `${scope ? scope + ":" : ""}${place ? place + ":" : ""}${key(row, field)}`, open = openCell.value === k, Picker = PICKERS[field];
   if (field === "status" && !keep) { const p = statusPill(row, todayIso()); children = <span class={`pill ${p.class}`}>{p.text}</span>; }   // the live look; `keep`: the report rows (ItemRowsEdit) keep the pill they were given (Overdue, Red, ...)
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
   const pick = (value) => {
