@@ -78,7 +78,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
   }
   return (
     <div class="rce" data-edit-only="">
-      {cards.length === 0 ? <StartPrompt id={`raid-${size}`} /> : null}
+      {cards.length === 0 ? <StartPrompt id={`raid-${base}`} /> : null}
       {cards.length === 0 ? <p class="quiet rce-first">Choose an item for the first card. This section stays out of the published page until a card is chosen.</p> : null}
       {choice ? (
         <label class="rce-f rce-across"><span>Cards across</span>

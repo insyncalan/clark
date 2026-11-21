@@ -794,8 +794,6 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .modes.seg button[aria-pressed="true"] { color: var(--pill-fg); }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
 html { overscroll-behavior-y: none; }
-/* Row 1270 (Classic only): the part word above a RAID card's words (The risk, The issue, The action, The decision needed, The decision) is drawn as the card's other small labels: caption size, medium weight, muted. Bare length: the --space-2 gap above, as .raid-label. */
-.raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
 
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
 .hdr-id, .top-id { max-width: 50%; }
@@ -842,16 +840,6 @@ table.items .weye { width: 30px; height: 30px; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
-.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
-.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
-/* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
-.gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
-:root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
-#viewMenuList { min-width: 224px; }
-[data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
 /* Row 1270 (RAID cards, Classic only; the Cards look keeps shell.css as main has it): the card as the approved page draws it. A 4 px edge in the rating colour and a tinted band
    under it, the whole description (no cut), a Latest update part, and the foot line pinned to the bottom so the foot lines line up across a row. Four across hold at 1400 (shell.css
    goes two across up to 1400; a card is 226 px at 1101 px, and an owner name still fits whole at 1400); at 900 it is two across. Tokens only. */
@@ -869,3 +857,15 @@ table.items .weye { width: 30px; height: 30px; }
 .raid-latest { color: var(--text); }
 .raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); }
 .raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
+/* Row 1270 (Classic only): the part word above a RAID card's words (The risk, The issue, The action, The decision needed, The decision) is drawn as the card's other small labels: caption size, medium weight, muted. Bare length: the --space-2 gap above, as .raid-label. */
+.raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
+.gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
+:root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+#viewMenuList { min-width: 224px; }
+[data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
