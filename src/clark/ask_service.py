@@ -110,6 +110,8 @@ class AskService:
         self.today = datetime.date.today                    # a seam for tests
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
+        self.cancels = set()                         # one threading.Event per question being prepared or asked; Stop sets them all
+        self.cancels_lock = threading.Lock()
         self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
         self.using_lock = threading.Lock()
 
@@ -223,7 +225,15 @@ class AskService:
         if body not in (None, {}):
             return 400, self.fail("bad_request")
         stop = getattr(self.provider, "stop", None)
-        running = bool(stop(owner=self.owner)) if callable(stop) else False
+        with self.cancels_lock:
+            pending = list(self.cancels)
+            for event in pending:
+                event.set()                          # a question still reading its data is told too: its request goes out cancelled, so the provider never starts
+        with self.using_lock:
+            for run in self.runs:
+                threading.Event.set(run.cancel)      # one already on its way to the provider never starts (set, not read: it is not marked started)
+                pending.append(run)
+        running = (bool(stop(owner=self.owner)) if callable(stop) else False) or bool(pending)
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ask -----
@@ -242,6 +252,16 @@ class AskService:
         return code, question, turns
 
     def ask(self, body):
+        cancel = threading.Event()
+        with self.cancels_lock:
+            self.cancels.add(cancel)
+        try:
+            return self.ask_one(body, cancel)
+        finally:
+            with self.cancels_lock:
+                self.cancels.discard(cancel)
+
+    def ask_one(self, body, cancel):
         got = self.read_body(body)
         if got is None:
             return 400, self.fail("bad_request")
@@ -296,6 +316,8 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
+        if cancel.is_set():                          # a Stop that came while the data was read: nothing is sent
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
         run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
