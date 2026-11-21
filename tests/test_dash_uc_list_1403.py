@@ -177,6 +177,35 @@ class ChipStyles(Dash, Base):
                 self.assertEqual(g[7], token, f"edit {w} dark={dark}: colour is not --text-muted {token}")
 
 
+class EditHeads(Dash, Base):
+    """Ruling b: Edit keeps its heading row (.ucheads-ed) with every column name; View (Classic) draws none."""
+    css = theme.css("prototype-2.0")
+    NAMES = ["Ref", "Use case", "Status", "Commitment", "Next steps"]
+    PROBE = """(() => {
+      const h = document.querySelector('.uc .ucheads'), cs = h && getComputedStyle(h);
+      return h && { cls: h.className, display: cs.display, height: Math.round(h.getBoundingClientRect().height), vis: cs.visibility,
+        names: [...h.children].map((c) => c.textContent.trim()), widths: [...h.children].map((c) => Math.round(c.getBoundingClientRect().width)) }; })()"""
+
+    def test_edit_draws_the_heading_row_with_its_column_names_and_view_does_not(self):
+        """At 1400 and 900: View has the row hidden (display none, 0 high); Edit shows it (not none, taller than 0, visible) with all five names."""
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.open_page(cdp, w)
+                view = p.js(self.PROBE)
+                self.assertEqual([view["display"], view["height"]], ["none", 0], f"{w} View: {view}")
+                self.assertNotIn("ucheads-ed", view["cls"], f"{w} View: {view}")
+                p.js("document.querySelector('[data-mode=edit]').click()")
+                p.until("!!document.querySelector('.uc .ucheads-ed')", "the Edit heading row drew")
+                p.until("document.getAnimations().length === 0", "the animations to end")
+                ed = p.js(self.PROBE)
+                self.assertIn("ucheads-ed", ed["cls"], f"{w} Edit: {ed}")
+                self.assertNotEqual(ed["display"], "none", f"{w} Edit shows its heading row: {ed}")
+                self.assertEqual(ed["vis"], "visible", f"{w} Edit: {ed}")
+                self.assertGreater(ed["height"], 0, f"{w} Edit: the row has a height: {ed}")
+                self.assertEqual(ed["names"], self.NAMES, f"{w} Edit: every column keeps its label: {ed}")
+                self.assertTrue(all(x > 0 for x in ed["widths"]), f"{w} Edit: each label has room: {ed}")
+
+
 class CardsKeepsShared(Dash, Base):
     """Cards (no Theme layer) keeps the shared rules: the heading row is drawn, the badge is 600 (grey-300 outline) and the chip radius 4."""
     def test_cards_as_on_main(self):
