@@ -14,7 +14,7 @@ from _demo import USER
 from _pictures import GOOD
 from clark import changes
 from test_report_editor import Base as PageBase
-from test_server import chrome
+from test_server import chrome, wait
 
 KIND = "textimage"
 WORDS = "<p>Fictional site visit on Tuesday.</p>"
@@ -167,6 +167,95 @@ class SideBySideEdit(PageBase):
             p.until(f"!!document.querySelector('{sel} .tpl-ti-edit')", "the Edit part")
             self.assertTrue(p.js(f"!!document.querySelector('{sel} .tpl-side')"), "the old Right and Left choice")
             self.assertFalse(p.js(f"!!document.querySelector('{sel} .ti-bar')"))
+
+    FILE = """(async () => {{
+      const c = document.createElement('canvas'); c.width = {w}; c.height = {h};
+      const g = c.getContext('2d'); g.fillStyle = 'rgb(40,90,160)'; g.fillRect(0, 0, {w}, {h});
+      const blob = await new Promise(r => c.toBlob(r, {kind}));
+      const dt = new DataTransfer(); dt.items.add(new File([blob], 'fictional', {{ type: {kind} }}));
+      const input = document.querySelector({sel}); input.files = dt.files;
+      input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    }})()"""
+
+    def choose(self, p, sel, w, h, kind="image/png"):
+        p.js(self.FILE.format(w=w, h=h, kind=json.dumps(kind), sel=json.dumps(f"{sel} input[type=file]")))
+
+    def test_a_chosen_file_is_added_or_replaced_with_its_own_words_and_a_large_one_keeps_the_width_it_had(self):
+        for width in (1400, 900):
+            added = self.add({"v": 2, "html": WORDS}, f"Fictional empty {width}")
+            ref = self.add(self.with_image(), f"Fictional full {width}")
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                a = f"[data-id={json.dumps(added)}]"
+                p.until(f"!!document.querySelector('{a} [data-act=pick]')", "the drop area")
+                self.choose(p, a, 4000, 1000)
+                p.until(f"!!document.querySelector('{a} .ti-bar')", "the image is in")
+                self.assertEqual(p.toast(), "Image added.", width)
+                self.assertTrue(wait(lambda: self.body(added).get("from_w"), 10), "the second write lands")
+                self.assertEqual(self.body(added)["from_w"], 4000, "the width the file had is saved")
+                p.clear_toast()
+                sel = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sel} .ti-bar')", "the toolbar is drawn")
+                self.choose(p, sel, 2400, 1200)
+                p.toast_is("Image replaced.")
+                self.assertNotEqual(self.body(ref)["pictures"]["original"], GOOD, "the file took the place of the old one")
+
+    def test_a_shape_click_says_the_framing_is_saved_and_a_cut_shape_turns_a_jpeg_original_into_a_png(self):
+        for width in (1400, 900):
+            ref = self.add(self.with_image(), f"Fictional cut {width}")
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                sel = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sel} .ti-bar')", "the toolbar is drawn")
+                self.choose(p, sel, 1200, 600, "image/jpeg")
+                p.toast_is("Image replaced.")
+                p.until(f"!!document.querySelector('{sel} .ti-bar')", "the toolbar is back")
+                self.assertTrue(self.body(ref)["pictures"]["original"].startswith("data:image/jpeg"), "a JPEG original")
+                p.clear_toast()
+                p.js(f"document.querySelector('{sel} .ti-bar [data-act=shape-square]').click()")
+                p.toast_is("Image framing saved.")
+                self.assertTrue(wait(lambda: self.body(ref).get("shape"), 10), "the choice is saved after the new original")
+                got = self.body(ref)
+                self.assertEqual(got["shape"], "square")
+                self.assertTrue(got["pictures"]["original"].startswith("data:image/png"), "a cut shape is cut from a PNG")
+
+    def test_a_file_that_is_not_an_image_is_refused_and_nothing_is_changed(self):
+        for width in (1400, 900):
+            ref = self.add({"v": 2, "html": WORDS}, f"Fictional refuse {width}")
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                sel = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sel} [data-act=pick]')", "the drop area")
+                start = self.applies()
+                p.js(f"""(() => {{ const dt = new DataTransfer(); dt.items.add(new File(['fictional'], 'notes.txt', {{ type: 'text/plain' }}));
+                  const input = document.querySelector('{sel} input[type=file]'); input.files = dt.files; input.dispatchEvent(new Event('change', {{ bubbles: true }})); }})()""")
+                p.toast_is("That file isn't an image that can go in the report. Choose a PNG, JPEG or WebP image.")
+                self.assertEqual(self.applies(), start)
+                self.assertEqual(self.body(ref), {"v": 2, "html": WORDS})
+
+    def test_the_words_are_sent_without_line_breaks_and_say_text_saved(self):
+        for width in (1400, 900):
+            ref = self.add(self.with_image(), f"Fictional words {width}")
+            with chrome() as cdp:
+                p, sel = self.open_edit(cdp, ref)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("window.__sent = []; var f = window.fetch; window.fetch = function (u, o) { if (o && typeof o.body === 'string') window.__sent.push(o.body); return f.apply(this, arguments); }; true")
+                p.js(f"document.querySelector('{sel} [data-rich]').click()")
+                p.until(f"!!document.querySelector('{sel} .ProseMirror')", "the editor opens")
+                p.js(f"document.querySelector('{sel} .ProseMirror').cxed.editor.commands.setContent({{type: 'doc', content: [{{type: 'paragraph', content: [{{type: 'text', text: 'Fictional line one\\nline two'}}]}}]}}); true")
+                self.assertIn("\n", p.js(f"document.querySelector('{sel} .ProseMirror').cxed.editor.getHTML()"), "the editor itself holds a line break")
+                p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
+                p.saved()
+                self.assertEqual(p.toast(), "Text saved.")
+                sent = p.js("window.__sent.filter(b => b.indexOf('Fictional line') >= 0)")
+                self.assertTrue(sent and all("\\n" not in b and "\\r" not in b for b in sent), sent)
+                self.assertEqual(self.body(ref)["html"], "<p>Fictional line one line two</p>")
 
 
 if __name__ == "__main__":
