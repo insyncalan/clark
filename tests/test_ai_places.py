@@ -25,13 +25,13 @@ LOGIC = PAGE_SRC / "logic"
 # The editors the plan names, with the place each must have.
 WANTED = {
     "section.body": "current", "current.state": "current", "usecase.standing": "current", "notes.section": "notes",
-    "peek.latest_update": "current", "milestone.description": "current",      # row 1005: the two peek fields that are the one rich editor now
+    "peek.latest_update": "current", "milestone.description": "plain",      # row 1288: the milestone Description is One line (no AI), the Latest update is Full
     "textimage.text": "current",      # row 1005: the Text and picture section's text is the one rich editor now
-    "movement.internal_note": "current", "glance.health_reason": "current", "linkcard.text": "current", "onedoc.text": "current", "callout.text": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
-    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is the one editor, one plain line
-    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "plain",      # row 1005: the Movement form's one-line fields
+    "movement.internal_note": "current", "glance.health_reason": "current", "callout.text": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
+    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is one plain line until part (c) of row 1288 makes it Full
+    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "plain",      # row 1005: the Movement form's one-line fields; a RAID entry's own words stay one line until part (c) of row 1288
 }
-RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "linkcard.text", "onedoc.text", "callout.text")
+RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "textimage.text", "movement.internal_note", "glance.health_reason", "callout.text")
 # The section title is a one-line plain field and stays out of the AI.
 LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place; row 1292: the Draft beside the ask panel is the answer's own text, so it offers no AI of its own
 
@@ -88,6 +88,29 @@ class Table(PageCase):
         self.assertEqual(self.place_of, WANTED)
         for key, place in WANTED.items():
             self.assertEqual(self.page.ev(f"AP.placeFor({json.dumps(key)})"), place, key)
+
+    def test_the_link_card_and_one_document_words_are_not_rich_so_they_have_no_place_and_no_rich_field(self):
+        """Row 1288: Not rich is a plain box: no AI place and no RichField line for them."""
+        for key in ("linkcard.text", "onedoc.text"):
+            self.assertNotIn(key, self.place_of, key)
+        self.assertNotIn("linkcard", self.fields)
+        self.assertNotIn("onedoc", self.fields)
+
+    def test_no_key_is_written_twice_in_either_table(self):
+        """Row 1288 (review): a repeated key in an object literal is legal JS and the last one silently wins, so the loaded table cannot show it."""
+        import re
+        text = (LOGIC / "aiPlaces.js").read_text(encoding="utf-8")
+        for name in ("PLACE_OF", "RICH_FIELDS", "OTHER_EDITORS"):
+            body = re.search(r"export const " + name + r" = \{(.*?)\n\};", text, re.S).group(1)
+            keys = re.findall(r'^\s*(?:"([^"]+)"|([A-Za-z_]\w*))\s*:', body, re.M)
+            names = [a or b for a, b in keys]
+            self.assertTrue(names, name)
+            self.assertEqual([k for k in names if names.count(k) > 1], [], f"{name} repeats a key")
+
+    def test_the_milestone_description_is_one_line_so_its_place_is_plain(self):
+        """Row 1288: the milestone Description is One line (plain, no AI); its RichField line stays."""
+        self.assertEqual(self.fields["description"], "milestone.description")
+        self.assertEqual(self.page.ev("AP.placeFor('milestone.description')"), "plain")
 
     def test_every_place_is_one_of_the_servers_five(self):
         for key, place in self.place_of.items():

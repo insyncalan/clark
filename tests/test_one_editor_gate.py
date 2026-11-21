@@ -75,11 +75,15 @@ class Source(unittest.TestCase):
             self.assertNotIn(word, scripts, word)
 
     def test_the_template_fields_have_no_plain_box_for_their_words(self):
-        """Row 1005: the words on a Link preview card, under a One document file and in a Callout are the one editor (RichField)."""
-        for rel in ("edit/templates/LinkCard.jsx", "edit/templates/OneDoc.jsx", "edit/templates/Callout.jsx"):
+        """Row 1005: the words in a Callout are the one editor (RichField); row 1288: on a Link preview card and under a One document file they are Not rich (a plain box)."""
+        for rel in ("edit/templates/Callout.jsx",):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertNotIn("<textarea", text, rel)
             self.assertIn("<RichField", text, rel)
+        for rel in ("edit/templates/LinkCard.jsx", "edit/templates/OneDoc.jsx"):          # row 1288: Not rich, a plain box of lines
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertIn("<textarea", text, rel)
+            self.assertNotIn("RichField", text, rel)
         note = (PAGE_SRC / "edit" / "templates" / "noteEdit.jsx").read_text(encoding="utf-8")
         self.assertNotIn("<textarea", note, "the typed notes' shared field is one line now; the words are RichField")
 
@@ -245,8 +249,7 @@ class PageGate(unittest.TestCase):
         import json
         from clark import store as store_module
         file = {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}
-        content = {"linkcard": {"href": "https://example.org/x", "text": ["Old <b>card</b> line"]}, "onedoc": {"file": file, "text": ["Old <b>doc</b> line"]},
-                   "callout": {"tone": "info", "title": "Fictional", "paras": ["Old <b>callout</b> line"]}}
+        content = {"callout": {"tone": "info", "title": "Fictional", "paras": ["Old <b>callout</b> line"]}}
         refs = {}
         for kind, value in content.items():
             with self.store.step("dashboard", USER) as st:
