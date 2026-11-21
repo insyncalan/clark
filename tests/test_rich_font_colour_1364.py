@@ -435,7 +435,7 @@ class Colour(PublishedFile, unittest.TestCase):
         self.assertNotIn("style=", xml)
 
     def test_excel_export_colour(self):
-        """AP18 (Romanoff ruling 22-11 02:40): Excel carries the plain words of a coloured run and no colour: no markup, and the cell's font is the plain cell's."""
+        """AP18 (PM ruling 22-11 02:40): Excel carries the plain words of a coloured run and no colour: no markup, and the cell's font is the plain cell's."""
         def book(html):
             rows = {"actions": [{"id": "a1", "description": "act", "latest_update": html}],
                     "use_cases": [{"id": "u1", "title": "uc", "headline": "h", "standing": html, "status": "Planned"}]}
