@@ -11,6 +11,7 @@ from test_server import chrome
 
 GOOD = {"v": 1, "quote": "Fictional words of thanks.", "by": "Sam Example", "role": "Fictional sponsor"}
 HOSTILE = {"v": 1, "quote": n.HOSTILE, "by": n.HOSTILE, "role": n.HOSTILE}
+first = lambda body: body["quotes"][0] if "quotes" in body else body      # row 1271: an edit writes the list shape; an older quote is its one quote
 
 
 class Data(n.DataChecks):
@@ -28,7 +29,7 @@ class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "quote", GOOD, HOSTILE
     SHOWS = ("Fictional words of thanks.", "Sam Example, Fictional sponsor")
     FIELD, TYPED = "Quote words", "Fictional new words"
-    CHANGED = lambda self, body: json.loads(body)["quote"] == "Fictional new words"
+    CHANGED = lambda self, body: first(json.loads(body))["quote"] == "Fictional new words"
 
     def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
         classic(self)          # the starting text is a Classic look; Cards keeps its old words
@@ -56,14 +57,14 @@ class Page(n.PageChecks):
             p.edit()
             sel = n.field_js(ref, "Quote words")
             p.until(f"!!{sel}", "the field is there")
-            self.assertEqual(p.js(f"{sel}.tagName"), "INPUT", "one line: Enter can't add a line break")
+            self.assertEqual(p.js(f"{sel}.tagName"), "TEXTAREA", "row 1271: the words wrap and grow; Enter still ends them, so no line break")
             p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
             p.until(f"document.activeElement === {sel}", "focus")
             p.type("Fictional enter words")
             p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "text": "\r"}, p.sid)
             p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13}, p.sid)
             p.saved()
-            self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
+            self.assertEqual(first(json.loads(self.body_of(ref)))["quote"], "Fictional enter words")
 
 
 if __name__ == "__main__":

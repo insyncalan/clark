@@ -18,7 +18,7 @@ export function useSaver(section, saved, done, named = null) {
   drawn.current = saved;
   useEffect(() => { if (!flying.current) now.current = drawn.current; }, [key]);
   return (patch) => {
-    now.current = { ...now.current, ...patch };
+    now.current = { ...now.current, ...(typeof patch === "function" ? patch(now.current) : patch) };      // row 1271: a function reads the latest words (a list edited by position)
     flying.current += 1;
     const sent = saveContent(section, { v: 1, ...now.current }, done, named);
     Promise.resolve(sent).then((reply) => { flying.current -= 1; if (reply === null || !flying.current) now.current = drawn.current; });
@@ -26,8 +26,8 @@ export function useSaver(section, saved, done, named = null) {
   };
 }
 
-// A plain text field (one line). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
-export function Field({ value, onCommit, label, max, cls = "", placeholder, hint = "", onDraft = null }) {
+// A plain text field (one line; `area` draws it as a wrapping box, still one line of words). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
+export function Field({ value, onCommit, label, max, cls = "", placeholder, hint = "", onDraft = null, area = false }) {
   const [draft, setDraft] = useState(value);
   const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
   latest.current = value;
@@ -54,5 +54,6 @@ export function Field({ value, onCommit, label, max, cls = "", placeholder, hint
     if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; e.currentTarget.blur(); }
     else if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
   };
-  return <input {...common} type="text" onKeyDown={keys} />;
+  // row 1271: `area` is the same field as a box that wraps and grows with its words (the Quote); Enter still ends it, so the words stay one line.
+  return area ? <textarea {...common} rows={1} onKeyDown={keys} /> : <input {...common} type="text" onKeyDown={keys} />;
 }
