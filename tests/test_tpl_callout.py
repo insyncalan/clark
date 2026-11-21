@@ -313,7 +313,6 @@ class Page(n.PageChecks):
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
             self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 27, "26 icons and No icon")
             names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
-            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
             for n in NEW_ICON_NAMES:
                 self.assertIn(n, names, "each new icon is in the picker")
             self.assertEqual(names.count("Warning triangle"), 1, "one triangle entry")
