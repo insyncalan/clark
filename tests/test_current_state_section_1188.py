@@ -18,6 +18,9 @@ class Body(unittest.TestCase):
     def test_the_first_visible_text_section_titled_current_state_gives_its_cleaned_body(self):
         self.assertEqual(publish.current_state_section_body([sec("<p>Ok.</p><script>x()</script>")]), "<p>Ok.</p>")
 
+    def test_a_text_section_titled_header_is_the_current_state_too(self):      # row 1266: a new project's first text section is titled Header
+        self.assertEqual(publish.current_state_section_body([sec("<p>Said.</p>", title="Header")]), "<p>Said.</p>")
+
     def test_title_case_and_spacing_do_not_matter(self):
         self.assertEqual(publish.current_state_section_body([sec("<p>A.</p>", title="  CURRENT   state ")]), "<p>A.</p>")
 

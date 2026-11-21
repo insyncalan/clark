@@ -14,11 +14,11 @@ from clark import default_sections, order, store as store_module
 from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
-TEN = (
-    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use cases", 0),
+TEN = (      # row 1266: the Header text, the glance template, Use cases and the Files and links template (Documents) replace Current state, the built-in glance, Use case summary and Supporting documents
+    ("text", "Header", 0), ("glancetemplate", "At a glance", 0), ("usecases", "Use cases", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 8, 9 and 10 of item 1193
-    ("docs", "Supporting documents", 0))
+    ("doclinks", "Documents", 0))
 
 
 class Base(unittest.TestCase):
@@ -51,7 +51,7 @@ class Seed(Base):
         self.assertEqual([(r["type"], r["title"], r["beside"]) for r in rows], list(TEN))
         self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 11)])
         self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 11)])
-        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] != "workitems"}, {(0, "")})      # item 1188: only the first starts with words
+        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] not in ("workitems", "glancetemplate")}, {(0, "")})      # item 1188: only the first starts with words
         self.assertEqual({r["body"] for r in rows if r["title"] == "Open actions"}, {default_sections.OPEN_ACTIONS_BODY})      # row 1193-9
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
@@ -90,20 +90,22 @@ class Seed(Base):
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
-        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
+        self.assertTrue(all(s["type"] in NINE + ("workitems", "glancetemplate", "doclinks") for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
         self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
 
     def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Header", ""))
         want = [""] * 10
+        want[1] = default_sections.GLANCE_HEALTH_OFF                                 # row 1266 row 2: Health tile off
         want[6] = default_sections.RISKS_AND_ISSUES_LIST                             # row 1193-8
         want[7] = default_sections.OPEN_ACTIONS_BODY                                 # row 1193-9
         want[8] = default_sections.DECISIONS_LIST                                    # row 10 of item 1193: the three lists are the only defaults with a body, their saved filters
         bodies = [r["body"] for r in self.sections()]
-        self.assertEqual(bodies[:6] + bodies[9:], [""] * 7)
+        self.assertEqual(bodies[:1] + bodies[2:6] + bodies[9:], [""] * 6)
+        self.assertEqual(json.loads(bodies[1]), {"v": 1, "health": {"shown": False}})
         self.assertEqual(json.loads(bodies[6]), json.loads(default_sections.RISKS_AND_ISSUES_LIST))
         self.assertEqual(json.loads(bodies[7]), json.loads(default_sections.OPEN_ACTIONS_BODY))
         self.assertEqual(json.loads(bodies[8]), json.loads(default_sections.DECISIONS_LIST))
@@ -270,8 +272,8 @@ class Rules(Base):
         self.assertEqual(self.s.read("report_sections", ref=ref)["type"], "text")
 
     def test_only_a_text_section_has_a_body(self):
-        raid = self.sections()[1]["id"]                                 # rows 1193-8 to 10: the raid, actions and decisions defaults are Work items lists now (they have their own body), so the second, At a glance, stands in
-        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "glance")
+        raid = self.sections()[3]["id"]                                 # rows 1193-8 to 10: the raid, actions and decisions defaults are Work items lists now (they have their own body), so the second, At a glance, stands in
+        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "milestones")
         with self.assertRaises(Invalid):
             self.change(raid, body="words")
         self.change(raid, hidden=1)                                     # hiding is for every type
@@ -536,6 +538,23 @@ class UndoEachKind(Base):
             with self.s.step("dashboard", USER) as st:
                 st.seed_sections("ABC")
         self.assertEqual(len(self.sections()), 10)
+
+    def test_existing_projects_keep_their_sections_when_the_default_list_changes(self):      # row 1266: new projects only
+        """A project made with the older default list (Current state first, Use case summary, Supporting documents) is left as it is:
+        the defaults are read only when a project is created, or for a project that never had sections."""
+        old = ("Current state", "At a glance", "Use case summary", "Supporting documents")
+        with self.s.step("dashboard", USER) as st:
+            for r in self.sections():
+                st.cancel("report_sections", r["id"])
+            for n, (t, title) in enumerate(zip(("text", "glance", "usecases", "docs"), old), 1):
+                st.create("report_sections", {"project": "ABC", "type": t, "title": title, "sort_order": order.GAP * n})
+        before = [(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()]
+        self.assertEqual([b[2] for b in before], list(old))
+        self.assertEqual([(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()], before)
+        with self.assertRaisesRegex(Invalid, "has its report sections already"):
+            with self.s.step("dashboard", USER) as st:
+                st.seed_sections("ABC")
+        self.assertEqual([(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()], before)
 
     def test_a_field_changed_twice_in_one_step_goes_back_to_its_first_value(self):
         ref = self.add("Plan")

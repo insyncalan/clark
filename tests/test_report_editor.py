@@ -36,8 +36,8 @@ from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
-TITLES = ["Current state", "At a glance", "Use cases", "Milestones", "This week", "Next week",
-          "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
+TITLES = ["Header", "At a glance", "Use cases", "Milestones", "This week", "Next week",
+          "Risks and issues", "Open actions", "Decisions", "Documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 11)]
 SECRET = "Server text that a person must never read"
 NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
