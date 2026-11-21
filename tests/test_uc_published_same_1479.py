@@ -191,6 +191,39 @@ class SamePage(unittest.TestCase):
                         bare = self.shape(which, width, scheme, bare=True)
                         self.assertEqual((bare["nums"], bare["noted"]), (0, False), f"{which}: no milestones, no explanation line")
 
+    def test_details_shows_owner_and_not_last_change(self):
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    fi = self.shape("file", width, scheme)
+                    self.assertEqual(fi["owner"], "ZQ Owner Name", "Owner is shown, as plain text")
+                    self.assertEqual(fi["dts"][0], "Owner")
+                    self.assertNotIn("Last change", fi["dts"])
+                    self.assertNotIn("Last change", fi["body"])
+                    self.assertNotIn("Add an owner", fi["body"])
+                    self.assertEqual(self.shape("file", width, scheme)["acts"], 0, "the owner is not a field")
+
+    def test_no_history_card(self):
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    fi = self.shape("file", width, scheme)
+                    self.assertFalse(fi["hist"], "no History card in the published page")
+                    self.assertNotIn("History", fi["cards"])
+                    self.assertNotIn("Show all", fi["body"])
+                    self.assertNotIn("took it off the dashboard", fi["body"])
+
+    def test_reference_is_not_doubled_on_either_page(self):
+        for width in (1400, 900):
+            for ref, once in (("UC 1.1", "UC 1.1"), ("1.1", "UC 1.1"), ("uc 1.1", "uc 1.1")):
+                with self.subTest(width=width, ref=ref):
+                    for which in ("editor", "file"):
+                        got = self.shape(which, width, "light", ref=ref)
+                        self.assertEqual(got["crumb"], "Use cases › " + once, which)
+                        self.assertTrue(got["h1"].startswith(once + " ·"), got["h1"])
+                        for text in (got["crumb"], got["h1"], got["sub"]):
+                            self.assertNotRegex(text, r"(?i)\buc uc\b", which)
+
     def test_milestones_carry_the_label_and_no_explanation_line(self):
         for width in (1400, 900):
             for scheme in ("light", "dark"):
