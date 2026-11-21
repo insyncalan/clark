@@ -53,15 +53,19 @@ class ThreeMenus(unittest.TestCase):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"]', "padding-left"), "calc(var(--space-2) + 2px)")   # the prototype's 7px 10px
         self.assertEqual(decls(MOVE + ':not(#none) [role="menuitem"]', "padding-left"), "calc(var(--space-2) + 2px)")
 
-    def test_tick_slot_16px_in_group_by_and_move_to(self):
-        self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "width"), "var(--space-4)")
-        self.assertEqual(decls(MOVE + ' [role="menuitem"] > .ck', "width"), "var(--space-4)")
-        self.assertEqual(decls(MOVE + ' [role="menuitem"]:not(:has(> .ck))::before', "width"), "var(--space-4)")
+    def test_no_tick_slot_in_front_of_the_icon(self):
+        # ruling 9A (DECISIONS-17-11 row 9): the tick is right of the word in every menu, so no slot is reserved before the icon
+        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        block = text[text.index("/* Row 1273"):text.index("/* Row 1409")]
+        self.assertNotIn("::before", block)
+        self.assertNotIn("order: -1", block)
+        self.assertNotIn(".ck", re.sub(r"/\*.*?\*/", "", block, flags=re.S))
 
-    def test_tick_before_the_icon_in_group_by_and_move_to(self):
-        self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "order"), "-1")
-        self.assertEqual(decls(MOVE + ' [role="menuitem"] > .ck', "order"), "-1")
-        self.assertEqual(decls(MOVE + ' [role="menuitem"]:not(:has(> .ck))::before', "order"), "-1", "the items without a tick keep the tick's column free")
+    def test_tick_is_right_of_the_word_in_group_by_and_move_to(self):
+        # main's tick rule (order 1, margin-left auto) draws it after the word; the Row 1273 block must not move it
+        self.assertEqual(decls('.ddmenu [role="menuitem"] > .ck', "order"), "1")
+        self.assertEqual(decls('#viewMenuList [role="menuitemradio"] .ck', "order"), "1")
+        self.assertEqual(decls('.ddmenu [role="menuitem"] > .ck', "margin-left"), "auto")
 
     def test_two_heads_are_in_capitals_and_no_other(self):
         for sel in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card"):
@@ -78,12 +82,9 @@ class ThreeMenus(unittest.TestCase):
             self.assertEqual(decls(sel, "letter-spacing"), "var(--tracking-caps)", sel)
             self.assertEqual(decls(sel, "font-weight"), "var(--weight-medium)", sel)
 
-    def test_move_to_items_centre_their_row_and_the_tick_slot_is_a_fixed_box(self):
+    def test_move_to_items_centre_their_row(self):
         self.assertEqual(decls(MOVE + ' [role="menuitem"]', "display"), "flex")
         self.assertEqual(decls(MOVE + ' [role="menuitem"]', "align-items"), "center")
-        for sel in (GROUP + ' [role="menuitemradio"] .ck', MOVE + ' [role="menuitem"] > .ck'):
-            self.assertEqual(decls(sel, "box-sizing"), "border-box", sel)
-            self.assertEqual(decls(sel, "flex"), "none", sel)
 
     def test_board_imports_classic_theme_from_contents(self):
         self.assertIn('import { classicTheme } from "../components/Contents.jsx"', BOARD)   # the Move head reads it

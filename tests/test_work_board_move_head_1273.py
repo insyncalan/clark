@@ -40,14 +40,14 @@ class MoveHead(wb.Base):
                 head = cdp.js("(() => { const q = getComputedStyle(document.querySelector('.ddmenu .mh.caps.mh-card')); return [q.fontSize, q.letterSpacing, q.fontWeight]; })()", sid)
                 self.assertEqual(head, probe, "the card's head takes the caption size, the caps tracking and the medium weight")
                 self.assertNotEqual(probe[1], "normal")
-                # the Move to line is a centred flex row; the tick slot stays 16px and border-box even beside a very long label
-                row = cdp.js("""(() => { const ck = document.querySelector('.ddmenu [role="menuitem"] > .ck'); if (!ck) return null; const it = ck.parentElement; const q = getComputedStyle(it); const c = getComputedStyle(ck);
-                  const out = {display: q.display, align: q.alignItems, box: c.boxSizing, shrink: c.flexShrink, w0: ck.getBoundingClientRect().width};
-                  const l = document.createElement('span'); l.style.cssText = 'flex:none;width:2000px'; it.appendChild(l); out.w1 = ck.getBoundingClientRect().width; l.remove(); return out; })()""", sid)
-                self.assertIsNotNone(row, "an item of the Move to menu with a tick slot")
-                self.assertEqual((row["display"], row["align"], row["box"], row["shrink"]), ("flex", "center", "border-box", "0"))
-                self.assertAlmostEqual(row["w0"], 16, delta=0.5)
-                self.assertAlmostEqual(row["w1"], 16, delta=0.5, msg="a long label does not squeeze the tick slot")
+                # the Move to line is a centred flex row; the tick is on the RIGHT of the word (ruling 9A), the text starts at x36 (10 + 16 icon + 10)
+                row = cdp.js("""(() => { const ck = document.querySelector('.ddmenu [role="menuitem"] > .ck'); if (!ck) return null; const it = ck.parentElement; const q = getComputedStyle(it);
+                  const tn = [...it.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()); const rg = document.createRange(); rg.selectNodeContents(tn); const tr = rg.getBoundingClientRect(); const ir = it.getBoundingClientRect(); const kr = ck.getBoundingClientRect();
+                  return {display: q.display, align: q.alignItems, tx: tr.left - ir.left, ckAfter: kr.left >= tr.right - 0.5, ckRight: ir.right - kr.right}; })()""", sid)
+                self.assertIsNotNone(row, "an item of the Move to menu with a tick")
+                self.assertEqual((row["display"], row["align"]), ("flex", "center"))
+                self.assertTrue(row["ckAfter"], "the tick is right of the word")
+                self.assertAlmostEqual(row["tx"], 36, delta=0.5, msg="the words start at x36, no tick slot before the icon")
 
 
 if __name__ == "__main__":

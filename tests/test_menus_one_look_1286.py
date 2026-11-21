@@ -85,12 +85,10 @@ def check(test, name, look, m):
                 test.assertEqual(r["pad"].split()[3], "10px", f"{where}: the line {r['t']!r} has {r['pad'].split()[3]} of left padding, the prototype draws 7px 10px")
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
                 test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, row 1273 draws 10")
-                test.assertAlmostEqual(r["slot"], 16, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px of tick slot before its icon, row 1273 reserves 16")
-                # the mock-up line is 7px 10px padding, [16px slot][16px icon][10px gap][text]: slot at x10, icon at x26, text at x52 from the item's left edge
-                test.assertAlmostEqual(r["ibl"], 26, delta=0.5, msg=f"{where}: the icon of {r['t']!r} is {r['ibl']}px from the item's left edge, 10 padding + 16 slot")
-                test.assertAlmostEqual(r["tx"], 52, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx']}px from the item's left edge, 10 + 16 + 16 + 10")
-                if r["ckl"] is not None:
-                    test.assertAlmostEqual(r["ckl"], 10, delta=0.5, msg=f"{where}: the tick of {r['t']!r} starts {r['ckl']}px from the item's left edge, the slot is at x10")
+                # 7px 10px padding, [16px icon][10px gap][text]: icon at x10, text at x36 from the item's left edge; the mock's x60 includes a tick slot that ruling 9A (tick right of the word) removes
+                test.assertAlmostEqual(r["slot"], 0, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px before its icon, 9A reserves no tick slot")
+                test.assertAlmostEqual(r["ibl"], 10, delta=0.5, msg=f"{where}: the icon of {r['t']!r} is {r['ibl']}px from the item's left edge, the padding")
+                test.assertAlmostEqual(r["tx"], 36, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx']}px from the item's left edge, 10 + 16 + 10")
             elif three:
                 test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
@@ -101,7 +99,7 @@ def check(test, name, look, m):
                 grid = 10 if name == "gantt-show-chart" else 8      # row 1197 item 10: the chart Show menu rows gap 10
                 test.assertAlmostEqual(r["gap"], grid, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, production's grid is {grid}")
         if r.get("side"):
-            test.assertEqual(r["side"], "left" if name in TICK_LEFT or r1273 else "right", f"{where}: the tick of {r['t']!r}")
+            test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
         caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
         test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")
