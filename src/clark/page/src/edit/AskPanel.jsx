@@ -2,26 +2,29 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { project, showSettings, token, view, rows, filterCtx } from "../stores/report.js";
+import { project, showSettings, token, view, rows, filterCtx, openPeek } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
 import { helpOpen } from "../help/helpStore.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
+import { ownCommands, loadOwnCommands } from "./askOwn.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
+import { sourcesOf, kindOf } from "./askCite.js";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
+import { nowMs } from "../workItems.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -39,6 +42,17 @@ function sourceLabels(list) {
   }
   return out;
 }
+
+// Row 1292: what an answer read, as the server says it (counts and a day): only whole counts and a text day are kept.
+function readOf(r) {
+  if (!r || typeof r !== "object") return null;
+  const n = (v) => (Number.isInteger(v) && v >= 0 ? v : 0);
+  return { work_items: n(r.work_items), milestones: n(r.milestones), use_cases: n(r.use_cases), as_at: typeof r.as_at === "string" ? r.as_at.slice(0, 10) : "" };
+}
+
+// Row 1292: a citation or a Used chip opens that item or milestone in its peek, which sits left of the panel (the panel stays open).
+const cited = (t) => (classicTheme() ? sourcesOf(t.items) : []);       // row 1292: sources are Classic only; their CSS is the Classic theme's, so Cards draws none
+const openCite = (id) => openPeek(id, kindOf(id) === "milestone" ? "milestone" : "item");
 
 async function post(path, body) {
   try {
@@ -71,9 +85,13 @@ export function AskPanel() {
   const classic = classicTheme();
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
-  const menu = shut ? null : slashMatches(text);
+  const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
+  const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
+  const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
+  useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
+  const [secs, setSecs] = useState(0);
+  const [quip, setQuip] = useState("");
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -114,8 +132,14 @@ export function AskPanel() {
     else el.scrollTop = el.scrollHeight;
   }, [list.length, busy]);
   useEffect(() => {
-    if (!busy) { setQuip(""); return undefined; }
-    let t = null;
+    if (!busy) { setSecs(0); setQuip(""); return undefined; }
+    if (classicTheme()) {      // row 1292, Classic only: the working line counts seconds from the send
+      const from = nowMs();
+      setSecs(0);
+      const c = setInterval(() => setSecs((nowMs() - from) / 1000), 1000);
+      return () => clearInterval(c);
+    }
+    let t = null;      // Cards keeps its quips, as before
     setQuip(drawQuip());
     const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
     tick();
@@ -164,7 +188,7 @@ export function AskPanel() {
 
   // #1292 S10: a chosen slash command. A question command sends its question as a suggestion does; /new and /history send nothing.
   function runSlash(c) {
-    if (!c) return;
+    if (!c || !usable) return;
     setText(""); setPick(0); setShut(false);
     if (c.act === "new") { newChat(); setNote(""); return; }
     if (c.act === "history") { if (!busy) histOpen.value = true; return; }
@@ -178,13 +202,14 @@ export function AskPanel() {
     if (att && att.length) setFiles([]);          // the chips go with the send; they come back if nothing was answered
     histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = turns.value.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
-    const mine = { role: "user", text: q };
+    const mine = { role: "user", text: q, ...(subject.value ? { about: subject.value.name } : {}) };
     turns.value = [...turns.value, mine];
     if (!preset && !from) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
     const epoch = chatEpoch.value;
-    const body = { project: project.value, question: q, earlier };
+    const about = subject.value;                     // row 1292: the chip's subject goes ahead of the question; the chat shows only the person's words
+    const body = { project: project.value, question: about ? W.ABOUT_LEAD(about.kind, about.id, about.name) + q : q, earlier };
     if (att && att.length) body.files = await F.encodeFiles(att);
     const r = await post("/api/ask", body);
     pending.value = false;
@@ -207,7 +232,7 @@ export function AskPanel() {
       const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
       const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
       const made = readDraft(b.draft);      // row 1292: a draft the answer carries opens beside the panel; nothing is in the report until it is added
-      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), items: Array.isArray(b.items) ? b.items : [], ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), items: Array.isArray(b.items) ? b.items : [], ...(readOf(b.read) ? { read: readOf(b.read) } : {}), ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
       if (made) draft.value = made;
       if (!panelOpen.value) answersReady.value++;       // row 1292: the button says an answer is waiting
@@ -336,7 +361,7 @@ export function AskPanel() {
       onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
-      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
+      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">
@@ -352,7 +377,9 @@ export function AskPanel() {
       {state === "off" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
-      {state === "signed-out" ? (
+      {classic && panelDocker.value && state !== "off" ? (
+        <p class="ask-off" id="ask-docker" data-ask-docker>{panelDocker.value}</p>
+      ) : state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       {showHist ? (
@@ -393,11 +420,16 @@ export function AskPanel() {
         ) : (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
-            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
+            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} sources={cited(t)} open={openCite} /> : <div class="ask-text">{t.text}</div>}
+            {t.role === "user" && t.about ? <div class="ask-about-line">{W.ABOUT_LINE(t.about)}</div> : null}
+            {t.role === "assistant" && !t.kind && cited(t).length ? (
+              <p class="ask-used" data-ask-used><span class="ask-used-h">{W.USED}</span> {cited(t).map((x) => <button type="button" key={x.id} class="ask-used-chip" data-cite={x.id} aria-label={W.CITE_LABEL(x.n, x.id)} title={W.CITE_TITLE(x.id)} onClick={() => openCite(x.id)}><b>{x.n}</b> {x.id}</button>)}</p>
+            ) : null}
+            {t.role === "assistant" && !t.kind && classicTheme() && W.READ_LINE(t.read) ? <p class="ask-read" data-ask-read>{W.READ_LINE(t.read)}</p> : null}
             {t.draft ? (
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
-                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
+                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
                 <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
@@ -413,11 +445,11 @@ export function AskPanel() {
       {busy ? (
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          {classic ? <span class="ask-quip ask-step" id="ask-step" aria-hidden="true">{W.workingLine(askProvider.value, secs)}</span> : <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>}
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
-          {pills(view.value, list, helpOpen.value, stateOf(rows.value, filterCtx().today)).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, asking(q, list))}>{q}</button>)}
+          {(subject.value && !helpOpen.value ? (W.PILLS_ABOUT[subject.value.kind] || []) : pills(view.value, list, helpOpen.value, stateOf(rows.value, filterCtx().today))).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, asking(q, list))}>{q}</button>)}
         </div>
       ) : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
@@ -457,17 +489,24 @@ export function AskPanel() {
           <p class="ask-files-note">{F.SCREEN_LINE} {F.THIS_QUESTION_LINE}</p>
         </div>
       ) : null}
-      <form class="ask-form" onSubmit={send}>
+      {classic && panelDocker.value && state !== "off" ? null : <form class="ask-form" onSubmit={send}>
+        {subject.value ? (
+          <p class="ask-chip" id="ask-chip" data-ask-chip={subject.value.id}>
+            <Icon name="sparkle" />
+            <span class="ask-chip-t">{W.ABOUT_CHIP(subject.value.name)}</span>
+            <button type="button" class="ask-chip-x" id="ask-chip-x" aria-label={W.ABOUT_REMOVE(subject.value.name)} title={W.ABOUT_REMOVE_TITLE} onClick={() => { subject.value = null; if (box.current) box.current.focus(); }}><Icon name="x" /></button>
+          </p>
+        ) : null}
         {menu ? (
           <ul class="ask-slash" id="ask-slash" role="listbox" aria-label={W.SLASH_LABEL}>
             {menu.length ? menu.map((c, i) => (
               <li key={c.name} role="option" id={"ask-slash-" + c.name} data-name={c.name} aria-selected={i === pick ? "true" : "false"} onMouseDown={(e) => { e.preventDefault(); runSlash(c); }}>
-                <b>{"/" + c.name}</b> <span>{c.hint}</span>
+                <b>{"/" + c.name}</b> <span>{c.hint}</span>{c.own ? <em class="ask-slash-own">{W.SLASH_YOURS}</em> : null}
               </li>
             )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
           </ul>
         ) : null}
-        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
+        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={hold} aria-label={hold} disabled={state !== "ready" && state !== "checking"}
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
           onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
@@ -493,7 +532,7 @@ export function AskPanel() {
             </button>
           )}
         </div>
-      </form>
+      </form>}
     </aside>
     <AskDraft />
     </>

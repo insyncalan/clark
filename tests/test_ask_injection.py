@@ -68,11 +68,12 @@ class Obeys(tc.Base):
         self.never_saved({"op": "change", "id": self.action, "current_title": "Something else", "status": "Closed"})
         self.never_saved({"op": "change", "id": self.action, "current_owner": "Nobody Atall", "status": "Closed"})
 
-    def test_more_than_five_changes_at_once_are_refused_whole(self):
+    def test_more_than_five_changes_at_once_are_cut_to_five_and_nothing_is_saved(self):
         before = self.counts()
         got = self.obey(*(tc.change_line(op="new", kind="action", title=f"Hostile item {n}", owner="Sam Lee") for n in range(6)))
         status, dry = self.dry(got["reply"])
-        self.assertEqual((dry["ok"], dry["code"]), (False, "too_many"), (status, dry))
+        self.assertIn("change_limit", [f["kind"] for f in got["flags"]])
+        self.assertEqual((status, dry["ok"], len(dry["plans"])), (200, True, ask_apply.MAX_AT_ONCE), (status, dry))
         self.assertEqual(self.counts(), before)
 
     def test_a_valid_change_from_a_hostile_file_waits_for_the_persons_confirm(self):

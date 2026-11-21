@@ -174,6 +174,8 @@ class PageChecks(PageBase):
     GOOD = {}                  # a filled body
     HOSTILE_BODY = {}          # HOSTILE as every text
     SHOWS = ()                 # words View must show for GOOD
+    EMPTY_LINE = "Empty for now"       # what Edit says first about an empty one (Contacts, Table: their starting text, row 1251)
+    STAYS_OUT = True                   # False where the starting text replaced the old line (row 1251)
     FIELD = ""                 # aria-label of a field in Edit
     TYPED = ""                 # words typed into it
     CHANGED = lambda self, body: False           # True when the stored body holds TYPED
@@ -246,5 +248,8 @@ class PageChecks(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
             quiet = p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit .quiet')].map(e => e.textContent).join(' ')")
-            self.assertIn("Empty for now", quiet)
-            self.assertIn("stays out of the published page", quiet)
+            self.assertIn(self.EMPTY_LINE, quiet)
+            if self.STAYS_OUT:
+                self.assertIn("stays out of the published page", quiet)
+            else:
+                self.assertNotIn("Empty for now", quiet)
