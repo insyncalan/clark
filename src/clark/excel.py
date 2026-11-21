@@ -87,7 +87,7 @@ SHEETS = [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
         ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
+        ("Client-visible", "client_visible"), ("Client Message", "client_message"), ("Milestone", "milestone"),
         ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Risks & Issues", "raid", [
@@ -95,14 +95,14 @@ SHEETS = [
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
         ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
-        ("Client wording", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
+        ("Client Message", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
         ("Source", "source"), ("Updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
         ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Priority", "priority"), ("Made by", "made_by"),
         ("Needed by", "needed_by"), ("Date", "date"), ("Reasoning", "reasoning"), ("Options", "options"),
         ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
-        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
+        ("Client Message", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
         ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Milestones", "milestones", [
@@ -111,7 +111,7 @@ SHEETS = [
         ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
         ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
+        ("Client-visible", "client_visible"), ("Client Message", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
         ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style

@@ -23,9 +23,9 @@ export function actionSummary(row, editing) {
   return [row.workstream, row.milestone, raised ? `Raised ${showDate(raised)}` : "", editing ? (row.client ? "Client visible" : "Client not visible") : ""];
 }
 
-/** The Client visible line in View and in a published file: the same eye and words as the Edit line, read only. A published file holds only what a client may see and carries no client flag, so `onFile` draws it as visible. */
-export function ClientRead({ row, onFile = false }) {
-  const on = onFile || !!row.client;
+/** The Client visible line in View and in a published file: the same eye and words as the Edit line, read only. A published file never draws it (row 1466): the caller leaves it out when `onFile`. */
+export function ClientRead({ row }) {
+  const on = !!row.client;
   return <span class={`cv${on ? " on" : ""}`} data-pk-client-read><Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}</span>;
 }
 
@@ -39,7 +39,7 @@ export function PeekActionBody({ row, editing = false, Pick = null, ClientLine =
         <ARow name="Milestone" icon="flag" data="milestone">{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</ARow>
         {row.kind === "risk" || row.kind === "issue" ? <ARow name="Use case" icon="doc" data="use_case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</ARow> : null}
         <ARow name="Raised" icon="clock" data="raised">{raised ? showDate(raised) : DASH}<span class="muted pk-hint" data-pk-raised-hint> set when it was raised</span></ARow>
-        {editing ? (ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <ARow name="Shown to client">{row.client ? "Yes" : "No"}</ARow>) : <div class="pk-row" data-pk-client-row><dd><ClientRead row={row} onFile={onFile} /></dd></div>}
+        {editing ? (ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <ARow name="Shown to client">{row.client ? "Yes" : "No"}</ARow>) : (onFile ? null : <div class="pk-row" data-pk-client-row><dd><ClientRead row={row} /></dd></div>)}      {/* row 1466: a published file never draws the Client visible line or its eye */}
       </dl>
     </PeekDetails>
   );

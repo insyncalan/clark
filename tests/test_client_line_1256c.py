@@ -1,5 +1,5 @@
 """Row 1256 (item C): the Client visible line (.cv) is 14 px / 500, muted with an eye, teal when the item is shown to the client, and it is drawn in View, in Edit
-and in a published file (read only there; a file holds only what a client may see). The words are the Edit line's own.
+(read only in View; row 1466: never in a published file). The words are the Edit line's own.
 Run: CLARK_CHROME=/usr/local/bin/creaite-chrome python3 dev/run_tests.py test_client_line_1256c
 Demo project: TUL-007 is a client-visible risk, TUL-008 a risk the test hides from the client.
 """
@@ -92,7 +92,7 @@ class Line(base.Peeks):
                 self.line(cdp, sid)
                 self.assertEqual(cdp.js(ROLE, sid), [None, None], "no role or tabindex on read-only text")
 
-    def test_a_published_file_draws_the_line_as_visible_with_no_control(self):
+    def test_a_published_file_never_draws_the_line_or_its_eye(self):      # row 1466 (reverses row 1256 for the published file only)
         _plant, _pub, text = tp.made()
         folder = Path(tempfile.mkdtemp(prefix="clark-1256c-"))
         self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
@@ -102,10 +102,9 @@ class Line(base.Peeks):
             with self.subTest(width=width), chrome() as cdp:
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-A-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
-                got = self.line(cdp, sid)
-                self.look(got, True)
-                self.assertEqual(got["tag"], "SPAN")
-                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-client-row] button').length", sid), 0)
+                self.assertIsNone(cdp.js(LINE, sid), "no Client visible line in a published file")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-client-row], #peek [data-pk-client-read], #peek .cv').length", sid), 0)
+                self.assertNotRegex(cdp.js("document.querySelector('#peek').innerText", sid), r"(?i)client (not )?visible")
 
 
 class Source(unittest.TestCase):
