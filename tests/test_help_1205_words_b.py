@@ -28,7 +28,7 @@ class HelpWordsB(unittest.TestCase):
         ):
             self.assertEqual(HELP.count(s), 1, s)
         self.assertEqual(HELP.count("Open** (not on the project already open)"), 2)
-        self.assertEqual(HELP.count("Open (not on the project already open)"), 1)
+        self.assertEqual(HELP.count("Open (not on the project already open)"), 0)   # the Settings card line stays short: test_help_guides allows under 115 characters
 
     def test_item_3_chips(self):
         new = ("the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, "
