@@ -133,7 +133,7 @@ class Page(Fixture):
 
 class Wired(unittest.TestCase):
     """Row 1371: the page draws the line with indexNote.js's words (its announce and its "(why)"), and the line itself is not a live region."""
-    SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text()
+    SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text(encoding="utf-8")
 
     def test_the_card_uses_the_note_words_and_a_quiet_line(self):
         self.assertIn('import { announce, LINKS } from "./indexNote.js";', self.SRC)
