@@ -86,7 +86,7 @@ DATE = re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|
 PRODUCT = re.compile(r"^(ask )?clark\b", re.I)
 TITLE = "ask clark"                      # row 820: the one string allowed to start with the product's name
 # A capital letter inside a sentence is a name unless it is a word the panel is known to use.
-KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams"}
+KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams", "Share"}      # "Share" is the start of SharePoint, which the capital-letter pattern splits (as Wi, Fi)
 
 SETTLE = "document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled"
 
@@ -306,7 +306,7 @@ class Look(Base):
             self.stub.items = [{"id": "ZZ-A-1", "state": []}, {"id": "ZZ-A-2", "state": ["overdue"]}]
             self.ask(p, "Which items matter?")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
-            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Add to the weekly report"]
+            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Include in the weekly report"]
             p.until(f"JSON.stringify(({pills}).slice(0, 5)) === {json.dumps(json.dumps(want, separators=(',', ':')))}", "the actions of the second item come first")
             self.assertEqual(len(p.js(pills)), 6)
             p.js("window.clarkPage.help.open()")
@@ -336,7 +336,7 @@ class Look(Base):
             p.until("!!document.querySelector('#ask-off')", "asking is off")
             self.assertGreaterEqual(p.js("document.querySelectorAll('.ask-turn').length"), 2, "the kept chat is still there")
             p.js("document.querySelector('#ask-box').value = ''; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")   # the refused question went back in the box
-            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Add to the weekly report"]
+            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Include in the weekly report"]
             p.until(f"JSON.stringify({pills}.map(b => b.textContent).slice(0, 5)) === {json.dumps(json.dumps(want, separators=(',', ':')))}", "the actions are drawn while off")
             self.assertTrue(p.js(f"{pills}.every(b => b.disabled)"), "every suggestion is disabled while off")
             before = len([c for c in self.stub.calls if c[0] == "ask"])
