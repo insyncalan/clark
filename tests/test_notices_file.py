@@ -68,6 +68,17 @@ class SettingTest(Place):
             settings.set_notices_path(self.data, str(self.root / "n.json"))
         self.assertEqual((self.data / settings.FILE).read_text(encoding="utf-8"), "not json")
 
+    def test_a_settings_file_that_cannot_be_opened_is_never_replaced(self):
+        file = self.data / settings.FILE
+        file.write_text(json.dumps({"backups_kept": 7}), encoding="utf-8")
+        file.chmod(0o000)
+        self.addCleanup(file.chmod, 0o600)
+        with self.assertRaises(ValueError) as e:
+            settings.set_notices_path(self.data, str(self.root / "n.json"))
+        self.assertEqual(str(e.exception), settings.NOTICES_UNREADABLE)
+        file.chmod(0o600)
+        self.assertEqual(json.loads(file.read_text(encoding="utf-8")), {"backups_kept": 7})
+
     def test_a_bad_saved_value_reads_as_not_set(self):
         for bad in (7, "relative.json", "", ["/x"], "/a\x00b", "/" + "x" * 1001):
             (self.data / settings.FILE).write_text(json.dumps({"notices_path": bad}), encoding="utf-8")
@@ -96,6 +107,13 @@ class ReaderTest(Place):
         self.assertEqual(notices_file.read_place(self.put("num.json", "5", raw=True)), [])
         self.assertEqual(notices_file.read_place(self.put("mixed.json", [ONE, 3, "x", None])), [ONE])
         self.assertEqual(notices_file.read_place(self.root / "missing.json"), [])
+
+    def test_a_file_that_cannot_be_opened_gives_nothing_and_no_error(self):
+        path = self.put("locked.json", [ONE])
+        path.chmod(0o000)
+        self.addCleanup(path.chmod, 0o600)
+        self.assertEqual(notices_file.read_place(path), [])
+        self.assertEqual(notices_file._items(path), [])
 
     def test_a_large_file_and_a_symlink_are_not_read(self):
         big = self.put("big.json", json.dumps([dict(ONE, body="x" * notices_file.FILE_LIMIT)]), raw=True)
