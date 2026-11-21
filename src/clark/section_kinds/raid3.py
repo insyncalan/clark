@@ -16,9 +16,10 @@ from clark.section_kinds.base import Bad
 
 READY = True
 SIZE = 3                                   # cards across; raid4.py sets four
+MANY = 8                                   # cards a body of version 2 holds (raid4.py)
 OWN_MAX = 400                              # characters of a card's own words
 CARD_BYTES = 6 * OWN_MAX + 100             # worst case: every character escaped to six bytes, plus the id and the keys
-LIMIT = 4 * CARD_BYTES + 64                # raid4 holds four cards; one limit for both, well inside the route's
+LIMIT = 8 * CARD_BYTES + 64                # raid4 holds up to eight cards (version 2); one limit for both, well inside the route's
 EMPTY = ""
 
 UPPER, DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
@@ -48,8 +49,16 @@ def _id(item):
     return (True, letter) if ok else (False, None)
 
 
-def _check(value, rules, size):
-    if type(value) is not dict or set(value) - {"v", "cards"} or value.get("v") != 1 or type(value.get("cards")) is not list:
+def _check(value, rules, size, across=()):
+    """`across` is the choices a body of version 2 may carry (raid4: 3 or 4, up to eight cards); empty, only version 1 is accepted."""
+    if type(value) is not dict or type(value.get("cards")) is not list:
+        raise Bad(NOT_AN_OBJECT)
+    two = bool(across) and value.get("v") == 2
+    if two:
+        if set(value) != {"v", "across", "cards"} or type(value["across"]) is not int or value["across"] not in across:
+            raise Bad(NOT_AN_OBJECT)
+        size = MANY
+    elif set(value) - {"v", "cards"} or value.get("v") != 1:
         raise Bad(NOT_AN_OBJECT)
     if len(value["cards"]) > size:
         raise Bad(TOO_MANY.format(n=size))
@@ -81,7 +90,7 @@ def _check(value, rules, size):
         if own:
             built["own"] = own
         out.append(built)
-    return {"v": 1, "cards": out}
+    return {"v": 2, "across": value["across"], "cards": out} if two else {"v": 1, "cards": out}
 
 
 def _words(card, row):
@@ -99,6 +108,8 @@ def _words(card, row):
 
 
 def _published(value, ctx, size):
+    if (value or {}).get("v") == 2:
+        size = MANY
     out = []
     for card in (value or {}).get("cards") or ():
         found, letter = _id(card.get("id"))
@@ -107,7 +118,9 @@ def _published(value, ctx, size):
         if row is None:
             continue                       # not kept by publish: hidden, archived, not client visible, sensitive, or a hidden section
         out.append({"id": card["id"], "text": _words(card, row)})
-    return {"cards": out[:size]} if out else None
+    if not out:
+        return None
+    return {"cards": out[:size], "across": value["across"]} if (value or {}).get("v") == 2 else {"cards": out[:size]}
 
 
 def check(value, rules):

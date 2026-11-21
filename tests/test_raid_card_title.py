@@ -46,13 +46,14 @@ class RaidCardTitle(PublishedFile, glance.Setup):
             p = self.draw(cdp, path)
             cards = self.read(p)
         self.assertEqual(len(cards), 6, "three cards in each of the two sections")
-        want = {"Kiln roof may leak": [], "Harbour crane is down": [], "Tide table may change": ["We are watching the tides."]}
+        want = {"Kiln roof may leak": [], "Harbour crane is down": [], "Tide table may change": []}      # slice A: the client words (even set) are kept in the data but never drawn
         for c in cards:
             self.assertEqual(len(c["titles"]), 1, c)
             title = c["titles"][0].strip()
             self.assertIn(title, want, c)
             self.assertEqual(c["text"].count(title), 1, "the title is drawn once: " + c["text"])
             self.assertEqual([w.strip() for w in c["words"]], want[title], c)
+            self.assertNotIn("We are watching the tides.", c["text"], "the client words are not drawn")
             self.assertNotIn(SECRET, c["text"], "the owner-only response action is not in the card")
         self.assertEqual(sorted(c["titles"][0].strip() for c in cards), sorted(list(want) * 2))
 

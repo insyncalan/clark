@@ -5,11 +5,12 @@
 // published file carries the cards already chosen ({ id, text }) and the rows it kept in its own data, so both end up the same list.
 import { publishable, rulesFor } from "../logic/publishable.js";
 import { dateWords } from "./safe.js";
+import { colourOf } from "../workItems.js";
 import { richWords } from "../logic/richWords.js";
 
 export const SIZES = { raid3: 3, raid4: 4 };
+export const MANY = 8;          // row 1270: a raid4 body of version 2 (the one library card RAID cards) holds up to eight cards, three or four across
 export const OWN_MAX = 400;
-export const SOURCES = [["client", "Client wording"], ["own", "Own words"], ["latest", "Latest update"]];
 const ID = /^[A-Z][A-Z0-9]{2,6}-(?:([AD])-)?[0-9]{3}$/;
 const KIND_OF = { A: "actions", D: "decisions" };
 
@@ -28,9 +29,24 @@ export function parse(body) {
     .map((c) => ({ id: c.id, source: c.source === "own" || c.source === "latest" ? c.source : "client", own: typeof c.own === "string" ? c.own : "" }));
 }
 
-// The body to save for these cards (the server rebuilds it as the one canonical text).
-export function bodyOf(cards) {
-  return JSON.stringify({ v: 1, cards: cards.map((c) => (c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source })) });
+// A body's version 2 choice of cards across (3 or 4), or 0 for a body of version 1 (or none), which keeps the number its type has.
+export function acrossOf(body) {
+  let v;
+  try { v = typeof body === "string" && body ? JSON.parse(body) : null; } catch (e) { return 0; }
+  return v && v.v === 2 && (v.across === 3 || v.across === 4) ? v.across : 0;
+}
+
+// What a raid section draws: how many cards across and the most it holds. The file carries `across` for version 2 (section.across).
+export function layoutOf(section, size) {
+  const file = Array.isArray(section && section.cards);
+  const across = file ? (section.across === 3 || section.across === 4 ? section.across : 0) : acrossOf(section && section.body);
+  return across ? { across, max: MANY } : { across: size, max: size };
+}
+
+// The body to save for these cards (the server rebuilds it as the one canonical text). `across` (3 or 4) writes version 2.
+export function bodyOf(cards, across = 0) {
+  const list = cards.map((c) => (c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source }));
+  return JSON.stringify(across ? { v: 2, across, cards: list } : { v: 1, cards: list });
 }
 
 // The words under a card, as the published file chooses them (raid3.py _words).
@@ -44,6 +60,10 @@ export const titleOf = (row, kind) => String((kind === "decisions" ? row.decisio
 export function kindWords(row, kind) {
   return kind === "raid" ? (String(row.type || "").toLowerCase() === "issue" ? "Issue" : "Risk") : kind === "actions" ? "Action" : "Decision";
 }
+// The label above a card's words (row 1270): the part of the item the card shows.
+export function partWords(row, kind) {
+  return kind === "raid" ? (String(row.type || "").toLowerCase() === "issue" ? "The issue" : "The risk") : kind === "actions" ? "The action" : (row.status === "Pending" ? "The decision needed" : "The decision");
+}
 // The line under a card's title: status, owner and the date that matters, in plain words.
 export function metaBits(row, kind) {
   const who = kind === "decisions" ? row.made_by : row.owner;
@@ -52,6 +72,15 @@ export function metaBits(row, kind) {
   const bits = [row.status ? String(row.status) : "", who && who !== "TBC" ? `owner ${who}` : "", dateWords(day) ? `${label} ${dateWords(day)}` : ""];
   return bits.filter(Boolean);
 }
+// The rating a risk or issue card shows, as a word (Red, Amber, Green, Not rated), and the tone the card's edge and band take.
+// An action and a decision carry no rating: no word, the brand tone.
+export function ratingOf(row, kind) {
+  if (kind !== "raid") return { word: "", tone: "rc-b" };
+  const c = colourOf(row && row.priority);
+  return { word: c.word, tone: "rc-" + c.class };
+}
+// The item's latest update as plain words ("" when it has none), for every kind of card.
+export const latestOf = (row) => richWords(row && row.latest_update).trim();
 export const metaOf = (row, kind) => metaBits(row, kind).join(" · ");
 
 // The rules for the served page's data. The published file needs none: it holds only the rows publish kept.
