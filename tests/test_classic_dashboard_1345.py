@@ -92,6 +92,7 @@ class TitleBlock(Dash):
             p = self.at(cdp, width)
             p.js("document.documentElement.dataset.density = 'compact'")
             got = p.js(HM)
+            vw = p.js("document.documentElement.clientWidth")
         self.assertEqual(got["title"], ["30px", "36px", "600", "4px", "-0.3px"])
         self.assertEqual(got["meta"], ["0px", "4px"])
         self.assertEqual(got["health"], ["12px", "12px", "1px", "1px", "row", "0px"])
@@ -99,13 +100,13 @@ class TitleBlock(Dash):
         self.assertEqual(got["lead"], ["16px", "700", "4px"])
         self.assertEqual(got["sub"], ["0px"])
         self.assertEqual(got["sec"], ["0px", "0px"])
-        self.assertEqual(got["block"][:2], col)
+        self.assertEqual(got["block"][:2], col(vw) if callable(col) else col)
 
     def test_at_1400(self):
         self.check(1400, [262, 1017])      # the column less the section's 22 right padding
 
     def test_at_900(self):
-        self.check(900, [32, 799])
+        self.check(900, lambda vw: [20, vw - 66])      # the page less 20, 24 and the section's 22 right padding
 
 
 class Killers(Dash):
@@ -127,9 +128,9 @@ class Killers(Dash):
             got = p.js("getComputedStyle(document.querySelectorAll('#report .secs > .sec')[1]).paddingLeft")
         self.assertNotEqual(got, "22px")
 
-    def test_at_900_the_page_keeps_its_margins(self):
+    def test_at_900_the_column_is_at_20_and_ends_24_before_the_right_edge(self):
         got = self.measure(900)
-        self.assertEqual(got["secs"][0], 32)
+        self.assertEqual(got["secs"], [20, got["vw"] - 44])      # one column; prototype 856 wide on a 900 page without a scrollbar
 
 
 class Text(unittest.TestCase):
