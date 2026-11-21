@@ -115,6 +115,7 @@ class Looks(tre.Base):
         self.demo.action(description="Draft the cut-over plan", due_date="2026-11-01")
         done = self.demo.action(description="Book the training room")
         self.demo.update("actions", done, {"status": "Closed"})
+        self.demo.update("report_sections", "ABC-S-002", {"body": '{"v":1}'})      # row 1266: a new project's At a glance has the Health tile off (the pill is in the Headline); this test is about that tile
 
     def go(self, cdp, hash_, mode):
         _, media, own = mode
