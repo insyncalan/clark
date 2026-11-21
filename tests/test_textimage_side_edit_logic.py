@@ -115,6 +115,12 @@ class Storing(unittest.TestCase):
         self.assertEqual(node("T.fileNote(1800, 0)"), "", "a width with no height says nothing")
         self.assertEqual(node("T.fileNote(0, 1200)"), "")
 
+    def test_the_file_note_rounds_a_fraction_to_the_nearest_pixel(self):
+        self.assertEqual(node("T.px(1800.5)"), "1,801", "x.5 goes up")
+        self.assertEqual(node("T.px(1199.6)"), "1,200", "x.6 goes up, not down")
+        self.assertEqual(node("T.px(1200.4)"), "1,200", "x.4 goes down")
+        self.assertTrue(node("T.fileNote(1800.5, 1199.6)").startswith("1,801 \u00d7 1,200 px file."))
+
     def test_wide_at_half_width_has_its_own_icon_and_the_others_keep_theirs(self):
         self.assertEqual([s["icon"] for s in node("T.shapes(true)")], ["16:9", "4:3", "square", "whole"])
         self.assertEqual([s["icon"] for s in node("T.shapes(false)")], ["fill", "4:3", "square", "whole"])
