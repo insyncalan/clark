@@ -157,7 +157,7 @@ class Page(Classic):
         p.type(q)
         p.js("document.querySelector('#ask-send').click()")
 
-    def open(self, p):
+    def open_ask(self, p):
         p.key("/", code="Slash", vk=191)
         p.until("!!document.querySelector('#ask-panel')", "opened")
         p.until("!document.querySelector('#ask-send').disabled", "ready")
@@ -169,7 +169,7 @@ class Page(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 p.js(FAKE)
                 self.ask(p, "How is it going?")
                 p.until("document.querySelectorAll('.ask-turn.assistant').length === 1 && !document.querySelector('#ask-work')", f"{w}: answered")
@@ -196,7 +196,7 @@ class Page(Classic):
     def test_a_box_with_words_keeps_up_arrow_to_itself(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.open(p)
+            self.open_ask(p)
             self.ask(p, "First?")
             p.until("document.querySelectorAll('.ask-turn.assistant').length === 1 && !document.querySelector('#ask-work')", "answered")
             p.js("document.querySelector('#ask-box').focus()")
@@ -211,7 +211,7 @@ class Cards(Page):
     def test_copy_ask_again_and_up_arrow_at_1400_and_900(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.open(p)
+            self.open_ask(p)
             self.ask(p, "First?")
             p.until("document.querySelectorAll('.ask-turn.assistant').length === 1 && !document.querySelector('#ask-work')", "answered")
             self.assertEqual(p.js("document.querySelectorAll('.ask-turn-acts').length"), 0)
@@ -224,7 +224,7 @@ class Cards(Page):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "First?")
                 p.until("document.querySelectorAll('.ask-turn.assistant').length === 1 && !document.querySelector('#ask-work')", f"{w}: answered")
                 p.js("document.querySelector('#ask-box').focus()")
@@ -235,7 +235,7 @@ class Cards(Page):
 
 class More(Classic):
     ask = Page.ask
-    open = Page.open
+    open_ask = Page.open_ask
 
     def answered(self, p, n, what):
         p.until(f"document.querySelectorAll('.ask-turn.assistant').length === {n} && !document.querySelector('#ask-work')", what)
@@ -245,7 +245,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "First?")
                 self.answered(p, 1, f"{w}: answered")
                 p.js("document.querySelector('#ask-box').focus()")
@@ -262,7 +262,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "One?")
                 self.answered(p, 1, f"{w}: first")
                 self.ask(p, "Two?")
@@ -288,7 +288,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "One?")
                 self.answered(p, 1, f"{w}: first")
                 self.ask(p, "Two?")
@@ -310,7 +310,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "One?")
                 self.answered(p, 1, f"{w}: first")
                 p.js("document.querySelector('#ask-box').focus()")
@@ -333,7 +333,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "Slow?")
                 self.answered(p, 1, f"{w}: answered")
                 self.stub.hold.clear()
@@ -352,7 +352,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 p.js(FAKE_FAIL)
                 self.ask(p, "Q?")
                 self.answered(p, 1, f"{w}: answered")
@@ -364,7 +364,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 p.js(FAKE)
                 self.ask(p, "Q?")
                 self.answered(p, 1, f"{w}: answered")
@@ -388,7 +388,7 @@ class More(Classic):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 self.at(p, w)
-                self.open(p)
+                self.open_ask(p)
                 self.ask(p, "Q?")
                 self.answered(p, 1, f"{w}: answered")
                 self.assertEqual(p.js("document.querySelector('[data-ask-again]').disabled"), False, f"{w}: on while ready")
