@@ -971,7 +971,6 @@ table.items .weye { width: 30px; height: 30px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
 .ask-folder-line .ask-left-btn { display: inline; min-height: 0; font-size: inherit; }
 .ask-folder-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* Row 1270: the ID button covers the card; hover, focus, selected. */
 .raid-card .raid-id { cursor: pointer; }
 .raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
 .raid-card .raid-id:focus-visible { outline: none; }
@@ -980,7 +979,6 @@ table.items .weye { width: 30px; height: 30px; }
 .raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
 
-/* Row 1270: the picker, Remove, Also show. */
 .rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
 .rce-pick, .rce-rm, .rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .rce-pick, .rce-rm, .rce-opts button { cursor: pointer; }
