@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject } from "../stores/report.js";
-import { zoneFetch } from "../api.js";
 import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
@@ -216,7 +215,7 @@ function ProjectTabs({ current }) {
   const [list, setList] = useState([]);
   useEffect(() => {
     let live = true;
-    zoneFetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
+    globalThis.fetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
       .then((r) => r.json().then((b) => (r.ok && b.ok && Array.isArray(b.projects) ? b.projects : [])))
       .then((rows) => { if (live) setList(rows); })
       .catch(() => {});
