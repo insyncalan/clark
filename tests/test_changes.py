@@ -227,9 +227,9 @@ class Refusals(Api):
                              ("\ufe0f", "A title needs at least one visible letter, number or symbol."), (5, "A title must be text."),
                              (["x"], "A title must be text."), (None, "A title must be text.")):
             with self.subTest(title=repr(title)[:30]):
-                self.refused(self.req("update", id="ABC-S-005", changes={"title": title}), words)
+                self.refused(self.req("update", id="ABC-S-004", changes={"title": title}), words)
                 self.refused(self.req("new", values={"title": title}), words)
-        self.assertEqual(self.titles()[4], "This week")
+        self.assertEqual(self.titles()[3], "This week")
 
     def test_a_title_is_plain_text_trimmed_and_nfc_and_markup_stays_text(self):
         body = self.ok("update", id="ABC-S-005", changes={"title": "  <b>x</b> & Cafe\u0301  "})
@@ -316,13 +316,13 @@ class Steps(Api):
 
     def test_new_is_one_step_and_goes_after_the_named_section(self):
         count = self.snapshot()[0]
-        body = self.ok("new", values={"title": "Plan"}, after="ABC-S-005", place="menu")
-        self.assertEqual((body["ref"], body["apply_id"]), ("ABC-S-011", count + 1))
-        self.assertEqual(self.titles()[4:7], ["This week", "Plan", "Next week"])
-        row = self.s.read(KIND, ref="ABC-S-011")
+        body = self.ok("new", values={"title": "Plan"}, after="ABC-S-004", place="menu")
+        self.assertEqual((body["ref"], body["apply_id"]), ("ABC-S-012", count + 1))
+        self.assertEqual(self.titles()[3:6], ["This week", "Plan", "Next week"])
+        row = self.s.read(KIND, ref="ABC-S-012")
         self.assertEqual((row["type"], row["project"], row["hidden"], row["beside"]), ("text", "ABC", 0, 0))
         rows = self.s.con.execute("SELECT DISTINCT item_id FROM change_log WHERE apply_id = ?", (body["apply_id"],)).fetchall()
-        self.assertEqual([r[0] for r in rows], ["ABC-S-011"], "one new row and no other")
+        self.assertEqual([r[0] for r in rows], ["ABC-S-012"], "one new row and no other")
         event = self.s.con.execute("SELECT route, place, actor FROM item_events WHERE apply_id = ? LIMIT 1", (body["apply_id"],)).fetchone()
         self.assertEqual(tuple(event), ("dashboard", "menu", "you"))
         self.assertEqual(self.s.con.execute("SELECT by_user FROM applies WHERE apply_id = ?", (body["apply_id"],)).fetchone()[0], USER)
@@ -401,8 +401,8 @@ class Steps(Api):
         body = self.ok("move", id="ABC-S-008", before="ABC-S-002", flags={})
         self.assertIsNotNone(body["apply_id"])
         count = self.snapshot()
-        for request in (self.req("move", id="ABC-S-005", before="ABC-S-006", flags={"ABC-S-005": 1}),
-                        self.req("move", id="ABC-S-005", before="ABC-S-006", flags={})):
+        for request in (self.req("move", id="ABC-S-004", before="ABC-S-005", flags={"ABC-S-004": 1}),
+                        self.req("move", id="ABC-S-004", before="ABC-S-005", flags={})):
             got = self.change(request)[1]
             self.assertTrue(got["ok"])
             self.assertIsNone(got["apply_id"], request)
@@ -478,10 +478,10 @@ class Steps(Api):
 
     def test_a_change_that_changes_nothing_has_no_step_and_no_undo(self):
         count = self.snapshot()
-        for request in (self.req("update", id="ABC-S-005", changes={"title": "This week"}),
-                        self.req("update", id="ABC-S-005", changes={"hidden": 0}),
-                        self.req("move", id="ABC-S-005", before="ABC-S-006"),        # it is already just before Next week
-                        self.req("move", id="ABC-S-010", before=None)):
+        for request in (self.req("update", id="ABC-S-004", changes={"title": "This week"}),
+                        self.req("update", id="ABC-S-004", changes={"hidden": 0}),
+                        self.req("move", id="ABC-S-004", before="ABC-S-005"),        # it is already just before Next week
+                        self.req("move", id="ABC-S-011", before=None)):
             body = self.change(request)[1]
             self.assertTrue(body["ok"])
             self.assertIsNone(body["apply_id"], request)
@@ -508,18 +508,18 @@ class Steps(Api):
         words = "ABC's report has used up all the section numbers clark has (999), so no more sections can be added."
         self.refused(self.req("new", values={"title": "One too many"}), words)
         self.assertNotRegex(words, "item|kind of")                       # not the work items' words
-        self.assertEqual(len(self.rows()), 11)
+        self.assertEqual(len(self.rows()), 12)
         self.ok("update", id="ABC-S-005", changes={"title": "Other changes still work"})
 
     def test_100_sections_is_the_most(self):
         with self.s.step("dashboard", USER) as st:
-            for n in range(90):
+            for n in range(89):
                 st.create(KIND, {"project": "ABC", "type": "text", "title": f"S{n}", "sort_order": 100000 + n})
         self.refused(self.req("new"), "A report can have at most 100 sections.")
 
     def test_delete_any_section(self):      # row 906
         self.assertEqual(self.ok("delete", id="ABC-S-001")["ref"], "ABC-S-001")
-        self.assertEqual(self.ok("delete", id="ABC-S-005")["ref"], "ABC-S-005")
+        self.assertEqual(self.ok("delete", id="ABC-S-004")["ref"], "ABC-S-004")
         self.assertNotIn("This week", self.titles())
 
     def beside_now(self):
@@ -806,11 +806,11 @@ class Undoing(Api):
 
     def test_one_field_changed_twice_in_a_step_goes_back_to_its_first_value(self):
         with self.s.step("dashboard", USER) as st:
-            st.update(KIND, "ABC-S-005", {"title": "Middle"})
-            st.update(KIND, "ABC-S-005", {"title": "Last"})
+            st.update(KIND, "ABC-S-004", {"title": "Middle"})
+            st.update(KIND, "ABC-S-004", {"title": "Last"})
         status, body = self.undone(self.demo.last_step())
         self.assertEqual((status, body["skipped"]), (200, []))
-        self.assertEqual(self.s.read(KIND, ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.s.read(KIND, ref="ABC-S-004")["title"], "This week")
 
     def test_an_added_section_that_was_renamed_is_kept_and_the_later_step_named(self):
         added = self.ok("new", values={"title": "Plan"})
@@ -860,11 +860,11 @@ class Undoing(Api):
     def test_the_words_for_each_kind_of_undo(self):
         added = self.ok("new", values={"title": "Plan"})
         self.assertEqual(self.undone(added["apply_id"])[1]["words"], "Put back: the new section \u201cPlan\u201d was removed.")
-        deleted = self.ok("delete", id="ABC-S-005")
+        deleted = self.ok("delete", id="ABC-S-004")
         self.assertEqual(self.undone(deleted["apply_id"])[1]["words"], "Put back: the section \u201cThis week\u201d is back.")
-        hidden = self.ok("update", id="ABC-S-005", changes={"hidden": 1})
+        hidden = self.ok("update", id="ABC-S-004", changes={"hidden": 1})
         self.assertEqual(self.undone(hidden["apply_id"])[1]["words"], "Put back: \u201cThis week\u201d is shown again.")
-        moved = self.ok("move", id="ABC-S-008", before="ABC-S-002")
+        moved = self.ok("move", id="ABC-S-009", before="ABC-S-002")
         self.assertEqual(self.undone(moved["apply_id"])[1]["words"], "Put back: the place of \u201cOpen actions\u201d.")
 
     def test_the_undo_of_an_undo_is_refused_by_the_route_and_works_in_the_store(self):
@@ -887,7 +887,7 @@ class Undoing(Api):
         for t in threads:
             t.join(30)
         self.assertEqual(sorted(results), [200, 409, 409, 409])
-        self.assertEqual(self.s.read(KIND, ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.s.read(KIND, ref="ABC-S-004")["title"], "This week")
 
     def test_the_check_and_the_undo_sit_under_one_lock(self):
         """The step's rows are checked and the undo made inside one critical section of changes.py (no gap for another request)."""
@@ -945,13 +945,13 @@ class OlderProject(Api):
     def test_each_first_change_seeds_the_defaults_in_its_own_step_and_undo_takes_back_only_the_change_and_the_seed_stays(self):
         defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "doclinks", "workitems", "reportheadline", "glancetemplate")]    # publish leaves out "docs", and a template or Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions; row 1266: a bare project has no headline, no glance tile and no document to print)
         no_this_week = [t for t in defaults if t != "This week"]
-        cases = (                                   # op, what it asks (S-005 is This week, S-008 Open actions), sections and published after
-            ("new", {"values": {"title": "Only me"}}, 11, defaults + ["Only me"]),
-            ("update", {"id": "S-005", "changes": {"title": "Renamed"}}, 10, ["Renamed" if t == "This week" else t for t in defaults]),
-            ("move", {"id": "S-008", "before": "S-002"}, 10, defaults),      # rows 1193-8 and 9: Risks and issues and Open actions are lists with nothing to show, left out of the file wherever it sits
-            ("update", {"id": "S-005", "changes": {"hidden": 1}}, 10, no_this_week),
-            ("update", {"id": "S-006", "changes": {"beside": 1}}, 10, defaults),
-            ("delete", {"id": "S-005"}, 9, no_this_week),
+        cases = (                                   # op, what it asks (S-004 is This week, S-009 Open actions), sections and published after
+            ("new", {"values": {"title": "Only me"}}, 12, defaults + ["Only me"]),
+            ("update", {"id": "S-004", "changes": {"title": "Renamed"}}, 11, ["Renamed" if t == "This week" else t for t in defaults]),
+            ("move", {"id": "S-009", "before": "S-002"}, 11, defaults),      # rows 1193-8 and 9: Risks and issues and Open actions are lists with nothing to show, left out of the file wherever it sits
+            ("update", {"id": "S-004", "changes": {"hidden": 1}}, 11, no_this_week),
+            ("update", {"id": "S-005", "changes": {"beside": 1}}, 11, defaults),
+            ("delete", {"id": "S-004"}, 10, no_this_week),
         )
         shape = lambda rows: [(r["id"], r["type"], r["title"], r["beside"], r["hidden"], r["sort_order"]) for r in rows]
         for n, (op, args, count, titles) in enumerate(cases):
@@ -972,38 +972,38 @@ class OlderProject(Api):
                 status, out = self.undo({"project": self.code, "apply_id": body["apply_id"]})
                 self.assertEqual((status, out["skipped"]), (200, []), out)
                 kept = self.sections()
-                self.assertEqual(len(kept), 10, "the ten starting sections stay")
+                self.assertEqual(len(kept), 11, "the eleven starting sections stay")
                 self.assertEqual([r["title"] for r in kept], [s["title"] for s in default_sections.DEFAULT_SECTIONS])
                 self.assertEqual([t for _, t in self.published()], defaults, "published: the defaults, not none and not the seven")
                 self.assertEqual(shape(kept) == changed, False, "the person's change went back")
-                self.assertEqual([r["sort_order"] for r in kept], [order.GAP * k for k in range(1, 11)])
+                self.assertEqual([r["sort_order"] for r in kept], [order.GAP * k for k in range(1, 12)])
 
     def test_a_later_change_to_a_starting_section_loses_no_seed_and_still_blocks_an_undo_of_that_section(self):
         added = self.go("new", values={"title": "Plan"})                      # step 1 seeds; step 2 changes a starting section
         self.go("update", id="OLD-S-005", changes={"title": "Later name"})
         status, out = self.undo({"project": "OLD", "apply_id": added["apply_id"]})
         self.assertEqual((status, out["skipped"]), (200, []))
-        self.assertEqual(len(self.sections()), 10, "no starting section was lost")
+        self.assertEqual(len(self.sections()), 11, "no starting section was lost")
         self.assertEqual(self.s.read(KIND, ref="OLD-S-005")["title"], "Later name")
         first = self.go("update", id="OLD-S-006", changes={"title": "First name"})["apply_id"]        # the rename is the first change
         later = self.go("update", id="OLD-S-006", changes={"title": "Second name"})["apply_id"]
         status, out = self.undo({"project": "OLD", "apply_id": first})
         self.assertEqual((status, [s["by_step"] for s in out["skipped"]]), (200, [later]))
-        self.assertEqual((len(self.sections()), self.s.read(KIND, ref="OLD-S-006")["title"]), (10, "Second name"))
+        self.assertEqual((len(self.sections()), self.s.read(KIND, ref="OLD-S-006")["title"]), (11, "Second name"))
 
     def test_an_old_project_after_a_first_change_and_its_undo_is_a_new_projects_after_the_same(self):
         def settled(code):
             body = self.ok("new", project=code, values={"title": "Plan"})
             self.assertEqual(self.undo({"project": code, "apply_id": body["apply_id"]})[0], 200)
             return [(r["type"], r["title"], r["beside"], r["hidden"], r["sort_order"]) for r in order.in_order(self.s.read(KIND, code))]
-        self.assertEqual(settled("OLD"), settled("ABC")[:10])
-        self.assertEqual(len(settled("ABC")), 10)
+        self.assertEqual(settled("OLD"), settled("ABC")[:11])
+        self.assertEqual(len(settled("ABC")), 11)
 
     def test_the_ids_do_not_burn_twelve_for_each_add_and_undo(self):
         for _ in range(3):
             body = self.go("new", values={"title": "Plan"})
             self.assertEqual(self.undo({"project": "OLD", "apply_id": body["apply_id"]})[0], 200)
-        self.assertEqual(self.go("new", values={"title": "Plan"})["ref"], "OLD-S-014")      # 10 starting ids, then one for each add
+        self.assertEqual(self.go("new", values={"title": "Plan"})["ref"], "OLD-S-015")      # 11 starting ids, then one for each add
 
     def test_a_second_undo_of_an_old_projects_first_change_is_refused_as_undone_already(self):
         first = self.go("new", values={"title": "Plan"})["apply_id"]              # the step holds the seed rows and the add
@@ -1012,18 +1012,18 @@ class OlderProject(Api):
         status, body = self.undo({"project": "OLD", "apply_id": first})
         self.assertEqual((status, body.get("ok"), body.get("message"), body.get("code")), (409, False, changes.UNDONE, "undone"))
         self.assertEqual(self.snapshot(), before, "nothing was written")
-        self.assertEqual(len(self.sections()), 10, "the starting sections stay")
+        self.assertEqual(len(self.sections()), 11, "the starting sections stay")
 
     def test_a_first_change_that_changes_nothing_still_seeds_but_offers_no_undo(self):
-        for n, request in enumerate((self.req("update", id="S-005", changes={"hidden": 0}), self.req("update", id="S-005", changes={"title": "This week"}),
-                                     self.req("move", id="S-005", before="S-006"), self.req("move", id="S-010", before=None))):
+        for n, request in enumerate((self.req("update", id="S-004", changes={"hidden": 0}), self.req("update", id="S-004", changes={"title": "This week"}),
+                                     self.req("move", id="S-004", before="S-005"), self.req("move", id="S-011", before=None))):
             self.old(f"NO{n}")
             request = {**request, "project": self.code, "id": f"{self.code}-{request['id']}"}
             if request.get("before"):
                 request["before"] = f"{self.code}-{request['before']}"
             with self.subTest(request=request):
                 status, body = self.change(request)
-                self.assertEqual((status, body["ok"], body["apply_id"], len(self.sections())), (200, True, None, 10))
+                self.assertEqual((status, body["ok"], body["apply_id"], len(self.sections())), (200, True, None, 11))
                 vias = {r[0] for r in self.s.con.execute("SELECT via FROM change_log WHERE item_id LIKE ?", (self.code + "-S-%",))}
                 self.assertEqual(vias, {"seed"}, "the starting sections went in and nothing else")
 
@@ -1031,14 +1031,14 @@ class OlderProject(Api):
         self.go("new", values={"title": "First"})
         steps, rows = self.snapshot()[0], self.sections()
         body = self.go("update", id=rows[-1]["id"], changes={"title": "Second"})
-        self.assertEqual((body["apply_id"], len(self.sections())), (steps + 1, 11))
+        self.assertEqual((body["apply_id"], len(self.sections())), (steps + 1, 12))
         self.assertEqual({r[0] for r in self.s.con.execute("SELECT item_id FROM change_log WHERE apply_id = ?", (body["apply_id"],))},
                          {rows[-1]["id"]})
 
     def test_a_project_that_has_sections_is_not_seeded(self):
         steps = self.snapshot()[0]
         self.ok("new", values={"title": "Plan"})
-        self.assertEqual((self.snapshot()[0], len(self.rows())), (steps + 1, 11))
+        self.assertEqual((self.snapshot()[0], len(self.rows())), (steps + 1, 12))
 
     def test_a_refused_change_seeds_nothing(self):
         for request in ({"id": "OLD-S-099", "changes": {"title": "x"}}, {"id": "OLD-S-005", "changes": {"title": ""}}):
