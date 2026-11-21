@@ -6,9 +6,13 @@ import { docItems, linkProblem } from "../../templates/files.js";
 import { EntryRow, FileRow } from "../../templates/DocLinks.jsx";
 import { ActIcon } from "../../templates/docIcons.jsx";
 import { StartPrompt } from "../StartPrompt.jsx";
+import { startText } from "../startingText.js";
 import { chooseFile } from "./fileRoute.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 import * as W from "../../logic/docLinksWords.js";
+
+// The empty line is the editor's only (ticket 1194 point 7: the View leaves an empty section out), so it lives here, outside the shared words file.
+const EMPTY = `Nothing here yet. ${startText("docs-links")}`;      // the second sentence is the starting text of the template (edit/startingText.js), the one place those words are typed
 import { classicTheme } from "../../components/Contents.jsx";
 
 export const MAX_ITEMS = 20;
@@ -120,7 +124,7 @@ function ClassicEdit({ section }) {
             );
           })}
         </ul>
-      ) : <p class="quiet tpl-empty">{W.EMPTY}</p>}
+      ) : <p class="quiet tpl-empty">{EMPTY}</p>}
       <p class="tpl-allowed"><strong>{W.ALLOWED_HEAD}</strong>{" "}{W.ALLOWED_TYPES}{" "}<strong>{W.NOT_HEAD}</strong>{" "}{W.NOT_TYPES}</p>
       <p class="quiet tpl-hint">{W.RENAME_HINT} {W.NOTE}</p>
     </div>

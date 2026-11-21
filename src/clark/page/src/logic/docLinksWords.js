@@ -4,7 +4,6 @@ export const UNRULED_DOWNLOAD = "Download";
 // Item 1194, Documents and links: every visible string of the section, as one named constant each. All are ruled (16-11).
 export const DESCRIPTION_LABEL = "Link description (required)";
 export const NO_DESCRIPTION = (n) => `Link ${n}: Enter a link description.`;
-export const EMPTY = "Nothing here yet. Add a file or a link.";
 export const BAD_TYPE = (name) => `${name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.`;
 export const OPEN = "Open";
 export const DOWNLOAD = "Download";
