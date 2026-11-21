@@ -1,0 +1,39 @@
+# Screenshots for Argos (free tier, advisory). A pull request from THIS repository only: a fork's code never gets the token.
+# Not part of "Tests passed", not a required check, and a red run here never blocks a merge (continue-on-error).
+# Kept out of tests.yml on purpose: that file holds "no secrets" (tests/test_workflow.py); this one holds exactly one, in the last step.
+# Row: Argos visual check (owner decision, 20-11). Free tier: at most 40 screenshots per pull request; stop at the limit.
+name: Screenshots
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: screenshots-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  argos:
+    name: Screenshots (Argos, advisory)
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: {persist-credentials: false, fetch-depth: 0}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: {python-version: "3.x"}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: {node-version: "22"}
+      - name: Build the pages
+        run: python3 dev/tools/build_page.py
+      - name: Take the screenshots (no token in this step)
+        run: python3 dev/tools/argos_shots.py --out screenshots --width 1400
+      - name: Keep to the free limit (1 to 40 screenshots)
+        run: |
+          n=$(find screenshots -name '*.png' | wc -l); echo "$n screenshots"
+          if [ "$n" -lt 1 ] || [ "$n" -gt 40 ]; then echo "need 1 to 40 screenshots, got $n"; exit 1; fi
+      - name: Upload to Argos (the token is in this step only)
+        env:
+          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
+        run: npx --yes @argos-ci/cli@6.11.0 upload ./screenshots
