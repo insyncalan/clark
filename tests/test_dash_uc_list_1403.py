@@ -193,6 +193,8 @@ class EditKeepsHeadingRow(Dash, Base):
                 p.until("document.getAnimations().length === 0", "the animations to end")
                 self.assertEqual(p.js(self.SHOWN), [True, "grid", True], f"Edit {w}: heading row drawn")
                 self.assertEqual(p.js(self.NAMES), ["Ref", "Use case", "Status", "Commitment", "Next steps"], f"Edit {w}: column names")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.uc .ucheads-ed')).paddingLeft"), {1400: "48px", 900: "44px"}[w], f"Edit {w}: padding-left is 4 + 32 + the gap")
+                self.assertEqual(p.js("document.querySelector('.uc .ucheads-ed').getAttribute('aria-hidden')"), "true", f"Edit {w}: heading row hidden from readers")
                 p.js("document.querySelector('[data-mode=view]').click()")
                 p.until("!document.querySelector('.uc .ucheads-ed')", "back in View the Edit heading row is gone")
                 self.assertEqual(p.js(self.SHOWN), [False, "none", False], f"View again {w}")
