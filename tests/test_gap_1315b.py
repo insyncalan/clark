@@ -29,7 +29,7 @@ class Gap1315b(Base, unittest.TestCase):
         self.assertLess(i, next(n for n, l in enumerate(rows) if l.startswith("/* Row 1393")))      # before Row 1393, other rows may sit between
         block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[0]      # up to the next comment of any kind
         rules = {l.split(" {", 1)[0]: l for l in block.splitlines() if " {" in l}      # found by selector, never by position or count of other rules
-        self.assertEqual(rules["#milestones .msv-sw .msv-b"].split("{", 1)[1].strip(), "min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium); }")      # prototype index.html:190 .tg button (padding 0 12px, 28px) for the Timeline / Calendar buttons, which are not .seg
+        self.assertEqual(rules["#milestones .msv-sw .msv-b"].split("{", 1)[1].strip(), "min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }")      # ruling 21-11 03:2x on 1315 / 1319: padding 3px 14px, 28px, weight 600 on the Timeline / Calendar buttons, which are not .seg
         self.assertNotIn("#milestones .cal-sc button", rules)      # the Week / Month / Quarter buttons are .seg: Row 1319 reaches them
         self.assertIn("border: 1px solid var(--grey-500);", rules["#milestones .msv-sw, #milestones .cal-sc"])
         self.assertIn("border-left: 1px solid var(--grey-500);", rules["#milestones .msv-b + .msv-b, #milestones .cal-sc button + button"])
@@ -39,14 +39,14 @@ class Gap1315b(Base, unittest.TestCase):
             self.assertNotIn("background", l)
             self.assertNotIn("mv-today", l)      # the Today name is the Row 1316 PR's line
 
-    def test_frame_padding_12_sides_divider_1px_at_1400(self):
+    def test_frame_padding_14_sides_divider_1px_at_1400(self):
         with chrome() as cdp:
             sid = self.show(cdp, 1400, "light")
             m = cdp.js(M, sid)
             print("row 1315 fill 1400", m)
             for k in ("sw", "sc"):
                 g = m[k]
-                self.assertEqual(g["pad"], {"sw": "12px 12px", "sc": "14px 14px"}[k], (k, m))      # sw: the prototype .tg button (padding 0 12px, index.html:190); sc: the Row 1319 .seg button (3px 14px)
+                self.assertEqual(g["pad"], "14px 14px", (k, m))      # all five buttons: 3px 14px (ruling 21-11 03:2x; sc is the Row 1319 .seg button)
                 self.assertEqual(g["border"], "1px", (k, m))
                 self.assertEqual(g["bc"], "rgb(135, 148, 179)", (k, m))
             self.assertEqual((m["sw"]["h"], m["sw"]["w"]), (28, "600"), m)      # Timeline / Calendar; Week / Month / Quarter height and weight are the Row 1316 PR's rule
