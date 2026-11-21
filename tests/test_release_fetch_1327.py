@@ -345,21 +345,20 @@ class QuietLookTest(Served2):
         self.assertEqual((200, 2), (status, len(self.asks())))
         self.assertEqual("avail", body["latest"]["state"])
 
-    def test_the_size_is_in_whole_megabytes_and_the_notes_are_whole(self):
-        self.doc["assets"][0]["size"] = 38_400_000
+    def test_the_size_is_the_one_size_text_rule_and_the_notes_are_whole(self):
         self.doc["body"] = "n" * 3000
-        self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
-        latest = self.up.status()[1]["latest"]
-        self.assertEqual(("38 MB", 3000), (latest["size"], len(latest["notes"])))
-        self.doc["assets"][0]["size"] = 10
-        self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
-        self.assertEqual("1 MB", self.up.check({})[1]["latest"]["size"])
+        for size, text in ((400_000, "0.4 MB"), (1_000_000, "1.0 MB"), (12_500_000, "13 MB"), (38_400_000, "38 MB"), (10, "0.1 MB")):
+            with self.subTest(size=size):
+                self.doc["assets"][0]["size"] = size
+                self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+                latest = self.up.check({})[1]["latest"]
+                self.assertEqual((text, updates.size_text(size), 3000), (latest["size"], latest["size"], len(latest["notes"])))
 
     def test_what_the_page_is_told(self):
         latest = self.up.status()[1]["latest"]
         self.assertEqual({"state", "version", "date", "size", "notes", "checked"}, set(latest))
         self.assertEqual(("avail", "0.3.2", "18-11-2026", "Faster Dashboard."), (latest["state"], latest["version"], latest["date"], latest["notes"]))
-        self.assertRegex(latest["size"], r"^\d+ MB$")
+        self.assertRegex(latest["size"], r"^\d+(\.\d)? MB$")
         self.assertRegex(latest["checked"], r"^\d\d-\d\d-\d{4} \d\d:\d\d$")
         self.assertNotIn("github", json.dumps(self.up.status()[1]))        # no address, no digest goes to the page
 
