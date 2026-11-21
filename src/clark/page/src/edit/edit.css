@@ -1282,10 +1282,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 .pp-earlier .pubs td .muted.small { white-space: normal; }
 /* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
 .pk-lh { margin-top: 0; }
-.pk-lh-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; margin: 0; padding: 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: none; }      /* a row in every theme: the word at the left, the chevron at the right */
-.pk-lh-btn .pk-lh-car { display: inline-flex; }
-.pk-lh-car svg { width: 16px; height: 16px; }
-.pk-lh-btn[aria-expanded="true"] .pk-lh-car { transform: rotate(180deg); }
+.pk-lh-btn { display: block; margin-left: auto; min-height: 24px; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
 .pk-lh-btn:focus-visible, .pk-lh-list:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-lh-panel { margin-top: var(--space-1); }
 .pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }

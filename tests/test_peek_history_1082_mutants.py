@@ -84,7 +84,7 @@ class Mutants(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-lh-loading]')", sid)))
             self.assertEqual(cdp.js("document.querySelector('[data-pk-lh-loading]').textContent", sid), "Reading the history\u2026")
 
-    def test_a_long_word_stays_inside_its_row_and_each_row_has_its_line_and_the_row_has_its_chevron_at_the_right(self):
+    def test_a_long_word_stays_inside_its_row_and_each_row_has_its_line_and_the_link_sits_at_the_right(self):
         word = "W" * 120
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -95,8 +95,8 @@ class Mutants(unittest.TestCase):
                 row = cdp.js(f"(r => [r.scrollWidth <= r.clientWidth + 1, getComputedStyle(r).borderTopWidth, getComputedStyle(r).borderTopStyle])(document.querySelector({json.dumps(ROWS)}))", sid)
                 self.assertTrue(row[0], "a long unbroken word wraps inside the row")
                 self.assertEqual(row[1:], ["1px", "solid"], "a light line above every row")
-                right = cdp.js("(b => { const q = b.querySelector('.pk-lh-car').getBoundingClientRect(), p = document.querySelector('#peek').getBoundingClientRect(); return [q.right, p.right, q.left, p.left]; })(document.querySelector('[data-pk-lh-btn]'))", sid)
-                self.assertGreater(right[2] - right[3], (right[1] - right[3]) / 2, "row 1258: the chevron sits on the right half of the peek (the word is at the left of the row)")
+                right = cdp.js("(b => { const q = b.getBoundingClientRect(), p = document.querySelector('#peek').getBoundingClientRect(); return [q.right, p.right, q.left, p.left]; })(document.querySelector('[data-pk-lh-btn]'))", sid)
+                self.assertGreater(right[2] - right[3], (right[1] - right[3]) / 2, "the link sits on the right half of the peek")
 
     def test_another_item_opens_with_its_history_closed(self):
         with chrome() as cdp:

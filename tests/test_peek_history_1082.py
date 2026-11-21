@@ -8,12 +8,13 @@ by scrolling, the link reading Hide history while open, only that one field's ch
 import json
 import shutil
 import unittest
+from unittest import mock
 
 from _editor_checks import for_url
 from _paths import ROOT
 import _testpage as testpage
 
-from clark import activity_read, changes, sneak  # noqa: E402
+from clark import activity_read, changes, page, sneak, theme as themes  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -94,8 +95,12 @@ class Browser(unittest.TestCase):
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Show history")
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "false")
 
-    def test_show_history_is_a_row_in_every_theme_word_left_chevron_right(self):
-        """Row 1258: no theme gate; the page here has no Classic layer (Cards), and the row is drawn as the mock-up's rows are."""
+    def test_show_history_is_a_row_in_classic_word_left_chevron_right(self):
+        """Row 1258: under Classic the button is drawn as the mock-up's rows are; Cards keeps the word alone (the tests above)."""
+        real = testpage.html
+        patch = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(real(), themes.css("prototype-2.0")))
+        patch.start()
+        self.addCleanup(patch.stop)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, width)
