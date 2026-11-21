@@ -120,14 +120,14 @@ class WorkflowText(unittest.TestCase):
                 body.append(lines[i])
                 i += 1
             self.assertNotIn("${{", "\n".join(body))
-        self.assertEqual(runs, 3)
+        self.assertEqual(runs, 4)  # the three checks plus the release-label gate (Row 1501, bifrost-release-label)
 
     def test_pr_number_comes_in_through_env(self):
         self.assertEqual(self.code.count('--pr "$PR_NUMBER"'), 3)
         self.assertEqual(self.code.count("PR_NUMBER: ${{ github.event.pull_request.number }}"), 3)
 
     def test_merge_group_checkout_ref_and_concurrency(self):
-        self.assertEqual(self.code.count("ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"), 3)
+        self.assertEqual(self.code.count("ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"), 4)  # four jobs check out the base: the three checks and the release-label gate
         self.assertIn("group: bifrost-${{ github.event.pull_request.number || github.run_id }}", self.code)
 
     def test_permissions_are_read_only_and_just_two(self):
