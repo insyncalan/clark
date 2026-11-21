@@ -494,7 +494,7 @@ class PeopleContractWarning(Base):
     def tree(self):
         root = self.docs / "work"
         (root / "Contract 2026").mkdir(parents=True)
-        (root / "Contract 2026" / "terms.txt").write_text("x")
+        (root / "Contract 2026" / "terms.txt").write_text("x", encoding="utf-8")
         (root / "plain").mkdir()
         return root
 
@@ -524,10 +524,10 @@ class PeopleContractWarning(Base):
         root = self.tree()
         self.add(root)
         (self.more / "Salary").mkdir()
-        (self.more / "Salary" / "a.txt").write_text("x")
+        (self.more / "Salary" / "a.txt").write_text("x", encoding="utf-8")
         (self.more / "archive" / "Payroll").mkdir(parents=True)
-        (self.more / "archive" / "Payroll" / "b.txt").write_text("x")
-        (self.more / "archive" / "Payroll" / "c.md").write_text("x")
+        (self.more / "archive" / "Payroll" / "b.txt").write_text("x", encoding="utf-8")
+        (self.more / "archive" / "Payroll" / "c.md").write_text("x", encoding="utf-8")
         status, got = self.add(self.more)
         self.assertEqual(status, 200)
         self.assertEqual(got["warnings"], [{"folder": str(self.more), "items": [
@@ -538,11 +538,11 @@ class PeopleContractWarning(Base):
         first = self.tree()
         self.add(first)
         (self.more / "Payroll").mkdir()
-        (self.more / "Payroll" / "a.txt").write_text("x")
+        (self.more / "Payroll" / "a.txt").write_text("x", encoding="utf-8")
         self.add(self.more)
         other = self.docs / "shared"
         (other / "Passport").mkdir(parents=True)
-        (other / "Passport" / "a.txt").write_text("x")
+        (other / "Passport" / "a.txt").write_text("x", encoding="utf-8")
         (self.data / ask_folders.SHARED_FILE).write_text(json.dumps([str(other)]), encoding="utf-8")
         status, got = self.get()
         self.assertEqual(status, 200)

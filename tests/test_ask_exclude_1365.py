@@ -98,7 +98,7 @@ class Base(unittest.TestCase):
     def put(self, rel, text="plan text"):
         p = self.root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text)
+        p.write_text(text, encoding="utf-8")
         return p
 
     def store(self):
@@ -261,7 +261,7 @@ class Walk(Base):
         self.tree()
         outside = self.d / "outside"
         outside.mkdir()
-        (outside / "secret.txt").write_text("outside")
+        (outside / "secret.txt").write_text("outside", encoding="utf-8")
         os.symlink(outside, self.root / "Escape")
         files, _ = self.listed({str(self.root): ["Notes"]})
         self.assertNotIn("Escape/secret.txt", files)
@@ -399,7 +399,7 @@ class Reader(Base):
         self.tree()
         other = self.d / "home" / "second"
         other.mkdir()
-        (other / "ok.txt").write_text("second folder text")
+        (other / "ok.txt").write_text("second folder text", encoding="utf-8")
         for bad in ("", "oops", '["../x"]', "{}", 5, b"[]"):
             got = ask_passages.folder_data([str(self.root), str(other)], self.data, "second text alpha", home=self.home, leave_out={str(self.root): bad})
             text = "\n".join(p.text for p in got.passages)
@@ -610,7 +610,7 @@ class Route(Base):
         wide = Path(os.path.realpath(self.home)) / "Wide"
         for rel in ("Archive/a.txt", "Archive/b.txt", "Archive/c.txt", "Contract/t.txt"):
             (wide / rel).parent.mkdir(parents=True, exist_ok=True)
-            (wide / rel).write_text("text")
+            (wide / rel).write_text("text", encoding="utf-8")
         with self.store().step("dashboard", "tester", place="menu") as step:
             step.create("source_folders", {"project": "ABC", "path": str(wide), "sort_order": 0, "excluded": '["Archive"]'})
         with mock.patch.object(sn, "MAX_ENTRIES", 3):
@@ -693,9 +693,9 @@ class OnTheRoute(tr.Base):
         self.addCleanup(patch.stop)
         self.mine = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-mine-")))
         self.addCleanup(shutil.rmtree, self.mine, True)
-        (self.mine / "plan.txt").write_text("FOLDERKEEP the cutover plan is booked")
+        (self.mine / "plan.txt").write_text("FOLDERKEEP the cutover plan is booked", encoding="utf-8")
         (self.mine / "Contract").mkdir()
-        (self.mine / "Contract" / "terms.txt").write_text("FOLDEROUT the cutover plan terms for the cutover plan, the cutover plan again")
+        (self.mine / "Contract" / "terms.txt").write_text("FOLDEROUT the cutover plan terms for the cutover plan, the cutover plan again", encoding="utf-8")
         self.store = st.open_store(self.db, onedrive_roots=[])
         with self.store.step("dashboard", "tester", place="menu") as s:
             s.create("source_folders", {"project": tr.CODE, "path": str(self.mine), "sort_order": 1})
