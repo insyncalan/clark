@@ -115,6 +115,8 @@ export const askCommandsChange = (body) => call("POST", "/api/ask-commands", bod
 // on this computer, `on` the choice for every project (off until turned on), `off_here` the project's own turn-off. POST {id, on} changes the first, {project, id, off_here}
 // the second; both answer the same list. Words and true or false only: nothing about a connector is kept in a project's data and no key is held.
 export const askConnectorsRead = (project) => call("GET", project ? `/api/ask-connectors?project=${encodeURIComponent(project)}` : "/api/ask-connectors");
+export const askFilesRead = (project) => call("GET", project ? `/api/ask-files?project=${encodeURIComponent(project)}` : "/api/ask-files");
+export const askFilesChange = (body) => call("POST", "/api/ask-files", body);
 export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors", body);
 
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST

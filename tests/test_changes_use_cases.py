@@ -240,6 +240,8 @@ class NoCreateNoDelete(unittest.TestCase):
         for r in routes:
             if r.startswith("/api/brands/"):
                 continue                      # #944: removing an installed brand is not a use-case or work-item delete
+            if r == "/api/ask-new-projects":
+                continue                      # row 1294: "new" there is new projects (the asking setting), not a use-case or work-item add
             self.assertFalse(any(w in r for w in ("add", "create", "delete", "remove", "new")), r)
 
 
