@@ -31,7 +31,7 @@ class Words(unittest.TestCase):
         from clark import history
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
-                self.assertEqual(history.field_name(table, "client_message"), "Message to the client")
+                self.assertEqual(history.field_name(table, "client_message"), "Client Message")
 
     def test_the_row_editor_label_and_toasts_say_client_message_of(self):
         html = page.page_html(tp.EMPTY_BRANDING, view=False)
