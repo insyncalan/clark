@@ -14,9 +14,10 @@ const MAX_HREF = 8000;
 const MAX_BLANK_RUN = 5;              // blank lines (empty paragraphs) in a row that are kept; a longer run is cut to this (#84)
 
 const set = (words) => new Set(words.split(" "));
-const ALLOWED = set("p br strong em s h1 h2 h3 ul ol li blockquote hr a input");
+const ALLOWED = set("p br strong em s h1 h2 h3 ul ol li blockquote hr a span input");
 const VOID = set("br hr input");
-const INLINE = set("strong em s a");
+const INLINE = set("strong em s a span");
+const COLOUR_CLASSES = set("rt-c-grey rt-c-brand rt-c-red rt-c-amber rt-c-green rt-c-blue");   // the one class a span may carry (font colour, #1364)
 const PARAGRAPH = set("p h1 h2 h3");
 const ENDS_PARAGRAPH = set("p h1 h2 h3 ul ol li blockquote hr");
 const DROP_WITH_CONTENT = set("script style iframe object applet form svg math template noscript noembed noframes textarea select title xmp plaintext head");
@@ -341,6 +342,10 @@ class Cleaner {
       const target = href(given.has("href") ? given.get("href") : null);
       if (target === null) return;                              // a link with no safe address is just its text
       opening = `<a href="${attrEscape(target)}" rel="noopener noreferrer">`;
+    } else if (tag === "span") {
+      const colour = given.get("class");
+      if (!COLOUR_CLASSES.has(colour)) return;                  // a span with no colour class is just its text
+      opening = `<span class="${colour}">`;
     } else {
       opening = `<${tag}>`;
     }

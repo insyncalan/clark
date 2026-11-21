@@ -19,7 +19,8 @@ from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
 from _growth import ABSOLUTE_CAP, GROWTH_LIMIT, GROWTH_STEP, growth_ratio
 
-TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
+TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "span", "input"}
+COLOURS = {"rt-c-grey", "rt-c-brand", "rt-c-red", "rt-c-amber", "rt-c-green", "rt-c-blue"}
 VOID = {"br", "hr", "input"}
 LINK = re.compile(r"(?:https?://[^/?#\s]|mailto:\S|#)", re.I)
 
@@ -46,6 +47,9 @@ class Audit(HTMLParser):
         elif tag == "input":
             if given.get("type") != "checkbox" or names[0] != "type" or not set(names) <= {"type", "checked", "disabled"}:
                 self.problems.append(f"bad input {attrs}")
+        elif tag == "span":
+            if names != ["class"] or given["class"] not in COLOURS:
+                self.problems.append(f"bad span {attrs}")
         elif names:
             self.problems.append(f"{tag} has attributes {attrs}")
         if tag not in VOID:
@@ -963,6 +967,32 @@ class Fuzz(Base):
     def test_plain_text_matches_after_cleaning(self):
         for source in HOSTILE[:150]:
             self.assertEqual(plain_text(clean_html(source)), plain_text(source), repr(source)[:80])
+
+
+class FontColour(Base):
+    def test_a_span_keeps_only_one_of_the_six_colour_classes(self):
+        for c in sorted(COLOURS):
+            self.assertEqual(clean_html(f'<p>a <span class="{c}">b</span> c</p>'), f'<p>a <span class="{c}">b</span> c</p>')
+            once = clean_html(f'<span class="{c}"><strong>b</strong></span>')
+            self.assertEqual(clean_html(once), once)
+
+    def test_every_other_span_is_just_its_text(self):
+        for bad in ('<span>x</span>', '<span class="rt-c-pink">x</span>', '<span class="rt-c-red extra">x</span>',
+                    '<span class="RT-C-RED">x</span>', '<span style="color:#f00">x</span>', '<span class="">x</span>',
+                    '<span style="color:red" class="rt-c-red">x</span>'):
+            out = clean_html(bad)
+            if "style" in bad and "rt-c-red" in bad:
+                self.assertEqual(out, '<span class="rt-c-red">x</span>', bad)     # the class stays, the style never does
+            else:
+                self.assertEqual(out, "x", bad)
+
+    def test_a_list_ends_an_open_colour_span_like_any_inline_tag(self):
+        self.assertEqual(clean_html('<p>x<span class="rt-c-red">a<ul><li>b</li></ul>'),
+                         '<p>x<span class="rt-c-red">a</span></p><ul><li>b</li></ul>')
+
+    def test_no_other_attribute_survives_on_a_colour_span(self):
+        out = clean_html('<span class="rt-c-red" id="a" onclick="x()" style="color:#000" title="t">x</span>')
+        self.assertEqual(out, '<span class="rt-c-red">x</span>')
 
 
 class Module(unittest.TestCase):

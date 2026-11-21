@@ -65,6 +65,11 @@ REVIEWER_CASES = [
 
 # Ours: the places where JavaScript and Python could part (case folding, white space, code points, entities, limits, odd syntax).
 OURS = [
+    '<p><span class="rt-c-red">a</span> <span class="rt-c-grey"><strong>b</strong></span></p>', '<span class="rt-c-pink">x</span>',
+    '<span class="rt-c-red extra">x</span>', '<span class="RT-C-RED">x</span>', '<span style="color:#f00">x</span>', '<span>x</span>',
+    '<span class="rt-c-blue" class="x" style="color:red" id="i">x</span>', '<span class=rt-c-green>x</span>', '<span class="rt-c-amber">x',
+    '<span class="rt-c-brand"><span class="rt-c-red">x</span></span>', '<a href="https://x.example/"><span class="rt-c-red">x</span></a>',
+    '<span class="rt-c-r\u0131ed">x</span>', '<p><span class="rt-c-red">a</p><p>b</span></p>',
     '<a href="http://x.example/">k</a>', '<a href="ma\u0131lto:a@b.example">dotless i</a>', '<a href="MA\u0130LTO:a@b.example">dotted I</a>',
     '<a href="http\u017f://x.example/">long s</a>', '<a href="HTTP\u017f://x.example/">long s upper</a>', '<a href="http\u212a://x.example/">kelvin</a>',
     '<\u017fcript>alert(1)</\u017fcript>x', '<scr\u0130pt>alert(1)</scr\u0130pt>x', '<scr\u0131pt>alert(1)</scr\u0131pt>x', '<script>a</scr\u0131pt>b</script>c',
