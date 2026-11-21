@@ -157,12 +157,12 @@ class TheChangesPath(unittest.TestCase):
             step.update("projects", "ABC", {"ask_off": 1})
 
     def test_a_project_turned_off_refuses_the_dry_run_and_the_apply_and_the_direct_change(self):
-        plan = self.ask.plan("ABC", {"op": "change", "id": self.action, "status": "Closed"})[1]
+        plan = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})[1]
         self.assertTrue(plan["ok"], plan)
         self.off()
         status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual((status, body["code"]), (409, "asking_off"), body)
-        status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "status": "Closed"})
+        status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertEqual((status, body["code"]), (409, "asking_off"), body)
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"status": "Closed"}}, dry=False)
         self.assertEqual((status, body.get("code")), (409, "asking_off"), body)
