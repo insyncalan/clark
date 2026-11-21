@@ -92,8 +92,12 @@ console.log(JSON.stringify([
 """
 
 
-@unittest.skipUnless(shutil.which("node"), "needs node")
 class ToHtml(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not shutil.which("node"):
+            raise unittest.SkipTest("needs node")
+
     def test_colour_mark_becomes_the_class_span_in_a_fixed_order(self):
         core = ROOT / "src" / "clark" / "page" / "src" / "core"
         done = subprocess.run(["node", "--input-type=module", "-e", SCRIPT], cwd=core, capture_output=True, text=True, check=True)
