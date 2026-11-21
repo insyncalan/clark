@@ -2,6 +2,7 @@
 Approved words: '1 picture read on this Mac.' / 'N pictures read on this Mac.'; '1 is a picture and this computer cannot read pictures.' /
 'N are pictures and this computer cannot read them.'; the per-file reason 'is a picture and this computer cannot read pictures'.
 Run: python3 dev/run_tests.py test_ask_index_pictures_1366"""
+import os
 import unittest
 from unittest import mock
 
@@ -134,6 +135,19 @@ class Pictures(Base):
         with mock.patch.object(ask_picture, "MAX_PICTURE_BYTES", 2):
             self.build()
         self.assertEqual((self.counts()["too_long"], self.counts()["pictures_read"]), (1, 0))
+
+    def test_a_picture_with_a_secret_name_never_reaches_the_reader_and_is_counted_as_safety(self):
+        for n in ("password_Ab3dE7gh.png", "api_key_Ab3dE7gh.png"):   # a bare password.png or key.png does not trip the name screen (checked): the screen needs a value joined to the word
+            with self.subTest(name=n):
+                seen = mock.Mock(side_effect=AssertionError("the reader must not be called"))
+                self.reader(fn=seen)
+                self.put(n, b"IMG|zqsecretpic", binary=True)
+                self.build()
+                c = self.counts()
+                self.assertEqual((c["indexed"], c["safety"], c["pictures_read"]), (0, 1, 0))
+                seen.assert_not_called()
+                self.assertFalse(self.found("zqsecretpic"))
+                os.remove(os.path.join(self.box, n))
 
 
 if __name__ == "__main__":

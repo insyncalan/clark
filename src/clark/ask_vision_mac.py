@@ -42,10 +42,16 @@ def read(raw, run=None):
     too big or not a picture, or the Mac's reader fails or runs out of time. `run` replaces subprocess.run (tests)."""
     if not isinstance(raw, (bytes, bytearray)) or not raw or len(raw) > MAX_BYTES:
         raise ask_picture.PictureUnreadable("size")
-    fd, name = tempfile.mkstemp(prefix="clark-picture-")        # private (mode 0600) file in the system's temporary folder
     try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(raw)
+        fd, name = tempfile.mkstemp(prefix="clark-picture-")    # private (mode 0600) file in the system's temporary folder
+    except OSError:
+        raise ask_picture.PictureUnreadable("no temporary file") from None
+    try:
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(raw)
+        except OSError:
+            raise ask_picture.PictureUnreadable("no temporary file") from None
         try:
             out = platform.run_jxa(SCRIPT, [name], TIMEOUT, run=run)
         except (platform.PlatformError, platform.NotBuiltYet):

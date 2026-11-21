@@ -397,6 +397,9 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
     is_pptx, is_html = low.endswith(PPTX_TYPES), low.endswith(HTML_TYPES)
     is_picture = low.endswith(PICTURE_TYPES)
     pic = ask_picture.reader() if is_picture else None
+    if is_picture and pic is not None and secret_screen.name_looks_like_secret(label):
+        db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, "safety"))      # a secret-named picture is never read: no copy, no reader
+        return "safety"
     if is_picture and pic is None:
         db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, "picture"))      # nothing is opened: this computer cannot read it
         return "picture"

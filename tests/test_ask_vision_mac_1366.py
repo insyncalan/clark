@@ -70,6 +70,26 @@ class Reader(unittest.TestCase):
                 vm.read(b"PIC", run=s)
             self.assertFalse(os.path.exists(s.seen[0][0]))
 
+    def test_a_temporary_file_that_cannot_be_made_or_written_is_unreadable_and_leaves_nothing(self):
+        self.on_mac()
+        s = Stub()
+        with mock.patch.object(vm.tempfile, "mkstemp", side_effect=OSError("disk full")):
+            with self.assertRaises(ask_picture.PictureUnreadable):
+                vm.read(b"PIC", run=s)
+        self.assertEqual(s.calls, [])
+        made = []
+        real = vm.tempfile.mkstemp
+
+        def keep(**kw):
+            fd, name = real(**kw)
+            made.append(name)
+            return fd, name
+        with mock.patch.object(vm.tempfile, "mkstemp", keep), mock.patch.object(vm.os, "fdopen", side_effect=OSError("write failed")):
+            with self.assertRaises(ask_picture.PictureUnreadable):
+                vm.read(b"PIC", run=s)
+        self.assertEqual(s.calls, [])
+        self.assertFalse(os.path.exists(made[0]))
+
     def test_nothing_recognised_is_unreadable(self):
         self.on_mac()
         for out in ("", "\n", "  \n \n"):
