@@ -90,7 +90,7 @@ class SliceTwoIsReached(unittest.TestCase):
     """Each slice 2 template's Edit part draws its words from startingText.js (never typed into the part itself)."""
     EDIT = PAGE_SRC / "edit" / "templates"
     REACH = {
-        "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
+        "FiguresEdit.jsx": ['StartPrompt id="figures-4"'],
         "Table.jsx": ['<StartPrompt id="table"'],
         "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
         "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startOr("Shown above the list", "work-items", "caption")'],

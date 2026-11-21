@@ -942,6 +942,18 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
+/* Row 1263 (Classic only): the Numbers card's Edit, as the approved mock-up: the count control "Numbers 3 | 4" above the places and a Typed | Live switch at the top of each place. Two buttons, the pressed one tinted. */
+.num-bar { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
+.num-bar-l { font-size: var(--size-caption); color: var(--text-muted); }
+.num-seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--control-edge); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.num-seg button { box-sizing: border-box; min-width: 40px; height: 32px; padding: 0 var(--space-3); border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.num-seg button + button { border-left: 1px solid var(--control-edge); }
+.num-seg button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--brand-blue-strong); font-weight: var(--weight-medium); }
+.num-seg button:disabled { color: var(--text-muted); cursor: default; }
+.num-seg button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.tpl-slot .num-seg { margin-bottom: var(--space-1); }
+.tpl-slot .quiet b { color: var(--text); }
+
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
