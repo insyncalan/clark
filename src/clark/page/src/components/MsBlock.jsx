@@ -11,7 +11,7 @@ import { isEditing } from "../logic/editing.js";
 import { MsTimeline } from "./MsTimeline.jsx";
 import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";
-import { MsLegend } from "./MsLegend.jsx";
+import { MsLegend, MsLegendRow } from "./MsLegend.jsx";
 import { MsTracker } from "./MsTracker.jsx";
 import { msViewOf } from "../logic/msView.js";
 import { trackerPlace } from "../logic/useCaseView.js";
@@ -49,7 +49,7 @@ export function MsBlock({ place, tools, section }) {
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
       {side.above ? <MsTracker rows={rows} client={client} /> : null}
-      <MsList CW={CW} CM={CM} view={cfg} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} Note={tools ? tools.msNote : null} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : null} />
+      <MsList CW={CW} CM={CM} view={cfg} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} Note={tools ? tools.msNote : null} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : <MsLegendRow client={client} />} />
       {AddBack ? <AddBack /> : null}
       {side.below ? <MsTracker rows={rows} client={client} /> : null}      {/* row 1230: the Dashboard's section ends in the status tracker, which replaces its Legend; the Milestones page keeps the Legend */}
     </div>
