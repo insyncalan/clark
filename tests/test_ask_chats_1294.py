@@ -69,9 +69,9 @@ class Chats(ThemedTabs):
             self.assertEqual(js("document.querySelector('#ask-chats-older').textContent"), "Older chats go the next time a chat is saved.")
             js("var s = document.querySelector('#ask-chats-keep'); s.value = '10'; s.dispatchEvent(new Event('change', {bubbles: true}))")
             self.until(js, "localStorage.getItem('clark.askChatsKeep') === '10'", "the choice is kept")
-            reload_to_new_page(js, seconds=20)
-            js("document.querySelector('[data-ask-tab=all]').click()")
-            self.until(js, "!!document.querySelector('#ask-chats-keep') && document.querySelector('#ask-chats-keep').value === '10'", "kept after a reload")
+            reload_to_new_page(js, ready="!!document.querySelector('[data-ask-tab=all]')", what="the new page with its tabs", seconds=20)
+            self.until(js, "(() => { const b = document.querySelector('[data-ask-tab=all]'); if (b && !document.querySelector('#ask-chats-keep')) b.click(); return !!document.querySelector('#ask-chats-keep'); })()", "the Chats card after the reload", seconds=20)
+            self.assertEqual(js("document.querySelector('#ask-chats-keep').value"), "10", "kept after a reload")
 
     def test_a_stored_number_that_is_not_an_offered_one_reads_as_30(self):
         # askHistory.js readKeep: 7 and 0 are not in 10/20/30/50/100, so the select shows 30.
