@@ -253,6 +253,8 @@ class AskApply:
             project = plan.request["project"]
             if store.read("projects", ref=project) is None:
                 raise Refusal("project_not_found", NO_PROJECT, 404)
+            if store.ask_off_here(project):      # row 1294: this project's own asking is off (the computer-wide switch was read above)
+                raise Refusal("asking_off", ASKING_OFF, 409)
             if plan.op != OP_CHANGE:
                 return
             row = store.read(plan.table, ref=plan.ref)
