@@ -6,6 +6,7 @@ import unittest
 import test_tpl_workitems as base
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome, wait
+from test_view_picks_1287 import classic
 
 
 class Parity(base.InThePage):
@@ -17,11 +18,25 @@ class Parity(base.InThePage):
         scoped = json.dumps('[data-id="%s"] ' % self.ref + sel)      # outside the f-string: Python 3.9 refuses a backslash inside {}
         return p.js(f"document.querySelectorAll({scoped}).length")
 
+    def test_classic_view_keeps_exactly_four_pickers_and_never_on_the_description(self):
+        classic(self)
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.until(f"!!document.querySelector('[data-id=\"{self.ref}\"] .wil-table tbody tr')", "the list drew")
+            # Row 1287 (ruled 17-11): the served View keeps exactly four pickers per row, never on the description.
+            sel = json.dumps('[data-id="%s"] .wil-table [data-cell]' % self.ref)      # outside the f-string: Python 3.9 refuses a backslash inside {}
+            fields = p.js(f"[...document.querySelectorAll({sel})].map(e => e.dataset.cell.split(':').pop())")
+            rows = self.q(p, ".wil-table tbody tr[data-id]")
+            self.assertGreater(rows, 0, "the list has rows")
+            self.assertEqual(sorted(set(fields)), ["due", "owner", "priority", "status"], "View has exactly the four ruled pickers")
+            self.assertEqual(len(fields), 4 * rows, "each row has one picker per ruled field")
+            self.assertEqual(self.q(p, ".wil-table [data-cell$=\":title\"], .wil-table [data-cell$=\":description\"]"), 0, "the description is never a picker")
+
     def test_edit_rows_change_in_place_and_view_does_not(self):
         with chrome() as cdp:
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{self.ref}\"] .wil-table tbody tr')", "the list drew")
-            self.assertEqual(self.q(p, "[data-cell]"), 0, "View has no picker")
+            self.assertEqual(self.q(p, "[data-cell]"), 0, "View has no picker (Cards; row 1287 gives the four pickers to Classic only)")
             self.assertEqual(self.q(p, ".cgrip"), 0, "View has no width handle")
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{self.ref}\"] .wil-table [data-cell]')", "Edit drew the pickers")

@@ -39,8 +39,8 @@ def fill_more(store):
 # One row's parts, as drawn: the text and the box of each column.
 ROWS = r"""[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => {
   const q = (s) => r.querySelector(s), box = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return {x: b.x, w: b.width, h: b.height}; };
-  const ico = q('.ico'), title = q('.wl-title'), nm = q('.c-owner .nm'), prio = q('.c-prio'), id = q('.c-id');
-  return {id: r.dataset.id, h: r.getBoundingClientRect().height, letter: ico && ico.textContent.trim(), cls: ico && ico.className, aria: ico && ico.getAttribute('aria-label'),
+  const ico = q('.ico'), pk = q('.c-ico .cell-pick'), title = q('.wl-title'), nm = q('.c-owner .nm'), prio = q('.c-prio'), id = q('.c-id');
+  return {id: r.dataset.id, h: r.getBoundingClientRect().height, letter: ico && ico.textContent.trim(), cls: ico && ico.className, aria: ico && ico.getAttribute('aria-label'), pkAria: pk && pk.getAttribute('aria-label'), pkTip: pk && pk.dataset.tip, pkTab: pk && pk.tabIndex,
     tip: (ico && ico.dataset.tip) || (q('[data-tip]') && q('[data-tip]').dataset.tip), tab: ico && ico.tabIndex, word: (q('.ico-w') || {}).textContent || '',
     pills: r.querySelectorAll('.pill').length, title: title && title.textContent.trim(), titleAttr: title && title.getAttribute('title'),
     cut: title && title.scrollWidth > title.clientWidth + 1, tov: title && getComputedStyle(title).textOverflow, tws: title && getComputedStyle(title).whiteSpace,
@@ -97,6 +97,7 @@ class OneLineInView(Base):
             self.assertEqual([r["letter"] for r in decisions], ["D"])
             first = actions[0]
             self.assertIn("r", first["cls"].split(), "an Overdue action is red")
+            # Row 1287: the status icon keeps its words, its tip and its tab stop in View, whether or not the Edit status picker is round it
             self.assertEqual(first["aria"], "Action, Overdue")
             self.assertEqual(first["tip"], "Action · Overdue")
             self.assertEqual(first["tab"], 0, "the icon takes keyboard focus, so the tooltip shows on focus too")
