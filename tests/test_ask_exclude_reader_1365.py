@@ -330,6 +330,24 @@ class OnTheRoute(tr.Base):
         self.assertNotIn("FOLDERKEEP", sent)
         self.assertNotIn("FOLDEROUT", sent)
 
+    def test_a_current_index_is_not_used_while_a_subfolder_is_left_out(self):
+        stale = ask_passages.FolderData((), 0, 0, 0, 0, False)
+
+        class Current:
+            def current(self, code, folders):
+                return True
+
+            def not_yet(self, code):
+                return 0
+
+        self.service.indexer = Current()
+        with mock.patch.object(ask_service.ask_index, "folder_data", return_value=stale) as indexed:
+            self.set('["Contract"]')
+            sent, given, read, _ = self.sent()
+            self.assertEqual(indexed.call_count, 0)
+            self.assertIn("FOLDERKEEP", read)
+            self.assertNotIn("FOLDEROUT", sent)
+
 
 if __name__ == "__main__":
     unittest.main()
