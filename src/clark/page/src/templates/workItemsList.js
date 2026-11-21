@@ -20,7 +20,8 @@ export const DESIGN_SORTS = ["due", "priority", "type", "owner"];
 // The options of the Configure box's Sort by: the layer's own list, and the saved sort too when that list lacks it, so the box never shows a sort the list does not have.
 export const sortChoices = (classic, saved) => { const own = classic ? DESIGN_SORTS : CARDS_SORTS; return own.includes(saved) ? own : [...own, saved]; };      // row 1339: the approved Configure box offers these four, in this order; a saved sort by ID is kept (SORTS) and still read
 export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
+export const DEFAULT_COLUMNS = ["id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
+export const SAVED_FALLBACK_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1268: what a saved list or file that names no column has always shown; only a NEW list starts with DEFAULT_COLUMNS
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
 export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
@@ -119,6 +120,7 @@ export function filterOf(section) {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const out = defaults();
   for (const f of [...FILTERS, "columns", "milestone", "text"]) if (isList(v[f])) out[f] = v[f].slice();
+  if (!isList(v.columns)) out.columns = SAVED_FALLBACK_COLUMNS.slice();      // row 1268: a saved body with no columns key keeps what it always showed; only a NEW list starts without Type
   if (v.not && typeof v.not === "object" && !Array.isArray(v.not)) for (const f of LEFT_OUT) if (isList(v.not[f])) out.not[f] = v.not[f].slice();
   for (const f of ["has", "no"]) if (Array.isArray(v[f])) out[f] = v[f].filter((g) => isList(g) && g.length).map((g) => g.slice());
   if (MODES.includes(v.mode)) out.mode = v.mode;
@@ -259,13 +261,13 @@ export function listOf(section, data, today) {
   if (section && Array.isArray(section.items)) {
     const there = new Set(WORK.flatMap((k) => ((data && data[k]) || []).map((r) => r.id)));
     const cols = isList(section.columns) ? section.columns.filter((c) => COLUMNS.includes(c)) : [];
-    return { items: section.items.filter((id) => typeof id === "string" && there.has(id)), columns: cols.length ? cols : DEFAULT_COLUMNS.slice(),
+    return { items: section.items.filter((id) => typeof id === "string" && there.has(id)), columns: cols.length ? cols : SAVED_FALLBACK_COLUMNS.slice(),
       caption: typeof section.caption === "string" ? section.caption : "", saved: true };
   }
   const filter = filterOf(section);
-  if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
+  if (!filter) return { items: [], columns: SAVED_FALLBACK_COLUMNS.slice(), caption: "", saved: false };
   const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(publishedOnly(data)), today, liveOf(data));
-  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : SAVED_FALLBACK_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible
