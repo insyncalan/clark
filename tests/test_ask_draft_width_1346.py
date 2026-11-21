@@ -29,6 +29,7 @@ class DraftWidth(test_ask_draft.Draft):
                     p = self.drafted(cdp)
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.until("document.documentElement.clientWidth <= %d && document.documentElement.clientWidth > %d" % (width, width - 40), "the page is %d wide" % width)
+                    p.until("document.querySelector('#ask-draft').getAnimations().length === 0", "the sheet has finished sliding in")
                     box = p.js("(() => { const r = document.querySelector('#ask-draft').getBoundingClientRect(); const q = document.querySelector('#ask-panel').getBoundingClientRect(); return [r.left, r.width, r.right, q.left]; })()")
                     left, w, right, panel = box
                     self.assertGreaterEqual(left, 23.5, "the sheet starts on the screen, with 24 px to spare when it is squeezed")
