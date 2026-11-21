@@ -2564,7 +2564,7 @@
     {
      "card": "projects",
      "title": "Projects",
-     "line": "Every project, with Open (not on the project already open), Edit and Archive; Show archived lists archived projects, each with Restore."
+     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
     },
     {
      "card": "data",
