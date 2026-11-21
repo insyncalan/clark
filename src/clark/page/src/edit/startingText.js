@@ -13,7 +13,6 @@ export const STARTING_TEXT = {
   "contacts": { empty: ["Add a person."] },
   "one-doc": { empty: ["Add the file."] },
   "figures-4": { caption: "Say what the numbers cover.", empty: ["Pick what each number shows."] },
-  "figures-3": { empty: ["Pick what each number shows."] },
   "table": { empty: ["Add the first row."] },
   "raid-3": { empty: ["Choose the items to show."] },
   "raid-4": { empty: ["Choose the items to show."] },
