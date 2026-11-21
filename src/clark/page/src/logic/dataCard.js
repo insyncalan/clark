@@ -13,6 +13,7 @@ export const DATA = {
   wordImport: "Import from Word…",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",
   layout: "Excel file layout",
+  template: "Download the empty template",   // NEEDS APPROVAL (row 1299 line 9: the ticket's own words)
 };
 
 // Excel file layout (row 951): a read-only box that says what the exported file holds. It reads nothing and sends nothing.

@@ -3,10 +3,19 @@
 // Import opens the two-step box (ImportWorkbook.jsx) and changes the project in ONE step. The box is drawn at the page's top level (boxes.js).
 import { exportExcel } from "./ProfileMenu.jsx";
 import { data, project, reread } from "../stores/report.js";
+import { templateRequest, saveBlob } from "./publishApi.js";
+import { say } from "./menuNote.js";
 import { Icon } from "../components/Icon.jsx";
 import { openBox } from "./boxes.js";
 import { openExport, openImport } from "./wordState.js";   // row 831: the same two boxes as the profile menu
 import * as L from "../logic/dataCard.js";
+
+// Line 9 of row 1299: the empty template as a button on the card (the import box keeps its own). The template asks about no project.
+async function downloadTemplate() {
+  const r = await templateRequest();
+  if (r.status !== 200 || !r.blob) { say("problem", L.IMPORT.templateFailed); return; }
+  say("done", `${L.IMPORT.templateSaved}, “${saveBlob(r.blob, r.name || "import template.xlsx")}”.`);
+}
 
 export function Data() {
   const imported = () => reread(project.value);                         // the project's own page reads what the step changed
@@ -34,6 +43,9 @@ export function Data() {
         <div>
           <button type="button" class="btn gb" id="word-import" data-word-import disabled={!data.value} aria-describedby={data.value ? undefined : "word-import-why"} onClick={(e) => openImport(e.currentTarget)}><Icon name="ul" />{L.DATA.wordImport}</button>
           {data.value ? null : <p class="muted dc-note" id="word-import-why">{L.IMPORT_NEEDS_PROJECT}</p>}
+        </div>
+        <div>
+          <button type="button" class="btn gb" id="data-template" data-data-template onClick={downloadTemplate}><Icon name="dl" />{L.DATA.template}</button>
         </div>
       </div>
       <p class="muted dc-note">{L.DATA.note}</p>
