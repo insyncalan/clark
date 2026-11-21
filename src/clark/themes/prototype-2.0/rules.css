@@ -732,7 +732,7 @@ html { overscroll-behavior-y: none; }
 .hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Row 1293 (ruling R-1293 (b), duplicate note marker, Classic only): the note above Apply when a new item has the same kind, title and owner as one already there; Apply stays. A 3px bar in --status-amber on the left, then --space-2 of padding. Bare length: the 3px bar width (a rule weight, as the Row 1318 .tpl-rh-warn bar). Pinned by tests/test_ask_rulings_page_1293.py. */
 .ask-duplicate { margin: 0; border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
-/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
+/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 72 / 190 / 176 / 104 px as the prototype page draws them (the ticket's left column, ruled final) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
 table.items td { border-top-color: var(--grey-200); }
@@ -743,7 +743,7 @@ table.items .ico.r { color: var(--status-red-text); }
 table.items .ico.g { color: var(--status-green-text); }
 table.items tbody tr:hover { background: var(--band-bg); }
 table.items .weye { width: 30px; height: 30px; }
-@media (min-width: 901px) { table.items .c-status { width: 76px; } table.items .c-owner { width: 170px; } table.items .c-due { width: 134px; } table.items .c-prio { width: 104px; } }
+@media (min-width: 901px) { table.items .c-status { width: 72px; } table.items .c-owner { width: 190px; } table.items .c-due { width: 176px; } table.items .c-prio { width: 104px; } }
 /* Row 1394: the Work items view tabs as the prototype draws them (Classic only; Cards keeps shell.css). Tabs 15px with padding 9px 10px 8px and a 3px underline, count pills 13px with padding 1px 8px and min-width 22 (grey; the open tab brand-tinted), + New view padding 6px 12px. */
 #work .vtab { padding: 9px 10px 8px; min-height: 0; font-size: 15px; border-bottom-width: 3px; }
 #work .vtab em { padding: 1px 8px; min-width: 22px; background: var(--tone-grey-tint); color: var(--text-muted); }
