@@ -727,6 +727,8 @@ table.items .c-eye, .wil-table .wil-c-eye { width: 76px; }
 .sec[data-type="reportheadline"] .tpl-rh { gap: 12px; padding: 12px 0; border-top-color: var(--grey-200); border-bottom-color: var(--grey-200); }
 .sec[data-type="reportheadline"] .tpl-rh-pill { gap: 6px; min-height: 28px; padding: 2px 12px; font-size: 14px; font-weight: 700; letter-spacing: .03em; }
 .sec[data-type="reportheadline"] .tpl-rh-h { font-size: 16px; font-weight: 700; }
+.sec[data-type="reportheadline"] .tpl-rh-h { color: var(--text); }   /* Row 1261 trial B: the headline is --text (the mock-up), not --heading */
+.sec[data-type="reportheadline"] .tpl-rh-pill svg { width: 14px; height: 14px; }   /* Row 1261 trial B: the pill icon is 14 px (the mock-up), not 16 */
 @media (max-width: 900px) { .sec[data-type="reportheadline"] .tpl-rh { flex-direction: row; gap: 12px; } }
 /* Row 1261 (Classic only, ruling 20-11): the View has no section heading for the Report headline (the mock-up is the flat block with only its page title); it stays in the page for a screen reader (visually hidden, as the shared no-head rule does) and Edit keeps it. The Edit pill is the View capsule (same tint, icon, caps text) plus a small arrow; the Edit fields are the mock-up's boxes: 1px --grey-500 edge, radius 6px, at least 64px, padding 6px 10px, the headline box bold, 2px between a label and its box. */
 #report[data-mode="view"] .sec[data-type="reportheadline"] > .sec-head { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
