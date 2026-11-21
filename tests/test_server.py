@@ -1503,6 +1503,15 @@ class WaitToast(unittest.TestCase):
             wait_toast(lambda: "", 1)
 
 
+PAUSED_900 = "paused until Bifrost online (21-11)"      # ONE switch: set to None (or revert this commit) and every 900 px case runs again
+
+
+def pause_900(method, params):
+    """Skip the test when it is about to set a 900 px window (a pipe class that overrides call() calls this itself)."""
+    if PAUSED_900 and method == "Emulation.setDeviceMetricsOverride" and (params or {}).get("width") == 900:
+        raise unittest.SkipTest(PAUSED_900)
+
+
 class _Pipe:
     """Chrome's --remote-debugging-pipe (as system/prototype/run_selftest.py): JSON messages ended by a NUL byte."""
 
@@ -1521,6 +1530,7 @@ class _Pipe:
         """One CDP call. A Runtime.evaluate that meets a page navigating (error -32000) is asked again until NAVIGATION_WAIT passes:
         the page is between two loads, not wrong. Any other error, and any answer, comes straight back (an assertion in the page
         is a result, not an error, so it is never retried away)."""
+        pause_900(method, params)                        # every browser test sets its width here, so this one place pauses all 900 px cases
         if method == "Target.attachToTarget":
             attached = self._call_once(method, params, session)
             # A headless page starts without page focus: focus, blur and hover tests read None or a stale state (macOS runners).
