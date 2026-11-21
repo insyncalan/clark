@@ -237,9 +237,10 @@ def own_rows(inputs):
     return out
 
 
-def project_data(store, code, question="", budget=BUDGET, as_at=None):
+def project_data(store, code, question="", budget=BUDGET, as_at=None, limit=None):
     """The open project's own data for one question (row 1367), hidden rows included, archived left out, secret lines screened.
-    Raises publish.PublishError (plain words) for a code that isn't a project."""
+    Raises publish.PublishError (plain words) for a code that isn't a project. `limit` is the most passages kept (none: ask.MAX_PASSAGES; the
+    service passes what a file added to the question leaves)."""
     inputs = publish.read_inputs(store, code, as_at)
     selected = own_rows(inputs)
     project = dict(publish.select(inputs)["data"].get("project") or {})
@@ -255,6 +256,6 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
         passages += more
         secret += n
         totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
-    chosen, left = choose(passages, question, budget, ask.MAX_PASSAGES)     # the request takes at most MAX_PASSAGES: more is refused
+    chosen, left = choose(passages, question, budget, ask.MAX_PASSAGES if limit is None else limit)     # the request takes at most MAX_PASSAGES: more is refused
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
     return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, cut)
