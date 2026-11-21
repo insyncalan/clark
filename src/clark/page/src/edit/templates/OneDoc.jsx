@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { oneDoc, fileOf } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
 import { chooseFile } from "./fileRoute.js";
+import { StartPrompt } from "../StartPrompt.jsx";
 import { stored, oneLine, labelProblem, saveContent, plainWords, withPlainWords, paragraphsOf, linesProblem } from "./filesEdit.js";
 
 // The words under the file are Not rich (row 1288): plain lines in a box, saved with Save; the store allows TEXT_LINES paragraphs of LINE_MAX characters (onedoc.py).
@@ -47,7 +48,7 @@ export function Edit({ section }) {
   return (
     <div class="tpl-edit tpl-files-edit">
       {file ? <p class="tpl-od-file"><FileRow file={file} label={d ? d.label : ""} /></p>
-        : <p class="quiet tpl-empty">No file yet. Choose the file: until then this section stays out of the published page.</p>}
+        : <><StartPrompt id="one-doc" /><p class="quiet tpl-empty">No file yet. Choose the file: until then this section stays out of the published page.</p></>}
       <div class="tpl-actions">
         <button type="button" class="btn" data-add-file disabled={busy} onClick={pick}>
           {busy ? "Choosing a file…" : file ? "Choose another file…" : "Choose the file…"}</button>

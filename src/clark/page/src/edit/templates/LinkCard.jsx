@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import { linkProblem } from "../../templates/files.js";
 import { stored, oneLine, labelProblem, saveContent, plainWords, withPlainWords, paragraphsOf, linesProblem } from "./filesEdit.js";
+import { StartPrompt } from "../StartPrompt.jsx";
 
 // The words on the card are Not rich (row 1288): plain lines in a box, saved with the card; the store allows TEXT_LINES paragraphs of LINE_MAX characters (linkcard.py).
 const LINES = 3, EACH = 400, BAD_WORDS = `The words on the card can be ${LINES} paragraphs of ${EACH} characters at most. Shorten them and try again.`;
@@ -38,7 +39,7 @@ export function Edit({ section }) {
   const changed = f.href.trim() !== saved.href || oneLine(f.title) !== saved.title || oneLine(f.site) !== saved.site || f.words !== savedWords;
   return (
     <div class="tpl-edit tpl-files-edit">
-      {saved.href ? null : <p class="quiet tpl-empty">No link yet. Type the page's address: until then this section stays out of the published page.</p>}
+      {saved.href ? null : <><StartPrompt id="link-preview" /><p class="quiet tpl-empty">No link yet. Type the page's address: until then this section stays out of the published page.</p></>}
       <form class="tpl-form" onSubmit={save} data-save>
         <label for={`${fid}-href`}>Link</label>
         <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://" value={f.href} onInput={set("href")} />
