@@ -6,6 +6,7 @@ The mock-up row (.row min-height 48 with a 1px rule, .ttl nowrap with an ellipsi
 """
 import json
 
+import test_server  # noqa: F401  the browser harness (a Chrome file names it, so the tier reads this one as browser)
 import test_tpl_workitems as T
 from test_work_items_mockup_1195 import Look
 
