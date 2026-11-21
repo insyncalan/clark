@@ -202,6 +202,56 @@ class OnTheRoute(Tmp):
         self.assertEqual(self.post(project=CODE, file="Saved Docs/sub/Plan #1.pdf", page=None)[0], 200)
         self.assertNotIn("#page", self.opened[1][1])
 
+    def left_out(self, folder, raw, project=CODE):
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.update("source_folders", f"{project}|{folder}", {"excluded": raw})
+        finally:
+            store.close()
+
+    def test_a_pdf_in_a_subfolder_the_person_left_out_is_not_opened_and_the_others_still_are(self):
+        """Row 1365: the viewer honours the same list as the question: a left-out subfolder (and what is below it, at any depth, any case) opens nothing."""
+        self.pdf("Contract/deep/a.pdf")
+        self.pdf("Contract/top.pdf")
+        self.pdf("Notes/n.pdf")
+        self.pdf("Plain.pdf")
+        self.left_out(self.box, '["Contract", "Notes/n.pdf"]')
+        for name in ("Contract/deep/a.pdf", "Contract/top.pdf", "Notes/n.pdf"):
+            status, got = self.post(project=CODE, file="Saved Docs/" + name, page=1)
+            self.assertEqual((status, got["ok"], got["code"]), (409, False, "file_unavailable"), name)
+        self.assertEqual(self.opened, [])
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/Plain.pdf", page=1)[0], 200)
+        self.assertEqual(len(self.opened), 1)
+
+    def test_another_saved_folders_list_does_not_cut_a_file_that_is_not_below_that_folder(self):
+        self.pdf("Docs/a.pdf")
+        other = self.d / "Other"
+        other.mkdir()
+        store = st.open_store(self.db, onedrive_roots=[])
+        with store.step("dashboard", "tester", place="menu") as s:
+            s.create("source_folders", {"project": CODE, "path": str(other), "sort_order": 2, "excluded": '["Docs"]'})
+        store.close()
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/Docs/a.pdf", page=1)[0], 200)
+
+    def test_a_list_that_cannot_be_read_opens_nothing_from_that_folder(self):
+        self.pdf("Plain.pdf")
+        store = st.open_store(self.db, onedrive_roots=[])
+        store.con.execute("UPDATE source_folders SET excluded = 'garbage'")
+        store.con.commit()
+        store.close()
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/Plain.pdf", page=1)[1]["code"], "file_unavailable")
+        self.assertEqual(self.opened, [])
+
+    def test_a_childs_list_also_holds_when_the_parent_is_saved_too(self):
+        self.pdf("Sub/Contract/a.pdf")
+        store = st.open_store(self.db, onedrive_roots=[])
+        with store.step("dashboard", "tester", place="menu") as s:
+            s.create("source_folders", {"project": CODE, "path": str(self.box / "Sub"), "sort_order": 2, "excluded": '["Contract"]'})
+        store.close()
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/Sub/Contract/a.pdf", page=1)[1]["code"], "file_unavailable")
+        self.assertEqual(self.opened, [])
+
     def test_everything_hostile_is_refused_and_nothing_is_opened(self):
         self.pdf("ok.pdf")
         (self.box / "t.txt").write_text("x", encoding="utf-8")
