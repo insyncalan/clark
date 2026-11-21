@@ -110,7 +110,7 @@ class RealSettings(unittest.TestCase):
                 self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")
             self.assertNotEqual(c["chipHover"], c["tint"], tag + ": no hover tint on a sidebar chip (not in the list)")
             self.assertEqual((c["cardRadius"], c["cardShadow"]), ("14px", "none"), tag + ": Settings cards radius 14, no shadow")
-            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "700", "0px"), tag + ": bold sentence-case header, no divider")
+            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "600", "0px"), tag + ": weight 600 sentence-case header, no divider")
             self.assertEqual((c["btnBg"], c["btnColor"]), (("rgb(6, 47, 58)" if "light" in tag else c["brand"]), c["onBrand"]), tag + ": Add project is a filled button (navy in light since row 1402, blue in dark)")
             self.assertEqual(c["icons"], 1, tag + ": one plus, as an svg or .i")
             self.assertGreater(c["iconW"], 0, tag)

@@ -37,10 +37,10 @@ class Computed(Base):
         super().setUp()
         self.s.httpd.page_html = lambda: page.page_html(branding=page.NO_BRAND, theme=NAME)
 
-    def read(self, hash_, wait_for):
+    def read(self, hash_, wait_for, width=1400):
         with chrome() as cdp:
             try:
-                sid = self.visit(cdp, width=1400, hash_=hash_, wait_for=wait_for)
+                sid = self.visit(cdp, width=width, hash_=hash_, wait_for=wait_for)
             except AssertionError:
                 sid = page_target(cdp)
             time.sleep(0.5)
@@ -49,6 +49,9 @@ class Computed(Base):
     def test_settings_and_dashboard_h1(self):
         for hash_, wait in (("#settings", "#projects"), ("#dashboard", "h1")):
             self.assertEqual(self.read(hash_, wait)["h1"], [H1_30], hash_)
+
+    def test_settings_h1_is_30px_at_900(self):
+        self.assertEqual(self.read("#settings", "#projects", width=900)["h1"], [H1_30])
 
     def test_head_h1_keeps_zero_margin_and_milestones_segments(self):
         m = self.read("#milestones&p=ABC", ".frame.milestones")

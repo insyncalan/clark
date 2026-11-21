@@ -280,7 +280,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; color: var(--text-muted); border-top: 0; }
 
 /* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
 .projects table.proj-table td.num { white-space: nowrap; }
@@ -855,6 +855,8 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 /* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8; on hover it lifts 1px with the glow like the other primary buttons (its fill and its focus ring do not change). Dark keeps the Theme's own tokens for the colours. */
 .projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid var(--grey-200); }
 .projects table.proj-table :is(th, td), .projects table.proj-table :is(th, td):first-child { padding: 8px 10px 8px 0; }
+.projects table.proj-table thead th, .projects table.proj-table thead th:first-child { padding: 6px 10px 6px 0; }
+.projects table.proj-table tbody td { border-bottom: 1px solid var(--line-soft); }
 .projects #npBtn.newb { background: var(--brand-navy); border-color: var(--brand-navy); border-radius: 8px; }
 :root:not([data-motion="reduce"]) .projects #npBtn.newb:hover { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
 :root[data-theme=dark] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); }
