@@ -208,3 +208,17 @@ class Page(n.PageChecks):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LibraryCard(unittest.TestCase):
+    """The library card for Quote: the Holds words match Edit (Quote, Said by, Role) and the sketch has no cyan stripe."""
+
+    SRC = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "..", "src", "clark", "page", "src", "logic", "templates.js"), encoding="utf-8").read()
+
+    def test_holds_words_match_edit(self):
+        self.assertIn('type: "quote", title: "Quote", body: "", ready: true,\n    description: "A voice from the business.", holds: ["Heading", "Quote", "Said by", "Role"]', self.SRC)
+
+    def test_the_sketch_has_no_cyan_stripe(self):
+        line = [l for l in self.SRC.splitlines() if l.startswith('  "quote": ["grid-template-rows')][0]
+        self.assertNotIn("brand-cyan", line)
+        self.assertNotIn("border-left", line)
