@@ -40,6 +40,17 @@ class Rows(unittest.TestCase):
     def make_action(self):
         self.action = self.demo.action()
 
+    # -- row 1294: the Files switch has its own names
+    def test_the_projects_files_turn_off_is_named_in_history(self):
+        with self.demo.store.step("dashboard", USER, place="menu") as st:
+            st.update("projects", "ABC", {"ask_files_off": 1})
+        lines = [(r["field"], r["from"], r["to"]) for r in self.of("Changed") if r["field"].startswith("Files")]
+        self.assertEqual(lines, [("Files turned off for asking in this project", "No", "Yes")])
+
+    def test_the_computers_files_switch_is_named_in_history(self):
+        self.assertEqual(history.field_name("app_settings", "ask_files"), "Files are used for asking")
+        self.assertNotEqual(history.field_name("app_settings", "ask_files"), "Ask files")
+
     # -- row 875: a use case's owner
     def test_a_use_case_owner_is_one_owner_line_whatever_the_edit_and_the_link_is_no_second_line(self):
         uc = self.demo.use_case
