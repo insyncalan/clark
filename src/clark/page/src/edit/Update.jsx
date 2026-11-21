@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./updateApi.js";
 import * as L from "../logic/update.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";   // row 1278: release notes are markdown; drawn by the safe renderer ask clark uses (text nodes only), Copy still gives the original
 
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers,
@@ -153,7 +154,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
         <div class="upd-up" id="update-avail">
           <p id="update-line"><b>{F.ready(f.version)}</b></p>
           {L.releasedText(f) ? <p class="muted" id="update-released">{L.releasedText(f)}</p> : null}
-          {f.notes ? <details class="update-files"><summary>{F.notesLabel}</summary><div class="update-notes" id="update-notes"><FormattedAnswer text={f.notes} /></div></details> : null}
+          {f.notes ? <details class="update-files"><summary>{F.notesLabel}</summary>{classicTheme() ? <div class="update-notes" id="update-notes"><FormattedAnswer text={f.notes} /></div> : <pre class="update-notes" id="update-notes">{f.notes}</pre>}</details> : null}
           {f.note ? <p class="muted">{f.note}</p> : null}
           <p class="muted" id="update-kept">{L.KEPT}</p>
           <div class="row">{btn("pri", "data-download", B.download, download)}</div>
@@ -250,7 +251,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
       {panel ? (
         <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePanel(); } }}>
           <p id="update-heading" tabIndex={-1} ref={heading}><b>{panel.view.heading}</b></p>
-          <div class="update-notes" id="update-notes"><FormattedAnswer text={panel.view.notes} /></div>
+          {classicTheme() ? <div class="update-notes" id="update-notes"><FormattedAnswer text={panel.view.notes} /></div> : <pre class="update-notes" id="update-notes">{panel.view.notes}</pre>}
           {panel.view.hasNotes ? <div class="row"><button type="button" class="btn sm" data-copy onClick={copyNotes}>{L.LABELS.copy}</button></div> : null}
           {panel.view.byHand ? <p>{panel.view.byHand}</p> : null}
           <details class="update-files">

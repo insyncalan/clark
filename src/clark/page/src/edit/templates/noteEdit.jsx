@@ -27,7 +27,7 @@ export function useSaver(section, saved, done, named = null) {
 }
 
 // A plain text field (one line). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
-export function Field({ value, onCommit, label, max, cls = "", placeholder, onDraft = null }) {
+export function Field({ value, onCommit, label, max, cls = "", placeholder, hint = "", onDraft = null }) {
   const [draft, setDraft] = useState(value);
   const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
   latest.current = value;
@@ -44,7 +44,7 @@ export function Field({ value, onCommit, label, max, cls = "", placeholder, onDr
     if (sent && typeof sent.then === "function") sent.then((reply) => { if (reply === null && !focused.current) setDraft(latest.current); });
   };
   const common = {
-    class: `tpl-field ${cls}`, value: draft, "aria-label": label, maxLength: max, placeholder, spellcheck: true,
+    class: `tpl-field ${cls}`, value: draft, "aria-label": label, maxLength: max, placeholder: placeholder || hint || undefined, spellcheck: true,
     onFocus: () => { focused.current = true; },
     onInput: (e) => setDraft(e.currentTarget.value),
     onBlur: (e) => done(e.currentTarget),

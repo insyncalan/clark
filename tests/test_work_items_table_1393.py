@@ -90,11 +90,20 @@ class Browser(Base):
         got = self.style(cdp, sid, "#work table.items tr.colh th.c-owner", ["fontSize", "fontWeight", "paddingTop", "paddingBottom", "paddingLeft", "paddingRight"])
         self.assertEqual(got, {"fontSize": "13px", "fontWeight": "500", "paddingTop": "9px", "paddingBottom": "9px", "paddingLeft": "10px", "paddingRight": "10px"}, got)
 
-    # spec row 4: status / owner / due / priority columns 76 / 170 / 134 / 104
-    def test_row4_columns_are_76_170_134_104_at_1400(self):
+    # spec row 4: status / owner / due / priority columns 72 / 190 / 176 / 104
+    def test_row4_columns_are_72_190_176_104_at_1400(self):
         cdp, sid = self.look()
         got = cdp.js("(() => { const o = {}; ['status', 'owner', 'due', 'prio'].forEach(k => { o[k] = document.querySelector('#work table.items tr.colh th.c-' + k).getBoundingClientRect().width; }); return o; })()", sid)
-        self.assertEqual(got, {"status": 76, "owner": 170, "due": 134, "prio": 104}, got)
+        self.assertEqual(got, {"status": 72, "owner": 190, "due": 176, "prio": 104}, got)
+
+    # the Status column at 72 px: nothing in a Status cell is cut off
+    def test_row4_status_cells_are_not_clipped_at_72(self):
+        cdp, sid = self.look()
+        got = cdp.js("(() => { const o = []; document.querySelectorAll('#work table.items tbody td.c-status').forEach(td => { const w = Math.max(td.scrollWidth, ...[...td.querySelectorAll('*')].map(e => e.scrollWidth)); o.push([td.clientWidth, w, td.textContent.trim()]); }); return o; })()", sid)
+        head = cdp.js("(() => { const th = document.querySelector('#work table.items tr.colh th.c-status'); return [th.clientWidth, th.scrollWidth, th.textContent.trim()]; })()", sid)
+        self.assertLessEqual(head[1], head[0], head)
+        for cw, sw, txt in got:
+            self.assertLessEqual(sw, cw, (txt, cw, sw))
 
     # spec row 5: due words 13px, late 600
     def test_row5_due_words_are_13px_and_the_late_one_is_600(self):
@@ -136,3 +145,35 @@ class Browser(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Clip900(Browser):
+    """Row 1393, measured widths at 900 and the clip check on every named column (1400 and 900)."""
+
+    def look_at(self, width):
+        cm = chrome()
+        cdp = cm.__enter__()
+        self.addCleanup(cm.__exit__, None, None, None)
+        sid = self.visit(cdp, width=width)
+        time.sleep(0.5)
+        return cdp, sid
+
+    def widths(self, cdp, sid):
+        return cdp.js("(() => { const o = {}; ['status', 'owner', 'due', 'prio'].forEach(k => { o[k] = document.querySelector('#work table.items tr.colh th.c-' + k).getBoundingClientRect().width; }); return o; })()", sid)
+
+    def clipped(self, cdp, sid):
+        return cdp.js("(() => { const o = []; ['status', 'owner', 'due', 'prio'].forEach(k => { document.querySelectorAll('#work table.items th.c-' + k + ', #work table.items td.c-' + k).forEach(c => {"
+                      " const w = Math.max(c.scrollWidth, ...[...c.querySelectorAll('*')].map(e => e.scrollWidth)); if (w > c.clientWidth) o.push([k, c.clientWidth, w, c.textContent.trim()]); }); }); return o; })()", sid)
+
+    def test_row4_columns_at_900_keep_the_shared_widths_not_the_row_1393_ones(self):
+        cdp, sid = self.look_at(900)
+        got = self.widths(cdp, sid)
+        self.assertEqual(got, {"status": 76, "owner": 130, "due": 139, "prio": 121}, got)
+
+    def test_row4_no_named_cell_is_clipped_at_1400(self):
+        cdp, sid = self.look_at(1400)
+        self.assertEqual(self.clipped(cdp, sid), [])
+
+    def test_row4_no_named_cell_is_clipped_at_900(self):
+        cdp, sid = self.look_at(900)
+        self.assertEqual(self.clipped(cdp, sid), [])
