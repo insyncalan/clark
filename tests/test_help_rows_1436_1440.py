@@ -53,7 +53,7 @@ class HelpRows(unittest.TestCase):
                 "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend")
 
     def test_1439_latest_update_in_edit_read_only_in_file(self):
-        swapped(self, "**Latest update** (in Edit; a published file shows it as a read-only line), then when it was last updated.",
+        swapped(self, "**Latest update** (in Edit; a published file shows it as a read-only line), and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
                 "**Latest update**, and the words **Shown to the client**")
 
     def test_1440_timeline_calendar_choice(self):

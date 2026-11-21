@@ -1,10 +1,9 @@
-"""Row 1185: the Latest update box on a risk, an issue and a milestone peek in a real browser (1400 and 900: save, one Undo, the Updates tab), the
+"""Row 1185: the Latest update box on a risk, an issue and a milestone peek in a real browser (1400 and 900: save, one Undo, the history link), the
 milestone Latest update in the published file, and the few source checks that remain (the box itself is covered in test_peek_latest). Run: python3 dev/run_tests.py test_peek_latest_1185
 """
 import json
 import unittest
 
-from _new_page import reload_to_new_page_cdp
 from _paths import SRC
 from test_milestone_peek_828 import Fields
 from test_movement_page import GO_LIVE, Base
@@ -14,7 +13,6 @@ import test_peek_latest
 from test_server import chrome, wait
 
 PAGE = SRC / "clark" / "page" / "src"
-LAYER_DOC = "(function(){var add=function(){if(!document.head||document.getElementById('theme'))return !!document.head; var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s); return true;}; if(!add()) new MutationObserver(function(m,o){if(add()) o.disconnect();}).observe(document,{childList:true,subtree:true});})()"      # the Classic layer (classicTheme() reads it), added before the page's script runs
 
 
 class PeekSource(unittest.TestCase):
@@ -26,8 +24,7 @@ class PeekSource(unittest.TestCase):
         ms = self.read("edit/MilestonePeek.jsx")
         self.assertNotIn('<Row name="Latest update"', ms, "row 1184: the milestone's box is above Details, not a row")
         self.assertIn("<LatestBox", ms, "the milestone uses the work item peek's box")
-        self.assertNotIn("<PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "row 1258: no Show history link in any theme; the Updates tab is the history")
-        self.assertNotIn("classicTheme", self.read("edit/PeekLatest.jsx"), "no theme branch")
+        self.assertIn("PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "with its history")
         peek = self.read("components/Peek.jsx")
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
         self.assertEqual(len(shown), 3, "a published work item, a published action (row 1181: its own file rows above the Details) and a published milestone each show it")
@@ -38,7 +35,7 @@ _B = test_peek_latest.Browser
 
 
 class RaidBox(unittest.TestCase):
-    """A risk peek and an issue peek (they were once action-only): the box saves the editor's HTML, one Undo puts the old text back, there is no Show history link (row 1258)."""
+    """A risk peek and an issue peek (they were once action-only): the box saves the editor's HTML, one Undo puts the old text back, the history link shows."""
     load, open_box, type_in, save_key, toast, fresh, refused = (_B.load, _B.open_box, _B.type_in, _B.save_key, _B.toast,
                                                                 _B.fresh, _B.refused)
     HOLD, SHOWN, BOX = _B.HOLD, _B.SHOWN, _B.BOX
@@ -46,13 +43,13 @@ class RaidBox(unittest.TestCase):
     def shown(self, cdp, sid):
         return cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)
 
-    def test_a_risk_and_an_issue_save_a_latest_update_undo_it_and_show_no_history_link(self):
+    def test_a_risk_and_an_issue_save_a_latest_update_undo_it_and_show_the_history_link(self):
         for ref, kind in (("TUL-007", "Risk"), ("TUL-010", "Issue")):
             for width in (1400, 900):
                 with self.subTest(kind=kind, width=width), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, ref, edit=True, classic=True)
+                    sent, sid = self.load(cdp, width, ref, edit=True)
                     row = lambda: self.store.read("raid", ref=ref)["latest_update"]
-                    self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "row 1258: no Show history link before any change")
+                    self.assertEqual(cdp.js("(e => e ? e.textContent : '')(document.querySelector('#peek [data-pk-lh-btn]'))", sid), "Show history", "the link is there before any change")
                     was = row()
                     self.open_box(cdp, sid)
                     self.type_in(cdp, sid, f"{kind} words")
@@ -61,11 +58,11 @@ class RaidBox(unittest.TestCase):
                     self.assertEqual((len(sent), sent[0]["kind"], sent[0]["id"]), (1, "raid", ref), "one request")
                     self.assertEqual(row(), f"<p>{kind} words</p>")
                     self.assertIn("Latest update of", self.toast(cdp, sid))
-                    self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "no link after the save")
+                    self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-lh-btn]').textContent", sid), "Show history", "the link stays after the save")
                     cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                     self.assertTrue(wait(lambda: f"{kind} words" not in self.shown(cdp, sid)), "one Undo takes the text off the peek")
                     self.assertEqual(row(), was)
-                    self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "no link after the Undo")
+                    self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "the link is there after the Undo")
 
 
 class MilestonePublished(unittest.TestCase):
@@ -100,13 +97,6 @@ class MilestonePublished(unittest.TestCase):
 
 class MilestoneBox(Base):
     """The milestone peek in a real browser (1400 and 900): the box saves the editor's HTML, one Undo puts it back, the history lists it."""
-    def visit_classic(self, cdp, width):
-        """The milestone peek on the Classic page: the layer is added before the page's script runs, then the page loads again."""
-        p = self.visit_peek(cdp, width=width)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": LAYER_DOC}, p.sid)
-        reload_to_new_page_cdp(cdp, p.sid, ready="!!document.querySelector('#peek [data-rich=latest_update]') && !!document.getElementById('theme')", what="the Classic peek drew")
-        return p
-
     visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store,
                                                                 Fields.saved, Fields.toast_text)
     cur = GO_LIVE
@@ -114,7 +104,7 @@ class MilestoneBox(Base):
     def test_the_milestone_latest_update_saves_undoes_and_is_listed(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                p = self.visit_classic(cdp, width)
+                p = self.visit_peek(cdp, width=width)
                 was, before = self.row(GO_LIVE)["latest_update"], len(self.sent)
                 self.click(p, "#peek [data-rich=latest_update]")
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
@@ -124,9 +114,8 @@ class MilestoneBox(Base):
                 self.assertEqual(len(self.sent) - before, 1, "one request")
                 p.until("(document.querySelector('.toast .toast-text') || {}).textContent?.includes('Latest update of') === true", "the toast named the saved update")
                 self.assertIn("Latest update of", self.toast_text(p))
-                self.assertFalse(p.js("!!document.querySelector('#peek [data-pk-lh-btn]')"), "row 1258: no Show history link")
-                self.click(p, "#peek [data-pk-htab=updates]")
-                p.until("(e => !!e && e.innerText.includes('Venue booked'))(document.querySelector('#peek [data-pk-history]'))", "the Updates tab lists the change")
+                self.click(p, "#peek [data-pk-latest] [data-pk-lh-btn]")
+                p.until("(e => !!e && e.innerText.includes('Venue booked'))(document.querySelector('#peek [data-pk-lh-panel]'))", "the history lists the change")
                 self.undo(p)
                 self.saved(p, "latest_update", was)
 

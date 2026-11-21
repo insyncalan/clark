@@ -1,7 +1,6 @@
 // Row 1082: 'Show history' under the peek's Latest update (Edit only, like the Latest update itself). It opens the changes of that one field,
 // newest first, from the Activity read (GET /api/activity, read only); five rows are in view and the rest scroll. Every value is drawn as text.
 // A published file and View have no Latest update box, so they have none of this and the file carries no history.
-import { classicTheme } from "../components/Contents.jsx";
 import { useEffect, useState } from "preact/hooks";
 import { project, data } from "../stores/report.js";
 import { readActivity } from "./activityApi.js";
@@ -10,7 +9,7 @@ import { Icon } from "../components/Icon.jsx";
 const FIELD = "Latest update";
 const SHOWN = 5;                                                     // rows in view; the panel scrolls for the rest
 
-// Row 1285: the Classic look draws the button as a row (the word at the left, a chevron at the right); Cards draws the word alone, as before.
+// Row 1285 / 1258: the button is drawn as a row in every theme (the word at the left, a chevron at the right; no classicTheme() gate).
 export function PeekLatestHistory({ id }) {
   const [open, setOpen] = useState(false);
   const [got, setGot] = useState(null);
@@ -25,7 +24,7 @@ export function PeekLatestHistory({ id }) {
   const panel = `pk-lh-${id}`;
   return (
     <div class="pk-lh" data-pk-lh>
-      <button type="button" class="pk-lh-btn" data-pk-lh-btn aria-expanded={open ? "true" : "false"} aria-controls={panel} onClick={() => setOpen(!open)}>{classicTheme() ? <><span>{open ? "Hide history" : "Show history"}</span><Icon name="chevdown" cls="s pk-lh-car" /></> : (open ? "Hide history" : "Show history")}</button>
+      <button type="button" class="pk-lh-btn" data-pk-lh-btn aria-expanded={open ? "true" : "false"} aria-controls={panel} onClick={() => setOpen(!open)}><span>{open ? "Hide history" : "Show history"}</span><Icon name="chevdown" cls="s pk-lh-car" /></button>
       {open ? (
         <section id={panel} class="pk-lh-panel" data-pk-lh-panel aria-label="Latest update history">
           <h4 class="pk-lh-h">Latest update history</h4>

@@ -25,8 +25,6 @@ from test_work_filters import click, where  # noqa: E402
 OVERDUE, WEEKEND = "TUL-A-002", "TUL-A-006"       # demo data at 28-10-2026 (a Wednesday): due 22-10-2026, and Saturday 07-11-2026
 
 
-LAYER_DOC = "(function(){var add=function(){if(!document.head||document.getElementById('theme'))return !!document.head; var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s); return true;}; if(!add()) new MutationObserver(function(m,o){if(add()) o.disconnect();}).observe(document,{childList:true,subtree:true});})()"      # the Classic layer (classicTheme() reads it), added before the page's script runs
-
 class Server(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -203,7 +201,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False, classic=False):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -220,8 +218,6 @@ class Browser(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         if late:
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
-        if classic:
-            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": LAYER_DOC}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
@@ -443,21 +439,30 @@ class Browser(unittest.TestCase):
         acts = self.data["actions"]
         return (next(a["id"] for a in acts if a.get("client_visible")), next(a["id"] for a in acts if not a.get("client_visible")))
 
-    def test_classic_has_no_shown_to_the_client_label_row_1258(self):
+    def test_a_client_visible_action_labels_its_latest_update_shown_to_the_client_in_edit_only(self):
         shown, internal = self.kinds()
         probe = "(l => l ? l.textContent.trim() : null)(document.querySelector('#peek [data-pk-latest] [data-pk-latest-client]'))"
         for width in (1400, 900):
-            for ref, edit in ((shown, True), (internal, True), (shown, False)):
-                with self.subTest(width=width, edit=edit, shown=ref == shown), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, ref, edit=edit, classic=True)
-                    self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest]')", sid), "the box is there")
-                    self.assertIsNone(cdp.js(probe, sid), "the mock-up has no 'Shown to the client' label on the box")
-                    self.assertNotIn("Shown to the client", cdp.js("document.querySelector('[data-pk-latest]').textContent", sid))
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, shown)
+                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-latest-client]"), "the label fits the peek")
+                click(cdp, sid, self.SHOWN)                                               # still there while the box is open
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .ProseMirror')", sid)))
+                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
+            with self.subTest(width=width, item="internal"), chrome() as cdp:
+                sent, sid = self.load(cdp, width, internal)
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest] [data-rich=latest_update]')", sid))
+                self.assertIsNone(cdp.js(probe, sid), "an internal action's update is not published, so no label")
+            with self.subTest(width=width, item="view"), chrome() as cdp:
+                sent, sid = self.load(cdp, width, shown, edit=False)
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-client]')", sid), "View has the label too (row 824)")
 
-    def test_the_label_is_not_drawn_in_any_theme_row_1258(self):
-        src = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("classicTheme", src)
-        self.assertNotIn("pk-latest-client", src)
+    def test_the_label_is_in_edit_only_and_never_in_a_published_file(self):
+        built = (ROOT / "src/clark/page/page.html").read_text(encoding="utf-8")
+        view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
+        self.assertIn("data-pk-latest-client", built)
+        self.assertNotIn("pk-latest-client", view)
 
     # In dark: what a part is drawn with, read from the page itself. `ink` is the part's text colour, `ground` the colour it is drawn over
     # (its own background, or the first one behind it, transparent layers blended in), and `want(name)` the colour a dark token gives.

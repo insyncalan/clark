@@ -1,10 +1,9 @@
-"""Row 1082 added 'Show history' under the peek's Latest update; row 1258 (the owner, 16-11: "mockup rules") removed it, because the peek's
-history tabs (PeekActivity.jsx PeekHistory, the Updates tab) list the changes of that one field. This file now holds that.
+"""Row 1082: 'Show history' under the peek's Latest update (Edit's own peek; read only, from the Activity read).
 Run: python3 dev/run_tests.py test_peek_history_1082
 
-The removal applies in both themes (no classicTheme() gate). Part 1 is the source: the component and its style stay, and the box does not draw
-the link. Part 2 is the page in a real browser at 1400 and 900 px, light and dark: seven stored changes of the Latest update; there is no Show
-history link and the Updates tab counts and lists exactly those seven, newest first, drawn as text.
+Part 1 is the source and the built pages: the link, its two words, the component, and that no published file carries any of it.
+Part 2 is the page in a real browser at 1400 and 900 px, light and dark: seven stored changes of the Latest update, five in view, the rest
+by scrolling, the link reading Hide history while open, only that one field's changes, the list inside the peek, and text drawn as text.
 """
 import json
 import shutil
@@ -20,20 +19,27 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
 ITEM = "TUL-A-002"
-LAYER = "(function(){var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s);})()"
+BTN, LIST, ROWS = "[data-pk-lh-btn]", "[data-pk-lh-list]", "[data-pk-lh-row]"
 
 
 class Source(unittest.TestCase):
-    def test_the_link_is_not_drawn_and_its_component_and_style_stay(self):
-        self.assertTrue((SRC / "edit" / "PeekLatestHistory.jsx").exists())
-        box = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("classicTheme", box)
-        self.assertNotIn("<PeekLatestHistory", box)
-        self.assertIn(".pk-lh-btn", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"), "edit.css is not edited")
+    def test_the_link_has_the_issues_two_words_and_reads_only(self):
+        jsx = (SRC / "edit" / "PeekLatestHistory.jsx").read_text(encoding="utf-8")
+        self.assertIn('"Hide history" : "Show history"', jsx)
+        self.assertIn("readActivity(", jsx)
+        self.assertNotIn("changeCell", jsx)
+        self.assertNotIn("undoSeveral", jsx)
+        self.assertIn("PeekLatestHistory", (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8"))
+
+    def test_no_published_file_carries_it(self):
+        for name in ("page-view.html",):
+            built = (ROOT / "src" / "clark" / "page" / name)
+            if built.exists():
+                self.assertNotIn("data-pk-lh", built.read_text(encoding="utf-8"), name)
 
 
 class Browser(unittest.TestCase):
-    def load(self, cdp, width, dark=False, classic=True):
+    def load(self, cdp, width, dark=False):
         self.store, folder, ids = load_demo()
         self.code = next(iter(ids))
         self.addCleanup(lambda: (self.store.close(), shutil.rmtree(str(folder), ignore_errors=True)))
@@ -55,28 +61,67 @@ class Browser(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         if dark:
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
-        if classic:
-            cdp.js(LAYER, sid)      # the Classic layer: classicTheme() reads it when the peek draws
         cdp.js(f"clarkPage.openPeek({json.dumps(ITEM)})", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-history]')", sid)))
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid)))
         return sid
 
-    ROWS = "#peek [data-pk-history] [data-activity-row]"
+    def press(self, cdp, sid):
+        cdp.js(f"document.querySelector({json.dumps(BTN)}).click()", sid)       # the button's own click: a mouse press can land while the peek is still sliding in
 
-    def test_classic_has_no_link_and_the_updates_tab_lists_the_seven_changes(self):
+    def test_five_in_view_the_rest_scroll_and_the_link_toggles(self):
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     sid = self.load(cdp, width, dark)
-                    self.assertFalse(cdp.js("!!document.querySelector('[data-pk-lh-btn], [data-pk-lh]')", sid), "row 1258: no Show history link")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=updates]')", sid)))
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek [data-pk-htab=updates] .pk-hcount').textContent", sid) == "7"), "only the Latest update's seven changes, not the owner change")
-                    cdp.js("document.querySelector('#peek [data-pk-htab=updates]').click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll({json.dumps(self.ROWS)}).length", sid) == 7))
-                    first = cdp.js(f"document.querySelector({json.dumps(self.ROWS)}).textContent", sid)
-                    self.assertIn("Version 6", first, "newest first (the Updates tab draws the change as a word diff: 6 kept, 7 added)")
-                    self.assertIn("7", first)
-                    self.assertFalse(cdp.js(f"!!document.querySelector({json.dumps(self.ROWS)} + ' b')", sid), "drawn as text, never as markup")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Show history")
+                    self.assertFalse(cdp.js(f"!!document.querySelector({json.dumps(LIST)})", sid))
+                    self.press(cdp, sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll({json.dumps(ROWS)}).length", sid) == 7), "only the Latest update's seven changes, not the owner change")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Hide history")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "true")
+                    # five rows' height in view; more is behind the scroll
+                    seen = cdp.js(f"(l => [l.clientHeight, l.scrollHeight, getComputedStyle(l).overflowY, [...l.querySelectorAll({json.dumps(ROWS)})].filter(r => r.getBoundingClientRect().bottom <= l.getBoundingClientRect().bottom + 1).length])(document.querySelector({json.dumps(LIST)}))", sid)
+                    self.assertGreater(seen[1], seen[0])
+                    self.assertEqual(seen[2], "auto")
+                    self.assertEqual(seen[3], 5)
+                    first = cdp.js(f"document.querySelector({json.dumps(ROWS)}).textContent", sid)
+                    self.assertIn("Version 7", first, "newest first")
+                    self.assertIn("<b>x</b>", first, "drawn as text, never as markup")
+                    self.assertTrue(cdp.js("(c => { const r = c.getBoundingClientRect(), p = document.querySelector('#peek').getBoundingClientRect(); return r.left >= p.left - 1 && r.right <= p.right + 1; })(document.querySelector('[data-pk-lh-panel]'))", sid))
+                    self.assertEqual(cdp.js(f"(l => (l.scrollTop = l.scrollHeight, l.scrollTop > 0))(document.querySelector({json.dumps(LIST)}))", sid), True)
+                    self.press(cdp, sid)
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh-panel]')", sid)))
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Show history")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "false")
+
+    def test_show_history_is_a_row_in_every_theme_word_left_chevron_right(self):
+        """Row 1258: no theme gate; the page here has no Classic layer (Cards), and the row is drawn as the mock-up's rows are."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, width)
+                g = cdp.js("(() => { const b = document.querySelector('#peek [data-pk-lh-btn]'), r = b.getBoundingClientRect(), w = b.querySelector('span').getBoundingClientRect(), c = b.querySelector('.pk-lh-car').getBoundingClientRect();"
+                           " return {word: b.textContent.trim(), h: Math.round(r.height), wordLeft: w.left - r.left, chevRight: r.right - c.right, full: Math.round(r.width)}; })()", sid)
+                self.assertEqual(g["word"], "Show history")
+                self.assertGreaterEqual(g["h"], 36, g)
+                self.assertLess(g["wordLeft"], 4, g)
+                self.assertLess(g["chevRight"], 4, g)
+                self.assertGreater(g["full"], 200, "a full-width row, not a link at the right")
+
+    def stub(self, cdp, sid, answer):
+        cdp.js("(a => { const f = window.fetch; window.fetch = (u, o) => String(u).includes('/api/activity') ? a() : f(u, o); })(" + answer + ")", sid)
+
+    def test_empty_failed_and_only_real_changes(self):
+        rows = '[{field:"Latest update",kind:"Created",to:"c",when_text:"x"},{field:"Latest update",kind:"Comment",to:"k",when_text:"x"},{field:"Owner",kind:"Changed",to:"o",when_text:"x"}]'
+        cases = (("[data-pk-lh-empty]", "Nothing has changed on this item yet.", "() => Promise.resolve(new Response(JSON.stringify({ok:true,activity:{rows:" + rows + "}})))"),
+                 ("[data-pk-lh-failed]", "The history could not be read just now.", "() => Promise.reject(new Error('down'))"))
+        for sel, words, answer in cases:
+            with self.subTest(sel=sel), chrome() as cdp:
+                sid = self.load(cdp, 1400)
+                self.stub(cdp, sid, answer)
+                self.press(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(sel)})", sid)))
+                self.assertEqual(cdp.js(f"document.querySelector({json.dumps(sel)}).textContent", sid), words)
+                self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(ROWS)}).length", sid), 0)
 
 
 if __name__ == "__main__":

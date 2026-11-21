@@ -48,7 +48,7 @@ COVERED = [
     ('1076', 'The page opens in an ordinary Chrome window at clark.localhost, and the notes say the saved views start again once.',
      'test_launcher::Launch::test_the_address_is_clark_localhost_with_the_port_for_chrome_and_127_0_0_1_for_the_rest'),
     ('1082', 'Show history under Latest update lists the changes, five in view, and reads Hide history while open.',
-     'test_peek_history_1082::Browser::test_no_link_and_the_updates_tab_lists_the_seven_changes'),
+     'test_peek_history_1082::Browser::test_five_in_view_the_rest_scroll_and_the_link_toggles'),
     ('1083', 'The Milestones list has a light line and space between milestones at 1400 and 900 px.',
      'test_milestones_spacing::Spacing::test_the_live_page_at_1400_and_900_light_and_dark'),
     ('1089', 'Help has The brand kit guide with what a kit holds, the limits and how to install one.',

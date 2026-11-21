@@ -71,7 +71,8 @@ function ClientWording({ m, on }) {
 // Item 1185, row 1184: the milestone's Latest update, the work item peek's box (PeekLatest.jsx LatestBox) above Details, with its history. One change, one Undo.
 export function PeekMsLatest({ m }) {
   const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
-  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={isOn(m)} save={put} placeholder="What changed? Add the latest update…" />;
+  const shown = isOn(m);
+  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} placeholder="What changed? Add the latest update…" />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
