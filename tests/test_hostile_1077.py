@@ -273,6 +273,8 @@ class Lines(Hostile):
         line = activity_read.source_line(self.rig.store.con, ref, [{"op": OP_MADE, "ref": ref, "table": "actions", "by_user": who}])
         for part in (DIR, WHO, "/"):
             self.assertNotIn(part, line, "the live Source line is the name too")
+        self.assertEqual(line, KEEP, "row 1258: the file name alone, no ' by <person>' even when the first step has a creator")
+        self.assertNotIn(who, line)
         for where, data in self.publish_all().items():
             self.assert_clean(where, data, MARKERS + ("Zq Personone",))
 
