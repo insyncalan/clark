@@ -469,7 +469,7 @@ class Milestone(Base):
                 self.assertLess(tops[0], tops[1], "the chips are above the Latest update")
                 self.assertLess(tops[1], tops[2], "the Latest update is above Details")
                 self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-row=latest_update]').length"), 0, "no Latest update row in the Details")
-                self.assertEqual(p.js("document.querySelector('#peek [data-pk-latest] [data-rich] .quiet').textContent"), "What changed? Add the latest update…")
+                self.assertRegex(p.js("document.querySelector('#peek [data-pk-latest] [data-rich] .quiet').textContent"), r"^Created( by .+)?, \d{2}-\d{2}-\d{4} \d{2}:\d{2}")      # row 1470: a milestone never updated shows its Created entry (the issue lists Milestone among the peeks)
 
     def test_the_latest_update_saves_with_cmd_or_ctrl_enter_once_with_one_undo_and_the_unsaved_bar_guards_closing(self):
         with chrome() as cdp:
