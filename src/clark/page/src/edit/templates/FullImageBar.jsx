@@ -18,11 +18,23 @@ const P = {
   plain: <><rect x="6" y="5" width="8" height="10" rx="1" /><rect x="2" y="5" width="3" height="10" /><rect x="15" y="5" width="3" height="10" /></>,
   replace: <path d="M3 8h11l-3-3M17 12H6l3 3" />,
   remove: <path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" />,
+  // Row 1232 (Text and Image Side by Side): the icons of its own groups.
+  fill: <><rect x="2" y="3" width="7" height="14" rx="1.5" /><path d="M12 5h6M12 9h6M12 13h6" /></>,
+  "4:3": <rect x="3" y="4.5" width="14" height="11" rx="1.5" />,
+  square: <rect x="4" y="4" width="12" height="12" rx="1.5" />,
+  left: <><rect x="2" y="4" width="7" height="12" rx="1.5" fill="currentColor" /><path d="M12 6h6M12 10h6M12 14h6" /></>,
+  right: <><rect x="11" y="4" width="7" height="12" rx="1.5" fill="currentColor" /><path d="M2 6h6M2 10h6M2 14h6" /></>,
+  top: <><rect x="3" y="2" width="14" height="7" rx="1.5" fill="currentColor" /><path d="M3 12h14M3 16h10" /></>,
+  under: <><rect x="3" y="11" width="14" height="7" rx="1.5" fill="currentColor" /><path d="M3 4h14M3 8h10" /></>,
+  swap: <path d="M3 7h12l-3-3M17 13H5l3 3" />,
+  third: <><rect x="2" y="4" width="16" height="12" rx="1.5" /><path d="M8 4v12" /></>,
+  half: <><rect x="2" y="4" width="16" height="12" rx="1.5" /><path d="M10 4v12" /></>,
+  two: <><rect x="2" y="4" width="16" height="12" rx="1.5" /><path d="M13 4v12" /></>,
 };
-const Icon = ({ name }) => <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{P[name]}</svg>;
-const Sep = () => <span class="fi-sep" role="separator" aria-orientation="vertical" />;
+export const Icon = ({ name }) => <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{P[name]}</svg>;
+export const Sep = () => <span class="fi-sep" role="separator" aria-orientation="vertical" />;
 
-function Btn({ icon, name, tip, on, onClick, disabled, act }) {
+export function Btn({ icon, name, tip, on, onClick, disabled, act }) {
   return (
     <button type="button" class={`fi-btn${on ? " on" : ""}`} aria-label={name} data-tip={tip || name} data-act={act || icon}
       aria-pressed={on === undefined ? undefined : on ? "true" : "false"} disabled={disabled} tabIndex={-1} onClick={onClick}>
@@ -31,9 +43,8 @@ function Btn({ icon, name, tip, on, onClick, disabled, act }) {
   );
 }
 
-// `a`: { shape, fit, fill, small, canReset, busy, onShape, onCrop, onReset, onFit, onFill, onReplace, onRemove }
-export function Bar({ a }) {
-  const bar = useRef(null);
+// The arrow keys along a toolbar (one tab stop): Left, Right, Home and End move the focus between its enabled buttons. Given the bar's ref.
+export function barKeys(bar) {
   const live = () => [...bar.current.querySelectorAll("button:not([disabled])")];
   const onKeyDown = (e) => {
     const keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
@@ -47,6 +58,13 @@ export function Bar({ a }) {
     all[to].focus();
   };
   const onFocusIn = (e) => { if (e.target.tagName === "BUTTON") live().forEach((b) => { b.tabIndex = b === e.target ? 0 : -1; }); };
+  return { onKeyDown, onFocusIn };
+}
+
+// `a`: { shape, fit, fill, small, canReset, busy, onShape, onCrop, onReset, onFit, onFill, onReplace, onRemove }
+export function Bar({ a }) {
+  const bar = useRef(null);
+  const { onKeyDown, onFocusIn } = barKeys(bar);
   const d = a.busy;
   useEffect(() => restTab(bar.current));      // one tab stop: kept after every draw
   return (
