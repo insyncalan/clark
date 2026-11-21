@@ -117,6 +117,28 @@ class GroupInTheField(Base):
             self.until(cdp, sid, "document.querySelectorAll('#fline-list .fopt').length === 7", "seven choices")
             self.assertNotIn("Nothing", [r[0] for r in cdp.js(ROWS, sid)])
 
+    def test_a_taken_word_in_front_of_text_leaves_the_caret_where_the_word_was(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.focus(cdp, sid)
+                self.type(cdp, sid, "ab")
+                self.key(cdp, sid, "Home", "Home", 36)
+                self.type(cdp, sid, "group:due ")
+                self.until(cdp, sid, f"{LABEL} === 'Group by: Due'", "the word is taken")
+                self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "ab")
+                self.assertEqual(cdp.js("document.querySelector('#fline-input').selectionStart", sid), 0, "the caret stays in front of the text that was after the word")
+
+    def test_on_the_board_the_list_never_offers_nothing(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, preset={"view": "board", "group": "status"})
+            self.until(cdp, sid, f"{CHIP}.startsWith('Group by: Status')", "the chip")
+            self.focus(cdp, sid)
+            self.type(cdp, sid, "group:noth")
+            self.key(cdp, sid, "ArrowDown", "ArrowDown", 40)
+            self.settle(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelectorAll('#fline-list .fopt').length", sid), 0, "Nothing is not a grouping of the board")
+
     def test_on_the_board_typed_group_nothing_says_a_board_is_always_grouped(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
