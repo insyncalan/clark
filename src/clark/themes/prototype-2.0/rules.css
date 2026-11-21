@@ -623,6 +623,17 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .ddmenu .ptrack .pr:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ddmenu [role="menuitem"]:has(.hver) { display: flex; align-items: center; }
 .ddmenu .hver { margin-left: auto; padding-left: var(--space-4); max-width: 14em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 12px; color: var(--text-muted); }
+/* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
+.ask-change-ref { font-weight: var(--weight-medium); }
+.ask-change-title { overflow-wrap: anywhere; }
+.ask-diff { display: flex; flex-direction: column; width: auto; }
+.ask-diff-row { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: baseline; padding: 3px 0; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ask-diff-field { flex: none; min-width: 6em; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ask-old { color: var(--text-muted); text-decoration: line-through; }
+.ask-new { padding: 0 var(--space-1); background: var(--grey-100); color: var(--text); font-weight: var(--weight-medium); border-radius: var(--radius-sm); }
+.ask-why { margin: 0; font-size: var(--size-caption); }
+.ask-change-actions { gap: var(--space-2); }
+
 /* Row 1396: the Legend is one always-visible row of the six states (13px), on the Milestones page and on the Dashboard, beside the details button as the prototype draws it; the hover card is not drawn. */
 .msl-bar .mlg-row { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; font-size: 13px; color: var(--text-muted); }
 .msl-bar .mlg-row .mst { font-size: 13px; }
