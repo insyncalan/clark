@@ -126,13 +126,19 @@ class DashPeek(unittest.TestCase):
         self.each(check, items=DASH_ITEMS[3:4], modes=("edit",))      # a decision's View peek has no Client visible line (it never had one)
 
     def test_latest_panel_dark_1400_900(self):
+        stamps = []
+
         def check(cdp, sid, sent, ref, label, mode):
+            if label == "action":
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)), "the action has a stamp")
             r = cdp.js("(() => { const p = document.querySelector('#peek [data-pk-latest]'), b = p.querySelector('[data-pk-lbox]'), c = getComputedStyle(b), l = p.querySelector('[data-pk-last]'); return { bg: c.backgroundColor, bc: c.borderTopColor, st: l ? getComputedStyle(l).color : null }; })()", sid)
             self.assertEqual(r["bg"], "rgb(25, 36, 64)", "--soft 192440")
             self.assertEqual(r["bc"], "rgb(37, 50, 77)", "--line 25324D")
             if r["st"] is not None:
+                stamps.append(r["st"])
                 self.assertEqual(r["st"], "rgb(154, 169, 189)", "--muted 9AA9BD")
         self.each(check, items=DASH_ITEMS[:3], dark=True)
+        self.assertTrue(stamps, "a stamp was measured")
 
     def test_never_updated_item_shows_created_entry_and_first_save_replaces_it(self):
         def check(cdp, sid, sent, ref, label, mode):
