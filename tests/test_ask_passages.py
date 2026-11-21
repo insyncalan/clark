@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; an unread PDF is counted with its reason; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; an unread PDF is counted with its reason; the 1,200,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
@@ -243,7 +243,7 @@ class TheBudget(Folders):
         with mock.patch.object(ask_passages, "READ_SECONDS", -1.0):
             got = self.run_it("alpha")
         self.assertEqual(list(got.passages), [])
-        self.assertEqual(got.other, 2, "counted with the files past a cap")
+        self.assertEqual((got.other, got.limit), (0, 2), "counted with the files past a cap")
 
     def test_every_passage_fits_a_request(self):
         self.put(self.box, "long.txt", "x" * 50000)
