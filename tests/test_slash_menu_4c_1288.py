@@ -89,6 +89,28 @@ class Slash(unittest.TestCase):
             h.key("Enter", 0, "Enter", 13)
             self.assertTrue(h.until("!!document.querySelector('.rt-ai [data-ai-menu]')"))
 
+    def test_ask_ai_sends_the_text_around_the_slash_and_accept_replaces_the_slash_words(self):    # kills s.to in the text line and to: s.from in setAiAt
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                layer(h, True)
+                h.resize(w)
+                h.ev("window.sent = []; window.fetch = (url, init) => { const ok = (b) => Promise.resolve({ status: 200, json: () => Promise.resolve(b) });"
+                     " if (String(url).includes('/api/ai/status')) return ok({ ok: true, state: 'ready', line: '' });"
+                     " if (String(url).includes('/api/ai/suggest')) { window.sent.push(JSON.parse(init.body).text); return ok({ ok: true, html: '<p>Fresh words</p>', notes: [], changes: [] }); }"
+                     " return ok({ ok: true }); }; true")
+                h.mount("<p>Alpha beta</p><p></p><p>Omega tail</p>", ai="current")
+                h.key("ArrowUp", 0, "ArrowUp", 38)
+                h.type("/head")
+                self.assertTrue(h.until("!!document.querySelector('.rt-slash .rt-ask')"), w)
+                h.ev("document.querySelector('.rt-slash .rt-ask').click(); true")
+                self.assertTrue(h.until("!!document.querySelector('.rt-ai [data-ai-option]')"), w)
+                h.ev("document.querySelector('.rt-ai [data-ai-option]').click(); true")
+                self.assertTrue(h.until("[...document.querySelectorAll('.rt-ai button')].some(b => b.textContent.trim() === 'Accept')"), w)
+                self.assertEqual(h.ev("window.sent"), ["Alpha beta\n\n\nOmega tail"], f"{w}: the text sent is the words before and after the '/' words, not them")
+                h.ev("[...document.querySelectorAll('.rt-ai button')].find(b => b.textContent.trim() === 'Accept').click(); true")
+                self.assertTrue(h.until("document.querySelector('.ProseMirror').textContent.includes('Fresh words')"), w)
+                self.assertEqual(h.ev("[...document.querySelectorAll('.ProseMirror p')].map(p => p.textContent)"), ["Alpha beta", "Fresh words", "Omega tail"], f"{w}: Accept replaces the '/' words")
+
     def test_no_ask_line_without_an_ai_place(self):
         with rp.Harness(chrome) as h:
             layer(h, True)
