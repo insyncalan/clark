@@ -453,7 +453,7 @@ def line_for(counts, reading=None):
     """The status line of one folder. `reading` is (done, total) while it is being read; `counts` the counts of its last full read."""
     if reading is not None:
         done, total = reading
-        return f"Indexing\u2026 {min(99, done * 100 // total) if total > 0 else 0}%"
+        return f"Indexing\u2026 {min(99, done * 100 // total) if total > 1 else 0}%"
     total = sum(counts.get(n, 0) for n in NAMES)
     out = [f"Indexed {counts.get('indexed', 0)} of {total} {_plural(total, 'file', 'files')}."]
     t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))
@@ -466,6 +466,15 @@ def line_for(counts, reading=None):
     if s:
         out.append(f"{s} {_plural(s, 'looks', 'look')} like a password or a key and {_plural(s, 'was', 'were')} left out.")
     return " ".join(out)
+
+
+def done_line(counts):
+    """The status line of a folder whose read is finished (row 1371): the share read, and how many files could not be read; the page's "(why)" lists them."""
+    total = sum(counts.get(n, 0) for n in NAMES)
+    if total <= 0:
+        return "No files to index"
+    unread = max(total - counts.get("indexed", 0), 0)
+    return "100% indexed" + (f". {unread} {_plural(unread, 'file', 'files')} could not be read" if unread else "")
 
 
 def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
@@ -507,7 +516,7 @@ def folder_status(data_dir, code, folders, live=None):
         if live and f in live:
             out[f] = {"state": "reading", "line": line_for(None, live[f])}
         elif f in saved:
-            out[f] = {"state": "done", "line": line_for(saved[f])}
+            out[f] = {"state": "done", "line": done_line(saved[f])}
             if left.get(f):
                 out[f]["left"] = left[f]
     return out
