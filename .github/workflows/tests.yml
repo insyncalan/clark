@@ -124,11 +124,20 @@ jobs:
           # A pull request that changes a guarded file is the full Ubuntu matrix without the label, and macOS only when the file is
           # Mac-specific (platform, updates, the launcher and the package files); the release gate runs macOS on everything else. A file moved away from a guarded path counts too (#593):
           # the API gives the old name as previous_filename, so both names are listed. The changed files come from the API
-          # (nothing from the pull request is checked out); if the call fails the answer is full (fail safe). Exact names or
+          # (nothing from the pull request is checked out); if the call fails the answer is full, without macOS (fail safe). Exact names or
           # anchored prefixes in `case`, never eval. The list is dev/run_tests.py GUARDED plus the publishing, secret-screen,
           # update and platform modules and the workflows.
           if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then
-            if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"; then
+            # ONE read of the file list (per_page=100: a pull request of 300 files is 3 calls, not 10). A 403 or 429 that says rate
+            # limit is retried with a growing wait (5, 15, 45 s); any other error is not retried. Same GITHUB_TOKEN, no other token.
+            LISTED=""; ATTEMPT=0
+            while :; do
+              ATTEMPT=$((ATTEMPT + 1))
+              if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" --paginate --jq '.[] | .filename, (.previous_filename // empty)' 2>"$RUNNER_TEMP/plan-err")"; then LISTED=1; break; fi
+              cat "$RUNNER_TEMP/plan-err"
+              if [ "$ATTEMPT" -lt 4 ] && grep -qiE 'rate limit|HTTP 429' "$RUNNER_TEMP/plan-err"; then sleep $((5 * 3 ** (ATTEMPT - 1))); else break; fi
+            done
+            if [ -n "$LISTED" ]; then
               # GitHub lists at most 3000 files for a pull request (#601): a list that long may be cut short, so the answer is full (fail safe).
               if [ "$(printf '%s\n' "$CHANGED" | wc -l)" -ge 3000 ]; then FULL=1; MACOS=1; fi
               while IFS= read -r F; do
@@ -147,8 +156,9 @@ jobs:
               # six shards carry about 3400 s each, which is what a full run takes.
               if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi
             else
+              # A failed read (a rate limit included) is the full Ubuntu matrix and NEVER macOS: macOS minutes need the owner's go.
               echo "could not list the changed files: full (fail safe)"
-              FULL=1; MACOS=1
+              FULL=1
             fi
           fi
           # The Ubuntu 3.x job runs every file on the full path: four shards (was six, 12-11), each well under its 30-minute cap
