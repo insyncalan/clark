@@ -216,6 +216,7 @@ class WholeFile(unittest.TestCase):
                 st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "due_date": "2026-10-10",
                                       "client_visible": 1, "source": "demo"})
                 st.seed_tiles("ABC")
+                st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": 1000000})      # row 1266: the default At a glance is the template, which carries its own tiles; this file is the built-in section's
                 st.update("glance_tiles", "ABC|overdue", {"hidden": 1})
                 st.update("glance_tiles", "ABC|decisions", {"hidden": 0, "outline": "R"})
             got = publish.publish(store, "ABC", Path(out), by_user=USER, now=ON)
