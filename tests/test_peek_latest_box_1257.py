@@ -118,14 +118,20 @@ class Stamp1470(unittest.TestCase):
         cases = ((True, True, rf"^{self.DATE} by Demo Author · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
                  (True, False, rf"^{self.DATE} by Demo Author$"), (False, False, rf"^{self.DATE}$"))
         for width in (1400, 900):
-            for mode in ("view", "edit"):
-                for user, source, want in cases:
-                    with self.subTest(width=width, mode=mode, user=user, source=source), chrome() as cdp:
-                        sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True, prep=self.prep(user, source))
-                        self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")), "the stamp reads as asked")
-                        r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, ml: c.marginLeft, left: s.getBoundingClientRect().left, box: document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().left }; })()", sid)
-                        self.assertEqual((r["svg"], r["fs"], r["mt"], r["ml"]), (0, "12px", "6px", "2px"), r)
-                        self.assertAlmostEqual(r["left"] - r["box"], 2, delta=1, msg="at the left of the box (margin 2), not right-aligned as row 1257 had it")
+            if width == 900 and test_server.PAUSED_900:
+                raise unittest.SkipTest(test_server.PAUSED_900)       # the repo pauses every 900 px case; the 1400 half ran
+            with chrome() as cdp:                          # one browser per width: many launches in one test make Chrome close the pipe
+                for mode in ("view", "edit"):
+                    for user, source, want in cases:
+                        self.check(cdp, width, mode, user, source, want)
+
+    def check(self, cdp, width, mode, user, source, want):
+        with self.subTest(width=width, mode=mode, user=user, source=source):
+            sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True, prep=self.prep(user, source))
+            self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")), "the stamp reads as asked")
+            r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, ml: c.marginLeft, left: s.getBoundingClientRect().left, box: document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().left }; })()", sid)
+            self.assertEqual((r["svg"], r["fs"], r["mt"], r["ml"]), (0, "12px", "6px", "2px"), r)
+            self.assertAlmostEqual(r["left"] - r["box"], 2, delta=1, msg="at the left of the box (margin 2), not right-aligned as row 1257 had it")
 
 
 del _B

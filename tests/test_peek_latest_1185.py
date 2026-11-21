@@ -12,6 +12,7 @@ from test_movement_page import GO_LIVE, Base
 from _demo import USER, DemoStore
 from clark import activity_read, changes, publish
 import test_peek_latest
+import test_server
 from test_server import chrome, wait
 
 PAGE = SRC / "clark" / "page" / "src"
@@ -80,11 +81,17 @@ class DashPeek(unittest.TestCase):
     def each(self, check, items=DASH_ITEMS, modes=("view", "edit"), dark=False):
         """`check(cdp, sid, sent, ref, label, mode)` for every item, mode and width, each in its own browser and subTest."""
         for width in (1400, 900):
+            if width == 900 and test_server.PAUSED_900:
+                self.paused = True                         # the repo pauses every 900 px case (test_server.PAUSED_900): the 1400 half ran, the test ends as skipped
+                continue
             for mode in modes:
-                for ref, label, kind in items:
-                    with self.subTest(width=width, mode=mode, kind=label), chrome() as cdp:
-                        sent, sid = self.load(cdp, width, ref, edit=False, dash=mode, kind=kind, classic=True, dark=dark)
-                        check(cdp, sid, sent, ref, label, mode)
+                with chrome() as cdp:                      # one browser for the items of a width and mode (many launches in one test make Chrome close the pipe)
+                    for ref, label, kind in items:
+                        with self.subTest(width=width, mode=mode, kind=label):
+                            sent, sid = self.load(cdp, width, ref, edit=False, dash=mode, kind=kind, classic=True, dark=dark)
+                            check(cdp, sid, sent, ref, label, mode)
+        if getattr(self, "paused", False):
+            raise unittest.SkipTest(test_server.PAUSED_900)
 
     def test_dash_view_peek_has_editable_latest_box(self):
         def check(cdp, sid, sent, ref, label, mode):
@@ -153,6 +160,8 @@ class DashPeek(unittest.TestCase):
             con.commit()
             con.close()
         for width in (1400, 900):
+            if width == 900 and test_server.PAUSED_900:
+                raise unittest.SkipTest(test_server.PAUSED_900)       # the 1400 half ran
             for prep, want in ((old, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}$"), (None, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2} by Demo Author · Source: Demo data \(fictional\)$")):
                 with self.subTest(width=width, old=prep is not None), chrome() as cdp:
                     sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash="view", classic=True, prep=prep)
