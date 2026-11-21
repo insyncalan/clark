@@ -1385,6 +1385,8 @@ def notices_route(handler):
     if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding") or urlsplit(handler.path).query:
         return handler.send(400, error_body("bad_request"))
     status, body = seam.read()
+    if VERSION is not None and isinstance(body, dict):
+        body = {**body, "installed": VERSION}     # the running clark's version, for a notice's installedBelow test on the page
     return handler.send(status, body)
 
 

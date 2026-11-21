@@ -228,6 +228,13 @@ class RouteTest(Place):
         status, data = self.ask("GET", "/api/notices", notices_file.Notices(self.data))
         self.assertEqual((status, json.loads(data)), (200, {"ok": True, "why": "ok", "notices": [ONE]}))
 
+    def test_get_tells_the_installed_version(self):
+        old = sv.VERSION
+        sv.VERSION = "1.2.3"
+        self.addCleanup(lambda: setattr(sv, "VERSION", old))
+        status, data = self.ask("GET", "/api/notices", notices_file.Notices(self.data))
+        self.assertEqual((status, json.loads(data)["installed"]), (200, "1.2.3"))
+
     def test_without_the_seam_it_is_not_found(self):
         self.assertEqual(self.ask("GET", "/api/notices", None)[0], 404)
 

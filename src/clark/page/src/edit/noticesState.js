@@ -40,7 +40,10 @@ export const REFRESH_MS = 5 * 60 * 1000;
 export async function loadNotices() {
   const r = await noticesRead();
   const b = r && r.body;
-  if (r && r.status === 200 && b && b.ok === true && Array.isArray(b.notices) && b.why !== "away") pushNotices(b.notices);
+  if (r && r.status === 200 && b && b.ok === true && Array.isArray(b.notices) && b.why !== "away") {
+    if (typeof b.installed === "string") installed.value = b.installed;
+    pushNotices(b.notices);
+  }
   return r && r.status;
 }
 let timer = null;

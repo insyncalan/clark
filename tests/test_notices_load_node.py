@@ -43,7 +43,7 @@ const note = (id) => ({ id, title: "T " + id, body: "One sentence.", date: new D
   const before = NS.pushed.value.map((n) => n.id);
   for (const _ of answers.slice()) {
     const status = await NS.loadNotices();
-    out.steps.push({ status, pushed: NS.pushed.value.map((n) => n.id), calls });
+    out.steps.push({ status, shown: NS.shown.value.map((n) => n.id), pushed: NS.pushed.value.map((n) => n.id), calls });
   }
   out.before = before;
   const c0 = calls;
@@ -111,6 +111,15 @@ class LoadNotices(unittest.TestCase):
         got = run([ok("a", "b"), ok()])
         self.assertEqual([s["status"] for s in got["steps"]], [200, 200])
         self.assertEqual([s["pushed"] for s in got["steps"]], [["a", "b"], []])
+
+    def test_the_installed_version_from_the_answer_drives_a_notice_version_test(self):
+        def with_test(**extra):
+            r = ok("old", **extra)
+            r["body"]["notices"][0]["test"] = {"installedBelow": "1.0.7"}
+            return r
+        for installed, shown in (("1.0.5", ["old"]), ("1.0.7", []), ("1.0.8", [])):
+            got = run([with_test(installed=installed)])
+            self.assertEqual(got["steps"][0]["shown"], shown, installed)
 
     def test_the_timer_starts_once_and_stops(self):
         got = run([ok("a")] * 3)
