@@ -6,6 +6,7 @@ Chrome launches at 1400 and 900 px.
 import unittest
 
 import test_ms_header_1230 as H
+from _new_page import reload_to_new_page_cdp
 from test_server import chrome, wait
 
 PCT = "document.querySelector('[data-place] .mv-wrap').dataset.zoomPct"
@@ -45,8 +46,7 @@ class ZoomPerPlace(H.Base):
                 self.assertTrue(wait(lambda: list(self.stored(cdp, sid)) == ["clark.tlZoom.page"]), f"{width}: only the page's own key is written: {self.stored(cdp, sid)}")
                 kept = self.stored(cdp, sid)["clark.tlZoom.page"]
                 self.assertEqual(round(float(kept) * 100), int(page_zoom), f"{width}: the number kept is the zoom shown")
-                cdp.call("Page.reload", {}, sid)
-                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('{PAGE} .mv-wrap')", sid)), f"{width}: redrawn")
+                reload_to_new_page_cdp(cdp, sid, f"!!document.querySelector('{PAGE} .mv-wrap')", f"{width}: redrawn")
                 self.assertEqual(self.pct(cdp, sid, PAGE), page_zoom, f"{width}: after a reload the page zoom is back")
                 cdp.js("location.hash = '#dashboard&p=ABC'", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('{SEC} .mv-wrap')", sid), 10), f"{width}: the Dashboard section drew")
