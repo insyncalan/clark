@@ -1422,6 +1422,21 @@ table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowra
   table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
 }
 
+/* Text and Image Side by Side (row 1232), Edit: the layout is the View's (shell.css .tpl-sbs); the toolbar is the Full width image's bar, in the approved measures
+   (a 2px gap, 4px padding, 10px radius, 32 x 30 buttons with a 17px icon). The pressed button is white with an inset ring. Bare lengths: the approved px. */
+.tpl-sbs-edit { display: flex; flex-direction: column; gap: var(--space-3); }
+.tpl-sbs-edit .tpl-sbs { gap: 22px; }
+.ti-opt { margin-left: var(--space-2); font-weight: var(--weight-regular); color: var(--text-muted); }
+.fi-bar.ti-bar { gap: 2px; margin-top: var(--space-2); padding: var(--space-1); border-radius: 10px; background: var(--grey-50); }
+.ti-grp { display: flex; align-items: center; gap: 2px; padding: 0 var(--space-1); }
+.ti-bar .fi-btn { width: 32px; height: 30px; border-radius: 7px; border: 0; color: var(--grey-700); }
+.ti-bar .fi-btn svg { width: 17px; height: 17px; stroke-width: 1.8; }
+.ti-bar .fi-btn:hover:not(:disabled) { background: var(--grey-100); }
+.ti-bar .fi-btn.on { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--brand-blue); color: var(--brand-blue); }
+.ti-bar .fi-btn[data-act=remove]:hover:not(:disabled) { color: var(--status-red-text); }
+.ti-bar .fi-btn:nth-last-child(-n+2)::after { left: auto; right: 0; transform: none; }      /* the names of Replace and Remove sit inside the bar's right edge, so they never widen the section */
+.ti-note { margin: var(--space-2) 0 0; }
+
 /* Full width image (row 1223), Edit: the drop area, the stage, the focus dot, the height handle, the ONE icon toolbar, the crop. Tokens only. One block for the
    framing controls (the View's rules are shell.css .tpl-fullimg). */
 .tpl-full-edit { display: flex; flex-direction: column; gap: var(--space-3); }
