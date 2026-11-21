@@ -7,7 +7,8 @@ import { Fragment } from "preact";
 import { useRef, useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { showDate, timelineSpan, monthStarts, clampZoom, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
+import { classicTheme } from "./Contents.jsx";   // row 1267: the grip's slider keys and the no-grip-on-a-short-line rule are Classic only; Cards keeps what it always did
+import { showDate, timelineSpan, monthStarts, clampZoom, ZOOM_MIN, ZOOM_MAX, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
@@ -24,6 +25,7 @@ const PRINT_TAIL = 60;                          // on paper a month name that wo
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 const LH = 38, TGAP = 10, LEAD = 12, SIDE = 24, CAPROOM = 30;   // row 1230 (the Dashboard section): a two-line label's height, the space between tiers, a leader's first stretch, the label's distance from the line, room under the lowest label for the caption
+const GRIP_MIN = 3;         // fewer drawn milestones than this: the zoom grip is left off
 const LYP = 78, TP = 28, PROOM = 34;   // row 1315 (Classic, Milestones page): the line, the label lane above it and the room under the line for the Today name (14px under the line, 18px tall, inside the 1px border: 34 keeps it inside the strip when there is no sideways scrollbar), read off the prototype picture at 1400
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
 
@@ -134,13 +136,21 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     drag.current = null;
     remember(`tlZoom.${place}`, d.last);
   };
-  const gripKey = (e) => {
+  const gripKey = (e) => {                          // Classic: a slider's keys (Up and Right raise the value, Down and Left lower it, Home is 100%, End the highest). Cards: Down grows the line, as dragging down does, and Home is 100%
     const k = e.key;
-    if (k === "ArrowDown" || k === "ArrowUp") zoomTo(clampZoom(Math.round((z + (k === "ArrowDown" ? 0.1 : -0.1)) * 100) / 100), true);   // down grows the line, as dragging down does
+    if (classicTheme()) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (k === "ArrowUp" || k === "ArrowRight") zoomTo(clampZoom(Math.round((z + 0.1) * 100) / 100), true);
+      else if (k === "ArrowDown" || k === "ArrowLeft") zoomTo(clampZoom(Math.round((z - 0.1) * 100) / 100), true);
+      else if (k === "Home") zoomTo(1, true);
+      else if (k === "End") zoomTo(ZOOM_MAX, true);
+      else return;
+    } else if (k === "ArrowDown" || k === "ArrowUp") zoomTo(clampZoom(Math.round((z + (k === "ArrowDown" ? 0.1 : -0.1)) * 100) / 100), true);
     else if (k === "Home") zoomTo(1, true);
     else return;
     e.preventDefault();
   };
+  const useful = !classicTheme() || labs.length >= GRIP_MIN || zoom !== 1;   // Classic: a line of one or two milestones has nothing to spread: no grip (it stays while a zoom is set, so it can be put back)
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); wrap.current.focus({ preventScroll: true }); };   // the Reset button goes with the zoom: focus stays on the line, not the page
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD[scale] * z, behavior: reduced() ? "auto" : "smooth" }); };
@@ -206,7 +216,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             </Tag>))}
         </div>
       </div>
-      {fit ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={70} aria-valuemax={300} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
+      {fit || !useful ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={Math.round(ZOOM_MIN * 100)} aria-valuemax={Math.round(ZOOM_MAX * 100)} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
         onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
       </div>
