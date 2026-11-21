@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome (#71, row 1076).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome or Edge (row 1076, item 636).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
@@ -10,8 +10,8 @@ It asks what is on the port first, and never takes over what isn't its own:
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
-Clark opens as a page in Chrome (at clark.localhost, not a standalone app window); if Chrome isn't found, the default
-browser, and it says so. The logic is here and every system call is in platform.py, so a test runs it with fakes and a
+Clark opens as a page in Chrome or Edge (at clark.localhost, not a standalone app window), and it says which; if neither
+is found, the default browser, and it says so. The logic is here and every system call is in platform.py, so a test runs it with fakes and a
 fake server. Copied from creaite v2.6.9 system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login
 agent, restart or starting-file. Standard library only, Python 3.9.
 """
@@ -19,6 +19,7 @@ import argparse
 import http.client
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -321,18 +322,28 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     return open_clark(port, say, environ, find_chrome, open_window, open_browser)
 
 
+def browser_name(path):
+    """The browser at `path` as a person reads it: Google Chrome, Microsoft Edge, or the one CLARK_BROWSER names (item 636)."""
+    name = re.split(r"[\\/]", str(path))[-1].lower()
+    if name in ("msedge.exe", "microsoft edge"):
+        return "Microsoft Edge"
+    if name in ("chrome.exe", "google chrome"):
+        return "Google Chrome"
+    return "the browser set in CLARK_BROWSER"
+
+
 def open_clark(port, say, environ, find_chrome, open_window, open_browser):
-    """Open clark on `port` in Chrome, at clark.localhost; the default browser, at 127.0.0.1 and with a line saying so,
-    if Chrome isn't found. The address a person is told to open when neither works is the plain one too: their browser
+    """Open clark on `port` in Chrome or Edge, at clark.localhost, saying which; the default browser, at 127.0.0.1 and with a
+    line saying so, if neither is found. The address a person is told to open when neither works is the plain one too: their browser
     may be Safari."""
     chrome = find_chrome(environ)
     try:
         if chrome:
             open_window(address(port), chrome)
-            say("Opened clark in Chrome.")
+            say(f"Opened clark in {browser_name(chrome)}.")
         else:
             open_browser(plain_address(port))
-            say("Chrome wasn't found, so clark opened in your default browser.")
+            say("Chrome or Edge wasn't found, so clark opened in your default browser.")
     except platform.PlatformError as e:
         say(f"{e} The clark server is still running. To use it, open this address in your browser: {plain_address(port)}")
         return 1

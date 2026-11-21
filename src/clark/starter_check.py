@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 
-def _from_env_file(env_file):
-    """CLARK_DATA_DIR as docker/.env gives it (compose reads that file when the shell does not set the name), or ""."""
+def _from_env_file(env_file, wanted="CLARK_DATA_DIR"):
+    """`wanted` (CLARK_DATA_DIR unless named) as docker/.env gives it (compose reads that file when the shell does not set the name), or ""."""
     try:
         with open(env_file, encoding="utf-8") as f:
             lines = f.read().splitlines()
@@ -24,7 +24,7 @@ def _from_env_file(env_file):
     value = ""
     for line in lines:
         name, sep, rest = line.strip().partition("=")
-        if sep and name.strip() == "CLARK_DATA_DIR":
+        if sep and name.strip() == wanted:
             value = rest.strip()
             if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
                 value = value[1:-1]
@@ -123,8 +123,31 @@ def diagnose(folder):
     return lines
 
 
+def setting(name, environ=None, env_file=None):
+    """`name` the way docker compose sees it: the shell's value (even empty), else docker/.env's, else "" (item 636)."""
+    environ = os.environ if environ is None else environ
+    return environ[name] if name in environ else _from_env_file(env_file, name)
+
+
+BROWSERS_MAC = ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")     # same order as platform.find_browser (item 636)
+
+
+def browser_program(environ=None, exists=os.path.exists, env_file=None):
+    """Item 636: the program that opens clark's window: CLARK_BROWSER if it is set, else Google Chrome, else Microsoft Edge, or ""
+    for the default browser. It only names the program; docker/start.command starts it (only platform.py starts programs from Python)."""
+    environ = os.environ if environ is None else environ
+    named = setting("CLARK_BROWSER", environ, env_file)
+    places = [named] if named else [os.path.expanduser(p) for p in BROWSERS_MAC]
+    return next((p for p in places if exists(p)), "")
+
+
 def main(argv=None, environ=None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["--browser"]:
+        env_file = argv[2] if argv[1:2] == ["--env-file"] and len(argv) >= 3 else None
+        print(browser_program(environ, env_file=env_file))
+        return 0
     env_file = None
     show = "--diagnose" in argv
     argv = [a for a in argv if a != "--diagnose"]

@@ -111,6 +111,12 @@ class ClaudeChecks(Base):
             self.connect()
         self.one("running in a container")
 
+    def test_windows_host(self):
+        """item 629: the windows_host branch of log_check writes its own fixed line, even on a Mac and outside a container."""
+        with mock.patch.object(platform, "system", return_value="darwin"), mock.patch.dict(os.environ, {"CLARK_HOST": "windows"}):
+            self.connect()
+        self.one("the host computer is Windows")
+
     def test_not_a_mac_and_not_a_container(self):
         with mock.patch.object(platform, "system", return_value="linux"), mock.patch.object(platform, "container_mode", return_value=False):
             self.connect()

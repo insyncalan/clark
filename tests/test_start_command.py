@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -40,7 +41,10 @@ class StartCommand(unittest.TestCase):
 
     def run_script(self, *args, **extra):
         # A PATH of the stub folder only, so no docker, curl, Chrome or clark of this computer is ever found (a CI image has docker in /usr/bin).
-        env = {"PATH": str(self.bin), "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data", **extra}
+        # CLARK_BROWSER names a program that does not exist, so the starter's own search (the Chrome or Edge of the computer the test runs on,
+        # on a Mac runner the real /Applications one) is never reached and the stubbed `open -a` line is what the script falls back to.
+        env = {"PATH": str(self.bin), "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data",
+               "CLARK_BROWSER": f"{self.tmp}/no-such-browser", **extra}
         return subprocess.run([shutil.which("bash"), str(self.repo / "docker" / "start.command"), *args], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
 
     def calls(self):
@@ -57,11 +61,90 @@ class StartCommand(unittest.TestCase):
         self.assertIn("clark is running in Docker.", r.stdout)
         self.assertIn("Opened clark in Chrome.", r.stdout)
 
+    def test_a_chrome_installed_on_the_computer_does_not_change_the_stubbed_runs(self):
+        """The macOS runner has a real Chrome in /Applications (here: one under HOME, which the starter also searches): the stubbed
+        `open -a` line must still be what these runs log, because CLARK_BROWSER is set to a program that is not there."""
+        real = Path(self.tmp) / "Applications" / (BROWSER + ".app") / "Contents" / "MacOS" / BROWSER
+        real.parent.mkdir(parents=True)
+        real.write_text("#!/bin/sh\necho real-chrome-started >> \"$LOG\"\n", encoding="utf-8")
+        real.chmod(0o755)
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
+        self.assertNotIn("real-chrome-started", self.calls())
+
     def test_docker_running_but_chrome_missing_gives_the_address(self):
         r = self.run_script(OPEN_RC="1", CLARK_PORT="9000")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("Chrome was not found. To use clark, open this address in your browser: http://localhost:9000", r.stdout)
         self.assertNotIn("Opened clark in Chrome.", r.stdout)
+
+    def browser_program(self, name):
+        """A program that exists, is found through CLARK_BROWSER, and records that the script started it and with what."""
+        prog = Path(self.tmp) / "apps" / name
+        prog.parent.mkdir(parents=True, exist_ok=True)
+        prog.write_text('#!/bin/sh\necho "started $0 $*" >> "$LOG"\n', encoding="utf-8")
+        prog.chmod(0o755)
+        return prog
+
+    def wait_for_call(self, start):
+        # The script starts the browser program in the background, so its line reaches the log a moment after the script has ended.
+        for _ in range(100):
+            if [c for c in self.calls() if c.startswith(start)]:
+                return
+            time.sleep(0.05)
+
+    def test_when_chrome_by_name_is_refused_the_default_browser_is_opened(self):
+        """Row 636: no program found, `open -a` by name fails, plain `open <address>` works: the default browser opens, and the
+        reply says so (not Chrome, and not the not-found line)."""
+        self.stub("open", 'echo "open $*" >> "$LOG"; [ "$1" = -a ] && exit 1; exit 0')
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = self.calls()
+        self.assertLess(calls.index(f"open -a {BROWSER} http://localhost:8766"), calls.index("open http://localhost:8766"), "Chrome by name is tried first")
+        self.assertIn("Opened clark in your default browser.", r.stdout.splitlines())
+        self.assertNotIn("Chrome was not found", r.stdout)
+
+    def test_the_default_browser_is_opened_on_the_port_in_use_not_on_the_usual_one(self):
+        """Row 636: the plain `open <address>` fallback carries the address of the port set for this run."""
+        self.stub("open", 'echo "open $*" >> "$LOG"; [ "$1" = -a ] && exit 1; exit 0')
+        r = self.run_script(CLARK_PORT="9000")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = self.calls()
+        self.assertIn("open http://localhost:9000", calls)
+        self.assertNotIn("open http://localhost:8766", calls)
+
+    def test_a_chrome_by_name_that_opens_does_not_go_on_to_the_default_browser(self):
+        r = self.run_script()
+        self.assertNotIn("open http://localhost:8766", self.calls())
+        self.assertIn("Opened clark in Chrome.", r.stdout.splitlines())
+
+    def test_a_browser_program_that_is_not_chrome_is_started_with_the_address_and_called_your_browser(self):
+        """Row 636: Edge (or any other program the starter names) is started directly; the reply does not call it Chrome."""
+        edge = self.browser_program("Microsoft " + "Edge")
+        r = self.run_script(CLARK_BROWSER=str(edge))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Opened clark in your browser.", r.stdout.splitlines())
+        self.assertNotIn("Opened clark in Chrome.", r.stdout)
+        self.wait_for_call("started")
+        self.assertIn(f"started {edge} http://localhost:8766", self.calls())
+        self.assertFalse([c for c in self.calls() if c.startswith("open")], "a program that was found is not followed by `open`")
+
+    def test_a_chrome_program_is_called_chrome_and_is_started_with_the_address(self):
+        chrome = self.browser_program(BROWSER)
+        r = self.run_script(CLARK_BROWSER=str(chrome), CLARK_PORT="9001")
+        self.assertIn("Opened clark in Chrome.", r.stdout.splitlines())
+        self.wait_for_call("started")
+        self.assertIn(f"started {chrome} http://localhost:9001", self.calls())
+        self.assertFalse([c for c in self.calls() if c.startswith("open")])
+
+    def test_nothing_opening_names_chrome_or_edge_and_the_address(self):
+        self.stub("open", 'echo "open $*" >> "$LOG"; exit 1')
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Chrome was not found. To use clark, open this address in your browser: http://localhost:8766", r.stdout.splitlines())
+        self.assertIn("open http://localhost:8766", self.calls(), "the default browser was tried before giving up")
+        self.assertNotIn("Opened clark", r.stdout)
 
     def test_docker_not_running_falls_back_to_python(self):
         r = self.run_script(DOCKER_INFO_RC="1")

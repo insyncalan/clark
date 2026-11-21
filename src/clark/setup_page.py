@@ -48,8 +48,9 @@ def page_words(check_id, status, words, seen):
     if check_id == "data_not_in_onedrive" and status == doctor.FIX:
         return page_onedrive(seen.tilde(seen.folder()))
     if check_id == "browser":
-        return ("Chrome is there, so clark opens in Chrome." if status == doctor.READY else
-                "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to open clark there.")
+        return (words if status == doctor.READY else
+                "Chrome or Edge wasn't found, so clark will open in your usual browser. Install Google Chrome or Microsoft Edge "
+                "to open clark there.")
     if check_id == "port" and status == doctor.FIX:
         if words.startswith("Another copy of clark"):
             return words.split(" Close that copy,")[0] + f" Close that copy, then {AGAIN}."

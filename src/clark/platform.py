@@ -11,6 +11,7 @@ Standard library only, Python 3.9.
 """
 import errno
 import getpass
+import ntpath
 import os
 import re
 import secrets
@@ -23,7 +24,7 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 try:
     import fcntl               # the Mac's and Linux's file lock; there is none on Windows
@@ -70,6 +71,28 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+HOST_WINDOWS = "windows"
+ASK_OFF_ON_WINDOWS = "ask clark is not available on Windows yet"
+
+
+def host(environ=None):
+    """item 629: "windows" only when CLARK_HOST=windows is set (by docker/compose.windows.yaml, for a container on a Windows computer,
+    where clark itself sees Linux); anything else, or nothing, is None and clark behaves as it always has."""
+    value = (os.environ if environ is None else environ).get("CLARK_HOST")
+    return HOST_WINDOWS if value == HOST_WINDOWS else None
+
+
+def windows_host(environ=None):
+    """item 629: True when the host computer is Windows (see host)."""
+    return host(environ) == HOST_WINDOWS
+
+
+def _host_form(text):
+    """item 629: `text`, a home-relative path written with "~/", in the Windows form (with backslashes) when the host is Windows; as it is
+    otherwise. Only the home folder is the host's: a path outside it (such as /data in the container) is the container's and stays as it is."""
+    return text.replace("/", "\\") if windows_host() else text
+
+
 _POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0")       # tunnel devices the kernel makes in every network, not a physical one
 
 
@@ -103,10 +126,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
+    path = PureWindowsPath(host) if "\\" in host or re.match(r"[A-Za-z]:", host) else Path(host)      # item 629: a Windows host path is split on its backslashes (a Linux Path in the container would read it as one name)
     for i, part in enumerate(path.parts):
         if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+            return type(path)(*path.parts[:i + 1])
     return None
 
 
@@ -443,7 +466,7 @@ def shown(path, home=None):
     if path == home:
         return "~"
     try:
-        return "~/" + path.relative_to(home).as_posix()
+        return _host_form("~/" + path.relative_to(home).as_posix())
     except ValueError:
         return str(path)
 
@@ -920,6 +943,9 @@ def write_file_unless_exists(dest, data, **kw):
 # Starting clark and opening its window (#71). The launcher (launch.py) holds the logic; the system calls are here.
 
 CHROME_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"     # also looked for in ~/Applications
+EDGE_MAC = "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+CHROME_WINDOWS = ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")      # where Chrome is installed, in the order looked (item 636)
+EDGE_WINDOWS = ("ProgramFiles(x86)", "ProgramFiles")                        # Edge, on every Windows 10 and 11
 LAUNCHER_MAC = "clark.command"          # the double-clickable file in clark's folder; Windows will have clark.cmd (#57)
 LOG_LIMIT = 1024 * 1024                 # the server's log is started again when it is bigger than this
 
@@ -930,19 +956,30 @@ def launcher_name(on=None):
     return LAUNCHER_MAC
 
 
-def find_chrome(environ=None, home=None, exists=os.path.exists, on=None):
-    """The Chrome program to open clark's window with, or None. CLARK_BROWSER names another program to use instead (the
-    tests use a stub); if it isn't there, None, so the default browser is used."""
-    _only_mac("Finding Chrome", on)
+def _browser_places(environ, home, on):
+    """Where Chrome, then Edge, is looked for on `on` (item 636)."""
+    if on == WINDOWS:
+        chrome = [ntpath.join(environ[v], "Google", "Chrome", "Application", "chrome.exe") for v in CHROME_WINDOWS if environ.get(v)]
+        edge = [ntpath.join(environ[v], "Microsoft", "Edge", "Application", "msedge.exe") for v in EDGE_WINDOWS if environ.get(v)]
+        return chrome + edge
+    _only_mac("Finding a browser", on)
+    return [CHROME_MAC, str(Path(home or Path.home()) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS"
+                            / "Google Chrome"), EDGE_MAC]
+
+
+def find_browser(environ=None, home=None, exists=os.path.exists, on=None):
+    """The browser to open clark's window with (Google Chrome, else Microsoft Edge), or None. CLARK_BROWSER names another
+    program to use instead (the tests use a stub); if it isn't there, None, so the default browser is used."""
+    on = on or system()
     environ = os.environ if environ is None else environ
+    places = _browser_places(environ, home, on)
     named = environ.get("CLARK_BROWSER")
     if named:
         return named if exists(named) else None
-    for found in (CHROME_MAC, str(Path(home or Path.home()) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS"
-                                  / "Google Chrome")):
-        if exists(found):
-            return found
-    return None
+    return next((found for found in places if exists(found)), None)
+
+
+find_chrome = find_browser          # the name the launcher and the doctor first used
 
 
 ROOT_NAME = "the top of the drive"
@@ -965,7 +1002,9 @@ def folder_phrase(path, capital=False):
 def with_tilde(path, home=None):
     """`path` as a person reads it: the home folder written ~, so a message never shows the account's folder name."""
     text, home = str(path), str(Path(home) if home else Path.home())
-    return "~" + text[len(home):] if text == home or text.startswith(home.rstrip("/") + "/") else text
+    if not home.rstrip("/"):                    # item 629: a home of "/" holds everything, so nothing is written from "~"
+        return text
+    return _host_form("~" + text[len(home):]) if text == home or text.startswith(home.rstrip("/") + "/") else text
 
 
 def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
@@ -992,9 +1031,10 @@ def run_python_check(python, code, args=(), timeout=120, run=None):
 
 
 def open_in_chrome(url, chrome, popen=None, on=None):
-    """Open `url` in Chrome, as a page in an ordinary Chrome window (row 1076; not an app window: the person can install
-    it as a web app from Chrome if they want to). Chrome already running opens it there. It is left running."""
-    _only_mac("Opening Chrome", on)
+    """Open `url` in `chrome` (Chrome or Edge), as a page in an ordinary window (row 1076; not an app window: the person can
+    install it as a web app if they want to). A browser already running opens it there. It is left running."""
+    if (on or system()) != WINDOWS:
+        _only_mac("Opening Chrome", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
         raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
@@ -1002,7 +1042,7 @@ def open_in_chrome(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
+        raise PlatformError("The browser could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every
@@ -1014,6 +1054,8 @@ NO_SCRIPTS = (".cmd", ".bat")
 
 def find_claude(which=shutil.which):
     """The Claude command to run, or None if it isn't on the PATH. A .cmd or .bat file is refused with the reason."""
+    if windows_host():                          # item 629: the container's Linux command is not the host's; ask clark is off
+        raise PlatformError(ASK_OFF_ON_WINDOWS)
     found = which(CLAUDE)
     if found and Path(found).suffix.lower() in NO_SCRIPTS:
         raise PlatformError("The copy of Claude Code on this computer can't be used safely by ask clark. Install Claude "

@@ -56,8 +56,14 @@ if curl -fsS --max-time 3 --retry 30 --retry-delay 1 --retry-connrefused "http:/
 else
   say "clark is still starting in Docker. If the page does not open, wait a minute and open $address again."
 fi
-if open -a "Google Chrome" "$address" >/dev/null 2>&1; then
-  say "Opened clark in Chrome."
+# Item 636: Chrome, else Edge (CLARK_BROWSER overrides, in the shell or docker/.env), else Chrome by name, else the default browser.
+browser=$(python3 "$check" --browser --env-file "$PWD/docker/.env" 2>/dev/null)
+if [ -n "$browser" ]; then "$browser" "$address" >/dev/null 2>&1 </dev/null & opened="your browser"; case "$browser" in *Chrome*) opened=Chrome ;; esac
+elif open -a "Google Chrome" "$address" >/dev/null 2>&1; then opened=Chrome
+elif open "$address" >/dev/null 2>&1; then opened="your default browser"
+else opened=""; fi
+if [ -n "$opened" ]; then
+  say "Opened clark in $opened."
 else
   say "Chrome was not found. To use clark, open this address in your browser: $address"
 fi
