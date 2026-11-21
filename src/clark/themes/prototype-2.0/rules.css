@@ -280,7 +280,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; color: var(--text-muted); border-top: 0; }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; border-top: 0; }
 
 /* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
 .projects table.proj-table td.num { white-space: nowrap; }
