@@ -25,7 +25,6 @@ const PRINT_TAIL = 60;                          // on paper a month name that wo
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 const LH = 38, TGAP = 10, LEAD = 12, SIDE = 24, CAPROOM = 30;   // row 1230 (the Dashboard section): a two-line label's height, the space between tiers, a leader's first stretch, the label's distance from the line, room under the lowest label for the caption
-const GRIP_MIN = 3;         // fewer drawn milestones than this: the zoom grip is left off
 const LYP = 78, TP = 28, PROOM = 34;   // row 1315 (Classic, Milestones page): the line, the label lane above it and the room under the line for the Today name (14px under the line, 18px tall, inside the 1px border: 34 keeps it inside the strip when there is no sideways scrollbar), read off the prototype picture at 1400
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
 
@@ -51,6 +50,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   const strip = useRef(null);
   const [widths, setWidths] = useState({});           // each label's real width, measured after it draws
   const [room, setRoom] = useState(0);              // overlay scrollbars (macOS) take no room but are drawn over the bottom of the box while it scrolls sideways: the last lane keeps clear of them
+  const [ovf, setOvf] = useState(false);          // the line is wider than its box (it scrolls sideways): only then is there something to zoom
   const [sb, setSb] = useState(0);                      // the height of the sideways scrollbar when the system draws one inside the box (Linux, Windows)
   const [, setTick] = useState(0);                  // bumped when fonts finish loading or the window changes size: measure again
   const Tag = open ? "button" : "span";            // in a published file a mark or label is plain text, not a button
@@ -89,6 +89,8 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
       if (bars !== sb) setSb(bars);
       const over = bars === 0 && w.scrollWidth > w.clientWidth + 1 ? SBROOM : 0;      // no scrollbar room of its own, yet it scrolls sideways: an overlay one
       if (over !== room) setRoom(over);
+      const wide = w.scrollWidth > w.clientWidth;
+      if (wide !== ovf) setOvf(wide);
     }
   });
   useEffect(() => {                                   // measure again once the fonts are in and when the window changes size
@@ -150,7 +152,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     else return;
     e.preventDefault();
   };
-  const useful = !classicTheme() || labs.length >= GRIP_MIN || zoom !== 1;   // Classic: a line of one or two milestones has nothing to spread: no grip (it stays while a zoom is set, so it can be put back)
+  const useful = !classicTheme() || ovf || zoom !== 1;   // Classic: a line that fits its box has nothing to spread: no grip (it stays while a zoom is set, so it can be put back)
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); wrap.current.focus({ preventScroll: true }); };   // the Reset button goes with the zoom: focus stays on the line, not the page
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD[scale] * z, behavior: reduced() ? "auto" : "smooth" }); };

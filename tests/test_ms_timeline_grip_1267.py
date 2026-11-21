@@ -1,4 +1,4 @@
-"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and a short list has no grip.
+"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and a line that fits its box has no grip.
 
 Run: python3 dev/run_tests.py test_ms_timeline_grip_1267
 Chrome launches at 1400 and 900 px.
@@ -285,8 +285,11 @@ class DarkAndSideways(Classic, BrowserBase, unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stayed on it")
 
 
-class ShortList(Classic, BrowserBase, unittest.TestCase):
-    """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
+class ShortList(Classic, BrowserBase):
+    """The grip shows only when the line overflows its box (it scrolls sideways) or a zoom other than 100% is stored: a line that fits has nothing to spread. The count of milestones is not the rule (three that fit have no grip, six that overflow have one)."""
+
+    COUNT = 2
+    BOX = None          # a fixed pixel width for the box, so overflow does not hang on the real window width
 
     def serve(self, theme=CLASSIC):
         def short(code, archived="hide"):
@@ -297,45 +300,65 @@ class ShortList(Classic, BrowserBase, unittest.TestCase):
         self.addCleanup(s.close)
         return s.port
 
-    COUNT = 2
+    def settle(self, cdp, sid, width):
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == self.COUNT), f"{width}: the line is drawn")
+        if self.BOX:
+            cdp.js(f"document.querySelector('.mv-wrap').style.width = '{self.BOX}px'; window.dispatchEvent(new Event('resize')); true", sid)
 
-    def test_two_milestones_draw_the_line_and_no_grip(self):
+    def boxes(self, cdp, sid):
+        return cdp.js("(() => { const w = document.querySelector('.mv-wrap'); return [w.scrollWidth, w.clientWidth]; })()", sid)
+
+    def grips(self, cdp, sid):
+        return cdp.js("document.querySelectorAll('[data-grip]').length", sid)
+
+    def test_the_grip_follows_the_overflow_of_the_box(self):
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: no useless grip")
+                self.settle(cdp, sid, width)
+                want = 1 if self.OVERFLOWS else 0
+                self.assertTrue(wait(lambda: self.grips(cdp, sid) == want), f"{width}: {want} grip(s) for {self.COUNT} milestones, box {self.boxes(cdp, sid)}")
+                sw, cw = self.boxes(cdp, sid)
+                self.assertEqual(sw > cw, bool(self.OVERFLOWS), f"{width}: the box {sw} wide in {cw}")
 
     def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
+        if self.OVERFLOWS:
+            self.skipTest("a line that overflows has its grip at 100% already")
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: at 100% a short line has no grip")
+                self.settle(cdp, sid, width)
+                self.assertEqual(self.grips(cdp, sid), 0, f"{width}: at 100% a line that fits has no grip")
                 cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); true", sid)
                 reload_to_new_page_cdp(cdp, sid, what=f"{width}: the page reloaded")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == self.COUNT), f"{width}: the line is drawn again")
+                self.assertTrue(wait(lambda: self.grips(cdp, sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
 
 
-class ThreeMilestones(ShortList):
+class OneMilestone(ShortList, unittest.TestCase):
+    COUNT = 1
+    OVERFLOWS = False
+
+
+class TwoMilestones(ShortList, unittest.TestCase):
+    COUNT = 2
+    OVERFLOWS = False
+
+
+class ThreeMilestones(ShortList, unittest.TestCase):
+    """Three used to show the grip by count; the line fits its box (strip 765 in 1210), so there is none."""
     COUNT = 3
+    OVERFLOWS = False
 
-    def test_three_milestones_are_enough_for_the_grip(self):
-        port = self.serve()
-        for width in (1400, 900):
-            with chrome() as cdp:
-                sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 3, f"{width}: the line is drawn")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 1, f"{width}: exactly three milestones keep the grip")
 
-    def test_two_milestones_draw_the_line_and_no_grip(self):
-        pass
-
-    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
-        pass
+class SixMilestones(ShortList, unittest.TestCase):
+    """Six overflow at the real width by only 5 px at 1400, so the box is fixed narrower here."""
+    COUNT = 6
+    BOX = 700
+    OVERFLOWS = True
 
 
 class KeyGuards(Classic, BrowserBase, unittest.TestCase):
