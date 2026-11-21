@@ -17,7 +17,7 @@ from test_server import chrome  # noqa: E402
 
 CSS = theme.css("prototype-2.0")
 LOOKS = [(1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")]
-PURPLE = {"light": "rgb(124, 77, 255)", "dark": "rgb(158, 123, 255)"}
+PURPLE = {"light": "rgb(70, 53, 184)", "dark": "rgb(158, 123, 255)"}
 
 
 def layer(h, on):
