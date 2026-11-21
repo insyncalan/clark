@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { linkProblem } from "../../templates/files.js";
 import { stored, oneLine, labelProblem, saveContent, plainWords, withPlainWords, paragraphsOf, linesProblem } from "./filesEdit.js";
 import { StartPrompt } from "../StartPrompt.jsx";
+import { startOr } from "../startingText.js";
 
 // The words on the card are Not rich (row 1288): plain lines in a box, saved with the card; the store allows TEXT_LINES paragraphs of LINE_MAX characters (linkcard.py).
 const LINES = 3, EACH = 400, BAD_WORDS = `The words on the card can be ${LINES} paragraphs of ${EACH} characters at most. Shorten them and try again.`;
@@ -48,7 +49,7 @@ export function Edit({ section }) {
         <label for={`${fid}-site`}>Line above the title (optional, such as the site's name)</label>
         <input id={`${fid}-site`} type="text" autocomplete="off" value={f.site} onInput={set("site")} />
         <label for={`${fid}-words`}>Words on the card (optional)</label>
-        <textarea id={`${fid}-words`} rows={3} autocomplete="off" value={f.words} onInput={set("words")} />
+        <textarea id={`${fid}-words`} rows={3} autocomplete="off" placeholder={startOr("Click to write.", "link-preview", "empty", 1)} value={f.words} onInput={set("words")} />
         <button type="submit" class="btn" disabled={!changed}>Save card</button>
       </form>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
