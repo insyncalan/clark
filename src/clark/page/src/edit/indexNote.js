@@ -9,6 +9,8 @@ export const NO_FILES = "No files to index";
 export const PAUSED = "Indexing paused. It carries on when clark is open";
 export const FAILED = "Could not index this folder.";
 export const CLEARED = "Not indexed.";
+// The links a note carries, built as links by the card (never dropped): the words on the link, then what it does.
+export const LINKS = { why: "(why)", retry: "Try again", reindex: "Index again" };   // "(why)" opens the list of files left out
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -19,22 +21,22 @@ export function percent(read, total) {
   return read >= total ? 100 : Math.min(p, 99);
 }
 
-const dmy = (d) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? `${d.slice(8, 10)}-${d.slice(5, 7)}-${d.slice(0, 4)}` : "");
+/** The note of the All projects tab: how many projects are indexed. */
+export const projectsNote = (done, all) => `Indexed for ${done} of ${all} projects`;
 
-/** The words of the note, plus the link it carries ("" none, "why", "again"). */
+/** The words of the note, plus the link it carries ("" none, "why", "retry", "reindex"); LINKS[link] is the link's own text. */
 export function note(s) {
   const st = s || {};
   if (st.phase === "waiting") return { text: WAITING, link: "" };
   if (st.phase === "reading") return { text: `Indexing… ${percent(st.read, st.total)}%`, link: "" };
   if (st.phase === "updating") return { text: `Updating… ${plural(st.changed || 0, "file", "files")} changed`, link: "" };
   if (st.phase === "paused") return { text: PAUSED, link: "" };
-  if (st.phase === "failed") return { text: FAILED, link: "again" };
-  if (st.phase === "cleared") return { text: CLEARED, link: "again" };
+  if (st.phase === "failed") return { text: FAILED, link: "retry" };
+  if (st.phase === "cleared") return { text: CLEARED, link: "reindex" };
   if (st.phase === "done") {
     if (!(st.total > 0)) return { text: NO_FILES, link: "" };
-    const date = dmy(st.date);
     const out = st.left_out > 0;
-    let text = `100% indexed${date ? `, ${date}` : ""}`;
+    let text = "100% indexed";
     if (out) text += `. ${plural(st.left_out, "file", "files")} could not be read`;
     return { text, link: out ? "why" : "" };
   }

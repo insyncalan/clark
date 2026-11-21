@@ -33,14 +33,23 @@ class IndexNote(unittest.TestCase):
             ({"phase": "done", "read": 9, "total": 9, "left_out": 0}, "100% indexed", ""),
             ({"phase": "done", "total": 9, "left_out": 12}, "100% indexed. 12 files could not be read", "why"),
             ({"phase": "done", "total": 9, "left_out": 1}, "100% indexed. 1 file could not be read", "why"),
-            ({"phase": "done", "total": 9, "date": "2026-11-19"}, "100% indexed, 19-11-2026", ""),
             ({"phase": "updating", "changed": 3}, "Updating… 3 files changed", ""),
             ({"phase": "paused"}, "Indexing paused. It carries on when clark is open", ""),
-            ({"phase": "failed"}, "Could not index this folder.", "again"),
-            ({"phase": "cleared"}, "Not indexed.", "again"),
+            ({"phase": "failed"}, "Could not index this folder.", "retry"),
+            ({"phase": "cleared"}, "Not indexed.", "reindex"),
         ]
         for state, text, link in cases:
             self.assertEqual(note(state), {"text": text, "link": link}, state)
+
+    def test_the_links_are_built_with_their_words(self):
+        self.assertEqual(run("m.LINKS"), {"why": "(why)", "retry": "Try again", "reindex": "Index again"})
+
+    def test_the_all_projects_note(self):
+        self.assertEqual(run("m.projectsNote(3, 3)"), "Indexed for 3 of 3 projects")
+
+    def test_a_done_note_has_no_date_and_no_file_count(self):
+        self.assertEqual(note({"phase": "reading", "read": 180, "total": 422})["text"], "Indexing… 42%")
+        self.assertEqual(note({"phase": "done", "total": 9, "date": "2026-11-19"})["text"], "100% indexed")
 
     def test_no_readable_files_is_not_100_percent(self):
         self.assertEqual(note({"phase": "done", "total": 0})["text"], "No files to index")
