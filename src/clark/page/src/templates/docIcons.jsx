@@ -27,7 +27,7 @@ export function PageIcon({ label }) {
       <svg viewBox="0 0 41 41" width="41" height="41" aria-hidden="true" focusable="false">
         <g fill="none" stroke={COLOURS.MAIL} stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="30" height="22" rx="3.5" /><path d="M5 11l14 10 14-10" /></g>
         <circle cx="32" cy="30" r="8" fill={COLOURS.MAIL} />
-        <text x="32" y="34" text-anchor="middle" font-size="11" font-weight="700" fill="var(--white)" font-family="Inter, system-ui, sans-serif">@</text>
+        <text x="32" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="var(--white)" font-family="Inter, system-ui, sans-serif">@</text>
       </svg>
     </span>
   );
