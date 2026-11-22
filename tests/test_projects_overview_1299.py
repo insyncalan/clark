@@ -59,11 +59,18 @@ class Attention(unittest.TestCase):
 
 
 class Rows(unittest.TestCase):
-    def rows(self, projects, counts=None, shared=0, asking=True, days=14, backup=0):
+    def rows(self, projects, counts=None, shared=(), asking=True, days=14, backup=0):
         return po.overview_rows(projects, counts or {}, shared, asking, days, backup)
 
+    def test_folders_are_the_effective_ones_the_same_path_once_and_at_most_the_cap(self):
+        (r,) = self.rows([row()], {"SAM": ["/work/shared", "/own"]}, ["/work/shared"])
+        self.assertEqual(r["folders"], 2)                                  # the shared path added to the project too is read once
+        many = [f"/f{n}" for n in range(30)]
+        (r,) = self.rows([row()], {"SAM": many[10:]}, many[:15])
+        self.assertEqual(r["folders"], po.ask_folders.MAX_FOLDERS)         # 30 distinct paths, asking reads 20
+
     def test_values_defaults_and_overrides(self):
-        (r,) = self.rows([row(brand="atlas", review_after_days=30, publish_client="  /c  ")], {"SAM": 2}, 1, backup=3)
+        (r,) = self.rows([row(brand="atlas", review_after_days=30, publish_client="  /c  ")], {"SAM": ["/a", "/b"]}, ["/s"], backup=3)
         self.assertEqual(r, {"code": "SAM", "name": "Sam", "asking": True, "brand": "atlas", "brand_override": True, "folders": 3, "review_days": 30,
                              "review_override": True, "client_folder": "/c", "last_backup_days": 3, "attention": [po.BACKUP_OLD]})
         (r,) = self.rows([row()], days=14)
@@ -161,6 +168,20 @@ class Service(unittest.TestCase):
         self.make("BBB")                                                            # no client folder: one of two projects has something to look at
         got = self.svc.read()[1]
         self.assertEqual((len(got["projects"]), got["attention_count"]), (2, 1))
+
+    def test_backup_age_uses_the_zones_rules_for_the_backups_own_date(self):
+        from zoneinfo import ZoneInfo
+        ny = ZoneInfo("America/New_York")
+        now = datetime(2026, 3, 9, 12, 0, tzinfo=ny)                       # 9-3 after the spring change: UTC-4 (a fixed offset of today would be -4)
+        stamp = "20260308T043000Z"                                         # 7-3, 23:30 in New York (UTC-5), before the change
+        fixed = now.astimezone(timezone(timedelta(hours=-4)))              # what datetime.now().astimezone() gives: today's offset, no rules
+        self.assertEqual(po.days_since(stamp, fixed), 1, "today's fixed offset moves the backup to the 8th")
+        self.assertEqual(po.days_since(stamp, now, lambda t: t.astimezone(ny)), 2)
+        self.backup(stamp)
+        self.make("AAA", publish_client="/c")
+        svc = po.ProjectsOverview(self.db, [], backups=self.folder, now=lambda: now, local=lambda t: t.astimezone(ny))
+        (a,) = svc.read()[1]["projects"]
+        self.assertEqual((a["last_backup_days"], po.BACKUP_OLD in a["attention"]), (2, True))
 
     def test_no_backup_means_last_backup_none_and_flagged_for_attention(self):
         self.make("AAA", publish_client="/c")
