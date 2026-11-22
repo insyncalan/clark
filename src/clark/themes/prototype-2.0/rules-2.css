@@ -1,3 +1,5 @@
+/* Row 1286: the fade copy of the Gantt table menu (on the body, edit.css) keeps the live menu's 12px side padding, so its icon is 17px in from the edge like the open menu and does not jump while it fades. */
+html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-right: var(--space-3); }
 /* Ruling 4 of row 1336: the tiles are (100% - (cols - 1) x 12px) / cols wide with 12px between them; the grid gap is the 12px, so the divider padding of the View strip (the Row 1260 rule above) is taken off here, else tiles 2 to 4 are 16px narrower and 28px apart. */
 .tpl-edit-glancetemplate .glance .tcell + .tcell { padding-left: 0; }
 /* Row 1336 ruling 2: label padding-right 84px (built-in tile, three controls) and 110px (own tile), eye right 30px, grip right 56px: the mock-up draws them, at-a-glance-builder.html lines 110-111 (84 and 110) and 414-415 (eye 30, grip 56); the mock-up's own tile selectors differ, the values are copied. */
@@ -52,6 +54,8 @@
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
+@media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
