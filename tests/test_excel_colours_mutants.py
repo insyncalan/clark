@@ -18,8 +18,6 @@ EXPECTED = {
     ("raid", "likelihood"): {"High": "red", "Medium": "amber", "Low": "green"},
     ("milestones", "shown_state"): {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red",
                                     "Overdue": "red", "Forecast": "blue"},
-    ("milestones", "state"): {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red",
-                              "Overdue": "red", "Forecast": "blue"},
     ("decisions", "status"): {"Pending": "blue", "Made": "green", "Withdrawn": "grey"},
     ("use_cases", "status"): {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"},
 }
