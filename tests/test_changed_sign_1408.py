@@ -20,9 +20,10 @@ from clark import page, theme  # noqa: E402
 from test_server import chrome  # noqa: E402,F401  (the runner tells a browser file by this import)
 
 NAME = "prototype-2.0"
-RULES = ((ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"))
+RULES1 = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+RULES = RULES1 + (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8")
 SHELL = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
-BLOCK = RULES[RULES.index("/* Row 1408"):RULES.index("/* Row 1314")]
+BLOCK = RULES1[RULES1.index("/* Row 1408"):]      # the last block of rules.css; rules-2.css rows follow it in the layered sheet and are other rows
 FORCED = [{"name": "forced-colors", "value": "active"}]
 
 
