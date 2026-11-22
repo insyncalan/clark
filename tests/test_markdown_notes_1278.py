@@ -16,6 +16,9 @@ import unittest
 from _paths import SRC
 from test_update_page import REVIEW, STATUS, InBrowser, OK, lit
 from test_update_fetch_page_1327 import AVAIL, BASE
+import test_ask_change_page as ask_change_page
+from test_server import chrome
+from clark import ask
 
 NOTES = ("## What is changed\n\n### Dashboard\n\n- First **bold** point\n- Second point with `code`\n\n#### Small heading\n\n"
          "A line with <script>window.hacked = 1</script> and <img src=\"http://example.invalid/x.png\"> in it.\n"
@@ -139,6 +142,21 @@ class HelpHasNoUnrenderedMarks(unittest.TestCase):
         self.assertGreater(len(strings), 50)
         for s in strings:
             self.assertIsNone(re.search(r"(^|\n)\s*(#{1,6} |[-*+] |\d+[.)] )|```|\[[^\]]+\]\((?!#|go:)", s), s)
+
+
+class AskPassageStaysRaw(ask_change_page.Card):
+    """The product ruling on row 6 of the places list (21-11): the "From your file" passage is a verbatim quote and stays raw (edit/AskChange.jsx)."""
+
+    def test_the_from_your_file_passage_keeps_markdown_marks_as_typed(self):
+        quote = "## Plan\n- signed off on **Monday**\n1. close it"
+        self.says(self.close_it(), "CITE: P6", files=(ask.Passage("notes/plan.md", quote),))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("!!document.querySelector('[data-ask-passage] blockquote')", "the passage")
+            self.assertEqual(p.js("document.querySelector('[data-ask-passage] blockquote').textContent"), quote)
+            self.assertEqual(p.js("document.querySelector('[data-ask-passage] blockquote').children.length"), 0, "no drawn element inside the quote")
 
 
 if __name__ == "__main__":
