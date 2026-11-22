@@ -57,6 +57,8 @@ class Tabs(Base):
                 p.until(f"{TABS}.length === 2", "the tabs drew")
                 h = p.js("document.querySelector('.set-tabs').getBoundingClientRect().height")
                 self.assertTrue(40 <= h <= 48, f"one row about 44 px, got {h}")
+                pill = p.js("(() => { const c = getComputedStyle(document.querySelector('.set-tabs .set-tab')); return [c.borderTopLeftRadius, c.paddingTop, c.paddingLeft, c.fontSize, getComputedStyle(document.querySelector('.set-tabs .set-tab[aria-current]')).fontWeight]; })()")
+                self.assertEqual(pill, ["999px", "5px", "14px", "13.5px", "600"], "AP10: a pill, radius 999, padding 5px 14px, 13.5px, the open one weight 600")
                 bar = p.js("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar'))")
                 p.js("document.body.style.paddingBottom = '2500px'")
                 nat = p.js("document.querySelector('.set-tabs').getBoundingClientRect().top + window.scrollY")

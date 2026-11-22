@@ -14,12 +14,11 @@ MENU = "[...document.querySelectorAll('.set-nav .set-chip')].map(c => c.textCont
 LINK = "document.querySelector('.set-add-project')"
 
 
-class NoProject(Rigged):
-    listed = []
-
+class Empty(Rigged):
     def test_no_project_one_project_and_backups(self):
         for w in WIDTHS:
-            with self.subTest(width=w), chrome() as cdp:
+            self.listed = []      # the case with no project
+            with self.subTest(case="no project", width=w), chrome() as cdp:
                 p = self.page(cdp, hash_="#settings")
                 p.width(w)
                 p.until("!!document.querySelector('.set-nav .set-chip[aria-current]')", "Settings drew")
@@ -36,25 +35,25 @@ class NoProject(Rigged):
                 self.assertFalse(p.js("[...document.querySelectorAll('.set-chip[aria-current]')].some(c => c.textContent.trim() === 'People')"), "People is not opened")
                 p.js(f"{LINK}.click()")
                 p.until("document.querySelector('.set-cards').getAttribute('data-page') === 'projects'", "the link opened the Projects page")
-
-
-class OneProject(Rigged):
-    listed = LIVE[:1]
-
-    def test_one_project_has_its_one_tab_and_backups_has_none(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            for slug in PROJECT_PAGES:
-                with self.subTest(page=slug):
-                    self.open_settings(p, 1400, slug=slug)
+            self.listed = LIVE[:1]      # the case with one project: its one tab on each of the five pages, no Add project link
+            with self.subTest(case="one project", width=w), chrome() as cdp:
+                p = self.page(cdp)
+                for slug in PROJECT_PAGES:
+                    self.open_settings(p, w, slug=slug)
                     p.until(f"{TABS}.length === 1", f"{slug} has its one tab")
-                    self.assertEqual(p.js(f"{TABS}.map(b => [b.textContent, b.getAttribute('aria-current')])"), [[LIVE[0]["name"], "page"]])
-                    self.assertFalse(p.js(f"!!{LINK}"), "a project exists: no Add project link")
-            self.open_settings(p, 1400, slug="backups")
-            p.until("document.querySelector('.set-cards').getAttribute('data-page') === 'backups'", "Backups drew")
-            self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), "Backups has no tabs")
-            for name in ("Reports and pages", "Brand and publishing", "People", "ask clark", "Data"):
-                self.assertIn(name, p.js(MENU))
+                    self.assertEqual(p.js(f"{TABS}.map(b => [b.textContent, b.getAttribute('aria-current')])"), [[LIVE[0]["name"], "page"]], slug)
+                    self.assertFalse(p.js(f"!!{LINK}"), f"{slug}: a project exists, no Add project link")
+                for name in ("Reports and pages", "Brand and publishing", "People", "ask clark", "Data"):
+                    self.assertIn(name, p.js(MENU), f"{name} is in the menu with one project")
+                self.open_settings(p, w, slug="backups")      # the Backups case: no tabs
+                p.until("document.querySelector('.set-cards').getAttribute('data-page') === 'backups'", "Backups drew")
+                self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), "Backups has no tabs with one project")
+            self.listed = []
+            with self.subTest(case="backups, no project", width=w), chrome() as cdp:
+                p = self.page(cdp, hash_="#settings&s=backups")
+                p.width(w)
+                p.until("document.querySelector('.set-cards') && document.querySelector('.set-cards').getAttribute('data-page') === 'backups'", "Backups drew")
+                self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), "Backups has no tabs with no project")
 
 
 if __name__ == "__main__":
