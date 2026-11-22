@@ -458,23 +458,8 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1350 part 4 (Classic only): at 700px and below the row is two columns and the kind takes a line of its own above the label and the hint, as the mock-up's last media rule draws it (app.css line 1575). The bare length 700px is the mock-up's break and has no token. */
 @media (max-width: 700px) { .pal-row { grid-template-columns: minmax(0, 1fr) auto; } .pal-kind { grid-column: 1 / -1; } }
 /* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). */
-/* Ruling 4 of row 1336: the tiles are (100% - (cols - 1) x 12px) / cols wide with 12px between them; the grid gap is the 12px, so the divider padding of the View strip (the Row 1260 rule above) is taken off here, else tiles 2 to 4 are 16px narrower and 28px apart. */
-.tpl-edit-glancetemplate .glance .tcell + .tcell { padding-left: 0; }
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
-/* Row 1336 ruling 2: label padding-right 84px (built-in tile, three controls) and 110px (own tile), eye right 30px, grip right 56px: the mock-up draws them, at-a-glance-builder.html lines 110-111 (84 and 110) and 414-415 (eye 30, grip 56); the mock-up's own tile selectors differ, the values are copied. */
-#report[data-mode="edit"] .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .fig .k { padding-right: 84px; }
-.tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
-.tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
-.tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
-/* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
-.tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
-.tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
-/* Row 1336 part 2, two values the mock-up draws (at-a-glance-builder.html:429 and :431; the ruling of 19-11 takes the bin and the line as the mock-up): the bin on a tile rests in the body colour (the pen keeps the muted one; the hover colours already match) and the 'Show project health here' line keeps 14px between the eye and its text (Classic only; Cards keeps the shared 12px and the muted bin). */
-.tpl-edit-glancetemplate .glance .tdel { color: var(--text); }
-.tpl-edit-glancetemplate .glance .tdel:hover { color: var(--status-red-text); }
-.tpl-edit-glancetemplate .glance .gt-showhealth { gap: 14px; }
-.tpl-gt .tpl-gt-tile.go .tpl-gt-dot { width: 8px; height: 8px; }
 /* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
 .fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
 .fbt-dlg { padding-bottom: 14px; }
