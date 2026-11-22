@@ -601,7 +601,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
             brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
-        indexer = ask_index.Indexer(store.path.parent)      # Row 1366: the background reader of the saved folders; stopped in the finally below
+        indexer = ask_index.Indexer(store.path.parent, allowed=ask_service.AskService(store.path, None, roots).enabled)      # Row 1366: the background reader of the saved folders; stopped in the finally below
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         draft_seam = draft_email_feed.make(
             store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
