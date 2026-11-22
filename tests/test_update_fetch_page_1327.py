@@ -82,7 +82,7 @@ class Fetch(InBrowser):
         for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}):
             self.assertEqual("Released 18-11-2026 · 38 MB.", self.text("#update-released"))
             self.assertEqual("Your projects, settings and published reports are kept.", self.text("#update-kept"))
-            self.assertIn("Faster.", self.text("#update-notes"))
+            self.assertIn("Faster Dashboard.", self.text("#update-notes"))
             self.assertEqual(["Installed", "Update", "Last checked", "Use a file instead"], self.val(LABELS))
             self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"))
 
