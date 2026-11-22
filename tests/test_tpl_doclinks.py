@@ -8,14 +8,19 @@ Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fic
 light and dark.
 """
 import json
+import re
 import shutil
 import tempfile
+import time
+import hashlib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _demo import USER
 from _paths import SRC
-from clark import changes, publish, section_bodies, store as store_module
+import _testpage
+from clark import changes, page, publish, section_bodies, store as store_module, theme
 from clark.section_kinds import base, doclinks
 from test_changes import Api
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
@@ -23,6 +28,8 @@ from test_server import chrome
 
 MARK = "Fictional marker kept out"        # planted where it must never reach a file
 RULES = store_module.BODY_RULES
+DESCRIPTION_LABEL = "Link description (required)"          # quoted from the ticket
+EMPTY_STATE = "Nothing here yet. Add a file or a link."      # quoted from the ticket
 
 
 def body(items, **more):
@@ -56,7 +63,7 @@ class Checker(unittest.TestCase):
             {"kind": "link", "href": "https://example.org/plan", "label": "The plan"},
             {"kind": "file", "name": "Plan v2.pdf", "rel": "Report files/Plan v2.pdf", "bytes": 340 * 1024, "label": ""}]})
         self.assertEqual(check("doclinks", got), got, "saving it again changes nothing")
-        self.assertEqual(json.loads(check("doclinks", body([a_link(href="mailto:team@example.org", label="")])))["items"][0]["href"],
+        self.assertEqual(json.loads(check("doclinks", body([a_link(href="mailto:team@example.org", label="Team")])))["items"][0]["href"],
                          "mailto:team@example.org")
         self.assertEqual(check("doclinks", ""), "", "no content is no content")
         self.assertTrue(doclinks.READY)
@@ -83,6 +90,70 @@ class Checker(unittest.TestCase):
                 self.refused("doclinks", body([item]))
         self.assertEqual(json.loads(check("doclinks", body([a_file(name="a#b (2).docx")])))["items"][0]["name"], "a#b (2).docx")
 
+    def test_only_the_allowed_endings_are_taken_and_the_last_ending_decides(self):
+        for name in ("a.pdf", "Plan.PDF", "a.Doc", "a.docx", "a.xls", "a.xlsx", "a.csv", "a.ppt", "a.pptx", "a.jpg", "a.JPEG", "a.png",
+                     "a.txt", "report.exe.pdf", "a.b.TXT"):
+            with self.subTest(name=name):
+                self.assertEqual(json.loads(check("doclinks", body([a_file(name=name)])))["items"][0]["name"], name)
+        for name in ("a.html", "a.htm", "a.svg", "a.zip", "a.exe", "a.js", "a.sh", "a.bat", "report.pdf.exe", "noending", "a.pdf ",
+                     "a.pdfx", "pdf", "a.gif", "a.docm"):
+            with self.subTest(name=name):
+                self.refused("doclinks", body([a_file(name=name)]), f"{name}: {doclinks.BAD_FILE}" if name.endswith(" ") else doclinks.bad_type(name))
+
+    def test_the_refusal_names_the_allowed_types_and_add_file_meets_the_same_rule(self):
+        for word in ("PDF", "Word", "Excel", "PowerPoint", "JPG", "PNG", "TXT"):
+            self.assertIn(word, doclinks.BAD_TYPE_TAIL)
+        with self.assertRaises(section_bodies.Bad) as e:
+            doclinks.add_file(None, {"name": "a.zip", "rel": "Report files/a.zip", "bytes": 1})
+        self.assertEqual(str(e.exception), doclinks.bad_type("a.zip"))
+
+    def test_a_link_needs_a_description_a_file_does_not(self):
+        for label in ("", "   "):
+            with self.subTest(label=label):
+                self.refused("doclinks", body([a_link(label=label)]), "Link 1: Enter a link description.")
+        self.refused("doclinks", body([{"kind": "link", "href": "https://example.org/plan"}]), "Link 1: Enter a link description.")
+        self.assertEqual(json.loads(check("doclinks", body([a_file(label="")])))["items"][0]["label"], "")
+
+    def test_the_refusal_for_a_link_names_its_place_in_the_list(self):
+        """Item 1194 (ruled 15-11): 'Link {n}: Enter a link description.', n counted from 1 over every entry, files included."""
+        self.refused("doclinks", body([a_link(), a_link(label="")]), "Link 2: Enter a link description.")
+        self.refused("doclinks", body([a_link(), a_file(), a_link(label="  ")]), "Link 3: Enter a link description.")
+
+    def test_a_stored_entry_that_fails_the_check_is_named_in_the_refusal(self):
+        """Item 1628 (ruled 16-11): a refusal that drops the whole section names the item: a file by its name, a link by its place (from 1)."""
+        self.refused("doclinks", body([a_link(), a_link(href="http://example.org")]), "Link 2: " + doclinks.BAD_LINK)
+        self.refused("doclinks", body([a_file(), a_link(label="x" * 500)]), "Link 2: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(), a_file(name="Plan v3.pdf", rel="Report files/other.pdf")]), "Plan v3.pdf: " + doclinks.BAD_FILE)
+        self.refused("doclinks", body([a_file(label="x" * 500)]), "Plan v2.pdf: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_file(name="a.zip")]), doclinks.bad_type("a.zip"))      # already named: no second prefix
+        self.refused("doclinks", body([a_link(label="")]), "Link 1: Enter a link description.")
+
+    def test_the_refusal_for_a_file_names_the_file(self):
+        """Item 1194 (ruled 15-11): '{file name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.'"""
+        tail = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
+        self.refused("doclinks", body([a_link(), a_file(name="Setup tool.zip")]), "Setup tool.zip: " + tail)
+        with self.assertRaises(section_bodies.Bad) as e:
+            doclinks.add_file(None, {"name": "run me.exe", "rel": "Report files/run me.exe", "bytes": 1})
+        self.assertEqual(str(e.exception), "run me.exe: " + tail)
+
+    def test_the_refusal_for_a_file_type_is_one_sentence_on_the_server_and_in_the_page(self):
+        """Item 1628 (ruled 16-11): the page's BAD_TYPE (docLinksWords.js), doclinks.bad_type and the route's bad_type refusal are the same sentence."""
+        from clark import section_files
+        name = "run me.exe"
+        words = (SRC / "clark" / "page" / "src" / "logic" / "docLinksWords.js").read_text(encoding="utf-8")
+        page = re.search(r"export const BAD_TYPE = \(name\) => `([^`]*)`;", words).group(1).replace("${name}", name)
+        route = section_files.MESSAGES["bad_type"].format(name=name)
+        self.assertEqual(page, doclinks.bad_type(name))
+        self.assertEqual(route, doclinks.bad_type(name))
+
+    def test_a_name_with_nothing_before_its_ending_is_not_a_type_and_a_long_name_is_cut_in_the_refusal(self):
+        """Mutation sweep (1194): ".pdf" has an ending but no name; a refusal quotes at most NAME_MAX characters of a file's name."""
+        for name in (".pdf", "pdf", "."):
+            with self.assertRaises(section_bodies.Bad, msg=name):
+                doclinks.allowed_type(name)
+        text = self.refused("doclinks", body([a_file(name="x" * 300 + ".pdf")]))
+        self.assertEqual(text.split(": ")[0], "x" * doclinks.NAME_MAX, "the name in the refusal is cut at NAME_MAX")
+
     def test_the_shape_is_fixed_and_nothing_unknown_is_stored(self):
         self.refused("doclinks", json.dumps({"v": 2, "items": []}), doclinks.BAD_VERSION)
         self.refused("doclinks", json.dumps({"v": True, "items": []}), doclinks.BAD_VERSION)
@@ -94,8 +165,8 @@ class Checker(unittest.TestCase):
         self.refused("doclinks", body(["https://example.org"]), doclinks.BAD_KIND)
         self.refused("doclinks", json.dumps({"v": 1, "items": {"0": a_link()}}))
         self.refused("doclinks", json.dumps([a_link()]))
-        self.refused("doclinks", body([a_link(label=MARK * 10)]), doclinks.BAD_LABEL)
-        self.refused("doclinks", body([a_link(label=12)]), doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(label=MARK * 10)]), "Link 1: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(label=12)]), "Link 1: " + doclinks.BAD_LABEL)
 
     def test_at_most_twenty_entries_and_the_limit_fits_the_change_route(self):
         self.assertEqual(len(json.loads(check("doclinks", body([a_link()] * 20)))["items"]), 20)
@@ -118,6 +189,15 @@ class Checker(unittest.TestCase):
         value = json.loads(check("doclinks", body([a_link(), a_file()])))
         self.assertEqual(section_bodies.published("doclinks", value, ctx), {"content": {"items": value["items"]}})
         self.assertIsNone(section_bodies.published("doclinks", {"v": 1, "items": []}, ctx))
+
+
+class RenameTest:
+    """Typing into the one open rename box and pressing a key."""
+    @staticmethod
+    def type(p, sel, value, key, index=0):
+        p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{index}]; el.focus(); el.value = {json.dumps(value)};"
+             " el.dispatchEvent(new Event('input', {bubbles: true}));"
+             f" el.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(key)}, bubbles: true}})); }})()")
 
 
 class Saved(Api):
@@ -145,9 +225,162 @@ class Saved(Api):
         before = self.snapshot()
         status, got = self.save(ref, body([a_link(href="javascript:" + MARK)]))
         self.assertEqual(status, 400)
-        self.assertEqual(got["message"], doclinks.BAD_LINK)
+        self.assertEqual(got["message"], "Link 1: " + doclinks.BAD_LINK)
         self.assertNotIn(MARK, json.dumps(got))
         self.assertEqual(self.snapshot(), before)
+
+    def stored(self, ref, text):
+        """Put `text` in the section's body as an older clark, or a hand edit, could have left it (no checker in the way)."""
+        self.s.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (text, ref))
+        self.s.con.commit()
+        self.assertEqual(self.s.read("report_sections", ref=ref)["body"], text)
+
+    def test_stored_content_the_new_rules_refuse_is_kept_on_a_save_and_left_out_of_the_file_OPTION_A(self):
+        """Item 1194 made a link description required and a file ending allowed. Content stored BEFORE that (a link with no words, a
+        file ending in .zip) no longer checks. This test used to pin that every save was refused while such an entry was held (the
+        whole section was locked until the editor removed it). It is changed to option A, because a report with one old entry could
+        not be saved at all, not even to fix another line: a save keeps an entry the section already holds when it comes back
+        unchanged; a changed or new entry meets every rule; publish reads the section's own stored text too, so the section is still
+        published with the old entry in it (finding of 21-11: dropping it silently was refused)."""
+        for name, old, fixed, words in (
+                ("link with no words", a_link(label=""), a_link(label="Words now"), "Link 2: Enter a link description."),
+                ("file with an ending that is not allowed", a_file(name="old.zip"), a_file(name="old.exe"), "old.exe: " + doclinks.BAD_TYPE_TAIL)):
+            with self.subTest(old=name):
+                ref = self.make("Fictional old " + name)
+                self.stored(ref, body([a_link(), old]))
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 2, "publish keeps the old entry with the good link")
+                new = a_link(href="https://example.org/new", label="New")
+                status, got = self.save(ref, body([a_link(), old, new]))
+                self.assertEqual(status, 200, got)
+                self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"][1]["name" if old["kind"] == "file" else "href"],
+                                 old.get("name") or old["href"], "the old entry is stored as it was")
+                self.assertEqual(len(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"]), 3)
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 3, "still published after a save that kept the old entry")
+                before = self.snapshot()
+                changed = dict(old, **({"name": "old.exe", "rel": "Report files/old.exe"} if old["kind"] == "file" else {"href": "https://example.org/other"}))
+                status, got = self.save(ref, body([a_link(), changed]))
+                self.assertEqual((status, got["message"]), (400, words), "a changed old entry meets every rule")
+                bad_new = a_link(href="https://example.org/brand-new", label="")
+                status, got = self.save(ref, body([a_link(), old, bad_new]))
+                self.assertEqual((status, got["message"]), (400, "Link 3: Enter a link description."), "a new bad entry is refused")
+                self.assertEqual(self.snapshot(), before, "a refused save writes nothing")
+                status, got = self.save(ref, body([a_link()]))
+                self.assertEqual(status, 200, got)
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertEqual([i["href"] for i in next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]],
+                                 ["https://example.org/plan"], "once the old entry is gone the section is published again")
+
+    def test_a_section_saved_with_a_no_description_link_still_publishes(self):
+        ref = self.make("Fictional saved before 1194 link")
+        self.stored(ref, body([a_link(), a_link(href="https://example.org/old", label="")]))
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        items = next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]
+        self.assertEqual([i["href"] for i in items], ["https://example.org/plan", "https://example.org/old"])
+
+    def test_a_section_saved_with_a_file_of_an_unlisted_ending_still_publishes(self):
+        ref = self.make("Fictional saved before 1194 file")
+        self.stored(ref, body([a_link(), a_file(name="old.zip")]))
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        items = next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[1]["name"], "old.zip")
+
+    def test_publish_still_refuses_what_was_never_stored_that_way(self):
+        """The relaxation is the stored text's own entries only: a body that is bad in another way is still left out."""
+        ref = self.make("Fictional bad body")
+        self.stored(ref, '{"v": 1, "items": [{"kind": "link", "href": "javascript:alert(1)", "label": "x"}]}')
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]})
+
+    def test_a_stored_body_that_cannot_be_read_does_not_stop_a_good_save(self):
+        """Mutation sweep (1194): what the section holds is only a place to keep old entries; if it cannot be read, the new content is checked on its own."""
+        ref = self.make("Fictional unreadable")
+        self.stored(ref, "this is not json")
+        status, got = self.save(ref, body([a_link()]))
+        self.assertEqual(status, 200, got)
+        self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"], [a_link()])
+
+    def test_undo_of_a_delete_puts_back_a_section_with_an_old_entry(self):
+        """Mutation sweep (1194): a section deleted with an old entry (a link with no words) comes back whole by Undo."""
+        ref = self.make("Fictional deleted old")
+        before = section_bodies.canonical({"v": 1, "items": [a_link(), a_link(label="")]})
+        self.stored(ref, before)
+        status, gone = self.change(self.req("delete", id=ref))
+        self.assertEqual(status, 200, gone)
+        status, back = self.undone(gone["apply_id"])
+        self.assertEqual(status, 200, back)
+        self.assertEqual(self.s.read("report_sections", ref=ref)["body"], before)
+
+    def test_undo_of_a_save_puts_back_an_old_entry_the_new_rules_refuse(self):
+        """Row 1194, the Undo defect: a body stored before item 1194 holds a link with no words; a save drops that link; Undo of the
+        save must put the stored text back whole (200, body equal), as it does for any other section, not refuse its own old entry."""
+        for name, old in (("link with no words", a_link(label="")), ("file with an ending that is not allowed", a_file(name="old.zip", label=""))):
+            with self.subTest(old=name):
+                ref = self.make("Fictional undo " + name)
+                before = section_bodies.canonical({"v": 1, "items": [a_link(), old]})      # as clark stores a body: its canonical text
+                self.stored(ref, before)
+                status, got = self.save(ref, body([a_link()]))
+                self.assertEqual(status, 200, got)
+                status, undone = self.undone(got["apply_id"])
+                self.assertEqual(status, 200, undone)
+                self.assertEqual(undone.get("skipped") or [], [], "nothing is left out of the put back")
+                self.assertEqual(self.s.read("report_sections", ref=ref)["body"], before)
+
+    def test_undo_waives_only_the_entries_the_log_holds_and_the_section_still_publishes(self):
+        ref = self.make("Fictional undo strict")
+        old = a_link(label="")
+        before = body([a_link(), old])
+        self.stored(ref, before)
+        status, got = self.save(ref, body([a_link()]))
+        self.assertEqual(status, 200, got)
+        status, _ = self.undone(got["apply_id"])
+        self.assertEqual(status, 200)
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        self.assertEqual(len(next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]), 2, "the section still publishes after the Undo")
+        status, got = self.save(ref, body([a_link(), dict(old, href="https://example.org/other")]))
+        self.assertEqual((status, got["message"]), (400, "Link 2: Enter a link description."), "a changed entry after the Undo meets every rule")
+        status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/n", label="")]))
+        self.assertEqual((status, got["message"]), (400, "Link 3: Enter a link description."), "a new bad entry after the Undo is refused")
+
+    def test_a_stored_entry_sent_back_with_only_its_description_changed_is_a_new_entry(self):
+        """Mutation sweep (1194, S1): the description is part of what makes an entry 'the same one'; change or blank it and the entry meets every rule."""
+        ref = self.make("Fictional description change")
+        old = a_file(name="old.zip", label="Old words")
+        self.stored(ref, section_bodies.canonical({"v": 1, "items": [a_link(), old]}))
+        before = self.snapshot()
+        for label in ("New words", ""):
+            with self.subTest(label=label):
+                status, got = self.save(ref, body([a_link(), dict(old, label=label)]))
+                self.assertEqual(status, 400, got)
+                self.assertEqual(got["message"], "old.zip: " + doclinks.BAD_TYPE_TAIL)
+        self.assertEqual(self.snapshot(), before)
+        status, got = self.save(ref, body([a_link(), old]))
+        self.assertEqual(status, 200, got)
+
+    def test_the_undoing_marker_never_stays_in_the_change_set(self):
+        """Mutation sweep (1194, S2): the marker rides in `changed` for the checker only; it never reaches what the store does next."""
+        ref = self.make("Fictional marker")
+        row = dict(self.s.con.execute("SELECT * FROM report_sections WHERE id = ?", (ref,)).fetchone())
+        row["body"] = body([a_link()])
+        changed = {"body", store_module.UNDOING}
+        store_module._section_rules(self.s.con, "report_sections", row, changed)
+        self.assertNotIn(store_module.UNDOING, changed)
+
+    def test_the_store_waives_old_entries_only_for_an_undo(self):
+        """At the store's own door (no request check before it): a write of a body with a new entry that fails the rules is refused;
+        the same text put back by an Undo (revert) is kept; an Undo still refuses a text that cannot be read at all."""
+        ref = self.make("Fictional store door")
+        old = body([a_link(), a_link(label="")])
+        current = dict(self.s.con.execute("SELECT * FROM report_sections WHERE id = ?", (ref,)).fetchone())
+        for revert, text, ok in ((False, old, False), (True, old, True), (True, "{not json", False), (False, body([a_link()]), True)):
+            with self.subTest(revert=revert, text=text[:12]):
+                if ok:
+                    store_module._merged_row(self.s.con, "report_sections", current, {"body": text}, revert=revert)
+                else:
+                    with self.assertRaises(store_module.Invalid):
+                        store_module._merged_row(self.s.con, "report_sections", current, {"body": text}, revert=revert)
 
     def test_the_file_carries_the_list_and_a_hidden_or_empty_section_is_left_out(self):
         shown = self.make("Fictional papers")
@@ -188,14 +421,14 @@ class InThePage(PageBase):
                     "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
 
     def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
-        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label=""), a_file()])
+        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])
         empty = self.add([], "Fictional empty papers")
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
             self.assertEqual(self.entries(p, ref), [
                 ["Link", "The plan", "A", "https://example.org/plan"],
-                ["Link", "team@example.org", "A", "mailto:team@example.org"],
+                ["Link", "Team", "A", "mailto:team@example.org"],
                 ["PDF", "Plan v2.pdf", "SPAN", None]], "the page clark serves names a file without linking it")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input').length"), 0, "View is read only")
