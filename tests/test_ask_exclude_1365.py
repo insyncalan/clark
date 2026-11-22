@@ -680,7 +680,6 @@ class LeftOutPath(Base):
         self.assertTrue(ask_passages.left_out_path("relative/path", {str(self.root): '["Archive"]'}, self.home))
 
 
-
 class OnTheRoute(tr.Base):
     """The question itself: a left-out subfolder's text never reaches the provider; a list that cannot be read sends nothing from that folder."""
 
@@ -739,3 +738,7 @@ class OnTheRoute(tr.Base):
         self.assertEqual((read, data.safety), ("", 1))
         self.assertNotIn("FOLDERKEEP", sent)
         self.assertNotIn("FOLDEROUT", sent)
+
+
+if __name__ == "__main__":
+    unittest.main()
