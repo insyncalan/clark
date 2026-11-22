@@ -9,7 +9,7 @@ import unittest
 from _paths import ROOT
 
 FOLDER = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
-RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
+RULES = ((FOLDER / "rules.css").read_text(encoding="utf-8") + (FOLDER / "rules-2.css").read_text(encoding="utf-8"))
 TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 MARK = "/* Row 1354"
 BLOCK = "\n".join(RULES[RULES.index(MARK):].split("\n")[:4]) + "\n"
