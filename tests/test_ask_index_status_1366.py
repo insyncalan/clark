@@ -34,13 +34,13 @@ class Words(unittest.TestCase):
     def test_the_approved_plural_lines(self):
         c = {"indexed": 180, "type": 242, "online_only": 8, "too_long": 2, "safety": 4}
         self.assertEqual(ask_index.line_for(c), "Indexed 180 of 436 files. 242 are of a type clark can't read yet. 8 are online only and were not opened. "
-                                                "2 PDFs are too long. 4 look like a password or a key and were left out.")
+                                                "2 files are too long. 4 look like a password or a key and were left out.")
         self.assertEqual(ask_index.line_for(None, (180, 422)), "Indexing… 42%")
 
     def test_the_approved_singular_lines(self):
         c = {"indexed": 1, "type": 1, "online_only": 1, "too_long": 1, "safety": 1}
         self.assertEqual(ask_index.line_for(c), "Indexed 1 of 5 files. 1 is of a type clark can't read yet. 1 is online only and was not opened. "
-                                                "1 PDF is too long. 1 looks like a password or a key and was left out.")
+                                                "1 file is too long. 1 looks like a password or a key and was left out.")
         self.assertEqual(ask_index.line_for(None, (1, 422)), "Indexing… 0%")
         self.assertEqual(ask_index.line_for(None, (422, 422)), "Indexing… 99%")
         self.assertEqual(ask_index.line_for(None, (0, 0)), "Indexing… 0%")

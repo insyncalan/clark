@@ -1,5 +1,5 @@
-"""The 900 px browser cases are paused in ONE place (test_server.PAUSED_900, read by _Pipe.call): 900 is skipped with the stated reason, other widths pass through,
-and switching the constant off lets 900 through again.
+"""The 900 px pause is ONE switch (test_server.PAUSED_900, read by _Pipe.call), now None. With a reason set by mock, 900 is skipped with that reason and other widths
+pass through; with it None, 900 runs.
 
 Run: python3 dev/run_tests.py test_paused_900
 """
@@ -18,16 +18,23 @@ class Recorder(test_server._Pipe):
         return {}
 
 
+class Off(unittest.TestCase):
+    def test_the_reason_is_none(self):
+        self.assertIsNone(test_server.PAUSED_900)
+
+
 class Paused(unittest.TestCase):
+    def setUp(self):
+        p = mock.patch.object(test_server, "PAUSED_900", "paused until Bifrost online (21-11)")       # the switch is None in test_server; the mechanism is tested with it set
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_a_script_outside_a_test_is_not_paused(self):
         p = Recorder()
         test_server._IN_TEST[0] = False       # as in dev/tools/argos_shots.py, which borrows this pipe
         p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
         self.assertEqual(len(p.sent), 1)
         test_server._IN_TEST[0] = True
-
-    def test_the_reason_is_the_stated_words(self):
-        self.assertEqual(test_server.PAUSED_900, "paused until Bifrost online (21-11)")
 
     def test_a_width_of_900_is_skipped_with_the_reason_and_never_sent(self):
         p = Recorder()
