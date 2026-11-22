@@ -843,31 +843,36 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .fbt-added { font-size: 12.5px; padding: 8px 10px; }
 .fbt-dlg [data-fbt-mail] { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 22px; text-decoration: none; }
 .fbt-dlg [data-fbt-copy] { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; }
-/* Row 1232 (Side by Side, Edit): bare lengths are the mock-up's; the dot is 28 px here only. */
-.tpl-sbs-edit-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; }
-.tpl-sbs-edit.pos-left .tpl-sbs-edit-pic, .tpl-sbs-edit.is-half.pos-top .tpl-sbs-edit-pic { order: -1; }
-@media (min-width: 901px) {
-  .tpl-sbs-edit-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .tpl-sbs-edit.share-third .tpl-sbs-edit-grid, .tpl-sbs-edit.pos-left.share-two .tpl-sbs-edit-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-  .tpl-sbs-edit.share-two .tpl-sbs-edit-grid, .tpl-sbs-edit.pos-left.share-third .tpl-sbs-edit-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
-  .tpl-sbs-edit.is-half .tpl-sbs-edit-grid { grid-template-columns: minmax(0, 1fr); }
+/* Row 1232 (Edit): mock-up lengths; dot 28 px here only. */
+.tpl-sbs-edit-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-5);align-items:start}
+.tpl-sbs-edit.pos-left .tpl-sbs-edit-pic,.tpl-sbs-edit.is-half.pos-top .tpl-sbs-edit-pic{order:-1}
+@media (min-width: 901px){
+ .tpl-sbs-edit-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .tpl-sbs-edit.share-third .tpl-sbs-edit-grid,.tpl-sbs-edit.pos-left.share-two .tpl-sbs-edit-grid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+ .tpl-sbs-edit.share-two .tpl-sbs-edit-grid,.tpl-sbs-edit.pos-left.share-third .tpl-sbs-edit-grid{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+ .tpl-sbs-edit.is-half .tpl-sbs-edit-grid{grid-template-columns:minmax(0,1fr)}
 }
-.tpl-sbs-edit-pic { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.tpl-sbs-edit-frame { min-height: 230px; overflow: hidden; border-radius: var(--radius); background: var(--surface-muted); }
-.tpl-sbs-edit-frame img { display: block; width: 100%; height: 100%; min-height: 230px; object-fit: cover; }
-.tpl-sbs-edit.shape-43 .tpl-sbs-edit-frame img { height: auto; min-height: 0; aspect-ratio: 4 / 3; }
-.tpl-sbs-edit.shape-square .tpl-sbs-edit-frame img { height: auto; min-height: 0; aspect-ratio: 1 / 1; }
-.tpl-sbs-edit.shape-whole .tpl-sbs-edit-frame img { height: auto; min-height: 0; object-fit: contain; }
-.tpl-sbs-edit.is-half.shape-fill .tpl-sbs-edit-frame img { height: auto; min-height: 0; aspect-ratio: 16 / 9; }
-.tpl-sbs-bar { gap: var(--space-1); padding: 4px; border: 1px solid var(--grey-200); border-radius: 10px; background: var(--band-bg); }
-.tpl-sbs-grp { display: inline-flex; gap: var(--space-1); padding: 0 var(--space-1); }
-.tpl-sbs-bar .fi-btn { width: 32px; height: 30px; border: 0; border-radius: 7px; color: var(--text-muted); }
-.tpl-sbs-bar .fi-btn.on { background: var(--white); box-shadow: inset 0 0 0 1.5px var(--brand-blue); color: var(--brand-blue); }
-.tpl-sbs-bar .fi-btn.danger:hover:not(:disabled) { color: var(--status-red-text); }
-.tpl-sbs-note { font-size: var(--size-caption); }
-.tpl-sbs-edit-frame .fi-dot { width: 28px; height: 28px; margin: -14px 0 0 -14px; background: color-mix(in srgb, var(--brand-blue) 35%, transparent); box-shadow: 0 0 0 2px var(--brand-blue), var(--shadow); }
-.tpl-sbs-red { margin: 0; }
-@media (max-width: 900px) { .tpl-sbs-edit.shape-fill .tpl-sbs-edit-frame img { height: auto; min-height: 0; aspect-ratio: 16 / 9; } }
+.tpl-sbs-edit-pic{display:flex;flex-direction:column;gap:var(--space-2);min-width:0}
+.tpl-sbs-edit-frame{min-height:230px;overflow:hidden;border-radius:var(--radius);background:var(--surface-muted)}
+.tpl-sbs-edit-frame img{display:block;width:100%;height:100%;min-height:230px;object-fit:cover}
+.tpl-sbs-edit.shape-43 .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:4 / 3}
+.tpl-sbs-edit.shape-square .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:1 / 1}
+.tpl-sbs-edit.shape-whole .tpl-sbs-edit-frame img{height:auto;min-height:0;object-fit:contain}
+.tpl-sbs-edit.is-half.shape-fill .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:16 / 9}
+.tpl-sbs-bar{gap:var(--space-1);padding:4px;border:1px solid var(--grey-200);border-radius:10px;background:var(--band-bg)}
+.tpl-sbs-grp{display:inline-flex;gap:var(--space-1);padding:0 var(--space-1)}
+.tpl-sbs-bar .fi-btn{width:32px;height:30px;border:0;border-radius:7px;color:var(--text-muted)}
+.tpl-sbs-bar .fi-btn.on{background:var(--white);box-shadow:inset 0 0 0 1.5px var(--brand-blue);color:var(--brand-blue)}
+.tpl-sbs-bar .fi-btn:hover:not(:disabled,.on){background:rgb(230,234,245)}
+.tpl-sbs-bar .fi-btn:focus-visible{outline-offset:1px}
+.tpl-sbs-bar .fi-btn.danger:hover:not(:disabled){color:var(--status-red-text)}
+.tpl-sbs-note{font-size:var(--size-caption)}
+.tpl-sbs-note::before{content:"✓ ";color:var(--status-green-text)}
+.tpl-sbs-edit-frame .fi-dot{width:28px;height:28px;margin:-14px 0 0 -14px;background:color-mix(in srgb,var(--brand-blue) 35%,transparent);box-shadow:0 0 0 2px var(--brand-blue),var(--shadow)}
+.tpl-sbs-edit-words .rt-host,.tpl-sbs-edit-words .ProseMirror{min-height:150px}
+.tpl-sbs-edit-words .ProseMirror{font-size:15px}
+.tpl-sbs-red{margin:0}
+@media (max-width: 900px){.tpl-sbs-edit.shape-fill .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:16 / 9}}
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
@@ -970,11 +975,10 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
-.tpl-sbs-heading { grid-column: 1 / -1; margin: 0; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Row 1232 (Classic only): the heading spans the whole grid. */
-.tpl-sbs-heading { grid-column: 1 / -1; margin: 0; }
+/* Row 1232: heading spans the grid. */
+.tpl-sbs-heading{grid-column:1 / -1;margin:0}
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
