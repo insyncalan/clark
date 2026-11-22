@@ -20,7 +20,7 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); const f = document.createElement('form'); f.className = 'row'; f.innerHTML = '<input id=\"ask-folder-path\" class=\"grow\" type=\"text\">'; document.querySelector('#feedback').appendChild(f); })()"
+PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#update').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); const f = document.createElement('form'); f.className = 'row'; f.innerHTML = '<input id=\"ask-folder-path\" class=\"grow\" type=\"text\">'; document.querySelector('#update').appendChild(f); })()"
 SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model", "ask-folder-path": "#ask-folder-path"}
 MEASURE = r"""((sels) => {
   const out = {};
