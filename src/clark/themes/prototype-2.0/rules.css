@@ -423,17 +423,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 .frame h1:not(.head h1):not(.cover h1) { margin-bottom: 4px; }
 .seg:not(.lsw):not(.icons):not(.modes) button { padding: 3px 14px; min-height: 28px; font-weight: 600; }
 .seg:not(.modes):not(.lsw) { border-radius: 6px; }   /* ruled 20-11: a segmented control is radius 6 (buttons stay 8; the top bar's switch keeps its own) */
-/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on its own ground, 18px corners with a 1px ring (--set-ring, the mock-up's line colour) on the --set-win ground with the white cards inside, and the --shadow token's soft drop shadow (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
-.set-win { background: var(--set-win); box-shadow: 0 0 0 1px var(--set-ring), 0 12px 36px var(--set-shadow); border-radius: 18px; padding: var(--space-4) var(--space-4) var(--space-5); }
-.set-tile { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-2); border-radius: 6px; background: var(--brand-blue); color: var(--text-on-brand); }
-.set-tile .i { width: 16px; height: 16px; }
-.set-tile-2 { background: var(--status-green); } .set-tile-3 { background: var(--status-red); } .set-tile-4 { background: var(--brand-blue-strong); }
-.set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
-@media (min-width: 1100px) { .set-layout.set-win { grid-template-columns: 270px minmax(0, 1fr); } }      /* the mock-up's sidebar column from 1100 up */
-/* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
-@media screen { .set-layout.set-win { padding-left: 20px; } }
-@media print { .set-layout.set-win { padding-left: 0; } }
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }

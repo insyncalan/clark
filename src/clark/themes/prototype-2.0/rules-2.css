@@ -47,6 +47,17 @@
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on its own ground, 18px corners with a 1px ring (--set-ring, the mock-up's line colour) on the --set-win ground with the white cards inside, and a 0 12px 36px drop shadow in the Theme-only --set-shadow token (the shared --shadow stays 0 8px 24px for the peek and the config panel) (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
+.set-win { background: var(--set-win); box-shadow: 0 0 0 1px var(--set-ring), 0 12px 36px var(--set-shadow); border-radius: 18px; padding: var(--space-4) var(--space-4) var(--space-5); }
+.set-tile { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-2); border-radius: 6px; background: var(--brand-blue); color: var(--text-on-brand); }
+.set-tile .i { width: 16px; height: 16px; }
+.set-tile-2 { background: var(--status-green); } .set-tile-3 { background: var(--status-red); } .set-tile-4 { background: var(--brand-blue-strong); }
+.set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
+@media (min-width: 1100px) { .set-layout.set-win { grid-template-columns: 270px minmax(0, 1fr); } }      /* the mock-up's sidebar column from 1100 up */
+/* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
+@media screen { .set-layout.set-win { padding-left: 20px; } }
+@media print { .set-layout.set-win { padding-left: 0; } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
