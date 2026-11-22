@@ -435,6 +435,12 @@ def rich_plain_text(value):
         return ""
 
 
+def flat_line(value):
+    """Row 1288: the words of a stored rich-or-legacy value on ONE line, as text (a line break or a paragraph is a space): for a place that
+    is one line in the file, the page and the exports (a caption, a card's own words). "" for none, or for a value too big to clean."""
+    return " ".join(rich_plain_text(value).split())
+
+
 _MARKUP_EDGE = re.compile(r"</?[A-Za-z][A-Za-z0-9]*|[<>]")
 
 
