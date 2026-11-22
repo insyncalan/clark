@@ -16,7 +16,7 @@ from clark import page, theme  # noqa: E402
 from test_server import chrome  # noqa: E402,F401  (the runner tells a browser file by this import)
 
 NAME = "prototype-2.0"
-RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+RULES = "\n".join((ROOT / "src" / "clark" / "themes" / NAME / f).read_text(encoding="utf-8") for f in ("rules.css", "rules-2.css"))      # the theme's rules in the order the page layers them; row 1288 is in rules-2.css
 SHELL = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 EDIT = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
 
@@ -36,7 +36,7 @@ def setUpModule():
 
 
 class Static(unittest.TestCase):
-    def test_the_rules_are_in_rules_css_below_row_1318_and_above_row_1314_and_the_old_32_stays(self):
+    def test_the_rules_are_in_rules_2_css_below_row_1318_and_above_row_1314_and_the_old_32_stays(self):
         i = RULES.index("Row 1288, tight menus")
         self.assertLess(RULES.index("/* Row 1318"), i)
         self.assertLess(i, RULES.index("/* Row 1314"))
