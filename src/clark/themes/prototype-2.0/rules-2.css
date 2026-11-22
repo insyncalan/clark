@@ -54,6 +54,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1317 (Settings Projects table, Classic): the header cell is weight 600 in the muted text colour with padding 6px 10px 6px 0, and each body cell has a 1px --line-soft rule under it (rules.css is unchanged; these sit after its :283 and :894 rules and out-rank them). */
 .projects table.proj-table th, .projects table.proj-table th:first-child { font-weight: 600; color: var(--text-muted); padding: 6px 10px 6px 0; }
 .projects table.proj-table td { border-bottom: 1px solid var(--line-soft); }
+/* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
+.set-nav .plain { gap: 4px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
