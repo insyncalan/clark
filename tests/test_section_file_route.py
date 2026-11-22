@@ -141,7 +141,7 @@ class Route(unittest.TestCase):
         self.assertEqual(doclinks.file_name(body["file"]["name"]), "Q3 plan- final-.pdf")
 
     def test_a_hidden_device_name_is_not_left_as_a_device_name(self):
-        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux"):
+        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux.txt"):      # row 1275: a name with no allowed ending is refused, so the last one carries .txt
             ref = self.section()
             f = self.src / odd
             f.write_bytes(PDF)
@@ -170,7 +170,7 @@ class Route(unittest.TestCase):
         ref = self.section()
         (self.client / "Report files").mkdir()
         there = self.client / "Report files" / "Budget.xlsx"
-        there.write_bytes(b"fictional budget")
+        there.write_bytes(b"PK\x03\x04fictional budget")      # row 1275: an .xlsx starts as a zip
         self.chosen = [there]
         status, body = self.attach(ref)
         self.assertEqual(status, 200, body)
@@ -287,7 +287,7 @@ class Route(unittest.TestCase):
         self.chosen = [self.source]
         with mock.patch.object(section_files, "MAX_FILE_BYTES", len(PDF) - 1):
             message = self.refused(ref, "too_big")
-        self.assertIn("add a link to it instead", message)
+        self.assertEqual(message, "That file is larger than 25 MB, so it was not added.")      # row 1275: 25 MB, the approved words
 
     def test_report_files_must_be_a_real_folder_in_the_client_folder(self):
         ref = self.section()

@@ -224,6 +224,9 @@ JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON 
 PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
+DROP_ROUTE = "/api/section-file-drop"      # row 1275
+DROP_MAX_BYTES = 25 * 1024 * 1024          # the same number as section_files.MAX_FILE_BYTES (a test pins that they agree)
+DROP_TOO_BIG = "That file is larger than 25 MB, so it was not added."
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
@@ -241,7 +244,8 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
                      "/api/demo/clear": 1024,      # #731: no words, only the token
-                     "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
+                     "/api/section-file": 1024,     # #96: names a project and a section only; the file never comes in the request
+                     "/api/section-file-drop": DROP_MAX_BYTES}     # row 1275: the raw bytes of one dropped file (do_POST reads this route's body itself)
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -955,7 +959,7 @@ IDLE = None
 BUSY = {"n": 0}
 BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
-SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
+SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/section-file-drop", "/api/client-folder",
               "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
               "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
@@ -1570,7 +1574,8 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                "/api/demo/clear": demo_route("remove"),     # #731
                "/api/brands/review": brand_route("review"), "/api/brands/install": brand_route("install"),     # #944
                "/api/brands/remove": brand_route("remove"), "/api/brands/undo": brand_route("undo"),
-                "/api/section-file": publisher_route("section_file")}     # later items: /api/import
+                "/api/section-file": publisher_route("section_file"),
+                "/api/section-file-drop": publisher_route("drop_section_file")}     # row 1275 (do_POST reads its body); later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -1668,6 +1673,30 @@ class Handler(BaseHTTPRequestHandler):
             return json.loads(self.rfile.read(n) or b"{}") if n else {}
         except RecursionError:                          # nested too deep to read: a bad request, not a fault
             raise ValueError("nested too deep") from None
+
+    def drop_post(self, route):
+        """POST /api/section-file-drop (row 1275), after the Host, Origin and token checks: one dropped file as raw bytes. The size
+        is judged from Content-Length before any byte is read (a body over the limit is never read: the connection is closed after
+        the refusal); the project, the section and the URL-encoded name travel in headers."""
+        if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/octet-stream":
+            return self.send(415, error_body("send_json"))
+        if self.chunked() or self.headers.get("Content-Length") is None:
+            return self.send(411, error_body("length_required"))
+        try:
+            n = int(self.headers["Content-Length"])
+        except ValueError:
+            return self.send(400, error_body("bad_request"))
+        if n < 0:
+            return self.send(400, error_body("bad_request"))
+        if n > DROP_MAX_BYTES:
+            self.close_connection = True
+            return self.send(400, {"ok": False, "code": "too_big", "message": DROP_TOO_BIG})
+        data = self.rfile.read(n) if n else b""
+        if len(data) != n:
+            self.close_connection = True
+            return self.send(400, error_body("bad_request"))
+        head = self.headers.get
+        return self.run_route(self.post_route(route), head("X-Clark-Project") or "", head("X-Clark-Section") or "", head("X-Clark-File-Name") or "", data)
 
     def authorised(self):
         """Whether an API call may go ahead: the right Host, no other site's Origin (csp_local's test, #65: a page on another
@@ -1774,6 +1803,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorised() or updating(self, route):
             return None
         self.follow_zone()
+        if route == DROP_ROUTE:
+            return self.drop_post(route)
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
         try:

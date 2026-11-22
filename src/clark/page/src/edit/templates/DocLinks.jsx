@@ -5,7 +5,9 @@ import { useState } from "preact/hooks";
 import { docItems, linkProblem } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
 import { StartPrompt } from "../StartPrompt.jsx";
-import { chooseFile } from "./fileRoute.js";
+import { chooseFile, dropFile } from "./fileRoute.js";
+import { classicTheme } from "../../components/Contents.jsx";
+import { DROP_OVER, DROP_LINE } from "../../logic/docLinksWords.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 
 export const MAX_ITEMS = 20;
@@ -16,6 +18,7 @@ export function Edit({ section }) {
   const [label, setLabel] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [over, setOver] = useState(false);
   const content = stored(section);
   const raw = Array.isArray(content.items) ? content.items : [];
   const shown = docItems(section);
@@ -31,6 +34,18 @@ export function Edit({ section }) {
     setProblem("");
     setBusy(true);
     try { await chooseFile(section.id); } finally { setBusy(false); }
+  };
+  // Row 1275 (Classic only): a file dragged from the computer onto the area. Only a drag that carries files is taken.
+  const hasFiles = (e) => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes("Files");
+  const onOver = (e) => { if (!hasFiles(e)) return; e.preventDefault(); setOver(true); };
+  const onDrop = async (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setOver(false);
+    if (full) { setProblem(FULL); return; }
+    setProblem("");
+    setBusy(true);
+    try { await dropFile(section.id, e.dataTransfer); } finally { setBusy(false); }
   };
   const addLink = async (e) => {
     e.preventDefault();
@@ -67,6 +82,12 @@ export function Edit({ section }) {
       <div class="tpl-actions">
         <button type="button" class="btn" data-add-file disabled={busy} onClick={addFile}>{busy ? "Choosing a file…" : "Add a file…"}</button>
       </div>
+      {classicTheme() ? (
+        <>
+          <div class={`tpl-drop${over ? " over" : ""}`} data-drop onDragEnter={onOver} onDragOver={onOver} onDragLeave={() => setOver(false)} onDrop={onDrop}>{DROP_OVER}</div>
+          <p class="quiet tpl-hint" data-drop-line>{DROP_LINE}</p>
+        </>
+      ) : null}
       <form class="tpl-form" onSubmit={addLink} data-add-link>
         <label for={`${fid}-href`}>Link</label>
         <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://"

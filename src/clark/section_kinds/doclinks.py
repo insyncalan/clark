@@ -39,6 +39,10 @@ TOO_MANY = f"A Documents and links section can hold {MAX_ITEMS} files and links 
 BAD_KIND = "Each entry must be a file or a link. Reload the page and try again."
 BAD_LABEL = f"Words for a file or link must be one line of {LABEL_MAX} characters at most. Shorten them and try again."
 BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again."
+# Row 1194 slice 1 (PR 1628) defines these three; row 1275 reuses them, so the lines are the same as there.
+ALLOWED_ENDINGS = ("pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt")
+UNRULED_BAD_TYPE = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
+BAD_TYPE = UNRULED_BAD_TYPE
 BAD_FILE = "That file entry can't be used. Add the file again with Add a file."
 
 
@@ -117,6 +121,15 @@ def file_name(value):
             or value.endswith(".") or value.startswith(".")):
         raise Bad(BAD_FILE)
     return value
+
+
+def allowed_type(name):
+    """`name` when its last ending (case does not matter) is one of ALLOWED_ENDINGS; else Bad. Only the ending is read, never the
+    content. Documents and links only: One document keeps its own rule."""
+    stem, dot, ending = str(name).rpartition(".")
+    if not dot or not stem or ending.lower() not in ALLOWED_ENDINGS:
+        raise Bad(BAD_TYPE)
+    return name
 
 
 def file_entry(value):
