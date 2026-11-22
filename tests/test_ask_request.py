@@ -234,6 +234,12 @@ class Ranking(unittest.TestCase):
         q = "abc-a-002 alpha beta gamma"        # lower case is not an ID shape: the 3-word passage (3) beats the one that holds the text (2)
         self.assertEqual(self.kept(["first", "alpha beta gamma", "abc-a-002 only"], q, 2), ([0, 1], 1))
 
+    def test_a_two_letter_word_in_the_question_is_not_a_word_to_rank_by(self):
+        self.assertEqual(self.kept(["first", "plain filler", "ab here"], "ab", 2), ([0, 1], 1))      # no word of 3 letters: the earlier passage stays
+
+    def test_the_defaults_keep_every_passage_that_fits_the_budget_and_the_ceiling(self):
+        self.assertEqual(ask.choose([("l%d" % i, "text") for i in range(3)], "text"), ([0, 1, 2], 0))
+
     def test_an_item_id_counts_as_exactly_five_words(self):
         q = "ABC-A-002 alpha bravo charlie delta echo foxtrot golf"        # the ID passage scores 5 + its 2 words (abc, 002) = 7
         six, seven = "alpha bravo charlie delta echo foxtrot", "alpha bravo charlie delta echo foxtrot golf"

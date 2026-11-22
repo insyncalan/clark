@@ -283,6 +283,24 @@ class NoteThroughTheRoute(route.Base):
         self.assertGreaterEqual(request_only, 1)                 # the request cut leaves something out on its own
         self.assertEqual(number(3), request_only + 3)            # and the project cut of 3 is added to it, not dropped and not alone
 
+    def test_the_notes_come_in_one_fixed_order_with_the_size_limit_line_after_the_report_line(self):
+        """The order of the reply notes: earlier messages, secret, report too long, size limit, counts, folders, hidden characters."""
+        with mock.patch.object(ask, "dropped_note", return_value="N1-DROPPED"), mock.patch.object(ask, "secret_note", return_value="N2-SECRET"), \
+                mock.patch.object(ask_service, "left_out_note", return_value="N3-REPORT"), mock.patch.object(ask, "left_out_text", side_effect=lambda c: "N4-SIZE-%d" % c), \
+                mock.patch.object(ask_data, "left_out_lines", return_value=["N5-COUNTS"]), mock.patch.object(ask_service, "folder_notes", return_value=["N6-FOLDER"]), \
+                mock.patch.object(ask_service, "hidden_notes", return_value=["N7-HIDDEN"]), mock.patch.object(ask, "MAX_PASSAGES", 1):
+            status, got = self.question("what is late?")
+        self.assertEqual(status, 200, got)
+        ours = [n for n in got["notes"] if n.startswith("N") and n[1:2].isdigit()]
+        self.assertEqual(len(ours), 7, got["notes"])
+        self.assertEqual([n[:2] for n in ours], ["N1", "N2", "N3", "N4", "N5", "N6", "N7"], got["notes"])
+        self.assertEqual([n for n in ours if n.startswith("N4")][0] != "N4-SIZE-0", True, ours)      # the request cut reached it as a count
+
+    def test_a_count_that_is_not_a_whole_number_of_one_or_more_gives_no_line(self):
+        for bad in (True, False, 0, -1, 1.0, "2", None):
+            self.assertEqual(ask.left_out_text(bad), "", repr(bad))
+            self.assertEqual(ask_service.left_out_note(bad), "", repr(bad))
+
     def test_the_reply_notes_say_1_passage_and_n_passages(self):
         counts = {}
         for keep in range(1, 12):
