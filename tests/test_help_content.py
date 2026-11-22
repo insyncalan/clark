@@ -429,7 +429,8 @@ class HelpMatchesThePage(unittest.TestCase):
 
     def test_a_use_case_names_the_ways_back_the_page_has(self):
         detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
-        self.assertIn("data-uc-back", detail)
+        self.assertIn("data-uc-back", (self.SRC / "components" / "UseCaseLayout.jsx").read_text(encoding="utf-8"))     # row 1479: the crumb is drawn by the shared layout
+        self.assertIn("Crumb", detail)
         self.assertIn('"Escape"', detail)
         find = next(t for t in STEPS if t["id"] == "find-a-use-case")
         line = find["s"][-1]
