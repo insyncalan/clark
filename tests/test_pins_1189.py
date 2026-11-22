@@ -46,6 +46,7 @@ class PublishedSections(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.use_older_default_sections()      # an existing report keeps its At a glance section (type glance), whose tiles these tests are about (row 1266)
         self.store = self.demo.store
 
     def set_hidden(self, typ, hidden):

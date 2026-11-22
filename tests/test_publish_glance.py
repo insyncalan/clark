@@ -215,6 +215,7 @@ class WholeFile(unittest.TestCase):
             with store.step("dashboard", USER) as st:
                 st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "due_date": "2026-10-10",
                                       "client_visible": 1, "source": "demo"})
+                st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": 990})   # a new project starts with the At a glance template, not this built-in; this report keeps the older one, which is what publishes the figures
                 st.seed_tiles("ABC")
                 st.update("glance_tiles", "ABC|overdue", {"hidden": 1})
                 st.update("glance_tiles", "ABC|decisions", {"hidden": 0, "outline": "R"})

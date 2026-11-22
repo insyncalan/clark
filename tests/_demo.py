@@ -37,6 +37,23 @@ class DemoStore:
     def last_step(self):
         return self.store.con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
 
+    def use_older_default_sections(self, project="ABC"):
+        """An existing report keeps the ten sections a project started with before row 1266 (Current state, At a glance, Use case summary,
+        Milestones, This week beside Next week, the three lists, Supporting documents); a new project starts with the eleven of
+        clark.default_sections. Tests that pin the older ten, in their ids ABC-S-001 to ABC-S-010 and their places, call this once, right after
+        the store is made: the rows of the new default are rewritten in place (past the writer, as an older report's rows are) and the eleventh goes."""
+        from clark.default_sections import DECISIONS_LIST, OPEN_ACTIONS_BODY, RISKS_AND_ISSUES_LIST
+        older = (("text", "Current state", "", 0), ("glance", "At a glance", "", 0), ("usecases", "Use case summary", "", 0),
+                 ("milestones", "Milestones", "", 0), ("text", "This week", "", 1), ("text", "Next week", "", 0),
+                 ("workitems", "Risks and issues", RISKS_AND_ISSUES_LIST, 0), ("workitems", "Open actions", OPEN_ACTIONS_BODY, 0),
+                 ("workitems", "Decisions", DECISIONS_LIST, 0), ("docs", "Supporting documents", "", 0))
+        con = self.store.con
+        for n, (kind, title, body, beside) in enumerate(older, 1):
+            con.execute("UPDATE report_sections SET type = ?, title = ?, body = ?, beside = ? WHERE project = ? AND id = ?",
+                        (kind, title, body, beside, project, f"{project}-S-{n:03d}"))
+        con.execute("DELETE FROM report_sections WHERE project = ? AND id = ?", (project, f"{project}-S-011"))
+        con.commit()
+
     def plant_builtin_sections(self, project="ABC"):
         """A new project's report has Work items lists where the built-in Actions, RAID and Decisions sections used to be (row 1193), and a list
         reaches only the rows it names. Tests that pin the built-in sections give the project section rows: the default sections but those lists,

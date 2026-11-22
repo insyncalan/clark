@@ -263,7 +263,7 @@ class CurrentStateInEdit(unittest.TestCase):
     def test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
-        builtin_sections(demo)
+        demo.use_older_default_sections()      # an existing report: the ten sections these rows pin (a new project starts with the eleven of row 1266)
         demo.update("report_sections", "ABC-S-001", {"body": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})   # item 1188: Current state is a text section, its words are its body
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)

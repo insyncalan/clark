@@ -85,6 +85,8 @@ class Plain(PublishedFile, glance.Setup):
     def every_kind(self):
         """Four glance tiles, a use case (planted by Setup), RAID cards at three and four across and a link preview."""
         self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the RAID cards here sit with the built-in sections' (row 1193)
+        self.store.con.execute("DELETE FROM report_sections WHERE project = 'ABC' AND type = 'glancetemplate' AND body LIKE '%health%' AND id != 'ABC-S-002'")      # the planted copy of the new default At a glance (health tile off, nothing else) is a second one the file holds and the page does not draw; the default one stays (row 1266)
+        self.store.con.commit()
         status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
         self.assertEqual(status, 200)
         with self.store.step("dashboard", USER) as st:

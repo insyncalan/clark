@@ -7,13 +7,14 @@ import unittest
 
 from _classic_page import classic
 from _demo import USER
+from clark.default_sections import CURRENT_STATE_PREFILL
 from test_report_editor import Base
 from test_server import chrome
 
 # type, title, the words Edit shows somewhere in the section (text, placeholder or a field's empty line)
 CASES = [
     ("text", "Fictional plain", ["Write here."]),
-    ("text", "Header", ["Say where the project stands."]),
+    ("text", "Header", [CURRENT_STATE_PREFILL]),      # row 1266: a text section titled Header carries the editor hint of the first default section (default_sections.SECTION_HINTS), which Edit draws in place of the older starting text of the Header and Text template
     ("textimage", "Fictional ti", ["Write here.", "Add a picture.", "Say what the picture shows."]),
     ("gallery", "Fictional gal", ["Add a picture.", None]),
     ("imagecap", "Fictional cap", ["Add a picture.", None]),
@@ -113,7 +114,7 @@ class Cards(Base):
                     p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
                     text = p.js(f"{SEEN}({json.dumps(sel)})")
                     self.assertFalse(p.js(f"!!document.querySelector({json.dumps(sel)} + ' [data-tpl-prompt]')"), f"{ref}: a prompt in Cards at {width}")
-                    for w in [w for w in ALL if w != "Add a picture."] + ["Add a step."]:          # "Add a picture." is also the old Image with caption hint
+                    for w in [w for w in ALL if w not in ("Add a picture.", CURRENT_STATE_PREFILL)] + ["Add a step."]:          # "Add a picture." is also the old Image with caption hint; the Header hint (item 1188, row 1266) is the editor hint Cards keeps
                         self.assertNotIn(w, text, f"{ref}: {w!r} in Cards at {width}")
                 p.view()
 

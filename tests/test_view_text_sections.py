@@ -26,7 +26,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 CURRENT = "<p>The pilot is on track and the data is clean.</p>"
 SUMMARY = "<p>Plain words about <strong>the month</strong>.</p><ul><li>One thing</li></ul>"
 HOSTILE = '<p>Next week we ship.</p><script>window.pwned = 1</script><img src="x" onerror="window.pwned = 2"><p onclick="window.pwned = 3">Click</p>'
-SUMMARY_ID = "ABC-S-011"      # row 1266: the default list has no Summary now; an older project's own Summary is added below as a stand-in text section
+SUMMARY_ID = "ABC-S-012"      # row 1266: the default list has no Summary now; an older project's own Summary is added below as a stand-in text section (the 12th id: the eleventh of the new default was logged before the report was made the older ten)
 SECTIONS = {"ABC-S-001": "current", SUMMARY_ID: "summary", "ABC-S-005": "this week", "ABC-S-006": "next week"}
 
 LUMA = """(function(){
@@ -47,6 +47,7 @@ class TheBrowser(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.use_older_default_sections()      # an existing report: the ten sections these rows pin (a new project starts with the eleven of row 1266)
         store = self.demo.store
         with store.step("dashboard", USER) as st:
             st.update("report_sections", "ABC-S-001", {"body": CURRENT})      # item 1188: the first section is a text section, its body is the text

@@ -84,6 +84,8 @@ class Data(Api):
 
     def setUp(self):
         super().setUp()
+        self.s.con.execute("UPDATE report_sections SET type = 'glance', body = '' WHERE project = 'ABC' AND type = 'glancetemplate' AND title = 'At a glance'")      # row 1266: a new project starts with the At a glance template; an existing report keeps the At a glance section whose counts this file publishes
+        self.s.con.commit()
         plant(self)
 
     def build(self, with_lists, built_in=True):

@@ -39,6 +39,15 @@ REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:ale
            "http://10.0.0.1/x", "http://0.0.0.0/x")
 
 
+def add_supporting_documents_section(store):
+    """A new project starts with the Documents (doclinks) section, not the Supporting documents (docs) one this file is about; an existing
+    report keeps its docs section, so the test gives this report one, after the others."""
+    con = sqlite3.connect(str(store.path))
+    con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-900', 'docs', 'Supporting documents', 9000000)")
+    con.commit()
+    con.close()
+
+
 class Published(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -46,6 +55,7 @@ class Published(unittest.TestCase):
         self.s = self.demo.store
         self.change = changes.make_change(self.s.path, [], USER)
         self.n = 0
+        add_supporting_documents_section(self.s)
 
     def plant(self, title, url, kind="Report", date="2030-01-02", archived=0, project="ABC"):
         """A document written past the writer: none of the store's rules are asked."""

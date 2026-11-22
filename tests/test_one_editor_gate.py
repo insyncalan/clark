@@ -166,6 +166,7 @@ class PageGate(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.use_older_default_sections()      # an existing report: the ten sections these rows pin (a new project starts with the eleven of row 1266)
         self.store = self.demo.store
         self.real = changes.make_change(self.store.path, [], USER)
         self.sent = []

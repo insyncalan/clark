@@ -38,6 +38,7 @@ class Setup:
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.use_older_default_sections()      # an existing report: Current state is the first section and Supporting documents publishes the documents (a new project starts with the eleven of row 1266)
         self.store = self.demo.store
         self.tmp = Path(tempfile.mkdtemp(prefix="clark-held-back-")).resolve()
         self.addCleanup(shutil.rmtree, self.tmp, True)

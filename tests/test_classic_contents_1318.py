@@ -298,6 +298,7 @@ class PublishedFile(unittest.TestCase):
         from test_server import wait
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.use_older_default_sections()      # an existing report's ten sections, the ids below (a new project starts with the eleven of row 1266)
         store = demo.store
         change = changes.make_change(store.path, [], USER)
         for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown plan"})):

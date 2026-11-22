@@ -13,7 +13,7 @@ from pathlib import Path
 
 from _demo import USER
 from clark import publish
-from test_documents_published import check_in_file
+from test_documents_published import add_supporting_documents_section, check_in_file
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome
 
@@ -21,6 +21,10 @@ WIDTHS = ((1400, False), (900, True), (900, False), (1400, True))
 
 
 class Page(PageBase):
+    def setUp(self):
+        super().setUp()
+        add_supporting_documents_section(self.store)      # an existing report keeps its Supporting documents section; a new one starts with Documents
+
     def docs_section(self):
         return next(r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "docs")
 

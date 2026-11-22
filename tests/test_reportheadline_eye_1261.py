@@ -326,7 +326,7 @@ class Eye(Base):
         req = lambda body: {"project": "ABC", "kind": "report_sections", "op": "new", "place": "report", "values": {"type": "reportheadline", "title": "Headline", "body": body}}
         status, got = change(req('{"pill":false,"v":1}'))
         self.assertEqual((status, got.get("message")), (200, None), got)
-        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline"]
+        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline" and r["body"]]      # a new project's own Headline (row 1266) has no body, so it is not the one made here
         self.assertEqual([json.loads(r["body"]) for r in made], [{"pill": False, "v": 1}], "stored with the pill off")
         for other in ('{"v":1,"headline":"x"}', '{"pill":true,"v":1}', "x"):
             status, got = change(req(other))

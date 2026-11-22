@@ -500,7 +500,9 @@ class AcceptedByChanges(InBrowser):
     (and a flag of 1 on a section that is not text) is what the design note's guarded changes add, so their tests come with them."""
 
     def test_a_move_without_flags_is_accepted_and_gives_the_order_the_logic_said(self):
-        with DemoStore() as store:
+        demo = DemoStore()
+        demo.use_older_default_sections()      # an existing report: the ten sections these rows pin (a new project starts with the eleven of row 1266)
+        with demo as store:
             change = changes.make_change(store.path, [], USER)
             for who, target in (("ABC-S-009", {"before": "ABC-S-003"}), ("ABC-S-001", {"before": None}), ("ABC-S-004", {"before": "ABC-S-010"})):
                 rows = order.in_order(store.read("report_sections", "ABC"))

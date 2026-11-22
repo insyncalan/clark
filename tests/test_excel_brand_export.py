@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_excel_brand_export
 Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from branding.
 """
 import shutil
+import sqlite3
 import tempfile
 import unittest
 import zipfile
@@ -94,6 +95,10 @@ class WithABrand(Rig):
         return wb, cells
 
     def test_brand_one_like(self):
+        con = sqlite3.connect(str(self.demo.store.path))      # a new project starts with the At a glance template, which the Cover does not draw as tiles; an existing report keeps the At a glance section, whose tile bars this checks
+        con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-900', 'glance', 'At a glance', 9000000)")
+        con.commit()
+        con.close()
         wb, cells = self.check(BRAND_ONE, "0B2545", "0A7C74", "Segoe UI")
         bars = {c[3] for (sheet, _), c in cells.items() if sheet == "Cover" and c[3]}
         self.assertTrue(bars)
