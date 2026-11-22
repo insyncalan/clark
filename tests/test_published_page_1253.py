@@ -11,11 +11,12 @@ PAGE_SRC = SRC / "clark" / "page" / "src"
 JSX = (PAGE_SRC / "edit" / "PublishedPage.jsx").read_text(encoding="utf-8")
 LIST = (PAGE_SRC / "edit" / "PublishedReports.jsx").read_text(encoding="utf-8")
 CSS = (PAGE_SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+RULES2 = (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8")      # row 1253: the flat look is the Classic layer; the Cards page keeps edit.css as it was
 WORDS = (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
 
 
 def rule(sel):
-    m = re.search(r"^" + re.escape(sel) + r" \{([^}]*)\}", CSS, re.M)
+    m = re.search(r"^" + re.escape(sel) + r" \{([^}]*)\}", RULES2, re.M) or re.search(r"^" + re.escape(sel) + r" \{([^}]*)\}", CSS, re.M)
     assert m, sel
     return m.group(1)
 
@@ -44,6 +45,11 @@ class PublishedPage1253(unittest.TestCase):
         self.assertIn("margin: 0;", r)                   # no gap between sections
         self.assertIn("padding: var(--space-4) 0;", r)   # room above and below only, none at the sides
         self.assertIn("var(--grey-200)", rule(".pp-where"))
+
+    def test_the_flat_sections_are_the_classic_layer_only_and_the_cards_page_keeps_its_cards(self):
+        m = re.search(r"^\.pp-block \{([^}]*)\}", CSS, re.M)
+        self.assertIn("radius-lg", m.group(1), "edit.css keeps the bordered card (Cards)")
+        self.assertNotIn(".pp-block {", CSS.split(m.group(0))[1], "no second .pp-block rule in edit.css")
 
     def test_the_table_scrolls_inside_its_own_box(self):
         self.assertIn("overflow-x: auto", rule(".pp-earlier"))

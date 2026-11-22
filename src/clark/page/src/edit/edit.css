@@ -1271,8 +1271,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 .pp-where dd { margin: 0; overflow-wrap: anywhere; }
 .pp-where p { margin: var(--space-2) 0 0; }
 .pp-kicker { margin: 0 0 var(--space-2); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
-.pp-block { margin: 0; padding: var(--space-4) 0; border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; background: transparent; }      /* row 1253: a flat section divided by a line, as under the Dashboard header, not a bordered card */
-.pp-earlier { overflow-x: auto; }      /* 900: the table scrolls inside its own box */
+.pp-block { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
 .pp-latest h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); color: var(--heading); }
 .pp-latest p { margin: 0 0 var(--space-2); }
 .pp-latest .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
