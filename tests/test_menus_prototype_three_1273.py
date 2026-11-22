@@ -93,7 +93,7 @@ class ThreeMenus(unittest.TestCase):
         """Every selector of the Row 1273 block names Group by or Move to, and none names the Add menu (row 1462)."""
         text = "".join((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / f).read_text(encoding="utf-8") for f in ("rules.css", "rules-2.css"))
         start = text.index("/* Row 1273")
-        block = text[start:text.index("/* Row", start + 2)]  # the Row 1273 comment and the rules after it, up to the next Row comment
+        block = text[start:text.index("\n/*", start + 2)]  # the Row 1273 comment and the rules after it, up to the next comment line
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:

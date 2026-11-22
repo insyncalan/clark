@@ -58,7 +58,7 @@ MEASURE = r"""(root => {
    const c = cs(b);
    return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, ibl: Math.round((ir.left - b.getBoundingClientRect().left) * 10) / 10, tx: after.length ? Math.round((Math.min(...after) - b.getBoundingClientRect().left) * 10) / 10 : null, ckl: ckr && ckr.width > 0 ? Math.round((ckr.left - b.getBoundingClientRect().left) * 10) / 10 : null, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + parseFloat(c.paddingLeft))) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
- const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
+ const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing, fs: cs(h).fontSize, fw: cs(h).fontWeight}));
  const bc = cs(box);
  return {w: Math.round(br.width), cls: box.className, rad: bc.borderTopLeftRadius, pad: bc.paddingTop + ' ' + bc.paddingRight + ' ' + bc.paddingBottom + ' ' + bc.paddingLeft, bord: bc.borderTopWidth + ' ' + bc.borderTopStyle + ' ' + bc.borderTopColor, line: cs(document.documentElement).getPropertyValue('--line').trim(), rows, heads}; })"""
 
@@ -104,7 +104,10 @@ def check(test, name, look, m):
     for h in m["heads"]:
         caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
         test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")
-        if not caps:
+        if caps:      # row 1273, computed Classic style: the prototype .mh, caption size, .08em tracking, regular weight
+            test.assertEqual(h["fw"], "400", f"{where}: the head {h['t']!r} weight is {h['fw']}, the prototype .mh sets none")
+            test.assertAlmostEqual(float(h["ls"][:-2]), 0.08 * float(h["fs"][:-2]), delta=0.05, msg=f"{where}: the head {h['t']!r} tracking is {h['ls']} at {h['fs']}, .08em")
+        else:
             test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
 
 
