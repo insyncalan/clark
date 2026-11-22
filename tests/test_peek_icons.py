@@ -81,6 +81,11 @@ class ToneRules(unittest.TestCase):
         out = self.run_js('console.log(JSON.stringify(["Urgent", "High", "Medium", "Low", null, "", "Odd"].map(I.priorityTone)))')
         self.assertEqual(out, ["r", "a", "b", "n", "n", "n", "n"])
 
+    def test_the_plain_priority_row_a_risk_medium_is_amber_and_an_action_medium_is_grey(self):
+        """Row 1390 (ticket lines 17 and 38): Risks and Issues Urgent/High/Medium/Low = maroon/red/amber/green; Actions Medium and Low stay grey."""
+        out = self.run_js('console.log(JSON.stringify([["risk", "Medium"], ["risk", "Low"], ["issue", "Medium"], ["action", "Medium"], ["action", "Low"], ["decision", "Medium"]].map(([k, p]) => I.priorityToneFor(p, true, k))))')
+        self.assertEqual(out, ["a", "g", "a", "n", "n", "n"])
+
     def test_the_maroon_tone_has_its_own_class_and_the_default_follows_the_page_theme_element(self):
         out = self.run_js('const on = (has) => { globalThis.document = { getElementById: (id) => (has && id === "theme" ? {} : null) }; return I.priorityToneFor("Urgent"); }; '
                           'console.log(JSON.stringify([I.iconClass("m"), I.iconClass("x"), on(true), on(false)]))')
@@ -124,7 +129,7 @@ class PeekItemChipsClassicPriority(unittest.TestCase):
         self.assertIn("<Toned icon=\"bars\" tone={priorityToneFor(row.priority, undefined, row.kind)}>", self.line_with('name="Rating"'))
 
     def test_the_decision_and_plain_priority_row_icon_uses_the_classic_gated_tone(self):
-        self.assertIn("tone={priorityToneFor(row.kind === \"decision\" ? row.peek_priority : row.priority)}", self.line_with('name="Priority"><Toned'))
+        self.assertIn("tone={priorityToneFor(row.kind === \"decision\" ? row.peek_priority : row.priority, undefined, row.kind)}", self.line_with('name="Priority"><Toned'))
 
     def test_no_ungated_priority_tone_call_is_left_in_the_page_components(self):
         for path in sorted((SRC).rglob("*.js*")):

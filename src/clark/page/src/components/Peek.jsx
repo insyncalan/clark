@@ -116,7 +116,7 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
       {row.kind === "issue" ? <Row key_="priority" ref_={row.id} name="Rating"><Toned icon="bars" tone={priorityToneFor(row.priority, undefined, row.kind)}>{colourOf(row.priority).word}{row.priority ? ` · ${row.priority}` : ""}</Toned></Row>      /* row 1183: an issue's Priority row is its Rating: the colour word and the level word */
-        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityToneFor(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
+        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityToneFor(row.kind === "decision" ? row.peek_priority : row.priority, undefined, row.kind)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating>{row.kind === "issue" ? ` ${kept} kept` : ` · ${kept}`}</span> : null}      {/* row 1183: a closed issue says "Red kept" under its Closed pill (the Risk ticket's sub-line) */}
