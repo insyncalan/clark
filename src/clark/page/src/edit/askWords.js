@@ -51,6 +51,7 @@ export const HISTORY_DELETE = (title) => `Remove the chat: ${title}`;
 export const DELETE = "Remove";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
+export const STOPPED_LINE = "Stopped. Nothing was changed.";      // row 1293 line 7: the server's own stopped line (ask.py STOPPED), said by the page when an answer still came after Stop
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
