@@ -5,6 +5,7 @@ import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf
 import { RichField } from "../RichField.jsx";
 import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
+import { Edit as SideEdit } from "./TextImageSide.jsx";
 
 // The words as the rich editor is given them (row 1005): the stored `html`, or the old lines (plain text, escaped, one paragraph each).
 // Never the raw stored text: RichField draws cleanHtml of this.
@@ -16,6 +17,7 @@ const WORDS = { added: "Picture added.", removed: "Picture taken out." };
 
 export function Edit({ section }) {
   const v = stored(section) || {};
+  if (v.v === 2) return <SideEdit section={section} />;      // row 1232: Text and Image Side by Side (a body of version 2); an older body keeps this Edit part
   const image = picturesOf(v).image || "";
   const left = v.side === "left";
   const empty = !image && !(Array.isArray(v.words) && v.words.length) && !v.html;
