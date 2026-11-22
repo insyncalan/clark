@@ -1,3 +1,9 @@
+/* Row 1232 (Classic only; Cards untouched): the numbers of the approved points AP1, AP2, AP3, AP7 and AP9 at 1400, from the mock-up; each rule is scoped under .tpl-sbs-*. */
+.tpl-sbs-bar, .tpl-sbs-grp { gap: 2px; }
+.tpl-sbs-bar .fi-btn { color: rgb(58, 74, 107); }
+.tpl-sbs-edit input[id$="-heading"] { padding: 7px 10px; }
+.tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
