@@ -3,22 +3,23 @@
 Run: python3 dev/run_tests.py test_labels_cell_1222
 """
 import json
+import sys
 import unittest
 
 from clark.store import open_store
 from test_inline_edits import need_chrome, tearDownModule  # noqa: F401
 from test_server import chrome, wait
-from test_table_columns import Columns, TABLES
+from test_table_columns import Columns as _Columns, TABLES
 
 
 class LabelsCell(unittest.TestCase):
-    setUp = Columns.setUp
-    visit = Columns.visit
-    open_table = Columns.open_table
-    right_click = Columns.right_click
-    menu = Columns.menu
-    heads = Columns.heads
-    pick = Columns.pick
+    setUp = _Columns.setUp
+    visit = _Columns.visit
+    open_table = _Columns.open_table
+    right_click = _Columns.right_click
+    menu = _Columns.menu
+    heads = _Columns.heads
+    pick = _Columns.pick
 
     def read(self, code, archived="hide"):
         st = open_store(self.path, onedrive_roots=[])
@@ -43,6 +44,22 @@ class LabelsCell(unittest.TestCase):
             self.assertEqual(js(f"(document.querySelector({json.dumps(sel)}) || {{}}).textContent"), "Sensitive, Board")
             others = js("[...document.querySelectorAll('#work tbody tr[data-id] td[data-col=labels]')].map((e) => e.textContent.trim())")
             self.assertEqual(sorted(set(others)), ["Sensitive, Board", "—"])
+
+
+# The class is borrowed from, not run again here: left as a module name, unittest would collect all of its tests into this file as well.
+del _Columns
+
+
+class OwnTestsOnly(unittest.TestCase):
+    def test_this_file_collects_only_its_own_test_classes(self):
+        """Importing the Columns class by name made unittest run all of its tests here as well (30 more browser launches; the macOS shard timed out)."""
+        found = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
+        classes = set()
+        todo = [found]
+        while todo:
+            for t in todo.pop():
+                (todo.append(t) if isinstance(t, unittest.TestSuite) else classes.add(type(t).__name__))
+        self.assertEqual(classes, {"LabelsCell", "OwnTestsOnly"})
 
 
 if __name__ == "__main__":
