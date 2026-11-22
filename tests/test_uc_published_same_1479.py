@@ -111,7 +111,7 @@ class OneComponent(unittest.TestCase):
             self.assertEqual(code.count(f"{prefix}-card"), 1 if prefix == "ucd" else 0, name)
             if prefix == "ucf":
                 # AP2 and AP4 by source: the file's page gives the layout no slot that draws a control, a hint, an add row, a note or the History card, and writes no control of its own
-                for slot in ("acts=", "top=", "stdHint=", "addWork=", "addMs=", "msNote=", "after="):
+                for slot in ("acts=", "top=", "stdHint=", "addWork=", "addMilestoneRow=", "msNote=", "after="):
                     self.assertNotIn(slot, code, f"{name} gives the layout a {slot} slot: a control or a History card")
                 for tag in ("<button", "<input", "<textarea", "<select", "contenteditable", "History"):
                     self.assertNotIn(tag, code, f"{name} writes {tag}")

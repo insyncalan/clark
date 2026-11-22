@@ -36,7 +36,7 @@ export function ucFor(d, key) {
 
 // How a reference is written where a person reads it, short form then the number: the one place that does, so no other file spells the short form.
 export const REF_PREFIX = "UC";
-const prefixed = (ref) => (new RegExp("^\\s*" + REF_PREFIX + "\\b", "i").test(ref) ? String(ref).trim() : REF_PREFIX + " " + ref);   // row 1479: a reference that already starts with UC is not given a second one ("UC UC 1.1")
+const prefixed = (ref) => (new RegExp("^\\s*" + REF_PREFIX + "\\b", "i").test(ref) ? String(ref).trim() : REF_PREFIX + " " + ref);   // row 1479: a reference that already starts with UC is not given a second prefix (the prefix is never doubled)
 export const refOf = (u) => (u.ref ? prefixed(u.ref) : "");
 /** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
 export function refText(ref) {
