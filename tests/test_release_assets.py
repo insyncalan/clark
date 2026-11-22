@@ -222,6 +222,8 @@ class Check(unittest.TestCase):
         step = [l for l in text.splitlines() if l.startswith("20. ")][0]
         for word in ("Pre-release", "(Beta)", "SHA-256", "before the release was published"):
             self.assertIn(word, step)
+        for word in ("Pre-release is unticked", "no Beta line", "before 1.2.0"):   # the stable wording of steps 8 and 19
+            self.assertIn(word, step)
 
     def test_the_checklist_says_the_sig_is_required_from_1_3_4_and_the_check_looks_for_it(self):
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
