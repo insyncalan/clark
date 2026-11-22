@@ -10,7 +10,7 @@ from _paths import SRC
 
 PAGE = SRC / "clark" / "page"
 EDIT = (PAGE / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
-RULES = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 
 
 class PressGlow(unittest.TestCase):

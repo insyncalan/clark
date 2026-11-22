@@ -103,7 +103,7 @@ class Pictures(Base):
             c = self.counts()
             self.assertEqual(sum(c[k] for k in ask_index.NAMES), 5, c)
             per = ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]
-            self.assertTrue(per["line"].startswith("Indexed"))
+            self.assertTrue(per["line"].startswith("100% indexed"))
 
     def test_the_left_out_list_names_the_picture_with_the_approved_reason(self):
         self.put("a.png", b"IMG|x", binary=True)

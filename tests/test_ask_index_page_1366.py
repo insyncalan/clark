@@ -86,16 +86,16 @@ class Page(Fixture):
         with chrome() as cdp:
             js = self.show(cdp, "project")
             self.until(js, "document.querySelectorAll('.ask-folder-line').length === 2", "two lines")
-            self.until(js, "[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('Indexed'))", "indexed")
-            self.assertEqual(js("document.querySelector('#ask-folders-shared .ask-folder-line').innerText"), "Indexed 1 of 1 file.")
-            self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), "Indexed 1 of 2 files. 1 is of a type clark can't read yet.")
+            self.until(js, "[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('100% indexed'))", "indexed")
+            self.assertEqual(js("document.querySelector('#ask-folders-shared .ask-folder-line').innerText"), "100% indexed")
+            self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), "100% indexed. 1 file could not be read (why)")
             muted = js("getComputedStyle(document.querySelector('.ask-folders')).color && (() => { const p = document.createElement('p'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
                 for q in ("#ask-folders-shared .ask-folder-line", "#ask-folders .ask-folder-line"):
                     look = js(self.LOOK % q)
-                    self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", "status", "polite", True), (w, q, look))
+                    self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, q, look))
                     self.assertEqual(look["color"], muted, (w, q))
 
     def test_a_picture_the_computer_cannot_read_has_its_line_and_reason_at_both_widths(self):
@@ -103,10 +103,10 @@ class Page(Fixture):
         (self.own / "q.jpg").write_bytes(b"x")
         self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
         self.assertTrue(self.ix.wait_idle(10))
-        line = "Indexed 1 of 4 files. 1 is of a type clark can't read yet. 2 are pictures and this computer cannot read them."
+        line = "100% indexed. 3 files could not be read (why)"
         with chrome() as cdp:
             js = self.show(cdp, "project")
-            self.until(js, "!!document.querySelector('#ask-folders .ask-folder-line') && document.querySelector('#ask-folders .ask-folder-line').innerText.startsWith('Indexed')", "indexed")
+            self.until(js, "!!document.querySelector('#ask-folders .ask-folder-line') && document.querySelector('#ask-folders .ask-folder-line').innerText.startsWith('100% indexed')", "indexed")
             self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), line)
             js("document.querySelector('#ask-folders .ask-left-btn').click()")
             for w in WIDTHS:
@@ -117,22 +117,50 @@ class Page(Fixture):
                 self.assertIn("q.jpg is a picture and this computer cannot read pictures", rows, w)
                 self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), line)
 
+    def test_the_live_region_says_the_start_then_100_percent_indexed_at_the_default_width(self):
+        """No window resize here, so this runs while the 900 px cases are paused: the region speaks at the start and when done."""
+        self.gate.clear()
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            LIVE = "document.querySelector('#ask-all-folder-list .ask-folder-live').textContent"
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
+            self.until(js, LIVE + " === 'Indexing started'", "said at the start")
+            self.gate.set()
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed")
+            self.until(js, LIVE + " === '100% indexed'", "said when done")
+
     def test_the_line_in_the_all_projects_card_reads_reading_then_indexed_and_goes_with_its_folder(self):
         self.gate.clear()
         ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.until(js, "!!document.querySelector('#ask-all-folder-list .ask-folder-line')", "list")
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Reading 0 of 1 file.'", "reading")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
+            LIVE = "(() => { const e = document.querySelector('#ask-all-folder-list .ask-folder-live'); return [e.getAttribute('role'), e.getAttribute('aria-live'), e.textContent]; })()"
+            self.assertEqual(js(LIVE), ["status", "polite", "Indexing started"])      # row 1371: the line is quiet; this region speaks
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 look = js(self.LOOK % "#ask-all-folder-list .ask-folder-line")
-                self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", "status", "polite", True), (w, look))
+                self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, look))
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed 1 of 1 file.'", "indexed (asked again within 2 s polls)")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed (asked again within 2 s polls)")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-live').textContent === '100% indexed'", "said at 100%")
             js("document.querySelector('[data-ask-all-remove]').click()")
             self.until(js, "!!document.querySelector('#ask-all-folders-none')", "removed with its line")
             self.assertFalse(js("!!document.querySelector('#ask-all-folders .ask-folder-line')"))
+
+
+class Wired(unittest.TestCase):
+    """Row 1371: the page draws the line with indexNote.js's words (its announce and its "(why)"), and the line itself is not a live region."""
+    SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text(encoding="utf-8")
+
+    def test_the_card_uses_the_note_words_and_a_quiet_line(self):
+        self.assertIn('import { announce, LINKS } from "./indexNote.js";', self.SRC)
+        self.assertIn(">{LINKS.why}</button>", self.SRC)
+        self.assertIn('<div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div>', self.SRC)
+        self.assertIn('<div class="ask-folder-line">{line ? line.line : ""}', self.SRC)
+        self.assertNotIn("Show the files left out", self.SRC)
 
 
 class CardsPage(Fixture):

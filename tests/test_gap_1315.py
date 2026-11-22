@@ -9,7 +9,7 @@ from _paths import ROOT
 from test_server import chrome
 from test_ms_timeline_classic_1315 import Base
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 M = """(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(), cs = (s, p) => getComputedStyle(document.querySelector(s))[p];
   const sc = ['week', 'month', 'quarter'].map((k) => { const s = `[data-scale-b="${k}"]`; return [Math.round(r(s).height), cs(s, 'fontWeight')]; });
   return { sw: [Math.round(r('.msv-sw').left), Math.round(r('.msv-sw').top)], h1: Math.round(r('#milestones h1').left), h1Bottom: Math.round(r('#milestones h1').bottom),

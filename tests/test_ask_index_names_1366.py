@@ -527,7 +527,7 @@ class NoFolders(Base):
             self.assertEqual(ask_index.status(self.data, "P1")["indexed"], 0)
             got = ask_index.folder_status(self.data, "P1", [a, b])
         self.assertEqual({k: v["state"] for k, v in got.items()}, {str(a): "done", str(b): "done"})
-        self.assertEqual(got[str(a)]["line"], "Indexed 0 of 1 file. 1 looks like a password or a key and was left out.")
+        self.assertEqual(got[str(a)]["line"], "No files to index")
         meta = dict(sqlite3.connect(ix.path_for(self.data, "P1")).execute("SELECT k, v FROM meta").fetchall())
         self.assertEqual(sorted(meta), ["complete", "counts", "folders", "listed", "screen"])
         self.assertEqual(meta["complete"], "1")
@@ -579,7 +579,7 @@ class Ledger(Base):
         self.assertEqual(ask_index.status(self.data, "P1")["indexed"], 1)
         self.assertEqual(len(self.found("zqlive")), 1)
         self.assertEqual(self.found("zqgone"), [])
-        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "Indexed 1 of 2 files. 1 looks like a password or a key and was left out.")
+        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "100% indexed. 1 file could not be read")
         with mock.patch.object(ask_index.ask_passages, "_label", return_value=None):
             ix.refresh(self.data, "P1", [self.box])
         self.assertEqual(ask_index.status(self.data, "P1")["safety"], 2)
@@ -594,7 +594,7 @@ class Ledger(Base):
             return ask_index.reach.Listing(got.files + got.files, got.skipped, got.stopped)
         with mock.patch.object(ask_index.reach, "readable_files", listing):
             ix.refresh(self.data, "P1", [self.box])
-        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "Indexed 2 of 2 files.")
+        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "100% indexed")
         self.assertEqual(len(self.found("zqtwice")), 1)
 
     def test_a_file_that_is_refused_on_read_is_safety_and_the_limit_per_type_is_the_one_of_its_reader(self):
@@ -633,7 +633,7 @@ class Ledger(Base):
         with mock.patch.object(ask_index.ask_picture, "reader", return_value=None):
             ix.refresh(self.data, "P1", [self.box])
             line = ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"]
-            self.assertEqual(line, "Indexed 0 of 1 file. 1 is a picture and this computer cannot read pictures.")
+            self.assertEqual(line, "No files to index")
             for low, state, expected in (("a.txt", "picture", False), ("a.txt", "indexed", False), ("a.png", "picture", False), ("a.png", "indexed", True)):
                 self.assertIs(bool(ask_index._picture_reader_changed(low, state)), expected, (low, state))
         with mock.patch.object(ask_index.ask_picture, "reader", return_value=lambda raw: ""):
@@ -704,9 +704,9 @@ class Reading(Base):
     def test_status_of_a_folder_with_no_run_and_one_with_a_run(self):
         self.put("a.txt", "zqfs words")
         ix.refresh(self.data, "P1", [self.box])
-        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)], {"state": "done", "line": "Indexed 1 of 1 file."})
+        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)], {"state": "done", "line": "100% indexed"})
         got = ask_index.folder_status(self.data, "P1", [self.box], live={str(self.box): (1, 4)})
-        self.assertEqual(got[str(self.box)], {"state": "reading", "line": "Reading 1 of 4 files."})
+        self.assertEqual(got[str(self.box)], {"state": "reading", "line": "Indexing… 25%"})
         got = ask_index.folder_status(self.data, "P1", [self.box], live={})
         self.assertEqual(got[str(self.box)]["state"], "done")
 
@@ -877,7 +877,7 @@ class More(Base):
         c = ask_index.status(self.data, "P1")
         self.assertEqual((c["online_only"], c["safety"], c["indexed"]), (2, 1, 1))
         self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"],
-                         "Indexed 1 of 4 files. 2 are online only and were not opened. 1 looks like a password or a key and was left out.")
+                         "100% indexed. 3 files could not be read")
 
     def test_a_secret_file_listed_twice_is_safety_both_times(self):
         self.put("k.txt", FAKE_KEY)
@@ -888,7 +888,7 @@ class More(Base):
             return ask_index.reach.Listing(got.files + got.files, got.skipped, got.stopped)
         with mock.patch.object(ask_index.reach, "readable_files", listing):
             ix.refresh(self.data, "P1", [self.box])
-        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "Indexed 0 of 2 files. 2 look like a password or a key and were left out.")
+        self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]["line"], "No files to index")
 
     def test_a_pdf_that_cannot_be_read_is_too_long_only_for_its_size_or_pages(self):
         self.put("a.pdf", "x")
