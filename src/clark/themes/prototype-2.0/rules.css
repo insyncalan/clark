@@ -875,7 +875,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .tpl-sbs-edit-words .rt-host,.tpl-sbs-edit-words .ProseMirror{min-height:150px}
 .tpl-sbs-edit-words .ProseMirror{font-size:15px}
 .tpl-sbs-red{margin:0}
-/* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
+/* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing rules are in rules-2.css (item 1500: they apply from 900 px). */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
   .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--tile-on-bg); color: var(--brand-blue); }
@@ -883,11 +883,6 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
   .set-chip[aria-current]::before { top: 7px; bottom: 7px; }
 }
 @media (min-width: 900px) and (prefers-color-scheme: dark) { :root[data-theme=auto] .set-chip[aria-current], :root[data-theme=auto] .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); } }
-@media (min-width: 1100px) {
-  .set-group { margin-top: 12px; }
-  .set-group:first-child { margin-top: 0; }
-  .set-nav .plain { gap: 4px; }
-}
 /* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8; on hover it lifts 1px with the glow like the other primary buttons (its fill and its focus ring do not change). Dark keeps the Theme's own tokens for the colours. */
 .projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid var(--grey-200); }
 .projects table.proj-table :is(th, td), .projects table.proj-table :is(th, td):first-child { padding: 8px 10px 8px 0; }
