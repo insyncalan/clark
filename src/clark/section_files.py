@@ -37,7 +37,7 @@ from clark.section_kinds.doclinks import FILES_FOLDER, BAD_TYPE, allowed_type, f
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 SECTION_ID = re.compile(r"[A-Za-z0-9|_-]{1,64}")
 KEYS = ("project", "section")
-MAX_FILE_BYTES = 25 * 1024 * 1024       # row 1275 (Alan 20-11): 25 MB for the file window and the drop alike; the copy is read into memory once
+MAX_FILE_BYTES = 25 * 1024 * 1024       # row 1275: 25 MB for the file window and the drop alike; the copy is read into memory once
 READ_LIMIT = 100 * 1024 * 1024          # what reading a listed file back may hold: files added before the 25 MB rule stay readable
 NAME_CHARS = 120                        # a dropped name, at most (row 1275)
 TEXT_HEAD = 8 * 1024                    # a TXT file is judged by its first 8 KB (no NUL byte)
@@ -60,7 +60,7 @@ MESSAGES = {
     "not_a_file": "That isn't a file clark can copy. Choose an ordinary file, then try again.",
     "never_place": "That file is in a place clark never copies from, such as a folder of passwords or of the system. Choose "
                    "another file.",
-    "too_big": f"That file is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB, so it was not added.",       # approved Jarvis 21-11 00:13 (row 1275)
+    "too_big": f"That file is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB, so it was not added.",       # approved words (row 1275)
     "bad_type": "{name}: " + BAD_TYPE,                                      # approved (NEW-WORDS 1015): "{file name}: That type of file can't be added. ..."
     "drop_unread": "That file could not be read from the drop. Reload the page and try again.",      # approved (NEW-WORDS 1291)
     "drop_wrong_section": "Files can be dropped on a Documents and links section only. Use Add a file there.",
