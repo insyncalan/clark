@@ -32,7 +32,7 @@ def expect(shown, summary=(), right=()):
     return out
 
 
-SUMMARY = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'current' || (e.dataset.type === 'text' && e.querySelector('.sec-h').textContent.trim() === 'Current state') ? [i] : [])"
+SUMMARY = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'current' || (e.dataset.type === 'text' && ['Header', 'Current state'].includes(e.querySelector('.sec-h').textContent.trim())) ? [i] : [])"
 RIGHT = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.classList.contains('slot-right') ? [i] : [])"
 
 
