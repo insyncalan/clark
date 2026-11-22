@@ -6,9 +6,10 @@ Quick tier: no browser. askPills.js is bundled by the pinned esbuild and run in 
 import json
 import unittest
 
-from test_ask_pills_killers_1332 import L, one, probe, reply, user
+from _paths import SRC
+from test_ask_pills_killers_1332 import EDIT, L, one, probe, reply, user
 
-DUE, URGENCY, REPORT, OWNERS, LATE = "Change the due date", "Raise the urgency", "Add to the weekly report", "Who owns these?", "Why are these late?"
+DUE, URGENCY, REPORT, OWNERS, LATE = "Change the due date", "Raise the urgency", "Include in the weekly report", "Who owns these?", "Why are these late?"
 A, B = "PUB-A-001", "PUB-B-002"
 
 
@@ -137,6 +138,19 @@ class Actions(unittest.TestCase):
         self.assertEqual(have[:5], [DUE, URGENCY, LATE, OWNERS, REPORT])
         self.assertEqual(have[5], "Which work items have no owner?", "the one the state puts first takes the last place")
         self.assertEqual(one("K.pills('work', %s, false, %s).length" % (json.dumps(turns), json.dumps({"overdue": 9, "red": 9, "noOwner": 9}))), 6)
+
+class ReportWord(unittest.TestCase):
+    def test_the_report_pill_says_the_ticket_words_exactly(self):
+        self.assertEqual(REPORT, "Include in the weekly report")
+        have = got([user("Q"), answer((A, ["overdue"]))])
+        self.assertEqual(have.count("Include in the weekly report"), 1)
+        self.assertIn('export const PILLS_ITEM_REPORT = "Include in the weekly report";', (EDIT / "askWords.js").read_text(encoding="utf-8"))
+
+    def test_the_old_words_appear_nowhere_in_src(self):
+        old = "Add to the " + "weekly report"
+        for f in SRC.rglob("*"):
+            if f.is_file() and f.suffix in (".js", ".jsx", ".json", ".py", ".css", ".html", ".md"):
+                self.assertNotIn(old, f.read_text(encoding="utf-8", errors="ignore"), str(f))
 
 
 if __name__ == "__main__":

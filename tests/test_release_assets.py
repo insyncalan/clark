@@ -205,12 +205,17 @@ class Check(unittest.TestCase):
         self.assertNotIn("unzip clark-", text)  # the unzip command drops the download's quarantine mark
         self.assertNotIn("8791", text)  # the doctor and the launch use the same port
 
-    def test_the_checklist_says_beta_and_pre_release(self):
+    def test_the_checklist_says_a_full_release_with_no_beta_and_no_pre_release(self):
+        # Row 1301: steps 2, 8 and 19 write a full release; line 9 keeps the older-than-1.2.0 note.
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
-        self.assertIn("clark X.Y.Z (Beta), Mac", text)
-        self.assertIn("Tick Pre-release", text)
-        self.assertIn("# clark X.Y.Z (Beta), Mac", text)
-        self.assertIn("Every clark release is Beta and a pre-release until version 1.0", text)
+        self.assertIn("Title: `clark X.Y.Z, Mac`. Leave Pre-release unticked.", text)
+        self.assertIn("Keep the first line `# clark X.Y.Z, Mac`. The notes carry no Beta line.", text)
+        self.assertIn("check Pre-release is still unticked", text)
+        self.assertIn("not marked Pre-release, its text starting `# clark X.Y.Z, Mac`", text)
+        self.assertIn("the release page with no Pre-release badge, the title `clark X.Y.Z, Mac`", text)
+        for old in ("Tick Pre-release", "still ticked", "with a Pre-release badge", "# clark X.Y.Z (Beta), Mac", "Title: `clark X.Y.Z (Beta), Mac`"):
+            self.assertNotIn(old, text)
+        self.assertIn("Every clark release is Beta and a pre-release until version 1.0", text)  # line 9 stays
 
     def test_the_checklist_says_what_the_check_looks_at(self):
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")

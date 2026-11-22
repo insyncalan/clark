@@ -141,13 +141,18 @@ class Workflow(unittest.TestCase):
         self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
         self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
         # #593: a file renamed away from a guarded path is seen too: both the new name and the old one (previous_filename) are listed
-        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
         for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
                         "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
                         ".github/*"):
             self.assertIn(guarded, plan)
         # a failed API call is full, not cheap
-        self.assertRegex(plan, r"else\s+echo \"could not list[^\n]*\n\s+FULL=1; MACOS=1")
+        self.assertRegex(plan, r"else\s+(?:#[^\n]*\n\s+)?echo \"could not list[^\n]*\n\s+FULL=1\n")
+        # the fail-safe never selects macOS (spend needs the owner), and a rate limit is retried a bounded number of times
+        tail = plan[plan.index("could not list"):]
+        self.assertNotIn("MACOS=1", tail[:tail.index("\n          fi\n")])
+        self.assertIn("rate limit|HTTP 429", plan)
+        self.assertIn('[ "$ATTEMPT" -lt 4 ]', plan)
         # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
         self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
 

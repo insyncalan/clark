@@ -18,7 +18,7 @@ from clark import ai_providers, ask, ask_claude as ac, ask_connectors, ask_servi
 from clark.store import open_store
 from test_ask_connector_wiring import LIST_M365, P, PATH, final, got, stream, use
 
-LINE = "Used: Read your mail (3 messages)"
+LINE = "Used: Mail"
 MAIL = [use("1", f"{P}__outlook_email_search"), got("1", '[{"s": "a"}, {"s": "b"}, {"s": "c"}]')]
 
 

@@ -113,6 +113,11 @@ class Chosen(ask.Provider):
     def _active(self):
         return self.pick() or (None, None, False)
 
+    def most_chars(self):
+        """Row 1293: the longest request text the chosen model takes, None when nothing is connected (the fixed budget then applies)."""
+        provider, model, _prefer = self._active()
+        return provider.most_chars(model) if provider is not None else None
+
     @property
     def label(self):
         provider = self._active()[0]

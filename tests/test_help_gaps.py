@@ -85,10 +85,9 @@ def one(start):
 
 
 class WorkItemsHelpMatchesTheCode(unittest.TestCase):
-    def test_peek_top_bar_names_more_actions_without_delete(self):
+    def test_peek_top_bar_names_more_actions_with_delete(self):
         text = one("At the top: **Previous item** and **Next item**")
-        self.assertIn("(in Edit) **More actions**, a menu of actions for this item, such as **Duplicate** and **Archive**, then", text)
-        self.assertNotIn("Delete", text)
+        self.assertIn("(in Edit) **More actions**, a menu of actions for this item: **Duplicate**, **Archive** and **Delete**, then", text)
 
     def test_right_click_menu_names_open_the_peek(self):
         text = one("The right-click menu has a small picture")
@@ -98,7 +97,7 @@ class WorkItemsHelpMatchesTheCode(unittest.TestCase):
 
     def test_single_letter_keys_row_says_single_key_shortcuts_switch(self):
         row = next(r for r in RAW["reference"]["keys"] if isinstance(r, list) and "[[O]]" in r[0])
-        self.assertIn("Single-key shortcuts is off", row[1])
+        self.assertIn("Single-key slash commands are off", row[1])
 
 
 if __name__ == "__main__":

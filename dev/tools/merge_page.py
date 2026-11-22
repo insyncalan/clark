@@ -96,14 +96,15 @@ BUILD_CODE = ("dev/tools/build_page.py", "dev/tools/esbuild.py", "src/clark/__in
 # What the build reads as data and the merge may NOT change (a change refuses): the vendored libraries and fonts it bundles, the
 # demo brand's tokens and the page's pictures. They are unpacked so the build can read them.
 BUILD_INPUTS = ("vendor/preact/", "vendor/tiptap/", "vendor/fonts/", "src/clark/brand/tokens.css", "src/clark/page/assets/",
-               "src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json")
+               "src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json",
+               "src/clark/page/sample-pictures/", "dev/tools/sample_pins.json")      # Row 1251: the six sample pictures and their pins
 # Where the repository's code and build tools live. Any path the merge changes under these (compared in lower case, so a
 # look-alike such as src/Clark counts) must be page data, or the merge is refused.
 GUARDED = ("src/", "dev/tools/", "dev/.cache/", "vendor/")
 CODE_SUFFIXES = (".py", ".pyc", ".pyo", ".pyd", ".so", ".dylib", ".dll", ".pth")
 REGULAR = ("100644", "100755")
 # The Help pictures, the list of shots and the pins: build inputs a merge may not change by itself (a retake is rebuilt by hand).
-PICTURE_INPUTS = ("src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json")
+PICTURE_INPUTS = ("src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json", "src/clark/page/sample-pictures/", "dev/tools/sample_pins.json")
 PICTURE_REFUSAL = ("the merge changes a Help picture, the list of shots or the pins ({path}), so the merge driver does not rebuild the page. "
                    "The page is left with conflict markers on purpose. Run python3 dev/tools/build_page.py, then "
                    "python3 dev/tools/help_pictures.py --check, and commit the rebuilt pins together with the pictures")

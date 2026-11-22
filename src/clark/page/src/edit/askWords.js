@@ -33,7 +33,7 @@ export const CLASSIC_STANDING = "Standing instructions on";                     
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
-export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
+export const STANDING_LINE = "Standing instructions on.";   // row 1292 step S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
 export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
@@ -51,6 +51,7 @@ export const HISTORY_DELETE = (title) => `Remove the chat: ${title}`;
 export const DELETE = "Remove";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
+export const STOPPED_LINE = "Stopped. Nothing was changed.";      // row 1293 line 7: the server's own stopped line (ask.py STOPPED), said by the page when an answer still came after Stop
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
@@ -93,7 +94,7 @@ export const PILLS_STATE = {
 // state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
-export const PILLS_ITEM_REPORT = "Add to the weekly report";
+export const PILLS_ITEM_REPORT = "Include in the weekly report";
 export const PILLS_ITEM_OWNERS = "Who owns these?";
 export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
@@ -270,6 +271,12 @@ export const QUIPS = [
   "Proofreading…",
 ];
 
+// Row 1292 (S6, no streaming yet; Classic only): the working line says the one step the page really knows (the question is out to the provider) and how long
+// it has been going, counted from the send. A longer step list waits for real progress from the server. Cards keeps the quips above.
+export const STEP_ASKING = "Asking Claude";
+export const workingFor = (secs) => `Working ${Math.max(0, Math.floor(secs))}s`;
+export const workingLine = (who, secs) => `${named(STEP_ASKING, who)} · ${workingFor(secs)}`;
+
 // A change an answer suggests (#47e). The before and after come from the saved data, never from the answer's words.
 export const CHANGE_HEAD = "Suggested change";
 export const NEW_HEAD = "Suggested new item";
@@ -285,6 +292,16 @@ export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check th
 export const CONFIRM_BOX = "I have checked this change and want to save it";
 export const DONE_LINE = "Done.";
 export const UNDO = "Undo";
+// row 1292 step S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
+export const WHY = "Why";
+export const NOT_NOW = "Not now";
+export const NOT_NOW_LINE = "Not now. Nothing was changed.";
+export const BRING_BACK = "Bring it back";
+export const APPLY_ALL = (n) => `Apply all ${n}`;
+export const UNDO_ALL = "Undo all";
+export const ALL_DONE_LINE = (n) => (n === 1 ? "Done. 1 change saved." : `Done. ${n} changes saved.`);
+export const ALL_UNDONE_LINE = "Undone. The old values are back.";
+export const ALL_PARTLY_LINE = (done, n) => `${done} of ${n} changes were saved. The others were not. Check the board and ask again.`;
 export const UNDONE_LINE = "Undone. The old values are back.";
 export const UNDO_FAILED_LINE = "That could not be undone. Open the item and change it back yourself.";
 export const REFUSED_LINE = "That change can't be made by asking. Nothing was changed. Make it yourself on the board.";
@@ -316,7 +333,7 @@ export const DRAFT_READY_LINE = "Nothing is in the report yet.";
 export const DRAFT_OPEN = "Open the draft";
 export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
-// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+// row 1292 step S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
 export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";

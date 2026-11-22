@@ -9,7 +9,7 @@ Contract the build must meet (the names are the Work items names, so the build c
   R1  `#usecases table.items`, ONE `thead tr.colh`, headers Use case / Where it stands / Status / Owner / Next steps / Milestone and a last cell
       holding the Columns button; rows `tbody tr[data-uc]` with td.c-item (.t title, .meta2 grey line "UC 1.1 · Committed"), td.c-where,
       td.c-status (.pill), td.c-owner (.av and .on), td.c-steps (.stp text, .prg bar with an inner i), td.c-ms (Milestone), td.c-eye (.weye);
-      head, tabs with counts, `.fline` filter box, `.fline-tail` with the List/Board pair and the Group by / Sort by icon buttons.
+      head, tabs with counts, `.fline` filter box, `.fline-tail` with the List/Board pair and the Group by / Sort by labelled buttons (icon buttons until Row 1316 follow-up).
   R2  a use case hidden from the client: `tr.off`, all row text #667391, pill unfilled with a ring, grey avatar, crossed-out eye.
   R3  `button[aria-label=Columns]` in the last th; its menu `.cols-menu` of role=menuitemcheckbox rows; Use case and Status locked.
   R4  grouped by Status: one heading button per group, one column header, shut group hides its rows (the heading look is the grouped-heading row's).
@@ -148,7 +148,7 @@ class Redesign:
                 self.assertEqual(g["tabs"], [["All use cases", "4"], ["On the dashboard", "2"], ["Committed", "1"], ["At risk", "2"]])
                 self.assertTrue(g["fline"], "the filter box with its count")
                 self.assertEqual(g["lsw"], ["List", "Board"], "the list/board pair")
-                self.assertEqual(g["icons"], 2, "the Group by and Sort by icon buttons")
+                self.assertEqual(g["icons"], 2, "the Group by and Sort by buttons (labelled since Row 1316 follow-up)")
                 self.assertEqual([r["ref"].split(" · ")[0] for r in g["rows"]], ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])
                 self.assertTrue(g["noScroll"])
                 for i, r in enumerate(g["rows"]):

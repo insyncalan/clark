@@ -5,6 +5,7 @@ against the approved mock-up (mockups/1261-headline-template/headline-approved.h
 Run: python3 dev/run_tests.py test_reportheadline_eye_1261
 """
 import json
+from pathlib import Path
 import unittest
 
 from _demo import USER
@@ -301,7 +302,7 @@ class Eye(Base):
             self.assertGreater(p.js(f"document.querySelector('[data-id=\"{self.on}\"] > .sec-head').getBoundingClientRect().width"), 50, "Cards is unchanged")
 
     def test_the_published_page_hides_the_heading_the_same_way(self):
-        css = open(page.__file__.replace("__init__.py", "") + "../themes/prototype-2.0/rules.css", encoding="utf-8").read()
+        css = "".join((Path(page.__file__).parent.parent / "themes" / "prototype-2.0" / f).read_text(encoding="utf-8") for f in ("rules.css", "rules-2.css"))
         self.assertIn('#report[data-mode="view"] .sec[data-type="reportheadline"] > .sec-head', css, "one rule for View and the published page (both draw #report in view mode)")
         self.assertLess(css.index('.sec[data-type="reportheadline"] > .sec-head'), css.index("/* Row 1314"), "Classic CSS before the Row 1314 block")
 
