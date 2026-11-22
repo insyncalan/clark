@@ -347,6 +347,25 @@ class Signature(unittest.TestCase):
         wrong_len = lambda asset: self.ZIP if asset["id"] == 1 else b"short"
         self.assertEqual(len(mod.problems([self.release()], {"v0.5.0"}, [], wrong_len, _signing.TEST_PUBLIC)), 1)
 
+    def test_a_different_sig_beside_the_right_zip_is_not_the_releases_sig(self):
+        rel = self.release(sig=False)
+        rel["assets"].append({"name": "clark-0.4.9-mac.zip.sig", "size": 64, "id": 2})
+        out = mod.problems([rel], {"v0.5.0"}, [], self.fetch(), _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out[0])
+
+    def test_a_sweep_with_no_tag_says_the_sig_was_not_checked_once(self):
+        notes = []
+        self.assertEqual(mod.problems([self.release(sig=False), self.release(sig=False, tag="v0.6.0")], None, notes, None, _signing.TEST_PUBLIC), [])
+        said = [n for n in notes if "only of a tag named on the command line" in n]
+        self.assertEqual(len(said), 1)
+        notes = []
+        mod.problems([self.release(sig=False)], {"v0.5.0"}, notes, None, _signing.TEST_PUBLIC)
+        self.assertEqual([n for n in notes if "command line" in n], [])
+        notes = []
+        mod.problems([self.release(sig=False)], None, notes)
+        self.assertEqual([n for n in notes if "command line" in n], [])
+
     def test_a_sig_or_zip_that_cannot_be_downloaded_fails(self):
         out = mod.problems([self.release()], {"v0.5.0"}, [], lambda asset: None, _signing.TEST_PUBLIC)
         self.assertEqual(len(out), 1)

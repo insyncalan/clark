@@ -153,7 +153,7 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
     """One plain line for each published release (or the named tags) that lacks its clark-X.Y.Z-mac.zip asset, and one for each
     named tag that matches no published release. `fetch(asset)` returns an asset's bytes (None when it can't be read); `key` is a
     public key for tests (None: the one built into the app). Without `fetch` a signature is only checked to be attached."""
-    out = []
+    out, sig_noted = [], False
     published = {r.get("tag_name", "") for r in releases if not r.get("draft")}
     for tag in sorted(tags or ()):
         if tag not in published:
@@ -166,6 +166,10 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
+            if not tags and notes is not None and not sig_noted and updates.signature_required(key, tag.lstrip("v")):
+                sig_noted = True
+                notes.append("The .sig of each release from 1.3.4 up was not checked: the .sig is asked only of a tag named on the "
+                             "command line (dev/RELEASING.md step 20).")
             out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line: shipped 1.3.4 to 1.3.7 have none
             continue
         if want in have:
