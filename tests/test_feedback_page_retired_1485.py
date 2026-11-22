@@ -56,6 +56,33 @@ class Retired(unittest.TestCase):
             r = json.loads(cdp.js(f"JSON.stringify({BAR}.getBoundingClientRect())", sid))
             self.assertEqual(round(r["right"]), cdp.js("document.documentElement.clientWidth", sid), where + ": on the right edge")
 
+    def test_the_tag_opens_the_same_capture_panel_in_help_and_on_every_settings_page_at_1400_and_900(self):
+        """The tag opens the one Dialog (FeedbackTag.jsx): same dialog id, headings, labels, buttons and element ids in Help (over Classic) and on Version and updates and other Settings pages. Only the added 'page' line differs."""
+        snap = ("JSON.stringify((() => { const d = document.querySelector('#feedback-tag-dialog'); const t = (e) => e.textContent.trim();"
+                " return { n: document.querySelectorAll('#feedback-tag-dialog').length, role: d.getAttribute('role'),"
+                " heads: [...d.querySelectorAll('h1,h2,h3')].map(t), labels: [...d.querySelectorAll('label')].map(t),"
+                " buttons: [...d.querySelectorAll('button, a.btn')].map(t), ids: [...d.querySelectorAll('[id]')].map(e => e.id),"
+                " intro: t(d.querySelector('.fbt-intro')), note: t(d.querySelector('.fbt-mail-note')), added: t(d.querySelector('#fbt-added b')) }; })())")
+        for cdp, sid, where in self.each():
+            snaps = {}
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#feedback-tag-dialog')", sid)), where + ": Help")
+            snaps["help"] = json.loads(cdp.js(snap, sid))
+            for page in ("version", "profile"):
+                self.go(cdp, sid, f"#settings&p=TUL&s={page}")
+                self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), f"{where}: tag on {page}")
+                if not cdp.js("!!document.querySelector('#feedback-tag-dialog')", sid):
+                    cdp.js(f"{BAR}.click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#feedback-tag-dialog')", sid)), f"{where}: {page}")
+                snaps[page] = json.loads(cdp.js(snap, sid))
+            h = snaps["help"]
+            self.assertEqual(h["n"], 1, where)
+            self.assertEqual(h["buttons"][-2:], ["Copy as text", "Open in your mail app"], where)
+            self.assertIn("fbt-message", h["ids"], where)
+            for page in ("version", "profile"):
+                self.assertEqual(snaps[page], h, f"{where}: the panel on Settings {page} is the panel in Help")
+
     def test_help_has_no_settings_feedback_entry_and_no_link_to_it_at_1400_and_900(self):
         content = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
         self.assertNotIn("ref-feedback", content)
