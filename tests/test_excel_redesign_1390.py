@@ -6,18 +6,61 @@ tests/test_excel_old_headings_1390.py, whose helper writes the old headings over
 Run: python3 dev/run_tests.py test_excel_redesign_1390
 """
 import json
+import re
+import shutil
+import sqlite3
+import tempfile
 import unittest
 from pathlib import Path
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
+from _demo import DemoStore
 from openpyxl import load_workbook
 
 from clark import excel
+from clark import excel_client
+from clark import excel_cover as cover
+from clark import page
 from clark import excel_import as xi
 from test_excel_old_headings_1390 import OLD, make_old
 from test_excel_roundtrip import RoundTrip, edit, setUpModule, tearDownModule  # noqa: F401  (the hooks keep a brand logo out of every test)
 
 HELP = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
+
+DATA_CARD = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "logic" / "dataCard.js"
+ACCEPTED = ("Title", "Client visible", "Added from", "Last updated", "Decided on", "Options considered", "State", "Progress %",
+            "Sort order", "Reference", "On the dashboard")
+OLD_NAMES = ("Client-visible", "Source", "Updated", "Date", "Options", "% complete", "Order", "On dashboard", "Shown state", "State set by you")
+
+
+class AcceptedHeadings(unittest.TestCase):
+    def test_headings_are_the_accepted_ones(self):
+        """DoD5: the accepted headings are in excel.py, excel_client.py, dataCard.js and helpContent.json, and no old name is a heading."""
+        sheets = {name: [label for label, _ in cols] for name, _, cols, _ in excel.SHEETS}
+        client = {t: [h for h, _, _ in cols] for t, cols in excel_client.COLUMNS.items()}
+        block = re.search(r"export const IMPORT_COLUMNS = \[(.*?)\n\];", DATA_CARD.read_text(encoding="utf8"), re.S).group(1)
+        card = {m.group(1): json.loads(m.group(2)) for m in re.finditer(r'\["([^"]+)", (\[.*?\])\]', block)}
+        self.assertEqual(len(card), 5)
+        help_text = HELP.read_text(encoding="utf8")
+        everywhere = [h for hs in sheets.values() for h in hs] + [h for hs in client.values() for h in hs] + [h for hs in card.values() for h in hs]
+        for name in ACCEPTED:
+            self.assertIn(name, [h for hs in sheets.values() for h in hs], f"{name} missing from excel.py")
+            self.assertIn(name, help_text, f"{name} missing from helpContent.json")
+        for name in ("Title", "Decided on", "State", "Progress %", "Reference"):
+            self.assertIn(name, [h for hs in client.values() for h in hs], f"{name} missing from excel_client.py")
+        for name in ("Title", "Client visible", "Decided on", "Options considered", "Progress %", "Sort order", "Reference", "On the dashboard"):
+            self.assertIn(name, [h for hs in card.values() for h in hs], f"{name} missing from dataCard.js")
+        for old in OLD_NAMES:
+            self.assertNotIn(old, everywhere, f"the old heading {old} is still a column")
+        for table in (sheets, client, card):
+            for name in ("Actions", "Risks & Issues"):
+                if name in table:
+                    self.assertNotIn("Description", table[name], name)
+        # the same label per field in the editor export and the import card
+        self.assertEqual(sheets["Decisions"][sheets["Decisions"].index("Decided on")], card["Decisions"][card["Decisions"].index("Decided on")])
+        self.assertEqual(sheets["Use cases"][sheets["Use cases"].index("On the dashboard")], "On the dashboard")
+        for name in ("Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases"):
+            self.assertEqual([h for h in card[name] if h in sheets[name]], card[name], f"dataCard.js lists a heading {name} does not export")
 
 
 class OldHeadingWorkbook(RoundTrip):
@@ -67,3 +110,46 @@ class HelpSaysReport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReportSheetFollowsTheDashboard(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._old, page.BRANDING = page.BRANDING, Path(tempfile.mkdtemp(prefix="clark-no-brand-"))
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(page.BRANDING, ignore_errors=True)
+        page.BRANDING = cls._old
+
+    def test_report_sheet_follows_the_dashboard(self):
+        """DoD8: the Report sheet carries the Dashboard header line, the Report headline words in the Dashboard order, and Shown as at only for an as-at day.
+        (The Documents sheet is DoD8's other half, test_documents_sheet_lists_the_documents, and is not here.)"""
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        tmp = Path(tempfile.mkdtemp(prefix="clark-redesign-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        body = {"v": 1, "health": "at_risk", "headline": "Go live moves one week", "sentence": "The vendor test slipped to Friday."}
+        con = sqlite3.connect(demo.store.path)
+        con.execute("UPDATE projects SET week_ending = '2030-05-31' WHERE code = 'ABC'")
+        con.execute("DELETE FROM report_sections WHERE project = 'ABC'")
+        con.execute("INSERT INTO report_sections (project, id, type, title, body, beside, hidden, sort_order) VALUES "
+                    "('ABC','a','current','Current state','',0,0,1), ('ABC','h','reportheadline','',?,0,0,2), "
+                    "('ABC','b','glance','At a glance','',0,0,3)", (json.dumps(body),))
+        con.commit()
+        con.close()
+
+        def export(**kw):
+            path = tmp / "w.xlsx"
+            excel.export_project(demo.store, "ABC", path, tmp / "state.json", on="2030-06-01", **kw)
+            return load_workbook(path)["Report"]
+
+        ws = export()
+        self.assertEqual(ws["A2"].value, "Weekly report \u00b7 Week ending 31-05-2030")
+        self.assertEqual(ws["A2"].value, cover.subtitle({"week_ending": "2030-05-31"}))
+        column = [str(c.value) for c in ws["A"] if c.value is not None]
+        self.assertFalse([v for v in column if v.startswith(cover.AS_AT)])
+        self.assertIn("At risk \u00b7 Go live moves one week", column)
+        self.assertIn("The vendor test slipped to Friday.", column)
+        self.assertLess(column.index("\u25a0  Report headline"), column.index("The vendor test slipped to Friday."))
+        self.assertEqual(export(as_at="2030-05-20")["A3"].value, "Shown as at 20-05-2030")
