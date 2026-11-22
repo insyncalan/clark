@@ -183,11 +183,11 @@ export function installAskKeys() {
       if (draft.value && e.target && e.target.closest && e.target.closest("#ask-draft")) return;      // row 1292: Esc in the Draft is the Draft's (it closes its menu, then itself), the panel stays
       e.preventDefault(); closePanel(); return;
     }
-    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
+    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette. Row 1292: pressed again it closes it (closing never stops an answer).
     if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
       if (otherLayer() || helpOpen.value) return;
       e.preventDefault();
-      if (!e.repeat) openPanel();
+      if (!e.repeat) { if (panelOpen.value) closePanel(); else openPanel(); }
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
