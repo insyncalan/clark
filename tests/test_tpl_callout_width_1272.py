@@ -81,6 +81,21 @@ class Classic(Callouts):
         self.assertNotEqual(got["control"], got["grey"])
         self.assertEqual(got["title"], "rgba(0, 0, 0, 0)", "the title and the words draw no edge at rest (mock-up B); hover shows --text-muted")
 
+    def test_the_category_edge_is_the_control_edge_value_at_1400_and_900_in_light_and_dark(self):
+        ref = self.make_pair()[0]
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    p = self.visit(cdp)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.edit()
+                    p.until("!!document.querySelector('[data-id=%s] .tpl-edit-callout .cb-title')" % json.dumps(ref), "the Callout Edit fields")
+                    got = p.js(EDGE % (json.dumps(ref), json.dumps(ref)))
+                    self.assertEqual(got["cat"], got["control"], f"the category field edge is --control-edge at {width} {scheme}")
+                    self.assertNotEqual(got["cat"], got["grey"])
+                    self.assertEqual(got["title"], "rgba(0, 0, 0, 0)", f"the title edge is transparent at rest at {width} {scheme} (edit.css:627), not the token")
+
     def test_the_css_says_so(self):
         self.assertRegex(EDIT, r"\.tpl-field\.cb-in \{[^}]*border-color: var\(--control-edge\);")
         self.assertRegex(EDIT, r"\.tpl-field\.cb-title \{[^}]*border-color: transparent;")
