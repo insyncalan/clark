@@ -6,6 +6,7 @@
 // GET /api/projects, read when the bar draws and again each time the menu opens (so the counts follow the work done since); until it is read, or if it cannot be, the menu has the open project. The menu starts on the open project.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { token, project, setProject } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { navigate } from "../router.js";
@@ -33,6 +34,6 @@ export function ProjectSwitch({ name, cover, header }) {      // `cover` (item 1
     setProject(id);
   };
   if (cover) return <Menu btnCls="cover-switch" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Click to change project`} menuId="cover-project-menu" menuLabel="Projects" left fixed="start" items={items} onPick={pick} onOpen={read} focusChecked />;
-  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
+  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip={classicTheme() ? `${shown}. Click to change project` : "Click to change project"} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="pname" tip="Click to change project" items={items} onPick={pick} onOpen={read} focusChecked />;
 }

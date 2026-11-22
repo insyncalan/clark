@@ -2,6 +2,8 @@
 // ticked, a choice picked, the number or the caption left with Enter or Tab) saves the whole filter as ONE change (one step, one
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
+import { StartPrompt } from "../StartPrompt.jsx";
+import { startOr } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
@@ -9,12 +11,14 @@ import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkItemsList.jsx";
+import { Rows, Listing, Foot, today, classicTheme, colTools } from "../../templates/WorkItemsList.jsx";
 import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
-import { useColWidths } from "../colWidths.jsx";
+import { useColWidths, useColOrder } from "../colWidths.jsx";
+
+colTools.current = { useColWidths, useColOrder };      // row 1195: the View list uses the same hooks (Classic)
 import { NewTile } from "../../components/NewTile.jsx";
 import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
@@ -69,7 +73,8 @@ const addOne = (kind) => addItem(kind, "report", true);
 export function Edit({ section }) {
   const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
   const gearRef = useRef(null);
-  const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
+  const cw = useColWidths(`wil-${section.id}`, classicTheme());      // row 1268, item 12: the page's column widths, kept for this list
+  const ord = useColOrder(`wil-${section.id}`);     // row 1195: the order of the columns (Classic), kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -144,7 +149,7 @@ export function Edit({ section }) {
   const rows = drawRows(idsToShow(list, true), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
-      {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      {saved ? null : <><StartPrompt id="work-items" /><p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p></>}
       <div class="wil-line" data-wil-line="">
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
@@ -163,7 +168,7 @@ export function Edit({ section }) {
           </label>
           <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
             <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
-              <input type="text" name="caption" placeholder="Shown above the list" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+              <input type="text" name="caption" placeholder={startOr("Shown above the list", "work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
             </label>
             <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
           </div>
@@ -173,7 +178,7 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      {saved && rows.length ? <Listing max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Listing> : null}
+      {saved && rows.length ? <Listing max={list.max} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} ord={ord} head={headProps} /></Listing> : null}
       {colMenu}
       {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>

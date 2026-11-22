@@ -7,6 +7,8 @@
 // Words and limits: logic/fullImageWords.js (unruled).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { LineField, CaptionField, saveWords, sendPicture, picturesTotal, NEAR } from "./pictureEdit.jsx";
+import { classicLook } from "../startingText.js";
+import { samplePicture } from "../samplePicture.js";
 import { Bar } from "./FullImageBar.jsx";
 import { Crop } from "./FullImageCrop.jsx";
 import { shrink, TYPES } from "./shrink.js";
@@ -21,7 +23,7 @@ import { WORDS as W, fileNote, PRINT_WIDE, SMALL_WIDE, MOST_BYTES, SLOT_ORIGINAL
 const pct = (n) => `${(n * 100).toFixed(3)}%`;
 
 // The size of the stored original, once it has loaded.
-function useNatural(url) {
+export function useNatural(url) {
   const [nat, setNat] = useState(null);
   useEffect(() => {
     if (!url) { setNat(null); return undefined; }
@@ -185,6 +187,7 @@ export function Edit({ section }) {
   if (!shownUrl) {
     return (
       <div class="tpl-edit tpl-full-edit">
+        {classicLook() ? <img src={samplePicture(0)} alt="" class="tpl-pic-sample" data-sample aria-hidden="true" /> : null}
         <div class={`fi-drop${over ? " over" : ""}`} data-slot="image" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
           <button type="button" class="btn sm" data-act="pick" disabled={busy} onClick={pick}>{W.choose}</button>
           <span class="quiet">{busy ? W.making : W.drop}</span>

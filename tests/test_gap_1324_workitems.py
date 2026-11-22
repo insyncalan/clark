@@ -87,6 +87,22 @@ class WorkItemsOptionA(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) < rows))
             self.assertEqual(cdp.js("document.querySelectorAll('#work tr.colh').length", sid), 1)
 
+    def test_the_heading_is_a_tab_stop_and_enter_and_space_shut_and_open_its_group(self):      # row 1324 gap: the keyboard on the grouped view
+        def key(cdp, sid, k, code, vk, text=None):
+            for kind in ("keyDown", "keyUp"):
+                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": k, "code": code, "windowsVirtualKeyCode": vk, **({"text": text} if text and kind == "keyDown" else {})}, sid)
+        with chrome() as cdp:
+            sid = self.load(cdp, 1400, "light", "no-preference")
+            cdp.js("window.__b = document.querySelector('#work .grp-b'); window.__b.focus();", sid)
+            self.assertTrue(cdp.js("document.activeElement === window.__b && window.__b.tabIndex >= 0 && window.__b.getAttribute('aria-expanded') === 'true'", sid), "the heading takes focus and says it is open")
+            rows = cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid)
+            for k, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                key(cdp, sid, k, code, vk, text)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) < rows), f"{code} shuts the group")
+                key(cdp, sid, k, code, vk, text)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) == rows), f"{code} opens it again")
+                self.assertTrue(cdp.js("document.activeElement && document.activeElement.classList.contains('grp-b')", sid), f"focus stays on a heading after {code}")
+
 
 if __name__ == "__main__":
     unittest.main()

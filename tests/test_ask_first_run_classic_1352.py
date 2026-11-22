@@ -153,7 +153,7 @@ class CardsKeepsItsOwn(Classic):
             card = "document.querySelector('#ask-first-run')"
             self.assertEqual(p.js(f"{card}.querySelectorAll('h3, ul, li, kbd, .ask-first-tip').length"), 0, "no new markup")
             self.assertEqual(p.js(f"[...{card}.querySelectorAll('p')].map(e => e.textContent)"), [
-                "It reads what is in this project. It never reads your mail, Teams or calendars.",
+                "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.",
                 "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.",
                 "Your question goes to Claude, which Anthropic runs."])
             self.assertEqual(p.js(f"{card}.querySelector('.ask-first-link a').textContent"), "Open the Asking card in Settings")

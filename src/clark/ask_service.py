@@ -29,11 +29,12 @@ import re
 import secrets
 import sqlite3
 import threading
+import datetime
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_index, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -55,6 +56,7 @@ MESSAGES = {
 }
 FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
+UNREADY = ("busy", "no_data")      # row 1293 line 10: a dry run refused for these saved nothing and read nothing, so the reply may be tried again
 PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
 APPLY_FIELDS = {"project", "offer", "confirm"}
@@ -64,11 +66,35 @@ PASSAGE_SHOWN = 600        # characters of a source passage shown beside a chang
 PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
 
 
+class Started(threading.Event):
+    """The `cancel` event of one question. A provider reads it once, the moment it has taken its place and the run really starts (a
+    question that finds the provider busy never reads it), so reading it is what marks the run as started."""
+
+    def __init__(self):
+        super().__init__()
+        self.started = False
+
+    def is_set(self):
+        self.started = True
+        return super().is_set()
+
+
+class Run:
+    """Row 1306 test 7: one question's own record: its project, the connectors it was given, and its own cancel event."""
+
+    def __init__(self, project, connectors):
+        self.project, self.connectors, self.cancel = project, tuple(connectors), Started()
+
+    @property
+    def started(self):
+        return self.cancel.started
+
+
 class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, indexer=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, indexer=None, used_hook=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -79,9 +105,16 @@ class AskService:
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
         self.indexer = indexer                       # ask_index.Indexer or None (Row 1366): a finished index answers a question without opening a file
+        self.used_hook = used_hook                   # Row 1306: called with each connector name read in an answer (the launcher writes the log line; an ask module never logs)
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
+        self.usage = ask_usage.AskUsage(self.data_dir)      # row 1294: questions and tokens this month, per project, kept on this computer
+        self.today = datetime.date.today                    # a seam for tests
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
+        self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
+        self.using_lock = threading.Lock()
+        self.cancels = set()                         # one threading.Event per question being prepared or asked; Stop sets them all
+        self.cancels_lock = threading.Lock()
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -112,19 +145,109 @@ class AskService:
         finally:
             store.close()
 
+    def project_off(self, code):
+        """Row 1294: True when project `code` has asking turned off for itself, or the store can't be opened or can't say (never fails open). A project
+        that does not exist is not "off" here: the routes answer it as not found, and nothing is sent for it. The computer-wide switch is enabled()."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return True
+        try:
+            return store.read("projects", ref=code) is not None and store.ask_off_here(code)
+        except Exception:  # noqa: BLE001  a value that can't be read is off
+            return True
+        finally:
+            store.close()
+
+    def files_allowed(self, code):
+        """Row 1294: whether files may be added to a question in project `code` (the computer's Files switch on and the project not off); False when the
+        store can't be opened or can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return False
+        try:
+            return store.ask_files_allowed(code) is True
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return False
+        finally:
+            store.close()
+
+    def connectors_now(self, code, chosen):
+        """The connectors of `chosen` that are still On for project `code`, read now; none when the store can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return ()
+        try:
+            return tuple(c for c in chosen if store.connector_allowed(c, code))
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return ()
+        finally:
+            store.close()
+
+    def stop_off(self):
+        """Row 1306 test 7: after a connector change was saved (an Off, or an Undo that went back to Off), stop every question that was given a
+        connector which is no longer On for its project. One that has not reached the provider yet is cancelled so it never starts; one at the
+        provider is stopped. A question the change does not touch is left alone. True when a running one was stopped. Nothing is changed."""
+        with self.using_lock:
+            runs = list(self.runs)
+        stopped = False
+        for run in runs:
+            if self.connectors_now(run.project, run.connectors) == run.connectors:
+                continue
+            run.cancel.set()                         # a question still before the provider's start never starts (it reads this when it starts)
+            if run.started:
+                stop = getattr(self.provider, "stop", None)
+                stopped = (bool(stop(owner=self.owner)) if callable(stop) else False) or stopped
+        return stopped
+
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
         on = self.enabled()
+        if platform.container_mode():             # Row 1293: in Docker nothing can be asked; the panel and Settings say so in these words
+            return 200, {"ok": True, "ask_enabled": on, "connected": False, "why": ask_words.DOCKER, "docker": True}
         st = ask.answer_status(self.provider) if on else {"connected": False, "why": MESSAGES["asking_off"]}
         label = getattr(self.provider, "label", "")      # #54: who a question goes to, so the page can say so truly
         return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"], **({"provider": label} if label else {})}
+
+    # ----- GET /api/ask-usage -----
+    def usage_read(self, *_ignored):
+        """Usage in tokens (row 1294): this month so far, per project and in all, read only. {ok, title, asking, projects: [{code, name, questions,
+        tokens, unreported}], all: {questions, tokens, unreported}, note}; a project with no question shows 0. Archived projects with no question are left out."""
+        day = self.today()
+        kept = self.usage.month(day)
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return 409, self.fail("busy")
+        try:
+            rows = [r for r in store.read("projects") if isinstance(r.get("code"), str)]
+        finally:
+            store.close()
+        out = []
+        for r in sorted(rows, key=lambda r: r["code"]):
+            got = kept.get(r["code"], {"questions": 0, "tokens": 0, "unreported": 0})
+            if r.get("archived") and not got["questions"]:
+                continue
+            out.append({"code": r["code"], "name": r.get("name") or "", **got})
+        total = {"questions": sum(p["questions"] for p in out), "tokens": sum(p["tokens"] for p in out),
+                 "unreported": sum(p["unreported"] for p in out)}
+        return 200, {"ok": True, "title": ask_usage.group_title(day), "asking": self.enabled(), "projects": out, "all": total, "note": ask_usage.READ_ONLY}
 
     # ----- POST /api/ask/stop -----
     def stop(self, body=None):
         if body not in (None, {}):
             return 400, self.fail("bad_request")
         stop = getattr(self.provider, "stop", None)
-        running = bool(stop(owner=self.owner)) if callable(stop) else False
+        with self.cancels_lock:
+            pending = list(self.cancels)
+            for event in pending:
+                event.set()                          # a question still reading its data is told too: its request goes out cancelled, so the provider never starts
+        with self.using_lock:
+            for run in self.runs:
+                run.cancel.set()                     # one on its way to the provider (its record is in): its request carries this event, so the provider never starts it
+        running = (bool(stop(owner=self.owner)) if callable(stop) else False) or bool(pending)
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ask -----
@@ -143,22 +266,38 @@ class AskService:
         return code, question, turns
 
     def ask(self, body):
+        cancel = threading.Event()
+        with self.cancels_lock:
+            self.cancels.add(cancel)
+        try:
+            return self.ask_one(body, cancel)
+        finally:
+            with self.cancels_lock:
+                self.cancels.discard(cancel)
+
+    def ask_one(self, body, cancel):
         got = self.read_body(body)
         if got is None:
             return 400, self.fail("bad_request")
         code, question, earlier = got
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
+        if platform.container_mode():                # Row 1293: refused before anything is read or sent
+            return 409, self.fail("docker", ask_words.DOCKER)
+        if not self.enabled() or self.project_off(code):                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
         try:
             ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         try:
-            added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
+            # item 1292 S14: the files of this question only, screened like any passage; nothing is kept. Row 1294: the Files switch is read now, only for a question that carries files
+            added = ask_files.passages(body.get("files"), self.files_allowed(code) if body.get("files") else True)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
+        window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
+        budget = ask.budget_for(window)
+        budget_left = max(0, budget - sum(len(p.text) for p in added))      # Row 1367 (#2045 CHANGES): a file added to the question keeps its room, in characters and in passages, before the project and the folders take theirs
         with self.lock:
             try:
                 store = self.reader()
@@ -171,7 +310,8 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget_left),
+                                                  limit=max(0, ask.MAX_PASSAGES - len(added)))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
@@ -181,28 +321,48 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
+            room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders):
-                found = ask_index.folder_data(self.data_dir, code, question, ask.BUDGET - used, ask.MAX_PASSAGES - len(data.passages))
+                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
             else:
-                found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
-                                                 ask.MAX_PASSAGES - len(data.passages))
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
-                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
+                                        max_request=ask.request_cap(window))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
-        if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
+        if cancel.is_set():                          # a Stop that came while the data was read: nothing is sent
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
+        if not self.enabled() or self.project_off(code):                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
-                                 facts=lambda ref: facts.get(ref))
+        run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
+        with self.using_lock:
+            self.runs.append(run)
+        on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
+        run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
+        if cancel.is_set():                          # a Stop that came before the record went in: the request goes out cancelled, so the provider never starts it
+            run.cancel.set()
+        try:
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+                                     facts=lambda ref: facts.get(ref))
+        finally:
+            with self.using_lock:
+                self.runs.remove(run)                # only this question's own entry: another's is never touched
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
+        self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
+        if cancel.is_set():                          # row 1293 line 7: a Stop that came while the provider was finishing: the answer is not given and nothing is held (the tokens were spent, so they stay counted)
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             *hidden_notes(request.hidden, request.passages)) if n]
+        notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
+                              ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
         if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
             n = self.indexer.not_yet(code)
             note = ask_index.answer_note({"not_yet": n}) if isinstance(n, int) else ""
@@ -211,16 +371,23 @@ class AskService:
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
+        for part in (conn or {}).get("used", ()):
+            if self.used_hook:
+                try:
+                    self.used_hook(part)
+                except Exception:                    # a log that cannot be written never stops an answer
+                    pass
         sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
-        held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
+        held = self.hold(code, reply, request, folder_ids, texts, bool(conn) or bool(on_connectors)) if reply.changes else None      # fail closed: a connector On and no Used line read (a second run reset it) still needs the Confirm
         return 200, {**({"used": conn} if conn else {}), "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": reply.draft,
+                     "read": ask_data.read_counts(data),
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
@@ -235,7 +402,7 @@ class AskService:
         code, name, page = body["project"], body["file"], body["page"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if not self.enabled():                       # fails closed, like the other ask routes: asking off, nothing is looked at
+        if not self.enabled() or self.project_off(code):                       # fails closed, like the other ask routes: asking off, nothing is looked at
             return 409, self.fail("asking_off", MESSAGES["open_asking_off"])   # same code, its own sentence (MESSAGES["asking_off"] is for the other routes)
         if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
             return 400, self.fail("bad_request")
@@ -278,14 +445,15 @@ class AskService:
         return 409, self.fail("file_unavailable")
 
     # ----- the changes an answer suggested, held on the server (#47e) -----
-    def hold(self, code, reply, request, folder_ids, texts):
-        """Keep a reply's changes under a new reply ID, marked from_source when any folder passage was sent. The passages shown
+    def hold(self, code, reply, request, folder_ids, texts, from_connector=False):
+        """Keep a reply's changes under a new reply ID, marked from_source when any folder passage was sent or a connector was in the run (row 1306:
+        what a connector returns is text anyone can write, so a change after it needs the same separate Confirm). The passages shown
         beside a change are the folder passages it names or the answer cites (their labels and the start of their text)."""
         labels = dict(request.passages)
         shown = [pid for pid in dict.fromkeys([c.get("source") for c in reply.changes] + list(reply.cites))
                  if isinstance(pid, str) and pid in folder_ids]
         passages = tuple({"id": pid, "label": labels[pid], "text": texts.get(pid, "")[:PASSAGE_SHOWN]} for pid in shown)
-        entry = Held(code, tuple(dict(c) for c in reply.changes), bool(folder_ids), passages, self.clock())
+        entry = Held(code, tuple(dict(c) for c in reply.changes), bool(folder_ids) or bool(from_connector), passages, self.clock())
         with self.replies_lock:
             now = self.clock()
             for k in [k for k, h in self.replies.items() if now - h.at > REPLY_MINUTES * 60]:
@@ -305,7 +473,7 @@ class AskService:
         code = body["project"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # fails closed: nothing is read for a change while asking is off
+        if not self.enabled() or self.project_off(code):                       # fails closed: nothing is read for a change while asking is off
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         with self.replies_lock:
             held = self.replies.get(body["reply"])
@@ -315,6 +483,8 @@ class AskService:
                 return 409, self.fail("shown_already")
             held.shown = True
         status, out = self.applier.plan_all(code, list(held.changes), held.from_source)
+        if status != 200 or any(p.get("code") in UNREADY for p in out["plans"]):
+            held.shown = False                       # row 1293 line 10: a dry run that could not be made does not use the reply up
         if status != 200:
             return status, out
         return 200, {"ok": True, "plans": out["plans"], "from_source": held.from_source, "passages": list(held.passages)}
@@ -330,7 +500,7 @@ class AskService:
             return 400, self.fail("change_bad_request")
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # and the save path reads the switch again inside its step
+        if not self.enabled() or self.project_off(code):                       # and the save path reads the switch again inside its step
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         return self.applier.apply(offer, code, confirm=confirm)
 
@@ -366,6 +536,25 @@ def left_out_note(count):
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
 
 
+def draft_via(draft, conn):
+    """Row 1306 F6: a draft written in a run that read a connector carries the names of the parts read (`via`), so the page can say so above it.
+    Nothing the connector returned is kept. The draft is otherwise unchanged and is still only a card the person adds."""
+    if not isinstance(draft, dict) or not conn or not conn.get("used"):
+        return draft
+    return {**draft, "via": [str(p) for p in conn["used"]]}
+
+
+def hidden_notes(hidden, passages):
+    """Row 1293: one plain line for each passage sent that holds hidden characters (the counts of Request.hidden, which the passage
+    keeps: it is sent unchanged). The question's own count is not a passage and gets none."""
+    out = []
+    for pid, label in passages:
+        n = hidden.get(pid) if isinstance(hidden, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool) and n >= 1:
+            out.append(f"{label}: this passage has {n} hidden {'character' if n == 1 else 'characters'}.")
+    return out
+
+
 def connector_used(line):
     """Row 1306: the answer's `used` data from the UsedLine of a run that had a connector in it: the line, what was used and not used,
     and the parts read with the provenance flag. No connector content. None when no connector was in the run."""
@@ -391,6 +580,8 @@ def folder_notes(found):
             out.append(pdf_reader.count_note(found.pdf - len(found.pdf_reasons), "crash"))
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
+    if getattr(found, "limit", 0):
+        out.append(f"{found.limit} {'file was' if found.limit == 1 else 'files were'} not opened because the limit for one question was reached.")
     if found.stopped:
         out.append("Not every file in your folders was looked at.")
     return out

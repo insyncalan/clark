@@ -25,7 +25,7 @@ EMPTY = ""
 # Row 1268: a new list starts with this saved filter (all work items, the default columns, Most rows 10), never blank; changes.py accepts exactly this body
 # for a new list, and the page's TEMPLATES entry sends it (tests/test_tpl_workitems.py holds the two to the page's own default filter).
 START = ('{"v":1,"kinds":[],"mode":"open","status":[],"due":[],"owner":[],"workstream":[],"use_case":[],"priority":[],"sort":"due","max":10,'
-         '"columns":["type","id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
+         '"columns":["id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
          '"workstream":[],"use_case":[],"priority":[],"milestone":[]},"has":[],"no":[],"text":[]}')
 
 VERSION = 1
@@ -37,7 +37,7 @@ NONE = "(none)"
 PRIORITIES = ("Urgent", "High", "Medium", "Low")
 SORTS = ("due", "priority", "id", "type", "owner")      # row 1339: Type and Owner are the approved Configure box's two other choices
 COLUMNS = ("type", "id", "owner", "due", "status", "priority", "workstream", "milestone")      # the title is always shown
-DEFAULT_COLUMNS = ("type", "id", "owner", "due", "priority")      # row 1199: Status, Workstream and Milestone start off in a new list
+DEFAULT_COLUMNS = ("type", "id", "owner", "due", "priority")      # row 1199: Status, Workstream and Milestone start off in a new list; row 1268: a body with no columns key keeps Type (only START, the new-list body, drops it)
 MAX_ROWS = 50
 DEFAULT_MAX = 10
 MAX_VALUES = 30                     # names in one filter

@@ -16,7 +16,7 @@ from clark import page, theme
 from test_palette import DATA, LIST, Base
 from test_server import Running, chrome
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, k) => getComputedStyle(e)[k];
   const tok = (v, k) => { const i = document.createElement('i'); i.style[k] = v; document.body.appendChild(i); const r = getComputedStyle(i)[k]; i.remove(); return r; };
   const row = q('#palette .pal-row.on'), hint = q('#palette .pal-row .pal-more'), hrow = hint.parentElement, kind = row.querySelector('.pal-kind'), inp = q('.pal-q input'), box = q('.pal-q'), list = q('.pal-list');
@@ -38,11 +38,11 @@ class Look(Base):
         self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), projects=lambda archived=False: LIST)
         self.addCleanup(self.s.close)
 
-    def measure(self):
+    def measure(self, widths=(1400, 900)):
         out = {}
         with chrome() as cdp:
             p = self.visit(cdp)
-            for w in (1400, 900):
+            for w in widths:
                 p.width(w)
                 p.show()
                 p.key("ArrowDown", 0, "ArrowDown", 40)
@@ -72,8 +72,28 @@ class Look(Base):
             self.assertEqual(m["onOffset"], "-2px", at)
 
 
+    def test_the_row_stays_three_columns_at_1400_and_900_and_the_narrow_rule_is_in_the_classic_css(self):
+        probe = "(() => { const r = document.querySelector('#palette .pal-row'), k = r.querySelector('.pal-kind'); return { cols: getComputedStyle(r).gridTemplateColumns.split(' ').length, kind: getComputedStyle(k).gridColumnStart + ' / ' + getComputedStyle(k).gridColumnEnd, first: getComputedStyle(r).gridTemplateColumns.split(' ')[0] }; })()"
+        out = {}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                p.show()
+                out[w] = p.js(probe)
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette[open]')", "the palette closed")
+        for w in (1400, 900):
+            self.assertEqual((out[w]["cols"], out[w]["first"], out[w]["kind"]), (3, "96px", "auto / auto"), f"at {w} px: {out[w]}")
+        self.assertRegex(RULES, r"@media \(max-width: 700px\) \{ \.pal-row \{ grid-template-columns: minmax\(0, 1fr\) auto; \} \.pal-kind \{ grid-column: 1 / -1; \} \}")
+
+
 class CardsControl(Look):
     classic = False
+
+    def test_the_row_stays_three_columns_at_1400_and_900_and_the_narrow_rule_is_in_the_classic_css(self):
+        m = self.measure((900,))[900]
+        self.assertEqual((m["display"], m["pad"]), ("flex", "6px 10px 6px 10px"), "Cards keeps the flex row at 900 px: " + json.dumps(m))
 
     def test_classic_quick_bar_list_look(self):
         for w, m in self.measure().items():

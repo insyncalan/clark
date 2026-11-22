@@ -43,7 +43,11 @@ LIGHT = {
         '--gutter-rule': '#EEEBFB',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
+        '--tile-on-bg': '#ECE9FB',
+        '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
+        '--ms-amber-shape': '#C58A00',
     }
 DARK = {
         '--bg': '#0E1620',
@@ -77,7 +81,10 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        '--tile-on-bg': 'var(--brand-blue-tint)',
+        '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
+        '--ms-amber-shape': '#E0A620',
     }
 RULE_LINES = [
         'body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }',
@@ -176,9 +183,13 @@ RULE_LINES = [
         '.wil-views .vt { gap: 0; }',
         '.wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }',
         '.wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }',
-        "/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */",
+        "/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, the status half-circle is 16 px, a dragged column heading is dimmed with a drop mark, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */",
         '#report[data-mode="view"] .wil-scroll { scrollbar-width: none; }',
         '#report[data-mode="view"] .wil-scroll::-webkit-scrollbar { display: none; }',
+        '.wil-half { width: 16px; height: 16px; }',
+        '.wil-table th.wil-drop { box-shadow: inset 3px 0 var(--brand-blue); }',
+        '.wil-table th.wil-dragging { opacity: 0.4; }',
+        '.wil-table th[draggable="true"] { cursor: grab; }',
         '.wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value="type"]) { display: none; }',
         '.wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
         '.wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }',
@@ -208,7 +219,7 @@ RULE_LINES = [
         '.wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }',
         '.wil-table .num { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); line-height: normal; }',
         '.wil-table .due-l { font-size: calc(var(--size-caption) - 1.5px); line-height: normal; }',
-            "/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons keep the pill, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */",
+            "/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons are 8px navy rectangles too, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */",
         'h1, h2, h3 { font-weight: var(--weight-medium); }',
         '.btn, .seg { border-radius: var(--radius); }',
         ':root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: var(--radius); }',

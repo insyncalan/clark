@@ -70,7 +70,7 @@ class Commitment(unittest.TestCase):
         self.assertIn('COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")', store)
         pub = (ROOT / "src" / "clark" / "publish.py").read_text(encoding="utf-8")
         self.assertIn('"use_cases": ("client_visible", "archived")', pub)   # the eye: a use case that is off is not in the file at all
-        self.assertIn('"sort_order", "commitment")', pub)
+        self.assertIn('"sort_order", "commitment", "owner")', pub)       # row 1479 (the 20-11 decision): the owner, as plain text, comes after the flag
         tests = (ROOT / "tests" / "test_commitment_page.py").read_text(encoding="utf-8")
         self.assertIn('for edit_only in ("Set commitment", "No flag"', tests)  # that test pins: no menu in the published bytes
 

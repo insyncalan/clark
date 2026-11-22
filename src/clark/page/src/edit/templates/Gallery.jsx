@@ -3,6 +3,8 @@
 // (pictureEdit.jsx), made smaller than in the one-picture templates so six fit one section. Taking a picture out takes its caption
 // with it. Given { section, tools }. Limits are gallery.py's.
 import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
+import { samplePicture } from "../samplePicture.js";
+import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { SLOTS } from "../../templates/Gallery.jsx";
 
@@ -15,10 +17,10 @@ function itemsOf(v) {
 }
 
 // A caption or description of one picture: the items object saved whole, with that one field changed.
-function ItemField({ section, slot, field, label, value, words }) {
+function ItemField({ section, slot, field, label, value, words, empty }) {
   const Box = field === "caption" ? CaptionField : LineField;          // item 1005: a caption is on the one editor, a description stays one line
   return (
-    <Box section={section} field={`${field}-${slot}`} label={label} value={value} max={300} words={words}
+    <Box section={section} field={`${field}-${slot}`} label={label} value={value} max={300} words={words} empty={empty}
       save={(v) => {
         const items = { ...itemsOf(wordsOf(section)) };
         const one = { ...(items[slot] || {}) };
@@ -41,11 +43,14 @@ export function Edit({ section }) {
       <div class="tpl-gal-grid">
         {shownSlots.map((s, i) => (
           <div class="tpl-gal-one" key={s}>
-            <PictureSlot section={section} slot={s} image={pics[s] || ""} label={`Picture ${i + 1}`} longest={LONGEST} most={MOST} words={WORDS} />
-            {pics[s] ? <ItemField section={section} slot={s} field="caption" label={`Caption ${i + 1}`} value={(items[s] || {}).caption} words="Caption saved." /> : null}
+            <PictureSlot section={section} slot={s} image={pics[s] || ""} label={`Picture ${i + 1}`} longest={LONGEST} most={MOST} words={WORDS} emptyWords={startOr("", "gallery", "empty")} sample={classicLook() && !filled.length} sampleNo={i} />
+            {pics[s] ? <ItemField section={section} slot={s} field="caption" label={`Caption ${i + 1}`} value={(items[s] || {}).caption} words="Caption saved." empty={startOr(undefined, "gallery", "caption")} /> : null}
             {pics[s] ? <ItemField section={section} slot={s} field="alt" label={`Describe picture ${i + 1}`} value={(items[s] || {}).alt} words="Description saved." /> : null}
           </div>
         ))}
+        {classicLook() && !filled.length ? [1, 2, 3, 4, 5].map((n) => (
+          <div class="tpl-gal-one" key={`sample-${n}`}><img src={samplePicture(n)} alt="" class="tpl-pic-sample" data-sample aria-hidden="true" /></div>
+        )) : null}
       </div>
       {!free ? <p class="quiet">A gallery holds six pictures. Take one out to add another.</p> : null}
       <PicturesTotal />

@@ -37,7 +37,7 @@ LINES = [
     '.mv-txt > span { display: none; }',
     '.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }',
     '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }',
-    'html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+    'html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
     '@media (max-width: 900px) {',
     '  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }',
@@ -112,7 +112,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
   const seg = (bs) => bs.map((b) => ({cur: b.getAttribute('aria-current'), bg: cs(b, 'backgroundColor'), color: cs(b, 'color'), radius: cs(b, 'borderTopLeftRadius'), left: cs(b, 'borderLeftWidth'), bottom: cs(b, 'borderBottomWidth')}));
   return {
     frame: (() => { const f = q('.frame.report'); return f ? {bg: cs(f, 'backgroundColor'), border: cs(f, 'borderTopWidth') + cs(f, 'borderLeftWidth'), shadow: cs(f, 'boxShadow'), radius: cs(f, 'borderTopLeftRadius')} : null; })(),
-    theme: !!q('#theme'), heading: cv('--heading'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
+    theme: !!q('#theme'), heading: cv('--heading'), g500: cv('--grey-500'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
@@ -239,7 +239,7 @@ class Classic(Setup):
             self.assertLessEqual(long["name"], long["lh"] + 1, "one line")
             self.assertEqual((long["ws"], long["to"], long["ov"]), ("nowrap", "ellipsis", "hidden"))
             self.assertTrue(long["clip"], "the long title is cut with an ellipsis")
-            self.assertEqual(g["longname_off"], ["normal", "clip", "visible"], "only the dashboard title takes the ellipsis; other pages keep the wrapping name")
+            self.assertEqual(g["longname_off"], ["nowrap", "ellipsis", "hidden"], "row 1305: every Classic page's title takes the one-line ellipsis, not only the dashboard's")
             self.assertTrue(long["wide"], "no sideways scroll")
             n = g["narrow"]
             self.assertEqual((n["token"], n["min"]), (("85px", "85px") if width == 1400 else ("103px", "103px")), "the token the stylesheet gives, with the script's override off")
@@ -259,21 +259,21 @@ class Classic(Setup):
             self.assertIsNotNone(sc)
             for grp in (sw, sc):
                 self.assertEqual(grp["gap"], "0px", "joined")
-                self.assertEqual(grp["rad"], g["radius"], "the group keeps the rounded outer corners")
+                self.assertEqual(grp["rad"], "6px" if grp is sc else g["radius"], "the group keeps the rounded outer corners (the text tabs are radius 6, Row 1316 gap)")
                 self.assertEqual(grp["ov"], "hidden", "the square buttons are clipped to the rounded outer corners")
                 self.assertEqual(grp["pad"], "12px 12px", "each button keeps its side padding")
-                self.assertEqual(grp["div"], rgb_of(g["heading"]), "the rule between neighbours is the heading colour")
+                self.assertEqual(grp["div"], rgb_of(g["g500"] if grp is sc else g["heading"]), "the rule between neighbours is the heading colour (the text tabs: --grey-500, Row 1316 gap)")
                 self.assertEqual({b["radius"] for b in grp["btns"]}, {"0px"})
                 self.assertEqual({b["bottom"] for b in grp["btns"]}, {"0px"}, "no underline")
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
                 active = [b for b in grp["btns"] if b["cur"] == "true"]
                 self.assertEqual(len(active), 1)
-                self.assertEqual(active[0]["bg"], rgb_of(g["heading"]), "the chosen one is filled dark (light page) with the heading colour")
+                self.assertEqual(active[0]["bg"], "rgb(43, 56, 80)" if dark else rgb_of("#062F3A"), "row 1354: the chosen one is navy (light) or 2b3850 (dark)")
                 for r in grp["ratios"]:
                     self.assertGreaterEqual(r, 4.5)
                 self.assertNotEqual(active[0]["bg"], [b for b in grp["btns"] if b["cur"] != "true"][0]["bg"])
-            for grp in (sw, sc):
-                self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
+            for grp in (sw, sc) if not dark else ():      # dark: the fill is 1.46 to 1 on its ground, so row 1354 draws a 1px edge instead
+                self.assertGreaterEqual(grp["edge"], 3.0, "the fill against the page beside it, as a control edge")
             print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
                   "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")
@@ -297,7 +297,7 @@ class Classic(Setup):
 
 class Published(PublishedFile, Setup):
     theme = None      # set per case below
-    """Row 1239 still rules the published file: a long name wraps on the bar, in Classic as in Cards. Only the dashboard title is one line."""
+    """Row 1305 replaces the wrapping name of row 1239 in the published file (Classic, which a stored Cards value publishes too, row 1363): one line, ellipsis."""
 
     def look(self, theme_name, width):
         with self.store.con:
@@ -314,16 +314,16 @@ class Published(PublishedFile, Setup):
             got["before"] = before
             return got
 
-    def test_the_published_title_still_wraps_in_classic_and_cards_at_1400_and_900(self):
-        for name, classic in (("classic", True), ("cards", True)):      # row 1363: a stored Cards value publishes Classic
+    def test_the_published_title_is_one_line_with_an_ellipsis_in_classic_at_1400_and_900(self):
+        for name in ("classic", "cards"):      # row 1363: a stored Cards value publishes Classic
             for width in (1400, 900):
                 with self.subTest(theme=name, width=width):
                     g = self.look(name, width)
-                    self.assertEqual(g["theme"], classic)
-                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("normal", "clip", "visible"), "no nowrap, no ellipsis, no clipping")
-                    self.assertGreater(g["name"], g["lh"] * 1.5, "the 90 character name wraps to more than one line")
-                    self.assertFalse(g["clip"], "nothing is cut off")
-                    self.assertGreater(g["bar"], g["before"], "the bar grows with the wrapped name (row 1239)")
+                    self.assertTrue(g["theme"])
+                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("nowrap", "ellipsis", "hidden"))
+                    self.assertLessEqual(g["name"], g["lh"] + 1, "one line")
+                    self.assertTrue(g["clip"], "the 90 character name is cut")
+                    self.assertEqual(g["bar"], g["before"], "the bar does not grow")
                     self.assertTrue(g["wide"])
 
 

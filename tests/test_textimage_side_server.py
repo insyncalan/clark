@@ -322,6 +322,26 @@ class Route(PictureSteps, Api):
         self.undone(got["apply_id"])
         self.assertEqual(framed(self.body(ref))[:2], (40, 10), "one step, one Undo: the whole image is back")
 
+    def test_a_crop_a_reset_and_a_focus_move_are_each_one_step_and_one_undo_brings_the_previous_body_back(self):
+        ref = self.new()
+        self.assertEqual(self.put(ref, "original", halves(40, 10))[0], 200)
+        steps = (("crop", {"crop": [500, 0, 1000, 1000]}), ("focus", {"fx": 100, "fy": 700}), ("shape", {"shape": "square", "crop": [0, 0, 500, 1000]}))
+        for name, framing in steps:
+            before = self.body(ref)
+            status, got = self.words(ref, {k: v for k, v in {**before, **framing}.items() if k != "pictures"})
+            self.assertEqual(status, 200, (name, got))
+            self.assertNotEqual(self.body(ref), before, name)
+            self.undone(got["apply_id"])
+            self.assertEqual(self.body(ref), before, f"{name}: one Undo restores the previous body, image and framing")
+        framed_now = {k: v for k, v in {**self.body(ref), "crop": [500, 0, 1000, 1000], "fx": 100}.items() if k != "pictures"}
+        self.assertEqual(self.words(ref, framed_now)[0], 200)
+        before = self.body(ref)
+        status, got = self.words(ref, {"v": 2})                          # Reset framing: the whole framing sent without its keys
+        self.assertEqual(status, 200, got)
+        self.assertFalse({"shape", "crop", "fx", "fy"} & set(self.body(ref)), self.body(ref))
+        self.undone(got["apply_id"])
+        self.assertEqual(self.body(ref), before, "reset: one Undo brings the framing back")
+
     def test_a_request_cannot_carry_an_image_with_the_words(self):
         ref = self.new()
         status, got = self.words(ref, {"v": 2, "pictures": {"original": GOOD}})
