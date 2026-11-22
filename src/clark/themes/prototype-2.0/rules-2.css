@@ -20,6 +20,33 @@
 .tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
 /* Row 1315 AP9 (Classic Milestones): the off half of the five switch buttons has --grey-700 text (7.41 to 1 in light), not --text; frames and dividers stay --grey-500. */
 #milestones .msv-sw .msv-b:not([aria-current="true"]), #milestones .cal-sc button:not([aria-current="true"]) { color: var(--grey-700); }
+/* Row 1334 (Classic only; the Cards page keeps edit.css as it was): the Feedback tag dialog values as the mock-up draws them, same selectors as edit.css so they win by order. */
+.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: 16px 18px 14px 17px; line-height: 1.45; background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
+.fbt-x { all: unset; cursor: pointer; font-size: 20px; font-weight: 600; line-height: 1; padding: 0 4px; color: var(--grey-700); }
+.fbt-kinds { display: flex; gap: 6px; margin: 6px 0 10px; }
+.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: 13.5px; cursor: pointer; }
+/* Row 1334: the dialog is the 1298 mock-up (sizes and spacing in px as drawn there). Left padding 17 px plus the 1 px border is the 18 px inset, so the box is 324 px wide. The lead line, the label, the message box, the empty-send line, the Added automatically box, the mail note and the two buttons. */
+.fbt-dlg .fbt-intro { margin: 0 0 10px; font-size: 13px; }
+.fbt-dlg label { display: block; margin: 8px 0 3px; font-size: 13.5px; }
+.fbt-dlg textarea.grow { display: block; width: 100%; padding: 7px 10px; border: 1px solid var(--grey-200); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; overflow-y: auto; }
+.fbt-error { margin-top: 4px; font-size: 13px; color: var(--status-red-text); }
+.fbt-added { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--grey-100); font-size: 12.5px; color: var(--grey-700); }
+.fbt-added ul.plain li { padding: 0; border-top: 0; }
+.fbt-dlg .fbt-mail-note { margin: 6px 0 0; font-size: 12.5px; }
+.fbt-dlg .row { margin-top: 12px; }
+.fbt-dlg .row .btn { vertical-align: middle; }
+.fbt-dlg .row .btn + .btn { margin-left: 8px; }
+.fbt-dlg .row [data-fbt-copy] { padding-left: 14px; padding-right: 14px; }   /* 14 px as drawn; with the mail pill (padding 0 22 px, row 1319) both fit one line in the 324 px box */
+
+/* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
+.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
+/* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
+.ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
+.cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
+.cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
+.cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
