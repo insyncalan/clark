@@ -126,10 +126,9 @@ class Workflow(unittest.TestCase):
         plan = self.jobs["plan"]
         self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
-        self.assertIn("*,full-ci,*) FULL=1; MACOS=1 ;;", plan)
+        self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1 ;;", plan)               # a push to main: full Ubuntu, NO macOS
-        self.assertNotIn("push) FULL=1; MACOS=1", plan)
+        self.assertIn("push) FULL=1; MACOS=1 ;;", plan)               # a push to main: full Ubuntu and the full macOS suite (17:58 order)
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -292,21 +291,33 @@ class Workflow(unittest.TestCase):
     def test_macos_runs_for_mac_specific_files_not_for_every_guarded_file(self):
         """The owner, 04-11-2026: macOS runs at the release gate, not on every push of a guarded pull request. A guarded file is the full Ubuntu
         matrix (FULL=1) and no macOS; only the Mac-specific code (platform, updates, the launcher and the package files) also asks for macOS.
-        Each pattern is judged on its own: a Mac file must be in a MACOS=1 line, and no other pattern may share one."""
+        Each pattern is judged on its own: a Mac file must be in a SMOKE=1 line (a pull request runs the Mac smoke set, never the full macOS shards), and no other pattern may share one."""
         plan = self.jobs["plan"]
         seen = {}
         for ln in plan.splitlines():
             m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s+(FULL=1[^#]*)", ln)
             if not m or "/" not in m.group(1):
                 continue
-            macos = "MACOS=1" in m.group(2)
+            macos = "SMOKE=1" in m.group(2)
             for pattern in m.group(1).split("|"):
                 is_mac = pattern.rsplit("/", 1)[-1] in self.MAC_FILES and pattern != "clark/__init__.py"
-                self.assertEqual(macos, is_mac, f"{pattern}: macOS only for a Mac-specific file, and a Mac file only on a MACOS=1 line")
+                self.assertEqual(macos, is_mac, f"{pattern}: macOS only for a Mac-specific file, and a Mac file only on a SMOKE=1 line")
                 seen[pattern.rsplit("/", 1)[-1]] = macos
         for name in self.MAC_FILES:
             self.assertTrue(seen.get(name), f"{name} must be in the plan's Mac-specific list")
         self.assertIn(".github/*) FULL=1 ;;", plan)
+
+    def test_a_pull_request_never_requires_the_macos_shards_but_main_does(self):
+        """Alan 22-11 (17:58): the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check); the full macOS suite stays
+        required on a push to main and on the nightly."""
+        plan = self.jobs["plan"]
+        pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]
+        self.assertNotIn("MACOS=1", pr_part)          # no pull-request path asks for the macOS shards
+        self.assertIn("SMOKE=1", pr_part)
+        passed = self.jobs["passed"]
+        self.assertIn("EVENT: ${{ github.event_name }}", passed)
+        self.assertIn('if [ "$EVENT" = "pull_request" ]; then :; elif [ -n "$WANT_MACOS" ]', passed)
+        self.assertIn('if [ -n "$WANT_SMOKE" ]; then test "$SMOKE" = "success"', passed)
 
     def test_a_pull_request_that_targets_a_release_branch_gets_macos_too(self):
         plan = self.jobs["plan"]
