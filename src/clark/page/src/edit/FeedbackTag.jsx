@@ -6,11 +6,20 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedbackTag.js";
 import { mailClick, MAIL_NOTE } from "./mailApi.js";   // Open in your mail app goes through the server route (row 1297), as in Settings, Feedback
 import { readDiagnostics } from "./diagnosticsApi.js";   // GET /api/diagnostics: its System line gives the macOS version for the mail
-import { healthVersion } from "./Feedback.jsx";   // the same health check; it asks for no zone, so it is not a zoneFetch
-import { view, settingsPage, settingsFeedbackShown, peek, fromFile } from "../stores/report.js";
+import { view, settingsPage, peek, fromFile } from "../stores/report.js";
 import { helpOpen, contextOpen } from "../help/helpStore.js";
 import { width as peekWidth, wide as peekWide } from "../stores/peekState.js";
 
+/** The server's version from /health ("" when it cannot be read). It asks for no zone, so it is not a zoneFetch. */
+export async function healthVersion() {
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    const b = await r.json();
+    return b && typeof b.version === "string" ? b.version : "";
+  } catch (e) {
+    return "";
+  }
+}
 const realClip = (t) => navigator.clipboard.writeText(t);
 
 function Dialog({ ctx, onClose, clip }) {
@@ -65,7 +74,7 @@ function Dialog({ ctx, onClose, clip }) {
 }
 
 export function FeedbackTag({ getVersion = healthVersion, getDiagnostics = readDiagnostics, nav, clip = realClip }) {
-  const where = { view: view.value, page: settingsPage.value, helpOpen: helpOpen.value, fromFile: fromFile.value, feedbackCard: settingsFeedbackShown.value };
+  const where = { view: view.value, page: settingsPage.value, helpOpen: helpOpen.value, fromFile: fromFile.value };
   const on = L.tagShown(where);
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState("");

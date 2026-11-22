@@ -511,7 +511,7 @@ class WhereItIsNamed(unittest.TestCase):
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Update", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the cards are named in the Settings page list, and drawn from the edit tools by name
+        self.assertIn('["version", "Version and updates", ["Update", "Quit"]]', views)      # row 1024: the cards are named in the Settings page list, and drawn from the edit tools by name
         self.assertIn('Update: "update-h"', views)
 
 

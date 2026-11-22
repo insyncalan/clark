@@ -86,7 +86,7 @@ COVERED = [
     ('1068', 'A Table section can be added to the Dashboard and draws only the plan table, with one Undo.',
      'test_gantt_table_section::TheChangeRoute::test_a_table_section_is_added_with_one_undo_and_the_undo_takes_it_away'),
     ('1069', 'Settings has a Feedback card with a link in its list.',
-     'test_feedback_tab::InSettings::test_settings_draws_the_card_and_a_link_for_it'),
+     'test_feedback_tab::Logic::test_the_mail_link_is_to_the_address_with_the_subject_and_the_whole_text'),
     ('1070', 'Change owner in an item menu has a search box that finds people.',
      'test_row_menu::Menu::test_item_1070_change_owner_has_a_search_box_that_finds_people_on_the_register'),
     ('1071', 'A filter tab can be picked up and dragged left or right and the order is kept.',
