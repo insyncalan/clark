@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedback.js";
 import { mailClick, MAIL_NOTE } from "./mailApi.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export async function healthVersion() {
   try {
@@ -56,6 +57,7 @@ export function Feedback({ getVersion = healthVersion, platform, clip = realClip
         {link.href ? <a class="btn pri" data-feedback-mail href={link.href} onClick={(e) => mailClick(e, link.href, setMailFailed)}>{L.LABELS.mail}</a> : null}
         <button type="button" class="btn" data-feedback-copy disabled={!has} onClick={copy}>{L.LABELS.copy}</button>
       </div>
+      {classicTheme() && !has ? <p class="muted" data-feedback-hint>{L.NOTHING_YET}</p> : null}
       {mailFailed ? <p class="muted" data-mail-note>{MAIL_NOTE}</p> : null}
       <div class="pub-msg" id="feedback-note" role="status" aria-live="polite">{words}</div>
       {refused ? <textarea id="feedback-shown" class="grow" rows={6} readOnly ref={shown} value={body} aria-label={L.LABELS.copy} /> : null}

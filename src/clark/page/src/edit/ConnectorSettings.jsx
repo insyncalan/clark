@@ -6,7 +6,8 @@ import { askConnectorsRead, askConnectorsChange, words } from "./publishApi.js";
 const READ_ONLY = "A connector is only read from, never changed.";
 const NONE = "No connectors were found on this computer.";
 const NOT_READY = "Connectors can't be checked just now. None is used until they can be.";      // not "they stay off": a saved On stays saved when a check fails; what holds is that none is used until it can be checked
-const ALL_NOTE = "Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.";
+const ALL_NOTE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.";
+const HIDDEN = ["todoist"];          // found but not offered: its read-only tools are not checked yet, so it has no switch (the server leaves it out too)
 const PROJECT_NOTE = "Only the connectors that are On for all projects appear here.";
 
 function useConnectors(code) {
@@ -20,7 +21,7 @@ function useConnectors(code) {
     askConnectorsRead(code).then((r) => {
       if (!live) return;
       const b = r.body;
-      setList(r.status === 200 && b && b.ok === true && Array.isArray(b.connectors) ? b.connectors : "unavailable");
+      setList(r.status === 200 && b && b.ok === true && Array.isArray(b.connectors) ? b.connectors.filter((c) => !HIDDEN.includes(c.id)) : "unavailable");
     });
     return () => { live = false; };
   }, [code]);
@@ -33,7 +34,7 @@ function useConnectors(code) {
     setBusy(false);
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.connectors)) {
-      setList(b.connectors);
+      setList(b.connectors.filter((c) => !HIDDEN.includes(c.id)));
       if (text && b.apply_id) setSaid({ text, undo: b.apply_id });
     } else setMsg(words(r, "save that connector choice"));
   }

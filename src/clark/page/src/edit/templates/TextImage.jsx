@@ -3,7 +3,9 @@
 // picture through POST /api/section-image (pictureEdit.jsx). Given { section, tools }. Limits are textimage.py's.
 import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
 import { RichField } from "../RichField.jsx";
+import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
+import { Edit as SideEdit } from "./TextImageSide.jsx";
 
 // The words as the rich editor is given them (row 1005): the stored `html`, or the old lines (plain text, escaped, one paragraph each).
 // Never the raw stored text: RichField draws cleanHtml of this.
@@ -15,6 +17,7 @@ const WORDS = { added: "Picture added.", removed: "Picture taken out." };
 
 export function Edit({ section }) {
   const v = stored(section) || {};
+  if (v.v === 2) return <SideEdit section={section} />;      // row 1232: Text and Image Side by Side (a body of version 2); an older body keeps this Edit part
   const image = picturesOf(v).image || "";
   const left = v.side === "left";
   const empty = !image && !(Array.isArray(v.words) && v.words.length) && !v.html;
@@ -24,12 +27,12 @@ export function Edit({ section }) {
       <div class="tpl-ti-grid">
         <div class="tpl-pic-field">
           <label>Text</label>
-          <RichField field="textimage" id={section.id} value={richValue(v)} label={`${section.title} text`} empty="Click to write."
+          <RichField field="textimage" id={section.id} value={richValue(v)} label={`${section.title} text`} empty={startOr("Click to write.", "text-image", "empty", 0)}
             save={(html) => saveWords(section, { html: noBreaks(html), words: [] }, "Text saved.")} />
         </div>
         <div class="tpl-ti-pic">
-          <PictureSlot section={section} slot="image" image={image} label="Picture" words={WORDS} />
-          <CaptionField section={section} field="caption" label="Caption" value={v.caption} max={300} words="Caption saved." />
+          <PictureSlot section={section} slot="image" image={image} label="Picture" words={WORDS} emptyWords={startOr("", "text-image", "empty", 1)} sample={classicLook()} />
+          <CaptionField section={section} field="caption" label="Caption" value={v.caption} max={300} words="Caption saved." empty={startOr(undefined, "text-image", "caption")} />
           <LineField section={section} field="alt" label="Describe the picture for someone who can't see it" value={v.alt} max={300} words="Description saved." />
           <fieldset class="tpl-side">
             <legend>Picture on the</legend>

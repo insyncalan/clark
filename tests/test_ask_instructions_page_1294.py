@@ -73,6 +73,17 @@ class Boxes(unittest.TestCase):
             self.until(js, "/Saved/.test(document.body.innerText)", "the toast says it was saved")
             self.assertEqual(self.kept("ABC"), "", "nothing was saved for the project")
 
+    def test_the_help_under_the_all_projects_box_says_the_size_of_one_question_in_the_approved_words(self):
+        from clark import ai_connect
+        approved = "Up to 4,000 characters, sent with every question, before each project's own. Long instructions count towards the size of one question every time."
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            self.until(js, "!!document.querySelector('#ask-instructions-all-help')", "the help is on the page")
+            self.assertEqual(js("document.querySelector('#ask-instructions-all-help').innerText"), approved)
+        from clark import ask
+        size = ai_connect.SIZE_LINE.format(tokens=ask.BUDGET // 4, chars=ask.BUDGET)
+        self.assertIn("about 300,000 tokens (1,200,000 characters of passages)", size)
+
     def test_undo_in_the_toast_puts_the_old_text_back_in_the_box(self):
         self.svc.change({"scope": "all", "text": "Old words."})
         with chrome() as cdp:

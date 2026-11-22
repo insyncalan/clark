@@ -60,7 +60,7 @@ Read from `schema.sql`/`store.py` (types: `current glance usecases milestones te
 | Template | Closest existing type | Reuse it? | Why |
 |---|---|---|---|
 | Text | `text` | Yes, already | Today's only placeable template. |
-| Text and image | `text` | No: needs its own | A picture and a caption are content a text section's `body` does not hold. |
+| Text and Image Side by Side (was Text and image) | `text` | No: needs its own | A picture and a caption are content a text section's `body` does not hold. |
 | Key figures, three / four | `glance` | Partly | `glance` is the report's one At a glance section, live tiles (#45). A figures section is placed any number of times, mixes live and typed figures and has its own labels, so it needs its own type. |
 | RAID cards, three / four | `raid` | No | `raid` lists every RAID item as a table; a card section shows three or four chosen items with a line each. |
 | Work items list | `raid`, `actions`, `decisions` | No | Those are fixed to one record type; this one is a saved filter across types. |

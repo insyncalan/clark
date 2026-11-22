@@ -155,6 +155,8 @@ LOCKED = {"id", "project", "source", "updated_at", "archived", "closed", "state_
 LOCKED_IN = {"raid": {"priority"}}                       # worked out from impact and likelihood
 LABELS = "labels"      # not a column: an item's labels, as the export writes them (comma-separated); the store keeps them apart
 UC_MILESTONES = "milestones"      # row 1107: not a use_cases column: the milestones a use case is linked to directly, as ids ('ID, ID'); the store keeps them in use_case_milestones
+CLIENT_COPY_REFUSAL = ("This file is a client copy. It leaves out the rows hidden from the client, so importing it would overwrite them. "
+                       "Import the project's own file instead.")      # row 1390, the approved sentence
 FLAGS = {"client_visible", "state_set", "active"}
 # what applying "removed from the workbook" does (#126: nothing is deleted or closed; the row is archived, status unchanged)
 REMOVED_BY = {"actions": "archived", "raid": "archived", "decisions": "archived", "milestones": "archived"}
@@ -1217,9 +1219,6 @@ def _gantt_sheet(self, ws):
     typed is only the name the Parent and Depends on cells of the sheet use for it). Days and Status are worked out and never read.
     A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
     sheet = ws.title
-    if excel.CLIENT_COPY_NAME in ws.parent.defined_names:      # the client workbook's mark (excel_client.write_gantt_sheet): a client copy is never imported, whatever row its header is in
-        self.problem(f"{sheet}: this is the copy made for the client, not a workbook to import, so the sheet was skipped.", sheet)
-        return
     first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
     header, ignored = {}, []
     for i, h in enumerate(first):
@@ -1716,6 +1715,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
     except Exception:
         raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     try:
+        if excel.CLIENT_COPY_NAME in wb.defined_names:       # row 1390: the client workbook's mark; the whole file is refused, whatever sheets it has
+            raise Invalid(CLIENT_COPY_REFUSAL)
         try:
             created = excel.created_for(state_path, path, project)
         except (OSError, ValueError):

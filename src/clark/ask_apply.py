@@ -28,16 +28,17 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import ask_data, changes, edit_ai, platform
+from clark import ask, ask_data, ask_words, changes, edit_ai, platform
 from clark.store import CODE_RE, Store, connect
 
-MAX_AT_ONCE = 5                 # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet)
+MAX_AT_ONCE = ask.MAX_CHANGES   # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet). One constant with the reply reader (Row 1293)
 OFFER_MINUTES = 30
 MAX_OFFERS = 50
 OP_NEW, OP_CHANGE = "new", "change"
 NOT_YET_OPS = tuple("archive remove restore".split()) + (changes.DELETE,)      # made, not spelt: a lone delete string reads as SQL to the writer test
 CLAIMS = ("current_title", "current_owner")
-FORM = ("op", "kind", "id", "project", "source") + CLAIMS
+MAX_WHY = 300                     # row 1292 step S4: the card's one-line reason, plain text
+FORM = ("op", "kind", "id", "project", "source", "why") + CLAIMS
 KINDS = {"action": ("actions", None), "risk": ("raid", "Risk"), "issue": ("raid", "Issue"),
          "assumption": ("raid", "Assumption"), "dependency": ("raid", "Dependency"), "decision": ("decisions", None),
          "milestone": ("milestones", None), "use case": ("use_cases", None)}
@@ -95,9 +96,21 @@ def _fold(text):
     return " ".join(edit_ai.normal(ask_data.plain(text or "")).casefold().split())      # #1293 A: the saved text may hold HTML; the model was shown it plain
 
 
+def _blank_tbc(owner):
+    """Row 1293 (b): an item with no owner is stored as "TBC", so a folded TBC owner counts as blank (it matches any owner)."""
+    return "" if owner == "tbc" else owner
+
+
 def _plain_name(name):
     """A field name from a suggestion, safe to say back: letters, digits and spaces only, short."""
     return re.sub(r"[^A-Za-z0-9 ]", " ", str(name).replace("_", " "))[:30].strip() or "field"
+
+
+def _kind_word(table, row):
+    """The word for a new item's kind in a sentence: action, risk, issue, assumption, dependency, decision, milestone ("" if none)."""
+    if table == "raid":
+        return str(row.get("type") or "").casefold()
+    return {"actions": "action", "decisions": "decision", "milestones": "milestone"}.get(table, "")
 
 
 def table_of(ref, project):
@@ -117,6 +130,7 @@ class Plan:
     request: dict
     claims: dict
     from_source: bool
+    why: object = None
 
 
 def read_suggestion(project, change, from_source=False):
@@ -138,6 +152,11 @@ def read_suggestion(project, change, from_source=False):
     source = change.get("source")
     if source is not None and not (isinstance(source, str) and SOURCE_ID.fullmatch(source)):
         raise Refusal("not_a_change", NOT_A_CHANGE)
+    why = change.get("why")
+    if why is not None and not isinstance(why, str):
+        raise Refusal("not_a_change", NOT_A_CHANGE)
+    if why is not None:
+        why = " ".join("".join(c for c in why if c >= " " and c != "\x7f").split())[:MAX_WHY] or None
     claims = {k: change[k] for k in CLAIMS if change.get(k) is not None}
     if any(not isinstance(v, str) for v in claims.values()):
         raise Refusal("not_a_change", NOT_A_CHANGE)
@@ -181,7 +200,7 @@ def read_suggestion(project, change, from_source=False):
         request = {"project": project, "kind": table, "op": changes.NEW, "values": fields}
     else:
         request = {"project": project, "kind": table, "op": changes.UPDATE, "id": ref, "changes": fields}
-    return Plan(table, op, ref, request, claims, bool(from_source) or source is not None)
+    return Plan(table, op, ref, request, claims, bool(from_source) or source is not None, why)
 
 
 @dataclass
@@ -191,6 +210,16 @@ class Offer:
     expect: object
     from_source: bool
     at: float
+    ref: object = None            # Row 1293: the item a change is about (None for a new item)
+    stale: str = ""               # Row 1293: the sentence to give when another change to the same item has been saved first ("" when not)
+
+
+def _owner_shown(before, plan):
+    """The owner the card shows beside the title: the stored owner of a changed item; none for a new item, a use case, or a blank owner. TBC is shown as stored (ruling 20-11)."""
+    if plan.op != OP_CHANGE or plan.table not in OWNER:
+        return None
+    owner = (before or {}).get(OWNER[plan.table])
+    return owner if isinstance(owner, str) and owner.strip() else None
 
 
 class AskApply:
@@ -224,13 +253,17 @@ class AskApply:
             project = plan.request["project"]
             if store.read("projects", ref=project) is None:
                 raise Refusal("project_not_found", NO_PROJECT, 404)
+            if store.ask_off_here(project):      # row 1294: this project's own asking is off (the computer-wide switch was read above)
+                raise Refusal("asking_off", ASKING_OFF, 409)
             if plan.op != OP_CHANGE:
                 return
             row = store.read(plan.table, ref=plan.ref)
             if row is None or row.get("project") != project or row.get("archived"):
                 raise Refusal("unknown_id", UNKNOWN_ID.format(ref=plan.ref))
             title = plan.claims.get("current_title")
-            if title is not None and _fold(title) != _fold(row.get(TITLE[plan.table])):
+            if title is None or not _fold(title):      # #1293: a change must name the title it is about, so the card can show it
+                raise Refusal("no_title", NOT_A_CHANGE)
+            if _fold(title) != _fold(row.get(TITLE[plan.table])):
                 raise Refusal("wrong_title", WRONG_TITLE.format(ref=plan.ref))
             owner = plan.claims.get("current_owner")
             if owner is not None and _fold(owner) != _fold(row.get(OWNER[plan.table])):
@@ -249,7 +282,37 @@ class AskApply:
             self.offers[key] = offer
             return key
 
-    def plan(self, project, change, from_source=False):
+    def duplicate_of(self, plan, after, earlier):
+        """Row 1293 (b): the warning sentence when a new item has the same kind, project and title (capitals and extra spaces ignored)
+        as one already there or one the same reply offered before it, and the same owner (a blank owner on either side matches any);
+        else "". `earlier` is the list of (kind word, title, owner) the reply's earlier new items made. Read-only; never refuses."""
+        table = plan.table
+        word = _kind_word(table, after)
+        title, owner = _fold(after.get(TITLE[table])), _blank_tbc(_fold(after.get(OWNER[table])))
+        if not word or not title:
+            return ""
+        shown = ask_data.plain(after.get(TITLE[table]) or "").strip()
+        same = lambda o: not owner or not o or o == owner      # noqa: E731
+        if any(w == word and t == title and same(o) for w, t, o in earlier):
+            return ask_words.duplicate(word, shown)
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return ""
+        try:
+            rows = store.read(table, plan.request["project"], archived=False)
+        except Exception:  # noqa: BLE001  a warning is only a help: when the data can't be read there is none
+            return ""
+        finally:
+            store.close()
+        for row in rows:
+            if table == "raid" and str(row.get("type") or "").casefold() != word:
+                continue
+            if _fold(row.get(TITLE[table])) == title and same(_blank_tbc(_fold(row.get(OWNER[table])))):
+                return ask_words.duplicate(word, shown)
+        return ""
+
+    def plan(self, project, change, from_source=False, earlier=()):
         """The dry run of one suggestion: (status, {ok, offer, kind, ref, before, after, fields, needs_confirm}) or a refusal.
         `before` and `after` come from the data (changes.make_ask_change, rolled back); `fields` the shown fields that differ."""
         try:
@@ -266,10 +329,18 @@ class AskApply:
         fields = [k for k in after if k != "id" and (after[k] is not None if before is None else before.get(k) != after[k])]
         if not fields:
             return fail("nothing", NOTHING)
-        offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock()))
-        return 200, {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
-                     "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
-                     "needs_confirm": plan.from_source}
+        offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock(),
+                                plan.ref if plan.op == OP_CHANGE else None))
+        out = {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
+               "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
+               "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None,
+               "owner": _owner_shown(before, plan), "why": plan.why,
+               "needs_confirm": plan.from_source}
+        if plan.op == OP_NEW:
+            said = self.duplicate_of(plan, after, earlier)
+            if said:
+                out["duplicate"] = said                # Row 1293: a warning above Apply; it never blocks
+        return 200, out
 
     def plan_all(self, project, suggested, from_source=False):
         """The dry runs of a reply's changes: more than MAX_AT_ONCE is refused whole (not yet); else one result each."""
@@ -277,22 +348,64 @@ class AskApply:
             return fail("not_a_change", NOT_A_CHANGE)
         if len(suggested) > MAX_AT_ONCE:
             return fail("too_many", TOO_MANY)
-        return 200, {"ok": True, "plans": [self.plan(project, c, from_source)[1] for c in suggested]}
+        plans, earlier = [], []
+        for c in suggested:
+            made = self.plan(project, c, from_source, tuple(earlier))[1]
+            plans.append(made)
+            if made.get("ok") and made.get("new"):      # Row 1293 (b): a later new item matching this one is warned about
+                after = made["after"]
+                table = made["kind"]
+                word = _kind_word(table, after)
+                earlier.append((word, _fold(after.get(TITLE[table])), _blank_tbc(_fold(after.get(OWNER[table])))))
+        return 200, {"ok": True, "plans": plans}
+
+    def restore(self, offer, held):
+        """Put an offer back after a save that did not happen (its own time still runs, so it expires when it would have)."""
+        with self.lock:
+            self.offers[offer] = held
 
     def apply(self, offer, project, confirm=False):
         """Save one offer as one undoable step. A change from a source passage needs `confirm` exactly True. The offer is used
-        once: it is dropped as soon as Apply is pressed with what it needs, whatever happens next (ask again to try again)."""
+        once: it is gone once it is saved or refused; a save that could not be made (busy or unusable data, or a fault) keeps it."""
         if not isinstance(offer, str) or not isinstance(project, str):
             return fail("no_offer", NO_OFFER)
         with self.lock:
             held = self.offers.get(offer)
             if held is None or held.project != project or self.clock() - held.at > OFFER_MINUTES * 60:
                 return fail("no_offer", NO_OFFER, 409)
+            if held.stale:                             # Row 1293: the first change to this item was saved; nothing is written for this one
+                del self.offers[offer]
+                return fail("changed", held.stale, 409)
             if held.from_source and confirm is not True:
                 return fail("needs_confirm", NEEDS_CONFIRM, 409)
-            del self.offers[offer]                     # used once, whatever happens next
-        status, body = self.ask_change(held.request, dry=False, expect=held.expect)
+            del self.offers[offer]                     # taken while it is saved, so a second Apply at the same moment finds nothing
+        try:
+            status, body = self.ask_change(held.request, dry=False, expect=held.expect)
+        except BaseException as e:                     # row 1293 line 10: an unexpected fault saved nothing, so the offer stays
+            committed = getattr(e, "committed", False) is True       # unless the save had been committed: then it is used up
+            if not committed:
+                self.restore(offer, held)
+            raise
+        if status == 503 and body.get("committed") is not True:                              # row 1293 line 10: a busy or unusable database saved nothing: the offer is kept for the next Apply
+            self.restore(offer, held)
         if status != 200 or not body.get("ok"):
             return status, {"ok": False, "code": body.get("code", "refused"), "message": body.get("message", NOT_A_CHANGE)}
+        stale = self.mark_stale(held, body)
         return 200, {"ok": True, "kind": body["kind"], "ref": body["ref"], "apply_id": body["apply_id"],
-                     "undoable": body["undoable"], "before": body["before"], "after": body["after"]}
+                     "undoable": body["undoable"], "before": body["before"], "after": body["after"], "stale": stale}
+
+    def mark_stale(self, saved, body):
+        """Row 1293 (a): the other offers still waiting for the item just changed (they were made from the item as it was) are
+        marked stale. Returns [{"offer", "message"}] for the page to show on those cards in place of Apply; nothing is written for them."""
+        if saved.ref is None or not isinstance(body.get("before"), dict) or not isinstance(body.get("after"), dict):
+            return []
+        moved = [k for k in body["after"] if body["before"].get(k) != body["after"][k]]
+        out = []
+        with self.lock:
+            for key, other in self.offers.items():
+                if other.ref != saved.ref or other.project != saved.project or other.stale:
+                    continue
+                mine = [c for c in other.request.get("changes", {}) if c in moved]
+                other.stale = ask_words.stale((mine or moved or list(other.request.get("changes", {})) or ["item"])[0])
+                out.append({"offer": key, "message": other.stale})
+        return out

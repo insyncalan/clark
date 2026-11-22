@@ -16,6 +16,7 @@ from _demo import USER, DemoStore
 from clark import changes, excel, excel_client
 from clark import excel_import as xi
 from clark import store as store_module
+from clark.store import Invalid
 from openpyxl import Workbook, load_workbook
 
 ON = "2030-06-01"
@@ -23,6 +24,10 @@ ON = "2030-06-01"
 
 def gid(n, code="ABC"):
     return f"{code}-GNT-{n:03d}"
+
+
+CLIENT_COPY_SENTENCE = ("This file is a client copy. It leaves out the rows hidden from the client, so importing it would overwrite them. "
+                        "Import the project's own file instead.")
 
 
 class Base(unittest.TestCase):
@@ -320,17 +325,17 @@ class Refusals(Base):
     def test_a_client_copy_imported_by_hand_is_refused_and_nothing_is_written(self):
         path = self.client_copy()
         before, steps = self.lines(), self.steps()
-        p = self.plan(path)
-        self.assertEqual(p.changes, [])
-        self.assertTrue(any("Gantt: this is the copy made for the client, not a workbook to import, so the sheet was skipped." in x.message for x in p.problems), p.problems)
+        with self.assertRaises(Invalid) as cm:
+            self.plan(path)
+        self.assertEqual(str(cm.exception), CLIENT_COPY_SENTENCE)      # row 1390: the whole file is refused in the approved sentence
         self.assertEqual((self.lines(), self.steps()), (before, steps))
 
     def test_a_client_copy_with_the_title_band_deleted_is_still_refused_by_the_mark(self):
         path = self.client_copy(band=False)
         before = self.lines()
-        p = self.plan(path)
-        self.assertEqual(p.changes, [])
-        self.assertTrue(any(x.sheet == "Gantt" and "this is the copy made for the client" in x.message for x in p.problems), p.problems)
+        with self.assertRaises(Invalid) as cm:
+            self.plan(path)
+        self.assertEqual(str(cm.exception), CLIENT_COPY_SENTENCE)
         self.assertEqual(self.lines(), before)
 
     def test_without_the_mark_only_the_layout_rule_refuses_a_client_copy(self):

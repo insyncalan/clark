@@ -90,7 +90,37 @@ class Form(unittest.TestCase):
 
     def test_changes_over_the_limit_are_dropped_and_said(self):          # #1293 A [D]
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)))
-        self.assertEqual((r.parsed, len(r.changes), kinds(r)), (True, ask.MAX_CHANGES, ["change_unreadable"]))
+        self.assertEqual((r.parsed, len(r.changes), kinds(r)), (True, ask.MAX_CHANGES, ["change_limit"]))
+
+    def test_the_read_limit_is_the_apply_limit_and_the_sixth_change_is_dropped_and_said(self):          # Row 1293
+        from clark import ask_apply
+        self.assertEqual((ask.MAX_CHANGES, ask_apply.MAX_AT_ONCE), (5, 5))
+        r = read("\n".join(["Answer"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual([(f.kind, f.message) for f in r.flags],
+                         [("change_limit", "Only the first 5 changes are offered. Ask again for the rest.")])
+
+    def test_the_limit_sentence_is_built_from_the_apply_constant_and_not_said_at_the_limit(self):          # Row 1293
+        from clark import ask_apply
+        self.assertEqual(ask.CHANGE_LIMIT, f"Only the first {ask_apply.MAX_AT_ONCE} changes are offered. Ask again for the rest.")
+        five = read("\n".join(["Answer"] + ['CHANGE: {"n": %d}' % i for i in range(5)]))
+        self.assertEqual((len(five.changes), kinds(five)), (5, []))
+        none = read("Answer")
+        self.assertEqual(kinds(none), [])
+
+    def test_a_bad_line_and_a_cut_change_are_each_said_once(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
+
+    def test_a_bad_line_with_exactly_five_good_changes_says_only_unreadable(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(5)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable"])
+
+    def test_a_bad_line_with_six_good_changes_keeps_five_and_says_unreadable_then_limit(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
 
     def test_the_most_changes_allowed_are_read(self):
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * ask.MAX_CHANGES))

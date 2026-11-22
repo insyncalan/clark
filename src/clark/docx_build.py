@@ -60,7 +60,8 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
           "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
-          "glancetemplate": "At a glance"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "glancetemplate": "At a glance", "callout": "Callout", "textimage": "Text and Image Side by Side"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+CALLOUT_FILL = {"violet": "blue", "amber": "amber", "red": "red", "green": "green", "grey": "grey"}      # row 1272: Violet is the page's blue token; Plain has no fill
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
@@ -584,6 +585,32 @@ def section_imagecap(published, ctx, title, sec):
     return pic + (para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120)) if caption else "")
 
 
+def section_textimage(published, ctx, title, sec):
+    """Row 1232: Text and Image Side by Side (an old Text and image section reads the same). The section heading, then the image as framed
+    (the file holds only the framed copy) with its caption, and the words; the image comes first when it is on the left, after the words
+    otherwise. A small image sits at its own size, centred. An image that cannot be read leaves the words alone; nothing to say leaves
+    the section out."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    html = c.get("html")
+    words = rich(html, ctx) if isinstance(html, str) and html.strip() else "".join(
+        para(run(str(w))) for w in (c.get("words") or []) if isinstance(w, str) and w.strip())
+    pic = ""
+    got = docx_fullimage.decode(c.get("image"))
+    if got:
+        raw, ext, w, h = got
+        twips = docx_fullimage.width_twips(w, h, TEXT_W * 2 // 3, False)
+        caption = str(c.get("caption") or "").strip()
+        pic = picture_para(ctx, lambda: ((raw, w, h), str(c.get("alt") or "")), twips, ext=ext, keep_next=bool(caption),
+                           align="center" if twips < TEXT_W * 2 // 3 else None, spacing=(120, 40))
+        if pic and caption:
+            pic += para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120))
+    if not pic and not words:
+        return ""
+    first = c.get("side") == "left"                  # Word does not know the section width: left puts the image first, anything else after the words
+    own = " ".join(str(c.get("heading") or "").split())            # the view draws this one line above the picture and the words, under the section heading
+    return _heading(title) + (_heading(own, 2) if own else "") + (pic + words if first else words + pic)
+
+
 def _status_key(word):
     return {v: k for k, v in GANTT_STATUS.items()}[word]
 
@@ -715,6 +742,8 @@ def section_reportheadline(published, ctx, title, sec):
     none of the three is left out. The words are the published content's own; none are added."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if c.get("pill") is False:      # row 1261: the eye is off, so the pill is not drawn (the page and the file leave it out)
+        health = ""
     if not (health or headline or sentence):
         return ""
     out = [para(rule=True, spacing=(120, 0))]
@@ -767,7 +796,27 @@ def section_glancetemplate(published, ctx, title, sec):
     return "".join(out) if (h or tiles) else ""
 
 
-SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+def section_callout(published, ctx, title, sec):
+    """Row 1272 (1291), ruling M8780: a callout as a text block, in Dashboard order: the heading (the callout's own title, else "Callout"; left out when its
+    heading is off), one bold line "Category: <category>. Colour: <colour>. Icon: <icon>." (empty parts left out; Plain and No icon say nothing extra),
+    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). A callout is left out only when its title, category, colour, icon and words are all empty (row 1272, ruling M8851)."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    cat, col, ico = (str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name"))
+    parts = [f"{label}: {w}." for label, w in (("Category", cat), ("Colour", "" if col == "Plain" else col), ("Icon", ico)) if w]
+    line = " ".join(parts)
+    name = str(c.get("title") or "").strip()
+    body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
+    if not (name or line or body):
+        return ""
+    inner = (para(run(line, bold=True), "TableText") if line else "") + body
+    out = _heading(name or "Callout") if c.get("heading", True) else ""
+    if c.get("tile", True):
+        fill = ctx.hexes(CALLOUT_FILL[c["colour"]])[0] if c.get("colour") in CALLOUT_FILL else None
+        return out + table(ctx, None, [1], [[(inner, fill)]])
+    return out + inner
+
+
+SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "textimage": section_textimage, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
           "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 

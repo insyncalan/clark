@@ -91,6 +91,27 @@ class Tabs(unittest.TestCase):
         self.assertEqual(run('WL.footWords(1, 2)'), "Showing 1 of 1")
         self.assertEqual(run('WL.reviewWords(7)'), "Review all 7 items")
 
+    def test_foot_words_every_branch_for_cards_and_classic(self):      # row 1195: Cards keeps main's words in every state; Classic: ruling NEW-WORDS 04:2x
+        cases = [
+            # (total, max, all, classic, words)
+            (25, 10, False, False, "Showing 10 of 25, scroll for the rest"),      # Cards cut
+            (25, 10, True, False, "Showing 10 of 25, scroll for the rest"),      # Cards after Show all: unchanged
+            (8, 10, False, False, "Showing 8 of 8"),      # Cards nothing cut
+            (8, 10, True, False, "Showing 8 of 8"),
+            (1, 10, False, False, "Showing 1 of 1"),
+            (10, 10, False, False, "Showing 10 of 10"),
+            (25, 10, False, True, "Showing 10 of 25, scroll for the rest"),      # Classic cut
+            (25, 10, True, True, "Showing all of 25"),      # Classic after Show all
+            (8, 10, False, True, "Showing all of 8"),      # Classic nothing cut
+            (8, 10, True, True, "Showing all of 8"),
+            (1, 10, False, True, "Showing all of 1"),
+            (10, 10, False, True, "Showing all of 10"),
+            (11, 10, False, True, "Showing 10 of 11, scroll for the rest"),
+        ]
+        for total, mx, all_, classic, words in cases:
+            self.assertEqual(run(f'WL.footWords({total}, {mx}, {str(all_).lower()}, {str(classic).lower()})'), words, (total, mx, all_, classic))
+        self.assertEqual(run('WL.footWords(25, 10)'), "Showing 10 of 25, scroll for the rest", "main's two-argument call")
+
     def test_page_state_for_review_all_maps_kinds_to_the_pages_type_and_keeps_the_choices(self):      # row 1268: killer for the kinds mapping
         def st(kinds, **kw):
             return run(f'WL.pageState({json.dumps({**EMPTY, "kinds": kinds, **kw})})')

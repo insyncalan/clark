@@ -16,7 +16,7 @@ import test_work_items_mockup_1195 as M
 LIST = {"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}
 
 MEASURE = ("JSON.stringify((() => { const s = %s, r = (q) => { const b = document.querySelector(s + ' ' + q).getBoundingClientRect(); return {l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height}; };"
-           "return {gear: r('[data-wil-gear]'), gearcss: (g => ({bw: g.borderTopWidth, bg: g.backgroundColor, br: g.borderRadius}))(getComputedStyle(document.querySelector(s + ' [data-wil-gear]'))), tag: r('.sec-head .tag.chg'), head: r('.sec-head'), title: r('.sec-h')}; })())")
+           "return {gear: r('[data-wil-gear]'), gearcss: (g => ({bw: g.borderTopWidth, bg: g.backgroundColor, br: g.borderRadius}))(getComputedStyle(document.querySelector(s + ' [data-wil-gear]'))), tag: (document.querySelector(s + ' .sec-head .tag.chg') ? r('.sec-head .tag.chg') : null), head: r('.sec-head'), title: r('.sec-h')}; })())")
 
 
 class Rule(M.unittest.TestCase):
@@ -52,7 +52,7 @@ class Measured(M.Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "drew")
             p.js("window.clarkPage.markChanged(['" + ref + "'])")
-            p.until(f"!!document.querySelector('{sec} .sec-head .tag.chg')", "the Changed tag")
+            p.until(f"!!document.querySelector('{sec}.sec-sweep, {sec}.is-changed')", "the changed sign")
             return json.loads(p.js(MEASURE % json.dumps(sec)))
 
     def owner(self, width):
@@ -69,7 +69,10 @@ class Measured(M.Look):
         for width in (1400, 900):
             got = self.look(width)
             self.assertEqual((got["gear"]["w"], got["gear"]["h"]), (32, 32), (width, got))
-            self.assertEqual(got["gear"]["l"] - got["tag"]["r"], 10, (width, got))      # the mock-up gap 10
+            if self.classic:
+                self.assertIsNone(got["tag"], (width, got))      # row 1408: Classic shows a line under the title, no Changed tag
+            else:
+                self.assertEqual(got["gear"]["l"] - got["tag"]["r"], 10, (width, got))      # the mock-up gap 10
             self.assertEqual(got["head"]["r"] - got["gear"]["r"], 0, (width, got))
             self.assertLessEqual(got["gear"]["r"], got["head"]["r"], (width, got))
             self.assertLess(got["title"]["r"], got["gear"]["l"], (width, got))

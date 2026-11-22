@@ -37,19 +37,19 @@ const withOwnerLink = (row, d) => {
   return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
 };
 
-const ROW = "tr[data-id], article.bcard, li.wl-row[data-id]";      // row 1296: a Dashboard list row (risks, actions, decisions) has the same menu
+const ROW = "tr[data-id], article.bcard, li.wl-row[data-id], ul.wil-lines li[data-id]";      // row 1296: a Dashboard list row (risks, actions, decisions) and a half-width Work items list row have the same menu
 const onPage = () => view.value === "work" || view.value === "dashboard";
 const itemOf = (id) => itemRows.value.find((r) => r.id === id) || rowsFor(data.value || {}).find((r) => r.id === id);      // a Dashboard row may be outside the Work items search
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
 const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
-const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el.matches("li.wl-row") ? el.querySelector(".idl") || el : el);
+const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el.matches("li.wl-row") ? el.querySelector(".idl") || el : el);   // a half-width Work items row (ul.wil-lines li) has its own focus (tabIndex 0)
 function refocus(id) {
   const back = () => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
-    const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"], li.wl-row[data-id="${CSS.escape(id)}"]`);
+    const el = Array.from(document.querySelectorAll(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"], li.wl-row[data-id="${CSS.escape(id)}"], ul.wil-lines li[data-id="${CSS.escape(id)}"]`)).find((e) => e.offsetParent);   // the one drawn: a list has a table and a half-width list, one of them hidden
     if (el) homeOf(el).focus({ preventScroll: true });
   };
   setTimeout(back, 0);
@@ -290,8 +290,8 @@ function Panel({ s }) {
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
     if (id === "archive") {
-      const rows = Array.from(document.querySelectorAll(ROW)), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
-      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main, li.wl-row[data-id="${CSS.escape(id)}"] .idl`;
+      const rows = Array.from(document.querySelectorAll(ROW)).filter((e) => e.offsetParent), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
+      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main, li.wl-row[data-id="${CSS.escape(id)}"] .idl, ul.wil-lines li[data-id="${CSS.escape(id)}"]`;
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }

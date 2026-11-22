@@ -10,6 +10,7 @@ import { blink } from "../../stores/motion.js";
 import { Icon } from "../../components/Icon.jsx";
 import { rulesFor, publishable } from "../../logic/publishable.js";
 import { tableOf } from "../itemEdit.js";
+import { AskAbout } from "../AskAbout.jsx";
 import { eyeWords } from "../../logic/eyeWords.js";
 
 const state = computed(() => {
@@ -45,5 +46,6 @@ export function Eye({ row, card }) {   // `card`: the board's card, whose button
   );
 }
 
+Eye.Ask = ({ row }) => <AskAbout kind="item" id={row.id} name={`${row.id} ${row.title || ""}`.trim()} />;   // row 1292: the sparkle beside the eye, at the right end of a Work items row (Classic and Edit only: AskAbout draws nothing else)
 Eye.isOff = (row) => !eyeOf(row).on;        // row 1268: the list greys a row the client eye has taken off, as the mock-up draws it
 Eye.heading = "Client-visible";                // the column's name for a screen reader (the heading is drawn by the table, which holds no word of it)

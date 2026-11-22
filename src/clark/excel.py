@@ -40,6 +40,7 @@ import unicodedata
 import uuid
 import warnings as warnings_lib
 import zipfile
+import zlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -243,6 +244,10 @@ class TooBig(Refused):
     """A workbook that is too big to open safely (a zip bomb, or the wrong file); the message says so in plain words."""
 
 
+class NotSafe(TooBig):
+    """A workbook with a DOCTYPE or entity in any of its parts, whatever the part is named (entity expansion can use all the memory); refused before it is opened."""
+
+
 # What a workbook may be before clark opens it. A real export of a large project is far below all four. The sizes are those the
 # .xlsx (a zip) declares for its members; Python's zip reader never gives back more than a member declares.
 MAX_FILE_BYTES = 25 * 1024 * 1024          # the file as saved
@@ -277,6 +282,33 @@ def check_workbook_size(path):
     if biggest > MAX_MEMBER_BYTES or total > MAX_UNPACKED_BYTES:
         raise TooBig(f"{path.name} would unpack to about {mb(total)} (the most clark will open is {mb(MAX_UNPACKED_BYTES)}), "
                      "so it was not opened. A clark export is far smaller: check it is the right file.")
+    with zipfile.ZipFile(path) as z:
+        for i in infos:
+            if _has_doctype_or_damaged(z, i):                 # every member, whatever its name: openpyxl reads a part by the workbook's relationships
+                raise NotSafe(f"{path.name} holds a part ({i.filename}) with a DOCTYPE or entity declaration, which a workbook from clark "
+                              "never has, so it was not opened. Check it is the right file.")
+
+
+def _has_doctype_or_damaged(z, info):
+    """_has_doctype, but a part that cannot be read (damaged, odd compression) is left to the later steps, which refuse it in plain words."""
+    try:
+        return _has_doctype(z, info)
+    except (zlib.error, NotImplementedError, zipfile.BadZipFile, EOFError, OSError, RuntimeError):
+        return False
+
+
+def _has_doctype(z, info, chunk=1 << 20):
+    """True if the member holds a DOCTYPE or ENTITY declaration; read in pieces that overlap, so a long prolog is no way past it."""
+    tail = b""
+    member = z.open                                      # a zip member is read as bytes, never as text
+    with member(info) as f:
+        while True:
+            block = f.read(chunk)
+            if not block:
+                return False
+            if excel_picture.has_doctype(tail + block):
+                return True
+            tail = block[-32:]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -360,6 +392,8 @@ def export_id_of(path):
             if info.file_size > MAX_CUSTOM_BYTES:
                 return None
             data = z.read(info)
+        if excel_picture.has_doctype(data):
+            return None
         with warnings_lib.catch_warnings():
             warnings_lib.simplefilter("ignore")
             props = [p for p in CustomPropertyList.from_tree(fromstring(data)) if p.name == EXPORT_ID_NAME]
@@ -750,13 +784,6 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
     for value, name in values.items():
         rule = Rule(type="cellIs", operator="equal", formula=['"' + value + '"'], dxf=_dxf(name, pal))
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
-
-
-def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
-    """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
-    green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
-    rule = Rule(type="expression", formula=[late_formula(date_col, col, open_states)], dxf=_dxf("red", pal), stopIfTrue=True)
-    ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
 def late_formula(date_col, status_col, open_states):
@@ -1438,9 +1465,6 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             elif field in PEOPLE:
                 add_note(ws, col, n_rows, "Owner" if field == "owner" else "Made by",
                          "Type the person's name.")
-            if field == "status" and (table, "due_date") in colours.LATE:
-                add_late_status_rule(ws, col, n_rows, get_column_letter([f for _, f in cols].index("due_date") + 1),
-                                     colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
             if (table, field) in colours.LATE:

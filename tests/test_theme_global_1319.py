@@ -1,4 +1,4 @@
-"""Row 1319, Classic theme, all pages: heading weight 600, 8px radius on buttons and segments with the lavender chosen half, plain crumbs.
+"""Row 1319, Classic theme, all pages: heading weight 600, 8px radius on buttons, 6px on segments with the lavender chosen half, plain crumbs.
 
 Run: python3 dev/run_tests.py test_theme_global_1319
 Fails, never skips, without Chrome. Computed styles at 1400 and 900, light and dark. Cards (no Theme layer) keeps today's page.
@@ -23,6 +23,7 @@ PROBE = """(() => { const r = document.documentElement; r.setAttribute('data-the
   d.innerHTML = '<h1>H1</h1><h2>H2</h2><h3>H3</h3><p class="crumbs">Project</p><nav class="ucd-crumb">Use cases</nav><nav class="ucf-crumb">Use cases</nav>' +
     '<div class="seg" id="sg"><button aria-pressed="true">On <em>3</em></button><button aria-pressed="false">Off</button></div>' +
     '<div class="seg" id="sc"><button aria-checked="true">On <em>2</em></button></div><div class="cal-sc seg" id="cs"><button aria-current="true">Month</button></div>' +
+    '<div class="seg lsw" id="ls"><button aria-pressed="true">A</button><button aria-pressed="false">B</button></div>' +
     '<button class="btn" id="b1">Plain</button><button class="btn pri" id="b2">Main</button><button class="again" id="b3">Again</button><button class="btn primary" id="b4">Primary</button>' +
     '<div class="modes seg glide" id="md"><button class="mode" aria-pressed="true">A</button><button class="mode" aria-pressed="false">B</button></div>';
   document.body.appendChild(d); })()"""
@@ -72,8 +73,10 @@ class Computed(unittest.TestCase):
                     tag = f"{scheme} {w}"
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
-                    for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
-                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel}")
+                    for sel in ("#sg", "#sc", "#cs"):
+                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{tag} {sel} (segments 6, ruled 20-11)")
+                    for sel in ("#b1", "#md", "#ls"):
+                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel} (the layout switch keeps 8)")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "letterSpacing"), "normal", f"{tag} {sel}")

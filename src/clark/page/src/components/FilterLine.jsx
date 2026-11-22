@@ -339,7 +339,7 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
 // does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items view icons). The Work items line (FilterLine, below) is this box with its stores.
-export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, placeholder = FL.PLACEHOLDER, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
@@ -508,7 +508,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
           <input ref={input} id={ids.input} type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? ids.list : undefined}
             aria-activedescendant={listed && active >= 0 ? `${ids.opt}-${active}` : undefined}
             aria-label={label} aria-autocomplete="list" aria-describedby={ids.msg}
-            placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
+            placeholder={chips.length ? undefined : placeholder} value={draft}
             onFocus={() => { setArmed(false); readCaret(); }}
             onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />

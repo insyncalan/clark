@@ -74,6 +74,8 @@ class Arrows(unittest.TestCase):
                 self.assertIn(ids[1], self.live(cdp, sid))
                 cdp.js(f"clarkPage.openPeek({json.dumps(ids[-1])})", sid)
                 self.assertTrue(wait(lambda: self.shown(cdp, sid) == ids[-1]))
+                # a switch to another item says its id and title from an effect after the paint: wait for it, or on a slow runner it comes after the key's own line and replaces it
+                self.assertTrue(wait(lambda: self.live(cdp, sid).startswith(f"{ids[-1]}:")), self.live(cdp, sid))
                 cdp.js("document.querySelector('[data-pk-close]').focus()", sid)
                 key(cdp, sid, "ArrowDown")
                 self.assertTrue(wait(lambda: "last" in self.live(cdp, sid).lower()), self.live(cdp, sid))

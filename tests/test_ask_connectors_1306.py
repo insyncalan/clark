@@ -187,10 +187,24 @@ class Route(Base):
     def test_get_gives_only_the_found_connectors_all_off(self):
         status, got = self.call("GET", "/api/ask-connectors")
         self.assertEqual(status, 200)
-        self.assertEqual(got["connectors"], [{"id": "mail", "label": "Mail", "on": False, "off_here": False},
-                                             {"id": "todoist", "label": "Todoist", "on": False, "off_here": False}])
+        self.assertEqual(got["connectors"], [{"id": "mail", "label": "Mail", "on": False, "off_here": False}], "Todoist is found but never listed (no read-only tools checked yet)")
         status, got = self.call("GET", "/api/ask-connectors?project=ABC")
-        self.assertEqual([(c["id"], c["on"], c["off_here"]) for c in got["connectors"]], [("mail", False, False), ("todoist", False, False)])
+        self.assertEqual([(c["id"], c["on"], c["off_here"]) for c in got["connectors"]], [("mail", False, False)])
+
+    def test_todoist_cannot_be_turned_on_or_changed_and_a_stored_on_reads_as_off(self):
+        for body in ({"id": "todoist", "on": True}, {"id": "todoist", "on": False}, {"project": "ABC", "id": "todoist", "off_here": True},
+                     {"project": "ABC", "id": "todoist", "off_here": False}):
+            self.assertEqual(self.post(body)[0], 400, body)
+        self.assertEqual(self.stored()[0]["todoist"], False)
+        store = open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as st:
+                st.update("connector_switches", "todoist", {"is_on": True})
+            self.assertEqual(store.connector_switches()["todoist"], False, "a Todoist row saved as On by an older version is not read as On")
+            self.assertFalse(store.connector_allowed("todoist", "ABC"))
+        finally:
+            store.close()
+        self.assertTrue(all(c["id"] != "todoist" for c in self.call("GET", "/api/ask-connectors")[1]["connectors"]))
 
     def test_nothing_found_gives_an_empty_list_and_refuses_a_switch(self):
         type(self).found = []
@@ -238,10 +252,10 @@ class Route(Base):
         self.assertEqual(self.stored()[1], ())
 
     def test_a_first_project_off_can_be_undone(self):
-        status, got = self.post({"project": "DEF", "id": "todoist", "off_here": True})
+        status, got = self.post({"project": "DEF", "id": "mail", "off_here": True})
         self.assertEqual(status, 200)
         status, got = self.post({"undo": got["apply_id"]})
-        self.assertEqual((status, self.by_id(got)["todoist"]["off_here"]), (200, False))
+        self.assertEqual((status, self.by_id(got)["mail"]["off_here"]), (200, False))
 
     def test_the_same_value_changes_nothing(self):
         was = self.stored()

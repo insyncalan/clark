@@ -170,10 +170,10 @@ class SettingsChips(unittest.TestCase):
         self.assertIn("<h2 id=\"profile-h\" tabIndex={-1}>Profile</h2>\n      <AboutYou />", per)      # row 950: About you is the Profile card, not part of Personal
         self.assertNotIn("<AboutYou />\n      <fieldset class=\"styles keys\">", per)
         self.assertIn("<legend>Keys</legend>", per)
-        self.assertIn('aria-label="Single-key shortcuts"', per)
+        self.assertIn('aria-label="Single-key slash commands"', per)
         self.assertIn("<legend>Appearance</legend>", per)
         self.assertLess(per.index('["system", "System"'), per.index('["light", "Light"'))
-        self.assertIn("Appearance (System, Light or Dark) and Keys (Single-key shortcuts)", self.TEXT)
+        self.assertIn("Appearance (System, Light or Dark) and Keys (Single-key slash commands)", self.TEXT)
         self.assertIn("About you: **Your name**, **Alias** and **Your email**.", self.TEXT)      # the three boxes of the Profile card
         self.assertNotIn("Phone number", self.TEXT)
 
@@ -186,7 +186,7 @@ class SettingsChips(unittest.TestCase):
 class AskOff(unittest.TestCase):
     def test_the_button_hides_and_the_slash_still_opens(self):
         text = flat(SECS["ask-clark"])
-        self.assertIn("if (!askOn.value || narrowHeader.value) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx:11 keeps the askOn guard and adds narrowHeader (ask clark is in the profile menu at 900)
+        self.assertIn("if (!askOn.value || (narrowHeader.value && !classicTheme())) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx keeps the askOn guard and hides at narrowHeader (ask clark is in the profile menu at 900); item 1349: Classic keeps the button
         keys = code("edit", "askPanelState.js")
         self.assertIn('e.key === "/"', keys)
         self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):])

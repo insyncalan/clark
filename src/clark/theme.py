@@ -1,4 +1,4 @@
-"""Row 1260, step 4a: reading a Theme (src/clark/themes/<name>/tokens.css then rules.css) as the text the page layers.
+"""Row 1260, step 4a: reading a Theme (src/clark/themes/<name>/tokens.css, rules.css, then rules-2.css) as the text the page layers.
 
 A Theme is chosen per install; a project's Brand layers over it (committed tokens, then Theme, then Brand). This file only
 answers "what is the CSS of the Theme called X": which install setting names X is a later step, so the name is passed in.
@@ -11,8 +11,8 @@ from pathlib import Path
 from clark import page
 
 THEMES = Path(__file__).resolve().parent / "themes"
-FILES = ("tokens.css", "rules.css")         # in this order: the values first, then the rules that use them
-LIMIT = 64 * 1024                          # a Theme file larger than this is not read
+FILES = ("tokens.css", "rules.css", "rules-2.css")   # in this order: the values first, then the rules that use them; each file keeps its own LIMIT (rules-2.css holds every new row; the Row 1314 block stays last)
+LIMIT = 128 * 1024                         # a Theme file larger than this is not read (the shipped files are held under it by a test)
 
 
 def installed():
@@ -23,7 +23,7 @@ def installed():
 
 
 def css(name):
-    """The comment-free, style-safe text of the Theme `name` (tokens.css, then rules.css), or None for no name, an unknown
+    """The comment-free, style-safe text of the Theme `name` (tokens.css, rules.css, then rules-2.css), or None for no name, an unknown
     name, or a file that cannot be read or is too large (the page then keeps today's look)."""
     if not isinstance(name, str) or name not in installed():
         return None

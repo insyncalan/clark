@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import { linkProblem } from "../../templates/files.js";
 import { stored, oneLine, labelProblem, saveContent, wordsAsHtml, noBreaks } from "./filesEdit.js";
+import { StartPrompt } from "../StartPrompt.jsx";
+import { startOr } from "../startingText.js";
 import { RichField } from "../RichField.jsx";
 
 const asText = (v) => (typeof v === "string" ? v : "");
@@ -35,7 +37,7 @@ export function Edit({ section }) {
   const changed = f.href.trim() !== saved.href || oneLine(f.title) !== saved.title || oneLine(f.site) !== saved.site;
   return (
     <div class="tpl-edit tpl-files-edit">
-      {saved.href ? null : <p class="quiet tpl-empty">No link yet. Type the page's address: until then this section stays out of the published page.</p>}
+      {saved.href ? null : <><StartPrompt id="link-preview" /><p class="quiet tpl-empty">No link yet. Type the page's address: until then this section stays out of the published page.</p></>}
       <form class="tpl-form" onSubmit={save} data-save>
         <label for={`${fid}-href`}>Link</label>
         <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://" value={f.href} onInput={set("href")} />
@@ -47,7 +49,7 @@ export function Edit({ section }) {
       </form>
       <div class="tpl-form tpl-rich-words">
         <span class="tpl-lbl">Words on the card (optional)</span>
-        <RichField field="linkcard" empty="Click to write." id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words on the card"
+        <RichField field="linkcard" empty={startOr("Click to write.", "link-preview", "empty", 1)} id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words on the card"
           save={(html) => saveContent(section, { ...content, html: noBreaks(html), text: [] }, "Card saved.")} />
       </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}

@@ -33,6 +33,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group; row 1409: the Classic priority chip carries its word (data-pri) for the one colour mapping (rules.css), Cards markup is unchanged
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
@@ -176,7 +177,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </label> : null}
         </td>
       ) : null}
-      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
+      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tipSay={iconWords(row, pill, today)}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
       <td class="c-item" data-col="item">
         <div class="tcell">
           <span class="tx">
@@ -187,9 +188,9 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       </td>
       {cols.includes("owner") ? <td class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td> : null}
       {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
+      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`} data-pri={classicTheme() ? row.priority : undefined}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
       {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
-      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
+      {Eye ? <td class="c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
     </tr>
   );
 }
@@ -261,13 +262,15 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
   const drawnRows = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(drawnRows);
   order = drawnRows.map((r) => r.id);
   mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
+  const once = classicTheme();
   return (
     <>
+      {once ? <div class="wgroup wcolh">{cm ? cm.button("key") : null}<table class="items"><Cols eye={Eye} hand={hand} cw={cw} cols={cols} /><thead><tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr></thead></table>{cm ? cm.menu : null}</div> : null}
       {groups.map((c) => {
         const shut = c.shut;
         return (
           <div class="wgroup" key={c.key}>
-            {cm && c.key === groups[0].key ? cm.button("key") : null}
+            {!once && cm && c.key === groups[0].key ? cm.button("key") : null}
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} cw={cw} cols={cols} />
               <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
@@ -278,13 +281,13 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
-                {shut ? null : <tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr>}
+                {shut || once ? null : <tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr>}
               </thead>
               <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 {shut ? null : rowsOf(c.key, c.rows, stop)}
               </tbody>
             </table>
-            {cm && c.key === groups[0].key ? cm.menu : null}
+            {!once && cm && c.key === groups[0].key ? cm.menu : null}
           </div>
         );
       })}
