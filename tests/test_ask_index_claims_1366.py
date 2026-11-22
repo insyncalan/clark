@@ -306,9 +306,9 @@ class Rebuild(Base):
         self.assertTrue(ix.path_for(self.data, "P1").exists(), "the rebuild started and finished")
         self.assertTrue(w.current("P1", folders))
 
-    def test_the_help_says_clark_builds_it_again_if_you_delete_it(self):
+    def test_the_help_says_clark_builds_it_again_if_it_is_removed(self):
         t = paragraph("The index of your source folders.")
-        self.assertIn("it is only a copy, and clark builds it again if you delete it.", t)
+        self.assertIn("it is only a copy, and clark builds it again if it is removed.", t)
 
 
 class StatusLine(Base):
