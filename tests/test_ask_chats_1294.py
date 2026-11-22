@@ -69,9 +69,9 @@ class Chats(ThemedTabs):
             self.assertEqual(js("document.querySelector('#ask-chats-older').textContent"), "Older chats go the next time a chat is saved.")
             js("var s = document.querySelector('#ask-chats-keep'); s.value = '10'; s.dispatchEvent(new Event('change', {bubbles: true}))")
             self.until(js, "localStorage.getItem('clark.askChatsKeep') === '10'", "the choice is kept")
-            reload_to_new_page(js, seconds=20)
-            js("document.querySelector('[data-ask-tab=all]').click()")
-            self.until(js, "!!document.querySelector('#ask-chats-keep') && document.querySelector('#ask-chats-keep').value === '10'", "kept after a reload")
+            reload_to_new_page(js, ready="!!document.querySelector('[data-ask-tab=all]')", what="the new page with its tabs", seconds=20)
+            self.until(js, "(() => { const b = document.querySelector('[data-ask-tab=all]'); if (b && !document.querySelector('#ask-chats-keep')) b.click(); return !!document.querySelector('#ask-chats-keep'); })()", "the Chats card after the reload", seconds=20)
+            self.assertEqual(js("document.querySelector('#ask-chats-keep').value"), "10", "kept after a reload")
 
     def test_a_stored_number_that_is_not_an_offered_one_reads_as_30(self):
         # askHistory.js readKeep: 7 and 0 are not in 10/20/30/50/100, so the select shows 30.
@@ -120,14 +120,14 @@ class Chats(ThemedTabs):
     ORDER = "[...document.querySelectorAll('section.frame.setting')].map(e => e.id)"
 
     def test_the_cards_follow_the_ticket_order_chats_after_instructions_and_folders(self):
-        # Ticket 1294, test 1: on the All tab Chats comes after instructions and folders; on a project tab Chats is last.
+        # Ticket 1294, test 1: on the All tab Chats comes after instructions and folders; on a project tab Usage is last, Chats directly before it.
         with chrome() as cdp:
             js = self.show(cdp)
             self.until(js, "!!document.querySelector('#ask-chats-project')", "the project tab")
             ids = js(self.ORDER)
             self.assertLess(ids.index("ask-folders-card"), ids.index("ask-instructions-own-card"))
             self.assertLess(ids.index("ask-instructions-own-card"), ids.index("ask-chats-project"))
-            self.assertEqual(ids[-1], "ask-chats-project", "Chats is last on a project tab")
+            self.assertEqual(ids[-2:], ["ask-chats-project", "ask-usage-project"], "Usage is last, Chats directly before it")
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.until(js, "!!document.querySelector('#ask-chats-all')", "the All tab")
             ids = js(self.ORDER)

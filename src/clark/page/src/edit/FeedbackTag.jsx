@@ -39,7 +39,7 @@ function Dialog({ ctx, onClose, clip }) {
   return (
     <div class="fbt-dlg" id="feedback-tag-dialog" role="dialog" aria-labelledby="fbt-h" ref={box} onKeyDown={key}>
       <div class="fbt-head"><h2 id="fbt-h">{L.TAG_LABELS.title}</h2><button type="button" class="fbt-x" data-fbt-close aria-label={L.TAG_LABELS.close} onClick={onClose}>&times;</button></div>
-      <p class="muted small">{L.TAG_LABELS.intro}</p>
+      <p class="muted small fbt-intro">{L.TAG_LABELS.intro}</p>
       <div role="radiogroup" aria-label={L.TAG_LABELS.kind} class="fbt-kinds">
         {L.KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={k === kind} class={`fbt-kind${k === kind ? " on" : ""}`} data-fbt-kind={k} onClick={() => { setKind(k); setNote(""); setMailFailed(false); }}>{k}</button>)}
       </div>
@@ -51,7 +51,7 @@ function Dialog({ ctx, onClose, clip }) {
         <ul class="plain">{L.contextLines(ctx).map((l) => <li key={l}>{l}</li>)}</ul>
         <span>{L.TAG_LABELS.addedNote}</span>
       </div>
-      <p class="muted small">{L.TAG_LABELS.mailNote}</p>
+      <p class="muted small fbt-mail-note">{L.TAG_LABELS.mailNote}</p>
       <div class="row">
         <button type="button" class="btn" data-fbt-copy onClick={copy}>{L.TAG_LABELS.copy}</button>
         {link.href ? <a class="btn pri" data-fbt-mail href={link.href} onClick={(e) => mailClick(e, link.href, setMailFailed)}>{L.TAG_LABELS.mail}</a>

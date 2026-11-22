@@ -8,15 +8,38 @@ Run: python3 dev/run_tests.py test_project_header_switch_1176      (Chrome requi
 """
 import contextlib
 import unittest
+from unittest import mock
 
 from test_project_switch import TWO
 from test_publish_dialog import Base, WIDTHS
 from test_server import chrome, wait
+import _testpage as testpage
+from clark import page, theme
 
 NAME = "#project-name.hdr-project"
 MENU = "#project-menu"
 ROWS = "[].map.call(document.querySelectorAll('%s [role=menuitemradio]'), function(e){return e.textContent.replace('\u2713','')})" % MENU
 BODY = "document.body.innerText"
+
+
+class HeaderSwitchClassic(Base):
+    """Row 1341 ruling: with the Classic layer the header name's tooltip is the full project name and Click to change project (Cards keeps 'Click to change project')."""
+    def setUp(self):
+        orig = testpage.html
+        m = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(orig(), theme.css("prototype-2.0")))
+        m.start()
+        self.addCleanup(m.stop)
+        super().setUp()
+
+    def test_C_the_header_name_tooltip_is_the_full_project_name_in_classic(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until("!!document.querySelector('%s')" % NAME, "the header name")
+            for w in WIDTHS:
+                p.width(w)
+                name = p.js("document.querySelector('%s').textContent.trim()" % NAME)
+                self.assertEqual(name, 'Bridge & "Harbour" <Programme>', "the full name is shown at %d" % w)
+                self.assertEqual(p.js("document.querySelector('%s').title" % NAME), 'Bridge & "Harbour" <Programme>. Click to change project', "Classic tooltip is the full name and Click to change project (row 1305) at %d" % w)
 
 
 class HeaderSwitch(Base):
@@ -34,7 +57,8 @@ class HeaderSwitch(Base):
                 self.assertEqual(p.js("document.querySelectorAll('.top .hdr-project').length"), 1, "one project control in the header at %d" % w)
                 self.assertEqual(p.js("document.querySelectorAll('#project-name').length"), 1, "its id is not repeated at %d" % w)
                 self.assertEqual(p.js("document.querySelectorAll('.cover-switch, #cover .hdr-project').length"), 0, "no second control in a cover band at %d" % w)
-                self.assertIn("Click to change project", p.js("(document.querySelector('%s').title || '') + ' ' + (document.querySelector('%s').getAttribute('aria-label') || '')" % (NAME, NAME)))
+                self.assertEqual(p.js("document.querySelector('%s').title" % NAME), "Click to change project", "Cards keeps the click-to-change tooltip at %d" % w)
+                self.assertIn("Change project", p.js("document.querySelector('%s').getAttribute('aria-label') || ''" % NAME))
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways overflow at %d" % w)
 
     def test_C_a_click_opens_the_project_list(self):
