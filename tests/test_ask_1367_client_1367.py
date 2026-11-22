@@ -80,7 +80,7 @@ class NoAskOnAReadOnlyOrClientPage(unittest.TestCase):
         for width in (1400, 900):
             for mode in ("light", "dark"):
                 with self.subTest(width=width, mode=mode), chrome() as cdp:
-                    s = Running(data_for=lambda code: {}, projects=lambda archived=False: [], page_html=lambda: text)
+                    s = Running(data_for=lambda *a, archived=None, **k: {}, projects=lambda archived=False: [], page_html=lambda: text)
                     self.addCleanup(s.close)
                     sid = page_target(cdp)
                     cdp.call("Page.enable", {}, sid)
