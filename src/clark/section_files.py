@@ -244,9 +244,9 @@ def attach(pub, body):
             if chosen is None:
                 return 200, {"ok": True, "cancelled": True}
             real, data = _source(pub, chosen)
-            if kind == "doclinks":                          # the ending is judged before anything is copied (and again on the saved name)
+            if kind == "doclinks":                          # the ending and the first bytes are judged before anything is copied (and again on the saved name)
                 try:
-                    allowed_type(real.name)
+                    doclinks.allowed_content(real.name, data[:doclinks.HEAD_BYTES])      # and its first bytes must match that ending
                 except section_bodies.Bad:
                     raise Refused("bad_type", name=real.name) from None
             folder = _files_folder(pub, client)
