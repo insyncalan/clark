@@ -15,7 +15,8 @@ class HelpClearRemoveConditional(unittest.TestCase):
     def test_help_words(self):
         for s in ("**Clear**, which shows only once a folder is chosen, takes it away again.",
                   "**Remove** shows only on a brand you added,",
-                  "**Undo** shows only when there is a change to put back:"):
+                  "**Undo** shows only when there is a change to put back:",
+                  "**Remove** shows only when there is a chat to remove."):
             self.assertEqual(HELP.count(s), 1, s)
         for old in ("and **Clear** takes it away again.", "**Remove** on a brand asks you to confirm"):
             self.assertNotIn(old, HELP, old)
@@ -27,6 +28,9 @@ class HelpClearRemoveConditional(unittest.TestCase):
         br = (PAGE / "edit" / "Brands.jsx").read_text(encoding="utf-8")
         self.assertIn("{b.own ? <button", br)
         self.assertIn("{v.undo ? <button", br)
+        ap = (PAGE / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertIn("{saved.length ? (", ap)
+        self.assertIn("ask-hist-del", ap)
 
 
 if __name__ == "__main__":

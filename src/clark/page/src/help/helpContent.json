@@ -1429,7 +1429,7 @@
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "ask reads the project’s own data, including items hidden from the report (a hidden section, an item with its eye off). Archived items are left out. If the project is too big to send in full, the answer ends with a line such as Sent 20 of 47 milestones (the closest to your question); 27 were left out.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
-       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list.",
+       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list. **Remove** shows only when there is a chat to remove.",
        "Drag its left edge to make it wider."
       ]
      ],
