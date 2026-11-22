@@ -1,9 +1,9 @@
 // Settings › Essentials (row 1115, S3): the first card of the long scroll and the first chip, holding the eight settings most people come for, each on the
-// shared setting row (SettingRow.jsx): Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off.
+// shared setting row (SettingRow.jsx): Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking settings.
 // The originals stay in their own cards. Each control here is the same control (the same state, the same save), drawn again: its ids and data hooks
 // start with "ess-" so the page never holds one twice. Edit parts only (a published file has no Settings).
 import { useEffect, useRef, useState } from "preact/hooks";
-import { data } from "../stores/report.js";
+import { data, project } from "../stores/report.js";
 import { density } from "../stores/density.js";
 import { motionOn, setMotion } from "../stores/motionPref.js";
 import { profile, loadProfile, setProfile } from "../stores/profile.js";
@@ -13,8 +13,7 @@ import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.j
 import { CopyFolder } from "./Safety.jsx";
 import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
-import { askOn, askStatus, loadAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { useAskFlip } from "./AskSettings.jsx";
+import { showAskTab } from "./AskSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
 // Your name: saved when the box is left or on Enter, as in About you; a refusal stands under the box and the box keeps what was typed.
@@ -87,16 +86,13 @@ function BackupsRow() {
   );
 }
 
+// Row 1294: asking on or off is a project's own setting now (its tab); this row only opens the All projects tab of the ask clark page, where the models,
+// connectors, instructions and folders are. A link, so the address works and Open in a new tab does too; the click also marks the tab.
 function AskRow() {
-  const on = askOn.value, status = askStatus.value;
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
-  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // row 1024: the Asking card is on another page now, so this row asks for the switch itself each time it opens; both show the same state
-  const bad = msg && msg.text ? <small class={msg.kind === "error" ? "fld-bad" : ""} role={msg.kind === "error" ? "alert" : "status"}>{msg.text}</small> : null;
+  const to = "#settings" + (project.value ? "&p=" + project.value : "") + "&s=claude";
   return (
-    <SettingRow id="ess-ask" name="Asking on or off" help={status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE} helpId="ess-ask-line" bad={bad}>
-      <button type="button" id="ess-ask" class="btn" ref={switchRef} data-ess-ask aria-pressed={on ? "true" : "false"} aria-describedby="ess-ask-line" disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
+    <SettingRow id="ess-ask" name="Asking settings" help="Models, connectors, instructions and folders for all projects. Asking on or off is in each project's own tab." helpId="ess-ask-line">
+      <a id="ess-ask" class="btn" href={to} data-ess-ask aria-describedby="ess-ask-line" onClick={() => showAskTab("all")}>Open All projects</a>
     </SettingRow>
   );
 }

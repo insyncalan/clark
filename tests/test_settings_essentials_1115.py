@@ -2,7 +2,7 @@
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
 Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder,
-Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
+Asking settings (a link to the All projects tab). The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 import test_settings_head
@@ -11,7 +11,8 @@ from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking on or off"]
+NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking settings"]
+NAME_OF_ASK_PAGE = {s: n for s, n, _ in test_settings_head.PAGES}["claude"]      # the page's menu name, whichever menu the page draws
 ROWS = """[...document.querySelectorAll('#essentials .set-row')].map(r => r.querySelector('.set-row-text label').textContent)"""
 
 
@@ -68,7 +69,7 @@ class Essentials(test_settings_head.Head):
                     p = self.settings(cdp, w, mode)
                     self.assertEqual(p.js(ROWS), NAMES)
                     got = p.js("""[...document.querySelectorAll('#essentials .set-row')].map(r => { const c = r.querySelector('.set-row-ctl'), b = r.getBoundingClientRect(), k = c.getBoundingClientRect();
-                        return [c.querySelector('input, button') !== null, k.right <= b.right + 1 && k.left >= b.left - 1]; })""")
+                        return [c.querySelector('input, button, a[href]') !== null, k.right <= b.right + 1 && k.left >= b.left - 1]; })""")
                     self.assertTrue(all(g[0] and g[1] for g in got), f"each row has a control inside it: {got}")
                     # Appearance: Dark here is Dark in Personal too
                     p.js("document.querySelector('[data-ess-theme-pick=dark]').click()")
@@ -120,24 +121,23 @@ class Essentials(test_settings_head.Head):
                     p.until("!!document.querySelector('#ess-safety-copy-said p.success')", "the copy folder saved from Essentials")
                     # Publishing folder: Choose folder is there (the project is open)
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-choose-local]')"))
-                    # Asking: the switch is the same one as in Asking
-                    p.until("!document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready")
-                    was = p.js("document.querySelector('[data-ess-ask]').getAttribute('aria-pressed')")
-                    self.to_page(p, "claude")
-                    p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
-                    self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
-                    reads = p.js("window.__askReads || 0")
-                    self.to_page(p, "profile")
-                    # the row first draws with the answer the Asking card left, enabled, and only then asks again (an effect after the paint): wait for that read to be made and answered,
-                    # or the click lands on the old state and a newer read can overtake it
-                    p.until(f"(window.__askReads || 0) > {reads} && !!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled && !/Checking/.test(document.getElementById('ess-ask-line').textContent)", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
-                    p.js("document.querySelector('[data-ess-ask]').click()")
-                    p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
-                    self.to_page(p, "claude")
-                    p.until(f"document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials shows in Asking")
-                    self.to_page(p, "profile")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('[id]')].map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i)"), [], "no id is on the page twice")
+
+    def test_1294_the_ask_clark_row_is_a_link_that_opens_the_all_projects_tab(self):
+        """Row 1294: the row is no longer a switch; it opens the All projects tab of the ask clark page, which shows the models and no project's asking button."""
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.settings(cdp, w, "light")
+                self.assertEqual(p.js("document.querySelectorAll('#essentials [data-ess-ask]').length"), 1)
+                self.assertEqual(p.js("document.querySelector('#essentials [data-ess-ask]').tagName"), "A", "a link, not a switch")
+                self.assertTrue(p.js("document.querySelector('#essentials [data-ess-ask]').getAttribute('href').endsWith('&s=claude')"))
+                self.assertEqual(p.js("document.querySelector('#essentials [data-ess-ask]').textContent"), "Open All projects")
+                self.assertFalse(p.js("document.querySelector('#essentials [data-ess-ask]').hasAttribute('aria-pressed')"), "no on/off state any more")
+                p.js("document.querySelector('#essentials [data-ess-ask]').click()")
+                p.until("document.querySelector('.set-chip[aria-current]').textContent === %r" % NAME_OF_ASK_PAGE, "the Asking page opened")
+                p.until("!!document.querySelector('[data-ask-tab=all]') && document.querySelector('[data-ask-tab=all]').getAttribute('aria-current') === 'true' && !!document.getElementById('ask-all')", "the All projects tab is the one shown")
+                self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
     def test_S3_motion_follows_the_computers_reduced_motion_setting_until_it_is_chosen(self):
         # (system asks to reduce?, remembered value, switch shown on?, page reduced?)
