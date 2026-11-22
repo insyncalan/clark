@@ -42,10 +42,10 @@ export const FAILED_TITLE = "The download failed its check";
 export const FAILED_TEXT = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page.";
 export const FILE_TEXT = "For a computer with no internet. Review a clark download you already have.";
 export const REVIEW_LABEL = "Review";
-export const QUIET = "clark looks quietly when it starts and when you choose Check now. It never installs by itself.";
+export const QUIET = "The newest version is looked up quietly when you open this card and when you choose Check now. It never installs by itself.";
 export const KEPT = "Your projects, settings and published reports are kept.";
 // The installed row's text (table row 4); `from` is the version the update replaced.
-export const installedText = (from) => `clark restarted and kept everything. If something looks wrong you can go back to ${from}.`;
+export const installedText = (from) => `Everything was kept when clark restarted. If something looks wrong you can go back to ${from}.`;
 export const HINTS = {
   upToDate: "Download the new version from the clark releases page, then choose it below.",
   ready: (v) => `Version ${v} is ready to install.`,
