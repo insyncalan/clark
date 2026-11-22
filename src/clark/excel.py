@@ -66,7 +66,7 @@ from clark import excel_palette
 from clark import excel_picture
 from clark import look
 from clark import platform, sanitise
-from clark.milestones import STATES, milestone_state
+from clark.milestones import milestone_state
 from clark.store import COMMITMENTS
 from clark.timefmt import local_text, parse
 
@@ -84,40 +84,40 @@ STATE_LOCK = threading.RLock()
 # and Shown state are worked out, not columns (see DERIVED); no Labels on milestones or use cases, as in creaite.
 SHEETS = [
     ("Actions", "actions", [
-        ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
+        ("ID", "id"), ("Title", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
         ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
-        ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
+        ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Risks & Issues", "raid", [
-        ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Type", "type"),
+        ("ID", "id"), ("Title", "description"), ("Project", "project"), ("Type", "type"),
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
-        ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
+        ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
         ("Client wording", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
-        ("Source", "source"), ("Updated", "updated_at")],
+        ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
         ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Priority", "priority"), ("Made by", "made_by"),
-        ("Needed by", "needed_by"), ("Date", "date"), ("Reasoning", "reasoning"), ("Options", "options"),
-        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
-        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
-        ("Updated", "updated_at")],
+        ("Needed by", "needed_by"), ("Decided on", "date"), ("Reasoning", "reasoning"), ("Options considered", "options"),
+        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
+        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"),
+        ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Milestones", "milestones", [
         ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
         ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
-        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
-        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
+        ("Forecast", "forecast_date"), ("Status", "status"), ("Sort order", "sort_order"), ("Progress %", "percent_complete"),
+        ("Owner", "owner"), ("State", "shown_state"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
-        ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
+        ("Open work items", "open_items"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Reference", "ref"), ("Use case", "title"), ("Project", "project"), ("Status", "status"),
-        ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Sort order", "sort_order"),
+        ("On the dashboard", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
@@ -127,7 +127,7 @@ SHEET_OF = {table: name for name, table, _, _ in SHEETS}
 COLUMN_OF = {table: {label: field for label, field in cols} for _, table, cols, _ in SHEETS}
 DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date", "needed_by", "actual_date",
          "original_date"}
-YES_NO = {"client_visible", "state_set"}
+YES_NO = {"client_visible"}
 LABELLED = ("actions", "raid", "decisions")
 RICH_WORDS = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "internal_note"), ("use_cases", "standing"))     # rows 1005, 1060 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list without the Movement note, which comes last; row 1060: a use case's Where it stands is HTML too)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
@@ -140,7 +140,6 @@ CHOICES = {
     ("actions", "status"): ["Open", "Delayed", "Closed", "Cancelled"],
     ("raid", "status"): ["Open", "Closed", "Cancelled"],
     ("milestones", "status"): ["Planned", "Done", "Cancelled"],
-    ("milestones", "state"): [s for s in STATES if s != "Achieved"] + ["Achieved"],   # clark: + Forecast
     ("milestones", "movement"): ["hold", "rebaseline", "recover", "escalate"],         # clark: FR-53
     ("decisions", "status"): ["Pending", "Made", "Withdrawn"],
     ("use_cases", "status"): ["On track", "Flag", "High risk", "Done"],                  # clark
@@ -940,7 +939,7 @@ GANTT_SHEET_COLUMNS = (
     ("ID", "id"), ("Line", "name"), ("Type", "type"), ("Parent", "parent"), ("Start", "start"), ("End", "end"), ("Days", "_days"),
     ("Done %", "pct"), ("Status", "_status"), ("Health", "health"), ("Depends on", "depends"), ("Owner", "owner"),
     ("Workstream", "workstream"), ("Priority", "priority"), ("Baseline start", "baseline_start"), ("Baseline end", "baseline_end"),
-    ("Effort (days)", "effort"), ("Budget", "budget"), ("Deliverable", "deliverable"), ("On dashboard", "show"), ("Notes", "note"))
+    ("Effort (days)", "effort"), ("Budget", "budget"), ("Deliverable", "deliverable"), ("On the dashboard", "show"), ("Notes", "note"))
 GANTT_DATES = {"start", "end", "baseline_start", "baseline_end"}
 GANTT_WIDTHS = {"id": 18, "name": 32, "type": 12, "parent": 18, "_days": 8, "pct": 10, "_status": 14, "depends": 30, "owner": 18, "workstream": 18,
                 "deliverable": 30, "show": 14, "note": 40}

@@ -141,7 +141,7 @@ class Watch:
 class ExternalLinksAreNeverFetched(Base):
     def setUp(self):
         super().setUp()
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         add_external_links(self.path)
 
     def test_the_workbook_really_holds_the_links(self):

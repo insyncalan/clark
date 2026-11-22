@@ -87,12 +87,12 @@ class Protect(unittest.TestCase):
         for ws in self.wb.worksheets:
             heads = {c.value: c.column for c in ws[4]}
             self.assertTrue(ws.cell(row=5, column=heads["ID"]).protection.locked, ws.title)
-            for label in ("Original", "Shown state"):
+            for label in ("Original", "State"):
                 if label in heads:
                     self.assertTrue(ws.cell(row=5, column=heads[label]).protection.locked, f"{ws.title} {label}")
         acts = sheets(self.wb)[excel.SHEET_OF["actions"]]
         heads = {c.value: c.column for c in acts[4]}
-        self.assertFalse(acts.cell(row=5, column=heads["Description"]).protection.locked)
+        self.assertFalse(acts.cell(row=5, column=heads["Title"]).protection.locked)
 
     def test_the_workbook_structure_is_not_protected(self):
         self.assertFalse(self.wb.security and (self.wb.security.lockStructure or self.wb.security.lockWindows))

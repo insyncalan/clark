@@ -69,7 +69,6 @@ BY_FIELD = {
     ("raid", "impact"): RATING,
     ("raid", "likelihood"): RATING,
     ("milestones", "shown_state"): MILESTONE_STATE,
-    ("milestones", "state"): MILESTONE_STATE,
     ("decisions", "status"): DECISION_STATUS,
     ("use_cases", "status"): USE_CASE_STATUS,
 }
