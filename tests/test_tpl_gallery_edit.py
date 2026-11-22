@@ -298,6 +298,29 @@ class Classic(Base):
         self.assertEqual([(c["slot"], c["image"]) for c in self.calls()], [("1", None)])
         self.assertNotIn("pictures", self.body())
 
+    # ---- AP9: the red mark on a tile with no description (Edit only) ----
+    def test_ap9_a_tile_without_a_description_has_the_red_mark_20_round_at_8px_from_top_38px_from_right_and_a_described_one_has_none(self):
+        for page in (1400, 900):
+            with self.subTest(page=page):
+                self.mount(body_of(3, alts=(1, 2)), page, page - 100)
+                self.assertEqual(self.val("Array.from(document.querySelectorAll('.gal-tile')).map(t => !!t.querySelector('.gal-red'))"), [True, False, False])
+                mark = "document.querySelectorAll('.gal-tile')[0].querySelector('.gal-red')"
+                self.assertEqual(self.val(f"(function(){{ const s = getComputedStyle({mark}), t = document.querySelectorAll('.gal-tile')[0], b = t.querySelector('.gal-bin').getBoundingClientRect(), m = {mark}.getBoundingClientRect(), tr = t.getBoundingClientRect();"
+                                          " return [s.width, s.height, s.borderTopLeftRadius, s.backgroundColor, s.color, s.fontSize, s.fontWeight, Math.round(m.top - tr.top), Math.round(tr.right - m.right), Math.round(b.left - m.right)]; })()"),
+                                 ["20px", "20px", "50%", "rgb(190, 58, 43)", "rgb(255, 255, 255)", "12px", "700", 10, 40, 6], "8px and 38px inside the 2px tile border, 6px clear of the bin")
+                self.assertEqual(self.val(f"[{mark}.textContent, {mark}.title, {mark}.getAttribute('aria-label')]"), ["!", "No description yet", "No description yet"])
+
+    def test_ap9_the_mark_goes_when_the_description_is_typed_and_comes_back_when_it_is_cleared(self):
+        self.mount(body_of(2, alts=(1,)))
+        self.assertEqual(self.val("document.querySelectorAll('.gal-red').length"), 1)
+        self.val("(function(){ const i = document.querySelector('input[id$=alt-1]'); i.focus(); i.value = 'Fictional words'; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); })()")
+        self.until("document.querySelectorAll('.gal-red').length === 0", "the mark is gone")
+        self.val("(function(){ const i = document.querySelector('input[id$=alt-1]'); i.focus(); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); })()")
+        self.until("document.querySelectorAll('.gal-red').length === 1", "the mark is back")
+
+    def test_ap9_the_published_view_draws_no_mark(self):
+        self.assertNotIn("gal-red", (SRC / "clark" / "page" / "src" / "templates" / "Gallery.jsx").read_text(encoding="utf-8"))
+
 
 class Kept(Base):
     def test_ap6_an_empty_gallery_keeps_the_old_edit_part_and_one_with_images_has_the_new_one_at_1400_and_900(self):

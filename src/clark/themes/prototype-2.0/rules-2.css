@@ -81,3 +81,5 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .gal-classic .gal-tile:hover .gal-bin, .gal-classic .gal-tile:focus-within .gal-bin, .gal-classic .gal-tile.sel .gal-bin { display: grid; }
 .gal-classic .gal-bin:hover { background: rgb(190, 58, 43); }
 .gal-classic .gal-bin:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Row 1233 (AP9, Classic Edit only, never in View): the red mark on a tile with no description (spec row 9): a 20 x 20 circle in --status-red, a white bold "!" 12px, 8px from the top and 38px from the right of the tile (left of the bin, 6px clear of it). */
+.gal-classic .gal-red { position: absolute; top: 8px; right: 38px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgb(190, 58, 43); color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }

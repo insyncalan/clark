@@ -2,8 +2,8 @@
 // empty gallery and the Cards look keep the Edit part they had). Up to six images in a grid: a tile each (click or focus selects it; a frame round the
 // selected one), the dashed add tile after the last, the one icon toolbar under the grid (Replace the selected image, and the plus), files dropped on the
 // section (up to six), the description and caption of the SELECTED image under the toolbar, and the count note. An image goes on its own to POST
-// /api/section-image (slot "1" to "6": clark frames it, gallery.py), after the words make the gallery a version 2 one. Remove (gal 3: the bin on a tile, the toolbar bin, the Delete key when no box is being typed in; one step, one Undo) is here. Not built here:
-// drag by the dots, the focus dot, Crop, Reset, the red mark, the columns and shape controls. Given { section }. Words and numbers: logic/galleryEditWords.js.
+// /api/section-image (slot "1" to "6": clark frames it, gallery.py), after the words make the gallery a version 2 one. Remove (gal 3: the bin on a tile, the toolbar bin, the Delete key when no box is being typed in; one step, one Undo) is here. Row 1233 AP9: the red mark on a tile with no description (Edit only). Not built here:
+// drag by the dots, the focus dot, Crop, Reset, the columns and shape controls. Given { section }. Words and numbers: logic/galleryEditWords.js.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { change, say } from "../../stores/changes.js";
 import { sendPicture, wordsOf, PicturesTotal } from "./pictureEdit.jsx";
@@ -95,6 +95,7 @@ export function Edit({ section }) {
         {filled.map((s, i) => (
           <div class={`gal-tile${s === sel ? " sel" : ""}`} key={s} data-slot={s} tabIndex={0} role="group" aria-label={W.select(i + 1)} onClick={() => setPick(s)} onFocus={() => setPick(s)}>
             <div class="gal-frame"><img src={safeImage(pics[s])} alt="" draggable={false} /></div>
+            {(items[s] || {}).alt ? null : <span class="gal-red" role="img" aria-label={W.redTitle} title={W.redTitle}>!</span>}
             <button type="button" class="gal-bin" data-act="bin" aria-label={W.binName(i + 1)} title={W.binTitle} disabled={busy} onClick={(e) => { e.stopPropagation(); remove(s); }}><Icon name="remove" /></button>
           </div>
         ))}
