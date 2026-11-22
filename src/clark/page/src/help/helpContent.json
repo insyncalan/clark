@@ -509,6 +509,19 @@
     ]
    },
    {
+    "id": "the-three-starting-lists",
+    "g": "The report",
+    "t": "The three lists a new Dashboard starts with",
+    "w": "Dashboard",
+    "go": "dashboard",
+    "s": [
+     "A new project’s Dashboard starts with three lists: Risks and issues, Open actions and Decisions. Each is a Work items list with its filter already saved; change the filter, the columns or the number of rows in Edit. Reports made before this keep the lists they have."
+    ],
+    "page": [
+     "dashboard"
+    ]
+   },
+   {
     "id": "show-progress",
     "g": "The report",
     "t": "Show progress against the plan",
@@ -1018,7 +1031,7 @@
         "Full or half"
        ],
        [
-        "Text and image",
+        "Text and Image Side by Side",
         "A story with a picture: a site visit, a design, a screenshot of the new system.",
         "Full or half"
        ],

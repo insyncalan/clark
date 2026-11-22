@@ -1,0 +1,85 @@
+"""The 900 px pause is ONE switch (test_server.PAUSED_900, read by _Pipe.call), now None. With a reason set by mock, 900 is skipped with that reason and other widths
+pass through; with it None, 900 runs.
+
+Run: python3 dev/run_tests.py test_paused_900
+"""
+import unittest
+from unittest import mock
+
+import test_server
+
+
+class Recorder(test_server._Pipe):
+    def __init__(self):
+        self.sent = []
+
+    def _call_once(self, method, params=None, session=None):
+        self.sent.append((method, params))
+        return {}
+
+
+class Off(unittest.TestCase):
+    def test_the_reason_is_none(self):
+        self.assertIsNone(test_server.PAUSED_900)
+
+
+class Paused(unittest.TestCase):
+    def setUp(self):
+        p = mock.patch.object(test_server, "PAUSED_900", "paused until Bifrost online (21-11)")       # the switch is None in test_server; the mechanism is tested with it set
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_script_outside_a_test_is_not_paused(self):
+        p = Recorder()
+        test_server._IN_TEST[0] = False       # as in dev/tools/argos_shots.py, which borrows this pipe
+        p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+        self.assertEqual(len(p.sent), 1)
+        test_server._IN_TEST[0] = True
+
+    def test_a_width_of_900_is_skipped_with_the_reason_and_never_sent(self):
+        p = Recorder()
+        with self.assertRaises(unittest.SkipTest) as caught:
+            p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+        self.assertEqual(str(caught.exception), "paused until Bifrost online (21-11)")
+        self.assertEqual(p.sent, [])
+
+    def test_other_widths_and_other_calls_go_through(self):
+        p = Recorder()
+        p.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+        p.call("Emulation.setDeviceMetricsOverride", {"width": 360, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+        p.call("Page.navigate", {"url": "about:blank", "width": 900})
+        self.assertEqual(len(p.sent), 3)
+
+    def test_the_height_alone_being_900_is_not_paused(self):
+        p = Recorder()
+        p.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900})
+        self.assertEqual(len(p.sent), 1)
+
+    def test_the_two_watching_pipes_pause_900_too(self):
+        import test_back_forward, test_publish
+        for mod in (test_back_forward, test_publish):
+            p = mod.Watching.__new__(mod.Watching)
+            with self.assertRaises(unittest.SkipTest):
+                p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+
+    def test_a_skip_inside_a_subtest_does_not_leave_a_failing_test(self):
+        class Case(unittest.TestCase):
+            def runTest(self):
+                p = Recorder()
+                with self.subTest(width=900):
+                    p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+                self.assertEqual(1, 2, "a count the paused half would have made")
+        result = unittest.TestResult()
+        Case().run(result)
+        self.assertEqual((len(result.failures), len(result.errors)), (0, 0))
+        self.assertGreaterEqual(len(result.skipped), 1)
+
+    def test_switched_off_a_width_of_900_runs_again(self):
+        p = Recorder()
+        with mock.patch.object(test_server, "PAUSED_900", None):
+            p.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900})
+        self.assertEqual(len(p.sent), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
