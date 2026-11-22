@@ -17,7 +17,7 @@ from test_server import chrome
 from test_tpl_glance_editor_1264 import Editor, tearDownModule  # noqa: F401
 
 NAME = "prototype-2.0"
-RULES = (SRC / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"))
 PROBE = """(function(sel){ var out = {}; var tiles = document.querySelectorAll(sel + ' [data-tile] .fig'); out.n = tiles.length; out.tiles = [];
   tiles.forEach(function(f){ var cs = getComputedStyle(f), fr = f.getBoundingClientRect(), dot = f.querySelector('.ragdot'), tw = f.querySelector('.tw'), d = dot ? dot.getBoundingClientRect() : null,
     t = tw ? tw.getBoundingClientRect() : null;
