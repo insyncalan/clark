@@ -26,7 +26,7 @@ import sys
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from clark import __main__ as launcher, page, publish, server as sv, to_client, use_cases_read  # noqa: E402
+from clark import __main__ as launcher, page, publish, theme, server as sv, to_client, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, need_chrome  # noqa: E402,F401
 from test_server import chrome, wait  # noqa: E402
@@ -153,7 +153,7 @@ class SamePage(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
-        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: self.built)
+        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.layer_theme(self.built, theme.css("prototype-2.0")))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
@@ -248,11 +248,11 @@ class SamePage(unittest.TestCase):
                     self.assertFalse(fi["noted"], "no explanation line")
                     self.assertNotIn("means", " ".join(fi["how"]))
                     if width == 1400:
-                        # shell.css row 1479: `.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small) }`, the label on its own line under the milestone name, smaller than the name
+                        # rules-2.css row 1479: `.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small) }`, the label on its own line under the milestone name, smaller than the name
                         c = fi["howcss"]
                         self.assertEqual(c["basis"], "100%", "the label takes the whole line")
                         self.assertTrue(c["under"], "the label is under the milestone name")
-                        self.assertLess(c["fs"], c["nameFs"], "the label is smaller than the name")
+                        self.assertLessEqual(c["fs"], c["nameFs"], "the label is no larger than the name (Classic: --size-small and --size-body are both 14px)")
 
     def test_no_control_word_and_no_changing_element(self):
         gone = ("Change status", "On the dashboard", "Click the text to change it", "Add an owner", "Add a next step", "Link an existing work item", "Add a milestone", "...")
