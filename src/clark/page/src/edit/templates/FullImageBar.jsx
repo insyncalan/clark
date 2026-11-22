@@ -31,22 +31,25 @@ function Btn({ icon, name, tip, on, onClick, disabled, act }) {
   );
 }
 
+// The arrow keys move along a bar (one tab stop), and a focused button is the tab stop; the Image gallery's bar uses the same two.
+export function along(e, bar) {
+  const keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
+  if (!(e.key in keys)) return;
+  const all = [...bar.querySelectorAll("button:not([disabled])")], at = all.indexOf(document.activeElement);
+  if (!all.length) return;
+  e.preventDefault();
+  const k = keys[e.key];
+  const to = k === "first" ? 0 : k === "last" ? all.length - 1 : (at + k + all.length) % all.length;
+  all.forEach((b, i) => { b.tabIndex = i === to ? 0 : -1; });
+  all[to].focus();
+}
+export function focusAt(e, bar) { if (e.target.tagName === "BUTTON") [...bar.querySelectorAll("button:not([disabled])")].forEach((b) => { b.tabIndex = b === e.target ? 0 : -1; }); }
+
 // `a`: { shape, fit, fill, small, canReset, busy, onShape, onCrop, onReset, onFit, onFill, onReplace, onRemove }
 export function Bar({ a }) {
   const bar = useRef(null);
-  const live = () => [...bar.current.querySelectorAll("button:not([disabled])")];
-  const onKeyDown = (e) => {
-    const keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
-    if (!(e.key in keys)) return;
-    const all = live(), at = all.indexOf(document.activeElement);
-    if (!all.length) return;
-    e.preventDefault();
-    const k = keys[e.key];
-    const to = k === "first" ? 0 : k === "last" ? all.length - 1 : (at + k + all.length) % all.length;
-    all.forEach((b, i) => { b.tabIndex = i === to ? 0 : -1; });
-    all[to].focus();
-  };
-  const onFocusIn = (e) => { if (e.target.tagName === "BUTTON") live().forEach((b) => { b.tabIndex = b === e.target ? 0 : -1; }); };
+  const onKeyDown = (e) => along(e, bar.current);
+  const onFocusIn = (e) => focusAt(e, bar.current);
   const d = a.busy;
   useEffect(() => restTab(bar.current));      // one tab stop: kept after every draw
   return (

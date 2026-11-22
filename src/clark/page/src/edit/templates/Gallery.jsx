@@ -7,17 +7,18 @@ import { samplePicture } from "../samplePicture.js";
 import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { SLOTS } from "../../templates/Gallery.jsx";
+import { Edit as ClassicEdit } from "./GalleryClassic.jsx";
 
 const WORDS = { added: "Picture added.", removed: "Picture taken out." };
 export const LONGEST = 1200;
 export const MOST = 400 * 1024;              // gallery.py V1_PICTURE_MAX: this page still sends version 1 bodies (test_gallery_v2_survivors keeps them equal)
 
-function itemsOf(v) {
+export function itemsOf(v) {
   return v && v.items && typeof v.items === "object" && !Array.isArray(v.items) ? v.items : {};
 }
 
 // A caption or description of one picture: the items object saved whole, with that one field changed.
-function ItemField({ section, slot, field, label, value, words, empty }) {
+export function ItemField({ section, slot, field, label, value, words, empty }) {
   const Box = field === "caption" ? CaptionField : LineField;          // item 1005: a caption is on the one editor, a description stays one line
   return (
     <Box section={section} field={`${field}-${slot}`} label={label} value={value} max={300} words={words} empty={empty}
@@ -31,7 +32,13 @@ function ItemField({ section, slot, field, label, value, words, empty }) {
   );
 }
 
+// Row 1233 (gal 2): in the Classic look a gallery with an image has the redesigned Edit part (GalleryClassic.jsx); an empty one and the Cards look keep this one.
 export function Edit({ section }) {
+  const pics = picturesOf(stored(section) || {});
+  return classicLook() && SLOTS.some((s) => typeof pics[s] === "string" && pics[s]) ? <ClassicEdit section={section} /> : <OldEdit section={section} />;
+}
+
+function OldEdit({ section }) {
   const v = stored(section) || {};
   const pics = picturesOf(v), items = itemsOf(v);
   const filled = SLOTS.filter((s) => pics[s]);

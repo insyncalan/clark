@@ -55,3 +55,23 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1233 (gal 2, Image gallery Edit, Classic only; the Cards look keeps its own Edit part): the grid of tiles, 12px apart, three across (two across at half width, drawn by a container query on the part, and at 900), the 2px tile border that shows the selected image (transparent otherwise), the frame (radius 9, cover, fill rgb(232,237,248)), and the dashed add tile (2px rgb(184,193,220), radius 12, at least 120px tall, "+" 26px over the words 13px in rgb(106,117,146); the brand blue on hover). The values are Romanoff's measured spec rows 1, 3, 4 and 5 on #1233. */
+.gal-classic { container-type: inline-size; display: grid; gap: var(--space-3); }
+.gal-classic.over { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.gal-classic .gal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.gal-classic[data-columns="2"] .gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (max-width: 640px) { .gal-classic .gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .gal-classic .gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.gal-classic .gal-tile { position: relative; padding: 0; border: 2px solid transparent; border-radius: 12px; cursor: pointer; }
+.gal-classic .gal-tile.sel { border-color: var(--brand-blue); }
+.gal-classic .gal-tile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gal-classic .gal-frame { overflow: hidden; border-radius: 9px; background: rgb(232, 237, 248); }
+.gal-classic .gal-frame img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.gal-classic[data-shape="square"] .gal-frame img { aspect-ratio: 1 / 1; }
+.gal-classic[data-shape="16:9"] .gal-frame img { aspect-ratio: 16 / 9; }
+.gal-classic[data-shape="whole"] .gal-frame img { aspect-ratio: auto; object-fit: contain; }
+.gal-classic .gal-addtile { display: grid; place-items: center; align-content: center; gap: 4px; min-height: 120px; border: 2px dashed rgb(184, 193, 220); border-radius: 12px; background: transparent; color: rgb(106, 117, 146); font: inherit; font-size: 13px; cursor: pointer; }
+.gal-classic .gal-addtile:hover { border-color: var(--brand-blue); color: var(--brand-blue-strong); }
+.gal-classic .gal-addtile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gal-classic .gal-plus { font-size: 26px; font-weight: 700; line-height: 1; }
+.gal-classic .gal-group { display: flex; gap: var(--space-1); }
