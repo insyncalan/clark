@@ -120,7 +120,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
                                  holds: ["Heading", "Timeline or Calendar · live", "Milestone list · live"] };
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Current state", "text"), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
+  builtIn("current", "Current state", "text"), builtIn("usecases", "Use cases", "work", USECASES_CARD),
   builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
