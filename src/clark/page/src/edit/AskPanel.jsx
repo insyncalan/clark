@@ -182,7 +182,8 @@ export function AskPanel() {
     setFiles(F.removeFile(files, f.id)); setNote("");
     setTimeout(() => { const left = document.querySelectorAll("#ask-files .ask-file-del"); const to = left[Math.min(files.findIndex((x) => x.id === f.id), left.length - 1)] || box.current; if (to) to.focus(); }, 0);
   }
-  const hasFiles = (e) => filesOk && !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const dragHasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const hasFiles = (e) => filesOk && dragHasFiles(e);
 
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
@@ -385,7 +386,7 @@ export function AskPanel() {
     <>
     <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}
       data-drop={dropOver ? "true" : undefined}
-      onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
+      onDragOver={(e) => { if (dragHasFiles(e)) { e.preventDefault(); if (hasFiles(e)) setDropOver(true); } }}      /* item 1506: with Files off the drag is still taken (so the browser does not open the file) but nothing lights up */
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
