@@ -59,6 +59,7 @@ class RealSettings(unittest.TestCase):
             return cdp.js(PROBE, sid)
 
     def test_group_margin_12px_at_900_and_1099(self):
+        """A guard on the value only: the Row 1285 rule (rules.css) already gives 12 px at every width, so this passes without row 1500's CSS."""
         for scheme in ("light", "dark"):
             for width in WIDTHS:
               with self.subTest(width=width, scheme=scheme):
