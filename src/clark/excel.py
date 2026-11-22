@@ -40,6 +40,7 @@ import unicodedata
 import uuid
 import warnings as warnings_lib
 import zipfile
+import zlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -243,6 +244,10 @@ class TooBig(Refused):
     """A workbook that is too big to open safely (a zip bomb, or the wrong file); the message says so in plain words."""
 
 
+class NotSafe(TooBig):
+    """A workbook with a DOCTYPE or entity in any of its parts, whatever the part is named (entity expansion can use all the memory); refused before it is opened."""
+
+
 # What a workbook may be before clark opens it. A real export of a large project is far below all four. The sizes are those the
 # .xlsx (a zip) declares for its members; Python's zip reader never gives back more than a member declares.
 MAX_FILE_BYTES = 25 * 1024 * 1024          # the file as saved
@@ -277,6 +282,33 @@ def check_workbook_size(path):
     if biggest > MAX_MEMBER_BYTES or total > MAX_UNPACKED_BYTES:
         raise TooBig(f"{path.name} would unpack to about {mb(total)} (the most clark will open is {mb(MAX_UNPACKED_BYTES)}), "
                      "so it was not opened. A clark export is far smaller: check it is the right file.")
+    with zipfile.ZipFile(path) as z:
+        for i in infos:
+            if _has_doctype_or_damaged(z, i):                 # every member, whatever its name: openpyxl reads a part by the workbook's relationships
+                raise NotSafe(f"{path.name} holds a part ({i.filename}) with a DOCTYPE or entity declaration, which a workbook from clark "
+                              "never has, so it was not opened. Check it is the right file.")
+
+
+def _has_doctype_or_damaged(z, info):
+    """_has_doctype, but a part that cannot be read (damaged, odd compression) is left to the later steps, which refuse it in plain words."""
+    try:
+        return _has_doctype(z, info)
+    except (zlib.error, NotImplementedError, zipfile.BadZipFile, EOFError, OSError, RuntimeError):
+        return False
+
+
+def _has_doctype(z, info, chunk=1 << 20):
+    """True if the member holds a DOCTYPE or ENTITY declaration; read in pieces that overlap, so a long prolog is no way past it."""
+    tail = b""
+    member = z.open                                      # a zip member is read as bytes, never as text
+    with member(info) as f:
+        while True:
+            block = f.read(chunk)
+            if not block:
+                return False
+            if excel_picture.has_doctype(tail + block):
+                return True
+            tail = block[-32:]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -360,6 +392,8 @@ def export_id_of(path):
             if info.file_size > MAX_CUSTOM_BYTES:
                 return None
             data = z.read(info)
+        if excel_picture.has_doctype(data):
+            return None
         with warnings_lib.catch_warnings():
             warnings_lib.simplefilter("ignore")
             props = [p for p in CustomPropertyList.from_tree(fromstring(data)) if p.name == EXPORT_ID_NAME]

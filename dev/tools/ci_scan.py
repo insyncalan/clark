@@ -42,6 +42,34 @@ RISKY_CONTEXT = re.compile(r"\$\{\{[^}]*(?:github\.head_ref|\.title|\.body|\.hea
                            r"\.author\.name|\.name\b[^}]*pull_request|\.ref\b)[^}]*\}\}")
 SAFE_LINE = re.compile(r"^\s*(?:-\s+)?(?:if|name|run-name|group|[A-Z][A-Z0-9_]*):")        # an expression or an env value, never shell
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
+# Row Argos: ONE workflow may read ONE named secret, in one step's env, and nothing else (no other secret, no write, no id-token).
+ALLOWED_SECRET = {".github/workflows/screenshots.yml": "ARGOS_TOKEN"}
+
+
+def secret_in_step_env(code, name):
+    """True only for the exact 8-space 'env:' line directly followed by the 10-space token line (a step's env, never a workflow or
+    job env, also in a 4-space-indented workflow: the nearest line above 'env:' that is indented less than 8 must be a step item,
+    exactly 6 spaces then '- '), and only when that line is not inside a run: | style block. The caller strips comments first."""
+    lines = code.splitlines()
+    want = re.compile(r"^          %s: \$\{\{ secrets\.%s \}\}[ \t]*$" % (name, name))
+    block = None                                       # indent of the key that opened a block scalar
+    for i, ln in enumerate(lines):
+        if block is not None and (not ln.strip() or len(ln) - len(ln.lstrip()) > block):
+            continue
+        block = None
+        m = re.match(r"^(\s*)(?:-\s+)?[\w-]+:\s*[|>][-+0-9]*\s*$", ln)
+        if m:
+            block = len(m.group(1))
+        if want.match(ln) and i and lines[i - 1].rstrip() == "        env:" and step_item_above(lines, i - 1):
+            return True
+    return False
+
+
+def step_item_above(lines, k):
+    for ln in reversed(lines[:k]):
+        if ln.strip() and len(ln) - len(ln.lstrip()) < 8:
+            return ln.startswith("      - ") and not ln.startswith("       ")
+    return False
 
 
 # A picture or font is allowed only if it is well formed for its own extension and ENDS where its format says it ends, so a
@@ -364,7 +392,12 @@ class Scan:
             tag = e.index
             if re.search(r"pull_request_target|workflow_run", code):
                 bad.append("file #%d: uses a trigger that runs with this repository's token on outside code" % tag)
-            if re.search(r"secrets\.|secrets:\s|\bwrite\b|write-all|id-token", code):
+            if re.search(r"secrets:\s|\bwrite\b|write-all|id-token", code):
+                bad.append("file #%d: uses a secret or write access" % tag)
+            named = re.findall(r"secrets\.(\w+)", code)
+            allowed = ALLOWED_SECRET.get(e.path)
+            bare = len(re.findall(r"\bsecrets\b", code))     # also toJSON(secrets) and secrets['X']: in the allowed file only the one named use may exist
+            if (named or (allowed and bare)) and not (allowed and bare == 1 and secret_in_step_env(code, allowed)):
                 bad.append("file #%d: uses a secret or write access" % tag)
             if re.search(r"^\s*(?:self-hosted|runs-on:.*self-hosted)", code, re.M):
                 bad.append("file #%d: runs on a self-hosted machine" % tag)
