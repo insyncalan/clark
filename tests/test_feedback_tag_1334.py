@@ -4,6 +4,7 @@ Classic only; no stretch, no drag edge, no remembered width (out of the row). Li
 Run: python3 dev/run_tests.py test_feedback_tag_1334
 The mock-up's values are pinned here as numbers (the mock-up file is not in this repository)."""
 import json
+import time
 import unittest
 
 import test_feedback_tag_browser_1298 as B
@@ -46,6 +47,11 @@ class FeedbackTag1334(unittest.TestCase):
             self.open_help(cdp, sid)
             cdp.js(f"{BAR}.click()", sid)
             self.assertTrue(wait(lambda: cdp.js(f"!!{DLG} && !!{TA}", sid)), where)
+            last = []
+            def still():      # the dialog's left edge is the same on three reads 60 ms apart
+                last.append(cdp.js(f"{DLG}.getBoundingClientRect().left", sid)); time.sleep(0.06)
+                return len(last) >= 3 and last[-1] == last[-2] == last[-3]
+            self.assertTrue(wait(still), where + ": the slide has finished")   # measured while it slid, the right edges were off the page (flaky in dark)
             yield cdp, sid, where
 
     def token(self, cdp, sid, prop, value):
