@@ -24,7 +24,7 @@ HOLD_WORDS = "ZQ-HOLD-4417"
 RICH_NOTE = "ZQ-RICH-NOTE-4418"            # row 1005: a note written as the one rich editor's HTML, through the change route, on the second milestone
 UC_OWNER = "ZQ-UC-OWNER-6605"             # row 875: a use case's owner (text, and the name of the linked person) is internal too: planted on U-001, through the change route
 MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE}
-# row 1479 AP3 (Romanoff, 22-11): the use case page of the published file shows the owner as plain text, so the owner's name is allowed
+# row 1479 AP3 (the PM, 22-11): the use case page of the published file shows the owner as plain text, so the owner's name is allowed
 # in ONE place only, the owner field of its own use case row; UC_OWNER_ROW is that exact text and test_the_use_case_owner_is_in_its_own_row_only
 # asserts it appears nowhere else. Every other marker above is still searched for everywhere.
 UC_OWNER_ROW = '"id":"PUB-U-001","owner":"' + UC_OWNER + ' Pat Placeholder"'
