@@ -37,23 +37,17 @@ class Classic(Base, unittest.TestCase):
             self.assertEqual((g["style"], g["width"]), ("dashed", "1px"), g)
             self.assertEqual(g["color"], g["want"], f"the dashed edge is var(--status-blue-text) at {w}: {g}")
 
-    def test_classic_milestones_plan_movement_switch_present(self):
+    def test_classic_milestones_has_no_plan_movement_switch(self):
+        """Row 1329 (Alan 18-11) supersedes the Row 1315 AP12 pin: Classic draws no Plan | Movement switch."""
         for cdp, sid, w in self.every():
-            g = cdp.js(SWITCH, sid)
-            self.assertIsNotNone(g, f"the 'Milestones view' group is on the Milestones page at {w}")
-            self.assertTrue(g["shown"], g)
-            self.assertEqual((g["n"], g["keys"]), (2, ["plan", "move"]), g)
-            self.assertEqual(g["words"][0], "Plan", g)
-            self.assertEqual(sorted(g["pressed"]), ["false", "true"], "exactly one of the two is chosen")
+            self.assertIsNone(cdp.js(SWITCH, sid), f"Classic has no 'Milestones view' group at {w}")
 
     def test_the_pins_hold_at_900(self):
         seen = {}
         for cdp, sid, w in self.every():
             g = cdp.js(PLUS, sid)
-            s = cdp.js(SWITCH, sid)
             self.assertIsNotNone(g)
-            self.assertIsNotNone(s)
-            seen[w] = (g["style"], g["width"], g["color"] == g["want"], s["n"], s["keys"])
+            seen[w] = (g["style"], g["width"], g["color"] == g["want"])
         self.assertEqual(seen[900], seen[1400], "the 900 values equal the 1400 values")
 
 
