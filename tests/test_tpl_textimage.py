@@ -436,7 +436,7 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")
             p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
-            self.assertEqual(self.body(ref)["caption"], "Fictional hall")
+            self.assertEqual(self.body(ref)["caption"], "<p>Fictional hall</p>")
             p.clear_toast()
             # a picture, chosen as a file: drawn on a canvas, shrunk and sent on its own
             p.js(f"""(async () => {{
@@ -470,7 +470,7 @@ class InThePage(PageBase):
             # one Undo takes the picture back out, and keeps the words
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"!document.querySelector('{sel} .tpl-pic-slot.has-pic')", "Undo took the picture out")
-            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS), "caption": "Fictional hall"})
+            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS), "caption": "<p>Fictional hall</p>"})
             p.view()
             p.until(f"!!document.querySelector('{sel} .tpl-words')", "View draws the words")
             self.assertFalse(p.js(f"!!document.querySelector('{sel} img')"))
