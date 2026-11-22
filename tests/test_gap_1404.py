@@ -13,7 +13,7 @@ import _testpage as testpage
 from clark import page, theme
 
 NAME = "prototype-2.0"
-RULES = (SRC / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"))
 PROBE = """(() => { const cs = (e, p) => getComputedStyle(e)[p], R = (e) => e.getBoundingClientRect();
   return [...document.querySelectorAll('.glance .fig:not(.health-fig)')].map((f) => { const k = f.querySelector('.k'), v = f.querySelector('.v'), dd = f.querySelector('.dd'), row = f.querySelector('.vrow');
     return { key: f.dataset.fig, label: k.textContent, labelFont: cs(k, 'fontFamily').split(',')[0], labelWeight: cs(k, 'fontWeight'), labelSize: cs(k, 'fontSize'),

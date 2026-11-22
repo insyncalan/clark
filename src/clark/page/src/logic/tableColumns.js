@@ -1,12 +1,12 @@
 // Row 1222: which columns a work item table or a milestone table shows. The choice is made from a menu on the table's heading row (edit/ColumnsMenu.jsx).
 // It is kept for each table and each project, on this computer only (logic/remember.js: a blocked store means nothing is remembered and the table
 // still draws), never in the project's data, and the Excel export does not read it. The standard set is what a table showed before this row.
-// A column marked `locked` is always shown: the title (or name) and the status, so a row can always be understood.
+// A column marked `locked` is always shown: the title (or name) and the status, so a row can always be understood. Row 1499: on Work items only the title is locked (the Status can be unticked in the Classic look; Cards keeps it always shown, edit/ColumnsMenu.jsx).
 import { recall, remember, forget } from "./remember.js";
 
 export const TABLE_COLUMNS = {
   work: [
-    { id: "status", label: "Status", locked: true, standard: true },
+    { id: "status", label: "Status", standard: true },
     { id: "item", label: "Item", locked: true, standard: true },
     { id: "owner", label: "Owner", standard: true },
     { id: "due", label: "Due", standard: true },

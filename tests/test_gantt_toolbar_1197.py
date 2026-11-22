@@ -15,7 +15,7 @@ from clark import theme  # noqa: E402
 from test_server import chrome  # noqa: E402,F401  (the runner tells a browser file by this import)
 
 NAME = "prototype-2.0"
-RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"))
 
 
 PLAIN = GP.page_html
