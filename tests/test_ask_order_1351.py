@@ -6,6 +6,7 @@ The project's tab: Asking in <project>; Used from All projects; Connectors in <p
 The All projects tab: the model card, the other connectors, the standing instructions, then the source folders. The tabs: All projects first,
 the open project second and shown. Chrome is required."""
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -87,19 +88,36 @@ class SourceOrder(unittest.TestCase):
     SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text(encoding="utf-8")
 
     def body(self, name):
-        start = self.SRC.index(f"function {name}()")
-        return self.SRC[start:self.SRC.index("\n}\n", start)]
+        """The source of one function, from its signature to its closing brace; fails loudly when the function is not there."""
+        sig = f"function {name}()"
+        self.assertIn(sig, self.SRC, f"{sig} not found in AskSettings.jsx")
+        start = self.SRC.index(sig)
+        end = self.SRC.index("\n}\n", start)
+        return self.SRC[start:end]
 
     def test_all_tab_slash_folders_safety_usage_last(self):
         b = self.body("AllProjects")
         order = [b.index(t) for t in ("<SlashList", "<AllFolders", "<Safety", "<UsageAll")]
         self.assertEqual(order, sorted(order))
         self.assertEqual(b.count("<UsageAll"), 1)
-        self.assertNotIn("/>", b.split("<UsageAll")[1].split("</>")[0].split("/>", 1)[1] if "/>" in b.split("<UsageAll")[1] else "", "no card after Usage")
+        self.assertEqual(self.cards_after(b[b.index("<UsageAll"):], "<UsageAll"), [], "no card after Usage on the All projects tab")
+
+    @staticmethod
+    def cards_after(text, tag):
+        """Component tags (<Name) that come after the first one of `tag` in `text`."""
+        found = re.findall(r"<([A-Z]\w*)", text)
+        return found[1:] if found and "<" + found[0] == tag else found
 
     def test_project_tab_slash_after_standing_instructions(self):
-        b = self.body("ProjectTab") if "function ProjectTab()" in self.SRC else self.SRC
+        b = self.body("AskProject")
         self.assertLess(b.index("<OwnInstructions"), b.index('<SlashList scope="project"'))
+
+    def test_project_tab_usage_after_chats(self):
+        """Romanoff's ruling: nothing moves on the project tab; Usage stays last, after Chats."""
+        b = self.body("AskProject")
+        self.assertEqual(b.count("<UsageProject"), 1)
+        self.assertLess(b.index("<ChatsProject"), b.index("<UsageProject"))
+        self.assertEqual(self.cards_after(b[b.index("<UsageProject"):], "<UsageProject"), [], "no card after Usage on the project tab")
 
 
 if __name__ == "__main__":
