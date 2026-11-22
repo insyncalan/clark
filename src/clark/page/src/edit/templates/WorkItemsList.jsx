@@ -11,14 +11,13 @@ import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, Listing, Foot, today, classicTheme, colTools } from "../../templates/WorkItemsList.jsx";
+import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkItemsList.jsx";
 import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
 import { useColWidths, useColOrder } from "../colWidths.jsx";
 
-colTools.current = { useColWidths, useColOrder };      // row 1195: the View list uses the same hooks (Classic)
 import { NewTile } from "../../components/NewTile.jsx";
 import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
