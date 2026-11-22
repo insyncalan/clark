@@ -17,6 +17,7 @@ import { note } from "../notes.js";
 import { readBody, compact, withChange, moved, builtinTiles, PER_ROWS } from "../../templates/glanceBody.js";
 import { drawnTiles, hiddenTiles } from "../../glanceHidden.js";
 import { Icon } from "../../components/Icon.jsx";
+import { classicTheme } from "../../components/Contents.jsx";
 import { tileActions, OwnControls, OwnTile, PendingCell, AddTile, editor, WORDS as TILE_WORDS } from "./glanceTileEditor.jsx";
 
 // The words of slice 9, quoted from the ruled words files (groups 2, 3, 10, 12, 13; v2 A). Nothing else is new here.
@@ -24,7 +25,8 @@ export const WORDS = {
   ownRow: "Project health on its own row", ownRowOn: "Project health sits on its own row", ownRowOff: "Project health sits with the tiles",       // group 2; v2 A
   showHealth: "Show project health here",                                                                                                    // group 3
   healthHidden: "Project health is hidden completely", healthShown: "Project health is shown",                                                // group 10
-  hintEye: "The eye on Project health hides it completely.", hintAdd: "Use Add a tile to make your own. Click the pencil on your own tile to edit it.",   // group 12
+  hintEye: "The eye on Project health hides it completely.", hintAdd: "Use Add a tile to make your own. Click the pencil on your own tile to edit it.",   // group 12 (Cards keeps these)
+  hint: "Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. Add a tile brings it back.",   // row 1336: the closing words are the ticket's: the bin deletes it
   perRow: "Tiles on a line", halfNote: "Half width always shows 2 on a line.",                                                               // group 13
 };
 
@@ -47,7 +49,9 @@ function actions(section, u, own) {
     if (before === key || (before === null ? at === order.length - 1 : order[at + 1] === before)) return Promise.resolve(null);
     return send(withChange(u, { order: moved(u.order, key, before, drawn) }), `${titleOf(key)} moved.`, tile(key, "[data-tile-grip]"));
   };
+  const del = (key) => send(withChange(u, { hide: [key, true] }), `Deleted: ${titleOf(key)}`, at(".tileadd"));      // row 1336: the bin on a built-in tile takes it off the strip with an Undo; the stored body is the hidden flag, so the published-file rule is the one it was (Add a tile brings it back)
   return {
+    del,
     hide: (key, hidden) => send(withChange(u, { hide: [key, hidden] }),
       key === "health" ? (hidden ? WORDS.healthHidden : WORDS.healthShown) : hidden ? `${titleOf(key)} hidden from the published report.` : `${titleOf(key)} shown in the published report.`,
       key === "health" ? at(hidden ? "[data-gt-showhealth]" : "[data-tile=health] [data-tile-eye]") : tile(key, "[data-tile-eye]")),
@@ -65,7 +69,9 @@ function actions(section, u, own) {
       return move(key, s.before, order);
     },
     outlines: (key) => key !== "health" && key in TILE_TITLES,       // the body keeps an outline for the three counting tiles only
-    extra: (tile, title) => (tile.own ? <OwnControls tile={tile} title={title} tools={own} /> : null),
+    extra: (tile, title) => (tile.own ? <OwnControls tile={tile} title={title} tools={own} /> : tile.key === "health" || !classicTheme() ? null : (
+      <button type="button" class="tdel" data-edit-only data-tile-bin aria-label={`Delete ${title}`} title={TILE_WORDS.deleteThis} onClick={() => del(tile.key)}><Icon name="trash" /></button>
+    )),
     eye: () => true,                            // Project health has its eye here: the body keeps health.shown
   };
 }
@@ -101,7 +107,7 @@ export function Edit({ section }) {
         <span class="tpl-gt-halfnote" data-gt-halfnote>{WORDS.halfNote}</span>
       </div>
       <AddTile tools={own} count={u.bespoke.length} hidden={away.map((t) => ({ key: t.key, title: t.own ? t.label : TILE_TITLES[t.key] }))} show={(key) => act.hide(key, false)} />
-      <GLANCE.Hint more={`${WORDS.hintEye} ${WORDS.hintAdd}`} />
+      <GLANCE.Hint {...(classicTheme() ? { text: WORDS.hint } : { more: `${WORDS.hintEye} ${WORDS.hintAdd}` })} />
     </div>
   );
 }

@@ -49,7 +49,8 @@ def page_html():
                                cwd=tmp, capture_output=True, text=True)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "brand" / "tokens.css", PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css", ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"))
+        THEME = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
+        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "brand" / "tokens.css", PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css", THEME / "rules.css", THEME / "rules-2.css") if p.is_file())
         _HTML["html"] = ('<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>t</title>'
                          f'<style id="theme">{css}</style></head>\n<body><script id="clark-boot" type="application/json">{{"token":"t"}}</script>'
                          f'<div id="root"></div>\n<script>{script}</script>\n</body></html>\n')
@@ -339,7 +340,7 @@ class Page(unittest.TestCase):
         self.assertEqual((pad, border, width, radius), ("4px", "solid", "1px", "10px"))
         self.assertEqual(color, self.token("color", "--grey-200"))
         self.assertEqual(bg, self.token("backgroundColor", "--band-bg"))
-        self.assertEqual(self.style(".tpl-sbs-bar", "columnGap")[0], self.token("columnGap", "--space-1"))
+        self.assertEqual(self.style(".tpl-sbs-bar", "columnGap")[0], "2px", "AP1: the bar has a flex gap of 2 (the mock-up's number, not the 4px token)")
 
     def test_groups_have_a_rule_between_and_replace_remove_sit_right(self):
         self.with_image(page=1400)
@@ -347,6 +348,9 @@ class Page(unittest.TestCase):
         self.assertEqual(len(seps), 3, "a rule between the four groups")
         for w, bg in seps:
             self.assertEqual((w, bg), (1, self.token("backgroundColor", "--grey-200")))
+        gaps = self.val("[...document.querySelectorAll('.tpl-sbs-grp')].map(e => getComputedStyle(e).columnGap)")
+        self.assertEqual(gaps, ["2px"] * len(gaps), "AP2: every group has a gap of 2")
+        self.assertGreaterEqual(len(gaps), 4)
         box = self.val("(function(){ const b = document.querySelector('.tpl-sbs-bar').getBoundingClientRect(), r = document.querySelector('.tpl-sbs-bar [data-act=remove]').getBoundingClientRect(), c = document.querySelector('.tpl-sbs-bar [data-act=crop]').getBoundingClientRect(); return {gapRight: b.right - r.right, cropToRemove: r.left - c.right}; })()")
         self.assertLessEqual(box["gapRight"], 6, "Remove sits at the right end of the bar (its 4px padding and 1px line)")
         self.assertGreater(self.val("document.querySelector('.tpl-sbs-bar [data-act=replace]').getBoundingClientRect().left - document.querySelector('.tpl-sbs-bar [data-act=reset]').getBoundingClientRect().right"), 20, "the spacer pushes Replace and Remove away from the groups")
@@ -357,7 +361,7 @@ class Page(unittest.TestCase):
         self.assertTrue(sizes)
         for row in sizes:
             self.assertEqual(row, [32, 30, "7px", 17, 17, "1.8"])
-        self.assertEqual(self.style(".tpl-sbs-bar [data-act=crop]", "color")[0], self.token("color", "--text-muted"))
+        self.assertEqual(self.style(".tpl-sbs-bar [data-act=crop]", "color")[0], "rgb(58, 74, 107)", "AP3: the icon colour is 3a4a6b (the mock-up's number)")
 
     def test_the_pressed_button_is_white_with_the_inset_brand_ring(self):
         self.with_image(page=1400)
@@ -418,6 +422,18 @@ class Page(unittest.TestCase):
         tick = self.val("(function(){ const a = getComputedStyle(document.querySelector('[data-file-note]'), '::before'); return [a.content, a.color]; })()")
         self.assertEqual(tick[0], '"✓ "')
         self.assertEqual(tick[1], self.token("color", "--status-green-text"))
+
+    def test_heading_box_padding_is_7_and_10(self):      # AP7: the Heading box has padding 7 10 (the mock-up's numbers, not the 4px token)
+        self.with_image(page=1400)
+        pad = self.style("input[id$='-heading']", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft")
+        self.assertEqual(pad, ["7px", "10px", "7px", "10px"])
+
+    def test_the_editor_bar_bold_italic_and_bulleted_list_are_28_by_26(self):      # AP9: Bold, Italic and Bulleted list are 28 x 26 (the mock-up's numbers)
+        self.with_image(page=1400)
+        self.val("(document.querySelector('.tpl-sbs-edit-words .rt-view, .tpl-sbs-edit-words .rich, .tpl-sbs-edit-words [tabindex]') || document.querySelector('.tpl-sbs-edit-words')).click()")
+        self.until("document.querySelector('.tpl-sbs-edit-words .ProseMirror')", "the words editor is open")
+        sizes = self.val("['Bold', 'Italic', 'Bulleted list'].map(n => { const r = document.querySelector('.tpl-sbs-edit-words .rt-btn[aria-label=\"' + n + '\"]').getBoundingClientRect(); return [n, r.width, r.height]; })")
+        self.assertEqual(sizes, [["Bold", 28, 26], ["Italic", 28, 26], ["Bulleted list", 28, 26]])
 
     def test_rich_editor_min_height_150_and_15px(self):
         self.with_image(page=1400)
