@@ -1,5 +1,5 @@
 // Row 1233 (gal 2): the words and numbers of the Image gallery's Classic Edit part (edit/templates/GalleryClassic.jsx), in one place. The words are the
-// ruled ones (the approved mock-up's, and Romanoff's rulings on #1233 of 20-11); the rest wait for approval in handover/newwords-1233-gal.md.
+// ruled ones (the approved mock-up's, and the product rulings on #1233 of 20-11); the rest wait for approval in handover/newwords-1233-gal.md.
 // "image", never "picture", on screen. Pure: no DOM, no Preact; the page and the tests read it.
 export const MOST = 6;                       // gallery.py SLOTS
 export const FILE_MB = 10;                   // server.py IMAGE_FILE_MB, gallery.py PICTURE_MAX
@@ -12,6 +12,10 @@ export const WORDS = {
   toolbar: "Gallery tools",
   selected: "Selected image",
   replace: "Replace the selected image",
+  remove: "Remove the selected image",          // gal 3: the toolbar bin (new word, newwords C)
+  binTitle: "Remove this image",              // gal 3: the title of the bin on a tile (spec row 8)
+  binName: (n) => `Remove image ${n}`,       // gal 3: its accessible name (spec row 8)
+  removed: "Image removed.",                  // gal 3: the 1232 approved word (textImageSideWords.js); the toast carries Undo
   add: "Add an image",
   full: "Six is the most",
   tile: "Add an image",

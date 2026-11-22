@@ -1,7 +1,7 @@
 """Row 1233 (gal 2), Image gallery: the Classic Edit part of a gallery with an image, in a real browser on a bare page with a stand-in for clark's routes
 (tests/fixtures/gallery_edit_demo.jsx) that logs every call. What the page SENDS and DRAWS at 1400 and 900 px, by the acceptance points of #1233: AP1 the
 grid, AP2 two across at half width and at 900, AP3 the tile and the select frame, AP5 the add tile, AP12 the toolbar, AP13 the fields and the count note,
-AP16 the seventh image. The server's own checks are test_gallery_v2_server.py's. Not in this slice (later ones): Remove (bin, Delete), drag by the dots, the
+AP16 the seventh image. The server's own checks are test_gallery_v2_server.py's. Gal 3 adds AP8 (the bin on a tile) and Remove by the toolbar bin and the Delete key. Not in this slice (later ones): drag by the dots, the
 focus dot, Crop, Reset, the red mark, the columns and shape controls, the empty gallery's large area. Fictional data only.
 
 Run: python3 dev/run_tests.py test_tpl_gallery_edit
@@ -238,8 +238,65 @@ class Classic(Base):
                 self.mount(body_of(3, alts=(0, 1, 2)), page, page - 100)
                 self.assertEqual(self.val("document.querySelector('[role=toolbar]').getAttribute('aria-label')"), "Gallery tools")
                 self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).filter(b => b.tabIndex === 0).length"), 1)
-                self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).map(b => b.getAttribute('aria-label'))"), ["Replace the selected image", "Add an image"])
+                self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).map(b => b.getAttribute('aria-label'))"), ["Replace the selected image", "Remove the selected image", "Add an image"])
                 self.assertLessEqual(self.val("document.documentElement.scrollWidth"), page)
+
+    # ---- gal 3: Remove (AP8, AP12 toolbar bin, the Delete key, Undo is the toast's apply_id) ----
+    def test_ap8_the_bin_on_a_tile_is_26_square_radius_7_6px_from_top_and_right_named_and_shown_on_the_selected_tile(self):
+        for page in (1400, 900):
+            with self.subTest(page=page):
+                self.mount(body_of(3, alts=(0, 1, 2)), page, page - 100)
+                bin = "document.querySelectorAll('.gal-tile')[%d].querySelector('.gal-bin')"
+                self.assertEqual(self.val(f"{bin % 0}.getAttribute('aria-label')"), "Remove image 1")
+                self.assertEqual(self.val(f"{bin % 2}.getAttribute('aria-label')"), "Remove image 3")
+                self.assertEqual(self.val(f"{bin % 0}.title"), "Remove this image")
+                self.assertEqual(self.val(f"getComputedStyle({bin % 1}).display"), "none", "not shown on a tile that is neither hovered nor selected")
+                self.assertEqual(self.val(f"(function(){{ const s = getComputedStyle({bin % 0}), t = document.querySelector('.gal-tile').getBoundingClientRect(), b = {bin % 0}.getBoundingClientRect();"
+                                          " return [s.width, s.height, s.borderTopLeftRadius, s.backgroundColor, s.color, Math.round(b.top - t.top), Math.round(t.right - b.right)]; })()"),
+                                 ["26px", "26px", "7px", "rgba(6, 47, 58, 0.78)", "rgb(255, 255, 255)", 8, 8], "6px in from the 2px tile border")
+                self.assertEqual(self.val(f"getComputedStyle({bin % 0}.querySelector('svg')).width"), "15px")
+
+    def test_the_bin_on_a_tile_takes_that_image_out_in_one_send_says_the_ruled_words_and_selects_the_next(self):
+        self.mount(body_of(3, alts=(0, 1, 2)))
+        self.val("document.querySelectorAll('.gal-tile')[1].querySelector('.gal-bin').click()")
+        self.until("G.server.calls.length >= 1 && document.querySelectorAll('.gal-tile').length === 2", "two tiles")
+        calls = self.calls()
+        self.assertEqual([(c["slot"], c["image"]) for c in calls], [("2", None)], "one send: slot 2, no image")
+        self.assertEqual(sorted(self.body()["pictures"]), ["1", "3"])
+        self.assertNotIn("2", self.body().get("items", {}), "its words went with it")
+        self.until("(G.toast.value || {}).text === 'Image removed.'", "the toast")
+        self.assertRegex(self.val("(G.toast.value || {}).undo"), r"^A\d+$", "the toast carries the step to undo")
+        self.assertEqual(self.val("document.querySelector('.gal-tile.sel').dataset.slot"), "3", "the next one is selected")
+
+    def test_the_toolbar_bin_takes_out_the_selected_image_and_the_last_one_selects_the_one_before(self):
+        self.mount(body_of(3, alts=(0, 1, 2)))
+        self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).map(b => b.getAttribute('aria-label'))"),
+                         ["Replace the selected image", "Remove the selected image", "Add an image"])
+        self.val("document.querySelectorAll('.gal-tile')[2].click()")
+        self.until("document.querySelectorAll('.gal-tile')[2].classList.contains('sel')", "third selected")
+        self.val("document.querySelector('[data-act=remove]').click()")
+        self.until("G.server.calls.length >= 1 && document.querySelectorAll('.gal-tile').length === 2", "two tiles")
+        self.assertEqual([(c["slot"], c["image"]) for c in self.calls()], [("3", None)])
+        self.assertEqual(self.val("document.querySelector('.gal-tile.sel').dataset.slot"), "2")
+
+    def test_the_delete_key_takes_out_the_selected_image_but_not_while_typing_in_a_box(self):
+        self.mount(body_of(3, alts=(0, 1, 2)))
+        key = "new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true })"
+        self.val(f"document.querySelector('input[id$=alt-1]').dispatchEvent({key})")
+        self.assertEqual(self.calls(), [], "typing in the description box: nothing is removed")
+        self.assertEqual(self.tiles(), 3)
+        self.val("document.querySelectorAll('.gal-tile')[1].click()")
+        self.until("document.querySelectorAll('.gal-tile')[1].classList.contains('sel')", "second selected")
+        self.val(f"document.querySelectorAll('.gal-tile')[1].dispatchEvent({key})")
+        self.until("G.server.calls.length >= 1 && document.querySelectorAll('.gal-tile').length === 2", "two tiles")
+        self.assertEqual([(c["slot"], c["image"]) for c in self.calls()], [("2", None)])
+
+    def test_removing_the_only_image_sends_the_slot_and_leaves_the_section_in_place(self):
+        self.mount(body_of(1, alts=(0,)))
+        self.val("document.querySelector('.gal-bin').click()")
+        self.until("G.server.calls.length >= 1", "sent")
+        self.assertEqual([(c["slot"], c["image"]) for c in self.calls()], [("1", None)])
+        self.assertNotIn("pictures", self.body())
 
 
 class Kept(Base):

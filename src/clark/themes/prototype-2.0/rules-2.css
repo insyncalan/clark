@@ -55,7 +55,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
-/* Row 1233 (gal 2, Image gallery Edit, Classic only; the Cards look keeps its own Edit part): the grid of tiles, 12px apart, three across (two across at half width, drawn by a container query on the part, and at 900), the 2px tile border that shows the selected image (transparent otherwise), the frame (radius 9, cover, fill rgb(232,237,248)), and the dashed add tile (2px rgb(184,193,220), radius 12, at least 120px tall, "+" 26px over the words 13px in rgb(106,117,146); the brand blue on hover). The values are Romanoff's measured spec rows 1, 3, 4 and 5 on #1233. */
+/* Row 1233 (gal 2, Image gallery Edit, Classic only; the Cards look keeps its own Edit part): the grid of tiles, 12px apart, three across (two across at half width, drawn by a container query on the part, and at 900), the 2px tile border that shows the selected image (transparent otherwise), the frame (radius 9, cover, fill rgb(232,237,248)), and the dashed add tile (2px rgb(184,193,220), radius 12, at least 120px tall, "+" 26px over the words 13px in rgb(106,117,146); the brand blue on hover). The values are the measured spec rows 1, 3, 4 and 5 on #1233. */
 .gal-classic { container-type: inline-size; display: grid; gap: var(--space-3); }
 .gal-classic.over { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .gal-classic .gal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -75,3 +75,9 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .gal-classic .gal-addtile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .gal-classic .gal-plus { font-size: 26px; font-weight: 700; line-height: 1; }
 .gal-classic .gal-group { display: flex; gap: var(--space-1); }
+/* Row 1233 (gal 3, Classic only): the bin on a tile (spec row 8): 26 x 26, radius 7, rgba(6,47,58,.78), white, icon 15px, 6px from the top and right, red on hover; shown on hover, on focus within, and on the selected tile. */
+.gal-classic .gal-bin { position: absolute; top: 6px; right: 6px; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: rgba(6, 47, 58, .78); color: #fff; cursor: pointer; }
+.gal-classic .gal-bin svg { width: 15px; height: 15px; stroke-width: 1.8; }
+.gal-classic .gal-tile:hover .gal-bin, .gal-classic .gal-tile:focus-within .gal-bin, .gal-classic .gal-tile.sel .gal-bin { display: grid; }
+.gal-classic .gal-bin:hover { background: rgb(190, 58, 43); }
+.gal-classic .gal-bin:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

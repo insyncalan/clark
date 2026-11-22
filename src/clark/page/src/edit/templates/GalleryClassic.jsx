@@ -2,7 +2,7 @@
 // empty gallery and the Cards look keep the Edit part they had). Up to six images in a grid: a tile each (click or focus selects it; a frame round the
 // selected one), the dashed add tile after the last, the one icon toolbar under the grid (Replace the selected image, and the plus), files dropped on the
 // section (up to six), the description and caption of the SELECTED image under the toolbar, and the count note. An image goes on its own to POST
-// /api/section-image (slot "1" to "6": clark frames it, gallery.py), after the words make the gallery a version 2 one. Not built here: Remove (bin, Delete),
+// /api/section-image (slot "1" to "6": clark frames it, gallery.py), after the words make the gallery a version 2 one. Remove (gal 3: the bin on a tile, the toolbar bin, the Delete key when no box is being typed in; one step, one Undo) is here. Not built here:
 // drag by the dots, the focus dot, Crop, Reset, the red mark, the columns and shape controls. Given { section }. Words and numbers: logic/galleryEditWords.js.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { change, say } from "../../stores/changes.js";
@@ -18,6 +18,7 @@ import { WORDS as W, FILE_MB, PRINT_WIDE, MOST_BYTES, SHAPES, COLUMNS } from "..
 const P = {
   replace: <path d="M3 8h11l-3-3M17 12H6l3 3" />,
   add: <path d="M10 4v12M4 10h12" />,
+  remove: <path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" />,
 };
 const Icon = ({ name }) => <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{P[name]}</svg>;
 const Btn = ({ icon, name, act, disabled, onClick }) => (
@@ -70,6 +71,15 @@ export function Edit({ section }) {
     setBusy(true);
     try { if (await newKind()) await take(file, slot, W.replaced); } finally { setBusy(false); }
   }
+  // Remove one image (its words go with it on the server; the toast carries Undo). The next tile, else the one before, is selected.
+  async function remove(slot) {
+    if (!slot || busy) return;
+    const at = filled.indexOf(slot), next = filled[at + 1] || filled[at - 1] || "";
+    setBusy(true);
+    try { if (await sendPicture(section, slot, null, W.removed)) setPick(next); } finally { setBusy(false); }
+  }
+  const typing = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!(t.closest && t.closest("[role=textbox]")));
+  const onKey = (e) => { if (e.key === "Delete" && !e.defaultPrevented && !typing(e.target)) { e.preventDefault(); remove(sel); } };
   const choose = (slot = "") => { replacing.current = slot; if (input.current) { input.current.multiple = !slot; input.current.click(); } };
   const onDrop = (e) => {
     e.preventDefault(); setOver(false);
@@ -80,11 +90,12 @@ export function Edit({ section }) {
   const columns = COLUMNS.includes(v.columns) ? v.columns : 3, shape = SHAPES.includes(v.shape) ? v.shape : "4:3";
   return (
     <div class={`tpl-edit tpl-gal-edit gal-classic${over ? " over" : ""}`} data-columns={columns} data-shape={shape}
-      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
+      onKeyDown={onKey} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
       <div class="gal-grid" data-gal-grid>
         {filled.map((s, i) => (
           <div class={`gal-tile${s === sel ? " sel" : ""}`} key={s} data-slot={s} tabIndex={0} role="group" aria-label={W.select(i + 1)} onClick={() => setPick(s)} onFocus={() => setPick(s)}>
             <div class="gal-frame"><img src={safeImage(pics[s])} alt="" draggable={false} /></div>
+            <button type="button" class="gal-bin" data-act="bin" aria-label={W.binName(i + 1)} title={W.binTitle} disabled={busy} onClick={(e) => { e.stopPropagation(); remove(s); }}><Icon name="remove" /></button>
           </div>
         ))}
         {free.length ? (
@@ -96,6 +107,7 @@ export function Edit({ section }) {
       <div class="fi-bar" role="toolbar" aria-label={W.toolbar} aria-orientation="horizontal" ref={bar} onKeyDown={(e) => along(e, bar.current)} onFocusIn={(e) => focusAt(e, bar.current)}>
         <div class="gal-group" role="group" aria-label={W.selected}>
           <Btn icon="replace" name={W.replace} act="replace" disabled={busy} onClick={() => choose(sel)} />
+          <Btn icon="remove" name={W.remove} act="remove" disabled={busy} onClick={() => remove(sel)} />
         </div>
         <span class="fi-grow" />
         <Btn icon="add" name={free.length ? W.add : W.full} act="add" disabled={busy || !free.length} onClick={() => choose()} />
