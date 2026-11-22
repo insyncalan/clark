@@ -904,19 +904,6 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .set-cards .setting > h3, .set-cards .setting-part > h3 { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--heading); text-transform: none; letter-spacing: normal; }
 .set-cards .fld > label, .set-cards .set-row-text label, .upd-rows p.upd-l { font-size: 15px; font-weight: 600; }
 .set-cards .secpick-card { border-color: var(--grey-500); border-radius: 14px; }
-/* Row 1299 (project tabs, Classic only; the Cards look draws no tabs, shell.css is untouched): on the project pages of Settings one tab for each project across the top of the cards, pinned under the top bar while the page scrolls, one row that scrolls sideways when the projects do not fit (one row, about 44px, at 1400 and at 900). The open tab has the accent underline and the heading colour. Bare lengths: the 44px row, the 2px underline, the 600 weight. */
-.set-tabs { position: sticky; top: var(--topbar); z-index: 16; min-width: 0; margin-bottom: var(--space-3); background: var(--bg); box-shadow: 0 1px 0 var(--grey-200); }
-.set-tabs ul { display: flex; flex-wrap: nowrap; gap: var(--space-4); margin: 0; padding: 0; overflow-x: auto; scrollbar-width: none; }
-.set-tabs li { flex: none; }
-.set-tab { all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-1); border-bottom: 2px solid transparent; color: var(--text); font-size: var(--size-body); white-space: nowrap; cursor: pointer; }
-.set-tab:hover { color: var(--heading); }
-.set-tab[aria-current] { border-bottom-color: var(--brand-blue); color: var(--heading); font-weight: 600; }
-.set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
-/* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
-.brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
-/* Row 1299 (Settings, Classic only): the "Affects:" line at the head of a page says who the page changes (the project's code, All projects or You); small and muted, with room under it before the first card. */
-.set-cards > .set-affects { margin: 0 0 var(--space-3); font-size: var(--size-small); }
 /* Row 1319, segment size (Classic only; Cards layers none of this): the text segmented control (.seg, not the header mode switch .modes nor .lsw, which keep the --radius), the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px and weight 600 (--weight-medium); the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
 /* Row 1319, values and their source (ticket 1319, spec table, prototype index.html:49-51): radius 6px = "Segmented control: border 1px, radius 6px" (calc of the 8px --radius less 2px, no new token); min-height 28px and padding 3px 14px = "buttons padding 3px 14px, min-height 28px"; the crumb 13px = "Crumb: normal case, 13px" (--size-caption). Amendment AP4 (the lead amendment): "not .lsw/.icons/.modes", so the layout switch is left out. */
 .seg:not(.modes):not(.lsw), .mv-txt { border-radius: calc(var(--radius) - 2px); }
@@ -957,13 +944,6 @@ html { overscroll-behavior-y: none; }
 .ad-sk.sk-callout-b { grid-template-columns: var(--space-4) minmax(0, 1fr); grid-template-rows: 1fr 1fr; align-items: center; column-gap: var(--space-2); border: 1px solid color-mix(in srgb, var(--status-blue) 45%, var(--brand-blue-tint)); background: var(--brand-blue-tint); }
 .ad-sk.sk-callout-b i { height: var(--space-2); background: color-mix(in srgb, var(--status-blue-text) 55%, var(--brand-blue-tint)); }
 .cb .tpl-callout.k-plain { border: 1px dashed var(--text-muted); padding: var(--space-2) var(--space-3); }
-/* Row 1299 (Projects overview, Classic only, S3 read only): the issue line, the two filters and the table of values; a value is a button that looks like text, amber when it is an override or something to fix. */
-.ov .ov-issues { margin: 0 0 var(--space-2); color: var(--status-amber-text); }
-.ov .ov-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); }
-.ov .ov-table { width: 100%; }
-.ov .ov-val { all: unset; box-sizing: border-box; cursor: pointer; color: var(--grey-700); text-decoration: underline; text-decoration-color: var(--grey-300); }
-.ov .ov-val.ov-amber { color: var(--status-amber-text); }
-.ov .ov-val:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* Row 1293 (ruling R-1293 (b), duplicate note marker, Classic only): the note above Apply when a new item has the same kind, title and owner as one already there; Apply stays. A 3px bar in --status-amber on the left, then --space-2 of padding. Bare length: the 3px bar width (a rule weight, as the Row 1318 .tpl-rh-warn bar). Pinned by tests/test_ask_rulings_page_1293.py. */
 .ask-duplicate { margin: 0; border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 72 / 190 / 176 / 104 px as the prototype page draws them (the ticket's left column, ruled final) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */

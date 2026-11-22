@@ -1,3 +1,23 @@
+/* Row 1299 (project tabs, Classic only; the Cards look draws no tabs, shell.css is untouched): on the project pages of Settings one tab for each project across the top of the cards, pinned under the top bar while the page scrolls, one row that scrolls sideways when the projects do not fit (one row, about 44px, at 1400 and at 900). The open tab has the accent underline and the heading colour. Bare lengths: the 44px row, the 2px underline, the 600 weight. */
+.set-tabs { position: sticky; top: var(--topbar); z-index: 16; min-width: 0; margin-bottom: var(--space-3); background: var(--bg); box-shadow: 0 1px 0 var(--grey-200); }
+.set-tabs ul { display: flex; flex-wrap: nowrap; gap: var(--space-4); margin: 0; padding: 0; overflow-x: auto; scrollbar-width: none; }
+.set-tabs li { flex: none; }
+.set-tab { all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-1); border-bottom: 2px solid transparent; color: var(--text); font-size: var(--size-body); white-space: nowrap; cursor: pointer; }
+.set-tab:hover { color: var(--heading); }
+.set-tab[aria-current] { border-bottom-color: var(--brand-blue); color: var(--heading); font-weight: 600; }
+.set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
+/* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
+.brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
+/* Row 1299 (Settings, Classic only): the "Affects:" line at the head of a page says who the page changes (the project's code, All projects or You); small and muted, with room under it before the first card. */
+.set-cards > .set-affects { margin: 0 0 var(--space-3); font-size: var(--size-small); }
+/* Row 1299 (Projects overview, Classic only, S3 read only): the issue line, the two filters and the table of values; a value is a button that looks like text, amber when it is an override or something to fix. */
+.ov .ov-issues { margin: 0 0 var(--space-2); color: var(--status-amber-text); }
+.ov .ov-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.ov .ov-table { width: 100%; }
+.ov .ov-val { all: unset; box-sizing: border-box; cursor: pointer; color: var(--grey-700); text-decoration: underline; text-decoration-color: var(--grey-300); }
+.ov .ov-val.ov-amber { color: var(--status-amber-text); }
+.ov .ov-val:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
