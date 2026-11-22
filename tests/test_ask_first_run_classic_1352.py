@@ -11,6 +11,7 @@ import time
 import unittest
 
 import _testpage as testpage
+from _new_page import reload_to_new_page
 from _real_server import real_server
 from clark import page, theme as themes
 from test_ask_panel import Stub
@@ -347,8 +348,7 @@ class ClassicStates(Classic):
             p.key("/", code="Slash", vk=191)
             self.ask_one(p, "First question")
             p.until("!!document.querySelector('#ask-stop')", "the first question is out")
-            p.js("location.reload()")
-            p.until("document.readyState === 'complete'", "reloaded")
+            reload_to_new_page(p.js, what="the page reloaded")
             p.key("/", code="Slash", vk=191)
             self.ask_one(p, "Second question")
             p.until("document.body.textContent.indexOf('Another question is being answered.') >= 0", "the second question is told to wait")
