@@ -211,7 +211,9 @@ class Shape(unittest.TestCase):
 
 class WholeFile(unittest.TestCase):
     def test_a_real_publish_carries_glance_and_a_hidden_tile_is_not_in_the_bytes(self):
-        with DemoStore() as store, tempfile.TemporaryDirectory() as out:
+        demo = DemoStore()
+        with demo as store, tempfile.TemporaryDirectory() as out:
+            demo.builtin_glance()      # row 1266: this file is the built-in At a glance section's, not the template's
             with store.step("dashboard", USER) as st:
                 st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "due_date": "2026-10-10",
                                       "client_visible": 1, "source": "demo"})

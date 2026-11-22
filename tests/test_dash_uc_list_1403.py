@@ -48,6 +48,7 @@ class Dash:
         p = Pg.at(self, cdp, self.s.port, "#dashboard&p=ABC")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until("document.querySelectorAll('.uc .ucrow .ucbar').length > 0", "the Use cases list drew")
+        p.js("document.querySelector('.uc').scrollIntoView({block: 'center'})")      # row 1266: Use cases is the seventh default section now, below the fold of the window; the pointer test needs the row on screen
         return p
 
     def measure(self):
@@ -104,12 +105,17 @@ class ChipStyles(Dash, Base):
     css = theme.css("prototype-2.0")
     WANT = ["solid", "1px", "rgb(217, 224, 239)", "999px", "400", "rgba(0, 0, 0, 0)", "18px"]
     PROBE = "(() => { const c = getComputedStyle(document.querySelector('.uc .cchip')); return [c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderTopLeftRadius, c.fontWeight, c.backgroundColor, c.lineHeight, c.color]; })()"
-    # the muted token resolved to rgb by the page itself, and the contrast of the chip text against the first opaque background behind it
+    # the muted token resolved to rgb by the page itself, and the contrast of the chip text against the backgrounds behind it, laid over each other
     TOKEN = """(() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const t = getComputedStyle(p).color; p.remove(); return t; })()"""
     CONTRAST = """(() => {
       const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return [0, 1, 2].map((i) => { const v = m[i] / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0); };
-      const chip = document.querySelector('.uc .cchip'); let e = chip, bg = 'rgba(0, 0, 0, 0)';
-      while (e && /rgba\\(.*, 0\\)$/.test(bg)) { bg = getComputedStyle(e).backgroundColor; e = e.parentElement; }
+      const chip = document.querySelector('.uc .cchip');
+      // row 1266: the Use cases section is a band now, a translucent tint over the page, so the backgrounds behind the chip are laid over each other, from the first opaque one up to the chip
+      const layers = []; let e = chip;
+      while (e) { const m = getComputedStyle(e).backgroundColor.match(/[\\d.]+/g).map(Number); const al = m.length > 3 ? m[3] : 1; if (al > 0) layers.push([m[0], m[1], m[2], al]); if (al === 1) break; e = e.parentElement; }
+      let c = layers.pop().slice(0, 3);
+      while (layers.length) { const l = layers.pop(); c = [0, 1, 2].map((i) => l[i] * l[3] + c[i] * (1 - l[3])); }
+      const bg = 'rgb(' + c.join(', ') + ')';
       const a = lum(getComputedStyle(chip).color), b = lum(bg);
       return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); })()"""
 

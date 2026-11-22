@@ -116,6 +116,23 @@ class Seed(Base):
         self.assertEqual(default_sections.SECTION_HINTS["Next week"], "List what is planned for next week, and who is doing it.")
         self.assertEqual(default_sections.CURRENT_STATE_PREFILL, "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention.")
 
+    def test_ap4_header_has_no_hint_entry_so_the_starting_text_shows(self):
+        """Row 1266 AP4: the Header entry is deleted from SECTION_HINTS, so richHint.js falls to startingText.js "current-state" ("Say where the project stands.")."""
+        self.assertNotIn("Header", default_sections.SECTION_HINTS)
+        self.assertEqual(sorted(default_sections.SECTION_HINTS), ["Next week", "This week"], "This week and Next week keep their hints")
+        starting = (SRC / "clark" / "page" / "src" / "edit" / "startingText.js").read_text(encoding="utf-8")
+        self.assertIn('"current-state": { empty: ["Say where the project stands."] }', starting)
+        self.assertIn('section.title === "Header" ? "current-state"', starting, "the Header section takes that starting text")
+        self.assertNotIn(default_sections.CURRENT_STATE_PREFILL, [s.get("body", "") for s in default_sections.DEFAULT_SECTIONS], "a hint is never a body")
+
+    def test_ap4_the_docstring_counts_the_eleven_sections_and_their_ids(self):
+        """Row 1266: the module text says eleven and -S-001 to -S-011, as the list has."""
+        doc = default_sections.__doc__
+        self.assertEqual(len(default_sections.DEFAULT_SECTIONS), 11)
+        self.assertIn("the eleven every new project starts with", doc)
+        self.assertIn("<CODE>-S-001 to <CODE>-S-011", doc)
+        self.assertEqual([r["id"] for r in self.sections()][-1], "ABC-S-011")
+
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")
         self.assertEqual([r["title"] for r in data["report_sections"]], [e[1] for e in TEN])

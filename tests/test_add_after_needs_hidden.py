@@ -4,16 +4,17 @@ section directly after that one as the person sees it, and the box must not offe
 
 Run: cd tests && PYTHONPATH=../src:../vendor:. python3 -m unittest test_add_after_needs_hidden
 Needs Chrome (the harness of test_report_editor): the page clark serves, the real change route, a real store with fictional data.
-The store has the ten default sections plus a stored Needs section placed between the first and the second.
+The store has the eleven default sections (row 1266) plus a stored Needs section placed between the first and the second.
 """
 import sqlite3
 import unittest
 
 from _demo import USER  # noqa: F401
-from test_report_editor import Base, IDS
+from test_report_editor import Base
 from test_server import chrome
 
 FIRST, NEEDS = "ABC-S-001", "ABC-S-500"
+IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]      # the default sections of a new project (row 1266): Headline, At a glance, Header, This week, Next week, Milestones, Use cases, three lists, Documents
 OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %r, opener: document.activeElement}, cancelable: true, bubbles: true}))"
 GONE = "That section isn't in the report any more. Reload the page."      # the words of logic/templates.js for a section that is not in the list
 
@@ -45,7 +46,7 @@ class AddAfterWithStoredNeeds(StoredNeeds):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.assertEqual(p.ids(), IDS, "the page draws the ten sections and not the Needs one")
+            self.assertEqual(p.ids(), IDS, "the page draws the eleven sections and not the Needs one")
 
     def add_after_the_first(self, width):
         with chrome() as cdp:
@@ -54,7 +55,7 @@ class AddAfterWithStoredNeeds(StoredNeeds):
             p.edit()
             self.open_box(p, FIRST)
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 11", "added")
+            p.until("document.querySelectorAll('.secs > .sec').length === 12", "added")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[:3], [FIRST, new, "ABC-S-002"], "directly after the first section, before the second")
             self.assertEqual([r[0] for r in self.sent], ["change"], "one request")

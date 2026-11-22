@@ -44,6 +44,7 @@ class Published(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
+        self.demo.builtin_docs()      # row 1266: these tests are the built-in Supporting documents section's, which an existing report keeps; a new project starts with Files and links
         self.change = changes.make_change(self.s.path, [], USER)
         self.n = 0
 

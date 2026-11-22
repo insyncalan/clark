@@ -2,8 +2,8 @@
 
 Run: python3 dev/run_tests.py test_help_screen_e
 Chrome, one session. The page is the real one with the fictional demo project.
-  1. write-the-weekly-report says to click the text under Current state and write. In Edit the Current state section has no editor
-     (only Current state, This week and Next week do; edit/richSave.js has no write for the headline).
+  1. write-the-weekly-report says to click the text under Header and write. In Edit the Header section has no editor
+     (only Header, This week and Next week do; edit/richSave.js has no write for the headline).
   2. change-an-item-in-the-peek says Status, Priority, Owner and Due can each be clicked in the peek. Since item 1180 (the chip row) all four
      are chips with one button each (before it, only Status was; Owner, Due and Priority were plain text).
 The screen tests are green and say what the screen does today; if the screen changes, they fail and Help is checked against it again.
@@ -57,8 +57,8 @@ class Screen(unittest.TestCase):
                 p = self.show_at(cdp, "dashboard", width, "document.querySelectorAll('.sec').length > 0")
                 p.edit()
                 editors = p.js("[].slice.call(document.querySelectorAll('#report [aria-label^=\"Edit \"][aria-label$=\" text\"]')).map(function (e) { return e.getAttribute('aria-label'); })")
-                self.assertEqual(editors, ["Edit Current state text", "Edit This week text", "Edit Next week text"], f"{width}: Current state is a text section now (item 1188), so it has an editor")
-                self.assertTrue(p.js("!!document.querySelector('#report [aria-label=\"Move or change Current state\"]')"), f"{width}: the section is there")
+                self.assertEqual(editors, ["Edit Header text", "Edit This week text", "Edit Next week text"], f"{width}: Header is a text section now (item 1188), so it has an editor")
+                self.assertTrue(p.js("!!document.querySelector('#report [aria-label=\"Move or change Header\"]')"), f"{width}: the section is there")
 
     def test_in_the_peek_status_priority_owner_and_due_are_each_one_chip_button(self):
         for width in WIDTHS:
@@ -75,9 +75,9 @@ class HelpWords(unittest.TestCase):
     """Help must not promise what the Screen tests above show is not there."""
 
     def test_write_the_weekly_report_names_the_three_editors_the_screen_has(self):
-        """Current state is a text section with an editor (see the screen test above), and the default report has no Summary (row 1266)."""
+        """Header is a text section with an editor (see the screen test above), and the default report has no Summary (row 1266)."""
         steps = " ".join(TASK["write-the-weekly-report"]["s"])
-        self.assertIn("text under **Current state**, **This week** or **Next week**", steps)
+        self.assertIn("text under **Header**, **This week** or **Next week**", steps)
         self.assertNotIn("**Summary**", steps)
 
     def test_change_an_item_in_the_peek_does_not_say_priority_owner_and_due_can_be_clicked_there(self):
