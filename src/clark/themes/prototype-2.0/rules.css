@@ -843,7 +843,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .fbt-added { font-size: 12.5px; padding: 8px 10px; }
 .fbt-dlg [data-fbt-mail] { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 22px; text-decoration: none; }
 .fbt-dlg [data-fbt-copy] { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; }
-/* Row 1232 (Side by Side, Edit): bare lengths are the mock-up CSS text; the 28 px dot is here only (shared .fi-dot stays 22). */
+/* Row 1232 (Edit): mock-up lengths; dot 28 px here only. */
 .tpl-sbs-edit-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-5);align-items:start}
 .tpl-sbs-edit.pos-left .tpl-sbs-edit-pic,.tpl-sbs-edit.is-half.pos-top .tpl-sbs-edit-pic{order:-1}
 @media (min-width: 901px){
@@ -872,9 +872,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .tpl-sbs-edit-words .rt-host,.tpl-sbs-edit-words .ProseMirror{min-height:150px}
 .tpl-sbs-edit-words .ProseMirror{font-size:15px}
 .tpl-sbs-red{margin:0}
-@media (max-width: 900px){
- .tpl-sbs-edit.shape-fill .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:16 / 9}
-}
+@media (max-width: 900px){.tpl-sbs-edit.shape-fill .tpl-sbs-edit-frame img{height:auto;min-height:0;aspect-ratio:16 / 9}}
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
@@ -980,6 +978,8 @@ table.items .weye { width: 30px; height: 30px; }
 .tpl-sbs-heading { grid-column: 1 / -1; margin: 0; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Row 1232: heading spans the grid. */
+.tpl-sbs-heading{grid-column:1 / -1;margin:0}
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
