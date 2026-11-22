@@ -639,6 +639,25 @@ def _run(args, run=None):
     return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)
 
 
+def run_jxa(script, args=(), timeout=30, run=None, on=None):
+    """Run a JavaScript-for-Automation `script` on this Mac with the system's own osascript and return what it printed (text).
+    The script text and each of `args` are separate arguments of one argument list (never a shell); the script reads them in its
+    run(argv) function. A run that outlasts `timeout` seconds is stopped. Raises PlatformError when it fails or times out, and
+    NotBuiltYet off a Mac. Nothing is sent anywhere by this function (#1366: the picture reader)."""
+    _only_mac("Reading a picture", on)
+    argv = ["osascript", "-l", "JavaScript", "-e", script, *[str(a) for a in args]]
+    try:
+        done = (run or subprocess.run)(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
+                                       timeout=timeout, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise PlatformError("The script did not finish in time.") from None
+    except OSError:
+        raise PlatformError("The script could not be started.") from None
+    if done.returncode != 0:
+        raise PlatformError("The script failed.")
+    return done.stdout or ""
+
+
 def open_file(path, run=None, on=None):
     """Open `path` in the program the system uses for it (Finder's double-click)."""
     _only_mac("Opening a file", on)
