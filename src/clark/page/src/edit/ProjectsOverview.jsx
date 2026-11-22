@@ -10,7 +10,12 @@ export const COLUMNS = ["Project", "Asking", "Brand", "Read folders", "Review da
 export const NOT_SET = "Not set";
 export const looking = (n) => `${n} to look at`;
 export const FILTERS = { all: (n) => `All (${n})`, attention: (n) => `Needs attention (${n})` };
-export const backupWords = (d) => (d === null ? NOT_SET : d === 0 ? "Today" : d === 1 ? "1 day ago" : `${d} days ago`);
+export const NO_BACKUP = "No backup yet";
+export const NONE_TO_LOOK_AT = "Nothing needs attention.";
+export const brandWords = (b) => (b === "generic" ? "clark default" : b);
+export const openTitle = (what, code) => `Open ${what} for ${code}`;
+const WHAT = { asking: "ask clark", brand: "Brand", folders: "Read folders", review: "Review days", client: "Client folder", backup: "Backups" };
+export const backupWords = (d) => (d === null ? NO_BACKUP : d === 0 ? "Today" : d === 1 ? "1 day ago" : `${d} days ago`);
 export const issueWords = (row, code) => ({
   no_client_folder: `${row.code} has no client folder`,
   backup_old: `${row.code}: last backup ${backupWords(row.last_backup_days)}`,
@@ -31,11 +36,11 @@ export function ProjectsOverview({ read = () => zoneFetch("/api/projects-overvie
   const rows = body.projects, shown = only ? rows.filter((r) => r.attention.length) : rows;
   const issues = rows.flatMap((r) => r.attention.map((a) => issueWords(r, a))).filter(Boolean);
   const open = (code, key) => { showSettings(OPENS[key]); chooseSettingsProject(code); };
-  const val = (r, key, text, flag) => <td><button type="button" class={`ov-val${flag ? " ov-amber" : ""}`} data-ov={key} onClick={() => open(r.code, key)}>{text}</button></td>;
+  const val = (r, key, text, flag) => <td><button type="button" class={`ov-val${flag ? " ov-amber" : ""}`} data-ov={key} title={openTitle(WHAT[key], r.code)} onClick={() => open(r.code, key)}>{text}</button></td>;
   return (
     <section class="frame setting ov" id="projects-overview" aria-label="Projects overview">
       <p class="muted">{INTRO}</p>
-      {issues.length ? <p class="ov-issues" id="ov-issues">{looking(body.attention_count)}: {issues.join("; ")}</p> : null}
+      {issues.length ? <p class="ov-issues" id="ov-issues">{looking(body.attention_count)}: {issues.join("; ")}</p> : <p class="muted" id="ov-none">{NONE_TO_LOOK_AT}</p>}
       <div class="ov-filters">
         <button type="button" class="btn sm" data-ov-filter="all" aria-pressed={only ? "false" : "true"} onClick={() => setOnly(false)}>{FILTERS.all(rows.length)}</button>
         <button type="button" class="btn sm" data-ov-filter="attention" aria-pressed={only ? "true" : "false"} onClick={() => setOnly(true)}>{FILTERS.attention(body.attention_count)}</button>
@@ -47,7 +52,7 @@ export function ProjectsOverview({ read = () => zoneFetch("/api/projects-overvie
             <tr key={r.code} data-ov-project={r.code}>
               <td><b>{r.name}</b> <span class="muted">{r.code}</span></td>
               {val(r, "asking", r.asking ? "On" : "Off", r.attention.includes("asking_no_folders"))}
-              {val(r, "brand", r.brand, r.brand_override)}
+              {val(r, "brand", brandWords(r.brand), r.brand_override)}
               {val(r, "folders", String(r.folders), r.attention.includes("asking_no_folders"))}
               {val(r, "review", String(r.review_days), r.review_override)}
               {val(r, "client", r.client_folder || NOT_SET, !r.client_folder)}
