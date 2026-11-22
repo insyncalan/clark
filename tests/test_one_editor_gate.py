@@ -75,11 +75,15 @@ class Source(unittest.TestCase):
             self.assertNotIn(word, scripts, word)
 
     def test_the_template_fields_have_no_plain_box_for_their_words(self):
-        """Row 1005: the words on a Link preview card, under a One document file and in a Callout are the one editor (RichField)."""
-        for rel in ("edit/templates/LinkCard.jsx", "edit/templates/OneDoc.jsx", "edit/templates/Callout.jsx"):
+        """Row 1005: the words in a Callout are the one editor (RichField); row 1288: on a Link preview card and under a One document file they are Not rich (a plain box)."""
+        for rel in ("edit/templates/Callout.jsx",):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertNotIn("<textarea", text, rel)
             self.assertIn("<RichField", text, rel)
+        for rel in ("edit/templates/LinkCard.jsx", "edit/templates/OneDoc.jsx"):          # row 1288: Not rich, a plain box of lines
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertIn("<textarea", text, rel)
+            self.assertNotIn("RichField", text, rel)
         note = (PAGE_SRC / "edit" / "templates" / "noteEdit.jsx").read_text(encoding="utf-8")
         self.assertNotIn("<textarea", note, "the typed notes' shared field is one line now; the words are RichField")
 
@@ -107,10 +111,14 @@ class MovedFields(unittest.TestCase):
         for rel in MOVED:
             self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
 
-    def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
-        """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
-        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
-            self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+    def test_the_three_places_that_became_full_save_the_editors_html(self):
+        """Row 1288: Client wording on a row, a picture's caption and a RAID card's Own words are the Full editor (no oneLine) and send the
+        editor's HTML (the server cleans it; the file and the exports carry its words): nothing flattens it before it is sent."""
+        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx", "edit/templates/raidEdit.jsx"):
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertNotIn("plainFromEditor(", text, rel)
+            self.assertNotIn("plainLine(", text, rel)
+            self.assertNotRegex(text, r"<RichField[^>]*\boneLine\b", rel)
         # Row 1078: a milestone's client wording is rich now (the editor's HTML is saved as it is), so the peek does not flatten it.
         peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainFromEditor(", peek)
@@ -125,15 +133,15 @@ class MovedFields(unittest.TestCase):
         """Row 1005: Words (a report row's Client wording, also the work item peek's) is the RichField with one-line plain storage, not plainBox."""
         rows = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainBox", rows)
-        self.assertIn("oneLine", rows)
+        self.assertNotRegex(rows, r"<RichField[^>]*\boneLine\b")      # row 1288: the Full editor
         self.assertIn("changeCell(", rows, "still one change with one Undo")
         peek = (PAGE_SRC / "edit" / "PeekWording.jsx").read_text(encoding="utf-8")
         self.assertIn("Words", peek)
         self.assertNotIn("contenteditable", peek.lower())
 
-    def test_the_move_form_and_the_raid_own_words_draw_the_one_editor_and_store_plain_text(self):
-        """Row 1005: Who agreed it, Reason and Source (Movement) and a RAID card's Own words are RichField. What is sent and stored stays
-        plain text on one line (the store refuses a line break there), so an older row and a new one read the same."""
+    def test_the_move_form_and_the_raid_own_words_draw_the_one_editor(self):
+        """Row 1005: Who agreed it, Reason and Source (Movement) are RichField and what is sent and stored stays plain text on one line (the
+        store refuses a line break there). Row 1288: a RAID card's Own words are RichField too, as the Full editor with its HTML."""
         move = (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8")
         self.assertNotRegex(move, r"<input[^>]*id=\"mv-(who|reason|source)\"")
         for k in ("who", "reason", "source"):
@@ -144,7 +152,6 @@ class MovedFields(unittest.TestCase):
         self.assertNotIn("<input", raid)
         self.assertNotIn("<textarea", raid)
         self.assertIn("<RichField", raid)
-        self.assertIn("plainLine(", raid)
 
     def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
         glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
@@ -245,8 +252,7 @@ class PageGate(unittest.TestCase):
         import json
         from clark import store as store_module
         file = {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}
-        content = {"linkcard": {"href": "https://example.org/x", "text": ["Old <b>card</b> line"]}, "onedoc": {"file": file, "text": ["Old <b>doc</b> line"]},
-                   "callout": {"tone": "info", "title": "Fictional", "paras": ["Old <b>callout</b> line"]}}
+        content = {"callout": {"tone": "info", "title": "Fictional", "paras": ["Old <b>callout</b> line"]}}
         refs = {}
         for kind, value in content.items():
             with self.store.step("dashboard", USER) as st:
@@ -479,7 +485,7 @@ class MovedLatestFields(unittest.TestCase):
         from clark import excel
         self.assertEqual(set(excel.RICH_WORDS), set(publish.LEGACY_RICH) | {("milestones", "internal_note"), ("use_cases", "standing")}, "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 6, "the definition and the five writes (latest update, Internal note, a milestone's latest update, description, client wording)")
+        self.assertEqual(src.count("_rich_field("), 7, "the definition and the six writes (latest update, Internal note, a milestone's latest update, description, milestone words, an item's client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()
