@@ -41,6 +41,10 @@ class FeedbackTag1334(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js(f"!!{DLG} && !!{TA}", sid)), where)
             yield cdp, sid, where
 
+    def token(self, cdp, sid, prop, value):
+        """The computed value of a style property set to value (for example a var(--token)) on a throw-away element."""
+        return cdp.js(f"(() => {{ const p = document.createElement('span'); p.style[{json.dumps(prop)}] = {json.dumps(value)}; document.body.appendChild(p); const c = getComputedStyle(p)[{json.dumps(prop)}]; p.remove(); return c; }})()", sid)
+
     def type_text(self, cdp, sid, text):
         cdp.js(f"(() => {{ {TA}.focus(); document.execCommand('insertText', false, {json.dumps(text)}); }})()", sid)
 
@@ -83,10 +87,11 @@ class FeedbackTag1334(unittest.TestCase):
     def test_feedback_tag_box_style_1334(self):
         """AP4: padding 7 x 10, radius 8, border 1 px; the box takes the dialog's font and the page's text and surface colours (not the browser's)."""
         for cdp, sid, where in self.opened():
-            t = self.probe(cdp, sid, "#fbt-message", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderTopStyle", "borderTopLeftRadius", "borderBottomRightRadius", "fontFamily", "fontSize", "color", "backgroundColor")
+            t = self.probe(cdp, sid, "#fbt-message", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderTopStyle", "borderTopLeftRadius", "borderBottomRightRadius", "fontFamily", "fontSize", "color", "backgroundColor", "borderTopColor")
             d = self.probe(cdp, sid, "#feedback-tag-dialog", "fontFamily", "fontSize", "color", "backgroundColor")
             self.assertEqual((t["paddingTop"], t["paddingRight"], t["paddingBottom"], t["paddingLeft"]), ("7px", "10px", "7px", "10px"), where)
             self.assertEqual((t["borderTopWidth"], t["borderTopStyle"]), ("1px", "solid"), where)
+            self.assertEqual(t["borderTopColor"], self.token(cdp, sid, "color", "var(--grey-200)"), where + ": the border is the grey-200 token")
             self.assertEqual((t["borderTopLeftRadius"], t["borderBottomRightRadius"]), ("8px", "8px"), where)
             self.assertEqual((t["fontFamily"], t["fontSize"], t["color"], t["backgroundColor"]), (d["fontFamily"], d["fontSize"], d["color"], d["backgroundColor"]), where)
 
@@ -128,6 +133,12 @@ class FeedbackTag1334(unittest.TestCase):
                 # c)
                 ad = self.probe(cdp, sid, "#fbt-added", "fontSize", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "marginTop", "borderTopLeftRadius")
                 self.assertEqual((ad["fontSize"], ad["paddingTop"], ad["paddingRight"], ad["paddingBottom"], ad["paddingLeft"], ad["borderTopLeftRadius"]), ("12.5px", "8px", "10px", "8px", "10px", "8px"), where + " c) Added automatically box")
+                tok = lambda prop, v: self.token(cdp, sid, prop, v)
+                ad2 = self.probe(cdp, sid, "#fbt-added", "color")
+                self.assertEqual(ad2["color"], tok("color", "var(--grey-700)"), where + " c) Added automatically text is the grey-700 token")
+                ul = self.probe(cdp, sid, "#fbt-added ul", "marginTop", "marginBottom")
+                self.assertEqual((ul["marginTop"], ul["marginBottom"]), (tok("marginTop", "var(--space-1)"),) * 2, where + " c) list margin is the space-1 token")
+                self.assertNotEqual(ul["marginTop"], "0px", where + " c) list margin is not zero")
                 self.assertEqual(self.probe(cdp, sid, "#fbt-added + p", "marginTop")["marginTop"], "6px", where + " c) mail note")
                 li = self.probe(cdp, sid, "#fbt-added li", "paddingTop", "paddingBottom", "borderTopWidth", "marginTop")
                 self.assertEqual((li["paddingTop"], li["paddingBottom"], li["borderTopWidth"], li["marginTop"]), ("0px", "0px", "0px", "0px"), where + " c) tight lines")
