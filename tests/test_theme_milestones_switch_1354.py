@@ -4,9 +4,11 @@ Run: python3 dev/run_tests.py test_theme_milestones_switch_1354
 Pins the text of the Row 1354 block of rules.css: navy with white text in light, #2b3850 in dark, and in dark only a 1px inset edge in --ui,
 because #2b3850 against the --surface #121c28 beside it measures 1.46 to 1 (below 3 to 1). No other ring, border or outline.
 """
+import time
 import unittest
 
 from _paths import ROOT
+from test_ms_timeline_classic_1315 import Base
 
 FOLDER = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
 RULES = ((FOLDER / "rules.css").read_text(encoding="utf-8") + (FOLDER / "rules-2.css").read_text(encoding="utf-8"))
@@ -46,6 +48,30 @@ class Row1354(unittest.TestCase):
         self.assertEqual(rules.count("box-shadow"), 2)
         self.assertLess(RULES.index(MARK), RULES.index("/* Row 1314"))
         self.assertEqual(RULES.count("/* Row 1314"), 1)
+
+
+OFF = """(() => {
+  const probe = document.createElement('i'); probe.style.color = 'var(--grey-700)'; document.body.appendChild(probe);
+  const want = getComputedStyle(probe).color; probe.remove();
+  const all = [...document.querySelectorAll('#milestones .msv-sw .msv-b, #milestones .cal-sc button')];
+  return { want: want, n: all.length, off: all.filter((b) => b.getAttribute('aria-current') !== 'true').map((b) => [b.textContent.trim(), getComputedStyle(b).color]),
+           on: all.filter((b) => b.getAttribute('aria-current') === 'true').map((b) => getComputedStyle(b).color),
+           frame: [...document.querySelectorAll('#milestones .msv-sw, #milestones .cal-sc')].map((e) => getComputedStyle(e).borderTopColor) };
+})()"""
+
+
+class Row1315Off(Base, unittest.TestCase):
+    def test_off_state_text_is_grey_700_on_all_five_buttons(self):      # Row 1315 AP9: grey-500 as text is only 3.13 to 1, grey-700 is 7.41 to 1 in light
+        for cdp, sid, w in self.every():
+            time.sleep(0.8)      # the colour transition after the theme switch has finished
+            g = cdp.js(OFF, sid)
+            self.assertEqual(g["n"], 5, g)
+            self.assertEqual([n for n, c in g["off"]], ["Calendar", "Week", "Quarter"], g)
+            for name, colour in g["off"]:
+                self.assertEqual(colour, g["want"], f"{name}: off-state text is var(--grey-700) at {w}")
+            self.assertTrue(all(c == "rgb(255, 255, 255)" for c in g["on"]), "the chosen half keeps white text")
+            self.assertEqual(len(set(g["frame"])), 1, "the frames keep their own colour (grey-500), not the text colour")
+            self.assertNotEqual(g["frame"][0], g["want"], g)
 
 
 if __name__ == "__main__":
