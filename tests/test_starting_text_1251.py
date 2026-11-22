@@ -21,7 +21,6 @@ WANT = {
     "text": {"empty": ["Write here."]},
     "text-image": {"caption": "Say what the picture shows.", "empty": ["Write here.", "Add a picture."]},
     "gallery": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
-    "image-caption": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
     "quote": {"empty": ["Write what they said.", "Say who said it."]},
     "callout": {"empty": ["Write the one thing the reader must see."]},
     "contacts": {"empty": ["Add a person."]},
