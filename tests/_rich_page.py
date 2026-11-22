@@ -33,10 +33,10 @@ window.CE = { clarkEditor, cleanHtml, toHtml, forEditor, href };
 window.saves = []; window.ended = 0; window.saveResult = true;
 const root = document.getElementById("root");
 window.unmount = () => render(null, root);
-window.mount = (value) => {
+window.mount = (value, ai, oneLine) => {
   render(null, root);
   window.saves = []; window.ended = 0; window.saveResult = window.saveResult === undefined ? true : window.saveResult;
-  render(<RichText value={value} label="Test text"
+  render(<RichText value={value} label="Test text" ai={ai || null} oneLine={!!oneLine}
     onSave={(h) => { window.saves.push(h); return Promise.resolve(window.saveResult); }}
     onClose={() => { window.ended += 1; render(null, root); }} />, root);
 };
@@ -127,8 +127,8 @@ class Harness:
         """The page counts as focused (the editor's leave handler ignores a blur while document.hasFocus() is false). Waits, then says so plainly."""
         assert self.until("document.hasFocus() === true"), "the test page never got the window focus, so a blur would not count as leaving the field"
 
-    def mount(self, value=""):
-        self.ev(f"window.mount({json.dumps(value)})")
+    def mount(self, value="", ai=None, one_line=False):
+        self.ev(f"window.mount({json.dumps(value)}, {json.dumps(ai)}, {json.dumps(one_line)})")
         assert self.until("!!document.querySelector('.rt .ProseMirror')"), "the editor did not open"
         assert self.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')"), "the editor has no focus"
         # The editor's own focus call runs on a frame. Until that frame has run, a test that moves the focus away is undone by it
