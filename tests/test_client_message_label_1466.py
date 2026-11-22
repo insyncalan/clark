@@ -34,6 +34,24 @@ class Words(unittest.TestCase):
         self.assertIsNone(OLD.search(text), "Client wording is in Help")
         self.assertIn("Client Message", text)
 
+    def test_the_spelling_is_exactly_client_message_wherever_a_person_reads_it(self):          # ruling 1466: capital M, nothing else
+        """Every "client message" in the built pages and Help, in any case, is "Client Message" (the one other form is the milestone box's
+        placeholder "Add client message", a sentence); the Excel headers, the history label and the raid card words use the same spelling."""
+        loose = re.compile(r"client message", re.I)
+        for name, text in (("page", page.page_html(tp.EMPTY_BRANDING, view=False)), ("view page", page.page_html(tp.EMPTY_BRANDING, view=True)),
+                           ("Help", HELP.read_text(encoding="utf-8"))):
+            for m in loose.finditer(text):
+                with self.subTest(where=name, at=m.start()):
+                    self.assertTrue(m.group(0) == "Client Message" or text[max(0, m.start() - 4):m.start()] == "Add ", text[m.start() - 30:m.end() + 20])
+        from clark import history
+        from clark.section_kinds import raid3
+        for table in ("actions", "raid", "decisions", "milestones"):
+            self.assertEqual(history.field_name(table, "client_message"), "Client Message")
+            self.assertIn("Client Message", excel.COLUMN_OF[table])
+            self.assertEqual([k for k in excel.COLUMN_OF[table] if k.lower() == "client message"], ["Client Message"])
+        for words in (raid3.BAD_SOURCE, raid3.NO_LATEST):
+            self.assertEqual([m.group(0) for m in loose.finditer(words)], ["Client Message"])
+
     def test_the_history_label_for_client_message_is_client_message(self):
         from clark import history
         for table in ("actions", "raid", "decisions", "milestones"):
@@ -188,23 +206,34 @@ class Labels(base.Peeks):
     CLIENT = "client_visible"
 
     def test_peek_label_is_client_message_view_and_edit(self):          # AP1
-        """The row label is exactly Client Message (never Client wording) where the peek draws that row: a milestone in View and in Edit, a decision in Edit,
-        and a work item's published peek. (A live action or risk draws no such row in View or Edit: row 1256; a decision draws none in View.)"""
+        """The row label is exactly "Client Message" (capital M, never "Client wording") in every place the build draws that row: a milestone's peek
+        in View and in Edit, a decision's peek in Edit, (the published work item peek is the next test). Only drawn places are pinned (ruling, 1466: no new row)."""
         decision = self.store.read("decisions")[0]["id"]
         milestone = self.store.read("milestones")[0]["id"]
         for width in (1400, 900):
-            for mode, ref, kind, expect in (("view", milestone, "milestone", True), ("edit", milestone, "milestone", True),
-                                            ("edit", decision, "item", True), ("view", decision, "item", False),
-                                            ("view", "TUL-A-001", "item", False), ("edit", "TUL-A-001", "item", False)):
+            for mode, ref, kind in (("view", milestone, "milestone"), ("edit", milestone, "milestone"), ("edit", decision, "item")):
                 with self.subTest(width=width, mode=mode, ref=ref), chrome() as cdp:
                     sid = self.dashboard_in_view(cdp, width, self.store, self.code)
                     if mode == "edit":
                         self.to_edit(cdp, sid)
                     self.open_peek(cdp, sid, ref, kind)
                     labels = self.labels(cdp, sid)
-                    self.assertEqual("Client Message" in labels, expect, labels)
+                    self.assertIn("Client Message", labels)
+                    self.assertEqual([l for l in labels if l.lower() == "client message"], ["Client Message"], "the spelling is exact")
                     self.assertNotIn("Client wording", labels)
                     self.assertNotRegex(cdp.js("document.querySelector('#peek').innerText", sid), r"(?i)client wording")
+
+    def test_published_work_item_peek_label_is_client_message(self):
+        _plant, _pub, text = tp.made()
+        folder = Path(tempfile.mkdtemp(prefix="clark-1466-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-A-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
+                self.assertIn("Client Message", cdp.js("[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())", sid))
 
     def test_view_and_edit_keep_client_visible_line_with_undo(self):          # AP7
         on, off = "TUL-007", "TUL-008"
