@@ -17,7 +17,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
 GROUPS = [("You", ["Profile", "Look"]), ("All projects", ["Projects overview", "Backups"]),
-          ("Project settings", ["Reports and pages", "Brand and publishing", "People", "ask clark", "Export and import"]), ("Help and about", ["Version and updates", "Logs and diagnostics"])]
+          ("Project settings", ["Reports and pages", "Brand and publishing", "People", "ask clark", "Data"]), ("Help and about", ["Version and updates", "Logs and diagnostics"])]
 CARDS_GROUPS = [("Everyday", ["Projects", "People", "Profile"]), ("Publishing", ["Folder", "Brand", "Theme"]), ("Look and feel", ["Appearance", "Reports"]),
                 ("Data and safety", ["Backups", "Export and import"]), ("Advanced", ["Claude and AI", "Logs and diagnostics", "Version and updates"])]
 AFFECTS = {"profile": "Affects: You", "appearance": "Affects: You", "projects": "Affects: All projects", "backups": "Affects: All projects",

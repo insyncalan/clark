@@ -55,6 +55,7 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const settingsAll = signal(false);   // row 1299 AP11: the ask clark page's leading "All projects" tab is the chosen one
 export const settingsProject = signal("");   // row 1299: see chooseSettingsProject
 export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
 export const settingsFeedbackShown = signal(false);   // Settings search is showing the Feedback card (set by the search box, Views.jsx); the Feedback tag stands aside then (#1298)
@@ -137,6 +138,7 @@ function apply(s) {
   });
   if (s.project !== project.value) {
     settingsProject.value = "";
+    settingsAll.value = false;
     project.value = s.project;
     data.value = null;
     status.value = s.project ? "loading" : "none";
@@ -207,12 +209,17 @@ export function showSettings(page) {
   go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page || "" });
 }
 
-// Row 1299 (project tabs): the project the Settings tabs have chosen. It lives only on the Settings page: choosing a tab reads nothing again and never changes the address,
-// the top bar or the open project. "" means the open project. A different open project (the top bar, Back) puts the tabs back on it.
+// Row 1299 (project tabs): the project the Settings tabs have chosen. It lives only on the Settings page: choosing a tab reads nothing again, the top bar and the open project stay
+// and no entry is added; the address keeps the tab's project as `p` in place (router.retag). "" means the open project. A different open project (the top bar, Back) puts the tabs back on it.
 export const settingsProjectNow = () => settingsProject.value || project.value;
 export function chooseSettingsProject(code) {
-  if (route.isProject(code)) settingsProject.value = code === project.value ? "" : code;
+  if (!route.isProject(code)) return;
+  settingsAll.value = false;
+  settingsProject.value = code === project.value ? "" : code;
+  if (view.value === "settings") route.retag(code);
 }
+/** The ask clark page's leading "All projects" tab (row 1299 AP11): the page's Affects line says All projects; the address is not touched. */
+export function chooseSettingsAll() { settingsAll.value = true; }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
 export function openWork(want) {

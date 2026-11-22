@@ -136,7 +136,7 @@ class SettingsChips(unittest.TestCase):
         groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
         names = re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
         four = '\n  ["You", [[' in groups      # row 1299 1a: the menu is in four groups when Views.jsx has them
-        self.assertEqual(names, ["Profile", "Appearance", "Theme", "Projects", "Backups", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Version and updates", "Logs and diagnostics"] if four else
+        self.assertEqual(names, ["Profile", "Appearance", "Theme", "Projects", "Backups", "Reports", "Folder", "Brand", "People", "ask clark", "Data", "Version and updates", "Logs and diagnostics"] if four else
                          ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
         self.assertEqual(re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), ["You", "All projects", "Project settings", "Help and about"] if four else ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))

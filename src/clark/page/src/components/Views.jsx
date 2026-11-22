@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject, settingsAll, chooseSettingsAll } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
@@ -122,7 +122,7 @@ const GROUPS = [
 const GROUPS_CLASSIC = [
   ["You", [["profile", "Profile", ["Essentials", "Profile"]], ["appearance", "Look", ["Personal", "ThemeSettings"]]]],
   ["All projects", [["projects", "Projects overview", ["Projects"]], ["backups", "Backups", ["Safety"]]]],
-  ["Project settings", [["reports", "Reports and pages", ["ReviewDays", "GanttSetting"]], ["brand", "Brand and publishing", ["ClientFolder", "Brands"]], ["people", "People", ["People"]], ["claude", "ask clark", ["AskSettings"]], ["data", "Export and import", ["Data"]]]],
+  ["Project settings", [["reports", "Reports and pages", ["ReviewDays", "GanttSetting"]], ["brand", "Brand and publishing", ["ClientFolder", "Brands"]], ["people", "People", ["People"]], ["claude", "ask clark", ["AskSettings"]], ["data", "Data", ["Data"]]]],
   ["Help and about", [["version", "Version and updates", ["Update", "Feedback", "Quit"]], ["logs", "Logs and diagnostics", ["Diagnostics"]]]],
 ];
 const OLD_SLUGS = { folder: "brand", theme: "appearance" };
@@ -132,9 +132,10 @@ const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
-function pagesOf(tools, open) {
+function pagesOf(tools, open, none) {
   const here = (tool) => !!(tools && tools[tool]) && (open || !NEEDS_PROJECT.includes(tool));
-  return (classicTheme() ? GROUPS_CLASSIC : GROUPS).map(([group, pages]) => [group, pages.map(([slug, name, list]) => [slug, name, list.filter(here)]).filter(([, , list]) => list.length)]).filter(([, pages]) => pages.length);
+  const kept = (slug) => !(none && classicTheme() && PROJECT_PAGES.includes(slug));      // row 1299 AP12: with no project the per-project pages are not in the menu
+  return (classicTheme() ? GROUPS_CLASSIC : GROUPS).map(([group, pages]) => [group, pages.filter(([slug]) => kept(slug)).map(([slug, name, list]) => [slug, name, list.filter(here)]).filter(([, , list]) => list.length)]).filter(([, pages]) => pages.length);
 }
 
 function focusFirstHead(tool) {
@@ -208,10 +209,10 @@ function SettingsHead({ groups, page, searching, setSearching }) {
 }
 
 // Row 1299 (project tabs, Classic only): across the top of the project pages, one tab for each project, pinned while the page scrolls. The tab is the project
-// open in the app (the address's `p`); a click on another sets the Settings-only project (stores/report.js settingsProject): no page read, the address and the top bar stay. Pages that hold one project's settings only; All projects and You pages have none.
+// open in the app (the address's `p`); a click on another sets the Settings-only project (stores/report.js settingsProject): no page read, the top bar stays, the address keeps the tab's project as `p` (this entry rewritten, no new one). Pages that hold one project's settings only; All projects and You pages have none.
 export const PROJECT_PAGES = ["reports", "brand", "people", "claude", "data"];
 
-function ProjectTabs({ current }) {
+function ProjectTabs({ current, lead }) {
   const [list, setList] = useState([]);
   useEffect(() => {
     let live = true;
@@ -224,27 +225,39 @@ function ProjectTabs({ current }) {
   if (!list.length) return null;      // no projects, or the list not read: no bar
   return (
     <nav class="set-tabs" aria-label="Projects">
-      <ul>{list.map((p) => (
-        <li key={p.code}><button type="button" class="set-tab" aria-current={p.code === current ? "page" : undefined} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
-      ))}</ul>
+      <ul>
+        {lead ? <li><button type="button" class="set-tab" data-all="1" aria-current={settingsAll.value ? "page" : undefined} onClick={chooseSettingsAll}>All projects</button></li> : null}
+        {list.map((p) => (
+          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
+        ))}
+      </ul>
     </nav>
   );
+}
+
+// Row 1299 AP12: the Add project link (no project): the Projects page, with the Add project button given the focus.
+function addProject(e) {
+  e.preventDefault();
+  showSettings("projects");
+  setTimeout(() => { const b = document.getElementById("npBtn"); if (b) b.focus(); }, 0);
 }
 
 export function Settings({ tools }) {
   const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const [searching, setSearching] = useState(false);
-  const groups = pagesOf(tools, open);
+  const none = projectsState.value === "ready" && !projects.value.length;      // row 1299 AP12: the project list was read and holds no project
+  const groups = pagesOf(tools, open, none);
   const all = groups.flatMap(([, pages]) => pages);
   const page = all.find(([slug]) => slug === (classicTheme() && OLD_SLUGS[settingsPage.value] || settingsPage.value || "projects")) || all[0] || ["", "", []];
   const shown = searching ? all.flatMap(([, , list]) => list) : page[2];
-  const group = (groups.find(([, pages]) => pages.includes(page)) || [])[0], scope = AFFECTS_OF[group], affects = !searching && scope && classicTheme() ? scope(settingsProject.value || project.value) : "";
+  const group = (groups.find(([, pages]) => pages.includes(page)) || [])[0], scope = AFFECTS_OF[group], affects = !searching && scope && classicTheme() ? (page[0] === "claude" && settingsAll.value ? "All projects" : scope(settingsProject.value || project.value)) : "";
   return (
     <div class="set-layout">
       <SettingsHead groups={groups} page={page} searching={searching} setSearching={setSearching} />
       <div class="set-cards" data-page={searching ? undefined : page[0]}>
         {affects ? <p class="set-affects muted">Affects: {affects}</p> : null}
-        {classicTheme() && !searching && open && PROJECT_PAGES.includes(page[0]) ? <ProjectTabs current={settingsProject.value || project.value} /> : null}
+        {classicTheme() && !searching && open && PROJECT_PAGES.includes(page[0]) ? <ProjectTabs current={settingsProject.value || project.value} lead={page[0] === "claude"} /> : null}
+        {classicTheme() && !searching && none ? <a class="set-add-project" href="#settings" onClick={addProject}>Add project</a> : null}
         {shown.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}
       </div>
     </div>

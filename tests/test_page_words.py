@@ -214,7 +214,7 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
+            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Data", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
                     ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [

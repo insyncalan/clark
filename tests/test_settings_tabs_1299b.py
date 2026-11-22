@@ -1,8 +1,8 @@
 """Row 1299 line 6: project tabs across the top of the Settings pages that hold one project's settings, in a real browser at 1400 and 900 px,
 light and dark. Run: python3 dev/run_tests.py test_settings_tabs_1299b
 
-What is asserted (Classic): the project pages (Reports and pages, Brand and publishing, People, ask clark, Export and import) draw one tab for each project, in the list's order, with
-the open project marked (aria-current); the tabs are one row about 44 px high and are pinned under the top bar when the page scrolls; a click on another tab changes the Settings page's project only (no page read, the address and the top bar do not move); the All projects and You pages draw no tabs; with the Cards look (no theme layer)
+What is asserted (Classic): the project pages (Reports and pages, Brand and publishing, People, ask clark, Data) draw one tab for each project, in the list's order, with
+the open project marked (aria-current); the tabs are one row about 44 px high and are pinned under the top bar when the page scrolls; a click on another tab changes the Settings page's project only (no page read, the top bar does not move; the address keeps the tab's project as p, see test_settings_tabs_behaviour_1299); the All projects and You pages draw no tabs; with the Cards look (no theme layer)
 no page draws tabs. Not in this part: a project switch without a page read, an Add project link. Chrome is required: these tests fail, never skip, without it.
 """
 import unittest
@@ -18,7 +18,7 @@ from test_settings_head import address
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 TWO = [{"code": "PUB", "name": "Harbour Bridge Programme", "open": 3}, {"code": "ABC", "name": "Second Programme", "open": 1}]
-TABS = "[...document.querySelectorAll('.set-tabs .set-tab')]"
+TABS = "[...document.querySelectorAll('.set-tabs .set-tab:not([data-all])')]"      # the project tabs; ask clark's leading All projects tab is data-all
 PROJECT_PAGES = ("reports", "brand", "people", "claude", "data")
 OTHER_PAGES = ("projects", "backups", "profile", "appearance", "version")
 
@@ -90,7 +90,7 @@ class Tabs(Base):
             p.until(f"{TABS}[1].getAttribute('aria-current') === 'page'", "the other tab is marked")
             self.assertEqual(p.js(f"{TABS}[0].getAttribute('aria-current')"), None, "only one tab is marked")
             after = p.js("[location.href, document.querySelector('#project-name').textContent, performance.getEntriesByType('navigation').length, window.__marker]")
-            self.assertEqual(after[0], before[0], "the address did not move (no navigation, no new entry)")
+            self.assertEqual(after[0], before[0].replace("p=PUB", "p=ABC"), "the address keeps the tab's project as p and nothing else moved")
             self.assertEqual(after[1], before[1], "the top bar still names the open project")
             self.assertEqual(after[3], 1, "the page was not loaded again")
             self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: " + TWO[1]["code"], "the Affects line follows the chosen tab, not the open project")
