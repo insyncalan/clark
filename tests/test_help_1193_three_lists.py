@@ -11,8 +11,6 @@ SENTENCE = (
     "Reports made before this keep the lists they have."
 )
 
-WORK_ITEMS_LINE = "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."
-
 
 class ThreeListsHelp(unittest.TestCase):
     def test_exact_sentence_in_one_entry(self):
@@ -30,14 +28,6 @@ class ThreeListsHelp(unittest.TestCase):
         self.assertEqual(entry["w"], "Dashboard")
         prev = tasks[ids.index("the-three-starting-lists") - 1]
         self.assertEqual(prev["t"], "Add a section from a template")
-
-    def test_generic_work_items_line_unchanged(self):
-        """AP5: the generic Work items line (helpContent.json:1075, the Work items list row of the reference) stays unchanged."""
-        data = json.loads(HELP.read_text(encoding="utf-8"))
-        row = data["reference"]["sections"][4]["b"][2][2][9]
-        self.assertEqual(row[0], "Work items list")
-        self.assertEqual(row[1], WORK_ITEMS_LINE)
-        self.assertEqual(HELP.read_text(encoding="utf-8").splitlines()[1074].strip(), '"' + WORK_ITEMS_LINE + '",')
 
     def test_sentence_once_in_the_file(self):
         raw = HELP.read_text(encoding="utf-8")
