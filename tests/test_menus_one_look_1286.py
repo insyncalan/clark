@@ -53,14 +53,38 @@ MEASURE = r"""(root => {
    const ck = b.querySelector('.ck, .gt-ck'); const ckr = ck ? ck.getBoundingClientRect() : null;
    if (ckr && ckr.width > 0) { if (ckr.left >= ir.right - 0.5) after.push(ckr.left); else if (ckr.right <= ir.left + 0.5) before.push(ckr.left); }
    const dot = b.querySelector('.ragdot'); if (dot) { const d = dot.getBoundingClientRect(); if (d.width > 0 && d.left >= ir.right - 0.5) after.push(d.left); }      // the coloured dot of a status word is drawn before the word
+   const tn = icon.closest('.ic-r,.ic-a,.ic-g,.ic-b,.ic-n'); const tone = tn ? [...tn.classList].find(c => /^ic-[ragbn]$/.test(c)) : null;
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
    const c = cs(b);
-   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, tone, col: tone ? cs(icon).color : null, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  const bc = cs(box);
  return {w: Math.round(br.width), cls: box.className, rad: bc.borderTopLeftRadius, pad: bc.paddingTop + ' ' + bc.paddingRight + ' ' + bc.paddingBottom + ' ' + bc.paddingLeft, bord: bc.borderTopWidth + ' ' + bc.borderTopStyle + ' ' + bc.borderTopColor, line: cs(document.documentElement).getPropertyValue('--line').trim(), rows, heads}; })"""
+
+
+# Row 1286 AP4 (ruling 23-11): the mock-up menu icon tones of Group by, Add and Move to (menu-icons.css:5 on the page tokens), light then dark; amber and grey equal production's
+TONES = {"light": {"ic-r": "rgb(163, 48, 31)", "ic-a": "rgb(138, 90, 0)", "ic-g": "rgb(0, 107, 94)", "ic-b": "rgb(47, 75, 184)", "ic-n": "rgb(71, 85, 119)"},
+         "dark": {"ic-r": "rgb(255, 155, 138)", "ic-g": "rgb(79, 209, 189)", "ic-b": "rgb(157, 176, 255)"}}
+PROBE = "(t => { const e = document.createElement('i'); e.className = t; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })"
+
+
+def check_tones(test, name, look, m, probe):
+    where = f"{name} at {look[0]} {look[1]}"
+    seen = set()
+    for r in m["rows"]:
+        if not r.get("tone"):
+            continue
+        seen.add(r["tone"])
+        if name in THREE:
+            want = TONES[look[1]].get(r["tone"])
+            if want is None:      # dark amber and grey are not ruled: they stay production's
+                want = probe[r["tone"]]
+            test.assertEqual(r["col"], want, f"{where}: the {r['tone']} icon of {r['t']!r} is {r['col']}, the mock-up tone is {want}")
+        else:
+            test.assertEqual(r["col"], probe[r["tone"]], f"{where}: the {r['tone']} icon of {r['t']!r} keeps production's {probe[r['tone']]}, not the mock-up tone")
+    return seen
 
 
 def check(test, name, look, m):
@@ -100,6 +124,7 @@ class Seen:
     names = set()
     leaving = None
     live = None
+    tones = {}
 
 
 def setUpModule():
@@ -118,7 +143,10 @@ def setUpModule():
         got = orig_lines(self, root, name, minimum)
         # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
         self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
-        check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
+        m = self.js(f"({MEASURE})({json.dumps(root)})")
+        check(self.t, name, self.look_is, m)
+        probe = {t: self.js(f"({PROBE})({json.dumps(t)})") for t in ("ic-r", "ic-a", "ic-g", "ic-b", "ic-n")}
+        Seen.tones.setdefault((self.look_is[1], name in THREE), set()).update(check_tones(self.t, name, self.look_is, m, probe))
         if name == "gantt-add-below-table" and self.look_is[0] == 1400 and Seen.live is None:     # row 1286 (PR 2092), 1400 only: the fade copy's line padding equals the live Gantt menu's (12px at the sides)
             read = "(b => { const c = getComputedStyle(b); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; })"
             Seen.live = self.js(f"(r => {read}([...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop().querySelector('button')))({json.dumps(root)})")
@@ -183,6 +211,13 @@ class Static(unittest.TestCase):
         for sel, body in rules.items():
             if sel.startswith(".ddmenu") and "min-width" in body and "#viewMenuList" not in sel and "aria-label^=" not in sel:
                 self.assertIn(re.search(r"min-width: (\d+)px", body).group(1), ("200", "240"), f"a production menu width other than 200 or 240: {sel[:90]}")
+
+    def test_the_ap4_tone_rule_names_only_the_three_menus(self):
+        css = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"), flags=re.S)
+        hits = [sel for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if re.search(r"\.ic-[ragbn]\b", sel)]
+        self.assertEqual(len(hits), 3)
+        for sel in hits:
+            self.assertRegex(sel, r"^\s*:is\(#viewMenuList, #newBtnMenu, \.ddmenu\[aria-label\^=\"Add \"\], \.ddmenu\[aria-label\^=\"Move \"\]\[aria-label\$=\" to\"\]\) \.ic-[rgb]\s*$")
 
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
