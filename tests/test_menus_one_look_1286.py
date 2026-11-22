@@ -173,6 +173,17 @@ class Static(unittest.TestCase):
         for want in ("order: 1", "margin-left: auto", "margin-right: 0"):
             self.assertIn(want, tick)
 
+    def test_production_menus_are_200_wide_and_the_use_case_group_by_is_240(self):
+        # AP5 (Stage 0 21-11 09:48, line 15, 200/240 production widths): the .ddmenu and the pick menu are 200 at least, the Use case Group by pair is 240; the three prototype menus are 224 by their own id rules
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        rules = {sel.strip(): body for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)}
+        self.assertIn("min-width: 200px", rules[".ddmenu"])
+        self.assertIn("min-width: 200px", rules[".cpop.cmenu:not(.bmenu)"])
+        self.assertIn("min-width: 240px", rules['.ddmenu[aria-label="Group by"]'])
+        for sel, body in rules.items():
+            if sel.startswith(".ddmenu") and "min-width" in body and "#viewMenuList" not in sel and "aria-label^=" not in sel:
+                self.assertIn(re.search(r"min-width: (\d+)px", body).group(1), ("200", "240"), f"a production menu width other than 200 or 240: {sel[:90]}")
+
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
             self.assertNotIn("Row 1286", block)
