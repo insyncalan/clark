@@ -390,13 +390,61 @@ class Labels(unittest.TestCase):
             read_png(png)
             self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + g.LANE), 0, repr(name))
 
-    def test_label_boundaries_and_tiny_limits(self):
-        self.assertEqual(g.label("x" * (g.LABEL_MAX + 1)), "X" * (g.LABEL_MAX - 2) + "..")
-        self.assertEqual(len(g.label("x" * (g.LABEL_MAX + 1))), g.LABEL_MAX)
-        self.assertEqual(g.label("", 5), "")
-        self.assertLessEqual(len(g.label("abcdefgh", 2)), 2)
-        self.assertLessEqual(len(g.label("abcdefgh", 1)), 1)
-        self.assertLessEqual(len(g.label("abcdefgh", 0)), 0)
+    def test_a_name_longer_than_19_is_not_cut_with_dots_at_the_old_place(self):
+        """AP1: a name past LABEL_MAX wraps to a second line (at a space when there is one), the lane is taller for that row only,
+        no line is wider than the column, and no dots appear until a name is too long for two lines."""
+        name = "Customer acceptance sign off"
+        self.assertEqual(g.wrap_label(name), ["CUSTOMER ACCEPTANCE", "SIGN OFF"])
+        self.assertEqual(g.wrap_label("x" * (g.LABEL_MAX + 1)), ["X" * g.LABEL_MAX, "X"])
+        self.assertEqual(g.wrap_label("x" * (2 * g.LABEL_MAX)), ["X" * g.LABEL_MAX] * 2)
+        for text in (name, "x" * (2 * g.LABEL_MAX)):
+            self.assertNotIn("..", "".join(g.wrap_label(text)))
+        self.assertEqual(g.wrap_label("x" * (2 * g.LABEL_MAX + 5)), ["X" * g.LABEL_MAX, "X" * (g.LABEL_MAX - 2) + ".."])
+        self.assertEqual(g.wrap_label(None), [""])
+        self.assertEqual(g.wrap_label("a" * 100, 5, 1), ["AAA.."])
+        (png, w, h), _ = g.plan([ms(1, name=name), ms(2, name="Go live")], self.TODAY, TOKENS)
+        self.assertEqual(h, g.TOP + g.LANE_2 + g.LANE + 2)
+        for line in range(2):
+            self.assertGreater(self.ink(png, 0, g.LABEL_W, g.TOP + 4 + 18 * line, g.TOP + 4 + 18 * line + 14), 20)
+        self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, h), 0)
+        self.assertGreater(self.ink(png, 0, g.LABEL_W, g.TOP + g.LANE_2, h - 2), 20)
+        short = g.plan([ms(1, name="Go live")], self.TODAY, TOKENS)[0]
+        self.assertEqual(short[2], g.TOP + g.LANE + 2)
+
+    def test_gantt_uses_the_same_font_and_name_rule_as_the_plan(self):
+        """AP2: the Gantt wraps a long name onto two lines in a taller lane, the other lanes keep G_LANE, nothing is dotted."""
+        import test_docx_gantt as tg
+        long = "Customer acceptance sign off"
+        out = g.gantt([tg.line(1, long), tg.line(2, "Go live")], "2026-11-08", TOKENS)
+        (png, w, h), run = out["pictures"][0]
+        self.assertEqual(h, g.G_TOP + g.G_LANE_2 + g.G_LANE + 2)
+        self.assertEqual(g.wrap_label(long), ["CUSTOMER ACCEPTANCE", "SIGN OFF"])
+        self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.G_TOP, h), 0)
+        self.assertGreater(self.ink(png, 0, g.LABEL_W, g.G_TOP, g.G_TOP + g.G_LANE_2), 40)
+        self.assertGreater(self.ink(png, 0, g.LABEL_W, g.G_TOP + g.G_LANE_2, h - 2), 20)
+        one = g.gantt([tg.line(1, "Go live")], "2026-11-08", TOKENS)["pictures"][0][0]
+        self.assertEqual(one[2], g.G_TOP + g.G_LANE + 2)
+
+    def test_health_bar_has_no_text(self):
+        """AP3: the health bar is three coloured segments and nothing else, so it carries only the segment and gap colours."""
+        t = tok()
+        png, w, h = g.health_bar("amber", TOKENS)
+        _, _, palette, rows = read_png(png)
+        seen = {palette[v] for row in rows for v in row}
+        self.assertLessEqual(seen, {t["surface"], t["grey-100"], t["status-amber"]})
+        self.assertEqual(sum(1 for row in rows for v in row if palette[v] == t["text"]), 0)
+        import inspect
+        self.assertNotIn("draw_text", inspect.getsource(g.health_bar))
+
+    def test_pictures_draw_with_the_pixel_font_when_the_font_is_not_found(self):
+        """AP4: the pictures need no font file: every drawn character is a pixel-font glyph and the module imports no font loader."""
+        with open(g.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        for word in ("truetype", "ImageFont", ".ttf", ".otf", "import PIL"):
+            self.assertNotIn(word, src)
+        self.assertTrue(all(ch in g._GLYPHS for line in g.wrap_label("a\u05e9 long name that wraps over two lines") for ch in line))
+        png = self.draw([ms(1, name="Customer acceptance sign off")])
+        read_png(png)
 
     def test_label_tiny_limits_say_what_is_kept_not_only_how_long(self):
         """Mutation sweep: a limit of 1 keeps one dot, 2 keeps two dots, 3 keeps one letter and two dots; a limit below 0 is empty."""
@@ -432,7 +480,7 @@ class Labels(unittest.TestCase):
         ET.fromstring(doc)
         self.assertNotIn(b"<w:p>INJECTED", doc)
         sizes = [read_png(raw)[:2] for n, raw in parts(data).items() if n.startswith("word/media/")]
-        self.assertIn((g.WIDTH, g.TOP + 2 * g.LANE + 2), sizes)
+        self.assertIn((g.WIDTH, g.TOP + g.LANE_2 + g.LANE + 2), sizes)   # the 22-character name wraps to two lines, the other lane stays one
 
 
 class InTheWordFile(unittest.TestCase):

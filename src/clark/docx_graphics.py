@@ -85,6 +85,7 @@ def health_bar(colour, tok):
 # A small 5 x 7 pixel font, drawn at TEXT_SCALE, for the lane names and the axis dates (the table beside the picture still carries the
 # words as Word text). It holds the letters (a small letter is drawn as its capital), the digits and the usual marks; any other
 # character (another script, a control or direction mark) is one "?" box, so nothing in a name can bring anything but pixels.
+NAME_LINES, LANE_2, G_LANE_2 = 2, 36, 36            # the most lines in a lane name; a lane's height for a name on two lines
 TEXT_SCALE, LABEL_W, LABEL_MAX = 2, 240, 19        # pixels per font dot; the lane name column's width; the most characters in a lane name
 _FONT = {
     "A": "01110 10001 10001 11111 10001 10001 10001", "B": "11110 10001 10001 11110 10001 10001 11110",
@@ -123,6 +124,41 @@ def label(text, limit=LABEL_MAX):
     text = " ".join(str(text if text is not None else "").split()).upper()
     text = "".join(ch if ch in _GLYPHS else "?" for ch in text)
     return text if len(text) <= limit else (text[:max(0, limit - 2)] + "..")[:max(0, limit)]
+
+
+def wrap_label(text, limit=LABEL_MAX, lines=NAME_LINES):
+    """What a lane shows of a name (the page shows every name): label()'s clean text broken into at most `lines` lines of at most
+    `limit` characters, at a space when one falls in the line and else inside the word. Only a name too long for all the lines ends
+    in two dots (label's cut on the last line). Always at least one line (an empty name is one empty line)."""
+    text = label(text, 10 ** 9)
+    out = []
+    while text and len(out) < lines:
+        if len(text) <= limit:
+            out.append(text)
+            text = ""
+            break
+        cut = text.rfind(" ", 1, limit + 1)
+        cut = cut if cut > 0 else limit
+        out.append(text[:cut].rstrip())
+        text = text[cut:].lstrip()
+    if text:
+        out[-1] = label(out[-1] + " " + text if out[-1] else text, limit)
+    return out or [""]
+
+
+def lane_height(names, one, two):
+    """A lane's height: `one` for a name on one line, `two` for a name on two lines."""
+    return one if len(names) < 2 else two
+
+
+def draw_name(c, top, height, names, colour):
+    """Draw a wrapped name (a list of lines) centred up and down in the lane that starts at `top` and is `height` tall."""
+    gap = 4
+    block = 7 * TEXT_SCALE * len(names) + gap * (len(names) - 1)
+    y = top + (height - block) // 2
+    for line in names:
+        draw_text(c, PAD, y, line, colour)
+        y += 7 * TEXT_SCALE + gap
 
 
 def text_width(text):
@@ -218,7 +254,12 @@ def plan(milestones, today, tok):
     start_iso, end_iso = mr.timeline_span(rows, now.isoformat() if now else first.isoformat())
     start, end = date.fromisoformat(start_iso), date.fromisoformat(end_iso)
     days = max(1, (end - start).days)
-    height = TOP + LANE * len(rows) + 2
+    names = [wrap_label(r["row"].get("name")) for r in rows]
+    tops, at = [], TOP
+    for n in names:
+        tops.append(at)
+        at += lane_height(n, LANE, LANE_2)
+    height = at + 2
 
     def x(d):
         return X0 + round((d - start).days * (X1 - X0) / days)
@@ -226,7 +267,7 @@ def plan(milestones, today, tok):
     c = Canvas(WIDTH, height, t["surface"])
     for i in range(len(rows)):
         if i % 2 == 0:
-            c.rect(0, TOP + i * LANE, WIDTH, TOP + (i + 1) * LANE, t["grey-100"])
+            c.rect(0, tops[i], WIDTH, tops[i] + lane_height(names[i], LANE, LANE_2), t["grey-100"])
     months = []
     y, m = start.year, start.month
     while date(y, m, 1) < end and len(months) < 2000:
@@ -240,9 +281,9 @@ def plan(milestones, today, tok):
     if now and start <= now < end:
         c.vline(x(now), 0, height, t["brand-navy"], 2)
     for i, r in enumerate(rows):
-        draw_text(c, PAD, TOP + i * LANE + (LANE - 7 * TEXT_SCALE) // 2, label(r["row"].get("name")), t["text"])
+        draw_name(c, tops[i], lane_height(names[i], LANE, LANE_2), names[i], t["text"])
     for i, r in enumerate(rows):
-        cy = TOP + i * LANE + LANE // 2
+        cy = tops[i] + lane_height(names[i], LANE, LANE_2) // 2
         if not r["solid"]:
             continue
         if r["ghost"]:
@@ -325,22 +366,25 @@ def gantt(lines, today, tok):
     pictures = []
     for at in range(0, len(drawn), GANTT_CHUNK):
         run = drawn[at:at + GANTT_CHUNK]
-        height = G_TOP + G_LANE * len(run) + 2
+        names = [wrap_label(r["line"].get("name")) for r in run]
+        hs = [lane_height(n, G_LANE, G_LANE_2) for n in names]
+        tops = [G_TOP + sum(hs[:i]) for i in range(len(run))]
+        height = G_TOP + sum(hs) + 2
         c = Canvas(WIDTH, height, t["surface"])
         for i, r in enumerate(run):
             if r["type"] == "phase":
-                c.rect(0, G_TOP + i * G_LANE, WIDTH, G_TOP + (i + 1) * G_LANE, t["grey-50"])
-            c.hline(0, WIDTH, G_TOP + (i + 1) * G_LANE - 1, t["grey-100"])
+                c.rect(0, tops[i], WIDTH, tops[i] + hs[i], t["grey-50"])
+            c.hline(0, WIDTH, tops[i] + hs[i] - 1, t["grey-100"])
         for d in ticks:
             c.vline(x(d), 0, height, t["grey-100"])
         month_labels(c, ticks, x, t["text"])
         for i, r in enumerate(run):
-            draw_text(c, PAD, G_TOP + i * G_LANE + (G_LANE - 7 * TEXT_SCALE) // 2, label(r["line"].get("name")), t["text"])
+            draw_name(c, tops[i], hs[i], names[i], t["text"])
         c.hline(0, WIDTH, G_TOP, t["grey-300"], 2)
         if now and first <= now <= last:
             c.vline(x(now), 0, height, t["status-red"], 2)
         for i, r in enumerate(run):
-            cy = G_TOP + i * G_LANE + G_LANE // 2
+            cy = tops[i] + hs[i] // 2
             x1 = x(r["start"])
             if r["type"] == "milestone":
                 border, fill = (t["status-green-text"], t["status-green"]) if r["pct"] >= 100 else (t["status-amber-text"], t["status-amber"])
