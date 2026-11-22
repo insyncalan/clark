@@ -68,7 +68,7 @@ class InTheFile(Published):
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
                 self.assertEqual(b["date"], "", "row 1253 (the 20-11 ruling): the separate As at date button is gone from the bar")
-                self.assertRegex(b["lineText"], r"28-10-2026", "row 1253: the report line keeps its one date, plain text")
+                self.assertNotIn("As at", b["lineText"], "row 1253: no second date in the line (the Week ending, when the file has one, is the only date)")
                 self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")
