@@ -5,6 +5,7 @@ Fictional data only (the publish plant). Ruling 19-11 reverses the earlier "repo
 """
 import re
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 from _paths import SRC  # noqa: F401
@@ -258,6 +259,29 @@ class NoteThroughTheRoute(route.Base):
         lines = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
         self.assertEqual(len(lines), 1, got["notes"])
         self.assertRegex(lines[0], r": [1-9][0-9]* passages?\.$")
+
+    def test_the_size_limit_line_says_the_sum_of_the_project_cut_and_the_request_cut(self):
+        real = ask_data.project_data
+
+        def cut_by(extra):
+            def fake(*a, **k):
+                got = real(*a, **k)
+                return replace(got, left_out=extra)
+            return fake
+
+        def number(extra):
+            folder = ask_passages.FolderData(passages=(ask.Passage("a.md", "plan one"), ask.Passage("b.md", "plan two"), ask.Passage("c.md", "plan three")), left_out=0)
+            with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder), mock.patch.object(ask_service, "folder_notes", return_value=[]), \
+                    mock.patch.object(ask, "MAX_PASSAGES", 2), mock.patch.object(ask_service.ask_data, "project_data", side_effect=cut_by(extra)):
+                status, got = self.question("what is late?")
+            self.assertEqual(status, 200, got)
+            lines = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
+            self.assertEqual(len(lines), 1, got["notes"])
+            return int(re.search(r": ([0-9]+) passages?\.$", lines[0]).group(1))
+
+        request_only = number(0)
+        self.assertGreaterEqual(request_only, 1)                 # the request cut leaves something out on its own
+        self.assertEqual(number(3), request_only + 3)            # and the project cut of 3 is added to it, not dropped and not alone
 
     def test_the_reply_notes_say_1_passage_and_n_passages(self):
         counts = {}
