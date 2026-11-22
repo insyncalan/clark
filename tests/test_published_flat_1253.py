@@ -1,6 +1,6 @@
 """Row 1253: the Published reports page in Classic, in a real browser at 1400 and 900 px, light and dark. No cover band (so the logo that the band draws is not drawn
 a second time), no card, the page starts with its own heading, the sections are flat and line-divided, the intro is readable, nothing runs sideways.
-Cards (no Theme) keeps its card and cover band. The 900 px cases are paused by PAUSED_900 in test_server.py.
+Cards (no Theme) keeps its card and cover band. The cases run at 1400 and 900 (PAUSED_900 is None on main).
 
 Run: python3 dev/run_tests.py test_published_flat_1253        (needs Chrome)
 """
