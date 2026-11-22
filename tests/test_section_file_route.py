@@ -382,7 +382,7 @@ class Route(unittest.TestCase):
         self.chosen = [self.source]
         with mock.patch.object(section_files, "MAX_FILE_BYTES", len(PDF) - 1):
             message = self.refused(ref, "too_big")
-        self.assertIn("add a link to it instead", message)
+        self.assertEqual(message, "That file is larger than 25 MB, so it was not added.")      # row 1275: 25 MB, the approved words
 
     def test_report_files_must_be_a_real_folder_in_the_client_folder(self):
         ref = self.section()
