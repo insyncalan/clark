@@ -93,6 +93,12 @@ class Choices(unittest.TestCase):
         self.assertEqual(rep[1]["label"], "Replace the text of Next week (1 word now)")
         self.assertEqual(rep[2]["label"], "Replace the text of this section (0 words now)")
 
+    def test_classic_says_empty_for_a_section_with_no_text_and_cards_keeps_0_words(self):      # row 1347
+        rep = [x for x in call("choices", SECTIONS, "", True) if x["kind"] == "replace"]
+        self.assertEqual([x["label"] for x in rep], ["Replace the text of Summary (3 words now)", "Replace the text of Next week (1 word now)", "Replace the text of this section (empty)"])
+        cards = [x["label"] for x in call("choices", SECTIONS, "", False) if x["kind"] == "replace"]      # Cards stays as on main
+        self.assertEqual(cards[2], "Replace the text of this section (0 words now)")
+
     def test_the_end_is_always_offered_last(self):
         c = call("choices", SECTIONS, "")
         self.assertEqual(c[-1], {"kind": "add", "id": "", "after": None, "label": "Add as a new Text section at the end"})

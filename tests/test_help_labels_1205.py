@@ -41,7 +41,7 @@ class HelpSaysIt(unittest.TestCase):
         for new in ("**Legend**, at the right of the bar above the milestones, explains every mark",
                     "Under that bar, the list shows each milestone",
                     "**Accept all** sets every change to **Accept** except the ones that start on **Reject**, and **Reject all** sets every change to **Reject**.",
-                    "How the Dashboard sections look, System, Light or Dark and the single-key shortcuts."):
+                    "How the Dashboard sections look, System, Light or Dark and the single-key slash commands."):
             self.assertEqual(TEXT.count(new), 1, new)
         for old in ("at the right under the milestones", "Under the Legend, the list", "set every change at once",
                     "How the Dashboard sections look, Light or Dark"):

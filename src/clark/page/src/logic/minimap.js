@@ -46,6 +46,36 @@ export function activeEntry(offsets, scrollTop, viewportHeight, stickyHeight = 0
   return current;
 }
 
+// The click-lock of the Contents rail (Classic only: the Cards Minimap is untouched): a click on an entry holds that entry as the current one,
+// whatever the 30% line says (the last sections are short, the page cannot scroll far enough, or the line lands on the next section), until the
+// reader scrolls by hand: wheel, touch, a scrolling key, or a press on the page's own scrollbar (the drag). The smooth scroll the click itself starts fires scroll events but none of these, so it never lets go.
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " ", "Spacebar"]);
+export function clickLock(target = typeof window !== "undefined" ? window : null) {
+  let held = null, off = null;
+  const release = () => { held = null; if (off) { off(); off = null; } };
+  return {
+    get: () => held,
+    hold(id) {
+      release();
+      held = id;
+      if (!target || !target.addEventListener) return;
+      const key = (e) => { if (SCROLL_KEYS.has(e.key)) release(); };
+      target.addEventListener("wheel", release, { passive: true });
+      target.addEventListener("touchmove", release, { passive: true });
+      target.addEventListener("keydown", key);
+      const bar = (e) => {     // a press beyond the content box is on the scrollbar
+        const d = target.document && target.document.documentElement;
+        if (d && ((e.clientX >= d.clientWidth && d.scrollHeight > d.clientHeight) || (e.clientY >= d.clientHeight && d.scrollWidth > d.clientWidth))) release();
+      };
+      target.addEventListener("pointerdown", bar, true);
+      target.addEventListener("mousedown", bar, true);
+      off = () => {
+        target.removeEventListener("pointerdown", bar, true); target.removeEventListener("mousedown", bar, true); target.removeEventListener("wheel", release); target.removeEventListener("touchmove", release); target.removeEventListener("keydown", key); };
+    },
+    release,
+  };
+}
+
 // Where to scroll to so a section's top sits just under the sticky bar: { id: scrollTop }, never below 0. `gap` is a little
 // breathing room under the bar.
 export function scrollTargets(offsets, stickyHeight = 0, gap = 0) {

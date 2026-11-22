@@ -1,6 +1,7 @@
 // Key dates (#96), store type "keydates": its Edit part. Fill in place: take a milestone's date from the list, or type a label and a
 // day (DD-MM-YYYY); change a typed date where it is; remove one. Each save is one change() (one step, one Undo, place "cell").
 // Given { section, tools }.
+import { StartPrompt } from "../StartPrompt.jsx";
 import { useState } from "preact/hooks";
 import { data } from "../../stores/report.js";
 import { say } from "../../stores/changes.js";
@@ -57,7 +58,7 @@ export function Edit({ section }) {
 
   return (
     <div class="tple" data-tpl="keydates">
-      {items.length === 0 ? <p class="quiet tple-empty">{EMPTY_WORDS}</p> : (
+      {items.length === 0 ? <><StartPrompt id="key-dates" /><p class="quiet tple-empty">{EMPTY_WORDS}</p></> : (
         <ul class="tple-list" data-tick={tick}>
           {items.map((i, n) => (typeof i.milestone === "string" ? (
             <li key={`m${i.milestone}`} class="tple-row">

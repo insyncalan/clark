@@ -38,10 +38,10 @@ class HelpRows(unittest.TestCase):
         swapped(self, new, "how many more there are. If a row breaks")
 
     def test_1437_peek_top_bar_more_actions(self):
-        new = "the item’s ID, then (in Edit) **More actions**, a menu of actions for this item, such as **Duplicate** and **Archive**, then **Make this panel fill the screen**"
+        new = "the item’s ID, then (in Edit) **More actions**, a menu of actions for this item: **Duplicate**, **Archive** and **Delete**, then **Make this panel fill the screen**"
         swapped(self, new, "(in Edit) **Duplicate** and **Archive**, then")
         line = next(t for t in STRINGS if t.startswith("At the top: **Previous item** and **Next item**"))
-        self.assertNotIn("Delete", line)
+        self.assertIn("**Archive** and **Delete**", line)
         self.assertNotIn("a menu with", line)
 
     def test_1438_warning_line_short(self):

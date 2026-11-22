@@ -15,7 +15,7 @@ WORDS = (PAGE / "logic" / "fullImageWords.js").read_text(encoding="utf-8")
 HELP = json.loads((PAGE / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
 NAMES = {                                      # id -> the name on the card (the renamed ones, row 1262)
-    "text-image": "Text with image",
+    "text-image": "Text and Image Side by Side",      # main's word (its own rename), not the Row 1262 list's Text with image
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
@@ -28,7 +28,7 @@ NAMES = {                                      # id -> the name on the card (the
     "checklist": "Next steps",
     "key-dates": "Coming dates",
     "link-preview": "Web page card",
-    "plan-summary": "Where we are, what's next",
+    "plan-summary": "Where we are, what’s next",
     "one-doc": "One file",
 }
 

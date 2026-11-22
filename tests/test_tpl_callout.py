@@ -2,6 +2,7 @@
 Run: python3 dev/run_tests.py test_tpl_callout
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
+from _classic_page import classic
 import json
 import unittest
 
@@ -47,18 +48,32 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+NEW_ICON_NAMES = ("Lightning", "Eye", "Table", "Gear", "Sparkle", "Two ways", "Warning triangle")
+
+
 class Words(unittest.TestCase):
     """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
 
     def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
         from clark.section_kinds import callout
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
-        self.assertEqual(len(callout.ICONS), 21)
+        self.assertEqual(len(callout.ICONS), 27)
         self.assertIn("shield", callout.ICONS)
+        self.assertEqual(callout.ICONS["warning"], "Warning triangle")
+        self.assertNotIn("warn", callout.ICONS)
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
                          {"v": 1, "tone": "warning", "category": "Warning", "colour": "red", "icon": "warning", "tile": True, "heading": True})
+
+    def test_the_decision_suggestion_icon_is_fork_named_two_ways_and_the_warning_icon_is_named_warning_triangle(self):
+        from pathlib import Path
+        from clark.section_kinds import callout
+        self.assertEqual(callout.words({"v": 1, "icon": "fork"})["icon_name"], "Two ways")
+        self.assertEqual(callout.words({"v": 1, "icon": "warning"})["icon_name"], "Warning triangle")
+        self.assertNotIn("twoways", callout.ICONS)
+        jsx = (Path(callout.__file__).parent.parent / "page" / "src" / "edit" / "templates" / "Callout.jsx").read_text(encoding="utf-8")
+        self.assertIn('decision: ["amber", "fork"]', jsx)
 
     def test_words_alone_carries_the_category_colour_and_icon(self):
         from clark.section_kinds import callout
@@ -95,6 +110,17 @@ class Page(n.PageChecks):
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
     FIELD, TYPED = "Callout title", "Fictional new title"
     CHANGED = lambda self, body: json.loads(body)["title"] == "Fictional new title"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        classic(self)          # the starting text is a Classic look; Cards keeps its old words
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            shown = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit').textContent + ' ' + [...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit [placeholder]')].map(e => e.getAttribute('placeholder')).join(' ')")
+            self.assertIn('Write the one thing the reader must see.', shown)
+            self.assertIn('Empty for now: add a title or some words. It stays out of the published page until then.', shown)
 
     def test_the_tone_is_a_word_and_not_colour_alone(self):
         ref = self.make(self.GOOD)
@@ -258,7 +284,7 @@ class Page(n.PageChecks):
 
     def test_edit_each_suggestion_sets_its_own_colour_and_icon(self):
         from test_server import wait
-        for label, want in (("Use Decision needed", ("Decision needed", "amber", "question", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
+        for label, want in (("Use Decision needed", ("Decision needed", "amber", "fork", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
             ref = self.make({**GOOD, "tone": "warning"})
             with self.subTest(label=label), chrome() as cdp:
                 p = self.visit(cdp)
@@ -285,7 +311,14 @@ class Page(n.PageChecks):
             self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 21, "20 icons and No icon")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 27, "26 icons and No icon")
+            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
+            for n in NEW_ICON_NAMES:
+                self.assertIn(n, names, "each new icon is in the picker")
+            self.assertEqual(names.count("Warning triangle"), 1, "one triangle entry")
+            self.assertNotIn("Warning", names, "the old name is not shown beside it")
+            self.assertNotIn("Magnifier", names)
+            self.assertNotIn("Person", names)
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
@@ -309,8 +342,8 @@ class Page(n.PageChecks):
             got = json.loads(self.body_of(ref))
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
-    def test_edit_the_decision_icon_is_the_question_mark_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
-        """Row 1272 rulings 17-11 (mock-up B wins): the Decision suggestion keeps the question icon; the title text and the words text start where the
+    def test_edit_the_decision_icon_is_two_ways_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
+        """Row 1272 (read of PR 2089 of 20-11: Two ways): the Decision suggestion sets the Two ways icon (key fork); the title text and the words text start where the
         category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
         for width in (1400, 900):
             ref = self.make(GOOD)
@@ -322,7 +355,7 @@ class Page(n.PageChecks):
                 p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
                 p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.body_of(ref))["icon"], "question")
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "fork")
                 p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
                 left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
                     return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};

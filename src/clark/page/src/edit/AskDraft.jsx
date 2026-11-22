@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { draft, panelWidth, clampWidth } from "./askPanelState.js";
 import { choices, request } from "./askDraft.js";
 import * as W from "./askWords.js";
@@ -52,9 +53,9 @@ export function AskDraft() {
     else setMenu(false);                 // refused: the toast says why and the draft stays
   }
 
-  const list = choices(sections, d.sec);
+  const classic = classicTheme(), list = choices(sections, d.sec, classic);
   return (
-    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px" }}>
+    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px", "--ad-r": clampWidth(panelWidth.value) + "px" }}>
       <header class="ad-h">
         <h2>{W.DRAFT_TITLE}</h2>
         <span class="ad-hint">{W.DRAFT_HINT}</span>
@@ -68,7 +69,7 @@ export function AskDraft() {
         <button type="button" class="btn" id="ask-draft-copy" onClick={copy}>{W.DRAFT_COPY}</button>
         {menu ? (
           <div class="ad-menu" id="ask-draft-menu" role="menu" aria-label={W.DRAFT_MENU_LABEL}>
-            {list.map((c, i) => <button type="button" role="menuitem" key={i} data-kind={c.kind} data-id={c.id || undefined} data-after={c.after || undefined} onClick={() => put(c)}><Icon name={c.kind === "replace" ? "doc" : "plus"} />{c.label}</button>)}
+            {list.map((c, i) => <button type="button" role="menuitem" key={i} data-kind={c.kind} data-id={c.id || undefined} data-after={c.after || undefined} onClick={() => put(c)}><Icon name={c.kind === "replace" ? "doc" : "plus"} />{classic && c.kind === "replace" ? <span>Replace the text of <b>{c.title}</b> <span class="ad-count">{c.tail}</span></span> : c.label}</button>)}
           </div>
         ) : null}
       </footer>

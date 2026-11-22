@@ -1,7 +1,7 @@
 """Row 1189, slice 1 (Current state, ticket 1188): what the library template does and does not do yet, pinned so a change is seen.
 
 The new project's Current state is the library template (a text section, "Header and Text" in the box). Pinned here:
- - the default section and the library template are the same section (type, title, width choices, empty body);
+ - the default section and the library template are the same section (type, width choices, empty body); the card's title in the library is Current state like the default section's (Header only when it is added in Classic, row 1251);
  - the template DOES draw its words in the published file, the Word report and the Excel cover once it has words;
  - the built-in type "current" (an existing report) is still NOT drawn in the published file: Dashboard.jsx has no branch for it.
 So an existing report's built-in is not switched: the template cannot yet leave Current state out of the published file.
@@ -34,7 +34,7 @@ class CurrentStateTemplate(unittest.TestCase):
         self.assertIsNotNone(tpl, "the library card is in templates.js")
         name, fit, typ, title, body = tpl.groups()
         d = default_sections.DEFAULT_SECTIONS[0] if hasattr(default_sections, "DEFAULT_SECTIONS") else self.first()
-        self.assertEqual((typ, title, body), (d["type"], d["title"], d.get("body", "")))
+        self.assertEqual((typ, body), (d["type"], d.get("body", "")))
         self.assertEqual(name, "Header and Text")
         self.assertEqual((title, d["title"]), ("Header", "Header"), "row 1262: the starting title of the template and the Dashboard default is Header")
         self.assertIn('"half"', fit)

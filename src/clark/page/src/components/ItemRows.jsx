@@ -6,6 +6,7 @@
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
 import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
+import { classicTheme } from "./Contents.jsx";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
 
 export const NOTHING = "Nothing to show.";
@@ -70,15 +71,21 @@ export const iconWords = (row, pill, today) => {
   // An Urgent item keeps its maroon tile and says Urgent after its status word (Blocked, Delayed, Overdue, Pending ...); only the colour word gives way to Urgent.
   const parts = isUrgent(row) ? [COLOUR_WORDS.includes(pill.text) ? "" : pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];
   const words = parts.filter(Boolean);
-  return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
+  return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}`, kind, words };
 };
+// Row 1321 (Classic only): the same tip drawn in parts (the kind, the other words, the dots between, "Overdue" marked) as real elements, so the card can weight them. data-tip keeps the whole string (screen readers, Cards, fallback), so this copy is aria-hidden.
+export function TipParts({ say }) {
+  if (!classicTheme() || !say.kind) return null;
+  const all = [say.kind, ...say.words];
+  return <span class="tip-parts" aria-hidden="true">{all.map((w, i) => <>{i ? <span class="tp-dot"> · </span> : null}<span class={i === 0 ? "tp-kind" : w === "Overdue" ? "tp-late" : "tp-word"}>{w}</span></>)}</span>;
+}
 export const dateHead = (type) => (type === "raid" ? "Review by" : type === "actions" ? "Due" : "Date");
 
 export function ItemIcon({ row, pill, plain, today }) {
   const w = iconWords(row, pill, today ?? todayOf()), tone = `${toneOf(row, pill)}${isUrgent(row) ? " u" : ""}`;
   return plain
     ? <span class={`ico ${tone}`} aria-hidden="true">{kindLetter(row.kind)}</span>
-    : <span class={`ico ${tone}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}</span>;
+    : <span class={`ico ${tone}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}<TipParts say={w} /></span>;
 }
 
 // The header row, once per card. A file has no Id column (a client is not given the item number).

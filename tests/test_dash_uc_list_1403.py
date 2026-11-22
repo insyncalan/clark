@@ -100,6 +100,83 @@ class Classic(Dash, Base):
         self.assertEqual(g["chip"], ["1px", "rgb(217, 224, 239)", "999px", "rgb(71, 85, 119)", "400", "18px"], f"chip: {g['chip']}")
 
 
+class ChipStyles(Dash, Base):
+    css = theme.css("prototype-2.0")
+    WANT = ["solid", "1px", "rgb(217, 224, 239)", "999px", "400", "rgba(0, 0, 0, 0)", "18px"]
+    PROBE = "(() => { const c = getComputedStyle(document.querySelector('.uc .cchip')); return [c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderTopLeftRadius, c.fontWeight, c.backgroundColor, c.lineHeight, c.color]; })()"
+    # the muted token resolved to rgb by the page itself, and the contrast of the chip text against the first opaque background behind it
+    TOKEN = """(() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const t = getComputedStyle(p).color; p.remove(); return t; })()"""
+    CONTRAST = """(() => {
+      const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return [0, 1, 2].map((i) => { const v = m[i] / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0); };
+      const chip = document.querySelector('.uc .cchip'); let e = chip, bg = 'rgba(0, 0, 0, 0)';
+      while (e && /rgba\\(.*, 0\\)$/.test(bg)) { bg = getComputedStyle(e).backgroundColor; e = e.parentElement; }
+      const a = lum(getComputedStyle(chip).color), b = lum(bg);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); })()"""
+
+    def read_all(self, width, dark=False):
+        got = {}
+        with chrome() as cdp:
+            p = self.open_page(cdp, width)
+            if dark:
+                p.js("document.documentElement.setAttribute('data-theme', 'dark')")
+            self.token = p.js(self.TOKEN)
+            for k in ("cc-committed", "cc-planned-2026", "cc-planned-2027"):
+                p.js("document.querySelector('.uc .cchip').className = 'cchip %s'" % k)
+                got[k] = p.js(self.PROBE)
+                self.contrast = getattr(self, "contrast", {})
+                self.contrast[k] = p.js(self.CONTRAST)
+        return got
+
+    def read_edit(self, width, dark=False):
+        with chrome() as cdp:
+            p = self.open_page(cdp, width)
+            p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('.uc .ucrow-ed .cchip')", "Edit rows drew a chip")
+            p.until("document.getAnimations().length === 0", "the animations to end")
+            if dark:
+                p.js("document.documentElement.setAttribute('data-theme', 'dark')")
+            line = p.js(self.TOKEN.replace("--text-muted", "--grey-200").replace("style.color", "style.borderColor").replace("getComputedStyle(p).color", "getComputedStyle(p).borderTopColor"))
+            return p.js(self.PROBE), p.js(self.TOKEN), line
+
+    def test_committed_planned_2026_and_planned_2027_are_one_solid_muted_pill_at_1400_and_900(self):
+        """Committed, Planned 2026 and Planned 2027 are solid 1px D9E0EF, pill 999, weight 400, no fill, muted text (light)."""
+        for w in (1400, 900):
+            got = self.read_all(w)
+            for k, g in got.items():
+                self.assertEqual(g[:7], self.WANT, f"{w} {k}: {g}")
+                self.assertEqual(g[7], "rgb(71, 85, 119)", f"{w} {k} colour: {g}")
+
+    def test_the_same_in_the_dark_theme(self):
+        """In the dark theme all three have the same line, radius, weight and no fill (the shell dark fill on Committed is gone)."""
+        for w in (1400, 900):
+            got = self.read_all(w, dark=True)
+            for k, g in got.items():
+                self.assertEqual([g[0], g[1], g[3], g[4], g[5]], ["solid", "1px", "999px", "400", "rgba(0, 0, 0, 0)"], f"dark {w} {k}: {g}")
+            self.assertEqual(len({tuple(g) for g in got.values()}), 1, f"dark {w}: the three differ: {got}")
+
+    def test_dark_text_is_the_muted_token_and_reads_at_4_5(self):
+        """In dark the chip text is the page's own --text-muted value (read from the page) and contrast against the background behind it is at least 4.5."""
+        light = self.read_all(1400)["cc-committed"][7]
+        for w in (1400, 900):
+            got = self.read_all(w, dark=True)
+            self.assertNotEqual(self.token, light, "the dark token differs from light, so the dark theme is really on")
+            for k, g in got.items():
+                self.assertEqual(g[7], self.token, f"dark {w} {k}: colour {g[7]} is not --text-muted {self.token}")
+                self.assertGreaterEqual(self.contrast[k], 4.5, f"dark {w} {k}: contrast {self.contrast[k]}")
+
+    def test_the_edit_rows_chip_is_the_same_pill_light_and_dark(self):
+        """The commitment chip in an Edit row is measured like View: solid, 1px, 999, 400, 18px line, no fill, muted text."""
+        for dark in (False, True):
+            for w in (1400, 900):
+                g, token, line = self.read_edit(w, dark)
+                want = list(self.WANT)
+                want[2] = line   # the line is the --grey-200 token: D9E0EF in light, the page's own dark value in dark
+                if not dark:
+                    self.assertEqual(line, "rgb(217, 224, 239)")
+                self.assertEqual(g[:7], want, f"edit {w} dark={dark}: {g}")
+                self.assertEqual(g[7], token, f"edit {w} dark={dark}: colour is not --text-muted {token}")
+
+
 class CardsKeepsShared(Dash, Base):
     """Cards (no Theme layer) keeps the shared rules: the heading row is drawn, the badge is 600 (grey-300 outline) and the chip radius 4."""
     def test_cards_as_on_main(self):
