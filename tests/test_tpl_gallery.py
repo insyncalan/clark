@@ -44,6 +44,17 @@ class Checker(unittest.TestCase):
                                                         {"image": GOOD_JPEG, "caption": "Five", "alt": "A five"}]}})
 
 
+class Width(unittest.TestCase):
+    def test_full_and_half_width_are_offered_for_the_gallery_and_the_view_is_two_across_at_half_width(self):
+        """Row 1233 AP19 (ticket test 11, the width offered): the gallery's catalogue line says full and half. Pairing and the stack at 900 are the
+        placement's; the two across is test_tpl_gallery_view's test_columns_two_gives_two_across_and_a_half_width_section_is_two_across."""
+        import re
+        from _paths import SRC
+        text = (SRC / "clark" / "page" / "src" / "logic" / "templates.js").read_text(encoding="utf-8")
+        line = next(l for l in text.splitlines() if re.search(r'\bid:\s*"gallery"', l))
+        self.assertRegex(line, r'fit:\s*\["full",\s*"half"\]')
+
+
 class Route(PictureSteps, Api):
     def test_each_picture_is_one_step_and_taking_one_out_takes_its_caption(self):
         ref = self.made(KIND)

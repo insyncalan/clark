@@ -4,7 +4,7 @@
 // section (up to six), the description and caption of the SELECTED image under the toolbar, and the count note. An image goes on its own to POST
 // /api/section-image (slot "1" to "6": clark frames it, gallery.py), after the words make the gallery a version 2 one. Remove (gal 3: the bin on a tile, the toolbar bin, the Delete key when no box is being typed in; one step, one Undo) is here. Drag (gal 4, AP7): the dots on a tile (24 px, top left, hover or selected) move it; the grid reorders live while the pointer moves (the dragged tile
 // at opacity .3, nothing else redrawn), and the drop saves the new `order` once: one change, one Undo step, the words (kept by slot) moving with the image;
-// Escape puts it back. Row 1233 AP9: the red mark on a tile with no description (Edit only). Not built here: the focus dot, Crop, Reset, the columns and shape controls. Given { section }. Words and numbers: logic/galleryEditWords.js.
+// Escape puts it back. Row 1233 AP6: with no image the Edit part is the one large dashed area. Row 1233 AP9: the red mark on a tile with no description (Edit only). Not built here: the focus dot, Crop, Reset, the columns and shape controls. Given { section }. Words and numbers: logic/galleryEditWords.js.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { change, say } from "../../stores/changes.js";
 import { sendPicture, wordsOf, saveWords, PicturesTotal } from "./pictureEdit.jsx";
@@ -41,7 +41,7 @@ export function Edit({ section }) {
   const [over, setOver] = useState(false);
   const grid = useRef(null), drag = useRef(null);
   const input = useRef(null), bar = useRef(null), replacing = useRef("");
-  useEffect(() => restTab(bar.current));      // one tab stop on the toolbar, kept after every draw
+  useEffect(() => { if (bar.current) restTab(bar.current); });      // one tab stop on the toolbar, kept after every draw
 
   // A gallery of the old kind becomes the new one by its words alone (its images stay): one quiet step, before the first image is sent.
   async function newKind() {
@@ -140,6 +140,16 @@ export function Edit({ section }) {
   };
   const n = filled.indexOf(sel) + 1, it = items[sel] || {};
   const columns = COLUMNS.includes(v.columns) ? v.columns : 3, shape = SHAPES.includes(v.shape) ? v.shape : "4:3";
+  if (!filled.length) return (                              // AP6: no image yet: the one large dashed area (click to choose, or drop up to six)
+    <div class={`tpl-edit tpl-gal-edit gal-classic${over ? " over" : ""}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
+      <button type="button" class="gal-empty" data-act="empty-area" disabled={busy} onClick={() => choose()}>
+        <span class="gal-plus gal-plus-big" aria-hidden="true">+</span><span>{busy ? W.making : W.empty}</span>
+      </button>
+      <PicturesTotal />
+      <input ref={input} type="file" accept={TYPES.join(",")} class="tpl-file" tabIndex={-1} aria-hidden="true" multiple
+        onChange={(e) => { const fs = [...(e.target.files || [])]; e.target.value = ""; addMany(fs); }} />
+    </div>
+  );
   return (
     <div class={`tpl-edit tpl-gal-edit gal-classic${over ? " over" : ""}`} data-columns={columns} data-shape={shape}
       onKeyDown={onKey} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>

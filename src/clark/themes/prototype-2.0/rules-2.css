@@ -74,6 +74,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .gal-classic .gal-addtile:hover { border-color: var(--brand-blue); color: var(--brand-blue-strong); }
 .gal-classic .gal-addtile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .gal-classic .gal-plus { font-size: 26px; font-weight: 700; line-height: 1; }
+.gal-classic .gal-empty { display: grid; place-items: center; align-content: center; gap: 4px; width: 100%; min-height: 200px; border: 2px dashed rgb(184, 193, 220); border-radius: 12px; background: transparent; color: rgb(106, 117, 146); font: inherit; font-size: 13px; cursor: pointer; }
+.gal-classic .gal-empty:hover { border-color: var(--brand-blue); color: var(--brand-blue-strong); }
+.gal-classic .gal-empty:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gal-classic .gal-plus-big { font-size: 28px; }
 .gal-classic .gal-group { display: flex; gap: var(--space-1); }
 /* Row 1233 (gal 3, Classic only): the bin on a tile (spec row 8): 26 x 26, radius 7, rgba(6,47,58,.78), white, icon 15px, 6px from the top and right, red on hover; shown on hover, on focus within, and on the selected tile. */
 .gal-classic .gal-bin { position: absolute; top: 6px; right: 6px; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: rgba(6, 47, 58, .78); color: #fff; cursor: pointer; }

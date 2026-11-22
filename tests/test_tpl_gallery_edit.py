@@ -2,7 +2,7 @@
 (tests/fixtures/gallery_edit_demo.jsx) that logs every call. What the page SENDS and DRAWS at 1400 and 900 px, by the acceptance points of #1233: AP1 the
 grid, AP2 two across at half width and at 900, AP3 the tile and the select frame, AP5 the add tile, AP12 the toolbar, AP13 the fields and the count note,
 AP16 the seventh image. The server's own checks are test_gallery_v2_server.py's. Gal 3 adds AP8 (the bin on a tile) and Remove by the toolbar bin and the Delete key. Gal 4 adds AP7 (drag by the dots). Not in this slice (later ones): the
-focus dot, Crop, Reset, the red mark, the columns and shape controls, the empty gallery's large area. Fictional data only.
+focus dot, Crop, Reset, the columns and shape controls. Fictional data only.
 
 Run: python3 dev/run_tests.py test_tpl_gallery_edit
 Needs Chrome (the #33 harness): fails, never skips, without it.
@@ -386,15 +386,23 @@ class Classic(Base):
 
 
 class Kept(Base):
-    def test_ap6_an_empty_gallery_keeps_the_old_edit_part_and_one_with_images_has_the_new_one_at_1400_and_900(self):
+    EMPTY = "Choose images, or drop them here (up to six)"
+
+    def test_ap6_an_empty_gallery_is_one_large_dashed_area_with_the_ruled_words_and_one_with_images_has_the_grid_at_1400_and_900(self):
         for page, width in ((1400, 1300), (900, 800)):
             with self.subTest(page=page, empty=True):
                 self.mount(None, page, width)
-                self.assertEqual(self.val("document.querySelectorAll('.gal-classic, .fi-bar, .gal-tile').length"), 0)
-                self.assertGreater(self.val("document.querySelectorAll('.tpl-gal-one').length"), 0)
+                self.until("document.querySelector('.gal-empty')", "the empty area")
+                self.assertEqual(self.val("document.querySelectorAll('.gal-tile, .fi-bar, .tpl-gal-one').length"), 0)
+                self.assertEqual(self.val("document.querySelector('.gal-empty').innerText.replace('+', '').trim()"), self.EMPTY)
+                self.assertEqual(self.val("(function(){ const s = getComputedStyle(document.querySelector('.gal-empty')); return [s.borderTopStyle, s.borderTopWidth, s.borderTopLeftRadius, parseFloat(s.minHeight), parseFloat(getComputedStyle(document.querySelector('.gal-empty .gal-plus')).fontSize)]; })()"),
+                                 ["dashed", "2px", "12px", 200, 28], "AP6: dashed 2px, radius 12, min-height 200, plus 28 px")
+                self.assertGreaterEqual(self.val("document.querySelector('.gal-empty').getBoundingClientRect().height"), 200)
+                self.assertEqual(self.val("Math.round(document.querySelector('.gal-empty').getBoundingClientRect().width) === Math.round(document.querySelector('.gal-classic').getBoundingClientRect().width)"), True, "full width")
+                self.assertLessEqual(self.val("document.documentElement.scrollWidth"), page, "no sideways scroll")
             with self.subTest(page=page, empty=False):
                 self.mount(body_of(2, alts=(0, 1)), page, width)
-                self.assertEqual(self.val("document.querySelectorAll('.tpl-gal-one').length"), 0)
+                self.assertEqual(self.val("document.querySelectorAll('.gal-empty, .tpl-gal-one').length"), 0)
                 self.assertGreater(self.val("document.querySelectorAll('.gal-classic .gal-tile').length"), 0)
 
 

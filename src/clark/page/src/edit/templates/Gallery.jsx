@@ -32,10 +32,9 @@ export function ItemField({ section, slot, field, label, value, words, empty }) 
   );
 }
 
-// Row 1233 (gal 2): in the Classic look a gallery with an image has the redesigned Edit part (GalleryClassic.jsx); an empty one and the Cards look keep this one.
+// Row 1233 (gal 2): in the Classic look a gallery has the redesigned Edit part (GalleryClassic.jsx, with the large empty area when it holds no image); the Cards look keeps this one.
 export function Edit({ section }) {
-  const pics = picturesOf(stored(section) || {});
-  return classicLook() && SLOTS.some((s) => typeof pics[s] === "string" && pics[s]) ? <ClassicEdit section={section} /> : <OldEdit section={section} />;
+  return classicLook() ? <ClassicEdit section={section} /> : <OldEdit section={section} />;
 }
 
 function OldEdit({ section }) {

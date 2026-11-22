@@ -21,6 +21,7 @@ export const WORDS = {
   add: "Add an image",
   full: "Six is the most",
   tile: "Add an image",
+  empty: "Choose images, or drop them here (up to six)",   // AP6 (spec row 6, ruled)
   describe: (n) => `Selected image ${n}: describe it`,
   describeHint: "for people who cannot see it",
   redTitle: "No description yet",            // AP9: the title of the red mark on a tile (spec row 9, ruled)
