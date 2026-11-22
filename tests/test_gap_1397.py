@@ -22,7 +22,7 @@ READ = """(() => { const c = (s) => getComputedStyle(document.querySelector(s)),
 
 class Source(unittest.TestCase):
     def test_1314_stays_the_last_row_line_and_the_rules_sit_before_it(self):
-        t = RULES.read_text(encoding="utf-8")
+        t = RULES.read_text(encoding="utf-8") + RULES.with_name("rules-2.css").read_text(encoding="utf-8")
         rows = [ln for ln in t.splitlines() if ln.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
         self.assertLess(t.index("/* Row 1397"), t.index("/* Row 1314"))
