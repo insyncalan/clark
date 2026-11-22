@@ -38,6 +38,9 @@
 .fbt-dlg .row .btn { vertical-align: middle; }
 .fbt-dlg .row .btn + .btn { margin-left: 8px; }
 .fbt-dlg .row [data-fbt-copy] { padding-left: 14px; padding-right: 14px; }   /* 14 px as drawn; with the mail pill (padding 0 22 px, row 1319) both fit one line in the 324 px box */
+
+/* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
+.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
