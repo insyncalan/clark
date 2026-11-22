@@ -132,6 +132,16 @@ class Literal(Dash):
         self.assertEqual(got["pad"][:2], ["20px", "24px"])
         self.assertEqual(got["secs"], [20, 876, 856])
 
+    def test_at_1400_the_other_pages_keep_their_frame_in_classic(self):
+        """Ruling 1260-B2 scope: only the Dashboard breaks the frame; Milestones, Use cases, Work items and Settings keep max-width and the centred margin."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            for tab in ("milestones", "usecases", "work", "settings"):
+                p.js("location.hash = '#%s&p=ABC'" % tab)
+                p.until("!document.querySelector('.cnt-grid') && !!document.querySelector('main section.frame:not(.skel-frame)')", "the %s page replaced the Dashboard" % tab)
+                got = p.js("(function(){var c=getComputedStyle(document.querySelector('main')); return [c.maxWidth !== 'none', c.marginLeft === c.marginRight && c.marginLeft !== '0px'];})()")
+                self.assertEqual(got, [True, True], tab)
+
 
 class Killers(Dash):
     def test_the_health_word_keeps_no_tracking_and_has_its_own_colour_for_each_state(self):
