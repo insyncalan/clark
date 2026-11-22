@@ -222,6 +222,16 @@ class Question(RouteBase):
         opened = []
         real_open, real_os_open = builtins.open, os.open
 
+        def spy_path(name):
+            real = getattr(Path, name)
+
+            def go(self_, *a, **k):
+                # clark's own files (the usage count, settings) are read while you ask; a file in a source folder is not
+                if str(self.box) in str(self_):
+                    raise AssertionError(name)
+                return real(self_, *a, **k)
+            return go
+
         def spy_open(f, *a, **k):
             opened.append(str(f))
             return real_open(f, *a, **k)
@@ -232,8 +242,8 @@ class Question(RouteBase):
         self.provider.reply = "It is cleaned on Tuesdays."
         with mock.patch.object(reach, "read_bytes", side_effect=AssertionError("a question read a file")), \
                 mock.patch.object(ask_passages, "folder_data", side_effect=AssertionError("a question used the raw reader")), \
-                mock.patch.object(Path, "read_bytes", side_effect=AssertionError("read_bytes")), \
-                mock.patch.object(Path, "read_text", side_effect=AssertionError("read_text")), \
+                mock.patch.object(Path, "read_bytes", autospec=True, side_effect=spy_path("read_bytes")), \
+                mock.patch.object(Path, "read_text", autospec=True, side_effect=spy_path("read_text")), \
                 mock.patch.object(builtins, "open", spy_open), mock.patch.object(os, "open", spy_os_open):
             status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": "when is the zebrafish tank cleaned"})
         self.assertEqual((status, got.get("ok")), (200, True), got)
@@ -314,16 +324,14 @@ class StatusLine(Base):
         self.build()
         line = ask_index.folder_status(self.data, "P1", [str(self.box)])[str(self.box)]["line"]
         on_disk = sum(len(fs) for _d, _s, fs in os.walk(self.box))
-        indexed, total = map(int, re.match(r"Indexed (\d+) of (\d+) files\.", line).groups())
-        reasons = sum(int(n) for n in re.findall(r"(\d+) (?:are|is|PDFs are|PDF is|look|looks) ", line))
-        self.assertEqual(total, on_disk)
-        self.assertEqual(indexed + reasons, on_disk)
-        self.assertEqual((indexed, reasons), (3, 3))
+        unread = int(re.match(r"100% indexed\. (\d+) files could not be read$", line).group(1))
+        self.assertEqual(unread, 3)
+        self.assertEqual(3 + unread, on_disk)
 
     def test_no_reason_is_shown_when_it_is_0(self):
         self.put("a.txt", "zqone")
         self.build()
-        self.assertEqual(ask_index.folder_status(self.data, "P1", [str(self.box)])[str(self.box)]["line"], "Indexed 1 of 1 file.")
+        self.assertEqual(ask_index.folder_status(self.data, "P1", [str(self.box)])[str(self.box)]["line"], "100% indexed")
 
     def test_the_list_names_each_file_and_reason_and_never_the_password_or_key(self):
         self.put("keys.txt", "zqnote line\n" + FAKE_KEY)
@@ -338,7 +346,10 @@ class StatusLine(Base):
         self.assertEqual(self.found("hunter2"), [])
 
     def test_the_button_in_the_settings_page_says_exactly_what_the_help_says(self):
-        self.assertIn(f">{ask_index.LEFT_OUT_BUTTON}</button>", JSX.read_text(encoding="utf-8"))
+        note = (SRC / "clark" / "page" / "src" / "edit" / "indexNote.js").read_text(encoding="utf-8")
+        self.assertIn('why: "(why)"', note)
+        self.assertIn("{LINKS.why}</button>", JSX.read_text(encoding="utf-8"))
+        self.assertIn("**(why)**", paragraph("The line under each folder"))
 
 
 class HelpWordsAreTheAppsWords(unittest.TestCase):
@@ -346,26 +357,31 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         t = paragraph("The line under each folder")
         quoted = re.findall("“([^”]*)”", t)
         reading = ask_index.line_for(None, (180, 422))
-        indexed = ask_index.line_for({"indexed": 180, "type": 242}).split(". ")[0] + "."
+        done = ask_index.done_line({"indexed": 180})
+        unread = ask_index.done_line({"indexed": 180, "type": 242})
+        none = ask_index.done_line({"type": 2})
         note = ask_index.answer_note({"not_yet": 120})
-        self.assertEqual(reading, "Reading 180 of 422 files.")
-        self.assertEqual(indexed, "Indexed 180 of 422 files.")
+        self.assertEqual(reading, "Indexing… 42%")
+        self.assertEqual(done, "100% indexed")
+        self.assertEqual(unread, "100% indexed. 242 files could not be read")
+        self.assertEqual(none, "No files to index")
         self.assertEqual(note, "Still reading 120 files, so this answer may miss some.")
-        self.assertEqual(quoted, [reading, indexed, note])
-        self.assertIn(f"**{ask_index.LEFT_OUT_BUTTON}**", t)
+        self.assertEqual(quoted, [reading, done, unread, none, note])
+        self.assertIn("**(why)**", t)
 
     def test_the_status_paragraph_lists_the_reasons_the_app_gives(self):
         t = paragraph("The line under each folder").replace("’", "'")
-        for words in ("files of a type clark can't read yet", "files that are online only and were not opened", "PDFs that are too long",
-                      "files that look like a password or a key"):
+        for words in ("files of a type clark can't read yet", "PDFs that are too long", "files that look like a password or a key"):
             self.assertIn(words, t)
         for app in (ask_index.REASON_TYPE, ask_index.REASON_SAFETY):
             self.assertTrue(app.replace("looks", "look") in t or app in t, app)
-        c = {"indexed": 1, "type": 1, "online_only": 1, "too_long": 1, "safety": 1}
-        line = ask_index.line_for(c)
-        for words in ("of a type clark can't read yet", "online only and was not opened", "PDF is too long",
-                      "looks like a password or a key"):
-            self.assertIn(words, line)
+        # the list holds exactly these three reasons: a file that is online only is counted as not read but is not listed
+        self.assertEqual({ask_index.REASON_TYPE, ask_index.REASON_SAFETY, ask_index.REASON_TOO_LONG},
+                         set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
+        self.assertIn("online only and was not opened", ask_index.line_for({"indexed": 1, "online_only": 1}))
+        self.assertIn("is counted in the number that could not be read, but is not in that list", t)
+        self.assertEqual(ask_index.MAX_LEFT_OUT_SHOWN, 200)
+        self.assertIn("up to 200 names", t)
 
     def test_the_help_carries_the_qualifier_once_the_index_is_up_to_date(self):
         t = paragraph("The index of your source folders.")

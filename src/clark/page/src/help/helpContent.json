@@ -1443,7 +1443,7 @@
      ],
      [
       "p",
-      "The line under each folder in **Source folders for** says how far the index has got. While it reads, it says “Reading 180 of 422 files.” When it is done, it says “Indexed 180 of 422 files.” and then, only for the reasons above 0, why the rest were left out: files of a type clark can’t read yet, files that are online only and were not opened, PDFs that are too long, and files that look like a password or a key. The numbers add up to the files in the folder. Press **Show the files left out** to see them by name and reason; a password or key itself is never shown. While some files are still being read, an answer says “Still reading 120 files, so this answer may miss some.”"
+      "The line under each folder in **Source folders for** says how far the index has got. While it reads, it says “Indexing… 42%”. When it is done, it says “100% indexed”, and, when some files in the folder could not be read, how many: “100% indexed. 242 files could not be read”. When no file in the folder can be read, it says “No files to index”. Press **(why)** next to the line to see the files left out, by name and reason: files of a type clark can’t read yet, PDFs that are too long, and files that look like a password or a key; a password or key itself is never shown. A file that is online only and was not opened is counted in the number that could not be read, but is not in that list. The list shows up to 200 names and then says how many more. While some files are still being read, an answer says “Still reading 120 files, so this answer may miss some.”"
      ],
      [
       "p",

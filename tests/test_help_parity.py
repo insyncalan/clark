@@ -92,10 +92,10 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
 
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Reading 180 of 422 files": "the folder status line, built from the counts (ask_index.line_for, #1366)",
-    "Indexed 180 of 422 files": "the folder status line, built from the counts (ask_index.line_for, #1366)",
+    "Indexing… 42%": "the folder status line while it reads, built from the counts (ask_index.line_for, #1366, #1371)",
+    "100% indexed. 242 files could not be read": "the folder status line when it is done, built from the counts (ask_index.done_line, #1366, #1371)",
+    "No files to index": "the folder status line when no file can be read (ask_index.done_line, #1371)",
     "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
-    "Show the files left out": "the button under a folder's status line (ask_index.LEFT_OUT_BUTTON; AskSettings.jsx in the Settings list build of #1366)",
     "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",

@@ -34,11 +34,12 @@ class HelpDescribesTheIndex(unittest.TestCase):
 
     def test_status_paragraph_quotes_the_lines_clark_shows(self):
         t = self.para("The line under each folder")
-        self.assertIn(ask_index.line_for(None, (180, 422)).rstrip("."), t)
-        self.assertIn(ask_index.line_for({"indexed": 180, "type": 242}).split(".")[0], t)
-        self.assertIn(ask_index.LEFT_OUT_BUTTON, t)
+        self.assertIn(ask_index.line_for(None, (180, 422)), t)
+        self.assertIn(ask_index.done_line({"indexed": 180}), t)
+        self.assertIn(ask_index.done_line({"indexed": 180, "type": 242}), t)
+        self.assertIn(ask_index.done_line({"type": 2}), t)
+        self.assertIn("(why)", t)
         self.assertIn(ask_index.answer_note({"not_yet": 120}).rstrip("."), t)
-        self.assertIn("add up to the files in the folder", t)
 
     def test_index_path_is_the_real_one(self):
         self.assertEqual(ask_index.path_for("D", "P1").parent.name, "ask-index")
