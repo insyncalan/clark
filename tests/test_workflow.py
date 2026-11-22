@@ -274,11 +274,12 @@ class Workflow(unittest.TestCase):
             else:
                 self.assertNotIn("continue-on-error", body, job)
 
-    def test_the_nightly_runs_the_mac_smoke_set_and_sunday_the_full_macos_advisory(self):
+    def test_the_nightly_runs_the_full_macos_suite_and_it_is_required(self):
         wf = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('- cron: "0 22 * * *"', wf)
         self.assertIn('- cron: "0 23 * * 0"', wf)
-        self.assertIn('schedule) FULL=1; if [ "$SCHEDULE" = "0 23 * * 0" ]; then MACOS=1; ADVISORY=1; else SMOKE=1; fi ;;', wf)
+        self.assertIn("schedule) FULL=1; MACOS=1 ;;", wf)      # every nightly: full macOS, required (no smoke-only, no advisory)
+        self.assertNotIn("ADVISORY=1", wf[wf.index("schedule) FULL=1"):wf.index("schedule) FULL=1") + 80])
         smoke = self.jobs["macos-smoke"]
         self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
         self.assertIn("runs-on: macos-latest", smoke)
