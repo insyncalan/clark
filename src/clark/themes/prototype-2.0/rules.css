@@ -160,7 +160,7 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 html.print-all .cnt { display: none; }
 /* The Work items + New view button is the brand colour in Classic (row 1314; the shared button is grey, and Cards keeps it). Same as the Use cases button above; scoped to the Work items page. */
 #work .vnew, #work .vnew:hover { color: var(--brand-blue); }
-/* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). */
+/* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The editor bar title is one line with an ellipsis on every page that has the editor bar (issue 1341); the published file bar, .top-file, keeps row 1239 and wraps. */
 .glance[data-glance] { gap: 0; }
 .glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
 .glance[data-glance] .fig::after { display: none; }
@@ -173,7 +173,7 @@ html.print-all .cnt { display: none; }
 .mv-txt > span { display: none; }
 .msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }
 .msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }
-html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }
 @media (max-width: 900px) {
   html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }
@@ -795,6 +795,10 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1315 fill (ruling 19-11, Classic only): the Timeline / Calendar and Week / Month / Quarter switches take a 1px --ui (--grey-500) frame, and a 1px --grey-500 rule between the halves. The button padding (3px 14px), height 28 and weight 600 are Row 1319's (ruling 20-11, newer) on the Week / Month / Quarter buttons (.seg); the Timeline / Calendar buttons are not .seg, so they take the same three values here, one rule for all five buttons. The chosen half colours are Row 1354's, the radius is Row 1358's; the Week / Month / Quarter height and weight and the Today name are the Row 1316 PR's lines, not repeated here. The switch position is Row 1355's; dark is the dark audit's. */
+#milestones .msv-sw, #milestones .cal-sc { border: 1px solid var(--grey-500); }
+#milestones .msv-sw .msv-b { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
+#milestones .msv-b + .msv-b, #milestones .cal-sc button + button { border-left: 1px solid var(--grey-500); }
 /* Row 1357 (Use cases page, Classic only): item 2, Group by and Sort by keep their icons and take the prototype's button line (1px, the prototype's --ui is this theme's --grey-500) and 6px corners, 28px high; item 6, the status pill is 13px weight 600 as the prototype's pill; item 9, the left rule has square corners (border-radius 0). */
 #usecases #ucl-group, #usecases #ucl-sort { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 28px; height: 28px; box-sizing: border-box; font-weight: 500; }
 #usecases .pill { font-size: 13px; font-weight: 600; height: 20px; line-height: 20px; padding: 0 10px; }
@@ -843,6 +847,39 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .fbt-added { font-size: 12.5px; padding: 8px 10px; }
 .fbt-dlg [data-fbt-mail] { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 22px; text-decoration: none; }
 .fbt-dlg [data-fbt-copy] { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; }
+/* Row 1232 */
+.tpl-sbs-edit-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start}
+.tpl-sbs-edit.pos-left .tpl-sbs-edit-pic,.tpl-sbs-edit.is-half.pos-top .tpl-sbs-edit-pic{order:-1}
+@media (min-width: 901px){
+ .tpl-sbs-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .tpl-sbs-edit.share-third .tpl-sbs-edit-grid,.tpl-sbs-edit.pos-left.share-two .tpl-sbs-edit-grid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+ .tpl-sbs-edit.share-two .tpl-sbs-edit-grid,.tpl-sbs-edit.pos-left.share-third .tpl-sbs-edit-grid{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+ .tpl-sbs-edit.is-half .tpl-sbs-edit-grid{grid-template-columns:minmax(0,1fr)}
+ .tpl-sbs-edit:not(.is-half).shape-fill .tpl-sbs-edit-grid{align-items:stretch}
+ .tpl-sbs-edit:not(.is-half).shape-fill .tpl-sbs-edit-frame{flex:1}
+ .tpl-sbs-edit:not(.is-half).shape-fill .tpl-sbs-edit-frame img{position:absolute;inset:0;height:100%;aspect-ratio:auto}
+}
+.tpl-sbs-edit-pic{display:flex;flex-direction:column;gap:var(--space-2);min-width:0}
+.tpl-sbs-edit-frame{min-height:230px;overflow:hidden;border-radius:var(--radius);background:var(--surface-muted)}
+.tpl-sbs-edit-frame img{display:block;width:100%;height:100%;object-fit:cover}
+.tpl-sbs-edit.shape-43 .tpl-sbs-edit-frame img{height:auto;aspect-ratio:4/3}
+.tpl-sbs-edit.shape-square .tpl-sbs-edit-frame img{height:auto;aspect-ratio:1}
+.tpl-sbs-edit.shape-whole .tpl-sbs-edit-frame img{height:auto;object-fit:contain}
+.tpl-sbs-edit.shape-fill .tpl-sbs-edit-frame img{height:auto;aspect-ratio:16/9}
+.tpl-sbs-bar{gap:var(--space-1);padding:4px;border:1px solid var(--grey-200);border-radius:10px;background:var(--band-bg)}
+.tpl-sbs-grp{display:inline-flex;gap:var(--space-1);padding:0 var(--space-1)}
+.tpl-sbs-bar .fi-btn{width:32px;height:30px;border:0;border-radius:7px;color:var(--text-muted)}
+.tpl-sbs-bar .fi-btn.on{background:var(--white);box-shadow:inset 0 0 0 1.5px var(--brand-blue);color:var(--brand-blue)}
+.tpl-sbs-bar .fi-btn:hover:not(:disabled,.on){background:rgb(230,234,245)}
+.tpl-sbs-bar .fi-btn:focus-visible{outline-offset:1px}
+.tpl-sbs-bar .fi-btn.danger:hover:not(:disabled){color:rgb(190,58,43)}
+.tpl-sbs-edit .tpl-pic-field:has(+ [data-alt-note]) input{border-color:rgb(190,58,43)}
+.tpl-sbs-note{font-size:var(--size-caption)}
+.tpl-sbs-note::before{content:"✓ ";color:var(--status-green-text)}
+.tpl-sbs-edit-frame .fi-dot{width:28px;height:28px;margin:-14px 0 0 -14px;background:color-mix(in srgb,var(--brand-blue) 35%,transparent);box-shadow:0 0 0 2px var(--brand-blue),var(--shadow)}
+.tpl-sbs-edit-words .rt-host,.tpl-sbs-edit-words .ProseMirror{min-height:150px}
+.tpl-sbs-edit-words .ProseMirror{font-size:15px}
+.tpl-sbs-red{margin:0}
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177); row 1401: spacing for 900 to 1099 px is next-release Tech Debt. */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
@@ -947,13 +984,12 @@ table.items .weye { width: 30px; height: 30px; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
-.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
-.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+.tpl-sbs-heading{grid-column:1 / -1;margin:0}
 /* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
+.ask-folder-line .ask-left-btn { display: inline; min-height: 0; font-size: inherit; }
+.ask-folder-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

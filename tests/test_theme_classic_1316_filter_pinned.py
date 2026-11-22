@@ -5,7 +5,7 @@ import unittest
 
 from _paths import SRC
 
-RULES = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 START = "/* Row 1316d"
 
 RULE_LINES = [
