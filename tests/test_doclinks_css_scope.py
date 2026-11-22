@@ -62,8 +62,8 @@ class Scope(unittest.TestCase):
         self.assertEqual(declarations(self.sheet, ".tpl-badge")["padding"], "2px var(--space-2)")
         self.assertNotIn("height", declarations(self.sheet, ".tpl-badge"))
 
-    def test_the_view_list_carries_the_scope_class(self):
-        for path in ("src/templates/DocLinks.jsx",):
+    def test_both_doc_links_lists_carry_the_scope_class(self):
+        for path in ("src/edit/templates/DocLinks.jsx", "src/templates/DocLinks.jsx"):
             self.assertIn('<ul class="tpl-dl tpl-dl-links">', (SRC / path).read_text(encoding="utf-8"), path)
 
 
@@ -93,11 +93,12 @@ class ClassicOnly(unittest.TestCase):
         self.assertNotIn("Row 1194", THEME.with_name("rules.css").read_text(encoding="utf-8"))
         self.assertNotRegex(text, r"#[0-9A-Fa-f]{3,8}\b", "rules-2.css writes colours as rgb(), not hex")
         sheet = rules(text)
-        for selector in (".tpl-badge.tpl-page", ".tpl-dl-links .tpl-acts", ".tpl-dl-links button.tpl-act"):
+        for selector in (".tpl-files-edit .tpl-icons", ".tpl-files-edit .tpl-rename", ".tpl-files-edit .tpl-allowed", ".tpl-badge.tpl-page",
+                         ".tpl-dl-links .tpl-acts", ".tpl-dl-links button.tpl-act", ".sec:has(.tpl-files-edit) .sec-head"):
             self.assertTrue(declarations(sheet, selector), selector)
 
-    def test_the_view_part_draws_the_new_markup_only_when_a_theme_is_layered(self):
-        for path in ("src/templates/DocLinks.jsx",):
+    def test_both_jsx_parts_draw_the_new_markup_only_when_a_theme_is_layered(self):
+        for path in ("src/templates/DocLinks.jsx", "src/edit/templates/DocLinks.jsx"):
             text = (SRC / path).read_text(encoding="utf-8")
             self.assertIn("classicTheme() ?", text, path)
             self.assertIn("Cards", text, path)

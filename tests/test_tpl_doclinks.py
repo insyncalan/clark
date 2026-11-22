@@ -415,8 +415,8 @@ class ClassicPage(PageBase):
         super().setUp()
 
 
-class ClassicView(ClassicPage):
-    """Item 1194, the View in Classic: the same entries as before, drawn as the page-style rows. (The Edit tests of InThePage run on the Cards page until the Edit part follows.)"""
+class InThePage(ClassicPage):
+    """The served View and the file draw the same entries; Edit adds and removes a link, one step each."""
 
     def add(self, items, title="Fictional papers", kind="doclinks"):
         with self.store.step("dashboard", USER) as st:
@@ -494,6 +494,165 @@ class ClassicView(ClassicPage):
             self.assertEqual(p.js("window.saved"), [["Plan v2.pdf", "blob:"]])
             self.assertEqual(p.js("window.opened"), ["blob:"])
 
+    def test_edit_adds_a_link_in_one_step_and_undo_takes_it_back(self):
+        ref = self.add([a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} [data-add-link] label')].map(l => l.textContent)"),
+                             ["Link", DESCRIPTION_LABEL])
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/budget", 0)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 2", "the new link is drawn")
+            stored = json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]
+            self.assertEqual(stored[-1], {"kind": "link", "href": "https://example.org/budget", "label": "Budget"})
+            p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "Undo took it back")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"], [a_link()])
+            p.js(f"document.querySelector('{sel} .tpl-remove').click()")
+            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Remove took it off")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"], [])
+
+    def test_edit_refuses_a_bad_link_in_words_and_sends_nothing(self):
+        ref = self.add([])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-empty').textContent"), EMPTY_STATE)
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 1: Enter a link description.")
+            for bad in ("javascript:alert(1)", "http://example.org", "example.org"):
+                self.set_value(p, f"{sel} [data-add-link] input[type=text]", bad, 0)
+                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+                p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the refusal is shown")
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 1: " + doclinks.BAD_LINK)
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').getAttribute('role')"), "alert")
+            p.js(f"document.querySelector('{sel} [data-add-file]').focus()")
+            self.assertTrue(p.js("document.activeElement.hasAttribute('data-add-file')"), "Add a file takes focus from the keyboard")
+
+    def test_the_edit_box_refusal_of_a_bad_link_is_the_servers_sentence_with_its_place(self):
+        """PR 1628: href "x y" is refused with 'Link n: ...' by the server, and the Edit box says the very same sentence."""
+        with self.assertRaises(section_bodies.Bad) as cm:
+            check("doclinks", body([a_file(), a_link(href="x y")]))
+        server = str(cm.exception)
+        self.assertEqual(server, "Link 2: " + doclinks.BAD_LINK)
+        ref = self.add([a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "x y", 0)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "A site", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the refusal is shown")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), server)
+
+    def test_edit_refusal_for_the_add_link_box_counts_files_too(self):
+        """Item 1194: with one link and one file listed the box says 'Link 3: ...' (n counts files too), not always 'Link 1: ...'."""
+        ref = self.add([a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the missing description is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"), "Link 3: Enter a link description.")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+
+    def test_the_add_link_box_on_a_full_list_says_the_full_sentence_and_sends_nothing(self):
+        """Row 1194 read (C2): with 20 entries listed, the add-link box refuses with the FULL sentence and sends nothing."""
+        ref = self.add([a_link(href=f"https://example.org/p{n}", label=f"Plan {n}") for n in range(20)])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "A site", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the full list is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"),
+                             "A Documents and links section can hold 20 files and links at most. Remove one, then add the new one.")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+
+    def test_enter_on_an_unchanged_name_does_not_swallow_the_next_rename(self):
+        """Row 1194 read (Enter on an unchanged name): Enter saves nothing, then the next name typed and left by a click away is saved."""
+        ref = self.add([a_link(label="The plan")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 1", "the row drew")
+            RenameTest.type(p, sel, "The plan", "Enter", 0)
+            p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel + ' input[data-rename-input]')}); el.focus(); el.value = 'Next name';"
+                 " el.dispatchEvent(new Event('input', {bubbles: true})); el.blur(); })()")
+            p.until("document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Name saved')", "the next name was saved")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Next name")
+
+    def test_a_rename_that_changes_nothing_sends_nothing_and_shows_no_toast(self):
+        """Row 1194 read (C1): Enter or leaving a name box with the name as it was sends no request, no toast, and makes no Undo step."""
+        ref = self.add([a_link(label="The plan"), a_file("Plan v2.pdf"), a_file("Notes.txt", 2048, label="Site notes")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 3", "the rows drew")
+            sent = len(self.sent)
+            for n, name in enumerate(["The plan", "Plan v2.pdf", "Site notes"]):
+                RenameTest.type(p, sel, name, "Enter", n)
+                p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{n}]; el.focus(); el.value = {json.dumps('  ' + name + ' ')};"
+                     " el.dispatchEvent(new Event('input', {bubbles: true})); el.blur(); })()")
+            time.sleep(0.5)
+            self.assertFalse(p.js("!!document.querySelector('.toast')"), "no toast")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+
+    def test_tabbing_through_a_label_less_link_saves_nothing(self):
+        """Row 1194 (PR 1628): an old link with no label shows its address as the name; focus then blur with no typing is not a rename. Widths 1400 and 900."""
+        ref = self.add(None)
+        self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (body([{"kind": "link", "href": "https://example.org/old"}, a_file("Plan v2.pdf")]), ref))      # stored as an old row was: no label, written past the new check
+        self.store.con.commit()
+        sel = f"[data-id={json.dumps(ref)}]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 2", "the rows drew")
+                shown = p.js(f"[...document.querySelectorAll('{sel} input[data-rename-input]')].map(i => i.value)")
+                self.assertTrue(shown[0] and shown[1], shown)
+                sent = len(self.sent)
+                for n in (0, 1):
+                    p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{n}]; el.focus(); el.blur(); }})()")
+                time.sleep(0.5)
+                self.assertFalse(p.js("!!document.querySelector('.toast')"), "no toast")
+                self.assertEqual(len(self.sent), sent, "nothing was sent")
+                self.assertNotIn("label", json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0])
+
     def test_the_page_icon_colours_are_the_badge_tokens_not_literals(self):
         """Row 1194 read (colour literals): the drawn icon takes its colours from the --badge-* tokens, none is a hex literal."""
         src = (SRC / "clark" / "page" / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
@@ -508,9 +667,43 @@ class ClassicView(ClassicPage):
                         "const r = [[c('var(--badge-pdf)'), c('var(--badge-pdf)'), c('var(--white)')], [c('var(--badge-txt)'), c('var(--badge-txt)'), c('var(--white)')]]; t.remove(); return r; })()")
             self.assertEqual(got, want)
 
+    def test_edit_renames_in_place_and_moves_rows_one_step_each(self):
+        ref = self.add([a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 2", "the rows drew")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => li.querySelector('[data-up]').disabled + ':' + li.querySelector('[data-down]').disabled)"),
+                             ["true:false", "false:true"], "move is disabled at the ends")
+            p.js(f"document.querySelectorAll('{sel} [data-down]')[0].click()")
+            p.until(f"document.querySelector('{sel} .tpl-dl-i .tpl-badge').textContent === 'PDF'", "the file moved up")
+            self.assertEqual([i["kind"] for i in json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]], ["file", "link"])
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel} [data-rename]').length"), 0, "no Rename button: the name is the box")
+            RenameTest.type(p, sel, "Signed plan", "Enter", 0)
+            p.until("document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Name saved')", "the name was saved")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["name"], "Plan v2.pdf")
+            RenameTest.type(p, sel, "Other", "Escape", 0)
+            p.until(f"document.querySelector('{sel} input[data-rename-input]').value === 'Signed plan'", "Esc put the name back")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan", "Esc changes nothing")
+            RenameTest.type(p, sel, "", "Enter", 1)
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]')[1].value === 'The plan'", "an empty name goes back")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][1]["label"], "The plan", "an empty name reverts")
 
-class ClassicLook(ClassicView):
-    """Item 1194: what the approved mockup shows in View, at 1400 and 900 px."""
+    @staticmethod
+    def set_value(p, selector, value, index=0):
+        p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(selector)})[{index}]; el.focus(); el.value = {json.dumps(value)};"
+             " el.dispatchEvent(new Event('input', {bubbles: true})); })()")
+
+
+ALLOWED_NOTE = ("Files you can add: PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), PowerPoint (.ppt .pptx), JPG, PNG and TXT. Not allowed: "
+                "HTML, SVG, ZIP and any program or script, because they can run code or hide what is inside. Links (to a SharePoint file, "
+                "a web page or an email): https:// or mailto:.")       # ruled 16-11: the mockup's words, verbatim
+
+
+class MockupLook(InThePage):
+    """Item 1194: what the approved mockup shows, at 1400 and 900 px (page icon 41 px tall, icon buttons, name box in place, add-link box)."""
 
     def widths(self, p, cdp):
         for w in (1400, 900):
@@ -535,6 +728,84 @@ class ClassicLook(ClassicView):
                                       "a.getBoundingClientRect().width >= 44 && a.getBoundingClientRect().height >= 44)"), [True] * 2,
                                  f"Open is a 44 px icon at {w} (links only: a file's Open and Download are drawn in the published file, see Published)")
 
+    def test_edit_rows_have_icon_remove_a_name_box_notes_and_the_link_box_in_place(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
+                                 [41, 41], f"a page icon 41 px tall at {w}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-remove')].map(b => !!b.querySelector('svg') && b.textContent.trim() === '' && b.getAttribute('aria-label'))"),
+                                 ["Remove Scope statement.docx", "Remove The plan"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} input[data-rename-input]')].map(i => i.value)"), ["Scope statement.docx", "The plan"], w)
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-allowed').textContent"), ALLOWED_NOTE, w)
+                self.assertIn("Name: click to rename, Enter saves, Esc cancels.", p.js(f"document.querySelector('{sel} .tpl-hint').textContent"))
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+                box = p.js(f"(() => {{ const f = document.querySelector('{sel} [data-add-link]'), r = f.getBoundingClientRect(), l = document.querySelector('{sel} .tpl-dl').getBoundingClientRect();"
+                           " return [getComputedStyle(f).position, r.top < l.bottom && r.bottom > l.top, r.right <= innerWidth]; })()")
+                self.assertEqual(box, ["absolute", True, True], f"the box floats over the list under its icon at {w}")
+                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the refusal is inside the box")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
+
+    # Measured against docs-mockup.html in the same Chrome (item 1194): the sizes and colours that need no wording and no ruling.
+    PROBE = ("(() => { const sec = document.querySelector(%s), q = s => sec.querySelector(s), cs = (e, k) => getComputedStyle(e)[k], R = e => e.getBoundingClientRect();"
+             " const li = q('.tpl-dl-i'), nm = q('.tpl-rename, .tpl-name'), fx = q('.tpl-facts'), up = q('[data-up]'), dn = q('[data-down]'), rm = q('.tpl-remove'), ic = [...sec.querySelectorAll('.tpl-icons > button')],"
+             " al = q('.tpl-allowed'), hint = q('.tpl-hint'), head = sec.querySelector('.sec-head'), list = q('.tpl-dl'), svg = q('.tpl-badge svg text');"
+             " const inset = nm.matches('input') ? 1 + parseFloat(cs(nm, 'paddingLeft')) : 0;"
+             " return {row: [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(R(li).height)], name: [cs(nm, 'fontSize'), cs(nm, 'fontWeight')],"
+             " align: Math.round((R(nm).left + inset - R(fx).left) * 10) / 10, mark: [up, dn, rm].map(b => [cs(b, 'borderTopWidth'), cs(b, 'borderTopLeftRadius'), Math.round(R(b).width), Math.round(R(b).height), cs(b.querySelector('svg'), 'strokeWidth')]),"
+             " off: cs(up, 'opacity'), head: ic.map(b => [cs(b, 'borderTopWidth'), cs(b.querySelector('svg'), 'strokeWidth'), cs(b, 'color'), cs(b, 'borderTopColor'), Math.round(R(b).top + R(b).height / 2 - (R(head).top + R(head).height / 2))]),"
+             " gap: Math.round(R(list).top - R(ic[0]).top), allowed: [cs(al, 'fontSize'), cs(al, 'padding'), cs(al, 'borderTopLeftRadius')], hint: cs(hint, 'fontSize'), font: svg.getAttribute('font-family'), step: [Math.round(R(dn).left - R(up).left), Math.round(R(rm).left - R(dn).left)], facts: Math.round(R(fx).height * 10) / 10}; })()")
+
+    def test_edit_matches_the_mockup_sizes_spacing_and_icon_colours(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                got = p.js(self.PROBE % json.dumps(sel))
+                self.assertEqual(got["row"], ["12px", "8px 10px 8px 14px", 62], f"row radius, padding and height at {w}")
+                self.assertEqual(got["name"], ["16px", "500"], w)      # the mock's .nm and .nmin: 16px, 500
+                self.assertLessEqual(abs(got["align"]), 1, f"the name box's text lines up with the facts line at {w}")
+                self.assertEqual(got["mark"], [["0px", "10px", 44, 44, "1.8px"]] * 3, f"move and remove: borderless 44 px icons, 1.8 stroke, at {w}")
+                self.assertEqual(got["off"], "0.3", w)
+                self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")      # the mock's .act gap 2px with 44 px buttons (46 = 44 + 2); measured at 1400 and 900; the mock's 6px is .hdb, the header icons
+                self.assertEqual(got["facts"], 16.9, f"the facts line is 13 px on a 1.3 line at {w}")
+                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(29, 36, 51)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w} (ink = Classic --text 1D2433; the Cards value was 0E2430)")      # kept: Classic --text / line token, the 1194 mock predates the token set
+                self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")      # code measurement, not a mock-up value (the margin -56px on .tpl-icons follows the title line)
+                self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")      # code measurement, not a mock-up value
+                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)      # padding 10px 14px and radius 12px are the mock's .al; 13 is kept: the --size-caption token, off the type scale otherwise
+                self.assertEqual(got["hint"], "13px", w)      # kept: 13 is the --size-caption token, off the type scale otherwise
+                self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
+
+    def test_values_the_code_measured_and_the_ones_the_mock_gives_are_pinned_and_labelled(self):
+        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: the header's padding-right 112px,
+        the icon row's margin -56px (see the title-line pin above). From the mock: the link box width 340px and top 54px (its .pop), the note's padding 10px 14px (its .al)."""
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "rgb(14, 36, 48)", f"the mock's ink 0E2430 (page icon outline; rules-2.css writes rgb(), no hex), at {w}")
+                self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sel} .sec-head') || document.querySelector('{sel}').closest('.sec').querySelector('.sec-head')).paddingRight"), "112px", f"code measurement, not from the mock, at {w}")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")
+                got = p.js(f"(() => {{ const f = document.querySelector('{sel} [data-add-link]'), b = document.querySelector('{sel} [data-open-link]'), r = f.getBoundingClientRect(), i = document.querySelector('{sel} .tpl-icons').getBoundingClientRect();"
+                           " return [Math.round(r.width), Math.round(r.top - i.top)]; })()")
+                self.assertEqual(got, [340, 54], f"the link box is the mock's .pop: 340 px wide, 54 px under the icon row's top, at {w}")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
+
     def test_view_rows_match_the_mockup_sizes_and_spacing(self):
         ref = self.add([a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
         sel = f"[data-id={json.dumps(ref)}]"
@@ -546,114 +817,70 @@ class ClassicLook(ClassicView):
                            " return [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(li.getBoundingClientRect().height), cs(n, 'fontSize'), cs(n, 'fontWeight')]; })()")
                 self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "16px", "500"], w)
 
-
-class InThePage(PageBase):
-    """The served View and the file draw the same entries; Edit adds and removes a link, one step each."""
-
-    def add(self, items, title="Fictional papers", kind="doclinks"):
-        with self.store.step("dashboard", USER) as st:
-            ref = st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": 999})
-        if items is not None:
-            with self.store.step("dashboard", USER) as st:
-                st.update("report_sections", ref, {"body": store_module.check_section_body(kind, body(items))})
-        return ref
-
-    def entries(self, p, ref):
-        return p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i')].map(li => "
-                    "[li.querySelector('.tpl-badge').textContent, li.querySelector('.tpl-name').textContent, "
-                    "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
-
-    def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
-        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])
-        empty = self.add([], "Fictional empty papers")
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
-            self.assertEqual(self.entries(p, ref), [
-                ["Link", "The plan", "A", "https://example.org/plan"],
-                ["Link", "Team", "A", "mailto:team@example.org"],
-                ["PDF", "Plan v2.pdf", "SPAN", None]], "the page clark serves names a file without linking it")
-            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input').length"), 0, "View is read only")
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] button')].map(b => b.getAttribute('aria-label'))"),
-                             ["Open Plan v2.pdf", "Download Plan v2.pdf"], "the only buttons are a file's Open and Download (row 1221)")
-
-    STUB = """(() => { window.seen = []; window.opened = []; window.saved = [];
-        const real = window.fetch.bind(window);
-        window.fetch = (url, opts) => { if (String(url).startsWith('/api/section-file')) { window.seen.push([String(url), (opts && opts.headers && opts.headers['X-Clark-Token']) ? 'token' : 'no token']);
-            return Promise.resolve(new Response(new Blob(['fictional bytes'], {type: 'application/pdf'}), {status: 200})); } return real(url, opts); };
-        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, set location(h) { window.opened.push(String(h).slice(0, 5)); }});   // the router points the tab with tab.location = url
-        HTMLAnchorElement.prototype.click = function () { window.saved.push([this.download, this.href.slice(0, 5)]); }; })()"""
-
-    def test_view_gives_a_file_row_open_and_download_that_read_through_clark(self):
-        """Row 1221: in the editor's View a file row has Open and Download (44 px, named, at 1400 and 900), and each asks
-        GET /api/section-file with the token, the project and the file's name; Open uses a new tab, Download the browser's save.
-        A link row has neither (it has its own link)."""
-        ref = self.add([a_file("Plan v2.pdf"), a_link()])
-        sel = f"[data-id={json.dumps(ref)}]"
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
-            p.js(self.STUB)
-            for w in (1400, 900):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                got = p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => [...li.querySelectorAll('button.tpl-act')].map(b => "
-                           "[b.getAttribute('aria-label'), b.textContent, Math.round(b.getBoundingClientRect().height) >= 44]))")
-                self.assertEqual(got, [[["Open Plan v2.pdf", "Open", True], ["Download Plan v2.pdf", "Download", True]], []], w)
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, "no sideways scroll")
-            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[0].click()")
-            p.until("window.opened.length === 1", "Open opened the file in a new tab")
-            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[1].click()")
-            p.until("window.saved.length === 1", "Download saved the file")
-            self.assertEqual(p.js("window.seen"), [["/api/section-file?project=ABC&name=Plan%20v2.pdf", "token"],
-                                                   ["/api/section-file?project=ABC&name=Plan%20v2.pdf&download=1", "token"]])
-            self.assertEqual(p.js("window.saved"), [["Plan v2.pdf", "blob:"]])
-            self.assertEqual(p.js("window.opened"), ["blob:"])
-
-    def test_edit_adds_a_link_in_one_step_and_undo_takes_it_back(self):
-        ref = self.add([a_link()])
+    def test_toasts_say_what_the_ticket_quotes(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024)])
         sel = f"[data-id={json.dumps(ref)}]"
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Edit part drew")
-            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/budget", 0)
-            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")
+            InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/b", 0)
+            InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
             p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
-            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 2", "the new link is drawn")
-            stored = json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]
-            self.assertEqual(stored[-1], {"kind": "link", "href": "https://example.org/budget", "label": "Budget"})
-            p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "Undo took it back")
-            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"], [a_link()])
-            p.js(f"document.querySelector('{sel} .tpl-remove').click()")
-            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Remove took it off")
-            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"], [])
+            p.until("!!document.querySelector('.toast')", "a toast")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Link added")
+            p.js(f"document.querySelectorAll('{sel} .tpl-remove')[0].click()")
+            p.until("document.querySelector('.toast').textContent.includes('Removed')", "the remove toast")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx. The file stays in the client folder.")
 
-    def test_edit_refuses_a_bad_link_in_words_and_sends_nothing(self):
-        ref = self.add([])
+
+CARDS_DOM_MD5 = {"view": "1c4fa7af9e9e6576852aa571e5063d10", "edit": "78cd867aabc294d13e9b918fe72b7c8b"}
+
+
+class CardsUnchanged(PageBase):
+    """Cards (no Theme layered) draws the Documents and links section as main does: the md5 of the section's DOM in View and in Edit
+    (measured on origin/main 75bebf66 with this same list; a Cards change would change these values)."""
+
+    def test_the_cards_section_dom_is_what_main_draws(self):
+        ref = InThePage.add(self, [a_file("Scope statement.docx", 88 * 1024, label="The scope"), a_link("https://example.org/x", "A page"), a_link("mailto:team@example.org", "Team")])
         sel = f"[data-id={json.dumps(ref)}]"
+        got = {}
         with chrome() as cdp:
             p = self.visit(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "no Theme is layered")
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            got["view"] = p.js(f"document.querySelector('{sel}').outerHTML")
             p.edit()
-            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Edit part drew")
-            self.assertIn("stays out of the published page", p.js(f"document.querySelector('{sel} .tpl-empty').textContent"))
-            sent = len(self.sent)
-            for bad in ("javascript:alert(1)", "http://example.org", "example.org"):
-                self.set_value(p, f"{sel} [data-add-link] input[type=text]", bad, 0)
-                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
-                p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the refusal is shown")
-                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), doclinks.BAD_LINK)
-            self.assertEqual(len(self.sent), sent, "nothing was sent")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').getAttribute('role')"), "alert")
-            p.js(f"document.querySelector('{sel} [data-add-file]').focus()")
-            self.assertTrue(p.js("document.activeElement.hasAttribute('data-add-file')"), "Add a file takes focus from the keyboard")
+            p.until(f"!!document.querySelector('{sel} .tpl-files-edit')", "the Edit part drew")
+            got["edit"] = p.js(f"document.querySelector('{sel}').outerHTML")
+        md5 = {k: hashlib.md5(v.replace(ref, "REF").encode("utf-8")).hexdigest() for k, v in got.items()}
+        self.assertEqual(md5, CARDS_DOM_MD5, got)
+        old = got["edit"].replace(ref, "REF").replace(">Words to show</label>", ">Words to show (optional)</label>")
+        self.assertEqual(hashlib.md5(old.encode("utf-8")).hexdigest(), "40e88aa997edd5048eba345c1dd317cb", "the Edit DOM differs from main's only by the label losing (optional)")
 
-    @staticmethod
-    def set_value(p, selector, value, index=0):
-        p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(selector)})[{index}]; el.focus(); el.value = {json.dumps(value)};"
-             " el.dispatchEvent(new Event('input', {bubbles: true})); })()")
+
+class CardsDescriptionRequired(PageBase):
+    """Row 1194 (ruled WO-M11002; ruling 20-11 23:0x, F1 A: Cards link description required, label Words to show): the link description is a server rule, so Cards drops '(optional)' and refuses with 'Link N: Enter a link description.'."""
+
+    def test_cards_says_words_to_show_without_optional_and_refuses_a_link_with_no_description(self):
+        ref = InThePage.add(self, [a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Cards Edit part drew")
+                self.assertFalse(p.js("!!document.getElementById('theme')"), "Cards: no Theme layered")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} [data-add-link] label')].map(l => l.textContent)"), ["Link", "Words to show"])
+                sent = len(self.sent)
+                InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+                p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 3: Enter a link description.")      # ruling 20-11 23:0x, F1 A: Cards link description required, label Words to show; the refusal is the approved 'Link N: Enter a link description.' (N = entries + 1)
+                self.assertEqual(len(self.sent), sent, "nothing was sent")
 
 
 class Published(PageBase):

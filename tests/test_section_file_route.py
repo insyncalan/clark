@@ -427,8 +427,8 @@ class InThePage(PageBase):
             st.update("projects", "ABC", {"publish_client": str(self.client)})
         self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None, types=None: self.source,
                                           by_user=lambda: USER, data_dir=self.tmp / "data", today=lambda: "2030-01-15")
-        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING), seam=self.seam,
-                             publisher=self.pub)
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING, theme=theme.CLASSIC), seam=self.seam,
+                             publisher=self.pub)      # the look of item 1194 is Classic's
         self.addCleanup(self.s.close)
 
     def add(self, kind):
@@ -442,11 +442,11 @@ class InThePage(PageBase):
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-add-file]')", "the Edit part drew")
-            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').textContent"), "Add a file…")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').getAttribute('aria-label')"), "Add a file")
             p.js(f"document.querySelector('{sel} [data-add-file]').click()")
             p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the file is drawn")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-name').textContent"), "Plan v2.pdf")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "2 KB")
+            self.assertEqual(p.js(f"document.querySelector('{sel} input[data-rename-input]').value"), "Plan v2.pdf", "in Edit the name is a box in place")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "PDF · 2 KB")
             p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
             self.assertIn("was copied into the client folder", p.js("document.querySelector('.toast').textContent"))
             p.js("document.querySelector('[data-undo]').click()")
