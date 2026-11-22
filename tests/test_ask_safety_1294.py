@@ -155,7 +155,7 @@ class Published(PublishedFile, glance.Setup):
                 self.assertEqual(got, {"btn": False, "panel": False, "label": False})
 
     def test_the_card_has_no_bullets_like_the_folders_list_in_classic(self):
-        css = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        css = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
         self.assertIn(".ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }", css)
         self.assertLess(css.index(".ask-safety {"), css.index("/* Row 1314"))
 
