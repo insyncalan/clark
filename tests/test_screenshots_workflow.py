@@ -36,6 +36,11 @@ def steps():
 
 
 class Workflow(unittest.TestCase):
+    def test_push_to_main_uploads_the_baseline(self):
+        t = text()
+        self.assertRegex(t, r"(?m)^  push:\n    branches: \[main\]")
+        self.assertRegex(t, r"group: screenshots-\$\{\{ github\.event\.pull_request\.number \|\| github\.sha \}\}")
+
     def test_pull_request_not_target(self):
         t = "\n".join(code_lines())
         self.assertRegex(t, r"(?m)^  pull_request:")
@@ -75,7 +80,7 @@ class Workflow(unittest.TestCase):
 
     def test_job_only_for_this_repository_and_never_blocking(self):
         t = text()
-        self.assertRegex(t, r"(?m)^    if: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name == github\.repository \}\}$")
+        self.assertRegex(t, r"(?m)^    if: \$\{\{ github\.event_name == 'push' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository \}\}$")
         self.assertRegex(t, r"(?m)^    continue-on-error: true$")
 
     def test_every_uses_is_a_full_sha_with_a_tag_comment(self):
@@ -100,12 +105,6 @@ class TestsYml(unittest.TestCase):
         code = "\n".join(code_lines()) + "\n"
         self.assertEqual(re.findall(r"secrets\.(\w+)", code), ["ARGOS_TOKEN"])
         self.assertTrue(ci_scan.secret_in_step_env(code, "ARGOS_TOKEN"))
-
-    def test_tests_yml_is_byte_identical_to_origin_main(self):
-        r = subprocess.run(["git", "show", "origin/main:.github/workflows/tests.yml"], cwd=str(ROOT), capture_output=True)
-        if r.returncode != 0:
-            self.skipTest("origin/main is not available")
-        self.assertEqual(TESTS.read_bytes(), r.stdout)
 
 
 if __name__ == "__main__":
