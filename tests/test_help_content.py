@@ -429,7 +429,8 @@ class HelpMatchesThePage(unittest.TestCase):
 
     def test_a_use_case_names_the_ways_back_the_page_has(self):
         detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
-        self.assertIn("data-uc-back", detail)
+        self.assertIn("data-uc-back", (self.SRC / "components" / "UseCaseLayout.jsx").read_text(encoding="utf-8"))     # row 1479: the crumb is drawn by the shared layout
+        self.assertIn("Crumb", detail)
         self.assertIn('"Escape"', detail)
         find = next(t for t in STEPS if t["id"] == "find-a-use-case")
         line = find["s"][-1]
@@ -530,6 +531,25 @@ class MilestonesHelpLine(unittest.TestCase):
         self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones. Where the page has a **Plan** and **Movement** switch, **Movement** shows slippage, for you and the team only."), 1)
         for kept in ("handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Milestones and Movement"):
             self.assertIn(kept, text, kept)
+
+
+class SideBySideHelp(unittest.TestCase):
+    def test_help_names_text_and_image_side_by_side_and_not_the_old_name(self):
+        """Row 1232 (AP15): the template table in Help lists the new name with its line and widths, and the old name is gone from the whole Help source."""
+        rows = []
+        def walk(x):
+            if isinstance(x, list):
+                if len(x) == 3 and all(isinstance(c, str) for c in x):
+                    rows.append(x)
+                for c in x:
+                    walk(c)
+            elif isinstance(x, dict):
+                for c in x.values():
+                    walk(c)
+        walk(SRC)
+        self.assertIn(["Text and Image Side by Side", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertNotIn("Text and image", [r[0] for r in rows])
+        self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
 
 
 if __name__ == "__main__":
