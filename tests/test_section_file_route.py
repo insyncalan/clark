@@ -171,7 +171,7 @@ class Route(unittest.TestCase):
         ref = self.section()
         (self.client / "Report files").mkdir()
         there = self.client / "Report files" / "Budget.xlsx"
-        there.write_bytes(b"fictional budget")
+        there.write_bytes(b"PK\x03\x04 fictional budget")
         self.chosen = [there]
         status, body = self.attach(ref)
         self.assertEqual(status, 200, body)
@@ -312,6 +312,32 @@ class Route(unittest.TestCase):
         self.chosen = [upper]
         self.assertEqual(self.attach(ref)[0], 200)
         self.assertEqual(self.files(), ["Plan.PDF"])
+
+    def test_a_file_whose_first_bytes_do_not_match_its_ending_is_refused_before_any_copy(self):
+        """Row 1194 (ruling 21-11): the first bytes must match the ending; the refusal is the bad_type sentence."""
+        ref = self.section()
+        for name, data in (("fake.pdf", b"MZ\x90\x00 a program"), ("fake.png", PDF), ("fake.docx", PDF), ("fake.xls", b"PK\x03\x04 zip"),
+                           ("fake.jpg", b"<html>"), ("fake.txt", b"text\x00binary"), ("empty.pdf", b""), ("shifted.pdf", b" %PDF-1.4")):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(data)
+                self.asked.clear()
+                self.chosen = [bad]
+                self.assertEqual(self.refused(ref, "bad_type"), doclinks.bad_type(name))
+        self.assertIsNone(self.files(), "no Report files folder was made")
+        self.assertIsNone(self.items(ref))
+
+    def test_a_file_whose_first_bytes_match_its_ending_is_taken(self):
+        ref = self.section()
+        good = {"a.pdf": b"%PDF-1.7\n", "a.doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "a.xlsx": b"PK\x03\x04x", "a.PPTX": b"PK\x03\x04x",
+                "a.jpg": b"\xff\xd8\xff\xe0", "a.png": b"\x89PNG\r\n\x1a\nx", "a.txt": b"plain words", "a.csv": b"a,b\n1,2\n", "u.txt": b"\xff\xfea\x00"}
+        for name, data in good.items():
+            with self.subTest(name=name):
+                f = self.src / name
+                f.write_bytes(data)
+                self.chosen = [f]
+                self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), sorted(good))
 
     def test_the_ending_is_judged_on_the_name_that_is_saved_before_the_file_is_written(self):
         ref = self.section()
