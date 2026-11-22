@@ -76,7 +76,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
   const plain = profile === "plain";
   const bare = plain || oneLine;                     // oneLine (item 1005): the rich profile's HTML in and out, but paragraphs only: no marks, no lists, no input rules, a paste is its words on one line
   const stored = html || "";
-  let initial = null, done = false;
+  let initial = null, done = false, ready = false;
   let start = "";
   if (!plain) {
     try { start = forEditor(cleanHtml(stored)); } catch (e) { start = ""; }
@@ -103,11 +103,16 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
     editorProps: { handleKeyDown: keys, transformPastedHTML: oneLine ? pasteWords : cleanPaste,
       ...(oneLine ? { transformPastedText: (text) => text.replace(/\s+/g, " ").trim() } : {}),      // text only on the clipboard (a terminal, a plain editor, Shift+paste) is one line too
       attributes: { class: "clark-ed", "aria-label": plain ? "Text" : "Rich text", "aria-multiline": plain ? "false" : "true", role: "textbox" } },
-    onUpdate: () => { if (onChange) onChange(handle); },
-    onSelectionUpdate: () => { if (onChange) onChange(handle); },
+    onUpdate: () => { if (ready && onChange) onChange(handle); },
+    onSelectionUpdate: () => { if (ready && onChange) onChange(handle); },
   });
   if (plain) editor.commands.setContent(`<p>${stored.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`, { emitUpdate: false });
+  if (oneLine && editor.state.doc.childCount > 1) {        // row 1288: One line shows an old several-paragraph text joined with one space; the stored text stays as it was until the box is edited (dirty() is measured from this joined line)
+    const joined = editor.state.doc.textBetween(0, editor.state.doc.content.size, " ", " ").replace(/\s+/g, " ").trim();
+    editor.commands.setContent(`<p>${joined.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`, { emitUpdate: false });
+  }
   initial = editor.state.doc;
+  ready = true;
   const handle = {
     editor,
     dirty: () => !editor.state.doc.eq(initial),

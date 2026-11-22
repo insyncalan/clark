@@ -30,6 +30,7 @@ A section template (#96) is NOT added here: each one is a module in section_kind
 published; the contract is section_kinds/base.py), and the tables below are built from that registry, which is filled with all
 eighteen types up front. A template's builder changes only its own module.
 """
+import copy
 import json
 import re
 import unicodedata
@@ -144,6 +145,79 @@ def _clean_rich(kind, value, strict=True):
             if strict:
                 raise Bad(RICH_TOO_LONG) from None
             out[k] = ""                      # at publish: a text that cannot be cleaned is left out, the rest of the section stays
+    return out
+
+
+# Row 1288 (part c): a line that held plain text before and is the one rich editor now (a picture's caption, a RAID card's own words).
+# Stored as clean HTML; its words, on one line, are what every checker below and every published() sees, so each limit and rule is the
+# one it always had and the file, the page and the exports carry words, never markup. Only HTML is stored as HTML; an older plain text stays plain
+# until it is changed, and is read as the same words (sanitise.flat_line) at publish. Paths: "*" is each value of an object or each item of a list.
+RICH_LINES = {"textimage": (("caption",),), "imagecap": (("caption",),), "gallery": (("items", "*", "caption"),),
+              "raid3": (("cards", "*", "own"),), "raid4": (("cards", "*", "own"),)}
+LINE_HTML_MAX = 2000                     # characters of one line's HTML once cleaned (raid3.OWN_HTML_MAX is the same number: its byte limit follows it)
+_GONE = object()
+
+
+def _line_paths(kind, value):
+    """Every place in `value` where a RICH_LINES text of `kind` sits, as a tuple of keys and indexes."""
+    found = []
+
+    def walk(node, path, rest):
+        if not rest:
+            found.append(path)
+        elif rest[0] == "*":
+            for k in (list(node) if type(node) is dict else range(len(node)) if type(node) is list else ()):
+                walk(node[k], path + (k,), rest[1:])
+        elif type(node) is dict and rest[0] in node:
+            walk(node[rest[0]], path + (rest[0],), rest[1:])
+
+    for spec in RICH_LINES.get(kind, ()):
+        walk(value, (), spec)
+    return found
+
+
+def _get(node, path):
+    for k in path:
+        try:
+            node = node[k]
+        except (KeyError, IndexError, TypeError):
+            return _GONE
+    return node
+
+
+def _flat_lines(kind, value, strict):
+    """(`value` with each rich line as its words on one line, {path: clean HTML}). strict (a save): a text over LINE_HTML_MAX or that
+    cannot be cleaned is Bad. Not strict (a publish): such a text is left out, the rest stays. A value that is not text is left for
+    the module to refuse."""
+    paths = _line_paths(kind, value)
+    if not paths:
+        return value, {}
+    flat, kept = copy.deepcopy(value), {}
+    for path in paths:
+        text = _get(value, path)
+        if not isinstance(text, str) or not sanitise.HTML_START.match(text):
+            continue                         # plain text (an older save, or a caller that sends words) is checked and stored as it always was
+        try:
+            html = sanitise.rich_or_plain(text)
+        except sanitise.SanitiseError:
+            if strict:
+                raise Bad(RICH_TOO_LONG) from None
+            html = ""
+        if len(html) > LINE_HTML_MAX:
+            if strict:
+                raise Bad(RICH_TOO_LONG)
+            html = ""
+        _get(flat, path[:-1])[path[-1]] = sanitise.flat_line(html)
+        if html:
+            kept[path] = html
+    return flat, kept
+
+
+def _put_lines(out, kept):
+    """`out` (what a checker built from the words) with the clean HTML back in each line the checker kept."""
+    for path, html in kept.items():
+        if isinstance(_get(out, path), str) and _get(out, path):
+            _get(out, path[:-1])[path[-1]] = html
     return out
 
 
@@ -465,7 +539,8 @@ def check(kind, body, rules):
         raise Bad(NOT_SAVED_YET)
     if body is None or body == "":
         return ""
-    value = checker(_clean_rich(kind, _generic(body, kind, rules)), rules)
+    flat, kept = _flat_lines(kind, _clean_rich(kind, _generic(body, kind, rules)), True)
+    value = _put_lines(checker(flat, rules), kept)
     if type(value) not in (dict, list):
         raise Bad(NOT_READABLE)          # a checker that hands back something else is a fault, never stored
     text = canonical(value)
@@ -524,6 +599,7 @@ def published(kind, value, ctx=None):
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
     None when no group has a line. Totals are never published: the page works them out."""
     if kind in TEMPLATES:
+        value = _flat_lines(kind, value, False)[0]            # row 1288: a caption or a card's own words go to the file as words on one line
         value = _clean_rich(kind, value, strict=False)       # cleaned AGAIN: what is stored is never trusted at publish; a text too long to clean is left out, not the whole section
         out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
         return out if isinstance(out, dict) and out else None

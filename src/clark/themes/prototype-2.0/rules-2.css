@@ -49,6 +49,32 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1288, "/" menu 4C: panel radius 12, padding 4, min 180; filter box 1px 3px 4px, 5px 9px, radius 8, 13px; rows 4px 10px, gap 10, 13.5px; rule margin 3px 0. */
+.rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
+.rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
+.rt-slash .rt-slash-filter { margin: 1px 3px 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); min-height: 1lh; }
+.rt-slash .rt-slash-filter:empty::before { content: attr(data-ph); }
+.rt-slash .rt-slash-rule { margin: 3px 0; border: 0; border-top: 1px solid var(--line-soft); }
+/* Row 1288, tight menus (Classic only): buttons 34 high; float panels radius 12, padding 4, rows 4px 10px at 13.5px. */
+.rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
+.rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
+.rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
+/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
+.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
+.rt-bar .rt-more { min-width: 40px; gap: 2px; }
+/* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
+.rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+.rt-bubble { gap: 6px; }
+:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
+:is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
+.rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
+.rt-bubble .rt-bubble-ai { font-size: 13px; }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
