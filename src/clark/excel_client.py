@@ -207,6 +207,7 @@ def write_sheet(wb, published, table, palette=None):
             else:
                 cell.fill = excel.LOCKED      # item 1157: a locked cell is grey, as in the export
     ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(4, 4 + len(rows_of(published, table)))}"      # Row 1390 AP4: the filter covers the header (row 4) and the data
     excel.print_setup(ws)
     excel.protect_sheet(ws)           # as the export's sheets (item 727): no password, the same allowed actions
     return ws
@@ -244,6 +245,7 @@ def write_gantt_sheet(wb, published, palette=None):
                 cell.number_format = excel.DATE_FORMAT
             excel.protect_text_cell(cell)
     ws.freeze_panes = "C5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(4, 4 + len(g['lines']))}"
     excel.print_setup(ws)
     excel.protect_sheet(ws)
     wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)   # row 926: the import's mark of a client copy (moving a row cannot remove it)
@@ -286,6 +288,7 @@ def write_glance_sheet(wb, published, sec, palette=None):
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             excel.protect_text_cell(cell)
     ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(GLANCE_HEADS))}{max(4, 4 + len(rows))}"
     excel.print_setup(ws)
     excel.protect_sheet(ws)
     wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)

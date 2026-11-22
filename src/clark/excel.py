@@ -1057,6 +1057,7 @@ def write_history(wb, view, pal=None):
     if last:
         put(ws.max_row + 1, [history_cell(last)], italic=True)
     ws.freeze_panes = "A3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(len(HISTORY_COLUMNS))}{2 + len(view['rows'])}"      # Row 1390 AP4: the filter covers the header (row 2) and the history rows, not the closing line
     protect_sheet(ws)
     return ws
 
