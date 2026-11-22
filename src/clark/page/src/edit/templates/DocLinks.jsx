@@ -114,8 +114,6 @@ function ClassicEdit({ section }) {
       ) : null}
       </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
-      <div class={`tpl-drop${over ? " over" : ""}`} data-drop onDragEnter={onOver} onDragOver={onOver} onDragLeave={() => setOver(false)} onDrop={onDrop}>{DROP_OVER}</div>
-      <p class="quiet tpl-hint" data-drop-line>{DROP_LINE}</p>
       {docItems(section).length ? (
         <ul class="tpl-dl tpl-dl-links">
           {raw.map((item, n) => {
@@ -142,6 +140,8 @@ function ClassicEdit({ section }) {
           })}
         </ul>
       ) : <p class="quiet tpl-empty">{EMPTY}</p>}
+      <div class={`tpl-drop${over ? " over" : ""}`} data-drop onDragEnter={onOver} onDragOver={onOver} onDragLeave={() => setOver(false)} onDrop={onDrop}>{DROP_OVER}</div>
+      <p class="quiet" data-drop-line>{DROP_LINE}</p>
       <p class="tpl-allowed"><strong>{W.ALLOWED_HEAD}</strong>{" "}{W.ALLOWED_TYPES}{" "}<strong>{W.NOT_HEAD}</strong>{" "}{W.NOT_TYPES}</p>
       <p class="quiet tpl-hint">{W.RENAME_HINT} {W.NOTE}</p>
     </div>
