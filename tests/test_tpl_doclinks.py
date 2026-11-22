@@ -404,6 +404,149 @@ class Saved(Api):
         self.assertNotIn("body", sections[shown], "the stored text is never in the file")
 
 
+class ClassicPage(PageBase):
+    """The page with the Classic theme layered (the look of item 1194 is Classic's; Cards keeps its old rows, see CardsUnchanged)."""
+
+    def setUp(self):
+        real = _testpage.html
+        patch = mock.patch.object(_testpage, "html", lambda branding=None: page.layer_theme(real(branding), theme.css("prototype-2.0")))
+        patch.start()
+        self.addCleanup(patch.stop)
+        super().setUp()
+
+
+class ClassicView(ClassicPage):
+    """Item 1194, the View in Classic: the same entries as before, drawn as the page-style rows. (The Edit tests of InThePage run on the Cards page until the Edit part follows.)"""
+
+    def add(self, items, title="Fictional papers", kind="doclinks"):
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": 999})
+        if items is not None:
+            with self.store.step("dashboard", USER) as st:
+                st.update("report_sections", ref, {"body": store_module.check_section_body(kind, body(items))})
+        return ref
+
+    def entries(self, p, ref):
+        return p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i')].map(li => "
+                    "[li.querySelector('.tpl-badge').textContent, li.querySelector('.tpl-name').textContent, "
+                    "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
+
+    def test_the_email_link_icon_is_an_envelope_with_an_at_badge_and_no_page(self):
+        """Row 1194 round 3 (approved 18-11, pick D 'Envelope with @', the mock's 41 x 41 icon): a filled circle with '@' on an envelope, no page behind it."""
+        ref = self.add([a_link(href="mailto:team@example.org", label="Team")])
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
+            got = p.js(f"(() => {{ const s = document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg'); const r = s.getBoundingClientRect();"
+                       " return [s.getAttribute('viewBox'), !!s.querySelector('rect'), !!s.querySelector('circle'), s.querySelector('text').textContent, s.querySelectorAll('path').length, Math.round(r.width), Math.round(r.height)]; })()")
+            self.assertEqual(got, ["0 0 41 41", True, True, "@", 1, 41, 41], "an envelope (rect + flap), a filled circle, '@', no page path, 41 x 41")
+            self.assertEqual(p.js(f"(() => {{ const s = document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg'); return [s.getAttribute('role'), s.getAttribute('aria-label'), s.hasAttribute('aria-hidden'), Math.round(s.querySelector('text').getBoundingClientRect().height)]; }})()")[:3],
+                             ["img", "Email link", False], "the icon keeps the accessible name 'Email link' (ruled 21-11)")
+            self.assertEqual(p.js(f"parseFloat(document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg text').getAttribute('font-size')) * parseFloat(document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge svg text').getAttribute('transform').match(/scale\\(([0-9.]+)\\)/)[1])").__round__(1), 11.0,
+                             "the mock's @ is 11 px (ruled 21-11): 13 px glyph scaled, as the badge labels are, so the 13 px floor test stays whole")
+
+    def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
+        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])
+        empty = self.add([], "Fictional empty papers")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
+            self.assertEqual(self.entries(p, ref), [
+                ["URL", "The plan", "SPAN", None],
+                ["@", "Team", "SPAN", None],
+                ["PDF", "Plan v2.pdf", "SPAN", None]], "in the editor's View a name stays plain text")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.getAttribute('aria-label') + ' ' + a.getAttribute('href'))"),
+                             ["Open The plan https://example.org/plan", "Open Team mailto:team@example.org"], "a link gets Open only")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input').length"), 0, "View is read only")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] button')].map(b => b.getAttribute('aria-label'))"),
+                             ["Open Plan v2.pdf", "Download Plan v2.pdf"], "the only buttons are a file's Open and Download (row 1221)")
+
+    STUB = """(() => { window.seen = []; window.opened = []; window.saved = [];
+        const real = window.fetch.bind(window);
+        window.fetch = (url, opts) => { if (String(url).startsWith('/api/section-file')) { window.seen.push([String(url), (opts && opts.headers && opts.headers['X-Clark-Token']) ? 'token' : 'no token']);
+            return Promise.resolve(new Response(new Blob(['fictional bytes'], {type: 'application/pdf'}), {status: 200})); } return real(url, opts); };
+        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, set location(h) { window.opened.push(String(h).slice(0, 5)); }});   // the router points the tab with tab.location = url
+        HTMLAnchorElement.prototype.click = function () { window.saved.push([this.download, this.href.slice(0, 5)]); }; })()"""
+
+    def test_view_gives_a_file_row_open_and_download_that_read_through_clark(self):
+        """Row 1221: in the editor's View a file row has Open and Download (44 px, named, at 1400 and 900), and each asks
+        GET /api/section-file with the token, the project and the file's name; Open uses a new tab, Download the browser's save.
+        A link row has neither (it has its own link)."""
+        ref = self.add([a_file("Plan v2.pdf"), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            p.js(self.STUB)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                got = p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => [...li.querySelectorAll('button.tpl-act')].map(b => "
+                           "[b.getAttribute('aria-label'), b.title, Math.round(b.getBoundingClientRect().height) >= 44]))")
+                self.assertEqual(got, [[["Open Plan v2.pdf", "Open", True], ["Download Plan v2.pdf", "Download", True]], []], w)
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, "no sideways scroll")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[0].click()")
+            p.until("window.opened.length === 1", "Open opened the file in a new tab")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[1].click()")
+            p.until("window.saved.length === 1", "Download saved the file")
+            self.assertEqual(p.js("window.seen"), [["/api/section-file?project=ABC&name=Plan%20v2.pdf", "token"],
+                                                   ["/api/section-file?project=ABC&name=Plan%20v2.pdf&download=1", "token"]])
+            self.assertEqual(p.js("window.saved"), [["Plan v2.pdf", "blob:"]])
+            self.assertEqual(p.js("window.opened"), ["blob:"])
+
+    def test_the_page_icon_colours_are_the_badge_tokens_not_literals(self):
+        """Row 1194 read (colour literals): the drawn icon takes its colours from the --badge-* tokens, none is a hex literal."""
+        src = (SRC / "clark" / "page" / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"#[0-9A-Fa-f]{3,6}\b|rgba?\(", src), [], "no colour literal in docIcons.jsx")
+        ref = self.add([a_file("Plan v2.pdf"), a_file("Notes.txt", 2048)])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            got = p.js(f"[...document.querySelectorAll('{sel} .tpl-badge svg')].map(s => [getComputedStyle(s.querySelector('g[fill] path')).stroke, getComputedStyle([...s.querySelectorAll('path')].pop()).fill, getComputedStyle(s.querySelector('text')).fill])")
+            want = p.js("(() => { const t = document.createElement('i'); document.body.append(t); const c = v => { t.style.color = v; return getComputedStyle(t).color; }; "
+                        "const r = [[c('var(--badge-pdf)'), c('var(--badge-pdf)'), c('var(--white)')], [c('var(--badge-txt)'), c('var(--badge-txt)'), c('var(--white)')]]; t.remove(); return r; })()")
+            self.assertEqual(got, want)
+
+
+class ClassicLook(ClassicView):
+    """Item 1194: what the approved mockup shows in View, at 1400 and 900 px."""
+
+    def widths(self, p, cdp):
+        for w in (1400, 900):
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            yield w
+
+    def test_view_rows_have_page_icons_type_words_and_icon_buttons(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_file("Site photo.png", 1126 * 1024), a_file("Notes.txt", 2048),
+                        a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-facts')].map(e => e.textContent)"),
+                                 ["Word · 88 KB", "Image · 1.1 MB", "File · 2 KB", "Web link · example.org", "Email link · pmo@example.com"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => e.textContent)"),
+                                 ["DOC", "PNG", "TXT", "URL", "@"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
+                                 [41] * 5, f"a page icon 41 px tall at {w}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} a.tpl-act')].map(a => !!a.querySelector('svg') && a.textContent.trim() === '' && "
+                                      "a.getBoundingClientRect().width >= 44 && a.getBoundingClientRect().height >= 44)"), [True] * 2,
+                                 f"Open is a 44 px icon at {w} (links only: a file's Open and Download are drawn in the published file, see Published)")
+
+    def test_view_rows_match_the_mockup_sizes_and_spacing(self):
+        ref = self.add([a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            for w in self.widths(p, cdp):
+                got = p.js(f"(() => {{ const li = document.querySelector('{sel} .tpl-dl-i'), n = li.querySelector('.tpl-name'), cs = (e, k) => getComputedStyle(e)[k];"
+                           " return [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(li.getBoundingClientRect().height), cs(n, 'fontSize'), cs(n, 'fontWeight')]; })()")
+                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "16px", "500"], w)
+
+
 class InThePage(PageBase):
     """The served View and the file draw the same entries; Edit adds and removes a link, one step each."""
 
@@ -540,17 +683,21 @@ class Published(PageBase):
                     p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list is in the file")
                 self.assertEqual(InThePage.entries(self, p, ref), [
-                    ["Link", "The plan", "A", "https://example.org/plan"],
+                    ["URL", "The plan", "A", "https://example.org/plan"],
                     ["PDF", "The plan, signed", "A", "Report%20files/Plan%20v2%231.pdf"]])
-                self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-facts').textContent"), "example.org")
-                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')][1].textContent"),
-                                 "Plan v2#1.pdf · 340 KB")
-                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form, .tpl-act').length"), 0,
-                                 "the file has no Open or Download control (row 1221: they read through clark, which a file cannot)")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')].map(e => e.textContent)"),
+                                 ["Web link · example.org", "PDF · 340 KB"])
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i')].map(li => "
+                                      "[...li.querySelectorAll('a.tpl-act')].map(a => a.getAttribute('aria-label') + ':' + a.hasAttribute('download') + ':' + a.target))"),
+                                 [["Open The plan:false:_blank"], ["Open The plan, signed:false:_blank", "Download The plan, signed:true:"]], "Open on every row, Download on files only")
+                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form').length"), 0)
+                self.assertEqual(p.js("[...document.querySelectorAll('.tpl-dl a.tpl-act')].every(a => a.rel === 'noopener noreferrer' || a.hasAttribute('download'))"), True)
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(hidden)}]')"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
-                rel = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] a.tpl-name').rel")
-                self.assertEqual(rel, "noopener noreferrer")
+                rels = p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] a.tpl-name, [data-id={json.dumps(ref)}] a.tpl-act:not([download])')].map(a => a.className + ':' + a.target + ':' + a.rel)")
+                self.assertEqual(rels, ["tpl-name:_blank:noopener noreferrer", "tpl-act:_blank:noopener noreferrer",
+                                        "tpl-name:_blank:noopener noreferrer", "tpl-act:_blank:noopener noreferrer"],
+                                 "row 1194 read (B1): each name link and each Open link opens a new tab with rel noopener noreferrer")
 
     def test_the_published_page_carries_no_edit_part(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
