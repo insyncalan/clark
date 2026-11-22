@@ -56,7 +56,7 @@ def hover_bg(cdp, sid):
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, sid)
     return cdp.js("getComputedStyle(document.querySelector('.msl-row')).backgroundColor", sid)
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 TOKENS = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "tokens.css").read_text(encoding="utf-8")
 NAME = "prototype-2.0"
 
