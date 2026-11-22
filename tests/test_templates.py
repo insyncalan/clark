@@ -104,6 +104,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(by["key-dates"]["fit"], ["half", "full"], "the prototype says Half or full")
         self.assertEqual(by["raid-3"]["fit"], by["raid-4"]["fit"], ["full"])
         self.assertEqual(set(by["work-items"]["fit"]), {"full", "half"})
+        self.assertEqual(by["gallery"]["fit"], ["full", "half"], "Row 1233: the gallery is offered at full and half width (two across at half)")
 
     def test_the_box_and_help_describe_every_template_in_the_same_words(self):
         """The Add a section box and Help's table of section templates say the same thing for each template the box offers."""
@@ -146,7 +147,7 @@ class Logic(unittest.TestCase):
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
             "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
             "full-image": ("One image across the full width, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full"]),      # row 1223
-            "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
+            "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full", "half"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
             "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The Gantt chart"], ["full"]),
@@ -485,7 +486,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 25, "sketched": 25, "radios": 25, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 25, "sketched": 25, "radios": 25, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width", "Half width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
