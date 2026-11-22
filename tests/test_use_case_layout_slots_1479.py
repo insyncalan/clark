@@ -10,7 +10,8 @@ import json
 import unittest
 
 from _paths import SRC  # noqa: F401
-from test_uc_published_same_1479 import ENTRY, SamePage as _Base, UC, FIXED_DATE, chrome, page_target, wait, need_chrome, tearDownModule  # noqa: F401
+from test_server import chrome, wait  # noqa: E402,F401      (named here, so the runner sees a browser test by its text)
+from test_uc_published_same_1479 import ENTRY, SamePage as _Base, UC, FIXED_DATE, page_target, need_chrome, tearDownModule  # noqa: E402,F401
 
 ENTRY2 = ENTRY + """
 import { UCEDIT } from "./edit/UseCasesEdit.jsx";
