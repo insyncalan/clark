@@ -11,6 +11,12 @@ SENTENCE = (
     "Reports made before this keep the lists they have."
 )
 
+WORK_ITEMS_LINE = (
+    "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: "
+    "**Add action**, **Add decision**, **Add risk or issue** (a menu of **Add risk** and **Add issue**) and, with no type on the line, "
+    "**Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**). You can do this in View as well as in Edit."
+)
+
 
 class ThreeListsHelp(unittest.TestCase):
     def test_exact_sentence_in_one_entry(self):
@@ -28,6 +34,12 @@ class ThreeListsHelp(unittest.TestCase):
         self.assertEqual(entry["w"], "Dashboard")
         prev = tasks[ids.index("the-three-starting-lists") - 1]
         self.assertEqual(prev["t"], "Add a section from a template")
+
+    def test_generic_work_items_line_unchanged(self):
+        """AP5: the generic Work items line pinned is add-a-work-item s[0] (named by the 22-11 FINAL; the ticket does not say which line, not confirmed)."""
+        tasks = json.loads(HELP.read_text(encoding="utf-8"))["howto"]["tasks"]
+        entry = [t for t in tasks if t["id"] == "add-a-work-item"][0]
+        self.assertEqual(entry["s"][0], WORK_ITEMS_LINE)
 
     def test_sentence_once_in_the_file(self):
         raw = HELP.read_text(encoding="utf-8")
