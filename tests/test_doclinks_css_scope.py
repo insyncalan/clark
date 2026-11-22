@@ -1,13 +1,13 @@
 """Item 1194: the Documents and links row rules are scoped to the doc-links list (class tpl-dl-links), so the editor's other lists and the
 One document file row keep their old geometry; and the published file's plain badge (a box of words, no svg) keeps its rules.
-The look is Classic's: its rules are in the theme's rules.css (themes/prototype-2.0), and shell.css, edit.css and tokens.css carry none of
-them, so the Cards page is what main serves. Reads the sources (shell.css, edit.css, rules.css, the two DocLinks.jsx, docIcons.jsx); no browser."""
+The look is Classic's: its rules are in the theme's rules-2.css (themes/prototype-2.0), and shell.css, edit.css and tokens.css carry none of
+them, so the Cards page is what main serves. Reads the sources (shell.css, edit.css, rules-2.css, the two DocLinks.jsx, docIcons.jsx); no browser."""
 import re
 import unittest
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
-THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
+THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css"
 SCOPE = ".tpl-dl-links"
 
 # What only the approved mockup's rows carry: any rule holding one of these must be scoped, and the shared base rules must not hold them.
@@ -83,14 +83,15 @@ class ClassicOnly(unittest.TestCase):
         self.assertEqual(declarations(shell, ".tpl-acts")["display"], "flex", "the Cards row of buttons is main's")
         self.assertIn("button.tpl-act", [s for sels, _ in shell for s in sels])
 
-    def test_the_classic_rules_are_in_rules_css_below_row_1318_and_above_the_last_block(self):
+    def test_the_classic_rules_are_in_rules_2_css_above_the_last_block(self):
         text = THEME.read_text(encoding="utf-8")
         mine, last = text.index("/* Row 1194 (Documents and links; Classic only"), text.index("/* Row 1314:")
-        self.assertGreater(mine, text.index("/* Row 1318"))
+        self.assertGreater(mine, text.index("/* Row 1336 part 3"))
         self.assertLess(mine, last)
         self.assertEqual(text.count("/* Row 1314:"), 1)
         self.assertNotIn("/* Row 1", text[last + 5:], "the Row 1314 block stays the last")
         self.assertLess(len(text.encode("utf-8")), 128 * 1024, "theme.LIMIT")
+        self.assertLess(len((THEME.parent / "rules.css").read_bytes()), 128 * 1024, "theme.LIMIT: rules.css is read whole, or no Theme is layered")
         sheet = rules(text)
         for selector in (".tpl-files-edit .tpl-icons", ".tpl-files-edit .tpl-rename", ".tpl-files-edit .tpl-allowed", ".tpl-badge.tpl-page",
                          ".tpl-dl-links .tpl-acts", ".tpl-dl-links button.tpl-act", ".sec:has(.tpl-files-edit) .sec-head"):

@@ -1,10 +1,10 @@
-"""Item 1194: the type badge text reaches 4.5:1 on every file kind, in the Classic theme's rules.css (the published file and the editor's View) and in the editor icon (docIcons.jsx)."""
+"""Item 1194: the type badge text reaches 4.5:1 on every file kind, in the Classic theme's rules-2.css (the published file and the editor's View) and in the editor icon (docIcons.jsx)."""
 import re
 import unittest
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
-THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
+THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css"
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
 # Row 1194 round 3 (approved mock-up 18-11; ruling 19-11: no exemption for accessibility, the mock's colours win): these page-icon fills are the
 # mock's own and white text on them measures below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08). The narrowest named exemption: exactly these five, so a
