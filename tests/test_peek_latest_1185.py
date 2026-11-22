@@ -155,6 +155,30 @@ class DashPeek(unittest.TestCase):
             self.assertTrue([r for r in rows if r["kind"] == "Created"], "the Created entry stays in the Activity")
         self.each(check, items=(DASH_ITEMS[0], DASH_ITEMS[3], DASH_ITEMS[4]))
 
+    def test_created_entry_has_bold_word_and_exact_text_for_known_and_unknown_name_and_source(self):
+        import sqlite3
+
+        def prep(user, source):
+            def make(store):
+                con = sqlite3.connect(str(store.path))
+                if not user:
+                    con.execute("UPDATE applies SET by_user = ''")
+                if not source:
+                    con.execute("UPDATE raid SET source = '' WHERE id = 'TUL-007'")
+                con.commit()
+                con.close()
+            return make
+        D = r"\d{2}-\d{2}-\d{4} \d{2}:\d{2}"
+        for user, source, want in ((True, True, rf"^Created by Demo Author, {D} · Source: Demo data \(fictional\)$"), (False, True, rf"^Created {D} · Source: Demo data \(fictional\)$"),
+                                   (True, False, rf"^Created by Demo Author, {D}$"), (False, False, rf"^Created {D}$")):
+            with self.subTest(user=user, source=source), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, "TUL-007", edit=False, dash="view", classic=True, prep=prep(user, source))
+                sel = json.dumps(self.SHOWN)
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({sel} + ' b')", sid)), "Created is drawn as a bold word")
+                self.assertRegex(cdp.js(f"document.querySelector({sel}).textContent.trim()", sid), want)
+                self.assertEqual(cdp.js(f"document.querySelector({sel} + ' b').textContent", sid), "Created")
+                self.assertGreaterEqual(int(cdp.js(f"getComputedStyle(document.querySelector({sel} + ' b')).fontWeight", sid)), 600)
+
     def test_old_item_history_carries_user_and_source_1470(self):
         """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; one with both shows them."""
         import sqlite3

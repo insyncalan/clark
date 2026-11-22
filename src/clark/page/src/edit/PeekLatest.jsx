@@ -116,7 +116,7 @@ export function stampLine(stamp, who, source) {
 /** The Created entry an item never updated shows in its Latest box: "Created by Name, 10-11-2026 09:12 · Source: words" (parts left out when unknown). */
 export function createdLine(made, source) {
   if (!made) return "";
-  return `Created${made.who ? ` by ${made.who}` : ""}${made.when ? `${made.who ? "," : ""} ${made.when}` : ""}${source ? ` · Source: ${source}` : ""}`;
+  return <><b data-pk-created>Created</b>{`${made.who ? ` by ${made.who}` : ""}${made.when ? `${made.who ? "," : ""} ${made.when}` : ""}${source ? ` · Source: ${source}` : ""}`}</>;      // the word Created is bold (NEW-WORDS 21-11 items 16-17)
 }
 
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
