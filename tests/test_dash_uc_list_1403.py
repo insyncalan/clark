@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_dash_uc_list_1403
 Chrome required. Values are computed styles in Chrome at 1400; the prototype is the Classic prototype index.html lines 160-169 (the grid line 162,
-hover 163, ID badge 165, chip 169). Cards (no Theme layer) keeps the shared rules: CardsKeepsShared pins them. 900 px is not built (NINE lines in the report).
+hover 163, ID badge 165, chip 169). Cards (no Theme layer) keeps the shared rules: CardsKeepsShared pins them. The Edit heading row is pinned at 1400 and 900 in test_edit_keeps_its_heading_row (the 900 case runs while test_server.PAUSED_900 is None, and is skipped if it is set).
 """
 import unittest
 
@@ -113,12 +113,13 @@ class Classic(Dash, Base):
                   const kids = [...h.children].filter((c) => c.textContent.trim()), hb = kids.map((c) => c.getBoundingClientRect());
                   const row = document.querySelector('.uc .ucrow-ed').getBoundingClientRect();
                   const left = (e) => e.getBoundingClientRect().left, cols = ["ref", "title", "status", "commit", "steps"];
-                  return { display: cs.display, height: r.height, labels: kids.length, above: r.bottom <= row.top + 1,
+                  return { display: cs.display, height: r.height, labels: kids.length, texts: kids.map((c) => c.textContent.trim()), above: r.bottom <= row.top + 1,
                     inside: hb.every((b) => b.left >= r.left - 1 && b.right <= r.right + 1 && b.width > 0),
                     heads: kids.map((c) => left(c)), ctrls: cols.map((c) => left(document.querySelector('.uc .ucrow-ed .ucbar [data-uccol=' + c + ']'))) }; })()""")
                 self.assertNotEqual(g["display"], "none", f"Edit heading row is drawn: {g}")
                 self.assertGreater(g["height"], 0, f"Edit heading row has a height: {g}")
                 self.assertEqual(g["labels"], 5, f"Edit heading row has its five labels: {g}")
+                self.assertEqual(g["texts"], ["Ref", "Use case", "Status", "Commitment", "Next steps"], f"Edit heading labels and their order: {g}")
                 self.assertTrue(g["inside"], f"labels sit inside the row: {g}")
                 self.assertTrue(g["above"], f"the heading row is above the first Edit row: {g}")
                 for i, (h, c) in enumerate(zip(g["heads"], g["ctrls"])):
