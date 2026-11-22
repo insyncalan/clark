@@ -91,6 +91,7 @@ export function AskPanel() {
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
   // Item 1352: whether this project has folders to read (its own or those for all projects), so the first card says so only when it is true.
   const [hasFolders, setHasFolders] = useState(false);
+  useEffect(() => { setHasFolders(false); }, [project.value]);      // a project switch starts from the plain line until the new project's folders answer
   useEffect(() => {
     if (!open || !classicTheme()) { setHasFolders(false); return undefined; }
     let live = true;

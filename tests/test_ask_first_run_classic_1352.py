@@ -7,6 +7,7 @@ same at both. The Cards theme keeps what it had: its card has no frame (it is st
 Only the design and the format are compared; the prototype's own words are not pinned here beyond the ticket's wording.
 """
 import threading
+import time
 import unittest
 
 import _testpage as testpage
@@ -184,6 +185,84 @@ class ClassicFoldersWaiting(Classic):
             p.until(f"{BULLET} === {NAMED!r}", "the bullet names the folders once the answer is in")
 
 
+class FoldersByProject:
+    """The folders route for two projects: ABC has some, any other has none. A project answers only when its event in `gates` is set
+    (a project with no event answers at once), so the test can look at the page while an answer is still out."""
+
+    def __init__(self, gates):
+        self.asked, self.gates = [], gates
+
+    def read(self, code):
+        self.asked.append(code)
+        if code in self.gates:
+            self.gates[code].wait(30)
+        return 200, {"ok": True, "folders": ["/home/x/notes"] if code == "ABC" else [], "shared": []}
+
+
+class ClassicFoldersProjectSwitch(Classic):
+    def test_switching_to_a_project_without_folders_goes_back_to_the_plain_line_even_with_the_panel_open(self):
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        self.s.httpd.ask_folders = said = FoldersByProject({"ZZZ": gate})
+        with self.store.step("dashboard", "tester") as st:
+            st.create("projects", {"code": "ZZZ", "name": "Second Programme", "health": "On track"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            # The page reloads for another project when served over http; this keeps it in place (as a project switch inside one page does),
+            # so what the open panel does with the new project is what is seen.
+            p.js("URLSearchParams.prototype.get = function (k) { return k === 'project' ? (location.hash.match(/p=([A-Z]+)/) || [])[1] || '' : null; }")
+            for width in (1400, 900):
+                self.at(p, width)
+                p.key("/", code="Slash", vk=191)
+                p.until("!!document.querySelector('#ask-first-run')", f"card at {width}")
+                p.until(f"{BULLET} === {NAMED!r}", f"project ABC names its folders at {width}")
+                gate.clear()
+                said.asked.clear()
+                p.js("location.hash = '#dashboard&p=ZZZ'")
+                p.until(f"{BULLET} === {PLAIN!r}", f"the plain line comes back at once on the switch, before ZZZ answers, at {width}")
+                for _ in range(100):
+                    if "ZZZ" in said.asked:
+                        break
+                    time.sleep(0.1)
+                self.assertEqual(said.asked.count("ZZZ"), 1, "ZZZ's folders were asked for")
+                gate.set()
+                p.until(f"{BULLET} === {PLAIN!r}", f"ZZZ has none, so it stays plain at {width}")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until(f"{BULLET} === {NAMED!r}", f"back on ABC the folders are named again at {width}")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("document.querySelector('#ask-panel') === null", "closed")
+
+
+    def test_an_answer_for_the_old_project_that_comes_late_is_not_taken_for_the_new_one(self):
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        self.s.httpd.ask_folders = said = FoldersByProject({"ABC": gate})
+        with self.store.step("dashboard", "tester") as st:
+            st.create("projects", {"code": "ZZZ", "name": "Second Programme", "health": "On track"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("URLSearchParams.prototype.get = function (k) { return k === 'project' ? (location.hash.match(/p=([A-Z]+)/) || [])[1] || '' : null; }")
+            for width in (1400, 900):
+                self.at(p, width)
+                gate.clear()
+                p.key("/", code="Slash", vk=191)
+                p.until("!!document.querySelector('#ask-first-run')", f"card at {width}")
+                p.js("location.hash = '#dashboard&p=ZZZ'")
+                for _ in range(100):
+                    if "ZZZ" in said.asked:
+                        break
+                    time.sleep(0.1)
+                self.assertIn("ZZZ", said.asked)
+                p.until(f"{BULLET} === {PLAIN!r}", f"ZZZ has none: plain at {width}")
+                gate.set()                                   # ABC's answer (it has folders) arrives now, after the switch
+                time.sleep(1)
+                self.assertEqual(p.js(BULLET), PLAIN, f"the old project's late answer does not name folders for the new one at {width}")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until(f"{BULLET} === {NAMED!r}", "back on ABC")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("document.querySelector('#ask-panel') === null", "closed")
+
+
 class ClassicFoldersRefused(Classic):
     def plain_after(self, folders):
         self.s.httpd.ask_folders = folders
@@ -246,7 +325,9 @@ class ClassicStates(Classic):
             p.until("document.body.textContent.indexOf('The pilot goes live in March.') >= 0", "the answer is shown")
             self.assertEqual(self.stub.count("stop"), 0)
 
-    def test_pin_b_after_a_reload_a_new_question_is_told_another_is_being_answered_until_the_old_run_ends(self):
+    def test_pin_b_page_side_after_a_reload_a_new_question_that_the_server_calls_busy_is_shown_the_busy_words(self):
+        # Page side only: the stub answers "busy" itself, as the real ask_claude does while a run holds its lock (ask_claude.py BUSY);
+        # this pins that the reloaded page shows those words. That the server refuses the second run is not tested here.
         self.stub.hold.clear()
         run = {"on": False}
         real_ask = self.stub.ask
