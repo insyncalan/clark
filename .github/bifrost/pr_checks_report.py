@@ -10,7 +10,7 @@ Usage: pr_checks_report.py [--repo insyncalan/clark] [--plan-repo OWNER/PLAN]
                            [--pr N ...] [--json] [--out DIR] [--no-write]
 Exit 0 always unless a run error (report-only).
 """
-import argparse, base64, json, os, re, subprocess, sys, time
+import argparse, base64, io, json, os, re, subprocess, sys, tarfile, time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -30,21 +30,45 @@ FILELINE = re.compile(r"[\w./\-]+\.\w+:\d+")
 
 
 # ---------- GitHub (GET only) ----------
+class RateLimited(RuntimeError):
+    """GitHub answered 403/429 with a rate-limit message and the bounded retries are used up. Not a verdict on the PR."""
+
+
+RATE_LIMIT_RE = re.compile(r"rate limit|HTTP 429|abuse detection|retry-after", re.I)
+RETRY_WAITS = (5, 15, 45)      # seconds before retry 1, 2, 3 (growing backoff; same token, no other token)
+
+
+def _gh_run(cmd, text):
+    """Run one `gh api` GET. A rate-limit answer is retried after a growing wait, then raises RateLimited.
+    Any other failure raises RuntimeError at once (a 403 that is not a rate limit, e.g. a private repo, is never retried)."""
+    for wait in RETRY_WAITS + (None,):
+        r = subprocess.run(cmd, capture_output=True, text=text)
+        if r.returncode == 0:
+            return r.stdout
+        err = r.stderr if text else r.stderr.decode("utf-8", "replace")
+        limited = bool(RATE_LIMIT_RE.search(err))
+        if not limited or wait is None:
+            msg = "gh api GET failed: " + cmd[-1] + ": " + err.strip()[:150]
+            raise (RateLimited if limited else RuntimeError)(msg)
+        time.sleep(wait)
+
+
 def gh_json(path, raw=False):
     cmd = ["gh", "api", path]
     if raw:
         cmd = ["gh", "api", "-H", "Accept: application/vnd.github.raw", path]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError("gh api GET failed: " + path + ": " + r.stderr.strip()[:150])
-    return r.stdout if raw else json.loads(r.stdout)
+    out = _gh_run(cmd, True)
+    return out if raw else json.loads(out)
+
+
+def gh_bytes(path):
+    return _gh_run(["gh", "api", path], False)
 
 
 class GH:
     """Fetcher; tests replace it with a fake exposing the same four methods."""
     def __init__(self, repo, plan_repo):
         self.repo, self.plan = repo, plan_repo
-        self._blobs = {}
 
     def open_prs(self):
         out, page = [], 1
@@ -59,16 +83,16 @@ class GH:
         return gh_json(f"repos/{repo}/issues/{num}").get("body") or ""
 
     def test_files(self, sha):
-        """dict path -> text for test files at sha (cached by blob sha)."""
-        t = gh_json(f"repos/{self.repo}/git/trees/{sha}?recursive=1")
+        """dict path -> text for test files at sha. ONE call: the tarball of the commit (was one tree call plus one call
+        per test file blob, over 1500 calls on a full run)."""
         out = {}
-        for e in t.get("tree", []):
-            p = e["path"]
-            if e["type"] == "blob" and re.match(r"(^|.*/)(tests?|__tests__)/", p) and \
-               re.search(r"\.(py|js|ts|mjs)$", p):
-                if e["sha"] not in self._blobs:
-                    self._blobs[e["sha"]] = gh_json(f"repos/{self.repo}/git/blobs/{e['sha']}", raw=True)
-                out[p] = self._blobs[e["sha"]]
+        with tarfile.open(fileobj=io.BytesIO(gh_bytes(f"repos/{self.repo}/tarball/{sha}")), mode="r:*") as tf:
+            for m in tf:
+                if not m.isfile():
+                    continue
+                p = m.name.split("/", 1)[1] if "/" in m.name else m.name      # the tarball wraps everything in <owner>-<repo>-<sha>/
+                if re.match(r"(^|.*/)(tests?|__tests__)/", p) and re.search(r"\.(py|js|ts|mjs)$", p):
+                    out[p] = tf.extractfile(m).read().decode("utf-8", "replace")
         return out
 
 
@@ -168,6 +192,8 @@ def check_point_map(body, get_ticket):
     repo, num = p["ref"]
     try:
         tbody = get_ticket(repo, num)
+    except RateLimited:
+        raise
     except Exception as e:
         return "FAIL", f"cannot read ticket #{num}: {str(e)[:80]}"
     aps, h = ticket_points(tbody)
@@ -254,6 +280,8 @@ def check_test_exists(body, get_tests):
         return ("FAIL", "no test names in the map") if p["rows"] else ("FAIL", "no map rows")
     try:
         files = get_tests()
+    except RateLimited:
+        raise
     except Exception as e:
         return "FAIL", f"cannot read tests at head: {str(e)[:80]}"
     for ap, name in names:

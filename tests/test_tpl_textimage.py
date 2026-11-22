@@ -148,9 +148,11 @@ class RichWords(unittest.TestCase):
         self.assertEqual(refused(self, KIND, {"v": 1, "html": "<p>" + "x" * (textimage.HTML_MAX + 1) + "</p>"}), textimage.LONG_HTML)
         self.assertEqual(check(KIND, {"v": 1, "html": "<p>" + "x" * 1000 + "</p>"})["html"], "<p>" + "x" * 1000 + "</p>")
 
-    def test_a_published_file_carries_the_cleaned_words_and_word_has_no_part_of_it(self):
-        from clark import docx_build
-        self.assertNotIn(KIND, docx_build.TITLES, "Word writes no section template: the new words have nowhere to leak")
+    def test_a_published_file_carries_the_cleaned_words_and_word_writes_the_section_too(self):
+        from clark import docx_build      # Row 1232 (AP17): the Word export carries Text and Image Side by Side; its words and picture are tested in test_docx_textimage
+        self.assertIn(KIND, docx_build.TITLES)
+        self.assertIn(KIND, docx_build.SIMPLE)
+        self.assertTrue(callable(docx_build.section_textimage))
 
 
 class Route(PictureSteps, Api):
