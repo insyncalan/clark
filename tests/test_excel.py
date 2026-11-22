@@ -134,6 +134,15 @@ class ExcelTests(unittest.TestCase):
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
+    def test_export_header_client_message(self):          # row 1466 AP2
+        wb = load_workbook(self.d.path)
+        for name in ("Actions", "Risks & Issues", "Decisions", "Milestones"):
+            with self.subTest(sheet=name):
+                heads = [c.value for c in wb[name][1]]
+                self.assertIn("Client Message", heads)
+                self.assertNotIn("Client wording", heads)
+        self.assertNotIn("Client Message", [c.value for c in wb["Use cases"][1]])
+
     def test_every_kind_is_there(self):
         types = {k: c.value for k, c in self.column(self.sheet("Risks & Issues"), "Type").items()}
         self.assertEqual(types, {self.d.risk: "Risk", self.d.issue: "Issue"})
