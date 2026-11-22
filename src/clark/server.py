@@ -47,6 +47,7 @@ Routes:
 - POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
 - GET  /api/ask-files[?project=CODE] and POST /api/ask-files {on} | {project, off_here} | {undo}: the Files switch, for all projects and one project's own turn-off (row 1294; app_settings.py)
 - GET  /api/ask-commands?project=CODE and POST /api/ask-commands {scope, project?, action: save | remove | reset, ...}: the slash commands of ask clark (row 1295; ask_commands_service.py)
+- GET  /api/ask-new-projects[?project=CODE] and POST /api/ask-new-projects {on} | {project, off_here} | {undo}: the starting value of asking for new projects and a project's own asking (row 1294; app_settings.py)
 - GET  /api/ask-instructions?project=CODE and POST /api/ask-instructions {scope: all | project, project?, text} or {scope, project?, undo}: the standing instructions of asking, for all projects and for one (row 1294; ask_instructions.py)
 - GET  /api/ask-usage: this month's questions and tokens, per project and in all, read only (row 1294; ask_usage.py, ask_service.py)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
@@ -225,7 +226,7 @@ PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * 
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
@@ -955,7 +956,7 @@ BUSY = {"n": 0}
 BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
 SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
-              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
+              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
               "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
               "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
@@ -1190,8 +1191,8 @@ def ask_folders_route(method):
             return handler.send(404, error_body("not_found"))
         if not req:                          # a GET: the project comes from the address
             query = parse_qs(urlsplit(handler.path).query)
-            if query.get("scope") == ["all"] and "project" not in query:      # row 1294: the folders for all projects
-                status, body = service.read_all()
+            if query.get("scope") == ["all"]:      # row 1294: the folders for all projects
+                status, body = service.read_all((query.get("project") or [None])[0])
                 return handler.send(status, body)
             req = ((query.get("project") or [""])[0],)
         elif method == "change" and isinstance(req[0], dict) and req[0].get("scope") == "all":
@@ -1297,6 +1298,20 @@ def ask_files_read_route(handler):
     if (query and set(query) != {"project"}) or (given is not None and (len(given) != 1 or not PROJECT_CODE.fullmatch(given[0]))):
         return handler.send(400, error_body("bad_project_code"))
     status, body = service.read_files(given[0] if given else None)
+    return handler.send(status, body)
+
+
+def ask_new_read_route(handler):
+    """GET /api/ask-new-projects[?project=<CODE>] (row 1294): the starting value of asking for new projects and, with a project, its own asking and whether
+    asking is allowed there. The one parameter is checked like ask_files_read_route's. Read only. Without `app_settings` the route does not exist: not found."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project")
+    if (query and set(query) != {"project"}) or (given is not None and (len(given) != 1 or not PROJECT_CODE.fullmatch(given[0]))):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = service.read_new(given[0] if given else None)
     return handler.send(status, body)
 
 
@@ -1527,14 +1542,14 @@ class BrandLibrary:
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
-                "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-commands": ask_commands_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/ask-files": app_settings_route("change_files"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-commands": ask_commands_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/ask-files": app_settings_route("change_files"), "/api/ask-new-projects": app_settings_route("change_new"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
                 "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),

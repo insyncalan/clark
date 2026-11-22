@@ -355,7 +355,9 @@ class Columns(unittest.TestCase):
         self.assertTrue((SRC / "logic" / "columnsWords.js").is_file(), "every new word is listed for a ruling")
         words = (SRC / "logic" / "columnsWords.js").read_text(encoding="utf-8")
         self.assertIn("UNRULED_STANDARD", words)
-        self.assertNotIn("export const ", words.replace("export const UNRULED_", ""), "every constant is marked UNRULED")
+        self.assertNotIn("export const ", words.replace("export const UNRULED_", "").replace("export const PANEL_HEADING = \"Columns to show\"", ""), "every constant is marked UNRULED, except the one ruled panel heading (row 1499)")
+        self.assertIn('export const UNRULED_BUTTON = "Columns"', words, "the button label is unchanged")
+        self.assertIn('export const UNRULED_BUTTON_TIP = "Choose the columns"', words, "and so is its tip")
 
 
 if __name__ == "__main__":
