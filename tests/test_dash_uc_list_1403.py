@@ -100,6 +100,25 @@ class Classic(Dash, Base):
         self.assertEqual(g["chip"], ["1px", "rgb(217, 224, 239)", "999px", "rgb(71, 85, 119)", "400", "18px"], f"chip: {g['chip']}")
 
 
+    def test_edit_keeps_its_heading_row(self):
+        """Row 1 hides the heading row in View only: Edit keeps .ucheads-ed drawn, with a height, and its labels sit over the controls."""
+        with chrome() as cdp:
+            p = self.open_page(cdp)
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.uc .ucheads')).display"), "none", "View: no heading row")
+            p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('.uc .ucheads-ed') && !!document.querySelector('.uc .ucrow-ed')", "Edit drew its heading row and rows")
+            g = p.js("""(() => { const h = document.querySelector('.uc .ucheads-ed'), cs = getComputedStyle(h), r = h.getBoundingClientRect();
+              const kids = [...h.children].filter((c) => c.textContent.trim()), hb = kids.map((c) => c.getBoundingClientRect());
+              const row = document.querySelector('.uc .ucrow-ed').getBoundingClientRect();
+              return { display: cs.display, height: r.height, labels: kids.length, above: r.bottom <= row.top + 1,
+                inside: hb.every((b) => b.left >= r.left - 1 && b.right <= r.right + 1 && b.width > 0) }; })()""")
+        self.assertNotEqual(g["display"], "none", f"Edit heading row is drawn: {g}")
+        self.assertGreater(g["height"], 0, f"Edit heading row has a height: {g}")
+        self.assertGreater(g["labels"], 0, f"Edit heading row has labels: {g}")
+        self.assertTrue(g["inside"], f"labels sit inside the row: {g}")
+        self.assertTrue(g["above"], f"the heading row is above the first Edit row: {g}")
+
+
 class ChipStyles(Dash, Base):
     css = theme.css("prototype-2.0")
     WANT = ["solid", "1px", "rgb(217, 224, 239)", "999px", "400", "rgba(0, 0, 0, 0)", "18px"]
