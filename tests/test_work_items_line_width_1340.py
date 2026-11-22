@@ -1,4 +1,4 @@
-"""Row 1340: in Edit, the Work items filter line fills its section's inner width at 1400, in Classic and in Cards.
+"""Row 1340: in Edit, the Work items filter line fills its section's inner width at 1400 and 900, in Classic and in Cards.
 
 Run: python3 dev/run_tests.py test_work_items_line_width_1340
 Source of the rule: the ticket comment "Correction" (the 1130 px figure is withdrawn: a full-width section's line fills the section's inner
@@ -37,9 +37,9 @@ class Width(object):
             p.until(f"!!document.querySelector('{sec} [data-wil-line] .fline')", "the Edit filter line drew")
             return json.loads(p.js(MEASURE % sec))
 
-    def test_a_full_width_section_has_the_line_across_its_whole_inner_width_at_1400(self):
+    def test_a_full_width_section_has_the_line_across_its_whole_inner_width_at_1400_and_900(self):
         ref = self.add(LIST)
-        for width in (1400,):
+        for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.measure(ref, width)
                 (il, ir), (wl, wr), (ll, lr) = got["inner"], got["wrap"], got["line"]
