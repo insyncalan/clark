@@ -48,6 +48,21 @@ class DemoStore:
             for i, r in enumerate(rows):
                 st.create("report_sections", {"project": project, "sort_order": i, **r})
 
+    def builtin_section(self, template_type, built_in_type, title, project="ABC"):
+        """Row 1266: a new project starts with the template sections (At a glance, Documents); a test of the built-in one (which an
+        existing report keeps) gives the project that one, in the template's place."""
+        with self.store.step("dashboard", USER) as st:
+            for row in self.store.read("report_sections", project):
+                if row["type"] == template_type:
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": project, "type": built_in_type, "title": title, "sort_order": row["sort_order"]})
+
+    def builtin_glance(self, project="ABC"):
+        self.builtin_section("glancetemplate", "glance", "At a glance", project)
+
+    def builtin_docs(self, project="ABC"):
+        self.builtin_section("doclinks", "docs", "Supporting documents", project)
+
     def action(self, **values):
         base = {"project": "ABC", "description": "Draft the cut-over plan", "raised": "2026-10-01", "source": "demo"}
         with self.store.step("dashboard", USER) as st:

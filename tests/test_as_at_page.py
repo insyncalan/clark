@@ -23,6 +23,7 @@ class AsAtPage(Base):
     def setUp(self):
         super().setUp()
         s = self.store
+        self.demo.builtin_glance()      # row 1266: the figures read here are the built-in At a glance section's, not the template's
         self.a = self.demo.action(description=OLD, due_date="2020-01-25", owner="Pat Demo")
         self.move("2020-01-10 10:00:00")
         with s.step("dashboard", USER) as st:
