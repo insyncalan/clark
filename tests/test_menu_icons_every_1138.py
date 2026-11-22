@@ -180,7 +180,7 @@ ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=optio
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
          " const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;"
-         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av');"
+         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av, .tk');   /* row 1499 AP2: the Classic Columns menu line is a 16px tick cell then the name, as the 1195 mock-up draws it (work-items-mockup.html:2011, no icon) */"
          " return {t: b.textContent.trim().slice(0, 40), w: s ? s.getBoundingClientRect().width : 0, off: b.getAttribute('aria-disabled') === 'true'}; }); })")
 CONTEXT = ("(sel => { const el = document.querySelector(sel); const r = el.getBoundingClientRect();"
            " el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2, clientX: r.left + 30, clientY: r.top + 8})); })")
