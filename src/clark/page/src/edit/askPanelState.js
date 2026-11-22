@@ -179,7 +179,7 @@ export function installAskKeys() {
   // Row 1292: the panel's width is on the page as --ask-w (0 while it is shut), so a peek opened from an answer sits left of the panel, not behind it.
   effect(() => { document.documentElement.style.setProperty("--ask-w", panelOpen.value ? clampWidth(panelWidth.value) + "px" : "0px"); });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !e.isComposing && panelOpen.value) {
+    if (e.key === "Escape" && !e.isComposing && panelOpen.value && !document.getElementById("ask-slash")) {   // the slash menu is open: the first Esc is the menu's (it closes, the panel stays)
       if (draft.value && e.target && e.target.closest && e.target.closest("#ask-draft")) return;      // row 1292: Esc in the Draft is the Draft's (it closes its menu, then itself), the panel stays
       e.preventDefault(); closePanel(); return;
     }
