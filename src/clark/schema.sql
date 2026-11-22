@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS projects (
   gantt_default_rows INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500)),   -- clark: row 926: the saved plan height in rows; NULL shows every row
   brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60),   -- clark: #944: the project's brand id, as the migration's ADD COLUMN puts it
   ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the project's own standing instructions for asking; last, as the migration's ADD COLUMN puts it
-  ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1))   -- clark: row 1294: 1 when this project keeps files off for asking; last, as the migration's ADD COLUMN puts it
+  ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1)),   -- clark: row 1294: 1 when this project keeps files off for asking; as the migration's ADD COLUMN puts it
+  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
@@ -437,7 +438,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at  TEXT,                   -- set by the writer when the switch changes; empty until then (a new file is the same every time)
   theme       TEXT NOT NULL DEFAULT 'classic' CHECK (theme IN ('classic','cards')),   -- row 1269: the install's Theme; a new file is Clark Classic, migrate_theme gives a file that already exists 'cards'
   ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the standing instructions for all projects, as the migration's ADD COLUMN puts it
-  ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1))   -- clark: row 1294: files may be added to a question (1 on, the starting value); last, as the migration's ADD COLUMN puts it
+  ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1)),   -- clark: row 1294: files may be added to a question (1 on, the starting value); as the migration's ADD COLUMN puts it
+  ask_new_projects INTEGER NOT NULL DEFAULT 1 CHECK (ask_new_projects IN (0,1))   -- clark: row 1294: a project made now starts with asking on (1) or off (0); last, as the migration's ADD COLUMN puts it
 );
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
