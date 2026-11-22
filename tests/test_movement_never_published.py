@@ -23,8 +23,11 @@ SOURCE = "ZQ-SOURCE-9184 steering minutes"
 HOLD_WORDS = "ZQ-HOLD-4417"
 RICH_NOTE = "ZQ-RICH-NOTE-4418"            # row 1005: a note written as the one rich editor's HTML, through the change route, on the second milestone
 UC_OWNER = "ZQ-UC-OWNER-6605"             # row 875: a use case's owner (text, and the name of the linked person) is internal too: planted on U-001, through the change route
-MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE,
-           "use case owner": UC_OWNER}
+MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE}
+# row 1479 AP3 (the PM, 22-11): the use case page of the published file shows the owner as plain text, so the owner's name is allowed
+# in ONE place only, the owner field of its own use case row; UC_OWNER_ROW is that exact text and test_the_use_case_owner_is_in_its_own_row_only
+# asserts it appears nowhere else. Every other marker above is still searched for everywhere.
+UC_OWNER_ROW = '"id":"PUB-U-001","owner":"' + UC_OWNER + ' Pat Placeholder"'
 PHRASES = ("Rebaselined", "Movement choice", "Undone", "Internal only", "Never moved", "Agreed date moved", "What changed",
            "Decide what to do", "Move the agreed date", "holding; agreed date unchanged", "Nothing has changed since it was first agreed")
 M = "PUB-M-001"                                   # agreed 15-10-2026, client-visible, in the published file
@@ -81,6 +84,14 @@ class Planted(unittest.TestCase):
             for name, marker in MARKERS.items():
                 for spelling in fx.spellings(marker):
                     self.assertNotIn(spelling, text, f"{name} ({spelling!r}) is in {where}")
+
+    def test_the_use_case_owner_is_in_its_own_row_only(self):
+        for where, text in self.where().items():
+            self.assertEqual(text.count(UC_OWNER_ROW), 1, f"the owner is in its own use case row, once, in {where}")
+            self.assertEqual(text.count(UC_OWNER), 1, f"and the owner marker is nowhere else in {where}")
+            for spelling in fx.spellings(UC_OWNER):
+                self.assertEqual(text.replace(UC_OWNER_ROW, "").count(spelling), 0, f"{spelling!r} outside the owner row in {where}")
+        self.assertEqual(self.block.count(UC_OWNER_ROW), 1)
 
     def test_no_movement_phrase_is_added_to_the_finished_bytes(self):
         """A phrase the page's own code already holds (a label for something else) is counted: the history must add none."""
