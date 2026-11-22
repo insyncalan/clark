@@ -11,6 +11,9 @@ import test_filter_line_keys as K
 from test_filter_line_keys import tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
+import _testpage as testpage
+from clark import page, theme as themes
+
 BAR, DLG = B.BAR, B.DLG
 TA = "document.querySelector('#fbt-message')"
 ADDED = "document.querySelector('#fbt-added')"
@@ -21,7 +24,11 @@ PROBE = """((sel, props) => { const e = document.querySelector(sel); if (!e) ret
 
 
 class FeedbackTag1334(unittest.TestCase):
-    setUp = B.FeedbackTagBrowser.setUp
+    def setUp(self):
+        B.FeedbackTagBrowser.setUp(self)
+        # Row 1334 is Classic only: its values live in the Classic theme (rules-2.css), so the test page has that theme layered; the Cards page keeps edit.css as it was
+        self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css("prototype-2.0"))
+
     read = B.FeedbackTagBrowser.read
     open_page = B.FeedbackTagBrowser.open_page
     press = B.FeedbackTagBrowser.press
@@ -109,7 +116,7 @@ class FeedbackTag1334(unittest.TestCase):
                 self.assertEqual((round(d["top"]), round(d["width"])), (110, 360), where)
                 # a)
                 self.assertEqual((d["paddingTop"], d["paddingBottom"]), ("16px", "14px"), where + " a) dialog padding 16 / 14")
-                self.assertEqual(d["lineHeight"], "21.75px", where + " a) line height 1.45")
+                self.assertAlmostEqual(float(d["lineHeight"][:-2]), 1.45 * float(d["fontSize"][:-2]), 2, where + " a) line height 1.45 times the dialog's font size (14 px in the Classic page)")
                 h = self.probe(cdp, sid, "#fbt-h", "fontSize", "fontWeight", "marginBottom")
                 self.assertEqual((h["fontSize"], h["fontWeight"], h["marginBottom"]), ("17px", "600", "2px"), where + " a) title")
                 x = self.probe(cdp, sid, "[data-fbt-close]", "fontSize", "fontWeight", "paddingLeft", "paddingRight", "paddingTop")
@@ -129,7 +136,7 @@ class FeedbackTag1334(unittest.TestCase):
                 red = cdp.js("(() => { const p = document.createElement('span'); p.style.color = 'var(--status-red-text)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()", sid)
                 self.assertEqual((e["fontSize"], e["marginTop"], e["color"]), ("13px", "4px", red), where + " b) empty-send line")
                 ta = self.probe(cdp, sid, "#fbt-message", "fontSize", "display", "overflowY", "boxSizing")
-                self.assertEqual((ta["fontSize"], ta["display"], ta["overflowY"], ta["boxSizing"]), ("15px", "block", "auto", "border-box"), where + " b) box text size, block, scrolls when full")
+                self.assertEqual((ta["fontSize"], ta["display"], ta["overflowY"], ta["boxSizing"]), (d["fontSize"], "block", "auto", "border-box"), where + " b) box text size (the dialog's, 14 px in the Classic page), block, scrolls when full")
                 # c)
                 ad = self.probe(cdp, sid, "#fbt-added", "fontSize", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "marginTop", "borderTopLeftRadius")
                 self.assertEqual((ad["fontSize"], ad["paddingTop"], ad["paddingRight"], ad["paddingBottom"], ad["paddingLeft"], ad["borderTopLeftRadius"]), ("12.5px", "8px", "10px", "8px", "10px", "8px"), where + " c) Added automatically box")
