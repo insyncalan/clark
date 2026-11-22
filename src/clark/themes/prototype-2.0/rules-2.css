@@ -7,42 +7,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
-/* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
-.tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
-.tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
-/* Row 1336 part 2, two values the mock-up draws (at-a-glance-builder.html:429 and :431; the ruling of 19-11 takes the bin and the line as the mock-up): the bin on a tile rests in the body colour (the pen keeps the muted one; the hover colours already match) and the 'Show project health here' line keeps 14px between the eye and its text (Classic only; Cards keeps the shared 12px and the muted bin). */
-.tpl-edit-glancetemplate .glance .tdel { color: var(--text); }
-.tpl-edit-glancetemplate .glance .tdel:hover { color: var(--status-red-text); }
-.tpl-edit-glancetemplate .glance .gt-showhealth { gap: 14px; }
-.tpl-gt .tpl-gt-tile.go .tpl-gt-dot { width: 8px; height: 8px; }
-/* Row 1232 (Classic only; Cards untouched): the numbers of the approved points AP1, AP2, AP3, AP7 and AP9 at 1400, from the mock-up; each rule is scoped under .tpl-sbs-*. */
-.tpl-sbs-bar, .tpl-sbs-grp { gap: 2px; }
-.tpl-sbs-bar .fi-btn { color: rgb(58, 74, 107); }
-.tpl-sbs-edit input[id$="-heading"] { padding: 7px 10px; }
-.tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
-/* Row 1315 AP9 (Classic Milestones): the off half of the five switch buttons has --grey-700 text (7.41 to 1 in light), not --text; frames and dividers stay --grey-500. */
-#milestones .msv-sw .msv-b:not([aria-current="true"]), #milestones .cal-sc button:not([aria-current="true"]) { color: var(--grey-700); }
-/* Row 1334 (Classic only; the Cards page keeps edit.css as it was): the Feedback tag dialog values as the mock-up draws them, same selectors as edit.css so they win by order. */
-.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: 16px 18px 14px 17px; line-height: 1.45; background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
-.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
-.fbt-x { all: unset; cursor: pointer; font-size: 20px; font-weight: 600; line-height: 1; padding: 0 4px; color: var(--grey-700); }
-.fbt-kinds { display: flex; gap: 6px; margin: 6px 0 10px; }
-.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: 13.5px; cursor: pointer; }
-/* Row 1334: the dialog is the 1298 mock-up (sizes and spacing in px as drawn there). Left padding 17 px plus the 1 px border is the 18 px inset, so the box is 324 px wide. The lead line, the label, the message box, the empty-send line, the Added automatically box, the mail note and the two buttons. */
-.fbt-dlg .fbt-intro { margin: 0 0 10px; font-size: 13px; }
-.fbt-dlg label { display: block; margin: 8px 0 3px; font-size: 13.5px; }
-.fbt-dlg textarea.grow { display: block; width: 100%; padding: 7px 10px; border: 1px solid var(--grey-200); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; overflow-y: auto; }
-.fbt-error { margin-top: 4px; font-size: 13px; color: var(--status-red-text); }
-.fbt-added { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--grey-100); font-size: 12.5px; color: var(--grey-700); }
-.fbt-added ul.plain li { padding: 0; border-top: 0; }
-.fbt-dlg .fbt-mail-note { margin: 6px 0 0; font-size: 12.5px; }
-.fbt-dlg .row { margin-top: 12px; }
-.fbt-dlg .row .btn { vertical-align: middle; }
-.fbt-dlg .row .btn + .btn { margin-left: 8px; }
-.fbt-dlg .row [data-fbt-copy] { padding-left: 14px; padding-right: 14px; }   /* 14 px as drawn; with the mail pill (padding 0 22 px, row 1319) both fit one line in the 324 px box */
-
-/* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
-.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Row 1270 (Classic only): the RAID card. */
 @media (min-width: 1400px) { .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .raid-cards { align-items: stretch; }
@@ -88,6 +52,42 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
+.tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
+.tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
+/* Row 1336 part 2, two values the mock-up draws (at-a-glance-builder.html:429 and :431; the ruling of 19-11 takes the bin and the line as the mock-up): the bin on a tile rests in the body colour (the pen keeps the muted one; the hover colours already match) and the 'Show project health here' line keeps 14px between the eye and its text (Classic only; Cards keeps the shared 12px and the muted bin). */
+.tpl-edit-glancetemplate .glance .tdel { color: var(--text); }
+.tpl-edit-glancetemplate .glance .tdel:hover { color: var(--status-red-text); }
+.tpl-edit-glancetemplate .glance .gt-showhealth { gap: 14px; }
+.tpl-gt .tpl-gt-tile.go .tpl-gt-dot { width: 8px; height: 8px; }
+/* Row 1232 (Classic only; Cards untouched): the numbers of the approved points AP1, AP2, AP3, AP7 and AP9 at 1400, from the mock-up; each rule is scoped under .tpl-sbs-*. */
+.tpl-sbs-bar, .tpl-sbs-grp { gap: 2px; }
+.tpl-sbs-bar .fi-btn { color: rgb(58, 74, 107); }
+.tpl-sbs-edit input[id$="-heading"] { padding: 7px 10px; }
+.tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
+/* Row 1315 AP9 (Classic Milestones): the off half of the five switch buttons has --grey-700 text (7.41 to 1 in light), not --text; frames and dividers stay --grey-500. */
+#milestones .msv-sw .msv-b:not([aria-current="true"]), #milestones .cal-sc button:not([aria-current="true"]) { color: var(--grey-700); }
+/* Row 1334 (Classic only; the Cards page keeps edit.css as it was): the Feedback tag dialog values as the mock-up draws them, same selectors as edit.css so they win by order. */
+.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: 16px 18px 14px 17px; line-height: 1.45; background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
+.fbt-x { all: unset; cursor: pointer; font-size: 20px; font-weight: 600; line-height: 1; padding: 0 4px; color: var(--grey-700); }
+.fbt-kinds { display: flex; gap: 6px; margin: 6px 0 10px; }
+.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: 13.5px; cursor: pointer; }
+/* Row 1334: the dialog is the 1298 mock-up (sizes and spacing in px as drawn there). Left padding 17 px plus the 1 px border is the 18 px inset, so the box is 324 px wide. The lead line, the label, the message box, the empty-send line, the Added automatically box, the mail note and the two buttons. */
+.fbt-dlg .fbt-intro { margin: 0 0 10px; font-size: 13px; }
+.fbt-dlg label { display: block; margin: 8px 0 3px; font-size: 13.5px; }
+.fbt-dlg textarea.grow { display: block; width: 100%; padding: 7px 10px; border: 1px solid var(--grey-200); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; overflow-y: auto; }
+.fbt-error { margin-top: 4px; font-size: 13px; color: var(--status-red-text); }
+.fbt-added { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--grey-100); font-size: 12.5px; color: var(--grey-700); }
+.fbt-added ul.plain li { padding: 0; border-top: 0; }
+.fbt-dlg .fbt-mail-note { margin: 6px 0 0; font-size: 12.5px; }
+.fbt-dlg .row { margin-top: 12px; }
+.fbt-dlg .row .btn { vertical-align: middle; }
+.fbt-dlg .row .btn + .btn { margin-left: 8px; }
+.fbt-dlg .row [data-fbt-copy] { padding-left: 14px; padding-right: 14px; }   /* 14 px as drawn; with the mail pill (padding 0 22 px, row 1319) both fit one line in the 324 px box */
+
+/* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
+.ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
