@@ -115,7 +115,7 @@ export function CaptionField({ section, field, label, value, max, words, save, e
   return (
     <div class="tpl-pic-field">
       <span class="tpl-pic-lbl" id={`${id}-lbl`}>{label}{hint ? <span class="quiet"> {hint}</span> : null}</span>
-      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty={empty} save={put} oneLine />
+      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty={empty} save={put} />
     </div>
   );
 }
