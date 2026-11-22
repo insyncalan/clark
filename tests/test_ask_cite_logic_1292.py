@@ -75,6 +75,13 @@ class ReadLine(unittest.TestCase):
         self.assertEqual(words('W.READ_LINE({work_items:1,milestones:0,use_cases:1,as_at:"17-11-2026"})'), "1 work item and 1 use case read · as at 17-11-2026")
         self.assertEqual(words('W.READ_LINE({work_items:3,milestones:0,use_cases:0,as_at:""})'), "3 work items read")
 
+    def test_rows_left_out_give_the_counts_line_and_the_second_sentence(self):
+        self.assertEqual(words('W.READ_LINE({work_items:5,milestones:2,use_cases:0,as_at:"17-11-2026",left_out:2})'), "7 items read, 2 left out. A higher size of one question in Settings reads more.")
+        self.assertEqual(words('W.READ_LINE({work_items:1,milestones:0,use_cases:0,as_at:"",left_out:1})'), "1 item read, 1 left out. A higher size of one question in Settings reads more.")
+
+    def test_nothing_left_out_keeps_the_kinds_line_without_the_second_sentence(self):
+        self.assertEqual(words('W.READ_LINE({work_items:3,milestones:0,use_cases:0,as_at:"",left_out:0})'), "3 work items read")
+
     def test_nothing_read_or_a_bad_reply_says_nothing(self):
         self.assertEqual(words('[W.READ_LINE({work_items:0,milestones:0,use_cases:0,as_at:"17-11-2026"}), W.READ_LINE(null), W.READ_LINE("x"), W.READ_LINE({work_items:"9"})]'), ["", "", "", ""])
 

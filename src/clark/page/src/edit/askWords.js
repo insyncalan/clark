@@ -370,8 +370,14 @@ export const CITE_TITLE = (id) => `Open ${id}`;                                 
 export const USED = "Used:";                                                    // M ask.js botHtml; A 18-11: the heading is "Used"
 const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 /** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
+export const LEFT_OUT_MORE = "A higher size of one question in Settings reads more.";
 export function READ_LINE(read) {
   if (!read || typeof read !== "object") return "";
+  // row 1293 AP9: when the cut left rows out, the line counts them: "N items read, M left out." and says how to read more.
+  if (Number.isInteger(read.left_out) && read.left_out > 0) {
+    const n = [read.work_items, read.milestones, read.use_cases].filter(Number.isInteger).reduce((a, b) => a + b, 0);
+    if (n > 0) return `${COUNT(n, "item", "items")} read, ${read.left_out} left out. ${LEFT_OUT_MORE}`;
+  }
   const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
     .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
   if (!parts.length) return "";

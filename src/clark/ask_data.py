@@ -198,10 +198,11 @@ def partial_lines(counts):
 
 def read_counts(data):
     """Row 1292: what a question read, for the line under its answer: the rows sent of each kind (work items are actions, risks and
-    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
+    issues, and decisions), the rows left out by the cut (all kinds) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
     sent = {k: n for k, n, _total in data.counts}
     return {"work_items": sum(sent.get(k, 0) for k in ("actions", "raid", "decisions")), "milestones": sent.get("milestones", 0),
-            "use_cases": sent.get("use_cases", 0), "as_at": data.today}
+            "use_cases": sent.get("use_cases", 0), "as_at": data.today,
+            "left_out": sum(max(total - n, 0) for _k, n, total in data.counts)}
 
 
 def left_out_lines(counts):
