@@ -9,10 +9,10 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   once into a folder only clark writes, then work from that copy), never the original file. The checks run in
   this order, stopping at the first failure with one plain sentence (UpdateError.message). The real reason, and up to five
   member names, are in UpdateError.detail, for the log and never for the screen:
-  the signature, only once a real release key is built into this file (or a test passes one): a detached Ed25519 signature in a
-  file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the download's own bytes, checked against that key
-  before anything inside the download is looked at; then no signature file, a wrong one or a different key refuses it. While the
-  key is still the placeholder the signature is not asked for (an unsigned download is accepted and a .sig beside it is ignored);
+  the signature, for a release from FIRST_SIGNED (1.3.4) up (or whenever a test passes a key): a detached Ed25519 signature in a
+  file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the download's own bytes, checked against the release
+  key before anything inside the download is looked at; then no signature file, a wrong one or a different key refuses it.
+  Releases older than FIRST_SIGNED are accepted unsigned (a .sig beside them is ignored);
   every other check below still applies;
   the name and system; a regular file, not too big; opens as a zip; clark-release.json is there (else it is GitHub's whole
   source code); the shape of every member (no folders, links, encryption, odd compression or duplicate names); every member
@@ -416,7 +416,7 @@ def signature_required(public_key=None, version=None):
 def check_signature(data, signature, public_key=None):
     """Refuse unless `signature` is the release key's Ed25519 signature over SIGN_DOMAIN + `data`. Raises UpdateError
     (unsigned, badsig or nokey). `public_key` is for tests; None means the key built into this file. read_release calls this
-    only when signature_required(public_key) is true; called directly with the placeholder it still raises nokey."""
+    only when signature_required(public_key, version) is true; called directly with the placeholder it still raises nokey."""
     key = RELEASE_PUBLIC_KEY if public_key is None else public_key
     if public_key is None and key == PLACEHOLDER_KEY:
         raise UpdateError("nokey", "RELEASE_PUBLIC_KEY is still the placeholder")
