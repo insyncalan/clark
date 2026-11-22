@@ -56,7 +56,7 @@ window.clarkMountOne = (id, which, ref, owner, bare) => {
   }
   const d = bare ? { ...data.value, milestones: [], uc_milestones: [] } : data.value;     // bare: no milestone anywhere
   const via = (d.actions || []).concat(d.raid || [], d.decisions || []).filter((r) => r.use_case === id);
-  const ms = (d.milestones || []).filter((m) => via.some((r) => r.milestone === m.id) || (d.uc_milestones || []).some((l) => l.use_case === id && l.milestone === m.id)).map((m) => m.id);
+  const ms = (d.milestones || []).filter((m) => via.some((r) => r.milestone === m.id) || (d.uc_milestones || []).some((l) => l.use_case === id && l.milestone === m.id)).map((m) => ({ id: m.id, direct: (d.uc_milestones || []).some((l) => l.use_case === id && l.milestone === m.id) }));
   data.value = { ...d, use_cases: d.use_cases.map((u) => (u.id === id ? { ...u, ref, owner } : u)), use_case_pages: [{ id, next_steps: via.map((r) => r.id), milestones: ms }] };
   fromFile.value = which === "file" || which === "editor";
   render(which === "file" ? <UseCaseFilePage id={id} /> : <UseCaseDetail id={id} ed={null} />, host);

@@ -385,13 +385,15 @@ OPEN_STEPS = ("Open", "Delayed")                                # an action's st
 def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=()):
     """The single place for "what a client may see of a use case". Given `data` (as Store.data_for gives it), the project
     `code`, the report-hidden ids, the label rules and the hidden section types, returns a list, in the data's order, of
-    {"id", "next_steps": [action ids], "milestones": [milestone ids]}, one per use case the client may see, and nothing else.
+    {"id", "next_steps": [action ids], "milestones": [{"id": milestone id, "direct": bool}]}, one per use case the client may see, and nothing else.
 
     A use case is in the list when it is not archived, is on the dashboard (client_visible, the eye), belongs to the project,
     is not report-hidden, has no Sensitive or exclude label, and the Use cases section is not hidden. Its next steps are
     the actions that point at it that pass the same gates and are still open (and the Actions section is not hidden). Its
-    milestones are the milestones named by those next steps that pass the gates (and the Milestones section is not hidden).
-    Ids only: the rows are published once, by select, and an id can only name a row that was published. The caller (the
+    milestones are the milestones named by those next steps or linked straight to the use case (use_case_milestones, as
+    Store.data_for gives them in uc_milestones) that pass the gates (and the Milestones section is not hidden); each carries
+    ONE boolean, `direct`, true when the use case itself is linked to it (also when a next step names it too), false when only
+    a next step does (row 1479). A link to a milestone that does not pass the gates names nothing. Ids and that boolean only: the rows are published once, by select, and an id can only name a row that was published. The caller (the
     published file, or a route that tells the editor what the client sees) never repeats this rule."""
     hidden_types = set(hidden_types or ())
     keep = _keeper(data, code, set(hidden_ids or ()), _excluded_labels(label_rules))
@@ -403,9 +405,10 @@ def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=())
     pages = []
     for u in shown("use_cases"):
         mine = [a for a in steps if a.get("use_case") == u["id"]]
-        named = {a.get("milestone") for a in mine}
+        named = {a.get("milestone") for a in mine} & milestone_ids
+        direct = {l.get("milestone") for l in data.get("uc_milestones") or () if l.get("use_case") == u["id"]} & milestone_ids
         pages.append({"id": u["id"], "next_steps": [a["id"] for a in mine],
-                      "milestones": sorted(named & milestone_ids)})
+                      "milestones": [{"id": m, "direct": m in direct} for m in sorted(named | direct)]})
     return pages
 
 

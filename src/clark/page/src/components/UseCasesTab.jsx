@@ -28,7 +28,7 @@ const set = (patch) => { view.value = { ...view.value, ...patch }; };
 function Item({ p, u, steps, marks }) {
   const d = data.value;
   const mine = p.next_steps.map((id) => steps[id]).filter(Boolean);
-  const ms = p.milestones.map((id) => marks[id]).filter(Boolean);
+  const ms = p.milestones.map((x) => marks[x.id]).filter(Boolean);
   return (
     <details class="ucp" open={printing.value}>
       <summary class="ucp-bar">{/* item 1149: the dashboard summary's row: reference box, title, where it stands, status word with the commitment, the shared next steps */}
