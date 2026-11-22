@@ -49,7 +49,7 @@ def page_html():
                                cwd=tmp, capture_output=True, text=True)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "brand" / "tokens.css", PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css", ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"))
+        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "brand" / "tokens.css", ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "tokens.css", PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css", ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"))
         _HTML["html"] = ('<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>t</title>'
                          f'<style id="theme">{css}</style></head>\n<body><script id="clark-boot" type="application/json">{{"token":"t"}}</script>'
                          f'<div id="root"></div>\n<script>{script}</script>\n</body></html>\n')
