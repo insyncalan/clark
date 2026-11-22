@@ -59,7 +59,7 @@ class CardsDom(BrowserBase, unittest.TestCase):
             out["move"] = cdp.js(grab, sid)
         return {k: hashlib.md5(re.sub(r"(last updated \d\d-\d\d-\d{4}) \d\d:\d\d", r"\1 HH:MM", v).encode("utf-8")).hexdigest() for k, v in out.items()}, out
 
-    def test_the_rendered_milestones_dom_is_the_dom_main_renders_at_1400_and_900(self):
+    def test_the_rendered_milestones_dom_is_the_pinned_dom_at_1400_and_900(self):
         got = {width: self.capture(width)[0] for width in (1400, 900)}
         self.assertEqual(got, CARDS_DOM_MD5)
 
