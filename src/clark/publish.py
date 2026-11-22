@@ -1393,6 +1393,7 @@ def read_inputs(store, code, as_at=None):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
               for t in ("projects",) + KINDS + ("workstreams", "gantt_lines")}
+    fields["workstreams"] += ("created",)      # row 1367: ask clark reads when a workstream began; select() keeps only PUBLISH_FIELDS, so no file changes
     fields["projects"] += tuple(c for c in ("archived",) if c not in fields["projects"])      # #126: publish() refuses an archived project
     try:
         got = store.publish_inputs(code, fields)

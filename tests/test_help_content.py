@@ -103,7 +103,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 35))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -521,6 +521,25 @@ class ProfileCircleWords(unittest.TestCase):
         for claim in ("your initials go in the circle", "initials fill the circle", "your initials (a person icon"):
             self.assertNotIn(claim, text.lower(), f"Help must not say the editor's profile circle shows initials: {claim}")
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
+
+
+class SideBySideHelp(unittest.TestCase):
+    def test_help_names_text_and_image_side_by_side_and_not_the_old_name(self):
+        """Row 1232 (AP15): the template table in Help lists the new name with its line and widths, and the old name is gone from the whole Help source."""
+        rows = []
+        def walk(x):
+            if isinstance(x, list):
+                if len(x) == 3 and all(isinstance(c, str) for c in x):
+                    rows.append(x)
+                for c in x:
+                    walk(c)
+            elif isinstance(x, dict):
+                for c in x.values():
+                    walk(c)
+        walk(SRC)
+        self.assertIn(["Text and Image Side by Side", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertNotIn("Text and image", [r[0] for r in rows])
+        self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
 
 
 if __name__ == "__main__":
