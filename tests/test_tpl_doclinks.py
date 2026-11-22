@@ -796,7 +796,7 @@ class MockupLook(InThePage):
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
             for w in self.widths(p, cdp):
-                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "#0E2430", f"the mock's ink (page icon outline), at {w}")
+                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "rgb(14, 36, 48)", f"the mock's ink 0E2430 (page icon outline; rules-2.css writes rgb(), no hex), at {w}")
                 self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sel} .sec-head') || document.querySelector('{sel}').closest('.sec').querySelector('.sec-head')).paddingRight"), "112px", f"code measurement, not from the mock, at {w}")
                 p.js(f"document.querySelector('{sel} [data-open-link]').click()")
                 p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")
