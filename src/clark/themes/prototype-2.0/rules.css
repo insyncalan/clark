@@ -555,12 +555,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody td { padding-left: 12px; padding-right: 12px; }
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:first-child td { border-top: 0; }
 .ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:last-child td { border-bottom: 0; }
-/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
-.ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
-.ask-warn p { margin: 0; }
-.ask-warn [data-ask-warn-name] { font-weight: 500; }
-.ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.ask-warn-btns .btn:not(.pri) { color: var(--text); }
 /* Row 1408, Classic only (Cards keeps its tint, bar and the word Changed): a changed section is marked by a 2px line under its title that runs left to right in 0.8 s, holds, and fades out (1.8 s in all); nothing stays after it. Paint only: the line is positioned under the title, so nothing shifts. No motion when the computer or clark asks for reduced motion; nothing shows then. */
 .sec-t { position: relative; display: inline-block; max-width: 100%; }
 .sec-t::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--brand-blue); transform-origin: left center; transform: scaleX(0); opacity: 0; pointer-events: none; }
