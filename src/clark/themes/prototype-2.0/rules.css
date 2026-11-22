@@ -978,43 +978,6 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
-/* Row 1288, "/" menu 4C: panel radius 12, padding 4, min 180; filter box 1px 3px 4px, 5px 9px, radius 8, 13px; rows 4px 10px, gap 10, 13.5px; rule margin 3px 0. */
-.rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
-.rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
-.rt-slash .rt-slash-filter { margin: 1px 3px 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); min-height: 1lh; }
-.rt-slash .rt-slash-filter:empty::before { content: attr(data-ph); }
-.rt-slash .rt-slash-rule { margin: 3px 0; border: 0; border-top: 1px solid var(--line-soft); }
-/* Row 1288, tight menus (Classic only): buttons 34 high; float panels radius 12, padding 4, rows 4px 10px at 13.5px. */
-.rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
-.rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
-.rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
-.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
-/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
-.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
-.rt-bar .rt-more { min-width: 40px; gap: 2px; }
-/* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
-.rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
-.rt-bubble { gap: 6px; }
-:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
-:is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
-.rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
-.rt-bubble .rt-bubble-ai { font-size: 13px; }
-/* Row 1288, AI menu 5B (Classic): one line per item, tight rows, blue labels and hover, icons purple, green, amber. */
-.aim { min-width: 210px; padding: 4px; border-radius: 12px; border-color: var(--border); }
-.aim hr { margin: 3px 0; }
-.aim-gl { padding: 4px 10px 1px; font-size: 10.5px; color: rgb(59, 111, 212); }
-.aim-opt { flex-direction: row; align-items: center; gap: 10px; padding: 4px 10px; border-radius: 6px; font-size: 13.5px; }
-.aim-opt .aim-nm { font-size: 13.5px; }
-.aim-opt:hover { background: rgb(230, 238, 252); }
-.aim-ic { width: 15px; height: 15px; flex: none; }
-.aim-ic-improve { color: rgb(124, 77, 255); }
-.aim-ic-structure { color: rgb(47, 125, 74); }
-.aim-ic-ask { color: rgb(183, 121, 31); }
 /* Row 1292 (Classic only; Cards keeps its style block as it is, its line keeps the .ask-quip rule): the working line stays on one row and shrinks with an ellipsis. */
 .ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tpl-sbs-heading{grid-column:1 / -1;margin:0}

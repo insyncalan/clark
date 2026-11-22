@@ -47,7 +47,7 @@ def rgb(s):
 
 
 class Editor(unittest.TestCase):
-    def open(self, h, w, value="<p>Some words here</p>", ai="current"):
+    def show_editor(self, h, w, value="<p>Some words here</p>", ai="current"):
         layer(h)
         h.resize(w)
         h.mount(value, ai=ai)
@@ -55,7 +55,7 @@ class Editor(unittest.TestCase):
     def test_toolbar_has_one_quote_divider_dropdown_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 names = h.ev("[...document.querySelectorAll('.rt-bar .rt-btn')].map(b => b.getAttribute('aria-label') || b.textContent)")
                 self.assertEqual([n for n in names if "Quote" in n or "Divider" in n], ["More blocks: Quote, Divider"], f"{w}: {names}")
                 more = box(h, ".rt-bar .rt-more")
@@ -69,7 +69,7 @@ class Editor(unittest.TestCase):
     def test_style_button_box_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 s = box(h, ".rt-bar .rt-style")
                 self.assertEqual((s["p"], s["g"], s["f"]), ("0px 8px 0px 10px", "10px", "15px"), f"{w}: {s}")
                 self.assertGreaterEqual(s["w"], 150, f"{w}: {s}")
@@ -78,7 +78,7 @@ class Editor(unittest.TestCase):
     def test_style_menu_own_size_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.ev("document.querySelector('.rt-bar .rt-style').click(); true")
                 menu = box(h, ".rt-bar [role=menu]")
                 self.assertEqual(menu["mw"], "224px", f"{w}: {menu}")
@@ -93,7 +93,7 @@ class Editor(unittest.TestCase):
     def test_bubble_style_menu_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.select_all()
                 self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
                 names = h.ev("[...document.querySelectorAll('.rt-bubble > *')].map(b => b.querySelector('.rt-style') ? 'STYLE' : (b.getAttribute('aria-label') || b.textContent))")
@@ -110,7 +110,7 @@ class Editor(unittest.TestCase):
     def test_ai_menu_colours_and_widths_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.select_all()
                 self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
                 h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
@@ -130,7 +130,7 @@ class Editor(unittest.TestCase):
     def test_menus_tight_computed_values_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.select_all()
                 h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
                 m = box(h, ".aim")
@@ -143,7 +143,7 @@ class Editor(unittest.TestCase):
                 self.assertEqual(box(h, ".aim hr")["m"], "3px 0px 3px 0px", w)
                 h.key("Escape", 0, "Escape", 27)
                 h.ev("window.unmount(); true")
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.ev("document.querySelector('.rt-bar .rt-more').click(); true")
                 p = box(h, ".rt-bar [role=menu]")
                 self.assertEqual((p["r"], p["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {p}")
@@ -154,7 +154,7 @@ class Editor(unittest.TestCase):
         with rp.Harness(chrome) as h:
             palette = {(0x46, 0x35, 0xB8), (0x7C, 0x4D, 0xFF), (0x2F, 0x7D, 0x4A), (0x3B, 0x6F, 0xD4), (0xB7, 0x79, 0x1F), (0x9E, 0x7B, 0xFF)}
             for w in WIDTHS:
-                self.open(h, w)
+                self.show_editor(h, w)
                 grab = ("[...document.querySelectorAll(%s)].filter(e => !e.hasAttribute('data-rt-bubble-ai')).flatMap(e => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.borderTopColor]; })")
                 seen = {}
                 seen["toolbar"] = h.ev(grab % json.dumps(".rt-bar .rt-btn, .rt-bar .rt-sep"))
@@ -162,7 +162,7 @@ class Editor(unittest.TestCase):
                 self.assertTrue(h.until("!!document.querySelector('.rt-bar [role=menu]')"), f"{w}: style menu")
                 seen["style menu"] = h.ev(grab % json.dumps(".rt-bar [role=menu], .rt-bar [role=menu] [role=menuitemradio], .rt-bar [role=menu] .mi, .rt-bar [role=menu] .ck"))
                 h.ev("window.unmount(); true")
-                self.open(h, w)
+                self.show_editor(h, w)
                 h.select_all()
                 self.assertTrue(h.until("!!document.querySelector('.rt-bubble')"), f"{w}: bubble")
                 seen["bubble"] = h.ev(grab % json.dumps(".rt-bubble, .rt-bubble .rt-btn"))
