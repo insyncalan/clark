@@ -64,6 +64,18 @@ def lines(cdp, sid):
     return [x.strip() for x in text.splitlines() if x.strip()]
 
 
+# row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
+FOUR_GROUPS = '["You", [[' in (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")      # row 1299 1a: the Settings menu is in four groups when Views.jsx has them
+GROUP_NAMES = ("You", "All projects", "Project settings", "Help and about") if FOUR_GROUPS else ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+ASK_PAGE = "ask clark" if FOUR_GROUPS else "Claude and AI"
+
+
+def group_names_as_written(got):
+    """The lines, with a group name that the page shows in capitals put back to the words as written (the group names only, matched without case)."""
+    by_lower = {g.lower(): g for g in GROUP_NAMES}
+    return [by_lower.get(x.lower(), x) if x.isupper() else x for x in got]
+
+
 class Words(unittest.TestCase):
     def setUp(self):
         self.fake = Fake()
@@ -77,7 +89,7 @@ class Words(unittest.TestCase):
         return navigate(cdp, self.s.port, for_project(hash_))
 
     def shown(self, cdp, sid, expected):
-        self.assertTrue(wait(lambda: lines(cdp, sid) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
+        self.assertTrue(wait(lambda: group_names_as_written(lines(cdp, sid)) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
         self.assertIsNone(NEVER.search(" ".join(lines(cdp, sid))), lines(cdp, sid))
 
     def recovers(self, cdp, sid):
@@ -202,11 +214,12 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
-                    "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]
+            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
+                    ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+                     "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
-                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
+                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
                     "No local folder yet.", "Choose folder", "Asking on or off",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
@@ -237,13 +250,16 @@ class Words(unittest.TestCase):
                     "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
                     "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
                 ]),
+                ('theme', 'Theme', [
+                    "Theme", "Classic", "The only theme clark has."      # row 1363: one choice, nothing read from the server
+                ]),
                 ('appearance', 'Appearance', [
                     "Personal",    # #45: Settings › Personal, the section styles
                     "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
                     "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                     "Comfortable", "Each Dashboard section is its own card, with room between them.",
                     "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
-                    "Keys", "Single-key shortcuts",            # #193
+                    "Keys", "Single-key slash commands",            # #193
                     "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
                 ]),
                 ('reports', 'Reports', [
@@ -265,18 +281,26 @@ class Words(unittest.TestCase):
                     "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ]),
-                ('claude', 'Claude and AI', [
-                    "Asking",             # #47: the switch and its folders, below the client folder
+                ('claude', ASK_PAGE, [
+                    "Settings for", "All projects", "ABC",      # row 1294: the two tabs; the project's own opens first
+                    "Asking in ABC",             # row 1351: the project heading names the project (stale pin: the build's words, not new words)
                     "Claude is started on this computer for you.",
                     "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
-                    "Turn on asking", "FOLDERS ASKING MAY READ",
+                    "Turn on asking",
+                    "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
+                    "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
+                    "Connectors in ABC",      # row 1306 C3: the Connectors block; this server has no connector route, so it says they cannot be checked
+                    "Connectors can't be checked just now. None is used until they can be.",
+                    "Only the connectors that are On for all projects appear here.",
+                    "Source folders for ABC",      # row 1351: the folders card follows Connectors, headed by the project
                     "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                     "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                     "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                    "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
-                    "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                    "AI suggestions come in a later version."
+                    "Standing instructions",      # row 1294, slice 3: the card for the project's own (this server has no instructions route, so it says they could not be read)
+                    "The standing instructions could not be read just now. Reload the page to try again.",
+                    "For all projects", "Set under All projects. Sent first.", "Change",
+                    "For ABC", "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the size of one question every time.", "0 of 4,000",
                 ]),
                 ('logs', 'Logs and diagnostics', [
                     "Logs and diagnostics",      # #110

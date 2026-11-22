@@ -12,6 +12,7 @@ export const WORDS = {
   dialog: "The window to choose a file could not be opened. Try again; if it keeps happening, restart clark.",
   updating: "An update is being installed, so nothing was changed. Wait a minute, then reload the page.",
   no_updates: "Updates can't be shown right now. Restart clark the usual way and try again.",
+  no_latest: "Look for the newest version first, then download it.",
 };
 // The refusals whose sentence comes from the server (each names a version, a system or a reason in words it checked itself).
 export const SERVER_SAYS = ["name", "source", "system", "unreadable", "damaged", "incomplete", "unsafe", "unsigned", "badsig", "nokey", "older", "same", "min_from",
@@ -37,6 +38,47 @@ export const HINTS = {
   ready: (v) => `Version ${v} is ready to install.`,
   file: "The update attached to the release for your computer.",
 };
+// The newest version on the releases page (the server's "latest" and "fetch"; updater.py). The sentences that come from the server
+// (offline, the failed check) are shown as it sends them. None says "signed", and none names a file type.
+export const FETCH = {
+  looking: "Looking for the newest version.",
+  notesLabel: "What is new in this version",
+  cancelled: "Download cancelled.",
+  ready: (v) => `Version ${v} is ready to download.`,
+  quiet: "The newest version is looked up quietly when clark starts and when you choose Check now. It never installs by itself.",
+  latest: (v, when) => `You have the latest version (${v}).${when ? ` Last checked ${when}.` : ""}`,
+  downloading: (v) => `Downloading version ${v}`,
+  downloadingHint: "From the clark releases page, straight into clark. You do not need to sign in.",
+  checkingHint: "Checking the download is complete and every file matches its list.",
+  willChange: (add, rep, rem) => `Will add ${add} file${add === 1 ? "" : "s"}, replace ${rep}, remove ${rem}. You can undo it afterwards.`,
+  progress: (pct) => `${pct}%`,
+  downloaded: (v) => `Version ${v} is downloaded and checked.`,      // WORDING FOR APPROVAL (1327 s2): the mock-up's "is downloaded and checked" line
+  didNotFinish: "The check did not finish. Try again.",
+};
+export const FETCH_LABELS = { download: "Download", checkNow: "Check now", cancel: "Cancel", tryAgain: "Try again", downloadAgain: "Download again",
+  install: "Install and restart", notNow: "Not now" };
+
+// The newest-version block as the Update row draws it: {kind, ...}. kind is one of "looking", "avail", "latest", "offline",
+// "downloading", "checking", "ready", "failed", or "none" when the server told nothing (an older server, or no updates here).
+export function fetchView(s) {
+  const f = s && s.fetch && typeof s.fetch === "object" ? s.fetch : null;
+  const l = s && s.latest && typeof s.latest === "object" ? s.latest : null;
+  const v = (x) => text(x, 40);
+  if (f && f.state === "downloading") return { kind: "downloading", version: v(f.version), pct: Math.max(0, Math.min(100, Number.isInteger(f.pct) ? f.pct : 0)) };
+  if (f && f.state === "checking") return { kind: "checking", version: v(f.version) };
+  if (f && f.state === "ready" && f.review && typeof f.review_id === "string") {
+    const n = (x) => (x && Array.isArray(x.names) ? x.names.length : 0);
+    return { kind: "ready", version: v(f.version), id: f.review_id, add: n(f.review.added), replace: n(f.review.replaced), remove: n(f.review.removed) };
+  }
+  if (f && f.state === "failed") return { kind: "failed", message: text(f.message, 600) };
+  if (!l) return { kind: "none" };
+  const when = text(l.checked, 40);
+  if (l.state === "avail") return { kind: "avail", version: v(l.version), notes: text(l.notes, 20001), when, note: text(l.note, 600) };
+  if (l.state === "latest") return { kind: "latest", version: v(s.version), when };
+  if (l.state === "offline" || l.state === "unavailable") return { kind: "offline", message: text(l.message, 600), when };
+  return { kind: "looking" };
+}
+
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
   files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
 
@@ -78,6 +120,7 @@ export function statusView(s) {
     line: s.line ? text(s.line, 200) : "",
     last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200).replace(/^Last update: /, "") : "",
     notice: s.notice ? text(s.notice, 600) : "",
+    fetch: fetchView(s),
   };
 }
 

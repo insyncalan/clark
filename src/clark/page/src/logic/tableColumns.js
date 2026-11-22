@@ -1,19 +1,29 @@
 // Row 1222: which columns a work item table or a milestone table shows. The choice is made from a menu on the table's heading row (edit/ColumnsMenu.jsx).
 // It is kept for each table and each project, on this computer only (logic/remember.js: a blocked store means nothing is remembered and the table
 // still draws), never in the project's data, and the Excel export does not read it. The standard set is what a table showed before this row.
-// A column marked `locked` is always shown: the title (or name) and the status, so a row can always be understood.
+// A column marked `locked` is always shown: the title (or name) and the status, so a row can always be understood. Row 1499: on Work items only the title is locked (the Status can be unticked in the Classic look; Cards keeps it always shown, edit/ColumnsMenu.jsx).
 import { recall, remember, forget } from "./remember.js";
 
 export const TABLE_COLUMNS = {
   work: [
-    { id: "status", label: "Status", locked: true, standard: true },
+    { id: "status", label: "Status", standard: true },
     { id: "item", label: "Item", locked: true, standard: true },
     { id: "owner", label: "Owner", standard: true },
     { id: "due", label: "Due", standard: true },
     { id: "prio", label: "Priority", standard: true },
-    { id: "id", label: "Id" }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
-    { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" },
+    { id: "id", label: "Id", standard: true }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
+    { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" }, { id: "labels", label: "Labels" },
     { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
+  ],
+  // Row 1325: the Use cases page. Use case and Status are locked; the order here is the order of the columns and of the menu; Commitment, Release and On the dashboard start off.
+  uc: [
+    { id: "item", label: "Use case", locked: true, standard: true },
+    { id: "where", label: "Where it stands", standard: true },
+    { id: "status", label: "Status", locked: true, standard: true },
+    { id: "owner", label: "Owner", standard: true },
+    { id: "steps", label: "Next steps", standard: true },
+    { id: "ms", label: "Milestone", standard: true },
+    { id: "cm", label: "Commitment" }, { id: "rel", label: "Release" }, { id: "dash", label: "On the dashboard" },
   ],
   // Row 1230 ruling: the Milestones page keeps its list as it was ("milestones"); only the Dashboard section's is the five column table ("msDash").
   milestones: [

@@ -3,7 +3,8 @@
 // combobox over a listbox: Up and Down move (wrapping, past any result that cannot run now), Enter runs, a click runs. The keys
 // are heard on `window` in the capture phase, so they come before Help's own Esc.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { paletteOpen, search, step, runResult } from "./palette.js";
+import { paletteOpen, search, step, runResult, askRow } from "./palette.js";
+import { handOver } from "./askPanelState.js";
 import { view, projectsState, loadProjects } from "../stores/report.js";
 
 const MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || "");
@@ -73,6 +74,11 @@ function Box() {
   const keys = (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setAt(step(results, active, e.key === "ArrowDown" ? 1 : -1)); }
     else if (e.key === "Home" || e.key === "End") { e.preventDefault(); setAt(step(results, e.key === "Home" ? -1 : results.length, e.key === "Home" ? 1 : -1)); }
+    else if (e.key === "Enter" && !e.isComposing && (e.ctrlKey || e.metaKey)) {          // S11: Ctrl or Cmd + Enter hands the typed words to ask clark at once
+      e.preventDefault();
+      const ask = askRow(q);
+      if (ask) { closePalette(false); handOver(ask.question, true); }
+    }
     else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); choose(results[active]); }
   };
   const live = results.length ? `${results.length} ${results.length === 1 ? "result" : "results"}` : "Nothing matches.";

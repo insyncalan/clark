@@ -230,7 +230,7 @@ class CodexCommand(ask_claude.ClaudeCommand):
         self.passed = (path, ask_claude.time.monotonic()) if path is not None else None
         return {"connected": path is not None, "why": READY if path is not None else why}
 
-    def answer(self, path, text, canary="", system=None, model=None):
+    def answer(self, path, text, canary="", system=None, model=None, connectors=()):    # connectors: accepted and ignored (row 1306: only the Claude provider reads account connectors)
         args = arguments(path, canary, system, model)
         if not self.walled:
             args = args[args.index(str(path)):]

@@ -144,8 +144,20 @@ function Reason({ health, reason }) {
 }
 
 // The line under the tiles in Edit: what a tile can do. Edit only; the published page never carries it.
-function Hint({ more = "" }) {      // `more`: sentences a template adds to the same paragraph (the glance template: one hint, not two)
+function Hint({ more = "", text = "" }) {      // `more`: sentences a template adds to the same paragraph; `text`: the whole line instead (the glance template, row 1336: its own approved words)
+  if (text) return <p class="glance-hint" data-glance-hint>{text}</p>;
   return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.{more ? ` ${more}` : ""}</p>;
 }
 
-export const GLANCE = { Cell, HealthPill, Reason, Hint };
+// Row 1303: Add a tile on the At a glance section lists the tiles hidden with the eye; a pick shows that tile again (one step, one Undo).
+export const ADD_WORDS = { add: "Add a tile", line: "Hidden from the published report. Show it." };
+function AddTile({ hidden, onShow }) {
+  return (
+    <div class="tpl-add" data-glance-add>
+      <Menu label={ADD_WORDS.add} icon={actionIcon("add")} btnCls="sec-add tileadd" id="glance-add" menuId="glance-add-menu" menuLabel={ADD_WORDS.add} left chevron={false}
+        items={hidden.map((t) => ({ id: t.key, icon: actionIcon("add"), name: t.own ? t.label : TILE_TITLES[t.key], line: ADD_WORDS.line }))} onPick={onShow} />
+    </div>
+  );
+}
+
+export const GLANCE = { Cell, HealthPill, Reason, Hint, AddTile, show: (key) => hideTile(key, false) };

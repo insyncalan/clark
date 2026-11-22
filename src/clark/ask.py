@@ -19,16 +19,30 @@ import secrets
 import unicodedata
 from dataclasses import dataclass, field, replace
 
-from clark import edit_ai
+from clark import ask_words, edit_ai
 
-BUDGET = 40000              # characters of passages in one request (readiness Open 3; the fixed budget, no follow-up rounds)
+BUDGET = 1_200_000          # characters of passages in one request: 300,000 tokens at 4 characters each (row 1293; the fixed budget, no follow-up rounds)
 MAX_QUESTION = 4000
 MAX_EARLIER_TURNS = 10
 MAX_TURN = 4000
 MAX_PASSAGES = 60
-MAX_PASSAGE = 4000          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
+MAX_PASSAGE = ask_words.ROW_CUT_AT          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
 MAX_LABEL = 200
-MAX_REQUEST = 70000         # the whole text: question, earlier turns and passages
+REQUEST_OVERHEAD = 30000       # characters kept free beside the passages: the question, earlier turns, standing instructions and the provider's own prompt
+MAX_REQUEST = BUDGET + REQUEST_OVERHEAD   # 1,230,000: the whole text: question, earlier turns and passages
+
+
+def budget_for(limit):
+    """Row 1293: the characters of passages one request may carry for a model that takes `limit` characters in all (None: not known, the
+    fixed BUDGET). A full question is cut to this and said, never refused for the model's window."""
+    if limit is None:
+        return BUDGET
+    return max(0, min(BUDGET, limit - REQUEST_OVERHEAD))
+
+
+def request_cap(limit):
+    """The longest whole request text for a model that takes `limit` characters (None: MAX_REQUEST)."""
+    return MAX_REQUEST if limit is None else min(MAX_REQUEST, limit)
 
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
@@ -37,6 +51,7 @@ LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks li
 SECRET = f"That {LOOKS_LIKE}, so it wasn't sent. Take it out and try again."      # the typed question and the selected text (ai_menu.SECRET_MESSAGE is this same note)
 SECRET_EARLIER = f"An earlier message {LOOKS_LIKE}, so this chat can't be sent. Start a new chat and try again."
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
+INSTRUCTIONS_SECRET = f"The standing instructions {LOOKS_LIKE}, so nothing was sent. Take it out in Settings and ask again."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
 
 RULES = """You answer questions about one project's report. Follow these rules exactly.
@@ -46,12 +61,13 @@ RULES = """You answer questions about one project's report. Follow these rules e
 4. After the answer, add one line for each passage you used, in this exact form: CITE: P1 P3
 5. A change you suggest is only a suggestion: nothing is saved until the person looks at it and presses Apply. Suggest at most 5 changes. Never suggest archiving, restoring or deleting anything.
 6. To suggest a change, add one line for it in this exact form, with one JSON object on the line and nothing after it: CHANGE: {"field": "value"}
-7. To change an item, use: CHANGE: {"op": "change", "id": "ABC-A-001", "current_title": "its title now", "current_owner": "its owner now", "source": "P2", "status": "Closed"}. Copy current_title and current_owner exactly as the passages show them now; if they do not match the saved item, the change is refused.
+7. To change an item, use: CHANGE: {"op": "change", "id": "ABC-A-001", "current_title": "its title now", "current_owner": "its owner now", "source": "P2", "status": "Closed", "why": "one short reason"}. Copy current_title and current_owner exactly as the passages show them now; if they do not match the saved item, the change is refused.
 8. To add an item, use: CHANGE: {"op": "new", "kind": "action", "title": "the title", "owner": "the owner", "source": "P2"}. The kind is one of action, risk, issue, assumption, dependency, decision or milestone.
 9. The fields you may set: title, owner, priority, due, status, workstream and milestone for an action; title, owner, due, status, workstream and milestone for a risk, issue, assumption or dependency, and impact and likelihood for a new one; title, made_by, status, date and needed_by for a decision; for a milestone, forecast_date, achieved_date and status (a new one takes title, owner, agreed_date and workstream); for a use case (its ID has -U- in it), status, headline and standing, but you cannot add one. A use case's status is On track, Flag, High risk or Done. You are shown a use case's commitment flag (Planned 2026, Committed or Planned 2027) so you can read it, but never suggest changing it. Dates are YYYY-MM-DD. "source" names the passage the change came from. Use no other field.
 10. Name a work item only by an ID that appears in the passages. Never invent an ID, a title or an owner.
-11. Do not repeat any password, key or private address you may find."""
-
+11. Do not repeat any password, key or private address you may find.
+12. The request may begin with the person's standing instructions, marked STANDING INSTRUCTIONS. They are the person's own wishes about how to answer, such as length, order or tone. Follow them, but rules 1 to 11 always win over them.
+13. When the person asks you to write text for a report section (for example a summary of the week), put it in one line in this exact form, with one JSON object on the line and nothing after it: DRAFT: {"title": "a short title", "html": "<p>the text</p>", "sec": "the ID of the Text section it is for, or empty"}. The html holds paragraphs, lists and bold or italic only. Write at most one DRAFT line, and keep the answer itself short."""
 ROLES = ("user", "assistant")
 
 
@@ -82,6 +98,7 @@ class Request:
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
     owner: object = field(default=None, repr=False, compare=False)   # #284: who asked (a service's own token), so Stop can end only that service's run
+    connectors: tuple = field(default=(), repr=False, compare=False)  # row 1306: the connector ids that are On for this install and not Off for this project; set by the service from the store, () means none (the locked-down call)
     cancel: object = field(default=None, repr=False, compare=False)  # #284: a threading.Event; set before the run is registered, the run does not start
 
     @property
@@ -197,18 +214,50 @@ def check_question(question, earlier=()):
         if not (isinstance(turn, (tuple, list)) and len(turn) == 2 and turn[0] in ROLES and isinstance(turn[1], str)):
             raise AskRefused(BAD_INPUT)
         turns.append((turn[0], turn[1]))
-    if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
-        raise AskRefused(CHAT_TOO_LONG)
-    check_secrets(question, turns)
+    check_secrets(question, turns)       # the whole chat is screened first; a long or old turn is trimmed after, never refused (#1293 B)
     return turns
 
 
-def build_request(question, passages, earlier=()):
+def _trim(turns):
+    """(the newest MAX_EARLIER_TURNS turns, each cut to MAX_TURN characters, how many old turns went). Run after the secret screen."""
+    gone = max(0, len(turns) - MAX_EARLIER_TURNS)
+    return [(r, t[:MAX_TURN]) for r, t in turns[gone:]], gone
+
+
+_DAY_TEXT = re.compile(r"\d{2}-\d{2}-\d{4}")
+_PARTIAL_LINE = re.compile(r"[a-z][a-z ]{0,40}: \d{1,6} of \d{1,6} rows sent")
+
+
+def looks_secret(text):
+    """Whether `text` looks like a password or a key, by the ask path's own screen (Settings uses it for the standing instructions, so one is never kept to be sent)."""
+    return _secret(text)
+
+
+STANDING_FOR = (("all", "STANDING INSTRUCTIONS FOR ALL PROJECTS"), ("project", "STANDING INSTRUCTIONS FOR THIS PROJECT"))
+
+
+def _standing(instructions):
+    """(heading, text) pairs for the standing instructions given as {"all": text, "project": text}: the one for all projects first, a blank one left out.
+    Raises `AskRefused` when one looks like a password or a key (they are screened when saved, and again here, the last point before the provider)."""
+    given = instructions if isinstance(instructions, dict) else {}
+    out = []
+    for key, heading in STANDING_FOR:
+        text = given.get(key)
+        if not isinstance(text, str) or not text.strip():
+            continue
+        if _secret(text):
+            raise AskRefused(INSTRUCTIONS_SECRET)
+        out.append((heading, text))
+    return out
+
+
+def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given."""
-    turns = check_question(question, earlier)
+    max_request = MAX_REQUEST if max_request is None else max_request      # Row 1293: a model with a smaller window gives a smaller cap
+    turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out = [], [], 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
@@ -224,21 +273,37 @@ def build_request(question, passages, earlier=()):
     if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
         raise AskRefused(TOO_MUCH)
 
+    head = _head(today, partial)
+    standing = _standing(instructions)
     dropped = 0
     while True:                     # a long chat gives up its oldest turns first, so a narrow question isn't refused for them
-        body, ids, hidden = _assemble(question, turns[dropped:], chosen)
-        if len(body) <= MAX_REQUEST:
+        body, ids, hidden = _assemble(question, turns[dropped:], chosen, head, standing)
+        if len(body) <= max_request:
             break
         if dropped >= len(turns):
             raise AskRefused(TOO_MUCH)
         dropped += 1
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped, left_out_secret=secret_out, kept=tuple(kept))
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept))
 
 
-def _assemble(question, turns, chosen):
+def _head(today, partial):
+    """The lines clark itself writes above the question (never from a passage): today's date, and how much of the rows were sent."""
+    lines = []
+    if isinstance(today, str) and _DAY_TEXT.fullmatch(today):
+        lines.append(f"Today is {today}.")    # [D] 1293 Q4: DD-MM-YYYY
+    lines += [x for x in partial or () if isinstance(x, str) and _PARTIAL_LINE.fullmatch(x)]
+    if any(_PARTIAL_LINE.fullmatch(x) for x in partial or () if isinstance(x, str)):
+        lines.append("Only some rows were sent, so give no totals or counts of the whole; say how many you read.")
+    return lines
+
+
+def _assemble(question, turns, chosen, head=(), standing=()):
     """The request text, the (id, label) pairs and the hidden counts, for these turns and passages."""
-    fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen] + [l for l, _t in chosen])
-    parts = ["QUESTION", fence, question, fence]       # no rules here: they are the system prompt, and hold the CITE and CHANGE lines
+    fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen] + [l for l, _t in chosen] + [t for _h, t in standing])
+    parts = list(head) + ([""] if head else [])
+    for heading, text in standing:       # the person's own wishes, above the question, the one for all projects first (row 1294)
+        parts += [heading, fence, text, fence, ""]
+    parts += ["QUESTION", fence, question, fence]       # no rules here: they are the system prompt, and hold the CITE and CHANGE lines
     if turns:
         parts += ["", "EARLIER IN THIS CHAT"]
         for role, text in turns:
@@ -262,23 +327,31 @@ def _assemble(question, turns, chosen):
 # check then compares what the reply says with the project's data, through callables the caller builds from a read-only path.
 # The form is a small copy in spirit of creaite's EDIT: line: the idea of a marked line, none of its code.
 # ---------------------------------------------------------------------------------------------------------------------------
-MAX_CHANGES = 10
+MAX_CHANGES = 5                # Row 1293: equals ask_apply.MAX_AT_ONCE (ask_apply imports ask_data imports ask, so no import here; a test pins them equal)
 MAX_CHANGE_CHARS = 2000        # one CHANGE line, JSON included
 MAX_CHANGE_FIELDS = 12
 MAX_FIELD_NAME = 40
 MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
-MAX_REPLY = 60000
+MAX_DRAFT_CHARS = 20000        # one DRAFT line, JSON included
+MAX_DRAFT_TITLE = 200
+MAX_DRAFT_SEC = 40
+MAX_REPLY = ask_words.REPLY_CUT_AT
+MAX_ITEMS = 20              # most item IDs a reply's `items` holds (DRAFT contract, row 1332)
+ITEM_STATES = ("overdue", "red", "no_owner")      # the only words an item's state may hold (DRAFT contract, row 1332)
 MAX_FLAGS = 25              # most flags of one kind that are kept; the rest become one "and N more" line
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
 
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change. Ask again, or check it against the report yourself.")
+# [D] #1293 A: NEEDS RULING (wording): said when one CHANGE line could not be read and only that change was dropped.
+CHANGE_UNREADABLE = "A change the answer suggested could not be read, so it was left out."
+CHANGE_LIMIT = f"Only the first {MAX_CHANGES} changes are offered. Ask again for the rest."   # Row 1293: said only when changes were cut at the limit
 NOT_SENT = "The answer named a source that was not sent. Ignore that part."
 
 
 @dataclass(frozen=True)
 class Flag:
     """One problem the claims check found. `kind` is one of: unknown_id, wrong_title, wrong_owner, unsent_passage, change_left_out,
-    unreadable, disguised, more. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
+    change_limit, unreadable, disguised, more. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
     kind: str
     ref: str
     message: str
@@ -289,12 +362,16 @@ class Flag:
 class Reply:
     """What was read from a reply. `answer` is the text for the person (without the CITE and CHANGE lines when the reply parsed);
     `cites` the passage IDs named; `changes` plain dicts (data only, unchecked against the store); `parsed` whether the form was
-    followed; `flags` what the claims check found."""
+    followed; `flags` what the claims check found; `draft` the text written for a report section ({html, title, sec}) or None;
+    `items` ({"id", "state"} for each real item the answer text names, first mention first, each once; DRAFT contract, row 1332)."""
     answer: str
     cites: tuple = ()
     changes: tuple = ()
     parsed: bool = True
     flags: tuple = ()
+    draft: object = None
+    items: tuple = ()
+    reply_cut: bool = False         # Row 1293: the reply was longer than MAX_REPLY and was cut (the Used line says so)
 
 
 _CITE_ID = re.compile(r"P[1-9]\d{0,2}")
@@ -343,15 +420,48 @@ def read_change(payload):
     return data
 
 
+def read_draft(payload):
+    """The text after `DRAFT:` as {"html", "title", "sec"} (title and sec may be empty), or None when it isn't one JSON object within the
+    limits: at most MAX_DRAFT_CHARS characters, an `html` that is text with something in it, and a `title` and `sec` that are text if
+    given. Other names are dropped. Nothing is run or looked up; the page cleans the html as it does a section body."""
+    payload = (payload or "").strip()
+    if not payload or len(payload) > MAX_DRAFT_CHARS:
+        return None
+
+    def pairs(items):
+        keys = [k for k, _v in items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("repeated name")
+        return dict(items)
+
+    def refuse_constant(_name):
+        raise ValueError("not a plain number")
+
+    try:
+        data = json.loads(payload, object_pairs_hook=pairs, parse_constant=refuse_constant)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    html, title, sec = data.get("html"), data.get("title", ""), data.get("sec", "")
+    if not isinstance(html, str) or not html.strip() or "\x00" in html:
+        return None
+    if not (isinstance(title, str) and len(title) <= MAX_DRAFT_TITLE and "\x00" not in title):
+        return None
+    if not (isinstance(sec, str) and len(sec) <= MAX_DRAFT_SEC and "\x00" not in sec):
+        return None
+    return {"html": html, "title": title, "sec": sec}
+
+
 def _marker(line):
-    """("CITE" | "CHANGE" | "", rest, disguised) for one line. A line is a marker only when it starts with the word in plain capitals
+    """("CITE" | "CHANGE" | "DRAFT" | "", rest, disguised) for one line. A line is a marker only when it starts with the word in plain capitals
     and a colon. One that only reads as a marker once hidden characters or look-alikes are removed is `disguised`: not acted on."""
     stripped = line.lstrip()
-    for word in ("CITE", "CHANGE"):
+    for word in ("CITE", "CHANGE", "DRAFT"):
         if stripped.startswith(word + ":"):
             return word, stripped[len(word) + 1:], False
     seen = edit_ai.normal(stripped).lstrip()
-    for word in ("CITE", "CHANGE"):
+    for word in ("CITE", "CHANGE", "DRAFT"):
         if seen.startswith(word + ":"):
             return "", "", True
     return "", "", False
@@ -420,6 +530,26 @@ def check_claims(text, sent, codes, exists, facts=None):
     return flags
 
 
+def _items_in(text, codes, exists, facts):
+    """The items a reply's answer text names: strict IDs in the order they first appear, then any loose spelling (sorted), each once,
+    only an ID `_known` vouches for, at most MAX_ITEMS. `state` is the words of ITEM_STATES the row's facts carry (an empty list when none)."""
+    named = list(dict.fromkeys(edit_ai.ID_RE.findall(edit_ai.normal(text))))
+    named += sorted(_ids_in(codes, exists, text) - set(named))
+    out = []
+    for ref in named:
+        if not _known(exists, ref):
+            continue
+        try:
+            held = (facts(ref) or {}).get("state") if facts is not None else None
+        except Exception:  # noqa: BLE001
+            held = None
+        words = [w for w in held if w in ITEM_STATES] if isinstance(held, (list, tuple)) else []
+        out.append({"id": ref, "state": words})
+        if len(out) >= MAX_ITEMS:
+            break
+    return tuple(out)
+
+
 def _cap(flags):
     """At most MAX_FLAGS of each kind, in order, then one `more` flag saying how many were left out."""
     count, kept, left = {}, [], 0
@@ -436,27 +566,37 @@ def _cap(flags):
 
 def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     """Read one reply. Returns a `Reply`. A reply that doesn't follow the form (empty, over MAX_REPLY, a CITE line that isn't passage
-    IDs, a CHANGE line that isn't one flat JSON object within the limits, more than MAX_CHANGES, or a marker disguised with hidden
-    characters) is returned whole as text, with `parsed` False and no change. The claims check runs either way. Never raises on odd text."""
+    IDs, or a marker disguised with hidden characters) is returned whole as text, with `parsed` False and no change. The claims check
+    runs either way. A CHANGE line that isn't one flat JSON object within the limits is left out and said (change_unreadable); the
+    answer and the other changes stand. Good changes past MAX_CHANGES are cut, the first MAX_CHANGES kept, and said (change_limit).
+    Never raises on odd text."""
     if not isinstance(text, str):
         text = ""
+    cut = len(text) > MAX_REPLY
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised = [], [], [], bool(text.strip()), False
+    answer, cites, changes, ok, disguised, dropped, over, draft = [], [], [], bool(text.strip()), False, 0, 0, None
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
             disguised, ok = True, False
         elif word == "CITE":
-            ids = [p for p in re.split(r"[\s,;]+", rest.strip()) if p]
+            ids = [p.rstrip(".") for p in re.split(r"[\s,;]+", rest.strip().rstrip(".")) if p.rstrip(".")]
+            if [p.lower() for p in ids] == ["none"]:      # [D] #1293 A: "CITE: none" means no passage was used, not an unreadable reply
+                continue
             if not ids or not all(_CITE_ID.fullmatch(p) for p in ids):
                 ok = False
             cites.extend(i for i in ids if i not in cites)
         elif word == "CHANGE":
             change = read_change(rest)
-            if change is None or len(changes) >= MAX_CHANGES:
-                ok = False
+            if change is None:
+                dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
+            elif len(changes) >= MAX_CHANGES:
+                over += 1                         # Row 1293: a good change over the limit is cut and said so, not called unreadable
             else:
                 changes.append(change)
+        elif word == "DRAFT":
+            if draft is None:
+                draft = read_draft(rest)         # a draft that can't be read is left out; the answer still stands
         else:
             answer.append(line)
     flags = check_claims(text, sent, codes, exists, facts)
@@ -469,9 +609,14 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 flags.append(Flag("change_left_out", bad[0], f"A change the answer suggested named {bad[0]}, which isn't in this project, so it was left out."))
             else:
                 left.append(change)
-        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags))
+        if dropped:
+            flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
+        if over:
+            flags.append(Flag("change_limit", "", CHANGE_LIMIT))
+        said = "\n".join(answer).strip()
+        return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts), cut)
     kind = "disguised" if disguised else "unreadable"
-    return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))
+    return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags), None, (), cut)
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -515,8 +660,7 @@ def secret_note(count):
     """The plain-words line for `Request.left_out_secret`. "" for none."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return (f"Part of your report {LOOKS_LIKE}, so it was left out and the answer may be missing something. "
-            "Take it out of the item if you want it included.")
+    return ask_words.SECRET_LEFT_OUT      # Row 1293: one plain line; what matched is never shown
 
 
 def dropped_note(count):

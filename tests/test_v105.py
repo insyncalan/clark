@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.5"
-SCHEMA = 29              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ended at 20 (#944 T1, projects.brand); 1.0.7 moves it to 21 (row 1061, Planned 2026), 22 (row 875, use case owner) and 23 (row 1068, report_sections.type takes gantttable); item 1185 (1.0.9): 25, latest_update on raid and milestones
+SCHEMA = 31              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ended at 20 (#944 T1, projects.brand); 1.0.7 moves it to 21 (row 1061, Planned 2026), 22 (row 875, use case owner) and 23 (row 1068, report_sections.type takes gantttable); item 1185 (1.0.9): 25, latest_update on raid and milestones
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [

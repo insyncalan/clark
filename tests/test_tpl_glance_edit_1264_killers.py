@@ -57,11 +57,11 @@ class Killers(GlanceEdit):
             eye = self.sel("[data-tile=overdue] [data-tile-eye]")
             p.js(f"document.querySelector('{eye}').click()")
             self.assertTrue(wait(lambda: self.body().get("builtin") == {"overdue": {"hidden": True}}, 10))
-            self.assertTrue(wait(lambda: p.js(f"document.activeElement === document.querySelector('{eye}')"), 5), "focus on the eye after hiding")
-            p.js(f"document.querySelector('{eye}').click()")
+            p.until(f"!document.querySelector('{eye}')", "the hidden tile left Edit, eye and all (row 1303)")
+            p.js(f"document.querySelector('{self.sel('.tileadd')}').click()")
+            p.js("[...document.querySelectorAll('.ddmenu[role=menu] [role=menuitem]')].find(b => b.textContent.includes('Overdue actions')).click()")
             self.assertTrue(wait(lambda: not self.body().get("builtin"), 10), f"stored: {self.body()}")
             p.until("(document.querySelector('.toast-text') || {}).textContent === 'Overdue actions shown in the published report.'", "the shown words")
-            self.assertTrue(wait(lambda: p.js(f"document.activeElement === document.querySelector('{eye}')"), 5), "focus on the eye after showing")
 
     def test_K5_automatic_after_a_colour_says_automatic_and_clears_it(self):
         with chrome() as cdp:
@@ -84,8 +84,8 @@ class Killers(GlanceEdit):
             self.assertEqual(p.js(f"document.querySelector('{eye}').getAttribute('aria-pressed')"), "false")
             p.js(f"document.querySelector('{eye}').click()")
             self.assertTrue(wait(lambda: self.body().get("builtin") == {"overdue": {"hidden": True}}, 10))
-            p.until(f"document.querySelector('{eye}').getAttribute('aria-pressed') === 'true'", "pressed while hidden")
-            self.assertIn("Show Overdue actions", p.js(f"document.querySelector('{eye}').getAttribute('aria-label')"))
+            p.until(f"!document.querySelector('{eye}')", "a hidden tile is not drawn in Edit, so no eye says pressed (row 1303)")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-tile-eye]')].filter(e => e.getAttribute('aria-pressed') !== 'false').length"), 0)
 
     def test_K7_a_change_keeps_the_bespoke_tiles_and_the_own_row_flag(self):
         bespoke = [{"id": "b1", "label": "Fictional green", "figure": "7", "tag": "Fine", "note": "Fictional note", "tone": "green"}]

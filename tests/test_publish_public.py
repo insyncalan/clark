@@ -1906,7 +1906,8 @@ class TheListedWordGuard(unittest.TestCase):
         self.assertTrue(self.found(path, (product + "// %s\n" % pp.reveal("Fpbgg")).encode()))
         self.assertTrue(self.found(path, (product + "x = '%s'\n" % pp.reveal("Gbal")).encode()))
 
-    TEMPLATE_PATHS = ("src/clark/page/src/help/helpContent.json", "tests/test_help_content.py", "tests/test_help_shown.py")
+    TEMPLATE_PATHS = ("src/clark/page/src/help/helpContent.json", "tests/test_help_content.py", "tests/test_help_shown.py",
+                      "src/clark/page/src/logic/templates.js")
 
     def test_the_template_name_is_allowed_in_its_own_files_at_its_count(self):
         self.assertEqual(sorted(pp.TEMPLATE_NAME_PATHS), sorted(self.TEMPLATE_PATHS))
@@ -1916,7 +1917,7 @@ class TheListedWordGuard(unittest.TestCase):
                 self.assertEqual(self.found(path, ('"%s", "Open with a message"\n' % BUILDER_N).encode()), [])
 
     def test_the_template_name_in_any_other_file_is_refused_by_file_number(self):
-        for path in ("src/clark/page/src/logic/templates.js", "docs/other.md", "tests/test_other.py", "src/clark/page/src/help/other.json",
+        for path in ("docs/other.md", "tests/test_other.py", "src/clark/page/src/help/other.json",
                      "system/prototype/other.js"):
             with self.subTest(path):
                 got = self.found(path, ('"%s", "Open with a message"\n' % BUILDER_N).encode())

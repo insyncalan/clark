@@ -4,10 +4,12 @@
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { todayIso } from "../workItems.js";
+import { mailClick, MAIL_NOTE } from "../edit/mailApi.js";
 import { MODES, LABELS, TONES, chasedWords, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, sentOff, onClose, clip, none: noneWords }) {
   const [note, setNote] = useState("");
+  const [mailFailed, setMailFailed] = useState(false);
   const [saving, setSaving] = useState(false);          // I sent it is in flight: the button is off and a second press does nothing (one press, one record)
   const saveLock = useRef(false);
   const sentBtn = useRef(null), wasSaving = useRef(false);
@@ -24,7 +26,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, sentO
     if (saving) wasSaving.current = true;
     else if (wasSaving.current) { wasSaving.current = false; if (sentBtn.current) sentBtn.current.focus({ preventScroll: true }); }
   }, [saving]);
-  const change = (patch) => { setNote(""); if (onChange) onChange({ ...state, ...patch }); };
+  const change = (patch) => { setNote(""); setMailFailed(false); if (onChange) onChange({ ...state, ...patch }); };
   const body = () => {
     const el = preview.current;
     return edited.current && el ? { html: el.innerHTML, text: el.innerText } : null;
@@ -125,10 +127,11 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, sentO
       <div class="pk-foot">
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
-        {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
+        {link.href ? <a class="pk-btn" href={link.href} onClick={(e) => mailClick(e, link.href, setMailFailed)}>{LABELS.mail}</a> : null}
         <button type="button" class="pk-btn" ref={sentBtn} disabled={!!problem || saving || !!sentOff} aria-describedby={sentOff ? "de-sent-off" : undefined} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>
+      {mailFailed ? <p class="muted de-note" data-mail-note>{MAIL_NOTE}</p> : null}
     </div>
   );
 }

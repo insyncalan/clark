@@ -73,11 +73,11 @@ class Steps(GlanceEdit):
             self.assertEqual(self.applies(), before + 1, "one step")
             p.until("!!document.querySelector('[data-undo]')", "the toast")
             self.assertEqual(self.toast(p), "Overdue actions hidden from the published report.")
-            self.assertTrue(p.js(f"document.querySelector('{self.sel('[data-tile=overdue]')}').classList.contains('is-hidden')"))
+            p.until(f"!document.querySelector('{self.sel('[data-tile=overdue]')}')", "the hidden tile left Edit (row 1303)")
             self.undo(p)
             self.assertTrue(wait(lambda: self.body() == {} or self.body() == {"v": 1}, 10), f"undone: {self.body()}")
             self.assertEqual(self.applies(), before + 2, "the undo is one step")
-            p.until(f"!document.querySelector('{self.sel('[data-tile=overdue]')}').classList.contains('is-hidden')", "shown again")
+            p.until(f"!!document.querySelector('{self.sel('[data-tile=overdue]')}')", "shown again")
 
     def test_T64_an_outline_colour_is_one_step_and_one_undo(self):
         with chrome() as cdp:

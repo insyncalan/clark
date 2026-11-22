@@ -1,27 +1,31 @@
 // The At a glance section (#45): Project health (a pill and the reason, two tile widths) and the tiles after it, in the order, with
-// the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit draws it dimmed with its controls
+// the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit leaves it out too (row 1303) and lists it in Add a tile
 // (`tools.glance`, edit/GlanceEdit.jsx). A published file draws the figures the file carries (data.glance, worked out at publish
 // time from the rows the file keeps); its tiles that count work items open the file's Work items filtered (row 1112), read only. No control.
 import { data, rows, openWork, fromFile, tabs } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { allTiles, fileTiles } from "../glanceTiles.js";
+import { drawnTiles, hiddenTiles } from "../glanceHidden.js";
 import { useRef } from "preact/hooks";
 import { useSettle } from "../stores/motion.js";
 import { HTML_START } from "../logic/richWords.js";
+import { classicTheme } from "./Contents.jsx";   // row 1404: under Classic the "of N ..." note sits in the figure line, as the prototype draws it
 
 function Cell({ tile, children }) {
   return <div class={`tcell${tile.key === "health" ? " health" : ""}`} data-tile={tile.key}>{children}</div>;
 }
 
 export function Figure({ t, file }) {
+  const inline = classicTheme() && /^of /.test(t.detail || "");      // row 1404: Classic only; Cards keeps the note on its own line
   const inner = (
     <>
       <span class="k"><i class="ragdot" aria-hidden="true"></i>{t.label}</span>
       <span class="vrow">
         <span class="v num">{t.value}</span>
+        {inline ? <span class="dd of">{t.detail}</span> : null}
         {t.word ? <span class="tw" aria-hidden="true">{t.word}</span> : null}   {/* beside the figure; the word is in the tile's own label below, so it is not read twice */}
       </span>
-      <span class="dd">{t.detail}</span>
+      {inline ? null : <span class="dd">{t.detail}</span>}
     </>
   );
   const aria = `${t.label}: ${t.value}${t.detail ? ", " + t.detail : ""}${t.word ? ". " + t.word : ""}`;
@@ -56,18 +60,22 @@ export function Health({ t, tools, editing, clean }) {
 
 export function Glance({ tools, clean }) {
   const d = data.value, editing = !!(tools && tools.glance) && !fromFile.value;
-  const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
+  const every = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles);
+  const list = drawnTiles(every), hidden = editing ? hiddenTiles(every) : [];      // row 1303: a hidden tile leaves Edit too; Add a tile lists it
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
+  const others = list.filter((t) => t.key !== "health" && !t.hidden).length;
+  const share = list.some((t) => t.key === "health" && !t.hidden) && !list.some((t) => t.hidden) && (others === 1 || others === 2) ? String(others) : undefined;   /* row 1303: Project health with 2 visible tiles takes 50% of the row, with 1 tile 75%; a tile hidden with the eye does not count (Edit draws it, so Edit keeps today's four-up while one is there) */
   return (
     <>
-    <div class="glance" data-glance>
+    <div class="glance" data-glance data-others={share}>
       {list.map((t, i) => (
         <Wrap key={t.key} tile={t} order={order} index={i}>
           {t.key === "health" ? <Health t={{ ...t, pill: d.project.health ? ({ "On track": "g", "At risk": "a", "Off track": "r" })[d.project.health] : "n" }} tools={tools} editing={editing} clean={clean} /> : <Figure t={t} file={fromFile.value} />}
         </Wrap>
       ))}
     </div>
+    {editing && hidden.length ? <tools.glance.AddTile hidden={hidden} onShow={(key) => tools.glance.show(key)} /> : null}
     {editing ? <tools.glance.Hint /> : null}
     </>
   );

@@ -24,7 +24,7 @@ STEP = 20
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("brand",)
-LATER_COLUMNS = ("latest_update", "decisions.priority", "app_settings.theme")      # item 1185 (step 25) adds this to raid and milestones; row 1269 (step 27) adds the theme
+LATER_COLUMNS = ("latest_update", "decisions.priority", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off")      # row 1294 (steps 31 and 33) adds ask_instructions and the Files and new-project asking columns; item 1185 (step 25) adds this to raid and milestones; row 1269 (step 27) adds the theme
 COLUMN = "brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)"
 
 
@@ -99,7 +99,7 @@ class Migrating(unittest.TestCase):
             s.close()
         after = every_row(path, NEW_COLUMNS + LATER_COLUMNS)
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
-        self.assertEqual(set(after) - {"use_case_milestones"}, set(before))      # row 1107 (layout 24) adds that table
+        self.assertEqual(set(after) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors"}, set(before))      # row 1107 (layout 24) adds that table, row 1300 (layout 30) install_defaults
 
     def test_a_safety_copy_is_taken_before_the_step_runs_and_it_is_the_old_layout(self):
         path = make_at(self.dir, STEP - 1)
@@ -181,7 +181,7 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual([c[1] for c in project_columns(path)][-1], "brand")
+        self.assertEqual([c[1] for c in project_columns(path)][-4], "brand")
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_columns_in_the_same_order(self):
         path = make_at(self.dir, STEP - 1)

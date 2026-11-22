@@ -39,7 +39,7 @@ class Drawn(Published):
                   return bad; })()""", sid)
                 self.assertEqual(overlap, [], "the Achieved cell's bar and chip stay inside the Achieved cell and clear of the Planned figure")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker thead th')].filter(h => h.scrollWidth > h.clientWidth + 1).length", sid), 0, "no table heading is cut or run into the next")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker tbody td.t-date')].filter(c => c.getClientRects()[0] && Math.round(c.getBoundingClientRect().height) > 60).length", sid), 0, "a date stays on one line")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker tbody td.t-date')].filter(c => { if (!c.getClientRects()[0]) return false; const r = document.createRange(); r.selectNodeContents(c); return new Set([...r.getClientRects()].map(q => Math.round(q.top))).size > 1; }).length", sid), 0, "a date stays on one line")
 
     def test_the_tracker_health_tile_and_progress_bars_keep_their_fill_when_the_page_is_printed_to_pdf(self):
         # #1012: the PDF is the browser's print of this page. A bar with no painted fill prints as an empty slot, so under print media the

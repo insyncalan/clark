@@ -14,9 +14,14 @@ export const STATUSES = ["Open", "Delayed", "Pending", "Closed", "Cancelled", "M
 export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
-export const SORTS = ["due", "priority", "id"];
+export const SORTS = ["due", "priority", "id", "type", "owner"];
+export const CARDS_SORTS = ["due", "priority", "id"];      // what the Cards Configure box offers, unchanged
+export const DESIGN_SORTS = ["due", "priority", "type", "owner"];
+// The options of the Configure box's Sort by: the layer's own list, and the saved sort too when that list lacks it, so the box never shows a sort the list does not have.
+export const sortChoices = (classic, saved) => { const own = classic ? DESIGN_SORTS : CARDS_SORTS; return own.includes(saved) ? own : [...own, saved]; };      // row 1339: the approved Configure box offers these four, in this order; a saved sort by ID is kept (SORTS) and still read
 export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
+export const DEFAULT_COLUMNS = ["id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
+export const SAVED_FALLBACK_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1268: what a saved list or file that names no column has always shown; only a NEW list starts with DEFAULT_COLUMNS
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
 export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
@@ -32,7 +37,7 @@ export const WORDS = {
   kinds: { action: "Actions", risk: "Risks", issue: "Issues", assumption: "Assumptions", dependency: "Dependencies", decision: "Decisions" },
   mode: { open: "Open", closed: "Closed", all: "Open and closed", current: "Open, and decisions made in the last 14 days" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
-  sort: { due: "Due date", priority: "Priority", id: "ID" },
+  sort: { due: "Due date", priority: "Priority", id: "ID", type: "Type", owner: "Owner" },
   columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
@@ -78,7 +83,7 @@ export function windowOf(total, max, showAll) {
 
 // Row 1268 (mock-up work-items-mockup.html, rows()): the foot under the scrolling rows. Edit says how many of the rows are in view and that the
 // rest scroll; View and Edit both carry the link that opens the Work items page on the same filter.
-export const footWords = (total, max) => `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`;
+export const footWords = (total, max, all = false, classic = false) => (classic && (all || total <= max) ? `Showing all of ${total}` : `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`);      // row 1195 (Classic): ruling NEW-WORDS 04:2x, WO-M8328: Showing all of N when nothing is cut and after Show all items
 export const reviewWords = (total) => `Review all ${total} items`;
 
 // The Work items page's filter state (filters.js shape) for a list's saved filter, so "Review all N items" opens the page on the same rows.
@@ -115,6 +120,7 @@ export function filterOf(section) {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const out = defaults();
   for (const f of [...FILTERS, "columns", "milestone", "text"]) if (isList(v[f])) out[f] = v[f].slice();
+  if (!isList(v.columns)) out.columns = SAVED_FALLBACK_COLUMNS.slice();      // row 1268: a saved body with no columns key keeps what it always showed; only a NEW list starts without Type
   if (v.not && typeof v.not === "object" && !Array.isArray(v.not)) for (const f of LEFT_OUT) if (isList(v.not[f])) out.not[f] = v.not[f].slice();
   for (const f of ["has", "no"]) if (Array.isArray(v[f])) out[f] = v[f].filter((g) => isList(g) && g.length).map((g) => g.slice());
   if (MODES.includes(v.mode)) out.mode = v.mode;
@@ -187,6 +193,8 @@ function byDue(x, y) {
   const a = dueKey(x), b = dueKey(y);
   return cmp(a[0], b[0]) || cmp(a[1], b[1]);
 }
+const kindRank = (r) => { const i = KINDS.indexOf(r.kind); return i < 0 ? KINDS.length : i; };
+const ownerKey = (r) => { const o = String(r.owner == null ? "" : r.owner).trim().toLowerCase(); return o ? [0, o] : [1, ""]; };
 const rank = (r) => { const i = PRIORITIES.indexOf(r.priority); return i < 0 ? PRIORITIES.length : i; };
 
 // The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; null when a choice list had
@@ -223,6 +231,8 @@ export function matching(filter, rows, today, live, all) {
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "type") hits.sort((x, y) => closedLast(x, y) || cmp(kindRank(x), kindRank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "owner") hits.sort((x, y) => closedLast(x, y) || cmp(ownerKey(x)[0], ownerKey(y)[0]) || cmp(ownerKey(x)[1], ownerKey(y)[1]) || byDue(x, y) || cmp(x.id, y.id));
   else hits.sort((x, y) => closedLast(x, y) || byDue(x, y) || cmp(x.id, y.id));
   return (all ? hits : hits.slice(0, filter.max)).map((r) => r.id);
 }
@@ -251,13 +261,13 @@ export function listOf(section, data, today) {
   if (section && Array.isArray(section.items)) {
     const there = new Set(WORK.flatMap((k) => ((data && data[k]) || []).map((r) => r.id)));
     const cols = isList(section.columns) ? section.columns.filter((c) => COLUMNS.includes(c)) : [];
-    return { items: section.items.filter((id) => typeof id === "string" && there.has(id)), columns: cols.length ? cols : DEFAULT_COLUMNS.slice(),
+    return { items: section.items.filter((id) => typeof id === "string" && there.has(id)), columns: cols.length ? cols : SAVED_FALLBACK_COLUMNS.slice(),
       caption: typeof section.caption === "string" ? section.caption : "", saved: true };
   }
   const filter = filterOf(section);
-  if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
+  if (!filter) return { items: [], columns: SAVED_FALLBACK_COLUMNS.slice(), caption: "", saved: false };
   const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(publishedOnly(data)), today, liveOf(data));
-  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : SAVED_FALLBACK_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible

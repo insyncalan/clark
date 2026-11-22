@@ -58,7 +58,7 @@ class Killers(Editor):
             self.assertIn("tone-n", cls("t3").split())
             col = lambda t: p.js(f"getComputedStyle(document.querySelector({self.q(f'[data-tile={t}] .tpl-gt-tile')})).borderTopColor")  # noqa: E731
             self.assertEqual(len({col("t1"), col("t2"), col("t3")}), 3, "green, amber and neutral each have their own border colour")
-            self.assertEqual(p.js(f"getComputedStyle(document.querySelector({self.q('[data-tile=t4] .tpl-gt-tile')})).borderTopStyle"), "dashed", "a hidden own tile has a dashed border")
+            self.assertEqual(p.js(f"document.querySelectorAll({self.q('[data-tile=t4]')}).length"), 0, "a hidden own tile is not drawn in Edit (row 1303)")
 
     def test_K5_done_on_a_new_tile_without_a_colour_stores_no_tone(self):
         with chrome() as cdp:
@@ -89,10 +89,7 @@ class Killers(Editor):
         self.seed([{**OWN, "hidden": True}])
         with chrome() as cdp:
             p = self.page(cdp)
-            self.pencil(p)
-            self.fill(p, "label", "Fictional changed")
-            self.click(p, "[data-tile-editor] [data-done]")
-            self.assertTrue(wait(lambda: self.body()["bespoke"][0].get("label") == "Fictional changed", 10), f"stored: {self.body()}")
+            self.assertEqual(p.js(f"document.querySelectorAll({self.q('[data-tile=t1]')}).length"), 0, "a hidden own tile is not drawn in Edit, so it has no pencil (row 1303)")
             self.assertIs(self.body()["bespoke"][0].get("hidden"), True)
 
     def test_K8_done_with_nothing_changed_closes_silently_and_makes_no_step(self):

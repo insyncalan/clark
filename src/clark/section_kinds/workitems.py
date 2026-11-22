@@ -6,7 +6,7 @@ are live: they are chosen again from the project's records each time the page is
 
 Stored (canonical JSON, every key present once checked):
   {"v": 1, "kinds": [..], "mode": "open"|"closed"|"all"|"current", "status": [..], "due": [..], "owner": [..], "workstream": [..],
-   "use_case": [..], "priority": [..], "sort": "due"|"priority"|"id", "max": 1..50, "columns": [..], "caption": ".."}
+   "use_case": [..], "priority": [..], "sort": "due"|"priority"|"id"|"type"|"owner", "max": 1..50, "columns": [..], "caption": ".."}
 An empty list is "any". "(none)" in owner, workstream, use_case or priority matches a row that has none. There is no
 "client visible" choice: a row that is not client visible never publishes (D-3), so it could only ever give an empty list.
 
@@ -25,7 +25,7 @@ EMPTY = ""
 # Row 1268: a new list starts with this saved filter (all work items, the default columns, Most rows 10), never blank; changes.py accepts exactly this body
 # for a new list, and the page's TEMPLATES entry sends it (tests/test_tpl_workitems.py holds the two to the page's own default filter).
 START = ('{"v":1,"kinds":[],"mode":"open","status":[],"due":[],"owner":[],"workstream":[],"use_case":[],"priority":[],"sort":"due","max":10,'
-         '"columns":["type","id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
+         '"columns":["id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
          '"workstream":[],"use_case":[],"priority":[],"milestone":[]},"has":[],"no":[],"text":[]}')
 
 VERSION = 1
@@ -35,9 +35,9 @@ STATUSES = ("Open", "Delayed", "Pending", "Closed", "Cancelled", "Made", "Withdr
 DUE = ("overdue", "soon", "none", "later")
 NONE = "(none)"
 PRIORITIES = ("Urgent", "High", "Medium", "Low")
-SORTS = ("due", "priority", "id")
+SORTS = ("due", "priority", "id", "type", "owner")      # row 1339: Type and Owner are the approved Configure box's two other choices
 COLUMNS = ("type", "id", "owner", "due", "status", "priority", "workstream", "milestone")      # the title is always shown
-DEFAULT_COLUMNS = ("type", "id", "owner", "due", "priority")      # row 1199: Status, Workstream and Milestone start off in a new list
+DEFAULT_COLUMNS = ("type", "id", "owner", "due", "priority")      # row 1199: Status, Workstream and Milestone start off in a new list; row 1268: a body with no columns key keeps Type (only START, the new-list body, drops it)
 MAX_ROWS = 50
 DEFAULT_MAX = 10
 MAX_VALUES = 30                     # names in one filter
@@ -321,6 +321,16 @@ def _alive(value, live):
     return out
 
 
+def _kind_rank(row):
+    return KINDS.index(row.get("kind")) if row.get("kind") in KINDS else len(KINDS)
+
+
+def _owner_key(row):
+    """Owner A to Z, ignoring case; an item with no owner last."""
+    o = str(row.get("owner") or "").strip().lower()
+    return (0, o) if o else (1, "")
+
+
 def matching(value, rows, today, live=None):
     """The ids of `rows` (rows_of's shape) that the checked filter `value` lists, sorted and cut to its max."""
     value = _alive(value, live)
@@ -334,6 +344,10 @@ def matching(value, rows, today, live=None):
         hits.sort(key=lambda r: r["id"])
     elif value["sort"] == "priority":
         hits.sort(key=lambda r: (not _open(r), rank.get(r.get("priority"), len(PRIORITIES)), _due_key(r), r["id"]))
+    elif value["sort"] == "type":
+        hits.sort(key=lambda r: (not _open(r), _kind_rank(r), _due_key(r), r["id"]))
+    elif value["sort"] == "owner":
+        hits.sort(key=lambda r: (not _open(r), _owner_key(r), _due_key(r), r["id"]))
     else:
         hits.sort(key=lambda r: (not _open(r), _due_key(r), r["id"]))
     return [r["id"] for r in hits[:value["max"]]]

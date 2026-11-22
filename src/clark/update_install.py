@@ -33,6 +33,7 @@ import io
 import json
 import os
 import re
+import secrets
 import shutil
 import stat
 import sys
@@ -98,6 +99,24 @@ def stamp_now(now=None):
 
 # --- taking the file in -----------------------------------------------------------------------------------------------
 
+STALE_PART_SECONDS = 24 * 3600                          # a part file this old belongs to a call that is gone
+
+
+def _sweep_parts(folder, now=None):
+    """Put away `.clark-*.part` files (the part names take_in makes) in the releases folder that a killed call left (a day old or more). A younger one may belong to a
+    call still running, a link is never followed, and any error is ignored."""
+    now = time.time() if now is None else now
+    try:
+        for old in folder.glob(".clark-*.part"):
+            try:
+                if not old.is_symlink() and old.is_file() and now - old.stat().st_mtime >= STALE_PART_SECONDS:
+                    old.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
 def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BYTES):
     """Copy the update file at `source` once into `<data>/releases/<its proper name>` and return (that path, its SHA-256).
     The signature file beside it (`source` + .sig) is copied too, so everything after works from the private copy; a missing
@@ -110,7 +129,10 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
     version = updates.check_name(source.name, system, chosen)
     folder = platform.private_folder(Path(data_dir) / RELEASES)
     name = f"clark-{version}-{system}.zip"
-    part = folder / f".{name}.{os.getpid()}.part"
+    run = f"{os.getpid()}.{secrets.token_hex(4)}"          # this call's own token: two calls for one version never share a part name
+    part = folder / f".{name}.{run}.part"
+    sig_part = folder / f".{name}{updates.SIGNATURE_SUFFIX}.{run}.part"
+    _sweep_parts(folder)
     flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
         fd = os.open(str(source), flags)
@@ -142,7 +164,6 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
         os.replace(part, folder / name)
         signature = updates.read_signature(source)
         if signature is not None:
-            sig_part = folder / f".{name}{updates.SIGNATURE_SUFFIX}.{os.getpid()}.part"
             platform.private_file(sig_part)
             sig_part.write_bytes(signature)
             os.replace(sig_part, folder / (name + updates.SIGNATURE_SUFFIX))
@@ -151,7 +172,11 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
     finally:
         if fd is not None:
             os.close(fd)
-        part.unlink(missing_ok=True)
+        for left in (part, sig_part):                      # on every path, a part name of this call never stays behind
+            try:
+                left.unlink(missing_ok=True)
+            except OSError:
+                pass
     return folder / name, h.hexdigest()
 
 

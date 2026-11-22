@@ -8,10 +8,12 @@ import { glide } from "./glide.js";
 import { data, mode, fromFile, dropAt, dragList, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
+import { Contents, classicTheme } from "./Contents.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
 import { todayIso } from "../workItems.js";
 import { slots as slotsOf } from "../logic/placement.js";
 import { emptyBody } from "../logic/emptyBody.js";
+import { applyBands } from "../logic/banding.js";
 export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsFor } from "./ItemRows.jsx";
@@ -69,6 +71,16 @@ export function Dashboard({ tools }) {
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
   const was = useRef({ editing, at: null });
   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
+  // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws) and when a class or the type of a section changes. Classic only: Cards draws exactly what it drew. No address or history is touched.
+  useLayoutEffect(() => {
+    const secs = classicTheme() && document.querySelector(".secs");
+    if (!secs) return undefined;
+    const run = () => applyBands(document);
+    run();
+    const watch = new MutationObserver(run);
+    watch.observe(secs, { subtree: true, attributes: true, attributeFilter: ["class", "data-type"] });
+    return () => watch.disconnect();
+  });
   useLayoutEffect(() => { glide(document.querySelector(".secs")); }, [dragList.value]);      // row 1214: the sections that moved glide to their new place
   useLayoutEffect(() => {
     const at = was.current.at;
@@ -97,16 +109,20 @@ export function Dashboard({ tools }) {
   useEffect(() => { if (first) armHint(first); }, [first]);      // the first time in Edit, the handle of the first section pulses once and says what it does
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
+  const classic = classicTheme();      // row 1318: Classic has the left Contents column and no Minimap; Cards (no Theme layer) keeps the Minimap and draws exactly what it drew
+  const secs = (
+    <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
+      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
+    </div>
+  );
   return (
     <>
     {Bar ? <Bar /> : null}
     <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
-      <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
-        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
-      </div>
+      {classic ? <div class="cnt-grid"><Contents sections={list} onJump={jump} stickyHeight={topBarHeight} />{secs}</div> : secs}
       {editing && list.length === 0 ? <tools.Add /> : null}
-      <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight} counts={counts} />
+      {classic ? null : <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight} counts={counts} />}
     </section>
     </>
   );

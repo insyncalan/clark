@@ -1,4 +1,4 @@
-"""Row 875: a use case's owner is internal. Planted markers (the owner's text, and the name of the linked person) are set through the
+"""Row 875: a use case's owner is internal (row 1479, the 20-11 decision: except on its own published page, as plain text). Planted markers (the owner's text, and the name of the linked person) are set through the
 real change route on a client-visible use case, then the page, the client copy, the Word report, the client workbook, the PDF text
 and the Ask passages are searched for them; the work items workbook does not export the owner, and an export then an import leaves
 the owner as it was.
@@ -64,12 +64,17 @@ class Planted(unittest.TestCase):
         local = (self.rig.local / "chosen.html").read_bytes().decode("utf-8")
         client = (self.rig.client / WANTED).read_bytes().decode("utf-8")
         self.assertIn("PUB-U-001", local, "the use case itself is published")
-        self.assertClean(local, "the page")
-        self.assertClean(client, "the client copy")
+        # row 1479 (the 20-11 decision, overrides row 875 for the use case's own page only): the owner's text is in the page and the client copy,
+        # as plain text; the Word report, workbook, PDF text and Ask below still hold none of it
+        for text in (local, client):
+            self.assertIn(PERSON, text)
 
-    def test_the_selected_data_has_no_owner_on_a_use_case(self):
-        for row in self.published()["data"]["use_cases"]:
-            self.assertNotIn("owner", row)
+    def test_the_selected_data_has_the_owner_text_and_never_the_link(self):
+        rows = {r["id"]: r for r in self.published()["data"]["use_cases"]}
+        self.assertEqual(rows[U1]["owner"], PERSON)
+        for uid, row in rows.items():
+            self.assertIn(row["owner"], (PERSON, TEXT, None), uid)
+        for row in rows.values():
             self.assertNotIn("owner_id", row)
 
     def test_the_word_report(self):

@@ -111,6 +111,7 @@ class RowIds(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
         seed(self.store)
+        self.demo.plant_builtin_sections(CODE)      # a new project's lists are Work items lists; the rows pinned here are the built-in sections' (row 1193)
 
     def served(self):
         s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),

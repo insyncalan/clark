@@ -64,6 +64,7 @@ class Base(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        self.demo.plant_builtin_sections()      # a new project's report has Work items lists; these rows pin the built-in sections (row 1193)
         fill(self.store)
         fill_more(self.store)
 

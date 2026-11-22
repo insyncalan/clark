@@ -134,6 +134,12 @@ class ThroughPublish(Api):                                                      
         return ref
 
     def plant(self):
+        # new projects start with Work items lists in place of the built-in Actions, RAID and Decisions sections (row 1193), and a list alone
+        # reaches the rows it names; these tests pin the built-in sections' counts, so the report is given those three sections here
+        have = {x["type"] for x in self.s.data_for("ABC")["report_sections"]}
+        for kind, title in (("actions", "Fictional actions"), ("raid", "Fictional risks"), ("decisions", "Fictional decisions")):
+            if kind not in have:
+                self.ok("new", values={"type": kind, "title": title})
         with self.s.step("dashboard", USER) as st:
             ids = {}
             ids["shown"] = st.create("actions", {"project": "ABC", "description": "Fictional shown action", "raised": "2030-01-01", "due_date": "2030-01-05", "source": "demo"})

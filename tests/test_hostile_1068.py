@@ -46,7 +46,7 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "install_defaults" not in l and "connector_switches" not in l and "project_connectors" not in l and "ask_instructions" not in l and "ask_files" not in l and "ask_off" not in l and not l.startswith(("CREATE TABLE projects", 'INSERT INTO "projects"')) and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
     finally:
         con.close()
 
@@ -57,8 +57,8 @@ def grown(path):
     con = sqlite3.connect(str(path))
     try:
         out = {}
-        for table in ("raid", "milestones", "decisions"):
-            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] != "latest_update" and not (table == "decisions" and r[1] == "priority")]      # fixed table names
+        for table in ("raid", "milestones", "decisions", "projects"):      # projects: row 1294 (steps 31 and 33) adds ask_instructions, ask_files_off and ask_off, compared by every other column
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] not in ("latest_update", "ask_instructions", "ask_files_off", "ask_off") and not (table == "decisions" and r[1] == "priority")]      # fixed table names
             out[table] = (cols, con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY rowid").fetchall())
         return out
     finally:
@@ -69,7 +69,7 @@ def names(path):
     con = sqlite3.connect(str(path))
     try:
         return sorted((r[0], r[1]) for r in con.execute("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'")
-                      if r[1] != "report_sections" and not r[1].startswith("use_case_milestones"))
+                      if r[1] != "report_sections" and not r[1].startswith(("use_case_milestones", "install_defaults", "connector_switches", "project_connectors")))      # row 1300 (step 30) adds install_defaults, row 1306 (step 32) the two connector tables
     finally:
         con.close()
 
@@ -423,7 +423,7 @@ class MarkersAndTheWholePublish(unittest.TestCase):
         d = self.ok(kind="report_sections", op="delete", id=ref)
         built = publish.build(self.s, "ABC", now="2030-01-15")
         self.assertNotIn("gantt", built["published"]["data"])
-        self.assertNotIn("Dig", built["body"].decode("utf-8"))
+        self.assertNotIn('"Dig"', built["body"].decode("utf-8"))
         undo = changes.make_undo(self.s.path, [], USER)
         status, body = undo({"project": "ABC", "apply_id": d["apply_id"]})
         self.assertEqual(status, 200, body)

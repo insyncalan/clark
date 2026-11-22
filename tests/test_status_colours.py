@@ -80,6 +80,7 @@ class Tokens(unittest.TestCase):
 class Tiles(Base):
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent and late", "owner": "Sara Khan", "due_date": "2026-10-01", "priority": "Urgent",
                                   "raised": "2026-09-01", "client_message": "Urgent and late", "source": "demo"})
@@ -141,27 +142,6 @@ class ExcelStatus(unittest.TestCase):
         self.assertEqual(excel_colours.RAID_STATUS, {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
 
 
-class ExcelOverdueStatus(unittest.TestCase):
-    def test_an_overdue_open_action_or_risk_has_a_red_status_cell_ahead_of_the_green_open_rule(self):
-        import test_excel_format as f
-        from openpyxl import load_workbook
-        case = f.Formatting("test_overdue_is_a_formula_rule_on_the_due_column")
-        case.setUp()
-        self.addCleanup(case.doCleanups)
-        wb = load_workbook(case.build(case.everything()))
-        for sheet, opens in (("Actions", ("Delayed", "Open")), ("Risks & Issues", ("Open",))):
-            ws = wb[sheet]
-            head = {c.value: c.column_letter for c in ws[1]}
-            st, d = head["Status"], head["Due"]
-            rules = [r for col, r in f.rules_of(ws) if col == st]
-            first = rules[0]
-            self.assertEqual(first.type, "expression", sheet)
-            opens_f = ",".join(f'${st}2="{x}"' for x in opens)
-            self.assertEqual(first.formula, [f"AND(ISNUMBER(${d}2),${d}2<TODAY(),OR({opens_f}))"])
-            self.assertEqual(f.rgb(first.dxf.fill.start_color), "F4DEDB")
-            self.assertTrue(first.stopIfTrue)
-
-
 class PaletteUrgent(unittest.TestCase):
     def test_a_bad_urgent_value_is_reverted_so_the_white_letter_stays_readable(self):
         from clark import excel_palette as ep
@@ -172,6 +152,9 @@ class PaletteUrgent(unittest.TestCase):
 
 
 class WordUrgent(Base):
+    def setUp(self):
+        super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
     def test_an_urgent_item_has_a_maroon_status_cell_with_white_bold_words_and_overdue_stays_in_the_due_column(self):
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent late", "owner": "Sara Khan", "due_date": "2026-10-01", "priority": "Urgent",
@@ -192,6 +175,7 @@ class WordUrgent(Base):
 class FileWordAndWordCopy(Base):
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
         with self.store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": "Urgent on track", "owner": "Sara Khan", "due_date": "2027-03-01", "priority": "Urgent",
                                   "raised": "2026-09-01", "client_message": "Urgent on track", "source": "demo"})

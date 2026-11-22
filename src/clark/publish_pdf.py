@@ -283,8 +283,8 @@ class Step:
         body_bytes = built["body"]
         self.client_skipped = markers is not None and self.client is None          # To client was ticked, and no copy of the report is planned
         if markers is None:            # Local only: the marker check still runs on the PDF (a hit stops the whole publish)
-            from clark import page, publish_flow            # publish_flow imports this module, so it is imported here
-            markers = publish_flow.markers_for(store, code, built["published"], page.page_html(pub.project_brand(store, code), view=True))
+            from clark import page, publish, publish_flow            # publish_flow imports this module, so it is imported here
+            markers = publish_flow.markers_for(store, code, built["published"], page.page_html(pub.project_brand(store, code), view=True, theme=publish.theme_of(store)))
         if not pdf.find_chrome():
             return 409, pub.fail("no_chrome", MESSAGES["no_chrome"])
         number = built.get("number")

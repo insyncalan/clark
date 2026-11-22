@@ -127,6 +127,7 @@ export function startDrag(e, handle, id, count) {
   const move = (m) => {
     if (m.pointerId !== e.pointerId) return;       // another finger or pen is not this drag
     if (cancelled) return;                       // Esc is final: more movement cannot bring the drop back
+    if (gripGone()) { abort(); return; }         // the browser may not say the capture was lost (headless macOS sends nothing), so the next move ends the drag too
     if (!armed) {                                // the grip holds the touch (touch-action none), so a swipe scrolls the page by hand
       if (!swipe && Math.hypot(m.clientX - startX, m.clientY - startY) < THRESHOLD) return;
       swipe = true;
@@ -163,11 +164,13 @@ export function startDrag(e, handle, id, count) {
     wipe();
   };
   const abort = () => { cancelled = true; finish(); noteRects(); dragList.value = undefined; };   // the page left Edit (or the project changed) mid-drag: drop nothing
+  const gripGone = () => {                       // the handle left the page and the page drew no grip again for the section
+    if (handle.isConnected !== false) return false;    // the preview hides the grip (it is in the slot), and a hidden grip loses the capture too: that is not the end
+    return !document.querySelector(`.secs > .sec[data-id="${CSS.escape(id)}"] [data-drag]`);     // the page drew the grip again (a new element for the same section): the drag goes on
+  };
   const lost = (l) => {                          // the handle left the page mid-drag: the drag ends here and drops nothing
     if (l.pointerId !== e.pointerId) return;
-    if (handle.isConnected !== false) return;    // the preview hides the grip (it is in the slot), and a hidden grip loses the capture too: that is not the end
-    if (document.querySelector(`.secs > .sec[data-id="${CSS.escape(id)}"] [data-drag]`)) return;     // the page drew the grip again (a new element for the same section): the drag goes on
-    abort();
+    if (gripGone()) abort();
   };
   const keepFromHandle = (k) => { if (k.altKey && (k.key === "ArrowUp" || k.key === "ArrowDown")) { k.preventDefault(); k.stopPropagation(); } };     // the handle's own Alt+Arrow would move the data under the frozen rects
   const cancel = (k) => { keepFromHandle(k); if (k.key === "Escape") { state = settleStart(); abort(); } };   // Esc: the drag is over now, whether or not a release ever comes (a lost window focus or pointer would leave it stuck)

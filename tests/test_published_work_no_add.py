@@ -36,6 +36,7 @@ class PublishedWork(unittest.TestCase):
 
     def test_the_published_work_items_tab_has_no_add_item_button(self):
         demo = DemoStore()
+        demo.plant_builtin_sections()      # a published file has a Work items tab only with a built-in section (row 1193)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)

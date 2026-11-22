@@ -41,6 +41,7 @@ import * as W from "./ucConfigureWords.js";
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 const REF_MAX = 20;                                           // changes.py UC_REF_LIMIT
+import { AskAbout } from "./AskAbout.jsx";
 const name = (u) => u.ref || u.id;                            // "Use case 1.1" as the prototype's toasts say it
 
 /** Which box is open: null, or { kind: "add" | "pick" | "link", opener, uc } (opener is the element that had focus, so Esc gives it back;
@@ -400,4 +401,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { RecordMore, Configure, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { Ask: ({ u }) => <AskAbout kind="use case" id={u.id} name={`${name(u)} ${String(u.title || "").split("\n")[0]}`.trim()} />, RecordMore, Configure, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };

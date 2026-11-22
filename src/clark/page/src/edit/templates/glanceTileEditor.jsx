@@ -13,7 +13,7 @@ import { compact, withChange, cleanTile, nextId } from "../../templates/glanceBo
 import { BESPOKE_MAX, LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX, chars } from "../../templates/glanceLimits.js";
 
 export const WORDS = {
-  add: "Add a tile", own: "Your own tile", ownHelp: "A label, a figure or short text, a tag and a colour you set",                 // group 4
+  add: "Add a tile", hiddenLine: "Hidden from the published report. Show it.", own: "Your own tile", ownHelp: "A label, a figure or short text, a tag and a colour you set",                 // group 4
   editTile: "Edit tile", editThis: "Edit this tile", deleteThis: "Delete this tile", remove: "Remove tile",                            // group 5
   label: "Label", figure: "Figure or short text", tag: "Tag text", note: "Note", optional: "optional",                                // group 6
   noLabel: "Give the tile a label.", notSaved: "The tile was not saved. Give it a label, then try again.",                            // group 6
@@ -203,13 +203,16 @@ export function TileEditor({ tools }) {
   );
 }
 
-// The Add a tile button with its menu. At the limit the one item says why it does nothing.
-export function AddTile({ tools, count }) {
+// The Add a tile button with its menu. First the tiles hidden with the eye (row 1303: choosing one shows it again), then the one to make
+// your own. At the limit that item says why it does nothing. `hidden`: [{ key, title }], `show(key)`.
+export function AddTile({ tools, count, hidden = [], show }) {
   const full = count >= BESPOKE_MAX;
+  const items = [...hidden.map((t) => ({ id: `show:${t.key}`, icon: actionIcon("add"), name: t.title, line: WORDS.hiddenLine })),
+    { id: "own", icon: actionIcon("add"), name: WORDS.own, line: full ? limitWords() : WORDS.ownHelp }];
   return (
     <div class="tpl-add">
       <Menu label={WORDS.add} icon={actionIcon("add")} btnCls="sec-add tileadd" id="glance-add" menuId="glance-add-menu" menuLabel={WORDS.add} left chevron={false}
-        items={[{ id: "own", icon: actionIcon("add"), name: WORDS.own, line: full ? limitWords() : WORDS.ownHelp }]} onPick={() => tools.add()} />
+        items={items} onPick={(id) => (id === "own" ? tools.add() : show && show(id.slice(5)))} />
     </div>
   );
 }

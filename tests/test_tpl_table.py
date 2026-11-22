@@ -2,6 +2,7 @@
 Run: python3 dev/run_tests.py test_tpl_table
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
+from _classic_page import classic
 import json
 import unittest
 
@@ -38,6 +39,17 @@ class Page(n.PageChecks):
     SHOWS = ("Item", "Owner", "Fictional scope", "Alex Example", "Fictional table.")
     FIELD, TYPED = "Row 1 column 1", "Fictional changed scope"
     CHANGED = lambda self, body: json.loads(body)["rows"][0][0] == "Fictional changed scope"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        classic(self)          # the starting text is a Classic look; Cards keeps its old words
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            shown = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit').textContent + ' ' + [...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit [placeholder]')].map(e => e.getAttribute('placeholder')).join(' ')")
+            self.assertIn('Add the first row.', shown)
+            self.assertIn('Empty for now: type in a heading or a cell. It stays out of the published page until then.', shown)
 
     def test_view_draws_a_real_table_with_column_headings(self):
         ref = self.make(self.GOOD)

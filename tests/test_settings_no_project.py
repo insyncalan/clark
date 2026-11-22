@@ -110,7 +110,7 @@ class Browser(unittest.TestCase):
 
     # ---- item 701: the same no-project Settings, checked in both themes at 900 and 1400 px ------------------------------------------------
     # the card names the task uses, and the heading each one wears on the page
-    WORKING = {"Personal": "Personal", "Projects": "Projects", "People": "People", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Diagnostics": "Logs and diagnostics", "AI": "AI"}
+    WORKING = {"Personal": "Personal", "Projects": "Projects", "People": "People", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Diagnostics": "Logs and diagnostics", "AI": "Used from All projects"}
     PROBE = """(() => {
         const rgb = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return {r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1}; };
         const over = (t, b) => ({r: t.r * t.a + b.r * (1 - t.a), g: t.g * t.a + b.g * (1 - t.a), b: t.b * t.a + b.b * (1 - t.a), a: 1});

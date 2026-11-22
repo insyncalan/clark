@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.7"
-SCHEMA = 29              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24; item 1185 (1.0.9): 25, latest_update on raid and milestones
+SCHEMA = 31              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24; item 1185 (1.0.9): 25, latest_update on raid and milestones
 
 # Filled with the rows merged so far; the cut bookkeeping adds the rest from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)

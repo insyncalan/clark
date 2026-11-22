@@ -101,6 +101,16 @@ class OpenAndReveal(TempHome):
             pl.reveal_file(f, run=FakeRun(1, stderr="no access"), on=pl.MAC)
         self.assertNotIn("no access", str(why.exception), "the system's own text is never shown")
 
+    def test_open_mail_hands_only_a_mailto_link_to_the_system_open(self):
+        run = FakeRun()
+        pl.open_mail("mailto:a@b.c?subject=Hi&body=x%20y", run=run, on=pl.MAC)
+        self.assertEqual(run.calls[-1][0], ["open", "mailto:a@b.c?subject=Hi&body=x%20y"])
+        for bad in ("-a Terminal", "https://example.org", "mailto:a b", "file:///etc/passwd"):
+            with self.assertRaises(pl.PlatformError):
+                pl.open_mail(bad, run=FakeRun(), on=pl.MAC)
+        with self.assertRaisesRegex(pl.PlatformError, "The mail app could not be opened. Try again"):
+            pl.open_mail("mailto:a@b.c", run=FakeRun(1, stderr="raw text"), on=pl.MAC)
+
     def test_a_dialog_or_browser_that_fails_never_shows_the_system_text(self):
         raw = "execution error: Permission denied (-1743) at /Users/demo/secret"
         for call in (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),

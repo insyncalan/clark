@@ -50,11 +50,11 @@ class NarrowBrowser(unittest.TestCase):
                                 self.show(cdp, sid, view, item)
                                 left, right, w, win = cdp.js(WIDTH, sid)
                                 if width < 1000:
-                                    self.assertEqual((round(left), round(w)), (16, round(win) - 32), f"{where}: the peek takes the whole window, less the card's 16 px each side (row 1258)")
+                                    self.assertEqual((round(left), round(w)), (0, round(win)), f"{where}: the peek takes the whole window (row 1289)")
                                 else:
                                     self.assertEqual(round(w), 640, f"{where}: the 640 px default (item 1202)")
                                     self.assertGreater(left, 300, f"{where}: the list stays beside it")
-                                self.assertEqual(round(right), round(win) - 16, where)      # row 1258: the card floats 16 px in from the right edge
+                                self.assertEqual(round(right), round(win), where)      # row 1289: flush right
                                 self.assertEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid) <= 1, True, where)
                                 cdp.js("document.activeElement.blur()", sid)
                                 key(cdp, sid, "Escape")
@@ -64,7 +64,7 @@ class NarrowBrowser(unittest.TestCase):
 
     def test_the_rule_is_in_the_stylesheet(self):
         css = SHELL.read_text(encoding="utf-8")
-        self.assertIn("@media (max-width: 999px) { .peek:not(.hpk) { width: calc(100% - 32px) !important; } .peek:not(.hpk) .pk-edge { display: none; } }", css)      # the drag handle goes with the width it can no longer change
+        self.assertIn("@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }", css)      # the drag handle goes with the width it can no longer change
 
 
 if __name__ == "__main__":

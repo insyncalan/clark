@@ -34,8 +34,15 @@ class Card(unittest.TestCase):
     def show(self, cdp):
         self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab=all]')"), PAGE_UP), "the All projects tab is on the page")
+        js("document.querySelector('[data-ask-tab=all]').click()")      # row 1294: the connections are on the All projects tab
         self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), PAGE_UP), "the card is in Settings")
         return js
+
+    def tab(self, js, name):
+        """Row 1294: the connections are on the All projects tab, the asking switch and its words on the project's."""
+        js(f"document.querySelector('[data-ask-tab={name}]').click()")
+        self.assertTrue(wait(lambda: js("!!document.querySelector('%s')" % ("[data-ai-tile=claude]" if name == "all" else "#ask-notice")), 10))
 
     def test_connected_shows_both_tiles_and_the_model(self):
         with chrome() as cdp:
@@ -75,14 +82,17 @@ class Card(unittest.TestCase):
     def test_connecting_chatgpt_offers_its_models_and_the_askings_words_follow_the_choice(self):
         with chrome() as cdp:
             js = self.show(cdp)
+            self.tab(js, "project")
             self.assertIn("Claude, which Anthropic runs", js("document.querySelector('#ask-settings').innerText"))
             self.assertIn("are billed to the Claude account signed in on this computer", js("document.querySelector('#ask-notice').innerText"), "#1062")
             self.assertGreater(js("document.querySelector('#ask-notice').offsetHeight"), 0, "the notice is on show, not hidden (#1062)")
+            self.tab(js, "all")
             js("document.querySelector('[data-ai-connect=chatgpt]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10))
             self.pick(js, "gpt-6.1-sol")
             self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10))
             self.assertEqual(settings.ai_read(self.d)["model"], "gpt-6.1-sol")
+            self.tab(js, "project")
             self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10))
             self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))
             self.assertIn("billed to the ChatGPT account", js("document.querySelector('#ask-notice').innerText"))
@@ -144,6 +154,8 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
             js = lambda e: cdp.js(e, self.sid)      # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab=all]')"), PAGE_UP))
+            js("document.querySelector('[data-ask-tab=all]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings')"), PAGE_UP))
             self.assertFalse(wait(lambda: js("!!document.querySelector('[data-ai-tile]')"), 1))
 

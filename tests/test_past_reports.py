@@ -24,7 +24,7 @@ from pathlib import Path
 import _paths  # noqa: F401
 import _publish_fixture as fx
 from _demo import USER
-from clark import changes, past_banner, past_reports, publish, published_copies
+from clark import backup, changes, past_banner, past_reports, publish, published_copies
 from clark import server as sv
 from clark.store import open_store
 from test_publish_route import DAY, EMPTY_BRANDING, Rig as PublishRig
@@ -319,6 +319,28 @@ class Seam(Base):
         self.assertEqual((status, got["code"]), (409, "copy_changed"))
         self.assertEqual(len(self.past.visits), 0, "nothing was made ready")
         self.assertEqual((self.copies / f"PUB-{done['number']}.html").read_bytes(), body, "the kept copy is untouched")
+
+    def test_a_real_restore_that_reuses_a_number_for_another_page_is_refused_on_the_visit(self):
+        """Row 1380, end to end: a backup is taken, page A is published (number N) and kept, the database is put back from the backup
+        with the real `backup.restore_path` (so N is free again), page B is published and takes N, and a visit to N is refused as
+        copy_changed. The kept copy of A is still there, byte for byte, and nothing is made ready to open."""
+        backup.take(self.store, "daily")
+        chosen = sorted(p.name for p in self.store.backups_dir.iterdir() if p.suffix == ".db")[-1]
+        first, body_a = self.publish()
+        number = first["number"]
+        kept = self.copies / f"PUB-{number}.html"
+        self.assertEqual(kept.read_bytes(), body_a)
+        self.store.close()
+        backup.restore_path(self.db, chosen, folder=self.store.backups_dir, onedrive_roots=[])
+        self.store = open_store(self.db, onedrive_roots=[])
+        self.addCleanup(self.store.close)
+        second, body_b = self.publish(now="2026-11-02")
+        self.assertEqual(second["number"], number, "the restored database gives the number out again")
+        self.assertNotEqual(second["sha256"], first["sha256"])
+        status, got = self.past.visit("PUB", number)
+        self.assertEqual((status, got["code"]), (409, "copy_changed"))
+        self.assertEqual(len(self.past.visits), 0, "nothing was made ready")
+        self.assertEqual(kept.read_bytes(), body_a, "the kept copy of the first page is untouched by the restore and the second publish")
 
     def test_a_copy_of_the_wrong_size_or_kind_is_changed_not_shown(self):
         done, body = self.publish()

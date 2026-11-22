@@ -3,7 +3,7 @@ Run: python3 dev/run_tests.py test_settings_look_1200
 
 What is asserted at each width: the control-edge token is #7A859F and a field, a button and a choice are edged with it; the card heading is 20 px,
 a setting's label 15 px semibold, a group label 13 px capitals, a help line 13 px in the muted colour; the empty name, backup-folder and pasted-folder
-boxes show their examples; in Backups the path is a line of text with a short Use button beside it (not inside it); the side menu has soft 36 px
+boxes show their examples; in Backups the path is a line of text with a short Use button beside it (not inside it); the side menu has soft
 rows with a violet marker on the card you are reading, at both widths.
 No setting, behaviour or Gantt card is changed here: the older Settings suites keep covering those. Chrome is required: this test fails, never skips, without it.
 """
@@ -178,7 +178,7 @@ class SettingsLook(unittest.TestCase):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 m = self.look(cdp, w)["menu"]
-                self.assertGreaterEqual(m["minHeight"], 36, f"every menu row is at least 36 px at {w}")
+                self.assertEqual(m["minHeight"], 32, f"every menu row is exactly 32 px at {w}")      # row 1280: tighter rows (was 36), so a group reads as a block
                 self.assertEqual(m["border"], "0px", f"soft rows: no outline at {w}")
                 self.assertEqual(m["curWeight"], "600", f"the marked row is semibold at {w}")
                 self.assertNotEqual(m["curBg"], m["otherBg"], f"the marked row has a tint the others have not at {w}")

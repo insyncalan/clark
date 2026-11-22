@@ -50,7 +50,7 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1199: Status, Workstream and Milestone start off
+                               "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1268: a body with no columns key keeps Type (only the new-list body, START, drops it); row 1199: Status, Workstream and Milestone start off
                                "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 
@@ -313,11 +313,14 @@ class PageRules(unittest.TestCase):
                 self.assertIn("problem", self.val(f"L.readLine({json.dumps(line)}, W.defaults(), [])"))
 
     def test_the_page_and_publish_name_the_same_choices(self):
-        for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS", "DEFAULT_COLUMNS"):
+        for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS"):
             self.assertEqual(self.val(f"W.{name}"), list(getattr(wi, name)), name)
+        # row 1268: a new list starts without Type (the page's DEFAULT_COLUMNS = the START body); a body naming no column keeps Type (SAVED_FALLBACK_COLUMNS = DEFAULT_COLUMNS here)
+        self.assertEqual(self.val("W.DEFAULT_COLUMNS"), json.loads(wi.START)["columns"])
+        self.assertEqual(self.val("W.SAVED_FALLBACK_COLUMNS"), list(wi.DEFAULT_COLUMNS))
         for name in ("NONE", "MAX_ROWS", "DEFAULT_MAX", "MAX_CAPTION"):
             self.assertEqual(self.val(f"W.{name}"), getattr(wi, name), name)
-        self.assertEqual(self.val("W.defaults()"), check({}))
+        self.assertEqual(self.val("W.defaults()"), check(json.loads(wi.START)))
 
     def test_the_served_list_keeps_only_what_would_publish(self):
         data = {"project": {"code": "ABC"}, "labels": {"ABC-A-002": ["Sensitive"]}, "report_sections": [], "use_cases": [], "milestones": [],
@@ -386,6 +389,10 @@ class Saved(Api):
     def setUp(self):
         super().setUp()
         plant(self)
+        with self.s.step("dashboard", USER) as st:       # a new project's default Work items lists name every open row, so they are hidden; these tests name rows with their own list alone (row 1193)
+            for r in self.s.read("report_sections", "ABC"):
+                if r["type"] == "workitems":
+                    st.update("report_sections", r["id"], {"hidden": 1})
         self.ref = self.ok("new", values={"type": "workitems", "title": "Due soon"}, after=None)["ref"]
 
     def body(self):
@@ -537,6 +544,7 @@ class Saved(Api):
         """Row 1268: only a hidden built-in section is trimmed to the rows a list names; a shown one keeps every kept row."""
         with self.s.step("dashboard", USER) as st:
             st.archive("actions", self.a_later)
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})   # the shown built-in section (row 1193: a new project has a list instead)
         self.save({"kinds": ["risk"]})
         built = publish.build(self.s, "ABC", now=TODAY)["published"]
         sec = next(s for s in built["sections"] if s["id"] == self.ref)
@@ -680,12 +688,12 @@ class InThePage(PageBase):
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 3)
 
     def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
-        ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
+        ref = self.add(dict(json.loads(wi.START), mode="all", owner=["Pat Demo", "Lee Demo"]))
         with chrome() as cdp:
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"))
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Type", "Item", "Owner", "Due", "Priority", "ID"])
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Item", "Owner", "Due", "Priority", "ID"])
 
     def test_the_status_column_is_a_half_circle_coloured_as_the_status_and_the_word(self):
         ref = self.add({"mode": "all", "columns": ["id", "status"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -725,8 +733,10 @@ class InThePage(PageBase):
           const out = [];
           for (const sel of ['.wil-table th', '.wil-table td.wil-c-title', '.wil-table td.wil-c-id', '.wil-cap']) {
             const el = document.querySelector(sel); if (!el) { out.push([sel, 0]); continue; }
-            let bg = el, back = 'rgba(0, 0, 0, 0)';
-            while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+            let back = (() => { const L = []; for (let n = el; n; n = n.parentElement) { const m = getComputedStyle(n).backgroundColor.match(/[\\d.]+/g); if (!m) continue; const a = m.length > 3 ? +m[3] : 1; if (a > 0) { L.push([+m[0], +m[1], +m[2], a]); if (a === 1) break; } }
+              let c = L.length && L[L.length - 1][3] === 1 ? L.pop().slice(0, 3) : [255, 255, 255];
+              while (L.length) { const [r, g, b, a] = L.pop(); c = [c[0] * (1 - a) + r * a, c[1] * (1 - a) + g * a, c[2] * (1 - a) + b * a]; }
+              return `rgb(${c.join(', ')})`; })();  // a translucent band (row 1311) is laid over what is behind it, as it is drawn
             out.push([sel, ratio(getComputedStyle(el).color, back)]);
           }
           return out;
@@ -770,7 +780,10 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]').textContent"),
                              "No filter is set for this section yet. Set one below and it shows here.")
             steps = self.demo.last_step()
-            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-field=kinds] input[value=risk]').click()")
+            line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
+            p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+            p.js(f"document.querySelector({json.dumps(line)}).focus()")
+            p.type("type:risk ")
             p.saved()
             self.assertEqual(self.toast(p), "Work items list changed.")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
@@ -783,7 +796,7 @@ class InThePage(PageBase):
             self.assertEqual(self.store.read("report_sections", ref=ref)["body"], "")
 
     def test_the_number_and_the_caption_save_when_left_and_a_bad_number_is_refused(self):
-        ref = self.add({})
+        ref = self.add(json.loads(wi.START))
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
@@ -818,18 +831,31 @@ class InThePage(PageBase):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     p.edit()
-                    box = f"[data-id=\"{ref}\"] [data-field=kinds] input[value=action]"
+                    box = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                     p.until(f"!!document.querySelector({json.dumps(box)})", "the form drew")
-                    p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open = true")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
-                    p.js(f"document.querySelector({json.dumps(box)}).focus()")
+                    gear = f"[data-id=\"{ref}\"] [data-wil-gear]"
+                    p.js(f"document.querySelector({json.dumps(gear)}).focus()")
                     p.key("Tab", code="Tab", vk=9)
                     p.key("Tab", code="Tab", vk=9, modifiers=8)
-                    self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(box)})"), True)
+                    self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(gear)})"), True)
                     self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "solid", "the focus ring shows")
                     legends = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-f legend, [data-id=\"{ref}\"] .wil-sel > span')].map(e => e.textContent)")
-                    self.assertEqual(legends, ["Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
-                                               "Most rows", "Columns at full width", "Footnote (optional)"])
+                    self.assertEqual(legends, ["Sort by", "Most rows", "Columns at full width", "Footnote (optional)"])
+
+    def test_the_sections_edit_has_no_choose_from_lists_panel_and_keeps_the_filter_box_the_plus_menu_and_the_gear(self):
+        ref = self.add({"owner": ["Pat Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                root = f"[data-id=\"{ref}\"]"
+                p.until(f"!!document.querySelector('{root} [data-wil-line] input[role=combobox]')", "the form drew")
+                self.assertFalse(p.js(f"!!document.querySelector('{root} [data-wil-more], {root} .wil-form details')"), "no folded panel")
+                self.assertFalse(p.js(f"document.querySelector('{root}').textContent.includes('Choose from lists')"), "no such words")
+                self.assertEqual(p.js(f"document.querySelectorAll('{root} [data-field=kinds], {root} [data-field=mode], {root} [data-field=status]').length"), 0)
+                self.assertTrue(p.js(f"!!document.querySelector('{root} [data-wil-add]') && !!document.querySelector('{root} [data-wil-gear]')"), "the + menu and the gear")
+                self.assertTrue(p.js(f"!!document.querySelector('{root} [data-wil-views]')"), "the tabs row")
 
     def test_rows_open_their_peek_in_edit_with_a_click_or_enter(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -857,7 +883,6 @@ class InThePage(PageBase):
                 p.edit()
                 line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
-                self.assertFalse(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open"), "the tick boxes start folded")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                 steps = self.demo.last_step()
                 p.js(f"document.querySelector({json.dumps(line)}).focus()")
@@ -1055,7 +1080,7 @@ class InThePage(PageBase):
             self.assertEqual(forms, 1, "one form block, as before the line was added")
             self.assertTrue(p.js(f"(f => ['sort', 'max'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
                                  f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by and Most rows sit in it")
-            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form-in [data-field=caption]')"), "the Footnote box is in Configure, not the filter lists")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form [data-field=caption]:not(.wil-cfg *)')"), "the Footnote box is in Configure, not the filter lists")
 
     def test_the_gear_opens_configure_with_sort_rows_and_columns_and_escape_closes_it(self):
         # Row 1268 (the approved mock-up): a gear opens "Configure this list"; Sort by, Most rows and the columns are in it.
@@ -1081,6 +1106,24 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
             p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
             p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
+
+    def test_the_configure_box_is_a_dialog_only_while_it_is_open_1193(self):
+        # Row 1193 r8-r10 sweep: the hidden Configure box carries no dialog role (only an open one is a dialog), and the gear still says it opens a dialog.
+        ref = self.add({}, title="Gear role")
+        root = f"[data-id=\"{ref}\"]"
+        role = f"document.querySelector('{root} .wil-cfg').getAttribute('role')"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            self.assertIsNone(p.js(role), "closed: no role")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-haspopup')"), "dialog")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{root} .wil-cfg').hidden", "the gear opened it")
+            self.assertEqual(p.js(role), "dialog", "open: a dialog")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{root} .wil-cfg').hidden", "Done closed it")
+            self.assertIsNone(p.js(role), "closed again: no role")
 
     def test_the_footnote_box_is_in_configure_after_columns_before_done_and_the_caption_shows_above_the_list(self):
         # Row 1268, ruled by the head 17-11 (the mock-up wins over Row 1113 wish 2): the field is "Footnote (optional)" in the Configure box,
@@ -1115,21 +1158,22 @@ class InThePage(PageBase):
                 self.assertTrue(got[7], "no Caption box is left under the list")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
-        ref = self.add({})
+        ref = self.add(json.loads(wi.START))
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            base = f"[data-id=\"{ref}\"] [data-field=kinds] input"
-            p.until(f"!!document.querySelector({json.dumps(base + '[value=risk]')})", "the form drew")
+            base = f"[data-id=\"{ref}\"] .wil-cfg [data-field=columns] input"
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-gear]').click()")
+            p.until(f"!!document.querySelector({json.dumps(base + '[value=status]')})", "Configure opened")
             steps = self.demo.last_step()
-            p.js(f"(() => {{ for (const v of ['risk', 'action']) document.querySelector({json.dumps(base)}.replace('input', 'input[value=' + v + ']')).click(); }})()")
-            p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 2", "both ticks stay")
+            p.js(f"(() => {{ for (const v of ['status', 'workstream']) document.querySelector({json.dumps(base)}.replace('input', 'input[value=' + v + ']')).click(); }})()")
+            p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 6", "both ticks stay")
             p.saved()
             # Two saves are in flight and saved() returns on the FIRST toast; under load the second reply lands after that, so wait
             # for the second step in the store before reading the body (the store is the truth here, not the toast).
             self.assertTrue(wait(lambda: self.demo.last_step() == steps + 2), "two ticks, two steps")
             body = json.loads(self.store.read("report_sections", ref=ref)["body"])
-            self.assertEqual(sorted(body["kinds"]), ["action", "risk"])
+            self.assertEqual(body["columns"], ["id", "owner", "due", "status", "priority", "workstream"])
 
     def test_a_caption_of_many_emoji_is_typed_and_saved_as_counted_by_the_store(self):
         ref = self.add({})

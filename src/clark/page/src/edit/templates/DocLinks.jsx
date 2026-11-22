@@ -4,6 +4,7 @@
 import { useState } from "preact/hooks";
 import { docItems, linkProblem } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
+import { StartPrompt } from "../StartPrompt.jsx";
 import { chooseFile } from "./fileRoute.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 
@@ -62,7 +63,7 @@ export function Edit({ section }) {
             );
           })}
         </ul>
-      ) : <p class="quiet tpl-empty">No files or links yet. Add one below: until then this section stays out of the published page.</p>}
+      ) : <><StartPrompt id="docs-links" /><p class="quiet tpl-empty">No files or links yet. Add one below: until then this section stays out of the published page.</p></>}
       <div class="tpl-actions">
         <button type="button" class="btn" data-add-file disabled={busy} onClick={addFile}>{busy ? "Choosing a file…" : "Add a file…"}</button>
       </div>

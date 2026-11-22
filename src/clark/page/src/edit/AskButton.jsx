@@ -3,16 +3,22 @@
 // Edit-served pages only: the top bar gets it from `tools` (edit/index.js).
 import { useEffect } from "preact/hooks";
 import { askOn, loadAsk } from "./askState.js";
-import { closePanel, openPanel, panelOpen } from "./askPanelState.js";
+import { closePanel, openPanel, panelOpen, answersReady, pending } from "./askPanelState.js";
+import { askButtonLabel } from "./askButtonLabel.js";
 import { narrowHeader } from "./narrowHeader.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export function AskButton() {
   useEffect(() => { loadAsk(); }, []);
-  if (!askOn.value || narrowHeader.value) return null;      // item 1177: at 900 px and narrower ask clark is the second entry of the profile menu
+  if (!askOn.value || (narrowHeader.value && !classicTheme())) return null;      // item 1177: Cards at 900 px and narrower: ask clark is the second entry of the profile menu; item 1349: Classic keeps the button, icon only
+  const open = panelOpen.value, ready = answersReady.value, working = !open && pending.value && !ready;      // row 1292: dots while an answer is made, a dot and a count when one is ready
+  const label = askButtonLabel(open, working, ready);
   return (
-    <button type="button" class="tb-act tb-ask" id="ask-btn" aria-expanded={panelOpen.value ? "true" : "false"} aria-label="ask clark" title="Open ask clark (/ or Ctrl or Cmd + J)" onClick={() => (panelOpen.value ? closePanel() : openPanel())}>
+    <button type="button" class="tb-act tb-ask" id="ask-btn" aria-expanded={panelOpen.value ? "true" : "false"} aria-label={label} title="Open ask clark (/ or Ctrl or Cmd + J)" onClick={() => (panelOpen.value ? closePanel() : openPanel())}>
       <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 4 10.5z" /></svg>
       <span class="tb-ask-w">ask clark</span> <kbd class="tb-key">/</kbd>
+      {working ? <span class="tb-ask-dots" aria-hidden="true"><i /><i /><i /></span> : null}
+      {!open && ready ? <span class="tb-ask-ready" aria-hidden="true">{ready}</span> : null}
     </button>
   );
 }

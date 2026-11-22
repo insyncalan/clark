@@ -161,7 +161,7 @@ class Forged(Base):
         got = self.answer(change_line(op="change", id=self.action, current_title="Order the kit", status="Closed"))
         status, dry = self.dry(got["reply"])
         self.assertEqual(dry["plans"][0]["code"], "wrong_title")
-        got = self.answer(change_line(op="change", id=self.action, current_owner="Kit Moss", status="Closed"))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", current_owner="Kit Moss", status="Closed"))
         self.assertEqual(self.dry(got["reply"])[1]["plans"][0]["code"], "wrong_owner")
 
     def test_a_reply_is_for_its_own_project_only(self):
@@ -171,7 +171,7 @@ class Forged(Base):
         self.assertEqual(self.dry(got["reply"], project="XYZ")[1]["code"], "no_reply")
         self.assertEqual(self.dry(got["reply"])[0], 200, "the wrong project did not use it up")
 
-    def test_archive_delete_and_more_than_five_stay_refused(self):
+    def test_archive_and_delete_stay_refused_and_more_than_five_are_cut(self):
         got = self.answer(change_line(op="archive", id=self.action), change_line(op=changes.DELETE, id=self.action))
         plans = self.dry(got["reply"])[1]["plans"]
         self.assertEqual([p["code"] for p in plans], ["not_yet", "not_yet"])
@@ -179,8 +179,8 @@ class Forged(Base):
         many = [change_line(op="new", kind="action", title=f"Task {i}", owner="Sam Lee") for i in range(6)]
         got = self.answer(*many)
         status, body = self.dry(got["reply"])
-        self.assertEqual((status, body["code"]), (400, "too_many"))
-        self.assertIn("isn't available yet", body["message"])
+        self.assertIn("change_limit", [f["kind"] for f in got["flags"]])
+        self.assertEqual((status, len(body["plans"])), (200, ask_apply.MAX_AT_ONCE), body)
         self.assertEqual(self.store.read("actions", "ABC").__len__(), 1)
 
 
@@ -216,7 +216,7 @@ class FromYourFiles(Base):
 
     def test_a_change_from_an_answer_that_read_your_files_needs_confirm(self):
         pid = self.file_id()
-        got = self.answer(change_line(op="change", id=self.action, status="Closed", source=pid), files=(FILE,))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed", source=pid), files=(FILE,))
         dry = self.dry(got["reply"])[1]
         self.assertTrue(dry["from_source"])
         plan = dry["plans"][0]
@@ -234,13 +234,13 @@ class FromYourFiles(Base):
         self.assertEqual(self.status_of(self.action), "Closed")
 
     def test_the_mark_holds_even_when_the_answer_cites_no_file(self):
-        got = self.answer(change_line(op="change", id=self.action, status="Closed"), files=(FILE,))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"), files=(FILE,))
         dry = self.dry(got["reply"])[1]
         self.assertTrue(dry["plans"][0]["needs_confirm"])
         self.assertEqual(dry["passages"], [], "no file was cited, so none is shown; the mark still holds")
 
     def test_no_field_from_the_page_clears_the_mark(self):
-        got = self.answer(change_line(op="change", id=self.action, status="Closed"), f"CITE: {self.file_id()}", files=(FILE,))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"), f"CITE: {self.file_id()}", files=(FILE,))
         for extra in ({"from_source": False}, {"needs_confirm": False}, {"confirm": True}):
             status, _body = self.dry(got["reply"], **extra)
             self.assertEqual(status, 400, extra)
@@ -300,8 +300,8 @@ class Mutants(Base):
 
     def test_without_the_servers_mark_a_change_from_a_file_needs_no_confirm(self):
         real = ask_service.AskService.hold
-        with mock.patch.object(ask_service.AskService, "hold", lambda s, c, r, q, _ids, t: real(s, c, r, q, set(), t)):
-            got = self.answer(change_line(op="change", id=self.action, status="Closed"), files=(FILE,))
+        with mock.patch.object(ask_service.AskService, "hold", lambda s, c, r, q, _ids, t, *more: real(s, c, r, q, set(), t, *more)):
+            got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"), files=(FILE,))
             offer = self.dry(got["reply"])[1]["plans"][0]["offer"]
             self.assertEqual(self.apply(offer)[0], 200, "the mark is what made Confirm needed")
 
@@ -318,7 +318,7 @@ class Mutants(Base):
         self.assertEqual(self.dry(got["reply"])[0], 200, "the shown mark is what refused the second dry run")
 
     def test_without_the_servers_switch_gate_the_save_path_still_refuses(self):
-        got = self.answer(change_line(op="change", id=self.action, status="Closed"))
+        got = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"))
         offer = self.dry(got["reply"])[1]["plans"][0]["offer"]
         self.set_switch(False)
         with mock.patch.object(ask_service.AskService, "enabled", lambda _s: True):
@@ -336,8 +336,8 @@ class Expiry(Base):
 
     def test_a_held_change_expires_after_its_minutes_and_not_before(self):
         limit = ask_service.REPLY_MINUTES * 60
-        edge = self.answer(change_line(op="change", id=self.action, status="Closed"))["reply"]
-        late = self.answer(change_line(op="change", id=self.action, status="Closed"))["reply"]
+        edge = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"))["reply"]
+        late = self.answer(change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"))["reply"]
         self.now[0] += limit
         status, body = self.dry(edge)
         self.assertEqual(status, 200, body)

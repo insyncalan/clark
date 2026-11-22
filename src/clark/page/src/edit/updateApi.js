@@ -1,4 +1,4 @@
-// The page's only way to ask about and install updates: GET /api/update and POST /api/update/review, /install, /arm-undo and /undo.
+// The page's only way to ask about and install updates: GET /api/update and POST /api/update/check, /download, /cancel, /review, /install, /arm-undo and /undo.
 // No other file names these routes, so the published page (view.jsx) has no way to ask for them. The page never sends a path or a
 // file name: it says "downloads" or "file" (the server opens the system's own dialog), then names only the review or the arm the
 // server handed out.
@@ -20,6 +20,9 @@ async function call(method, path, body) {
 export const updateStatus = () => call("GET", "/api/update");
 export const reviewUpdate = (from, reinstall) => call("POST", "/api/update/review", { from, reinstall: !!reinstall });
 export const installUpdate = (reviewId) => call("POST", "/api/update/install", { review_id: reviewId });
+export const checkUpdate = () => call("POST", "/api/update/check", {});
+export const downloadUpdate = () => call("POST", "/api/update/download", {});
+export const cancelUpdate = () => call("POST", "/api/update/cancel", {});
 export const armUndo = () => call("POST", "/api/update/arm-undo", {});
 export const undoUpdate = (armId, appOnly) => call("POST", "/api/update/undo", { arm_id: armId, app_only: !!appOnly });
 

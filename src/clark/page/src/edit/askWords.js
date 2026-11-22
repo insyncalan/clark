@@ -10,10 +10,32 @@ export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, w
 export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #1062: where a question goes and who pays moved from the panel to the Asking card in Settings.
 export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
+// row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
+// The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
+export const FIRST_RUN_LABEL = "About ask clark";
+export const FIRST_RUN_READS = "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
+export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
+export const FIRST_RUN_LINK = "Open the Asking card in Settings";
+// item 1352, Classic only (Cards keeps the three plain lines and the status words above): the card as the prototype draws it, a heading, three bullets and a tip.
+// The connector sentence is rule 11 of the 1292 rules: the connectors are used only when they are turned on in Settings.
+export const CARD_HEAD = "Ask about this project";
+export const CARD_READS = "I read this project's work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
+export const CARD_CHANGES = "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
+export const CARD_SENT = "Your question and what it needs go to Claude.";
+export const CARD_LINK = "What will be sent? (Settings)";
+export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
+export const CARD_TIP_KEY = "/";
+export const CARD_TIP_AFTER = " in the box for shortcuts.";
+export const CLASSIC_STATUS_READY = "Ready. Reading this project's report data.";   // the prototype's status line; it does not name the model
+export const CLASSIC_STANDING = "Standing instructions on";                          // the prototype's words, no full stop (the line is a button there)
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
+export const STANDING_LINE = "Standing instructions on.";   // row 1292 step S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -29,6 +51,7 @@ export const HISTORY_DELETE = (title) => `Remove the chat: ${title}`;
 export const DELETE = "Remove";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
+export const STOPPED_LINE = "Stopped. Nothing was changed.";      // row 1293 line 7: the server's own stopped line (ask.py STOPPED), said by the page when an answer still came after Stop
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
@@ -55,6 +78,26 @@ export const PILLS_BY_SUBJECT = {
   risks: ["Which risks are red?", "Which risks have no owner?", "Which issues are open?", "What changed in the risks this week?", "Which risks are new this week?", "Which risks are due soon?"],
   gantt: ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
 };
+// Row 1332: with Help open the suggestions are about Help, not about the page behind it.
+export const PILLS_HELP = ["How do I add a work item?", "How do I change the view?", "How do I publish a report?", "What does Preview do?", "How do I turn ask clark off?", "Where are my settings?"];
+// Row 1332: what the project holds puts one of a subject's own questions first. Only a question already in that subject's list is named here, so the
+// state reorders the set and never adds to it. States: overdue (late open items), red (high risks), noOwner (open items with no owner).
+export const PILLS_STATE = {
+  dashboard: { overdue: "What is overdue?", red: "Which risks are red?" },
+  work: { overdue: "What is overdue?", noOwner: "Which work items have no owner?" },
+  milestones: { overdue: "Which milestones are late?" },
+  usecases: { red: "Which use cases have open risks?", noOwner: "Which use cases have no owner?" },
+  risks: { red: "Which risks are red?", noOwner: "Which risks have no owner?" },
+  gantt: { overdue: "Which work items are running late?", red: "Which milestones are at risk?" },
+};
+// Row 1332 rows 3 and 11: after an answer that names items, the suggestions open with what can be done about THOSE items (DRAFT contract: items=[{id,state}],
+// state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
+export const PILLS_ITEM_DUE = "Change the due date";
+export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_REPORT = "Include in the weekly report";
+export const PILLS_ITEM_OWNERS = "Who owns these?";
+export const PILLS_ITEM_LATE = "Why are these late?";
+export const PILLS_MAX = 6;
 export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];
@@ -66,7 +109,7 @@ export const QUEUE_REMOVE = "Remove this message";
 export const QUEUE_MORE = (n) => `and ${n} more`;
 export const QUEUE_STOPPED = (n) => `Stopped. ${waitingCount(n)} waiting`;
 export const QUEUE_FAILED = (n) => `${waitingCount(n)} waiting`;
-export const QUEUE_SEND = "Send them";
+export const QUEUE_SEND = "Send the waiting messages";
 export const QUEUE_CLEAR = "Clear";
 export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be sent, or remove one.";
 export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;
@@ -228,6 +271,12 @@ export const QUIPS = [
   "Proofreading…",
 ];
 
+// Row 1292 (S6, no streaming yet; Classic only): the working line says the one step the page really knows (the question is out to the provider) and how long
+// it has been going, counted from the send. A longer step list waits for real progress from the server. Cards keeps the quips above.
+export const STEP_ASKING = "Asking Claude";
+export const workingFor = (secs) => `Working ${Math.max(0, Math.floor(secs))}s`;
+export const workingLine = (who, secs) => `${named(STEP_ASKING, who)} · ${workingFor(secs)}`;
+
 // A change an answer suggests (#47e). The before and after come from the saved data, never from the answer's words.
 export const CHANGE_HEAD = "Suggested change";
 export const NEW_HEAD = "Suggested new item";
@@ -243,6 +292,16 @@ export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check th
 export const CONFIRM_BOX = "I have checked this change and want to save it";
 export const DONE_LINE = "Done.";
 export const UNDO = "Undo";
+// row 1292 step S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
+export const WHY = "Why";
+export const NOT_NOW = "Not now";
+export const NOT_NOW_LINE = "Not now. Nothing was changed.";
+export const BRING_BACK = "Bring it back";
+export const APPLY_ALL = (n) => `Apply all ${n}`;
+export const UNDO_ALL = "Undo all";
+export const ALL_DONE_LINE = (n) => (n === 1 ? "Done. 1 change saved." : `Done. ${n} changes saved.`);
+export const ALL_UNDONE_LINE = "Undone. The old values are back.";
+export const ALL_PARTLY_LINE = (done, n) => `${done} of ${n} changes were saved. The others were not. Check the board and ask again.`;
 export const UNDONE_LINE = "Undone. The old values are back.";
 export const UNDO_FAILED_LINE = "That could not be undone. Open the item and change it back yourself.";
 export const REFUSED_LINE = "That change can't be made by asking. Nothing was changed. Make it yourself on the board.";
@@ -256,3 +315,71 @@ export const FIELD_NAMES = {
   headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
+
+// Row 1292 (S12): the Draft beside the panel (mock-up image 09).
+export const DRAFT_TITLE = "Draft";
+// Shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
+export const DRAFT_VIA = (names) => `Written using your ${names}. Read it before you apply it.`;
+export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
+export const DRAFT_CLOSE = "Close the draft";
+export const DRAFT_TEXT_LABEL = "Draft text";
+export const DRAFT_ADD = "Add to the report";
+export const DRAFT_COPY = "Copy";
+export const DRAFT_COPIED = "Draft copied.";
+export const DRAFT_COPY_FAILED = "The draft could not be copied. Select the text and copy it yourself.";
+export const DRAFT_MENU_LABEL = "Where the draft goes";
+export const DRAFT_READY = "Draft ready";
+export const DRAFT_READY_LINE = "Nothing is in the report yet.";
+export const DRAFT_OPEN = "Open the draft";
+export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
+
+// row 1292 step S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+export const SLASH_LABEL = "Commands";
+export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
+export const SLASH_NONE = "No command by that name";
+export const SLASH_HINT = {
+  check: "Check this report",
+  summary: "Summarise this week",
+  overdue: "What is overdue",
+  risks: "Which risks are red",
+  milestones: "The next milestone",
+  usecases: "Which use cases need attention",
+  history: "Earlier chats",
+  new: "Start a new chat",
+};
+
+// Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
+export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
+export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title
+export const ABOUT_CHIP = (label) => `About ${label}`;                          // M ask.js drawCtx, T feature 1 ("About PDF-A-018 Write the user test scripts")
+export const ABOUT_REMOVE = (label) => `Stop asking about ${label}`;            // M ask.js drawCtx: aria-label
+export const ABOUT_REMOVE_TITLE = "Remove";                                     // M ask.js drawCtx: title; A 11-13: "Remove" is the app's word for a bin
+export const ABOUT_SECTION = (title) => `Section: ${title}`;                    // M ask.js ctxLabel
+export const ABOUT_LINE = (label) => `About ${label}`;                          // M ask.js: the small line under the person's question
+// What is sent ahead of the person's words so the answer is about the subject. Model-facing, never shown (the same rule as the request lines A approved 17-11).
+export const ABOUT_LEAD = (kind, id, name) => `About ${kind} ${id}${name && name !== id ? ` (${name})` : ""}: `;
+// The suggestions once a subject is chosen (M ask.js PILLS; T feature 1 names the item ones).
+export const PILLS_ABOUT = {
+  item: ["Is it late?", "Who owns it?", "What is it needed for?", "Draft an update", "Move it a week"],
+  milestone: ["Is it on track?", "What is holding it up?"],
+  "use case": ["Where does it stand?", "What work sits behind it?"],
+  section: ["Summarise this section", "What is missing here?"],
+};
+export const CITE_LABEL = (n, id) => `Source ${n}: open ${id}`;                 // M ask.js cite(): aria-label
+export const CITE_TITLE = (id) => `Open ${id}`;                                 // M ask.js cite(): title
+export const USED = "Used:";                                                    // M ask.js botHtml; A 18-11: the heading is "Used"
+const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
+export function READ_LINE(read) {
+  if (!read || typeof read !== "object") return "";
+  const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
+    .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
+  if (!parts.length) return "";
+  const said = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+  return `${said} read${typeof read.as_at === "string" && read.as_at ? " · as at " + read.as_at : ""}`;
+}
+// row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
+export const SLASH_HINT_CLASSIC = {
+  summary: "Summarise this week into a draft",
+  overdue: "What is overdue?",
+};

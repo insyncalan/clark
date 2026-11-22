@@ -39,11 +39,17 @@ Routes:
 - GET  /api/providers    Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
 - POST /api/providers/connect {provider}: clark may use it; POST /api/providers/disconnect {provider}: clark stops using it, and the sign-in stays
 - POST /api/providers/model {model, accept?}: the model asking uses, from a fixed list
+- POST /api/providers/test {}: Test the connection (row 1294): one short question to each model that is on, and how long each took
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
 - POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
 - POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
+- GET  /api/ask-files[?project=CODE] and POST /api/ask-files {on} | {project, off_here} | {undo}: the Files switch, for all projects and one project's own turn-off (row 1294; app_settings.py)
+- GET  /api/ask-commands?project=CODE and POST /api/ask-commands {scope, project?, action: save | remove | reset, ...}: the slash commands of ask clark (row 1295; ask_commands_service.py)
+- GET  /api/ask-new-projects[?project=CODE] and POST /api/ask-new-projects {on} | {project, off_here} | {undo}: the starting value of asking for new projects and a project's own asking (row 1294; app_settings.py)
+- GET  /api/ask-instructions?project=CODE and POST /api/ask-instructions {scope: all | project, project?, text} or {scope, project?, undo}: the standing instructions of asking, for all projects and for one (row 1294; ask_instructions.py)
+- GET  /api/ask-usage: this month's questions and tokens, per project and in all, read only (row 1294; ask_usage.py, ask_service.py)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
 - POST /api/ask/open-source   {project, file, page|null}: open a saved folder's PDF at a page in the system's viewer (#943; ask_service.py, platform.py)
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
@@ -65,6 +71,8 @@ Routes:
 - POST /api/update/install    {review_id}: install the reviewed update; the server stops after the answer so the helper can swap
 - POST /api/update/arm-undo   {}: arm Undo update for a few seconds; says whether only the app and settings can be put back
 - POST /api/update/undo       {arm_id, app_only}: the armed undo; the server stops after the answer, as for an install
+- POST /api/update/check      {}: look again for the newest release on the public releases page (release_fetch.py)
+- POST /api/update/download   {}: download that release, then check it as /review does; /cancel {}: stop it, or put it away
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
                          added to the section in one step (#96; publish_flow.py and section_files.py). The request never names a file
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
@@ -97,9 +105,9 @@ CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped contai
 
 
 def container_mode():
-    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml, which runs a stock Python image) AND this really is a
-    container (Docker makes /.dockerenv in every container, Podman /run/.containerenv). Never by the setting alone; never on a Mac."""
-    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+    """item 575: the one rule lives in platform.container_mode (CLARK_CONTAINER=1 AND /.dockerenv or /run/.containerenv); this asks it, found by
+    name at the call so the server still imports no clark module at the top. Kept here so the server's own patches and callers read one name."""
+    return importlib.import_module("clark.platform").container_mode()
 
 
 def container_gateway():
@@ -186,6 +194,7 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
+ASK_BODY_LIMIT = 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024)     # #1292 S14: a question (128 KiB) and up to five files of 10 MB in base64 (ask_files.FILE_MAX, FILE_BYTES); the route screens each file
 EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
 IMAGE_FILE_MB = 8                      # row 1223: the most one image may take when sent to /api/section-image (section_kinds/imagecap.py PICTURE_MAX, a test keeps them equal); the other picture templates hold their own 1 MiB, checked in changes.py
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
@@ -217,16 +226,17 @@ PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * 
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
                      "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
+                     "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
                      "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,      # #944: a source word, a review id or a brand id; never a path
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
@@ -946,7 +956,7 @@ BUSY = {"n": 0}
 BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
 SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
-              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/theme",
+              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
               "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
               "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
@@ -1180,7 +1190,14 @@ def ask_folders_route(method):
         if service is None:
             return handler.send(404, error_body("not_found"))
         if not req:                          # a GET: the project comes from the address
-            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+            query = parse_qs(urlsplit(handler.path).query)
+            if query.get("scope") == ["all"]:      # row 1294: the folders for all projects
+                status, body = service.read_all((query.get("project") or [None])[0])
+                return handler.send(status, body)
+            req = ((query.get("project") or [""])[0],)
+        elif method == "change" and isinstance(req[0], dict) and req[0].get("scope") == "all":
+            status, body = service.change_all(req[0])
+            return handler.send(status, body)
         status, body = getattr(service, method)(*req)
         return handler.send(status, body)
     return route
@@ -1198,6 +1215,49 @@ def ai_connect_route(method):
     return route
 
 
+def ask_instructions_route(method):
+    """GET and POST /api/ask-instructions (row 1294): the standing instructions of asking. The server's `ask_instructions`
+    (standing_instructions.StandingInstructions) answers (status, body); without one: not found. The token, the Host, the Origin, JSON only and the length
+    are checked before this runs; the value checks and the only write are in standing_instructions.py and the store."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask_instructions", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        if not req:                          # a GET: the project comes from the address
+            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+def connector_change_route(handler, *req):
+    """POST /api/ask-connectors (row 1306): the change is app_settings' to make; when it turned a connector Off (by a change or by an Undo, for every
+    project or for one), a question running on that connector is stopped, so nothing keeps reading from it. Turning On, or a refused change, stops nothing."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    status, body = service.change_connectors(*req)
+    asking = getattr(handler.server, "ask", None)
+    if status == 200 and asking is not None:
+        asking.stop_off()                            # an Off, or an Undo back to Off: whatever is no longer On stops; On or "same" touches nothing
+    return handler.send(status, body)
+
+
+def ask_commands_route(method):
+    """GET and POST /api/ask-commands (row 1295): the slash commands of ask clark. The server's `ask_commands`
+    (ask_commands_service.AskCommandsService) answers (status, body); without one: not found. The token, the Host, the Origin, JSON only and the length
+    are checked before this runs; the rules and the only write are in ask_commands.py."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask_commands", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        if not req:                          # a GET: the project comes from the address
+            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def app_settings_route(method):
     """GET and POST /api/ask-enabled (#47): asking's on/off switch for this computer. The server's `app_settings`
     (app_settings.AppSettings) answers (status, body); without one there is nothing to ask: not found. The token, the Host, the
@@ -1210,6 +1270,49 @@ def app_settings_route(method):
         status, body = getattr(service, method)(*req)
         return handler.send(status, body)
     return route
+
+
+def ask_connectors_read_route(handler):
+    """GET /api/ask-connectors[?project=<CODE>] (row 1306): the connectors found on this computer with this computer's choice and, with a project,
+    that project's own turn-off. The one parameter is checked like data_route's; any other is refused. Read only. Without the server's
+    `app_settings` the route does not exist: not found."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project")
+    if (query and set(query) != {"project"}) or (given is not None and (len(given) != 1 or not PROJECT_CODE.fullmatch(given[0]))):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = service.read_connectors(given[0] if given else None)
+    return handler.send(status, body)
+
+
+def ask_files_read_route(handler):
+    """GET /api/ask-files[?project=<CODE>] (row 1294): the Files switch for this computer and, with a project, that project's own turn-off and whether files
+    are allowed there. The one parameter is checked like ask_connectors_read_route's. Read only. Without `app_settings` the route does not exist: not found."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project")
+    if (query and set(query) != {"project"}) or (given is not None and (len(given) != 1 or not PROJECT_CODE.fullmatch(given[0]))):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = service.read_files(given[0] if given else None)
+    return handler.send(status, body)
+
+
+def ask_new_read_route(handler):
+    """GET /api/ask-new-projects[?project=<CODE>] (row 1294): the starting value of asking for new projects and, with a project, its own asking and whether
+    asking is allowed there. The one parameter is checked like ask_files_read_route's. Read only. Without `app_settings` the route does not exist: not found."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project")
+    if (query and set(query) != {"project"}) or (given is not None and (len(given) != 1 or not PROJECT_CODE.fullmatch(given[0]))):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = service.read_new(given[0] if given else None)
+    return handler.send(status, body)
 
 
 def ask_route(method, attr="ask"):
@@ -1242,6 +1345,16 @@ def logs_route(method):
         status, body = getattr(logs, method)(*req)
         return handler.send(status, body)
     return route
+
+
+def mail_route(handler, req):
+    """POST /api/open-mail (row 1297): the finished mailto: link, handed to the server's `mail` seam (mail_open.MailOpen), which answers (status, body).
+    Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the route's own 4 KiB limit)."""
+    seam = getattr(handler.server, "mail", None)
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    status, body = seam.handle(req)
+    return handler.send(status, body)
 
 
 def word_import_route(handler, req):
@@ -1313,7 +1426,8 @@ def quit_route(handler, req):
     threading.Thread(target=handler.server.shutdown, daemon=True).start()
 
 
-UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
+UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo",
+                 "/api/update/check", "/api/update/download", "/api/update/cancel")
 
 
 def updating(handler, route):
@@ -1427,25 +1541,27 @@ class BrandLibrary:
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
-                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
-                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"),
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-commands": ask_commands_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/ask-files": app_settings_route("change_files"), "/api/ask-new-projects": app_settings_route("change_new"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
+                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/ask/open-source": ask_route("open_source"),     # #943
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/open-mail": mail_route,     # row 1297
                 "/api/update/review": update_route("review"),
                 "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
                 "/api/update/undo": update_route("undo"),
+                "/api/update/check": update_route("check"), "/api/update/download": update_route("download"), "/api/update/cancel": update_route("cancel"),
                 "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
@@ -1766,8 +1882,9 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+        self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1791,6 +1908,8 @@ class LocalServer(ThreadingHTTPServer):
         self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
         self.ask_folders = ask_folders        # ask_folders.AskFolders (#47); None: the folder routes answer 404
+        self.ask_commands = ask_commands                # ask_commands_service.AskCommandsService (row 1295); None: its route answers 404
+        self.ask_instructions = ask_instructions        # standing_instructions.StandingInstructions (row 1294); None: its route answers 404
         self.ai_connect = ai_connect          # ai_connect.AiConnect (#54): Settings › AI; None: its routes answer 404
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.people, self.people_undo, self.people_list = people, people_undo, people_list      # #115: the person writers, their Undo and the list; None: saving off (503) or not found (404)
@@ -1834,8 +1953,8 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     if brands is None and BRAND_PATHS["root"] is not None:
@@ -1845,8 +1964,8 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
         httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), SetupHandler if setup is not None else Handler, data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup)
+                            milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

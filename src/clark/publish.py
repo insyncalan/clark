@@ -108,7 +108,7 @@ PUBLISH_FIELDS = {
              "priority", "status", "raised", "closed", "latest_update", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
                   "revisit", "replaces", "priority", "latest_update", "use_case", "source"),
-    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
+    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment", "owner"),   # #709: the flag goes with the use case; row 1479 (the 20-11 decision): the owner, as plain text, for the use case's own page (never owner_id)
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
@@ -567,7 +567,7 @@ def select(inputs):
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
-                for f in ("ref", "title", "headline"):
+                for f in ("ref", "title", "headline", "owner"):
                     c[f] = reason_text(c[f])
                 if c.get("commitment") not in COMMITMENTS:         # #709: only the owner's words reach the file; anything else reads as no flag
                     c["commitment"] = None
@@ -648,7 +648,7 @@ def select(inputs):
         out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
-    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
+    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS) or any(x.get("type") == "workitems" for x in shown):      # row 1307: a shown Work items list section brings the tab as a built-in section does, so its glance tiles are buttons
         tabs.append("work")
     if "milestones" not in hidden_types:
         tabs.append("milestones")
@@ -1393,6 +1393,7 @@ def read_inputs(store, code, as_at=None):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
               for t in ("projects",) + KINDS + ("workstreams", "gantt_lines")}
+    fields["workstreams"] += ("created",)      # row 1367: ask clark reads when a workstream began; select() keeps only PUBLISH_FIELDS, so no file changes
     fields["projects"] += tuple(c for c in ("archived",) if c not in fields["projects"])      # #126: publish() refuses an archived project
     try:
         got = store.publish_inputs(code, fields)
@@ -1405,6 +1406,12 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
+def theme_of(store):
+    """The Theme folder name for the Theme `store` holds at this moment, or None for Cards (row 1269): one answer for the file, the PDF and the markers."""
+    from clark import theme      # here: clark.theme imports clark.page
+    return theme.of_store(store)
+
+
 def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False, past_reports=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
@@ -1446,7 +1453,7 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if past:
         published["data"]["past_reports"] = past
     n = store.next_publication(code) if number is None else number
-    text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page
+    text = render(published, page.page_html(branding, view=True, theme=theme_of(store)), as_at, project["name"], n)      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
         raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "

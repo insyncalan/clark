@@ -3,6 +3,7 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
+import { watchRefit } from "../logic/ucRefit.js";
 import { StepsBadge } from "./StepsBadge.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
@@ -67,7 +68,7 @@ function Row({ s, shown, toggle, ed }) {
         <span class="uccell ucc" data-uccol="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} /></span>
+        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} />{ed && ed.Ask ? <ed.Ask u={u} /> : null}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
@@ -128,9 +129,7 @@ export function UseCases({ tools, section }) {
   };
   useLayoutEffect(() => { fit(rowsHigh); });
   useEffect(() => {
-    const again = () => { shut.current.clear(); fit(rowsHigh); };
-    window.addEventListener("resize", again);
-    return () => window.removeEventListener("resize", again);
+    return watchRefit(window, document, box.current, () => { shut.current.clear(); fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
   });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));

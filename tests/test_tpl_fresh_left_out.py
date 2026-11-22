@@ -27,6 +27,7 @@ class FreshLeftOut(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.act = d.action(description="Fictional kept action", due_date="2031-02-01")
         with self.store.step("dashboard", USER) as st:
             self.risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional kept risk", "raised": "2026-10-01",

@@ -60,6 +60,10 @@ class Risks(unittest.TestCase):
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/#work&p={CODE}&f=mode:all")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the list drew")
+        # Row 1195 S4: the table draws the first 50 rows and a "Show all items" link; this hunt is about all N rows, so open the list.
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-work-all]')", sid)), "the Show all items link is there for a list of more than 50")
+        cdp.js("document.querySelector('[data-work-all]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) >= N), "every row is drawn after Show all items")
         return sid
 
     OVER = """(() => { const out = [];

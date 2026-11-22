@@ -69,6 +69,7 @@ export function App({ tools: given }) {
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const HPeek = tools && tools.HelpPeek;                 // the Help peek (#645) sits at the right edge over the open page; a published file has none
+  const FbTag = tools && tools.FeedbackTag;             // the Feedback tag (#1298) on the right edge in Help and Settings; a published file has none
   const stacked = fromFile.value && printing.value && status.value === "ready";
   // #656: with no project open Settings still opens, for its Projects card (Add project) and its Data card: a first install has no other way to make a project
   const bare = status.value === "none" && view.value === "settings" && !fromFile.value && !!tools && !!tools.Projects;
@@ -87,6 +88,7 @@ export function App({ tools: given }) {
       {Ask ? <Ask /> : null}
       {HPeek && status.value === "ready" ? <HPeek /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}
+      {FbTag ? <FbTag /> : null}
       {Toast ? <Toast /> : null}
       {RowMenu ? <RowMenu /> : null}
       {Pal ? <Pal /> : null}

@@ -264,6 +264,17 @@ class TheSignIn(unittest.TestCase):
             with mock.patch.object(c, "run", return_value=got):
                 self.assertEqual(p.answer(path, "q", system=ask.RULES), want)
 
+    def test_connectors_are_accepted_and_ignored(self):
+        # Row 1306: the ask service passes the On connectors to every provider's answer(); this one has no account connectors and must not raise.
+        p = c.CodexCommand(env={})
+        with mock.patch.object(c, "run", return_value=("ok", events(ANSWER), 0)) as run:
+            with_conn = p.answer(Path("/x/codex"), "q", system=ask.RULES, connectors=("mail", "todoist"))
+            args_with = run.call_args
+        with mock.patch.object(c, "run", return_value=("ok", events(ANSWER), 0)) as run:
+            plain = p.answer(Path("/x/codex"), "q", system=ask.RULES)
+        self.assertEqual(with_conn, plain)
+        self.assertEqual(args_with, run.call_args, "the command is built the same with or without connectors")
+
     def test_a_refused_model_is_refused_before_anything_starts(self):
         with mock.patch.object(c, "run") as run:
             got = c.CodexCommand(env={}).ask(ask.Request(text="q", question="q", system=ask.RULES), "nope")

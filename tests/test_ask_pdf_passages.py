@@ -323,7 +323,7 @@ class InAsk(Fake):
         with mock.patch.object(ask_passages, "MAX_CHARS", 10):
             got = self.run_it()
         self.assertEqual(sorted({p.file for p in got.passages}), ["saved/a.pdf"])
-        self.assertEqual(got.other, 1, "the second file is left out, counted")
+        self.assertEqual((got.other, got.limit), (0, 1), "the second file is left out, counted")
 
     def test_the_bytes_of_a_pdf_count_against_the_byte_budget(self):
         self.put("a.pdf", pdf(["ZQ first file"]))
@@ -331,7 +331,7 @@ class InAsk(Fake):
         with mock.patch.object(ask_passages, "MAX_BYTES_READ", 10):
             got = self.run_it()
         self.assertEqual(sorted({p.file for p in got.passages}), ["saved/a.pdf"])
-        self.assertEqual(got.other, 1)
+        self.assertEqual((got.other, got.limit), (0, 1))
 
     def test_the_folder_reader_reads_a_file_up_to_the_readers_own_limit(self):
         self.assertEqual(ask_passages.MAX_PDF_BYTES, pdf_reader.MAX_BYTES)

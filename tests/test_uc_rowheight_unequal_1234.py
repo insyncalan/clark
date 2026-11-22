@@ -53,6 +53,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                 sid = self.draw(cdp, tmp, width)
+                self.assertTrue(wait(lambda: (lambda z: abs(z["box"] - sum(z["rows"][:3])) <= 2)(cdp.js(SIZES, sid))), "the page refits the box to the first three rows (#1277)")       # wait for the page's own refit, not for the resize event
                 shut = cdp.js(SIZES, sid)
                 self.assertGreater(shut["rows"][0], 2 * shut["rows"][1], f"the first row is long and the second short: {shut}")
                 self.assertAlmostEqual(shut["box"], sum(shut["rows"][:3]), delta=2, msg=f"the box is the first three rows tall, not three times one row: {shut}")

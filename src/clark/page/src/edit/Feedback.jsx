@@ -3,8 +3,10 @@
 // clark. `getVersion`, `platform` and `clip` are seams for the tests; the page passes none of them.
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedback.js";
+import { mailClick, MAIL_NOTE } from "./mailApi.js";
+import { classicTheme } from "../components/Contents.jsx";
 
-async function healthVersion() {
+export async function healthVersion() {
   try {
     const r = await fetch("/health", { cache: "no-store" });
     const b = await r.json();
@@ -22,6 +24,7 @@ export function Feedback({ getVersion = healthVersion, platform, clip = realClip
   const [version, setVersion] = useState("");
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState(false);
+  const [mailFailed, setMailFailed] = useState(false);
   const shown = useRef(null);
   const system = platform != null ? platform : L.platformWords();
   useEffect(() => { let live = true; getVersion().then((v) => { if (live) setVersion(v || ""); }); return () => { live = false; }; }, []);
@@ -33,7 +36,7 @@ export function Feedback({ getVersion = healthVersion, platform, clip = realClip
   const words = note || (has ? link.message : "");
   const body = L.copyText(form, ctx);
 
-  function edit(set) { return (e) => { set(e.currentTarget.value); setNote(""); setRefused(false); }; }
+  function edit(set) { return (e) => { set(e.currentTarget.value); setNote(""); setRefused(false); setMailFailed(false); }; }
   async function copy() {
     try { await clip(body); setNote(L.COPIED); setRefused(false); } catch (e) { setNote(L.COPY_REFUSED); setRefused(true); }
   }
@@ -51,9 +54,11 @@ export function Feedback({ getVersion = healthVersion, platform, clip = realClip
       <ul class="plain" id="feedback-context">{L.contextLines(ctx).map((l) => <li key={l}>{l}</li>)}</ul>
       <p class="muted small">{L.LABELS.contextNote}</p>
       <div class="row">
-        {link.href ? <a class="btn pri" data-feedback-mail href={link.href}>{L.LABELS.mail}</a> : null}
+        {link.href ? <a class="btn pri" data-feedback-mail href={link.href} onClick={(e) => mailClick(e, link.href, setMailFailed)}>{L.LABELS.mail}</a> : null}
         <button type="button" class="btn" data-feedback-copy disabled={!has} onClick={copy}>{L.LABELS.copy}</button>
       </div>
+      {classicTheme() && !has ? <p class="muted" data-feedback-hint>{L.NOTHING_YET}</p> : null}
+      {mailFailed ? <p class="muted" data-mail-note>{MAIL_NOTE}</p> : null}
       <div class="pub-msg" id="feedback-note" role="status" aria-live="polite">{words}</div>
       {refused ? <textarea id="feedback-shown" class="grow" rows={6} readOnly ref={shown} value={body} aria-label={L.LABELS.copy} /> : null}
     </section>
