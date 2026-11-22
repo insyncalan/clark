@@ -4,6 +4,7 @@ import ast
 import unittest
 from unittest import mock
 
+from _ask_index_pin import ASK_INDEX, problems as ask_index_problems
 from _demo import USER, DemoStore
 from _paths import SRC
 from clark import store as store_module
@@ -360,6 +361,12 @@ class NoOtherDelete(unittest.TestCase):
                         found.append((path.name, fn.name))
         # #349: rewound_copy deletes only in a temporary copy of clark.db (the Dashboard as at a day); clark.db is opened read only there
         # #731: remove_demo deletes only the demo projects the person never touched (demo_seed.py decides which), after a safety copy
+        # Row 1366: ask_index.py deletes only inside its own rebuildable index file (never clark.db); excused only while _ask_index_pin holds
+        ask = sorted(set(f for f in found if f[0] == "ask_index.py"))
+        tree = ast.parse((SRC / ASK_INDEX).read_text(encoding="utf-8"))
+        self.assertEqual(ask_index_problems(tree), [])
+        self.assertEqual(ask, [("ask_index.py", "_drop"), ("ask_index.py", "_refresh_open")])
+        found = [f for f in found if f[0] != "ask_index.py"]
         self.assertEqual(sorted(set(found)), [("store.py", "_revert_created"), ("store.py", "delete_row"), ("store.py", "remove_demo"), ("store.py", "rewound_copy")])
 
 
