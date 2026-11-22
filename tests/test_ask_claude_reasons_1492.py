@@ -23,6 +23,13 @@ class FailureReason(unittest.TestCase):
         for said in (b"getaddrinfo ENOTFOUND api", b"ECONNREFUSED", b"fetch failed", b"Could not resolve host", b"connection reset", b"offline"):
             self.assertEqual(ac.failure_reason(said), "network", said)
 
+    def test_every_other_word_of_each_kind_is_read(self):
+        for said in (b"Please log in again", b"Login again to continue"):
+            self.assertEqual(ac.failure_reason(said), "expired", said)
+        for said in (b"connect ETIMEDOUT 1.2.3.4", b"getaddrinfo EAI_AGAIN host", b"ENETUNREACH", b"The network is down", b"Unable to connect to the API",
+                     b"Connection refused", b"connection closed", b"connection error"):
+            self.assertEqual(ac.failure_reason(said), "network", said)
+
     def test_expired_wins_over_network(self):
         self.assertEqual(ac.failure_reason(b"network error: not logged in"), "expired")
 
@@ -38,6 +45,9 @@ class FailureReason(unittest.TestCase):
 
 
 class Reasoned(unittest.TestCase):
+    def test_no_reason_given_means_none(self):
+        self.assertEqual(ac.Reasoned("words").reason, "")
+
     def test_with_a_reason(self):
         got = ac.reasoned("words", "expired")
         self.assertIsInstance(got, ac.Reasoned)

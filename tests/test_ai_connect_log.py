@@ -96,6 +96,13 @@ class ClaudeChecks(Base):
         self.connect()
         self.one("version or options are not supported")
 
+    def test_a_check_that_ran_out_of_time_is_logged_as_that(self):
+        with mock.patch.object(ask_claude, "run", return_value=("slow", b"", None)):
+            self.connect()
+        line = self.one("a check took too long")
+        self.assertTrue(line.endswith("ai: connect failed, a check took too long"), line)
+        self.assertNotIn("version or options", line)
+
     def test_not_signed_in_with_claude_ai(self):
         self.put("auth", json.dumps({"loggedIn": False, "authMethod": "none"}))
         self.connect()
@@ -260,6 +267,7 @@ class CheckAgain(Base):
         self.assertEqual(len([x for x in said if x.endswith("checked, answered")]), 2)
         for line in said:
             self.assertRegex(line, r"^<text, \d+ characters>( checked, (answered|<text, \d+ characters>))?$")
+        self.assertEqual(said[-1], "<text, 6 characters> checked, <text, 7 characters>", "the result is the code 'expired' (7 characters), never the sentence")
         everything = "\n".join(self.cap.lines()) + (self.data / settings.FILE).read_text(encoding="utf-8")
         for never in ("ZEBRA", "hunter2", "Bearer", "abcdef0123", "/Users", "secret.json", ac.TEST_QUESTION, "Reply with", "password", "sk-", "token"):
             self.assertNotIn(never, everything)
