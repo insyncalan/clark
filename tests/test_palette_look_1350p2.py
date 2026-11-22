@@ -16,7 +16,7 @@ from clark import page, theme
 from test_palette import DATA, LIST, Base
 from test_server import Running, chrome
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, k) => getComputedStyle(e)[k];
   const tok = (v, k) => { const i = document.createElement('i'); i.style[k] = v; document.body.appendChild(i); const r = getComputedStyle(i)[k]; i.remove(); return r; };
   const row = q('#palette .pal-row.on'), hint = q('#palette .pal-row .pal-more'), hrow = hint.parentElement, kind = row.querySelector('.pal-kind'), inp = q('.pal-q input'), box = q('.pal-q'), list = q('.pal-list');
