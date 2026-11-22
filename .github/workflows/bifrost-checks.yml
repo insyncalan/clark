@@ -1,0 +1,127 @@
+# Bifrost step 7: the three delivery checks of the pipeline, run on every pull request without the tower.
+# REPORT-ONLY first: a FAIL is written to the log and the job summary and the job still succeeds.
+# TO FLIP ENFORCEMENT: change BIFROST_ENFORCE below from "0" to "1" (one line), then make the three checks required.
+# BOOTSTRAP: the checker is read from the base commit; until it exists there the job reports NOT CHECKED and succeeds.
+# TO ROLL BACK: delete this file (and .github/bifrost/). The "Tests passed" workflow is not touched.
+# Reads GitHub with GET only, using this job's own GITHUB_TOKEN (contents read, pull requests read). No other token.
+# LEGACY pull requests (body written before the Point map format) pass. The plan repo is private, so a ticket the job
+# token cannot read is reported as NOT CHECKED, never as a failure.
+name: Bifrost checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  merge_group:      # GitHub merge queue: the queue needs the three required checks to report here too; there is no pull request, so ci_run.py reports NOT CHECKED and succeeds
+    types: [checks_requested]
+
+concurrency:
+  group: bifrost-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  BIFROST_ENFORCE: "0"
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  bifrost-closes-guard:
+    name: bifrost-closes-guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          sparse-checkout: .github/bifrost
+      - name: run check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f .github/bifrost/ci_run.py ]; then
+            echo "NOT CHECKED: checker not on base branch yet (bootstrap PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 .github/bifrost/ci_run.py --check closes-guard --pr "$PR_NUMBER"
+
+  bifrost-point-map:
+    name: bifrost-point-map
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          sparse-checkout: .github/bifrost
+      - name: run check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f .github/bifrost/ci_run.py ]; then
+            echo "NOT CHECKED: checker not on base branch yet (bootstrap PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 .github/bifrost/ci_run.py --check point-map --pr "$PR_NUMBER"
+
+  bifrost-test-exists:
+    name: bifrost-test-exists
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          sparse-checkout: .github/bifrost
+      - name: run check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f .github/bifrost/ci_run.py ]; then
+            echo "NOT CHECKED: checker not on base branch yet (bootstrap PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 .github/bifrost/ci_run.py --check test-exists --pr "$PR_NUMBER"
+
+  # BIFROST A1: the release-label gate. A no-op (NOT CHECKED, job succeeds) until the owner sets BIFROST_RELEASE_TAG and
+  # BIFROST_FULL_FILE and BIFROST_PLAN_REPO below. The plan repo is private, so with the job token the gate may also report NOT CHECKED.
+  bifrost-release-label:
+    name: bifrost-release-label
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BIFROST_RELEASE_TAG: ""    # release tag to check, e.g. v1.3.5; empty = not checked
+      BIFROST_FULL_FILE: ""      # path inside the checkout of the FULL list (one row number per line); empty = not checked
+      BIFROST_PLAN_REPO: ""      # owner/name of the plan repo whose issues carry the release label; empty = not checked
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          fetch-depth: 0
+      - name: run check
+        run: |
+          if [ ! -f .github/bifrost/release_label_gate.py ]; then
+            echo "NOT CHECKED: gate not on base branch yet (bootstrap PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "$BIFROST_RELEASE_TAG" ] || [ -z "$BIFROST_FULL_FILE" ] || [ -z "$BIFROST_PLAN_REPO" ] || [ ! -f "$BIFROST_FULL_FILE" ]; then
+            echo "NOT CHECKED: no release tag / FULL list supplied" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          out="$(mktemp)"
+          rc=0
+          python3 .github/bifrost/release_label_gate.py --tag "$BIFROST_RELEASE_TAG" --repo "$BIFROST_PLAN_REPO" --code-repo . --full-file "$BIFROST_FULL_FILE" > "$out" 2>&1 || rc=$?
+          cat "$out"
+          cat "$out" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -eq 0 ]; then
+            exit 0
+          elif [ "$rc" -eq 2 ]; then
+            echo "NOT CHECKED: the gate could not read GitHub or git (exit 2)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [ "$BIFROST_ENFORCE" = "1" ]; then
+            echo "FAIL: release-label gate (BIFROST_ENFORCE=1)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "FAIL (report-only, BIFROST_ENFORCE=0): release-label gate exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0

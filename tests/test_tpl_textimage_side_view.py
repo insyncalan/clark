@@ -18,6 +18,7 @@ import zlib
 from pathlib import Path
 
 from _paths import ROOT, SRC
+from clark import theme
 from test_server import Running, chrome, wait
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -42,8 +43,9 @@ def uri(raw):
 IMG = uri(png(1200, 800))
 
 
-def page_html():
-    if "html" not in _PAGE:
+def page_html(classic=False):
+    key = "classic" if classic else "cards"
+    if key not in _PAGE:
         sys.path.insert(0, str(ROOT / "dev" / "tools"))
         import build_page
         import esbuild
@@ -55,9 +57,10 @@ def page_html():
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
         css = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8") + (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
-        _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB" data-theme="light"><head><meta charset="utf-8"><title>t</title><style>{css}</style></head>\n'
+        layer = f'<style id="theme">{theme.css("prototype-2.0")}</style>' if classic else ""
+        _PAGE[key] = (f'<!doctype html>\n<html lang="en-GB" data-theme="light"><head><meta charset="utf-8"><title>t</title><style>{css}</style>{layer}</head>\n'
                          f'<body><main style="max-width:1100px;margin:0 auto;padding:0 16px"><div id="root"></div></main>\n<script>{script}</script>\n</body></html>\n')
-    return _PAGE["html"]
+    return _PAGE[key]
 
 
 def content(**kw):
@@ -83,11 +86,12 @@ MEASURE = """(function(){
           nwords:document.querySelectorAll('.tpl-sbs-words').length};})()"""
 
 
-class View(unittest.TestCase):
+class Plumbing:
+    classic = False
     @classmethod
     def setUpClass(cls):
         cls.stack = contextlib.ExitStack()
-        cls.server = Running(page_html=page_html)
+        cls.server = Running(page_html=lambda: page_html(cls.classic))
         cls.stack.callback(cls.server.close)
         cls.cdp = cls.stack.enter_context(chrome())
         tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
@@ -112,19 +116,21 @@ class View(unittest.TestCase):
     def measure(self):
         return self.js(MEASURE)
 
+
+class View(Plumbing, unittest.TestCase):
     # ---- what is drawn from what
 
     def test_shown_and_empty(self):
         self.assertTrue(self.js("F.ready"))
-        old = self.js(f"F.shown({json.dumps({'v': 1, 'html': '<p>x</p>', 'side': 'left', 'pictures': {'image': IMG}, 'caption': 'c', 'alt': 'a', 'share': 'third', 'hpos': 'bottom'})})")
-        for k in ("sbs", "share", "hpos", "shape", "fx", "fy"):
+        old = self.js(f"F.shown({json.dumps({'v': 1, 'html': '<p>x</p>', 'side': 'left', 'pictures': {'image': IMG}, 'caption': 'c', 'alt': 'a', 'share': 'third', 'half': 'bottom'})})")
+        for k in ("sbs", "share", "half", "shape", "fx", "fy"):
             self.assertNotIn(k, old, "the old Text and image is shown as it was")
         got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'pictures': {'image': IMG}, 'caption': 'c', 'alt': 'a'})})")
         self.assertEqual(got, {"words": [], "side": "right", "html": "<p>x</p>", "image": IMG, "caption": "c", "alt": "a", "sbs": 1})
-        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'side': 'left', 'hpos': 'bottom', 'share': 'two', 'shape': 'square', 'fx': 200, 'fy': 900, 'pictures': {'image': IMG}})})")
-        self.assertEqual({k: got[k] for k in ("side", "hpos", "share", "shape", "fx", "fy", "sbs")}, {"side": "left", "hpos": "bottom", "share": "two", "shape": "square", "fx": 200, "fy": 900, "sbs": 1})
-        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'hpos': 'middle', 'share': 'odd', 'shape': 'odd', 'fx': 5000, 'fy': 'a', 'pictures': {'image': IMG}})})")
-        for k in ("hpos", "share", "shape", "fx", "fy"):
+        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'side': 'left', 'half': 'bottom', 'share': 'two', 'shape': 'square', 'fx': 200, 'fy': 900, 'pictures': {'image': IMG}})})")
+        self.assertEqual({k: got[k] for k in ("side", "half", "share", "shape", "fx", "fy", "sbs")}, {"side": "left", "half": "bottom", "share": "two", "shape": "square", "fx": 200, "fy": 900, "sbs": 1})
+        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'half': 'middle', 'share': 'odd', 'shape': 'odd', 'fx': 5000, 'fy': 'a', 'pictures': {'image': IMG}})})")
+        for k in ("half", "share", "shape", "fx", "fy"):
             self.assertNotIn(k, got, f"{k}: a value that is not one of the choices is not carried")
         self.assertEqual(self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'share': 'third', 'shape': 'square', 'fx': 1})})"), {"words": [], "side": "right", "html": "<p>x</p>", "sbs": 1},
                          "no image, no image settings")
@@ -265,7 +271,7 @@ class View(unittest.TestCase):
         for slot in ("left", "right"):
             for hpos in ("top", "bottom"):
                 # side and share are the FULL width choices: they change nothing here
-                self.draw(content(hpos=hpos, side="left" if hpos == "top" else "right", share="third"), 1400, slot=slot)
+                self.draw(content(half=hpos, side="left" if hpos == "top" else "right", share="third"), 1400, slot=slot)
                 m = self.measure()
                 with self.subTest(slot=slot, hpos=hpos):
                     self.assertLessEqual(abs(m["fig"]["w"] - m["box"]["w"]), 1, "the image spans the section")
@@ -280,7 +286,7 @@ class View(unittest.TestCase):
 
     def test_each_width_keeps_its_own_choice(self):
         # one content, drawn full and half: the full width choice (left, a third) and the half width choice (bottom) are both in it
-        c = content(side="left", share="third", hpos="bottom")
+        c = content(side="left", share="third", half="bottom")
         self.draw(c, 1400)
         m = self.measure()
         self.assertLess(m["fig"]["r"], m["words"]["l"] + 1)
@@ -314,7 +320,7 @@ class View(unittest.TestCase):
 
     def test_at_900_a_half_width_section_keeps_its_top_or_bottom_and_stays_inside(self):
         for hpos in ("top", "bottom"):
-            self.draw(content(hpos=hpos, side="left" if hpos == "bottom" else "right"), 900, slot="right")
+            self.draw(content(half=hpos, side="left" if hpos == "bottom" else "right"), 900, slot="right")
             m = self.measure()
             with self.subTest(hpos=hpos):
                 if hpos == "top":
@@ -323,6 +329,25 @@ class View(unittest.TestCase):
                     self.assertLessEqual(m["words"]["b"], m["fig"]["t"] + 1)
                 self.assertLessEqual(m["scroll"][0], m["scroll"][1])
                 self.assertLessEqual(m["box"]["r"], m["main"]["r"] + 1)
+
+    def test_half_width_bottom_from_the_servers_own_published_content_draws_under_the_words(self):
+        # not hand-made content: a body with half-width position bottom goes through the server's own check and publish, and the View draws exactly what comes out
+        from clark.section_kinds import textimage
+        stored = textimage._check_v2({"v": 2, "html": WORDS, "half": "bottom", "pictures": {"original": IMG}})
+        published = textimage._published_v2(stored)["content"]
+        self.assertEqual(published.get("half"), "bottom", "the server publishes the half width position under the name the View reads")
+        for width in (1400, 900):
+            for how in ("published", "stored"):
+                with self.subTest(width=width, how=how):
+                    if how == "published":
+                        self.draw(published, width, slot="right")      # exactly the content the server publishes, nothing added by hand
+                        self.assertTrue(wait(lambda: self.js("(function(){var i=document.querySelector('.tpl-sbs-frame img');return !!i && i.complete && i.naturalWidth>0})()")), "the side by side layout drew the image")
+                    else:
+                        self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                        self.js(f"F.mount({json.dumps({'id': 'ABC-S-001', 'type': 'textimage', 'body': json.dumps(stored)})}, 'right')")      # the stored body, as the editor and the served View read it
+                        self.assertTrue(wait(lambda: self.js("(function(){var i=document.querySelector('.tpl-sbs-frame img');return !!i && i.complete && i.naturalWidth>0})()")))
+                    m = self.measure()
+                    self.assertLessEqual(m["words"]["b"], m["fig"]["t"] + 1, "half width bottom: the image is below the words")
 
     def test_other_shapes_at_900_stay_inside_and_keep_their_proportions(self):
         for shape, ratio in (("4:3", 4 / 3), ("square", 1.0)):
@@ -348,6 +373,31 @@ class View(unittest.TestCase):
             self.assertEqual(m["px"][:3], [200, 30, 30])
         finally:
             self.cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
+
+
+class Classic(Plumbing, unittest.TestCase):
+    """The Classic layer is the style element with id theme (classicTheme() reads it); Cards has none."""
+    classic = True
+
+    def test_heading_is_drawn_above_and_none_draws_nothing(self):
+        for color in ("light", "dark"):
+            for width in (1400, 900):
+                self.draw(content(heading="Fictional site visit"), width, color)
+                with self.subTest(theme=color, width=width):
+                    self.assertEqual(self.js("(document.querySelector('.tpl-sbs-heading')||{}).textContent"), "Fictional site visit")
+                    self.assertLessEqual(self.js("document.querySelector('.tpl-sbs-heading').getBoundingClientRect().bottom"),
+                                         self.js("document.querySelector('.tpl-sbs-frame').getBoundingClientRect().top + 1"))
+        self.assertIsNone(self.js("document.querySelector('.tpl-sbs-heading').getAttribute('style')"), "the heading carries no inline style")
+        self.assertEqual(self.js("(function(){var s = getComputedStyle(document.querySelector('.tpl-sbs-heading')); return [s.gridColumnStart, s.gridColumnEnd, s.marginTop, s.marginBottom];})()"),
+                         ["1", "-1", "0px", "0px"], "the rules.css rule spans the grid with no margin")
+        self.draw(content(), 1400)
+        self.assertIsNone(self.js("document.querySelector('.tpl-sbs-heading')"), "no heading, none drawn")
+
+
+class CardsHeading(Plumbing, unittest.TestCase):
+    def test_cards_markup_has_no_heading(self):
+        self.draw(content(heading="Fictional site visit"), 1400)
+        self.assertIsNone(self.js("document.querySelector('.tpl-sbs-heading')"), "Cards draws what it drew before")
 
 
 if __name__ == "__main__":
