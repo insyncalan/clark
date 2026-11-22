@@ -136,12 +136,12 @@ function groupedItems(items, menuId) {
 
 // Row 1281: one radio of the pill (System | Light | Dark), a menuitemradio inside a role=group (the menu pattern). The chosen one (the first when none is chosen,
 // as a stored mode outside the three) is the pill's one stop for Up and Down; Left and Right go to the next or the
-// previous radio, wrapping, and choose it (the menu stays open); a click chooses it and closes the menu, as the three rows did.
+// previous radio, wrapping, and choose it (the menu stays open); Home and End choose the first or the last radio of the pill (ticket AP6); a click chooses it and closes the menu, as the three rows did.
 function pillRadio(it, stop, close, onPick) {
   const move = (e) => {
-    const k = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    if (!k) return;
-    const all = [...e.currentTarget.parentNode.querySelectorAll(".pr")], to = all[(all.indexOf(e.currentTarget) + k + all.length) % all.length];
+    const k = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, edge = e.key === "Home" ? 0 : e.key === "End" ? -1 : null;
+    if (!k && edge === null) return;
+    const all = [...e.currentTarget.parentNode.querySelectorAll(".pr")], to = edge !== null ? all.at(edge) : all[(all.indexOf(e.currentTarget) + k + all.length) % all.length];
     e.preventDefault(); e.stopPropagation();
     to.focus({ preventScroll: true });
     onPick(to.dataset.kind);

@@ -93,11 +93,12 @@ class Classic(Base):
                     self.open_menu(p)
                     got = p.js("(function(){var tok=function(n,prop){var t=document.createElement('i');t.style[prop]='var('+n+')';document.body.appendChild(t);var v=getComputedStyle(t)[prop];t.remove();return v};"
                                "var on=getComputedStyle(document.querySelector('#profile-menu .pr[aria-checked=true]')),tr=getComputedStyle(document.querySelector('#profile-menu .ptrack'));"
-                               "return {bg:on.backgroundColor===tok('--surface','backgroundColor'),fg:on.color,track:tr.backgroundColor,ap:getComputedStyle(document.querySelector('#profile-menu .ap')).padding,"
-                               "shadow:on.boxShadow!=='none'}})()")
+                               "return {bg:on.backgroundColor,fg:on.color,track:tr.backgroundColor,ap:getComputedStyle(document.querySelector('#profile-menu .ap')).padding,"
+                               "shadow:on.boxShadow,lab:getComputedStyle(document.querySelector('#profile-menu .ap .lab')).color}})()")
                     # the ticket's values (1281 AP3, AP4, AP5): track #eceff6 (dark #1c3040), chosen text #4f35c9 (dark #a99bff), label block padding 8px 20px 6px; the ticket values win (ruling 22-11)
-                    want = {"light": ("rgb(236, 239, 246)", "rgb(79, 53, 201)"), "dark": ("rgb(28, 48, 64)", "rgb(169, 155, 255)")}[kind]
-                    self.assertEqual(got, {"bg": True, "fg": want[1], "track": want[0], "ap": "8px 20px 6px", "shadow": True}, kind)
+                    # AP4 (ticket values, hex pinned): chosen cell #fff (dark #13232e), shadow 0 1px 3px rgba(0,0,0,.2); AP5: label muted #4a5578 (dark #9fb0bd)
+                    want = {"light": ("rgb(236, 239, 246)", "rgb(79, 53, 201)", "rgb(255, 255, 255)", "rgb(74, 85, 120)"), "dark": ("rgb(28, 48, 64)", "rgb(169, 155, 255)", "rgb(19, 35, 46)", "rgb(159, 176, 189)")}[kind]
+                    self.assertEqual(got, {"bg": want[2], "fg": want[1], "track": want[0], "ap": "8px 20px 6px", "shadow": "rgba(0, 0, 0, 0.2) 0px 1px 3px 0px", "lab": want[3]}, kind)
 
     def test_C_the_keys_reach_the_pill_as_one_stop_and_left_right_choose(self):
         with chrome() as cdp:
@@ -126,8 +127,11 @@ class Classic(Base):
             self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark", "the same storage as before")
             self.assertEqual(p.js("document.activeElement.matches(':focus-visible')"), True, "the focus ring shows")
             self.assertNotEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "none")
-            p.key("Home", vk=36)
-            self.assertEqual(self.active(p), WHO, "Home from the pill goes to the first line")
+            p.key("Home", vk=36)      # AP6: Home and End SELECT the first and the last radio inside the pill
+            self.assertEqual((self.active(p), self.chosen(p)), ("System", "System"), "Home chooses the first radio")
+            p.key("End", vk=35)
+            self.assertEqual((self.active(p), self.chosen(p)), ("Dark", "Dark"), "End chooses the last radio")
+            self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark")
 
     def test_C_a_click_chooses_and_closes_the_menu(self):
         with chrome() as cdp:
@@ -151,7 +155,7 @@ class Classic(Base):
                 self.assertEqual(p.js("document.querySelector('#profile-menu [data-kind=help] .hver').textContent"), "clark ver. " + VER)
                 self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .hver')).fontSize"), "12px")
                 self.assertEqual(p.js("(function(){var h=document.querySelector('#profile-menu [data-kind=help]'),v=h.querySelector('.hver'),a=h.getBoundingClientRect(),b=v.getBoundingClientRect();"
-                                      "var t=document.createElement('i');t.style.color='var(--text-muted)';h.appendChild(t);var c=getComputedStyle(t).color===getComputedStyle(v).color;t.remove();"
+                                      "var t=document.createElement('i');t.remove();var c=getComputedStyle(v).color===(document.documentElement.dataset.theme==='dark'?'rgb(159, 176, 189)':'rgb(74, 85, 120)');"
                                       "return c && b.right>a.right-40 && Math.abs((b.top+b.bottom)/2-(a.top+a.bottom)/2)<4})()"), True, "muted, right-aligned, on the Help line")
 
     def test_C_no_version_means_no_text(self):

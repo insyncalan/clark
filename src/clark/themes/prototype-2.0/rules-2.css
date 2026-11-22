@@ -53,14 +53,14 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
-.ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--text-muted); font-weight: var(--weight-regular); }
+.ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
 .ddmenu .ptrack { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pill-track); }
 .ddmenu .ptrack .pr { all: unset; box-sizing: border-box; flex: 1 1 0; min-width: 0; text-align: center; padding: 6px 4px; border-radius: 999px; font-size: 14px; color: var(--text); cursor: pointer; }
-.ddmenu .ptrack .pr[aria-checked="true"] { background: var(--surface); color: var(--pill-on-fg); font-weight: 600; box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 25%, transparent); }
+.ddmenu .ptrack .pr[aria-checked="true"] { background: var(--pill-on-bg); color: var(--pill-on-fg); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); }
 .ddmenu .ptrack .pr:hover:not([aria-checked="true"]) { background: var(--brand-blue-tint); }
 .ddmenu .ptrack .pr:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ddmenu [role="menuitem"]:has(.hver) { display: flex; align-items: center; }
-.ddmenu .hver { margin-left: auto; padding-left: var(--space-4); max-width: 14em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 12px; color: var(--text-muted); }
+.ddmenu .hver { margin-left: auto; padding-left: var(--space-4); max-width: 14em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 12px; color: var(--pill-muted); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
