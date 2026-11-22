@@ -110,11 +110,23 @@ class DockerUpdate(unittest.TestCase):
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",
                       "bash docker/start.command", "start from the newer clark folder", "SHA-256",
-                      "clark keeps the 14 newest of these copies", "never fewer than 3", "Get-FileHash -Algorithm SHA256", "Update from file in Settings does not work under Docker"):
-            self.assertIn(words, UPDATE)
+                      "clark keeps the 14 newest of these copies", "never fewer than 3", "shasum -a 256 clark-<version>-mac.zip", "Under Docker, Install from a file in Settings does not apply: update by starting from the newer clark folder."):
+            self.assertIn(words, " ".join(UPDATE.split()))
         self.assertNotIn("docker load", UPDATE)
         self.assertNotIn("!", UPDATE)
         self.assertNotIn("\t", UPDATE)
+
+    def test_update_txt_is_mac_only(self):
+        for words in ("PowerShell", "Get-FileHash", "certutil", "-windows.zip"):
+            self.assertNotIn(words, UPDATE)
+        self.assertEqual(UPDATE.count("Windows"), 1)
+        self.assertIn("This file is for Mac. On Windows, read UPDATE-windows.txt.\n", UPDATE.split("To update:")[0])
+        self.assertIn("Open Terminal in the clark folder", UPDATE)
+
+    def test_start_here_for_mac_points_at_the_update_guide(self):
+        import package
+        self.assertIn("To update later, read docker/UPDATE.txt.\n", package.START_HERE_MAC)
+        self.assertNotIn("UPDATE.txt", package.START_HERE_WINDOWS.replace("UPDATE-windows.txt", ""))
 
     def test_update_txt_ships_in_the_docker_folder_of_the_download(self):
         self.assertTrue(release_files.covers("mac", "docker/UPDATE.txt"))

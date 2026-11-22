@@ -127,7 +127,7 @@ class Script(unittest.TestCase):
         r = self.run_script()
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.calls()[-1], f"docker compose -f {ROOT}/docker/compose.front.yaml up -d port=8766 sport=8767")
-        self.assertIn("http://localhost:8766", r.stdout)
+        self.assertIn("http://127.0.0.1:8766", r.stdout)
 
     def test_the_container_started_first_is_refused_before_docker_is_reached(self):
         r = self.run_script(health=False)

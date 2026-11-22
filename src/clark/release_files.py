@@ -29,11 +29,17 @@ SHARED = (
     "vendor/typing_extensions.py",   # pypdf's one dependency on Python 3.9 and 3.10 (PSF-2.0; licence in vendor/licenses/)
 ) + (("dev/demo_data.py",) if INCLUDE_DEMO else ())
 
-# What each system adds. Windows will add clark.cmd and python\ here; nothing else changes.
+# The prebuilt runtime image (item 624): a tar for `docker load -i`, a stock Python and nothing of clark. It is not tracked by git:
+# package.py writes it from --image-tar (built in CI), or a placeholder, which --release refuses.
+IMAGE_TAR = "docker/clark-runtime.tar"
+
+# What each system adds. Windows adds the runtime image tar and nothing that runs by itself: no .exe, no .cmd, no python folder (item 624).
 SYSTEMS = {
     "mac": ("clark.command",),
+    "windows": (IMAGE_TAR,),
 }
-NOT_BUILT_YET = {"windows"}
+NOT_BUILT_YET = set()
+GENERATED = (IMAGE_TAR,)        # named in a system's list but written by package.py, so git does not list them
 
 RUN_BIT = {"clark.command"}     # files that must stay runnable after unzipping
 START_HERE = "START-HERE.md"    # written by package.py, not taken from the repo (the reader also accepts START-HERE.txt: zips up to 1.0.4 carry it)

@@ -1,6 +1,6 @@
 # clark served from Docker, with clark itself running on the Mac (item 1100). In the unzipped clark folder, in two Terminal windows:
 #   1. bash docker/front.command server        clark's own server, on this Mac (all Mac features work). Leave the window open.
-#   2. bash docker/front.command               checks the server answers, then starts the web server in Docker; open http://localhost:8766
+#   2. bash docker/front.command               checks the server answers, then starts the web server in Docker; open http://127.0.0.1:8766
 #   bash docker/front.command stop             stops the web server in Docker (Ctrl+C in window 1 stops clark)
 # If Docker is a problem, the Terminal route is the supported way: bash clark.command. Docker only passes requests on; if Docker fails, nothing is lost.
 # This file holds no clark code and no data: only a stock proxy image and one read-only settings file. The Mac server listens on

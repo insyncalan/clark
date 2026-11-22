@@ -1,18 +1,20 @@
 Updating clark with Docker
 
+This file is for Mac. On Windows, read UPDATE-windows.txt.
+
 Your data is not in the clark folder. It stays where it is. A newer clark
 folder finds it again.
 
 To update:
-  1. Open Terminal (Mac) or PowerShell (Windows) in the clark folder you use
+  1. Open Terminal in the clark folder you use
      now. Type this and press Return:
         docker compose -f docker/compose.yaml down
   2. Unzip the new download into a new folder. Do not unzip it over the old one.
-  3. In Terminal or PowerShell, go to the new clark folder. Type cd and a
+  3. In Terminal, go to the new clark folder. Type cd and a
      space, drag the new folder into the window and press Return.
   4. Type this and press Return:
         bash docker/start.command
-  5. Open http://localhost:8766 in Chrome.
+  5. Open http://127.0.0.1:8766 in Chrome.
 
 Sometimes the new clark keeps your data in a newer form than the old one did.
 If so, it first makes a copy of your data. The copy is in the backups folder,
@@ -37,12 +39,10 @@ To go back to the old clark:
      at the end.
   3. In the old folder, type the line from step 4 to start the old clark.
 
-Update from file in Settings does not work under Docker. The clark folder is
-read-only there. Use the steps above.
+Under Docker, Install from a file in Settings does not apply: update by
+starting from the newer clark folder.
 
 Check the download: the release page shows a long number (called SHA-256) for
 the zip. On a Mac, type this:
         shasum -a 256 clark-<version>-mac.zip
-On Windows, type this in PowerShell:
-        Get-FileHash -Algorithm SHA256 clark-<version>-mac.zip
 The number it shows must match the one on the release page.

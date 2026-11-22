@@ -12,15 +12,17 @@ from _paths import ROOT
 ALLOWED_TARGETS = {
     "compose.yaml": {"/clark", "/data"},
     "compose.front.yaml": {"/etc/nginx/templates/default.conf.template"},
+    "compose.windows.yaml": {"/data"},      # item 625: the Windows route's data folder, an overlay on compose.yaml
     "compose.copy.yaml": {"/backups-out"},     # item 625: the one extra folder, an overlay on compose.yaml (the host folder for the copy-out of backups)
 }
 # The host paths a long-form bind mount may have, by file (item 638). A new host path is a decision too.
 ALLOWED_SOURCES = {
     "compose.yaml": {"..", "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"},
     "compose.front.yaml": {"./nginx.front.conf.template"},
+    "compose.windows.yaml": {"${CLARK_DATA_DIR:-../../clark-data}"},
     "compose.copy.yaml": {"${CLARK_COPY_DIR:?name the folder in CLARK_COPY_DIR (a full path, in quotes)}"},
 }
-OVERLAYS = {"compose.copy.yaml"}      # a file that only adds to compose.yaml: it sets no limits of its own, compose.yaml's stay in force
+OVERLAYS = {"compose.copy.yaml", "compose.windows.yaml"}      # a file that only adds to compose.yaml: it sets no limits of its own, compose.yaml's stay in force
 LIMIT_SHAPES = {"pids_limit": r"[1-9]\d*", "mem_limit": r"[1-9]\d*[kmg]"}  # a count, or a size with a unit like 1g / 256m; a bare number is not a size (the real files use a unit, test_limits_are_positive_numbers)
 FORBIDDEN = (r"docker\.sock", r"(?<![\w-])privileged\b", r"\bcap_add\b", r"\bnetwork_mode\b")  # not no-new-privileges
 

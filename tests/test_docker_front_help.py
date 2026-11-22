@@ -23,7 +23,7 @@ class HelpLine(unittest.TestCase):
             self.assertTrue(word == "" or re.search(rf"^\s*{word}\)", SCRIPT, re.M), word)
 
     def test_it_names_the_page_the_person_sees_and_the_default_port(self):
-        self.assertIn("localhost:8766", LINE)
+        self.assertIn("127.0.0.1:8766", LINE)
         self.assertIn("cannot be reached", LINE)
         self.assertIn("Connect, ask clark", LINE)
 

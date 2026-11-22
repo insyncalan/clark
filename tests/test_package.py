@@ -255,7 +255,7 @@ class MacZipTest(unittest.TestCase):
         up = "bash docker/start.command"
         self.assertIn(up, text)
         self.assertIn("docker compose -f docker/compose.yaml down", text)
-        self.assertIn("http://localhost:8766", text)
+        self.assertIn("http://127.0.0.1:8766", text)
         self.assertLess(text.index(up), text.index("1. Double-click clark.command"), "Docker is said first")
         self.assertIn("Install clark", text)
         self.assertIn("OneDrive", text)
@@ -303,7 +303,7 @@ class MacZipTest(unittest.TestCase):
         self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
         self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
         self.assertLess(flat.index(warning), flat.index("To use another port"))
-        self.assertIn("CLARK_PORT=8800 bash docker/start.command then open http://localhost:8800 instead.", flat)
+        self.assertIn("CLARK_PORT=8800 bash docker/start.command then open http://127.0.0.1:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 
@@ -355,8 +355,9 @@ class CommandTest(unittest.TestCase):
             code = package.main(list(argv))
         return code, out.getvalue(), err.getvalue()
 
-    def test_windows_is_not_built_yet(self):
-        with tempfile.TemporaryDirectory() as tmp:
+    def test_a_system_in_not_built_yet_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(package, "NOT_BUILT_YET", {"windows"}), \
+                mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}):
             code, out, err = self.run_main("windows", "--out", tmp)
             self.assertEqual(1, code)
             self.assertIn("Windows download isn't built yet", err)
@@ -950,7 +951,7 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
             old = importlib.util.module_from_spec(spec)
             with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
                 spec.loader.exec_module(old)
-        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+        for system in sorted((set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET) & set(old_rf.SYSTEMS)):      # item 624: a system the last release never shipped (the Windows zip) has no check of its own to run
             rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
             try:
                 old.check_coverage(system, rels)
