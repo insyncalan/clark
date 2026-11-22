@@ -143,8 +143,8 @@ class DashPeek(unittest.TestCase):
     def test_never_updated_item_shows_created_entry_and_first_save_replaces_it(self):
         def check(cdp, sid, sent, ref, label, mode):
             shown = lambda: cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)
-            self.assertTrue(wait(lambda: shown().startswith("Created by Demo Author, ")), shown())
-            self.assertRegex(shown(), r"^Created by Demo Author, \d{2}-\d{2}-\d{4} \d{2}:\d{2} · Source: Demo data \(fictional\)$")
+            self.assertTrue(wait(lambda: shown().startswith("Created ")), shown())
+            self.assertRegex(shown(), r"^Created \d{2}-\d{2}-\d{4} \d{2}:\d{2} by Demo Author · Source: Demo data \(fictional\)$")
             self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid), "no stamp: nothing has been updated")
             self.open_box(cdp, sid)
             self.type_in(cdp, sid, "First update")
@@ -169,8 +169,8 @@ class DashPeek(unittest.TestCase):
                 con.close()
             return make
         D = r"\d{2}-\d{2}-\d{4} \d{2}:\d{2}"
-        for user, source, want in ((True, True, rf"^Created by Demo Author, {D} · Source: Demo data \(fictional\)$"), (False, True, rf"^Created {D} · Source: Demo data \(fictional\)$"),
-                                   (True, False, rf"^Created by Demo Author, {D}$"), (False, False, rf"^Created {D}$")):
+        for user, source, want in ((True, True, rf"^Created {D} by Demo Author · Source: Demo data \(fictional\)$"), (False, True, rf"^Created {D} · Source: Demo data \(fictional\)$"),
+                                   (True, False, rf"^Created {D} by Demo Author$"), (False, False, rf"^Created {D}$")):
             with self.subTest(user=user, source=source), chrome() as cdp:
                 sent, sid = self.load(cdp, 1400, "TUL-007", edit=False, dash="view", classic=True, prep=prep(user, source))
                 sel = json.dumps(self.SHOWN)
@@ -205,7 +205,7 @@ class MilestonePublished(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "dev" / "tools"))
         import build_page
         page = build_page.build(build_page.ENTRY_VIEW)
-        for needle in ("data-pk-latest", "contenteditable", "Last updated", "Created by"):
+        for needle in ("data-pk-latest", "contenteditable", "Last updated", "Created by", "data-pk-created"):
             self.assertNotIn(needle, page, needle)
         peek = (PAGE / "components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("const dashView = !!tools && !fromFile.value && classicTheme();", peek, "the View box needs live tools and no file")

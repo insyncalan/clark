@@ -113,10 +113,10 @@ export function stampParts(view) {
 export function stampLine(stamp, who, source) {
   return `Last updated ${stamp}${who ? ` by ${who}` : ""}${source ? ` · Source: ${source}` : ""}`;
 }
-/** The Created entry an item never updated shows in its Latest box: "Created by Name, 10-11-2026 09:12 · Source: words" (parts left out when unknown). */
+/** The Created entry an item never updated shows in its Latest box: "Created 10-11-2026 09:12 by Name · Source: words" (the name and the Source only when known). */
 export function createdLine(made, source) {
   if (!made) return "";
-  return <><b data-pk-created>Created</b>{`${made.who ? ` by ${made.who}` : ""}${made.when ? `${made.who ? "," : ""} ${made.when}` : ""}${source ? ` · Source: ${source}` : ""}`}</>;      // the word Created is bold (NEW-WORDS 21-11 items 16-17)
+  return <><b data-pk-created>Created</b>{`${made.when ? ` ${made.when}` : ""}${made.who ? ` by ${made.who}` : ""}${source ? ` · Source: ${source}` : ""}`}</>;      // the word Created is bold (NEW-WORDS 21-11 items 16-17)
 }
 
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
