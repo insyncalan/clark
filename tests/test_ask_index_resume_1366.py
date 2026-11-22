@@ -250,6 +250,31 @@ class Resume(Base):
         self.assertFalse(ixr.current("P1", []))
         self.assertEqual(ixr.busy, 0)
 
+    def refused(self):
+        """A folder clark never reads (a secret folder name): the project has nothing but this."""
+        bad = self.box / ".ssh"
+        bad.mkdir()
+        (bad / "k.txt").write_text("zqrefused text", encoding="utf-8")
+        return [str(bad)]
+
+    def test_an_index_of_only_refused_folders_is_current_and_not_read_again(self):
+        folders = self.refused()
+        self.assertTrue(ask_index.refresh(self.data, "P1", folders))
+        self.assertTrue(ask_index.current(self.data, "P1", folders), "it carries the screen version")
+        s = ix.status(self.data, "P1", folders)
+        self.assertEqual(s["safety"], 1)
+        self.assertEqual(s["indexed"], 0)
+        self.assertFalse(ix.search(self.data, "P1", "zqrefused"))
+        calls = []
+        ixr = self.indexer(lambda *a, **k: calls.append(1))
+        for step in range(3):
+            later = ask_index.time.monotonic() + (step + 1) * (ask_index.STALE_POLL_SECONDS + 1)
+            with mock.patch.object(ask_index.time, "monotonic", return_value=later):
+                ixr.status_for("P1", folders)
+                self.assertTrue(ixr.wait_idle(10))
+        self.assertEqual(calls, [], "a finished index is not started again, poll after poll")
+        self.assertTrue(ixr.current("P1", folders))
+
 
 if __name__ == "__main__":
     unittest.main()
