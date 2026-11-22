@@ -206,7 +206,7 @@ class Check(unittest.TestCase):
         self.assertNotIn("8791", text)  # the doctor and the launch use the same port
 
     def test_the_checklist_says_a_full_release_with_no_beta_and_no_pre_release(self):
-        # Row 1301 (Alan 22-11): steps 2, 8 and 19 write a full release; line 9 keeps the older-than-1.2.0 note.
+        # Row 1301: steps 2, 8 and 19 write a full release; line 9 keeps the older-than-1.2.0 note.
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
         self.assertIn("Title: `clark X.Y.Z, Mac`. Leave Pre-release unticked.", text)
         self.assertIn("Keep the first line `# clark X.Y.Z, Mac`. The notes carry no Beta line.", text)
