@@ -34,6 +34,6 @@ def trust_test_key(case):
     """Trust the test key for this one test, and ask for a signature from every version (the fake downloads are 0.x); the shipped
     constants are put back when the test ends. A test of the real FIRST_SIGNED rule patches it back itself."""
     for name, value in (("RELEASE_PUBLIC_KEY", TEST_PUBLIC), ("FIRST_SIGNED", (0, 0, 0))):
-        patcher = mock.patch.object(updates, name, value, create=True)
+        patcher = mock.patch.object(updates, name, value)
         patcher.start()
         case.addCleanup(patcher.stop)
