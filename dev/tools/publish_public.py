@@ -15,7 +15,7 @@ It refuses, before anything is pushed, unless every check passes: the branch nam
 in), with no password in it, not the private repo (read from this repo's `origin` at run time, never written in this file; compared by URL and by
 name, every https/ssh/.git/case variant),
 a public repo (asked of `gh`), and not rewritten by a git "insteadOf" rule; the ref is on main, holds the public
-README, and its tests pass on both Pythons; nothing excluded remains; no file over 5 MB; no secret (keys, tokens, passwords, .env files); and the
+README, and (a release from 1.3.4 up, named by a release-X.Y.Z branch or a vX.Y.Z ref) has its zip and a 64-byte .sig attached (#1328), and its tests pass on both Pythons; nothing excluded remains; no file over 5 MB; no secret (keys, tokens, passwords, .env files); and the
 whole snapshot, its paths, its Office parts, and the commit's author and message pass tests/test_no_real_names.py.
 Names, hashes and secret values are never printed: a hit is shown as "file #N" in `git ls-tree -r --name-only <ref>`
 (find it with: git ls-tree -r --name-only <ref> | sed -n 'Np').
@@ -61,6 +61,9 @@ DEFAULT_PUBLIC_REMOTE = None                     # never a default target: --tar
 DEFAULT_BRANCH = "clark-public"
 MAIN_BRANCH = "main"
 RELEASE_BRANCH = re.compile(r"release-[0-9]+\.[0-9]+\.[0-9]+")        # used with fullmatch: $ lets a trailing newline through, \d lets other scripts' digits through
+RELEASE_TAG = re.compile(r"v([0-9]+)\.([0-9]+)\.([0-9]+)")            # a release's tag: vX.Y.Z (used with fullmatch)
+FIRST_SIGNED = (1, 3, 4)                         # the first release that must carry a .sig (#1328; the same value as updates.FIRST_SIGNED in the app)
+SIGNATURE_BYTES = 64                             # an Ed25519 signature is exactly this long
 SNAPSHOT_BRANCH = "snapshot"                     # only inside the temporary repo
 
 # Internal working notes that stay private (#94). A trailing slash means everything under that folder. Matched without
@@ -337,6 +340,29 @@ def gh_is_public(owner, name):
     except (OSError, subprocess.TimeoutExpired):
         return False
     return proc.returncode == 0 and proc.stdout.decode("utf-8", "replace").strip() == "false"
+
+
+def gh_release_assets(owner, name, tag):
+    """[(asset name, size in bytes)] of the release (published or still a draft) with this tag in <owner>/<name>, read with
+    `gh api`; [] when no release has that tag; None when gh could not be asked (not signed in, no answer, odd output)."""
+    word = r"[A-Za-z0-9_][A-Za-z0-9_.-]*"
+    if not re.fullmatch(word, owner) or not re.fullmatch(word, name) or not RELEASE_TAG.fullmatch(tag):
+        return None
+    jq = '.[] | select(.tag_name == "%s") | .assets[] | [.name, (.size | tostring)] | @tsv' % tag
+    try:
+        proc = subprocess.run(["gh", "api", "--paginate", "repos/%s/%s/releases?per_page=100" % (owner, name), "--jq", jq],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    found = []
+    for line in proc.stdout.decode("utf-8", "replace").splitlines():
+        asset, tab, size = line.partition("\t")
+        if not tab or not size.isascii() or not size.isdigit():
+            return None
+        found.append((asset, int(size)))
+    return found
 
 
 # --- the snapshot ----------------------------------------------------------------------------------------------------
@@ -1338,6 +1364,51 @@ def check_target(args, repo, report, is_public):
     return target if safe else None
 
 
+def release_versions(args):
+    """The release versions this run publishes, as (X, Y, Z) tuples: the one in a release-X.Y.Z branch name and the one in a vX.Y.Z ref."""
+    found = set()
+    if RELEASE_BRANCH.fullmatch(args.branch):
+        found.add(tuple(int(p) for p in args.branch[len("release-"):].split(".")))
+    tag = RELEASE_TAG.fullmatch(args.ref or "")
+    if tag:
+        found.add(tuple(int(p) for p in tag.groups()))
+    return sorted(found)
+
+
+def check_signed(args, repo, report, release_assets):
+    """#1328: a release from FIRST_SIGNED up is published only when its zip and its .sig are attached to the release in the private
+    repo (the one named by this checkout's origin) and the .sig is exactly SIGNATURE_BYTES long. It is not read here whether the .sig
+    verifies: dev/tools/check_release_assets.py does that. If gh cannot be asked, it is a refusal. Older releases and non-release
+    runs add no line."""
+    for version in release_versions(args):
+        if version < FIRST_SIGNED:
+            continue
+        label = "release %d.%d.%d has its .sig" % version
+        tag = "v%d.%d.%d" % version
+        origin = text(git(["-C", str(repo), "config", "--get", "remote.origin.url"], env=neutral_env(tempfile.gettempdir(), "x", "x@x", 0)))
+        try:
+            where = parse_target(origin, base=repo) if origin else None
+        except TargetError:
+            where = None
+        owner, _, name = where[2].partition("/") if where and where[0] == "url" else ("", "", "")
+        if not owner or not name or "/" in name:
+            report.add(label, REFUSED, "the private repo's address (origin) is not <owner>/<repo>, so its releases can't be read")
+            continue
+        assets = release_assets(owner, name, tag)
+        zipped = "clark-%d.%d.%d-mac.zip" % version
+        sig_name = zipped + ".sig"
+        if assets is None:
+            report.add(label, REFUSED, "gh could not read the release's files, so it is not shown to be signed")
+        elif zipped not in [a for a, _ in assets]:
+            report.add(label, REFUSED, "the release has no %s attached (or there is no release %s)" % (zipped, tag))
+        elif sig_name not in [a for a, _ in assets]:
+            report.add(label, REFUSED, "the release has no %s beside the zip: sign the zip (dev/RELEASING.md step 7a) and attach it" % sig_name)
+        elif (sig_name, SIGNATURE_BYTES) not in assets:
+            report.add(label, REFUSED, "%s is not %d bytes long, so it is not a signature" % (sig_name, SIGNATURE_BYTES))
+        else:
+            report.add(label, PASS, "%s and %s are attached" % (zipped, sig_name))
+
+
 def resolve_ref(repo, ref, env, report):
     if not ref or ref.startswith("-") or not re.fullmatch(r"[A-Za-z0-9._/@^~{}-]+", ref):
         report.add("ref exists", REFUSED, "that is not a tag or ref name")
@@ -1470,7 +1541,8 @@ def check_tests(args, checkout, run_tests, report):
 
 # --- the run ---------------------------------------------------------------------------------------------------------
 
-def run(args, *, repo=REPO, run_tests=None, is_public=None, banned=None, main_ref=DEFAULT_MAIN_REF, out=print, now=None):
+def run(args, *, repo=REPO, run_tests=None, is_public=None, banned=None, main_ref=DEFAULT_MAIN_REF, out=print, now=None,
+        release_assets=None):
     """Everything. Returns the exit code: 0 published, nothing to publish, or a dry run that passed; 1 refused or failed."""
     def say(line=""):
         out(hide_password(line))
@@ -1479,7 +1551,7 @@ def run(args, *, repo=REPO, run_tests=None, is_public=None, banned=None, main_re
     before = _catch_signals()
     try:
         return _run(args, Path(repo), tmp, run_tests or default_run_tests, is_public or gh_is_public, banned, main_ref,
-                    say, now)
+                    say, now, release_assets or gh_release_assets)
     except (TargetError, Unsafe) as err:
         say("REFUSED: %s. Nothing was pushed." % err)
         return 1
@@ -1553,7 +1625,7 @@ def commit_message(args, sha):
     return "clark %s (%s)" % (label, sha[:7])
 
 
-def _run(args, repo, tmp, run_tests, is_public, banned, main_ref, say, now):
+def _run(args, repo, tmp, run_tests, is_public, banned, main_ref, say, now, release_assets):
     when = int(now() if now else time.time())
     name, email = args.author_name or AUTHOR_NAME, args.author_email or AUTHOR_EMAIL
     report = Report()
@@ -1566,6 +1638,7 @@ def _run(args, repo, tmp, run_tests, is_public, banned, main_ref, say, now):
 
     check_branch(args, report)
     target = check_target(args, repo, report, is_public)
+    check_signed(args, repo, report, release_assets)
     sha = resolve_ref(repo, args.ref, env, report)
     if sha:
         check_on_main(repo, sha, main_ref, env, report)

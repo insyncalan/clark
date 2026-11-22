@@ -92,6 +92,8 @@ class Base(unittest.TestCase):
         sh("init", "-q", "--bare", str(self.public))
         self.runs = []
         self.gh_asked = []
+        self.assets_asked = []
+        self.assets_say = []
 
     # --- the private repo
     def make_private(self, files, ignored=None, forced=None, origin=ORIGIN, name="private"):
@@ -131,12 +133,16 @@ class Base(unittest.TestCase):
         self.gh_asked.append((owner, name))
         return getattr(self, "gh_says_public", True)
 
+    def fake_assets(self, owner, name, tag):
+        self.assets_asked.append((owner, name, tag))
+        return self.assets_say
+
     def go(self, *flags, ref="main", target=None, banned=FICTIONAL, local=True, run_tests=None, spy=None):
         argv = [] if target is False else ["--target=" + (str(self.public) if target is None else target)]
         argv += ["--pythons", "old,new"] + (["--allow-local-target"] if local else []) + list(flags) + ["--", ref]
         lines = []
         kwargs = dict(repo=self.private, run_tests=run_tests or self.fake_tests, is_public=self.fake_gh, banned=banned,
-                      out=lines.append, now=lambda: NOW)
+                      out=lines.append, now=lambda: NOW, release_assets=self.fake_assets)
         if spy is None:
             code = pp.run(pp.parse_args(argv), **kwargs)
         else:
@@ -644,6 +650,179 @@ class ThePublish(Base):
         self.make_private(GOOD)
         code, out = self.go(banned=None)
         self.assertEqual(code, 0, out)
+
+
+def assets_of(version, sig_size=64, zipped=True, sig=True):
+    names = ["clark-%s-mac.zip" % version, "clark-%s-mac.zip.sig" % version]
+    return ([(names[0], 9_000_000)] if zipped else []) + ([(names[1], sig_size)] if sig else [])
+
+
+class ASignedReleaseOnly(Base):
+    """#1328 AP2: publish_public.py refuses a release from 1.3.4 up unless its zip and a 64-byte .sig are attached to the release."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_private(GOOD)
+        sh("tag", "v1.3.4", cwd=self.private)
+
+    def test_a_release_with_its_zip_and_a_64_byte_sig_is_published(self):
+        self.assets_say = assets_of("1.3.4")
+        code, out = self.go("--branch", "release-1.3.4", ref="v1.3.4")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.heads(), ["refs/heads/release-1.3.4"])
+        self.assertEqual(self.assets_asked, [(OWNER, REPO_NAME, "v1.3.4")])
+        self.assertIn("PASS     release 1.3.4 has its .sig", out)
+
+    def test_a_release_without_its_sig_is_refused_and_nothing_is_pushed(self):
+        self.assets_say = assets_of("1.3.4", sig=False)
+        out = self.refused("--branch", "release-1.3.4", ref="v1.3.4")
+        self.assertIn("REFUSED  release 1.3.4 has its .sig", out)
+        self.assertIn("no clark-1.3.4-mac.zip.sig beside the zip", out)
+
+    def test_a_sig_that_is_not_64_bytes_is_refused(self):
+        for size in (0, 1, 63, 65, 128):
+            with self.subTest(size):
+                self.assets_say = assets_of("1.3.4", sig_size=size)
+                out = self.refused("--branch", "release-1.3.4", ref="v1.3.4")
+                self.assertIn("is not 64 bytes long", out)
+
+    def test_a_sig_of_another_release_does_not_count(self):
+        self.assets_say = assets_of("1.3.4", sig=False) + [("clark-1.3.3-mac.zip.sig", 64), ("clark-1.3.4-mac.zip.sig.txt", 64),
+                                                           ("CLARK-1.3.4-MAC.ZIP.SIG", 64), ("x/clark-1.3.4-mac.zip.sig", 64)]
+        self.assertIn("no clark-1.3.4-mac.zip.sig beside the zip", self.refused("--branch", "release-1.3.4", ref="v1.3.4"))
+
+    def test_a_sig_with_no_zip_or_no_release_at_all_is_refused(self):
+        for say in (assets_of("1.3.4", zipped=False), []):
+            with self.subTest(say):
+                self.assets_say = say
+                self.assertIn("has no clark-1.3.4-mac.zip attached", self.refused("--branch", "release-1.3.4", ref="v1.3.4"))
+
+    def test_when_gh_cannot_be_asked_it_is_a_refusal_not_a_pass(self):
+        self.assets_say = None
+        out = self.refused("--branch", "release-1.3.4", ref="v1.3.4")
+        self.assertIn("gh could not read the release's files", out)
+
+    def test_a_dry_run_asks_too(self):
+        self.assets_say = assets_of("1.3.4", sig=False)
+        code, out = self.go("--dry-run", "--branch", "release-1.3.4", ref="v1.3.4")
+        self.assertEqual(code, 1, out)
+        self.assertIn("REFUSED  release 1.3.4 has its .sig", out)
+
+    def test_a_release_tag_as_the_ref_is_asked_even_on_the_default_branch(self):
+        self.assets_say = assets_of("1.3.4", sig=False)
+        self.refused(ref="v1.3.4")
+        self.assertEqual(self.assets_asked, [(OWNER, REPO_NAME, "v1.3.4")])
+        self.assets_say = assets_of("1.3.4")
+        code, out = self.go(ref="v1.3.4")
+        self.assertEqual(code, 0, out)
+
+    def test_the_branch_and_the_tag_are_each_asked_when_they_name_different_releases(self):
+        sh("tag", "v1.3.5", cwd=self.private)
+        self.assets_say = assets_of("1.3.4")
+        out = self.refused("--branch", "release-1.3.5", ref="v1.3.4")
+        self.assertEqual(sorted(self.assets_asked), [(OWNER, REPO_NAME, "v1.3.4"), (OWNER, REPO_NAME, "v1.3.5")])
+        self.assertIn("REFUSED  release 1.3.5 has its .sig", out)
+        self.assertIn("PASS     release 1.3.4 has its .sig", out)
+
+    def test_where_the_line_starts(self):
+        self.assets_say = []
+        for older in ("0.1.0", "1.2.9", "1.3.3", "1.0.0"):
+            with self.subTest(older):
+                self.assets_asked.clear()
+                code, out = self.go("--dry-run", "--branch", "release-" + older)
+                self.assertEqual(code, 0, out)
+                self.assertEqual(self.assets_asked, [])
+                self.assertNotIn("has its .sig", out)
+        for newer in ("1.3.4", "1.3.10", "1.4.0", "1.10.0", "2.0.0", "10.0.0"):
+            with self.subTest(newer):
+                self.assets_asked.clear()
+                self.refused("--branch", "release-" + newer)
+                self.assertEqual(self.assets_asked, [(OWNER, REPO_NAME, "v" + newer)])
+
+    def test_a_non_release_run_never_asks(self):
+        self.assets_say = None
+        code, out = self.go()
+        self.assertEqual(code, 0, out)
+        for flag in ("clark-public", "main"):
+            self.go("--branch", flag, "--publish-main")
+        self.assertEqual(self.assets_asked, [])
+        self.assertNotIn("has its .sig", out)
+
+    def test_a_two_digit_major_or_minor_tag_is_asked_too(self):
+        for tag in ("v10.0.0", "v1.10.0", "v1.3.10"):
+            with self.subTest(tag):
+                sh("tag", tag, cwd=self.private)
+                self.assets_asked.clear()
+                self.assets_say = []
+                self.refused(ref=tag)
+                self.assertEqual(self.assets_asked, [(OWNER, REPO_NAME, tag)])
+
+    def test_an_origin_with_one_part_or_three_parts_is_a_refusal_and_gh_is_not_asked(self):
+        for origin in ("https://github.com/justone", "https://github.com/a/b/c"):
+            with self.subTest(origin):
+                sh("remote", "set-url", "origin", origin, cwd=self.private)
+                report = pp.Report()
+                pp.check_signed(pp.parse_args(["--branch", "release-1.3.4", "--", "main"]), self.private, report, self.fake_assets)
+                self.assertEqual(report.status("release 1.3.4 has its .sig"), pp.REFUSED)
+                self.assertEqual(self.assets_asked, [])
+
+    def test_an_origin_that_is_not_owner_and_repo_is_a_refusal(self):
+        sh("remote", "set-url", "origin", str(self.tmp / "elsewhere"), cwd=self.private)
+        self.assets_say = assets_of("1.3.4")
+        report = pp.Report()
+        pp.check_signed(pp.parse_args(["--branch", "release-1.3.4", "--", "main"]), self.private, report, self.fake_assets)
+        self.assertEqual(report.status("release 1.3.4 has its .sig"), pp.REFUSED)
+        self.assertEqual(self.assets_asked, [])
+        sh("remote", "remove", "origin", cwd=self.private)
+        report = pp.Report()
+        pp.check_signed(pp.parse_args(["--branch", "release-1.3.4", "--", "main"]), self.private, report, self.fake_assets)
+        self.assertEqual(report.status("release 1.3.4 has its .sig"), pp.REFUSED)
+        self.assertEqual(self.assets_asked, [])
+
+
+class ReadingTheReleaseWithGh(unittest.TestCase):
+    def ask(self, stdout=b"", code=0, owner="o", name="n", tag="v1.3.4", error=None):
+        seen = []
+
+        def fake(cmd, **kw):
+            seen.append((list(cmd), kw))
+            if error:
+                raise error
+            if kw.get("check") and code:
+                raise subprocess.CalledProcessError(code, cmd)
+            return subprocess.CompletedProcess(cmd, code, stdout, b"")
+
+        with mock.patch.object(pp.subprocess, "run", fake):
+            return pp.gh_release_assets(owner, name, tag), seen
+
+    def test_it_reads_names_and_sizes_with_one_paginated_gh_api_call(self):
+        got, seen = self.ask(b"clark-1.3.4-mac.zip\t123\nclark-1.3.4-mac.zip.sig\t64\n")
+        self.assertEqual(got, [("clark-1.3.4-mac.zip", 123), ("clark-1.3.4-mac.zip.sig", 64)])
+        cmd, kw = seen[0]
+        self.assertEqual(cmd[:4], ["gh", "api", "--paginate", "repos/o/n/releases?per_page=100"])
+        self.assertEqual(cmd[4], "--jq")
+        self.assertIn('select(.tag_name == "v1.3.4")', cmd[5])
+        self.assertTrue(kw["timeout"] > 0)
+
+    def test_no_output_is_an_empty_list_not_a_failure(self):
+        self.assertEqual(self.ask(b"")[0], [])
+
+    def test_a_failed_call_or_odd_output_is_none(self):
+        self.assertIsNone(self.ask(b"", code=1)[0])
+        self.assertIsNone(self.ask(b"", error=OSError("no gh"))[0])
+        self.assertIsNone(self.ask(b"", error=subprocess.TimeoutExpired("gh", 1))[0])
+        for odd in (b"name-only\n", b"a.sig\tsixty-four\n", b"a.sig\t-1\n", b"a.sig\t6\xd9\xa4\n", b"a.sig\t\n"):
+            with self.subTest(odd):
+                self.assertIsNone(self.ask(odd)[0])
+
+    def test_names_that_are_not_plain_are_never_sent_to_gh(self):
+        for owner, name, tag in (("-x", "n", "v1.3.4"), ("o", "n/../m", "v1.3.4"), ("o", "n", 'v1.3.4" or true'),
+                                 ("o", "n", "v1.3"), ("o", "n", "v1.3.4\n"), ("", "n", "v1.3.4"), ("o", "", "v1.3.4"),
+                                 ("o", "n", "release-1.3.4")):
+            with self.subTest((owner, name, tag)):
+                got, seen = self.ask(b"", owner=owner, name=name, tag=tag)
+                self.assertIsNone(got)
+                self.assertEqual(seen, [])
 
 
 class TheDryRun(Base):

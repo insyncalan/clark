@@ -91,6 +91,8 @@ The published copy itself (`main`) is `--branch main --publish-main`.
 
     python3 dev/tools/publish_public.py v0.1.0 --target git@github.com:<owner>/<repo>.git --branch release-0.1.0
 
+From release 1.3.4 up the tool also checks, before it pushes, that the release (the draft or the published one, tag `vX.Y.Z`, read with `gh` in the private repo that `origin` names) has `clark-X.Y.Z-mac.zip` and `clark-X.Y.Z-mac.zip.sig` attached and that the `.sig` is exactly 64 bytes. A release without its `.sig`, a `.sig` of another length, or a release `gh` cannot read is a REFUSED line and nothing is pushed. It does not check that the `.sig` verifies: `dev/tools/check_release_assets.py` does. The same check runs when the ref is a `vX.Y.Z` tag, whatever the branch. Releases before 1.3.4 are not asked.
+
 Then read the result:
 
     gh run list -R <owner>/<repo> --workflow tests.yml --branch release-0.1.0
