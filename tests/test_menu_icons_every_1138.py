@@ -114,7 +114,7 @@ class Source(unittest.TestCase):
         "Command palette (edit/Palette.jsx)": "a search over pages, items and commands by what is typed",
         "Work items filter value box (components/WorkFilters.jsx, class fbox, role=group)":
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
-        "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
+        "Native select drop-downs (edit/AiSettings.jsx, edit/ChatsSettings.jsx (how long chats are kept), edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
         "edit/UseCasesEdit.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
         "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
@@ -179,7 +179,7 @@ ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=optio
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
          " const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;"
-         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av');"
+         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av, .tk');   /* row 1499 AP2: the Classic Columns menu line is a 16px tick cell then the name, as the 1195 mock-up draws it (work-items-mockup.html:2011, no icon) */"
          " return {t: b.textContent.trim().slice(0, 40), w: s ? s.getBoundingClientRect().width : 0, off: b.getAttribute('aria-disabled') === 'true'}; }); })")
 CONTEXT = ("(sel => { const el = document.querySelector(sel); const r = el.getBoundingClientRect();"
            " el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2, clientX: r.left + 30, clientY: r.top + 8})); })")

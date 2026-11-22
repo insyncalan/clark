@@ -25,7 +25,7 @@ ICON_SEG = ["2px 8px", "32px"]
 
 class Source(unittest.TestCase):
     def test_the_rules_sit_before_the_1314_block_and_1314_stays_last(self):
-        text = RULES.read_text(encoding="utf-8")
+        text = RULES.read_text(encoding="utf-8") + RULES.with_name("rules-2.css").read_text(encoding="utf-8")
         rows = [ln for ln in text.splitlines() if ln.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
         self.assertLess(text.index("/* Row 1319, spec 19-11"), text.index("/* Row 1314"))
