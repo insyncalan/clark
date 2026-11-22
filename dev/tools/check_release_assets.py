@@ -1,7 +1,7 @@
 """Fail when a published GitHub release has no download attached (the v0.3.0 and v0.4.0 gap).
 
 Run by whoever verifies the release (step 20 of dev/RELEASING.md), after publishing and before saying a release is done:
-    python3 dev/tools/check_release_assets.py            # every published release
+    python3 dev/tools/check_release_assets.py            # every published release (the .sig is asked only of a tag named below)
     python3 dev/tools/check_release_assets.py v0.4.0     # one tag
     python3 dev/tools/check_release_assets.py --repo owner/name v0.4.0     # releases kept in another repository
 
@@ -109,7 +109,7 @@ def _signature_lines(r, tag, want, notes, fetch, key):
     return []
 
 
-def _rules(r, tag, want, notes=None, fetch=None, key=None):
+def _rules(r, tag, want, notes=None, fetch=None, key=None, check_sig=True):
     """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
     A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
@@ -125,7 +125,8 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None):
                        f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
-    out.extend(_signature_lines(r, tag, want, notes, fetch, key))
+    if check_sig:
+        out.extend(_signature_lines(r, tag, want, notes, fetch, key))
     body = r.get("body") or ""
     own = _zip_digest(r, want)
     if not DIGEST.search(body):
@@ -165,7 +166,7 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
-            out.extend(_rules(r, tag, want, notes, fetch, key))
+            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line: shipped 1.3.4 to 1.3.7 have none
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
