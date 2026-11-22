@@ -50,7 +50,7 @@ def check(value, rules):
     if value.get("quotes") is not None:
         quotes = value["quotes"]
         if type(quotes) is not list or len(quotes) > QUOTES_MAX or not quotes:
-            raise Bad(BAD_FIELD)      # row 1271 needs ruling: words for 'more than six quotes'; the existing field words are used until then
+            raise Bad(BAD_FIELD)
         out = {"v": 1, "quotes": [_one(q) for q in quotes]}
     else:
         out = {"v": 1, **_one(value)}

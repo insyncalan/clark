@@ -1,6 +1,6 @@
 // Quote (item 96; row 1271), store type "quote": its view part. Up to six quotations, each with who said it, as text nodes. isEmpty: no quote has words.
 // The Edit part is edit/templates/Quote.jsx; the content rules are section_kinds/quote.py. The look (centred or left, two or three to a row) is data-align and
-// data-per-row on the wrapper; the Classic theme draws it (themes/prototype-2.0/rules.css, row 1271 block).
+// data-per-row on the wrapper; the Classic theme draws it (themes/prototype-2.0/rules-2.css, row 1271 block).
 import { source, tidyQuote, quoteEmpty, quoteLook } from "./notes.js";
 
 export const READY = true;

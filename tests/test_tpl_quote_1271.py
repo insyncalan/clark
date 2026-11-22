@@ -214,6 +214,51 @@ class Look:
             self.assertEqual(p.js(f"{self._quotes(ref)}.querySelectorAll('.tpl-quote').length"), 1)
             self.assertEqual(p.js(f"{self._quotes(old)}.querySelector('figcaption').textContent"), "Sam, R")
 
+    def test_half_width_is_one_to_a_row_and_a_row_stacks_at_900(self):
+        """Row 1271: a half-width slot (slot-left or slot-right) is one column whatever per-row says; at 900 a row of 3 stacks. The class is put on the
+        section by script (the page's own placement is not the point; the rule is). Needs the one-per-row rule in rules-2.css: without it these fail."""
+        three = [Q("Fictional a."), Q("Fictional b."), Q("Fictional c.")]
+        ref = self.make({"v": 1, "quotes": three, "perRow": 3})
+        two = self.make({"v": 1, "quotes": three, "perRow": 2})
+        cols = lambda r: f"getComputedStyle({self._quotes(r)}).gridTemplateColumns.split(' ').length"
+        for width, full3, full2 in ((1400, 3, 2), (900, 1, 1)):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                self.assertEqual((p.js(cols(ref)), p.js(cols(two))), (full3, full2), "full width")
+                for side in ("slot-left", "slot-right"):
+                    for r in (ref, two):
+                        p.js(f"(function(){{ var s = document.querySelector('[data-id={json.dumps(r)}]'); s.classList.remove('slot-full', 'slot-left', 'slot-right'); s.classList.add('{side}'); }})()")
+                        self.assertEqual(p.js(cols(r)), 1, f"{side} at {width}")
+
+    def test_tile_off_takes_the_panel_off_each_quote_and_tile_on_keeps_it_at_1400_and_900(self):
+        """Row 1271 (ticket: with Tile and Heading both off the quote sits directly on the page): the panel follows Tile. Pinned by the computed fill."""
+        both = self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")], "tile": False, "heading": False})
+        tile_only_off = self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")], "tile": False, "heading": True})
+        on = self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                one = lambda r: f"{self._quotes(r)}.querySelector('.tpl-quote')"
+                grey = p.js("(() => { const i = document.createElement('i'); i.style.backgroundColor = 'var(--grey-50)'; document.body.append(i); const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })()")
+                clear = "rgba(0, 0, 0, 0)"
+                self.assertEqual(p.js(f"getComputedStyle({one(on)}).backgroundColor"), grey)
+                self.assertEqual(p.js(f"getComputedStyle({one(on)}).paddingLeft"), p.js("(() => { const i = document.createElement('i'); i.style.paddingLeft = 'var(--space-5)'; document.body.append(i); const c = getComputedStyle(i).paddingLeft; i.remove(); return c; })()"))
+                for r in (both, tile_only_off):
+                    self.assertEqual(p.js(f"getComputedStyle({one(r)}).backgroundColor"), clear)
+                    self.assertEqual(p.js(f"getComputedStyle({one(r)}).paddingLeft"), "0px")
+
+    def test_the_quote_parts_keep_their_order_in_view(self):
+        """The name comes before the role inside the person line, and the words come before the person (a swap of the two spans or the two parts fails)."""
+        ref = self.make({"v": 1, "quotes": [Q("Fictional words.", "Sam Example", "Fictional sponsor")]})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            kids = p.js(f"[...{self._quotes(ref)}.querySelector('.tpl-quote').children].map(e => e.className || e.tagName)")
+            self.assertEqual(kids, ["tpl-quote-q", "tpl-quote-by"])
+            by = p.js(f"[...{self._quotes(ref)}.querySelector('.tpl-quote-by').children].map(e => e.className + '=' + e.textContent)")
+            self.assertEqual(by, ["tpl-quote-name=Sam Example", "tpl-quote-sep=, ", "tpl-quote-role=Fictional sponsor"])
+
     def test_the_tile_and_heading_switches_give_four_states_in_view(self):
         refs = {(t, h): self.make({"v": 1, "quotes": [Q("Fictional.")], "tile": t, "heading": h}) for t in (True, False) for h in (True, False)}
         with chrome() as cdp:
