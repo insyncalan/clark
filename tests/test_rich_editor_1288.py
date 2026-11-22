@@ -107,6 +107,26 @@ class Editor(unittest.TestCase):
                 h.ev("document.querySelector('.rt-bubble [data-kind=h2]').click(); true")
                 self.assertTrue(h.until("!!document.querySelector('.rt-host h2')"), f"{w}: the bubble's style menu sets the style")
 
+    def test_ai_menu_colours_and_widths_1288(self):
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.show_editor(h, w)
+                h.select_all()
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+                h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                m = box(h, "[data-ai-menu]")
+                self.assertGreaterEqual(m["w"], 210, f"{w}: {m}")
+                self.assertEqual(m["mw"], "210px", w)
+                self.assertEqual(rgb(box(h, ".aim-gl")["col"]), [0x3B, 0x6F, 0xD4], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-improve')")["col"]), [0x7C, 0x4D, 0xFF], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-structure')")["col"]), [0x2F, 0x7D, 0x4A], w)
+                self.assertEqual(rgb(h.ev(BOX % "document.querySelector('.aim-ic-ask')")["col"]), [0xB7, 0x79, 0x1F], w)
+                lines = h.ev("[...document.querySelectorAll('[data-ai-option]')].map(b => [b.getBoundingClientRect().height < 34, !!b.title, !b.querySelector('.aim-ds'), b.title])")
+                self.assertTrue(lines and all(a and b and c for a, b, c, _ in lines), f"{w}: one line per item, the description is the tooltip: {lines}")
+                self.assertTrue(all(t for *_, t in lines), w)
+                self.assertEqual(h.ev("(() => { const e = document.querySelector('.aim-opt'); return getComputedStyle(e).borderTopLeftRadius; })()"), "6px", w)
+                self.assertIn("rgb(230, 238, 252)", h.ev("[...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (e) { return []; } }).map(r => r.cssText).filter(t => /aim-opt:hover/.test(t)).join(' ')"), w)
+
     def test_menus_tight_computed_values_1288(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
@@ -146,6 +166,22 @@ class Editor(unittest.TestCase):
                         if len(re.findall(r"\d+", c)) >= 3 and "rgba" in c and c.endswith(", 0)"):
                             continue
                         self.assertLessEqual(max(t) - min(t), 60, f"{w} {where}: {c} is a colour, not a grey")
+
+
+class Places(unittest.TestCase):
+    def test_ai_places_new_places_1288(self):
+        src = (JS / "logic" / "aiPlaces.js").read_text(encoding="utf-8")
+        put = lambda k: re.search(r'"' + re.escape(k) + r'":\s*"(\w+)"', src)
+        self.assertEqual(put("milestone.description").group(1), "plain")                # One line
+        self.assertIsNone(put("linkcard.text"))                                          # Not rich: no place
+        self.assertIsNone(put("onedoc.text"))
+        self.assertEqual(put("raid.own_words").group(1), "current")                      # Full
+        self.assertEqual(put("picture.caption").group(1), "current")
+        self.assertEqual(put("milestone.client_wording").group(1), "client_message")
+        for gone in ("linkcard", "onedoc"):
+            self.assertNotRegex(src, r"\b" + gone + r":")
+        fields = src.split("RICH_FIELDS")[1]
+        self.assertEqual(len(re.findall(r"^\s+(\w+):", fields, re.M)), len(set(re.findall(r"^\s+(\w+):", fields, re.M))), "no field listed twice")
 
 
 if __name__ == "__main__":
