@@ -18,6 +18,8 @@
 .tpl-sbs-bar .fi-btn { color: rgb(58, 74, 107); }
 .tpl-sbs-edit input[id$="-heading"] { padding: 7px 10px; }
 .tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
+/* Row 1315 AP9 (Classic Milestones): the off half of the five switch buttons has --grey-700 text (7.41 to 1 in light), not --text; frames and dividers stay --grey-500. */
+#milestones .msv-sw .msv-b:not([aria-current="true"]), #milestones .cal-sc button:not([aria-current="true"]) { color: var(--grey-700); }
 /* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
 .ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
