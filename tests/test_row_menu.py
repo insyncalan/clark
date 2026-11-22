@@ -608,8 +608,11 @@ class Menu(board.Base):
             self.shut(cdp, sid)
             cdp.js("location.hash = '#dashboard&p=ABC'", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-mode=edit]')", "the Dashboard")
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-type=actions] .wl-row')", "a Dashboard row")
+            # wait for Edit mode itself (as test_row_menu_dashboard does): a row drawn before the switch can be replaced by it, and a menu opened for a row that has gone is dropped
+            self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows in Edit mode")
             self.calm(cdp, sid)
             self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
             dash = [e[1] for e in self.entries(cdp, sid)]
