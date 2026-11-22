@@ -20,6 +20,15 @@ class ThreeListsHelp(unittest.TestCase):
         self.assertEqual(hits[0]["go"], "dashboard")
         self.assertEqual(hits[0]["s"], [SENTENCE])
 
+    def test_title_label_and_position(self):
+        tasks = json.loads(HELP.read_text(encoding="utf-8"))["howto"]["tasks"]
+        ids = [t["id"] for t in tasks]
+        entry = tasks[ids.index("the-three-starting-lists")]
+        self.assertEqual(entry["t"], "The three lists a new Dashboard starts with")
+        self.assertEqual(entry["w"], "Dashboard")
+        prev = tasks[ids.index("the-three-starting-lists") - 1]
+        self.assertEqual(prev["t"], "Add a section from a template")
+
     def test_sentence_once_in_the_file(self):
         raw = HELP.read_text(encoding="utf-8")
         self.assertEqual(raw.count(SENTENCE), 1)
