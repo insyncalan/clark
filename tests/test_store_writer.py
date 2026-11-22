@@ -368,6 +368,7 @@ def writes_sql(value):
 READONLY_HELPER = "clark/update_helper.py"
 READONLY_HELPER_SQL_PARTS = {"_ident(name)"}
 STARTER_CHECK = "clark/starter_check.py"        # item 1164: opens the data read only, to compare its version
+DOCTOR_READ = "clark/doctor.py"                 # item 635: opens the data read only (mode=ro), to list the folder paths a backup holds
 
 
 def _connect_calls(tree):
@@ -407,6 +408,11 @@ class OneWriter(unittest.TestCase):
         for path in sorted((SRC / "clark").rglob("*.py")):
             yield path, ast.parse(path.read_text(encoding="utf-8"))
 
+    def test_the_doctor_opens_the_database_only_read_only(self):
+        text = (SRC / DOCTOR_READ).read_text(encoding="utf-8")
+        self.assertEqual(text.count("sqlite3.connect("), 1)
+        self.assertIn("mode=ro", text.split("sqlite3.connect(", 1)[1].split("\n", 1)[0])
+
     def writer_problems(self, rel, tree):
         if rel == ASK_INDEX and not ask_index_problems(tree):
             return []           # Row 1366 exception: it opens and writes only its own index file (see _ask_index_pin), never clark.db
@@ -416,7 +422,7 @@ class OneWriter(unittest.TestCase):
                 if writes_sql(node.value):
                     problems.append(f"{rel}:{node.lineno}: writes SQL")
             if isinstance(node, ast.Attribute) and node.attr == "connect" and isinstance(node.value, ast.Name) \
-                    and node.value.id == "sqlite3" and rel not in (READONLY_HELPER, STARTER_CHECK):
+                    and node.value.id == "sqlite3" and rel not in (READONLY_HELPER, STARTER_CHECK, DOCTOR_READ):
                 problems.append(f"{rel}:{node.lineno}: opens a database (only store.py may)")
         return problems
 

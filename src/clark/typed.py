@@ -18,9 +18,10 @@ def clark(rest=""):
     return f"{head} {rest}" if rest else head
 
 
-def doctor():
-    """The command that checks what this computer needs."""
-    return "bash clark.command --check" if _set() else "python3 -m clark.doctor"
+def doctor(docker=False):
+    """The command that checks what this computer needs. `docker`: the one that also checks Docker Desktop and the port (issue 635)."""
+    base = "bash clark.command --check" if _set() else "python3 -m clark.doctor"
+    return base + " --docker" if docker else base
 
 
 def launch():
