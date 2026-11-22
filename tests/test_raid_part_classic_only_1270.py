@@ -3,11 +3,12 @@
 Run: python3 dev/run_tests.py test_raid_part_classic_only_1270
 Fictional rows. Page checks at 1400 and 900 only.
 """
+import json
 import unittest
 
+from _demo import USER
 from _publish import PublishedFile
 import test_glance_page as glance
-import test_raid_cards_sweep_1270 as sweep
 from test_server import chrome
 
 PARTS = "(() => [...document.querySelectorAll('.raid-card .raid-part')].map(e => e.textContent))()"
@@ -15,7 +16,15 @@ THEME = "!!document.getElementById('theme')"
 
 
 class Parts(PublishedFile, glance.Setup):
-    put = sweep.View.put
+    def put(self, rows, body_cards, kind="raid3", across=0):
+        ids = []
+        self.demo.plant_builtin_sections()      # the cards are drawn beside the built-in sections (row 1193)
+        with self.store.step("dashboard", USER) as st:
+            for table, fields in rows:
+                ids.append(st.create(table, dict({"project": "ABC", "raised": "2026-10-01", "source": "demo"}, **fields)))
+            ref = st.create("report_sections", {"project": "ABC", "type": kind, "title": "Fictional cards", "sort_order": 993})
+            st.update("report_sections", ref, {"body": json.dumps(dict({"v": 2, "across": across} if across else {"v": 1}, cards=[dict(c, id=ids[i]) for i, c in enumerate(body_cards)]))})
+        return ids
 
     def rows(self):
         self.put([("raid", {"type": "Risk", "description": "Tide table"}), ("raid", {"type": "Issue", "description": "Crane down"})],
