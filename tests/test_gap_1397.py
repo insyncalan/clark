@@ -22,7 +22,7 @@ READ = """(() => { const c = (s) => getComputedStyle(document.querySelector(s)),
 
 class Source(unittest.TestCase):
     def test_1314_stays_the_last_row_line_and_the_rules_sit_before_it(self):
-        t = RULES.read_text(encoding="utf-8")
+        t = RULES.read_text(encoding="utf-8") + RULES.with_name("rules-2.css").read_text(encoding="utf-8")
         rows = [ln for ln in t.splitlines() if ln.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
         self.assertLess(t.index("/* Row 1397"), t.index("/* Row 1314"))
@@ -47,7 +47,7 @@ class Computed(Base, unittest.TestCase):
         self.assertEqual((m["sw"], m["swW"]), ("14px", "600"))
         self.assertEqual(m["frame"], ["1px", m["grey500"], "6px"])
         self.assertEqual(m["divider"], ["1px", m["grey500"]])
-        self.assertEqual(m["swPad"], "12px 12px")      # padding 0 12px is Row 1315's, drawn in Classic
+        self.assertEqual(m["swPad"], "14px 14px")      # padding 3px 14px (Row 1355, ruling 21-11), drawn in Classic
 
     def test_cards_keeps_its_strip_and_switch(self):
         m = self.read(None)

@@ -14,7 +14,7 @@ from test_server import chrome
 from test_work_board_page import Base
 
 SHELL = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
-RULES = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 
 
 def rules(css, selector):
