@@ -113,7 +113,7 @@ class SourceOrder(unittest.TestCase):
         self.assertLess(b.index("<OwnInstructions"), b.index('<SlashList scope="project"'))
 
     def test_project_tab_usage_after_chats(self):
-        """Romanoff's ruling: nothing moves on the project tab; Usage stays last, after Chats."""
+        """The product ruling: nothing moves on the project tab; Usage stays last, after Chats."""
         b = self.body("AskProject")
         self.assertEqual(b.count("<UsageProject"), 1)
         self.assertLess(b.index("<ChatsProject"), b.index("<UsageProject"))
