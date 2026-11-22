@@ -182,7 +182,7 @@ class Page(unittest.TestCase):
         shared = (PAGE / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
         self.assertIn(".fi-dot { position: absolute; width: 22px; height: 22px;", shared, "the Full width image dot stays 22 px")
         rules = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
-        self.assertIn(".tpl-sbs-edit-frame .fi-dot {", rules, "the 28 px dot is scoped under .tpl-sbs-")
+        self.assertIn(".tpl-sbs-edit-frame .fi-dot{", rules, "the 28 px dot is scoped under .tpl-sbs-")
 
     # -- names and keys --
     def test_every_button_has_a_name_and_the_arrow_keys_move_along_the_toolbar(self):
@@ -270,10 +270,6 @@ class Page(unittest.TestCase):
         self.assertGreater(w, 1.5, "two thirds for the image")
 
     # -- AP10: spec rows 5, 7-11, 15, 16 (values are from the mock-up CSS text, NOT measured in a browser), 1400 only --
-    def hover(self, selector):
-        r = self.val(f"(function(){{ const r = document.querySelector('{selector}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
-        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, self.sid)
-
     def test_ap10_row5_remove_turns_red_BE3A2B_on_hover_and_only_there(self):
         self.with_image()
         self.hover(".tpl-sbs-bar [data-act=remove]")
@@ -328,6 +324,109 @@ class Page(unittest.TestCase):
         self.assertGreaterEqual(self.val(col)[2], 230, "never lower than 230")
         self.with_image(slot="left")
         self.assertAlmostEqual(self.val("(function(){ const r = document.querySelector('.tpl-sbs-edit-frame img').getBoundingClientRect(); return r.width / r.height; })()"), 16 / 9, delta=0.02)
+
+    # -- the values the mock-up rules (AP1, AP2, AP3, AP4, AP6, AP9), read from the drawn page at 1400 px only (Not proved at 900 px) --
+    def style(self, sel, *props):
+        return self.val("(function(){ const s = getComputedStyle(document.querySelector(%s)); return [%s]; })()" % (json.dumps(sel), ", ".join("s." + p for p in props)))
+
+    def token(self, prop, token):
+        """What a CSS token resolves to as this property, so a test names the token and not a colour code."""
+        return self.val("(function(){ const e = document.createElement('i'); document.body.appendChild(e); e.style.%s = 'var(%s)'; const v = getComputedStyle(e).%s; e.remove(); return v; })()" % (prop, token, prop))
+
+    def test_toolbar_bar_reads_gap_padding_border_and_radius(self):
+        self.with_image(page=1400)
+        pad, border, width, color, radius, bg = self.style(".tpl-sbs-bar", "paddingTop", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius", "backgroundColor")
+        self.assertEqual((pad, border, width, radius), ("4px", "solid", "1px", "10px"))
+        self.assertEqual(color, self.token("color", "--grey-200"))
+        self.assertEqual(bg, self.token("backgroundColor", "--band-bg"))
+        self.assertEqual(self.style(".tpl-sbs-bar", "columnGap")[0], self.token("columnGap", "--space-1"))
+
+    def test_groups_have_a_rule_between_and_replace_remove_sit_right(self):
+        self.with_image(page=1400)
+        seps = self.val("[...document.querySelectorAll('.tpl-sbs-bar .fi-sep')].map(e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return [r.width, s.backgroundColor]; })")
+        self.assertEqual(len(seps), 3, "a rule between the four groups")
+        for w, bg in seps:
+            self.assertEqual((w, bg), (1, self.token("backgroundColor", "--grey-200")))
+        box = self.val("(function(){ const b = document.querySelector('.tpl-sbs-bar').getBoundingClientRect(), r = document.querySelector('.tpl-sbs-bar [data-act=remove]').getBoundingClientRect(), c = document.querySelector('.tpl-sbs-bar [data-act=crop]').getBoundingClientRect(); return {gapRight: b.right - r.right, cropToRemove: r.left - c.right}; })()")
+        self.assertLessEqual(box["gapRight"], 6, "Remove sits at the right end of the bar (its 4px padding and 1px line)")
+        self.assertGreater(self.val("document.querySelector('.tpl-sbs-bar [data-act=replace]').getBoundingClientRect().left - document.querySelector('.tpl-sbs-bar [data-act=reset]').getBoundingClientRect().right"), 20, "the spacer pushes Replace and Remove away from the groups")
+
+    def test_icon_buttons_are_32_by_30_radius_7_icon_17(self):
+        self.with_image(page=1400)
+        sizes = self.val("[...document.querySelectorAll('.tpl-sbs-bar .fi-btn')].map(b => { const r = b.getBoundingClientRect(), s = getComputedStyle(b), i = b.querySelector('svg').getBoundingClientRect(); return [r.width, r.height, s.borderTopLeftRadius, i.width, i.height, b.querySelector('svg').getAttribute('stroke-width')]; })")
+        self.assertTrue(sizes)
+        for row in sizes:
+            self.assertEqual(row, [32, 30, "7px", 17, 17, "1.8"])
+        self.assertEqual(self.style(".tpl-sbs-bar [data-act=crop]", "color")[0], self.token("color", "--text-muted"))
+
+    def test_the_pressed_button_is_white_with_the_inset_brand_ring(self):
+        self.with_image(page=1400)
+        pressed = self.val("document.querySelectorAll('.tpl-sbs-bar .fi-btn.on').length")
+        self.assertGreaterEqual(pressed, 1)
+        bg, shadow, color = self.style(".tpl-sbs-bar .fi-btn.on", "backgroundColor", "boxShadow", "color")
+        self.assertEqual(bg, self.token("backgroundColor", "--white"))
+        ring = self.val("(function(){ const e = document.createElement('i'); document.body.appendChild(e); e.style.boxShadow = 'inset 0 0 0 1.5px var(--brand-blue)'; const v = getComputedStyle(e).boxShadow; e.remove(); return v; })()")
+        self.assertEqual(shadow, ring, "an inset 1.5px ring in the brand colour")
+        self.assertEqual(color, self.token("color", "--brand-blue"))
+
+    # -- AP3 (hover, focus), AP5, AP6, AP12, AP14: the mock-up's CSS text values, read from the drawn page at 1400 px only (Not proved at 900 px) --
+    def hover(self, sel):
+        r = self.val("(function(){ const b = document.querySelector(%s).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()" % json.dumps(sel))
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, self.sid)
+
+    def test_hover_on_an_icon_button_is_the_light_blue_grey_fill(self):
+        self.with_image(page=1400)
+        self.hover(".tpl-sbs-bar [data-act=crop]")
+        self.until("document.querySelector('.tpl-sbs-bar [data-act=crop]').matches(':hover')", "hovered")
+        self.assertEqual(self.style(".tpl-sbs-bar [data-act=crop]", "backgroundColor")[0], "rgb(230, 234, 245)", "mock-up #E6EAF5")
+
+    def test_keyboard_focus_on_a_button_is_a_2px_brand_outline_1px_off(self):
+        self.with_image(page=1400)
+        self.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, self.sid)
+        self.val("document.querySelector('.tpl-sbs-bar [data-act=crop]').focus()")
+        self.until("document.querySelector('.tpl-sbs-bar [data-act=crop]').matches(':focus-visible')", "focus-visible")
+        w, st, off, col = self.style(".tpl-sbs-bar [data-act=crop]", "outlineWidth", "outlineStyle", "outlineOffset", "outlineColor")
+        self.assertEqual((w, st, off), ("2px", "solid", "1px"))
+        self.assertEqual(col, self.token("color", "--brand-blue"))
+
+    def test_every_button_shows_its_name_on_hover_and_on_focus(self):
+        self.with_image(page=1400)
+        tip = "(function(){ const e = document.querySelector('.tpl-sbs-bar [data-act=crop]'), a = getComputedStyle(e, '::after'); return [a.content, a.opacity, e.getAttribute('aria-label'), e.getAttribute('data-tip')]; })()"
+        self.assertEqual(self.val(tip)[1], "0", "hidden at rest")
+        self.hover(".tpl-sbs-bar [data-act=crop]")
+        self.until("document.querySelector('.tpl-sbs-bar [data-act=crop]').matches(':hover')", "hovered")
+        self.until("getComputedStyle(document.querySelector('.tpl-sbs-bar [data-act=crop]'), '::after').opacity === '1'", "the name shows on hover")
+        name = self.val(tip)
+        self.assertEqual(name[0], '"%s"' % name[3])
+        self.assertEqual(name[2], name[3])
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, self.sid)
+        self.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, self.sid)
+        self.val("document.querySelector('.tpl-sbs-bar [data-act=swap]').focus()")
+        self.until("getComputedStyle(document.querySelector('.tpl-sbs-bar [data-act=swap]'), '::after').opacity === '1'", "the name shows on focus")
+
+    def test_the_focus_dot_has_a_white_3px_ring_a_2px_brand_ring_and_a_35_percent_fill(self):
+        self.with_image(page=1400)
+        bw, bc, shadow, bg, cur = self.style("[data-focus-dot]", "borderTopWidth", "borderTopColor", "boxShadow", "backgroundColor", "cursor")
+        self.assertEqual((bw, bc, cur), ("3px", self.token("color", "--white"), "grab"))
+        self.assertIn("0px 0px 0px 2px", shadow)
+        self.assertIn(self.token("color", "--brand-blue"), shadow)
+        self.assertEqual(bg, self.val("(function(){ const e = document.createElement('i'); document.body.appendChild(e); e.style.backgroundColor = 'color-mix(in srgb, var(--brand-blue) 35%, transparent)'; const v = getComputedStyle(e).backgroundColor; e.remove(); return v; })()"))
+
+    def test_the_note_under_the_toolbar_is_a_green_tick_line_at_13px(self):
+        self.with_image(page=1400)
+        self.assertEqual(self.style("[data-file-note]", "fontSize")[0], "13px")
+        tick = self.val("(function(){ const a = getComputedStyle(document.querySelector('[data-file-note]'), '::before'); return [a.content, a.color]; })()")
+        self.assertEqual(tick[0], '"✓ "')
+        self.assertEqual(tick[1], self.token("color", "--status-green-text"))
+
+    def test_rich_editor_min_height_150_and_15px(self):
+        self.with_image(page=1400)
+        self.val("(document.querySelector('.tpl-sbs-edit-words .rt-view, .tpl-sbs-edit-words .rich, .tpl-sbs-edit-words [tabindex]') || document.querySelector('.tpl-sbs-edit-words')).click()")
+        self.until("document.querySelector('.tpl-sbs-edit-words .ProseMirror')", "the words editor is open")
+        box = self.val("(function(){ const h = document.querySelector('.tpl-sbs-edit-words .rt-host'), p = document.querySelector('.tpl-sbs-edit-words .ProseMirror'); return [getComputedStyle(h).minHeight, h.getBoundingClientRect().height, getComputedStyle(p).fontSize]; })()")
+        self.assertEqual(box[0], "150px")
+        self.assertGreaterEqual(box[1], 150)
+        self.assertEqual(box[2], "15px")
 
 
 if __name__ == "__main__":
