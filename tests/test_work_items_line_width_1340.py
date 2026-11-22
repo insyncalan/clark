@@ -1,4 +1,4 @@
-"""Row 1340: in Edit, the Work items filter line fills its section's inner width at 1400 and 900, in Classic and in Cards.
+"""Row 1340: in Edit, the Work items filter line fills its section's inner width at 1400 and 900, in Classic (Cards is frozen and not tested here).
 
 Run: python3 dev/run_tests.py test_work_items_line_width_1340
 Source of the rule: the ticket comment "Correction" (the 1130 px figure is withdrawn: a full-width section's line fills the section's inner
@@ -48,16 +48,12 @@ class Width(object):
                 self.assertAlmostEqual(wr, ir, delta=1, msg=f"the wrapper ends at the inner right edge: {got}")
                 self.assertGreaterEqual(ll, il - 1, f"the line stays inside on the left: {got}")
                 self.assertLessEqual(lr, ir + 1, f"the line stays inside on the right: {got}")
-                # the line is the section's width, less at most 64 px (the measured case: 948 in 1012 at 1400, 789 in 853 at 900)
-                self.assertGreaterEqual(lr - ll, (ir - il) - 64, f"the line fills the inner width, not a fixed or capped width: {got}")
+                # the line is exactly the section's inner width (measured: 985 px at 1400), so a fixed or capped width fails at once
+                self.assertAlmostEqual(lr - ll, ir - il, delta=2, msg=f"the line fills the inner width, not a fixed or capped width: {got}")
 
 
 class Classic(Width, Look):
     classic = True
-
-
-class Cards(Width, Look):
-    classic = False
 
 
 if __name__ == "__main__":
