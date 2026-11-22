@@ -125,5 +125,14 @@ class Stored(unittest.TestCase):
         self.assertNotIn('"full": 1', json.dumps(mine), "an old body is not drawn as the full width Image")
 
 
+class OldV1Opens(Half):
+    def test_an_old_v1_body_opens_in_the_v1_edit_part_with_its_caption(self):
+        """Row 1223: an Image with caption stored as version 1 (the card has left the picker) still opens in its own Edit part, caption kept."""
+        self.mount({"v": 1, "caption": "Fictional plan", "alt": "A plan", "pictures": {"image": GOOD_JPEG}}, "edit", 640, 1400)
+        self.until("document.querySelector('.tpl-cap-edit')", "the v1 edit part")
+        self.assertIsNone(self.val("document.querySelector('.fi-stage') && 1"), "not the full image part")
+        self.assertIn("Fictional plan", self.val("document.querySelector('.tpl-cap-edit').innerText"))
+
+
 if __name__ == "__main__":
     unittest.main()
