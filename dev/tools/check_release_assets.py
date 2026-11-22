@@ -14,7 +14,7 @@ when GitHub gives no digest for the asset, as on an older release, any 64-charac
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
 From updates.FIRST_SIGNED (1.3.4) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
 file must verify over the zip's bytes with RELEASE_PUBLIC_KEY (updates.check_signature); a missing, wrong-length or non-verifying
-.sig fails, and while that key is still the placeholder nothing can verify, so a 1.3.4 or newer release fails until the key is real.
+.sig fails.
 1.3.3 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
