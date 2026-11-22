@@ -321,6 +321,19 @@ class Classic(Base):
     def test_ap9_the_published_view_draws_no_mark(self):
         self.assertNotIn("gal-red", (SRC / "clark" / "page" / "src" / "templates" / "Gallery.jsx").read_text(encoding="utf-8"))
 
+    # ---- AP15: the toast stays 5 s and carries Undo ----
+    def test_ap15_the_remove_toast_carries_undo_stays_about_5_seconds_and_then_goes(self):
+        import time
+        self.mount(body_of(2, alts=(0, 1)))
+        self.val("document.querySelector('.gal-bin').click()")
+        self.until("(G.toast.value || {}).text === 'Image removed.'", "the toast")
+        shown = time.monotonic()
+        self.assertRegex(self.val("(G.toast.value || {}).undo"), r"^A\d+$", "Undo goes with it")
+        time.sleep(3.5)
+        self.assertEqual(self.val("(G.toast.value || {}).text"), "Image removed.", "still there after 3.5 s")
+        self.until("!G.toast.value", "gone")
+        self.assertTrue(4.5 <= time.monotonic() - shown <= 6.5, "gone after about 5 s")
+
 
 class Kept(Base):
     def test_ap6_an_empty_gallery_keeps_the_old_edit_part_and_one_with_images_has_the_new_one_at_1400_and_900(self):
