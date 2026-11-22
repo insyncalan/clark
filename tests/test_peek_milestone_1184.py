@@ -78,8 +78,10 @@ class Milestone(Base):
             b = st.create("use_cases", {"project": "ABC", "title": "Badge printing", "status": "On track", "source": "demo"})
         return a, b
 
-    def undo(self, p):
+    def undo(self, p, said=None):
         p.until("!!document.querySelector('.toast [data-undo]')", "the Undo button")
+        if said:        # the toast of the change just made, not the one before it still on screen
+            p.until(f"((document.querySelector('.toast .toast-text') || {{}}).textContent || '').includes({json.dumps(said)})", f"the toast says {said}")
         p.js("document.querySelector('.toast [data-undo]').click()")
 
     # ---- the chip row -------------------------------------------------------------------------------------------------------------------------------
@@ -159,7 +161,7 @@ class Milestone(Base):
                 row = self.row(self.cur)
                 self.assertEqual((row["status"], row["state"], row["actual_date"]), ("Planned", None, None), "100% does not set Achieved")
                 self.assertEqual(self.chips(p)["state"]["text"], "On track")
-                self.undo(p)
+                self.undo(p, "changed to 100%")
                 self.saved("percent_complete", 40)
 
     def test_the_forecast_chip_opens_the_calendar_and_a_past_date_says_overdue_in_red(self):

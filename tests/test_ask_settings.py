@@ -277,7 +277,7 @@ class Settings(unittest.TestCase):
         with chrome() as cdp:
             js = self.show_page(cdp)
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-unsaved') || {}).innerText") == NOT_KEPT, 20))
-            self.assertEqual(js("document.querySelector('#ask-state').innerText"), OFF, "never on by default when nothing is kept")
+            self.until(lambda: js("document.querySelector('#ask-state').innerText"), OFF, "never on by default when nothing is kept")
             js("document.querySelector('[data-ask-switch]').click()")
             self.assertTrue(wait(lambda: bool(js("(document.querySelector('#ask-settings .pub-msg') || {}).innerText")), 20))
             text = js("document.querySelector('#ask-settings .pub-msg').innerText")
