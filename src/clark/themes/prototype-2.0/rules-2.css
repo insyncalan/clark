@@ -1,3 +1,23 @@
+/* Ruling 4 of row 1336: the tiles are (100% - (cols - 1) x 12px) / cols wide with 12px between them; the grid gap is the 12px, so the divider padding of the View strip (the Row 1260 rule above) is taken off here, else tiles 2 to 4 are 16px narrower and 28px apart. */
+.tpl-edit-glancetemplate .glance .tcell + .tcell { padding-left: 0; }
+/* Row 1336 ruling 2: label padding-right 84px (built-in tile, three controls) and 110px (own tile), eye right 30px, grip right 56px: the mock-up draws them, at-a-glance-builder.html lines 110-111 (84 and 110) and 414-415 (eye 30, grip 56); the mock-up's own tile selectors differ, the values are copied. */
+#report[data-mode="edit"] .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .fig .k { padding-right: 84px; }
+.tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
+.tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
+.tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
+/* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
+.tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
+.tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
+/* Row 1336 part 2, two values the mock-up draws (at-a-glance-builder.html:429 and :431; the ruling of 19-11 takes the bin and the line as the mock-up): the bin on a tile rests in the body colour (the pen keeps the muted one; the hover colours already match) and the 'Show project health here' line keeps 14px between the eye and its text (Classic only; Cards keeps the shared 12px and the muted bin). */
+.tpl-edit-glancetemplate .glance .tdel { color: var(--text); }
+.tpl-edit-glancetemplate .glance .tdel:hover { color: var(--status-red-text); }
+.tpl-edit-glancetemplate .glance .gt-showhealth { gap: 14px; }
+.tpl-gt .tpl-gt-tile.go .tpl-gt-dot { width: 8px; height: 8px; }
+/* Row 1232 (Classic only; Cards untouched): the numbers of the approved points AP1, AP2, AP3, AP7 and AP9 at 1400, from the mock-up; each rule is scoped under .tpl-sbs-*. */
+.tpl-sbs-bar, .tpl-sbs-grp { gap: 2px; }
+.tpl-sbs-bar .fi-btn { color: rgb(58, 74, 107); }
+.tpl-sbs-edit input[id$="-heading"] { padding: 7px 10px; }
+.tpl-sbs-edit-words .rt-btn[aria-label="Bold"], .tpl-sbs-edit-words .rt-btn[aria-label="Italic"], .tpl-sbs-edit-words .rt-btn[aria-label="Bulleted list"] { width: 28px; min-width: 28px; height: 26px; }
 /* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
 .ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
