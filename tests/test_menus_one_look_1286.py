@@ -35,6 +35,7 @@ NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-hea
 TIGHT = {"text-style"}      # row 1288: the rich editor's menus are the tight ones (radius 12, padding 4, rows 4px 10px at 13.5px; test_rich_menus_tight_1288)
 GANTT_SHOW = {"gantt-show-chart"}     # the Gantt Show panel (.gt-pop under [data-gantt]): radius 12 by the measured mock-up of 1197 item 10 (comment 7022907667), by ruling; it wins over 1286's general 10px. The Work items table Show menu (gantt-show-table) is a .gt-pop outside [data-gantt], draws 10 and stays 10 here
 MIN_W = 224
+COLUMNS_7B = {"columns"}      # row 1499 (pick 7B, mock-up work-items-mockup.html:2011): the Classic Columns menu is the mock-up's own panel (200 wide, radius 12, padding 6); only its panel radius differs from the 1286 grid
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
 PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
@@ -67,8 +68,8 @@ def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
-    want = "12px" if name in TIGHT or name in GANTT_SHOW else "10px"      # the rich editor menus (row 1288) and the Gantt Show panel (1197 item 10) are 12; every other popover is 10
-    test.assertEqual(m["rad"], want, f"{where}: the panel radius is {m['rad']}, expected {want} (the prototype popover (.pop) draws 10px; the rich editor menus and the Gantt Show panel 12px)")
+    want = "12px" if name in TIGHT or name in GANTT_SHOW or name in COLUMNS_7B else "10px"      # 1197 item 10: the Gantt Show panel keeps 12; row 1499 AP5: the Classic Columns panel is 12 (the 7B mock-up .ctxm); every other popover is 10
+    test.assertEqual(m["rad"], want, f"{where}: the panel radius is {m['rad']}, expected {want} (the prototype popover (.pop) draws 10px, the Gantt Show panel 12px by 1197 item 10)")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
         test.assertEqual(m["pad"], "6px 6px 6px 6px", f"{where}: the popup padding")
@@ -77,7 +78,7 @@ def check(test, name, look, m):
             continue
         own = {"Heading 1": "20px", "Heading 2": "18px", "Heading 3": "16px"}.get(r["t"].lstrip("\u2713"), "15px") if name == "text-style" else None      # row 1288 AP3: the Style menu draws each line at its own size (Text 15px)
         test.assertEqual(r["fs"], own or ("15px" if three else "13.5px" if name in TIGHT else "14px"), f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
-        if not three and name != "text-style":      # the Style menu has the prototype rows (row 1288 AP3)
+        if not three and name != "text-style" and "pad" in r:      # the Style menu has the prototype rows (row 1288 AP3); row 1499: a line with no icon is measured for its size only
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")

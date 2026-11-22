@@ -5,11 +5,12 @@
 import { contentOf, Figure, lineOf, captionOf, linesOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
 import { CleanProse } from "../components/CleanProse.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 
 //
 // Row 1232: a body of version 2 is Text and Image Side by Side, and this is its ONE View part too. One image as framed, the words
 // beside it (a full width section: `side` says left or right, `share` how much of the width the image takes) or above and below it (a
-// half width section: `hpos`, "top" or "bottom"); each width keeps its own choice. `shape` is how the image fills its place: "fill"
+// half width section: `half`, "top" or "bottom"); each width keeps its own choice. `shape` is how the image fills its place: "fill"
 // (default: as tall as the words beside it, or 16:9 at half width), "4:3", "square" or "whole"; `fx`, `fy` (0 to 1000) are the focus the
 // image keeps in view when it fills. At 900 px wide a full width section stacks (left puts the image above, right below). No tool, no
 // dot, no description box: a screen reader reads the description (the img's alt), then the caption. The file holds only the framed
@@ -34,7 +35,9 @@ export function shown(v, clean) {
   if (image) Object.assign(c, { image, caption: captionOf(v.caption), alt: lineOf(v.alt) });
   if (v.v === 2) {
     c.sbs = 1;
-    if (v.hpos === "bottom") c.hpos = "bottom";
+    if (v.half === "bottom") c.half = "bottom";   // the server stores and publishes `half` (textimage.py), so the View reads `half`
+    const heading = lineOf(v.heading);
+    if (heading) c.heading = heading;
     if (image) {
       if (v.share === "third" || v.share === "two") c.share = v.share;
       if (SHAPES.includes(v.shape) && v.shape !== "fill") c.shape = v.shape;
@@ -56,13 +59,14 @@ export function isEmpty(section) {
 
 function Side({ c, words, pic, html }) {
   const shape = SHAPES.includes(c.shape) ? c.shape : "fill";
-  const cls = ["tpl-sbs", `share-${SHARES.includes(c.share) ? c.share : "half"}`, c.side === "left" ? "pos-left" : "pos-right", `hpos-${c.hpos === "bottom" ? "bottom" : "top"}`,
+  const cls = ["tpl-sbs", `share-${SHARES.includes(c.share) ? c.share : "half"}`, c.side === "left" ? "pos-left" : "pos-right", `hpos-${c.half === "bottom" ? "bottom" : "top"}`,
     `shape-${shape === "4:3" ? "43" : shape}`, pic ? "" : "no-pic", html || words.length ? "" : "no-words"].filter(Boolean).join(" ");
   const at = pic ? { objectPosition: `${inThousand(c.fx) / 10}% ${inThousand(c.fy) / 10}%` } : null;
-  const caption = lineOf(c.caption);
+  const caption = lineOf(c.caption), heading = lineOf(c.heading);
   if (!pic && !html && !words.length) return null;
   return (
     <div class={cls}>
+      {heading && classicTheme() ? <h3 class="tpl-sbs-heading">{heading}</h3> : null}
       {pic ? (
         <figure class="tpl-sbs-fig">
           <div class="tpl-sbs-frame"><img src={pic} alt={lineOf(c.alt)} style={at} loading="lazy" decoding="async" /></div>
@@ -79,7 +83,7 @@ export function View({ section, clean }) {
   const c = contentOf(section, (v) => shown(v, clean));
   if (!c) return null;
   const words = linesOf(c.words), pic = safeImage(c.image), html = hasWords(c.html) ? c.html : "";
-  if (c.sbs) return <Side c={c} words={words} pic={pic} html={html} />;
+  if (c.sbs || c.v === 2) return <Side c={c} words={words} pic={pic} html={html} />;      // a published file carries the server's content (`"v": 2`, no `sbs`); the page's own reading adds `sbs`
   return (
     <div class={`tpl-ti${pic ? "" : " no-pic"}${c.side === "left" ? " pic-left" : ""}`}>
       {html ? <CleanProse html={html} cls="tpl-words prose" />

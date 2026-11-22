@@ -100,8 +100,10 @@ export function LineField({ section, field, label, value, max, hint, words, chec
   );
 }
 
-// Row 1288: a caption is the Full editor (RichField), saved as its HTML (the server cleans it); the report, page and file carry its words on one line. Same arguments as LineField. An older plain caption loads as the same words. Cmd or Ctrl with Enter saves.
-export function CaptionField({ section, field, label, value, max, words, save, empty = "Click to write." }) {
+// Row 1288: the caption editor is the Full editor (RichField).
+// Item 1005: a caption is on the one editor (RichField) but stays one line of plain text in the report, the page and the file: what the editor
+// gives is saved as one line, never markup. Same arguments as LineField. An older caption loads as one paragraph. Cmd or Ctrl with Enter saves.
+export function CaptionField({ section, field, label, value, max, words, save, empty = "Click to write.", hint = "" }) {
   const html = (() => { try { return richOrPlain(value || ""); } catch (e) { return ""; } })();
   const put = async (typed) => {
     const v = richWords(typed).trim() ? typed : "";
@@ -112,8 +114,8 @@ export function CaptionField({ section, field, label, value, max, words, save, e
   const id = `tpl-${section.id}-${field}`;
   return (
     <div class="tpl-pic-field">
-      <span class="tpl-pic-lbl" id={`${id}-lbl`}>{label}</span>
-      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty={empty} save={put} />
+      <span class="tpl-pic-lbl" id={`${id}-lbl`}>{label}{hint ? <span class="quiet"> {hint}</span> : null}</span>
+      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty={empty} save={put} oneLine />
     </div>
   );
 }
