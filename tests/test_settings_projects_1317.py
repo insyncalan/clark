@@ -1,7 +1,7 @@
-"""Row 1317 AP8 and AP9 at 900 px, on the REAL Settings page (Classic, demo data, fictional), light and dark, as Chrome computes it.
+"""Row 1317 DoD6-9 (AP6, AP7, AP8, AP9): the Projects th and td spec at 1400 and 900, and the Settings h1 and th/td parity at 900, on the REAL Settings page (Classic, demo data, fictional), light and dark, as Chrome computes it.
 AP8: the Settings h1 is 30px, weight 600 at 900 as at 1400. AP9: the Projects th and td values at 900 equal those at 1400, and no media rule sets them.
 
-Run: python3 dev/run_tests.py test_settings_900_1317
+Run: python3 dev/run_tests.py test_settings_projects_1317
 While test_server.PAUSED_900 is set the 900 half is skipped; run with it switched off to see it pass."""
 import time
 import unittest
@@ -17,7 +17,9 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
   const media = [];
   const walk = (rules, inMedia) => { for (const r of rules) { if (r.cssRules) walk(r.cssRules, inMedia || r.constructor.name === 'CSSMediaRule'); else if (inMedia && r.selectorText && /proj-table/.test(r.selectorText) && /\\b(th|td)\\b/.test(r.selectorText) && props.some((p) => r.style.getPropertyValue(p))) media.push(r.selectorText); } };
   for (const sh of document.styleSheets) { try { walk(sh.cssRules, false); } catch (e) {} }
-  return { h1: h1 ? [g(h1, 'fontSize'), g(h1, 'fontWeight')] : null, th: cell(th), td: cell(td), media: media }; })()"""
+  const line = (v) => { const e = document.createElement('i'); e.style.borderBottom = '1px solid var(' + v + ')'; document.body.appendChild(e); const c = g(e, 'borderBottomColor'); e.remove(); return c; };
+  const rd = (e) => ({ w: g(e, 'fontWeight'), pad: [g(e, 'paddingTop'), g(e, 'paddingRight'), g(e, 'paddingBottom'), g(e, 'paddingLeft')].join(' '), bw: g(e, 'borderBottomWidth'), bs: g(e, 'borderBottomStyle'), bc: g(e, 'borderBottomColor') });
+  return { grey200: line('--grey-200'), lineSoft: line('--line-soft'), thR: rd(th), tdR: rd(td), h1: h1 ? [g(h1, 'fontSize'), g(h1, 'fontWeight')] : null, th: cell(th), td: cell(td), media: media }; })()"""
 
 
 class Settings900(t13.RealSettings):
@@ -35,6 +37,18 @@ class Settings900(t13.RealSettings):
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr') && !!document.querySelector('h1')", sid)), 30), "timed out waiting for Settings")
         time.sleep(0.3)
         return cdp.js(PROBE, sid)
+
+    def test_th_spec_at_1400_and_900(self):
+        for tag, c in self.each(NAME):
+            t = c["thR"]
+            self.assertEqual((t["w"], t["pad"]), ("600", "6px 10px 6px 0px"), tag + ": th weight 600, padding 6px 10px 6px 0")
+            self.assertEqual((t["bw"], t["bs"], t["bc"]), ("1px", "solid", c["grey200"]), tag + ": th border-bottom 1px var(--grey-200) (rules.css:893; the ticket's var(--line) is undefined in Classic)")
+
+    def test_td_spec_at_1400_and_900(self):
+        for tag, c in self.each(NAME):
+            t = c["tdR"]
+            self.assertEqual(t["pad"], "8px 10px 8px 0px", tag + ": td padding 8px 10px 8px 0")
+            self.assertEqual((t["bw"], t["bs"], t["bc"]), ("1px", "solid", c["lineSoft"]), tag + ": td border-bottom 1px var(--line-soft)")
 
     def test_settings_h1_30px_at_900(self):
         for tag, c in self.each(NAME):
