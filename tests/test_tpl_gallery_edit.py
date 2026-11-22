@@ -1,7 +1,7 @@
 """Row 1233 (gal 2), Image gallery: the Classic Edit part of a gallery with an image, in a real browser on a bare page with a stand-in for clark's routes
 (tests/fixtures/gallery_edit_demo.jsx) that logs every call. What the page SENDS and DRAWS at 1400 and 900 px, by the acceptance points of #1233: AP1 the
 grid, AP2 two across at half width and at 900, AP3 the tile and the select frame, AP5 the add tile, AP12 the toolbar, AP13 the fields and the count note,
-AP16 the seventh image. The server's own checks are test_gallery_v2_server.py's. Gal 3 adds AP8 (the bin on a tile) and Remove by the toolbar bin and the Delete key. Not in this slice (later ones): drag by the dots, the
+AP16 the seventh image. The server's own checks are test_gallery_v2_server.py's. Gal 3 adds AP8 (the bin on a tile) and Remove by the toolbar bin and the Delete key. Gal 4 adds AP7 (drag by the dots). Not in this slice (later ones): the
 focus dot, Crop, Reset, the red mark, the columns and shape controls, the empty gallery's large area. Fictional data only.
 
 Run: python3 dev/run_tests.py test_tpl_gallery_edit
@@ -240,6 +240,56 @@ class Classic(Base):
                 self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).filter(b => b.tabIndex === 0).length"), 1)
                 self.assertEqual(self.val("Array.from(document.querySelectorAll('.fi-bar button')).map(b => b.getAttribute('aria-label'))"), ["Replace the selected image", "Remove the selected image", "Add an image"])
                 self.assertLessEqual(self.val("document.documentElement.scrollWidth"), page)
+
+    # ---- gal 4: AP7 (the dots, drag to reorder; ticket test 4) ----
+    DRAG = """window.drag = (from, to, release) => { const t = document.querySelectorAll('.gal-tile'), h = t[from].querySelector('.gal-move'), r = t[to].getBoundingClientRect(),
+      o = { bubbles: true, cancelable: true, pointerId: 7, button: 0, isPrimary: true };
+      h.dispatchEvent(new PointerEvent('pointerdown', { ...o, clientX: 0, clientY: 0 }));
+      h.dispatchEvent(new PointerEvent('pointermove', { ...o, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+      if (release) h.dispatchEvent(new PointerEvent('pointerup', { ...o, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return true; };"""
+
+    def test_ap7_the_dots_are_24_square_radius_6_6px_in_named_and_shown_only_on_the_hovered_or_selected_tile(self):
+        for page in (1400, 900):
+            with self.subTest(page=page):
+                self.mount(body_of(3, alts=(0, 1, 2)), page, page - 100)
+                dots = "document.querySelectorAll('.gal-tile')[%d].querySelector('.gal-move')"
+                self.assertEqual(self.val(f"{dots % 0}.getAttribute('aria-label')"), "Move image 1")
+                self.assertEqual(self.val(f"{dots % 2}.getAttribute('aria-label')"), "Move image 3")
+                self.assertEqual(self.val(f"{dots % 0}.title"), "Drag to move")
+                self.assertEqual(self.val(f"getComputedStyle({dots % 1}).display"), "none", "not shown on a tile that is neither hovered nor selected")
+                self.assertEqual(self.val(f"(function(){{ const s = getComputedStyle({dots % 0}), t = document.querySelector('.gal-tile').getBoundingClientRect(), b = {dots % 0}.getBoundingClientRect();"
+                                          " return [s.width, s.height, s.borderTopLeftRadius, s.backgroundColor, s.color, s.cursor, Math.round(b.top - t.top), Math.round(b.left - t.left)]; })()"),
+                                 ["24px", "24px", "6px", "rgba(6, 47, 58, 0.75)", "rgb(255, 255, 255)", "grab", 8, 8], "6px in from the 2px tile border")
+                self.assertEqual(self.val(f"getComputedStyle({dots % 0}.querySelector('svg')).width"), "13px")
+
+    def test_ap7_dragging_a_tile_moves_it_with_its_words_in_one_send_and_nothing_flickers_back(self):
+        self.mount(body_of(3, alts=(0, 1, 2), caps=(0, 1, 2)))
+        self.cdp.js(self.DRAG, self.sid)
+        self.val("window.drag(0, 2, false)")
+        self.until("document.querySelectorAll('.gal-tile')[2].dataset.slot === '1'", "the first image is last while dragging")
+        self.assertEqual(self.val("document.querySelectorAll('.gal-tile')[2].classList.contains('dragging')"), True)
+        self.assertEqual(self.val("getComputedStyle(document.querySelectorAll('.gal-tile')[2]).opacity"), "0.3")
+        self.assertEqual(self.calls(), [], "nothing is sent until the drop")
+        self.val("document.querySelectorAll('.gal-tile')[2].querySelector('.gal-move').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7 }))")
+        self.until("G.server.calls.length >= 1", "one send")
+        self.until("document.querySelectorAll('.gal-tile .gal-move').length === 3 && !document.querySelector('.dragging')", "dropped")
+        calls = self.calls()
+        self.assertEqual(len(calls), 1, "one change, so one Undo step")
+        self.assertEqual(json.loads(calls[0]["changes"]["body"])["order"], ["2", "3", "1", "4", "5", "6"])
+        self.assertEqual([self.val(f"document.querySelectorAll('.gal-tile')[{i}].dataset.slot") for i in range(3)], ["2", "3", "1"])
+        self.assertEqual(self.body()["items"]["1"], {"alt": "Fictional description 1", "caption": "Fictional caption 1"}, "its words stayed with it")
+        self.assertEqual(self.val("document.querySelector('.gal-tile.sel').dataset.slot"), "1", "the moved image is the selected one")
+        self.assertIn("Selected image 3", self.val("document.body.innerText"))
+
+    def test_ap7_escape_puts_a_drag_back_and_a_drop_in_place_sends_nothing(self):
+        self.mount(body_of(3))
+        self.cdp.js(self.DRAG, self.sid)
+        self.val("window.drag(0, 1, false)")
+        self.until("document.querySelectorAll('.gal-tile')[1].dataset.slot === '1'", "moved while dragging")
+        self.val("document.querySelectorAll('.gal-tile')[1].querySelector('.gal-move').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))")
+        self.until("document.querySelectorAll('.gal-tile')[0].dataset.slot === '1'", "back in place")
+        self.val("window.drag(1, 1, true)")
+        self.assertEqual(self.calls(), [])
 
     # ---- gal 3: Remove (AP8, AP12 toolbar bin, the Delete key, Undo is the toast's apply_id) ----
     def test_ap8_the_bin_on_a_tile_is_26_square_radius_7_6px_from_top_and_right_named_and_shown_on_the_selected_tile(self):

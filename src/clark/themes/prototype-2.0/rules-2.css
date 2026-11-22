@@ -79,6 +79,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .gal-classic .gal-bin { position: absolute; top: 6px; right: 6px; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: rgba(6, 47, 58, .78); color: #fff; cursor: pointer; }
 .gal-classic .gal-bin svg { width: 15px; height: 15px; stroke-width: 1.8; }
 .gal-classic .gal-tile:hover .gal-bin, .gal-classic .gal-tile:focus-within .gal-bin, .gal-classic .gal-tile.sel .gal-bin { display: grid; }
+.gal-classic .gal-move { position: absolute; top: 6px; left: 6px; display: none; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: rgba(6, 47, 58, .75); color: #fff; cursor: grab; touch-action: none; }
+.gal-classic .gal-move svg { width: 13px; height: 13px; }
+.gal-classic .gal-tile:hover .gal-move, .gal-classic .gal-tile:focus-within .gal-move, .gal-classic .gal-tile.sel .gal-move { display: grid; }
+.gal-classic .gal-move:active { cursor: grabbing; }
+.gal-classic .gal-move:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gal-classic .gal-tile.dragging { opacity: .3; }
 .gal-classic .gal-bin:hover { background: rgb(190, 58, 43); }
 .gal-classic .gal-bin:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* Row 1233 (AP9, Classic Edit only, never in View): the red mark on a tile with no description (spec row 9): a 20 x 20 circle in --status-red, a white bold "!" 12px, 8px from the top and 38px from the right of the tile (left of the bin, 6px clear of it). */

@@ -14,6 +14,8 @@ export const WORDS = {
   replace: "Replace the selected image",
   remove: "Remove the selected image",          // gal 3: the toolbar bin (new word, newwords C)
   binTitle: "Remove this image",              // gal 3: the title of the bin on a tile (spec row 8)
+  moveTitle: "Drag to move",                  // gal 4: the title of the dots on a tile (spec row 7)
+  moveName: (n) => `Move image ${n}`,        // gal 4: their accessible name (spec row 7)
   binName: (n) => `Remove image ${n}`,       // gal 3: its accessible name (spec row 8)
   removed: "Image removed.",                  // gal 3: the 1232 approved word (textImageSideWords.js); the toast carries Undo
   add: "Add an image",
