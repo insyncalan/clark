@@ -154,6 +154,25 @@ class Static(unittest.TestCase):
                 self.assertRegex(sel, r"#viewMenuList|#newBtnMenu|aria-label\^=", f"a 15px, 224px or 7px 10px menu rule names a menu other than the three: {sel.strip()[:90]}")
         self.assertGreaterEqual(found, 2)
 
+    def test_the_menu_grid_rule_values_are_one_grid(self):
+        # AP1 (Stage 0 21-11 09:48, line 14, one icon grid; rules.css Row 1286 block): 16px side padding on every line, 8px (--space-2) between icon and words, the tick on the right
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        rules = {sel.strip(): body for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)}
+
+        def body(start):
+            hit = [b for s, b in rules.items() if s.startswith(start)]
+            self.assertTrue(hit, f"no rule starts with {start}")
+            return hit[-1]
+        line = body('.ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp)')
+        self.assertIn("padding-left: 16px", line)
+        self.assertIn("padding-right: 16px", line)
+        self.assertIn("margin-right: var(--space-2)", body(".ddmenu .mi"))
+        self.assertIn("margin-right: 0", body(".rowmenu .mi"))
+        self.assertIn("gap: var(--space-2)", body(".menu .menu-item"))
+        tick = body('.ddmenu [role="menuitemradio"]:not(.hp) .ck')
+        for want in ("order: 1", "margin-left: auto", "margin-right: 0"):
+            self.assertIn(want, tick)
+
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
             self.assertNotIn("Row 1286", block)
