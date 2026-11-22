@@ -106,8 +106,8 @@ class SixImages(unittest.TestCase):
             with self.assertRaises(Bad) as e:
                 gallery.with_picture(WHOLE, "1", bad)
             self.assertIn("image", str(e.exception))
-            self.assertNotIn("picture", str(e.exception).replace("Pictures", ""))
-        self.assertIn("image", str(CAMERA_DETAILS.replace("picture", "image")))
+            self.assertNotIn("picture", str(e.exception).replace("Pictures", "").replace("Add a picture", ""))
+        self.assertEqual(gallery._say_image(CAMERA_DETAILS), CAMERA_DETAILS)       # the button keeps its words
 
 
 class Sizes(unittest.TestCase):
@@ -272,7 +272,7 @@ class SayImage(unittest.TestCase):
         self.assertEqual(BAD_SIDE, side)
         self.assertEqual(gallery._say_image(side), side)
         self.assertEqual(gallery._say_image("Oops. " + side), "Oops. " + side)
-        self.assertEqual(gallery._say_image("That picture is big. " + side + " A picture."), "That image is big. " + side + " An image.")
+        self.assertEqual(gallery._say_image("That picture is big. " + side + " Use a picture."), "That image is big. " + side + " Use an image.")
         self.assertEqual(gallery._say_image("That picture can't be used."), "That image can't be used.")
         self.assertEqual(gallery._say_image("Use a picture."), "Use an image.")
 

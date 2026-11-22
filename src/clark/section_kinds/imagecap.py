@@ -33,7 +33,7 @@ import struct
 import zlib
 
 from clark.section_kinds.base import Bad
-from clark.section_kinds.textimage import (BIG_PICTURE, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
+from clark.section_kinds.textimage import (ADD_PICTURE_BUTTON, BIG_PICTURE, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
                                            picture, pictures_of, put, set_picture)
 from clark.section_kinds.textimage import PICTURE_MAX as V1_PICTURE_MAX
 
@@ -392,6 +392,8 @@ def _version(value):
 
 def _say_image(text):
     """A version 2 refusal says "image", never "picture" (the version 1 texts, in textimage.py, are unchanged)."""
+    if ADD_PICTURE_BUTTON in text:        # the button keeps its words
+        return ADD_PICTURE_BUTTON.join(_say_image(part) for part in text.split(ADD_PICTURE_BUTTON))
     return text.replace("a picture", "an image").replace("picture", "image").replace("Picture", "Image")
 
 

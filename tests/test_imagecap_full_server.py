@@ -179,7 +179,7 @@ class Refusals(unittest.TestCase):
             fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
         said.append(str(e.exception))
         for words in said:
-            self.assertNotIn("picture", words.lower())
+            self.assertNotIn("picture", words.lower().replace("add a picture", ""))     # the button keeps its words
             self.assertIn("image", words)
         with self.assertRaises(Bad) as e:
             fi.check({"v": 1, "pictures": {"image": "data:image/gif;base64,R0lGODlhAQABAAAAACw="}}, None)
