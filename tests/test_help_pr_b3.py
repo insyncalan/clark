@@ -112,8 +112,8 @@ class ExcelCells(unittest.TestCase):
             self.assertIn(sentence, step)
         cv, ex = py("excel_cover.py"), py("excel.py")
         self.assertIn('SUBTITLE_KIND', cv)
-        self.assertIn('parts.append(f"Week ending {long_date(week)}")', cv)
-        self.assertIn('parts.append(f"for {client}")', cv)
+        self.assertIn('parts.append(f"Week ending {show_date(week)}")', cv)      # row 1390: the Dashboard's header line, DD-MM-YYYY
+        self.assertNotIn('parts.append(f"for {client}")', cv)                    # row 1178: the client is not named on the subtitle
         self.assertIn('title["tag"] = INTERNAL_TAG', cv)
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)
         self.assertIn('shown = [s for s in sections or [] if not s.get("hidden")]', cv)
