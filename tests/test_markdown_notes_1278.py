@@ -145,7 +145,7 @@ class HelpHasNoUnrenderedMarks(unittest.TestCase):
 
 
 class AskPassageStaysRaw(ask_change_page.Card):
-    """Romanoff's ruling on row 6 of the places list (21-11): the "From your file" passage is a verbatim quote and stays raw (edit/AskChange.jsx)."""
+    """The product ruling on row 6 of the places list (21-11): the "From your file" passage is a verbatim quote and stays raw (edit/AskChange.jsx)."""
 
     def test_the_from_your_file_passage_keeps_markdown_marks_as_typed(self):
         quote = "## Plan\n- signed off on **Monday**\n1. close it"
