@@ -59,7 +59,8 @@ MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
-REASON_TOO_LONG = "too long to read"
+REASON_TOO_LONG_PDF = "is a PDF that is too long"          # a PDF over its page, size or time limit (the words main already had)
+REASON_TOO_LONG = "is too long"                           # any other file over its limits (approved words, 22-11)
 COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
 
 
@@ -303,7 +304,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     db.executemany("INSERT OR REPLACE INTO left VALUES(?,?)", [(x, REASON_TYPE) for x in type_labels])
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
-    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='too_long'", (REASON_TOO_LONG,))
+    db.execute("INSERT OR REPLACE INTO left SELECT label, CASE WHEN lower(label) LIKE '%.pdf' THEN ? ELSE ? END FROM files WHERE state='too_long'", (REASON_TOO_LONG_PDF, REASON_TOO_LONG))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
     counts = dict.fromkeys(NAMES, 0)
     counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), too_long=states.count("too_long"), online_only=online, safety=safety + states.count("safety"))

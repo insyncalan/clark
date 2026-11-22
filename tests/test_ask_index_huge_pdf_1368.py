@@ -82,14 +82,14 @@ class Huge(Base):
         self.put("long.pdf", pages(["zqa", "zqb", "zqc", "zqd"]), binary=True)
         with mock.patch.object(ix.mod(), "INDEX_PDF_PAGES", 3):
             self.assertEqual(pdf_reader.read(pages(["a", "b", "c", "d"]), max_pages=3).reason, "too_many_pages")
-            self.assertEqual(self.state("long.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "too long to read"))
+            self.assertEqual(self.state("long.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "is a PDF that is too long"))
         self.assertFalse(self.found("zqa"))
 
     def test_over_the_byte_limit_is_too_long_the_child_is_never_started(self):
         raw = pages(["zqa", "zqb"])
         self.put("fat.pdf", raw, binary=True)
         with mock.patch.object(ix.mod(), "INDEX_PDF_BYTES", len(raw) - 1), mock.patch.object(pdf_reader.platform, "run_stoppable") as run:
-            self.assertEqual(self.state("fat.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "too long to read"))
+            self.assertEqual(self.state("fat.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "is a PDF that is too long"))
         run.assert_not_called()
         self.assertEqual(pdf_reader.read(raw, max_bytes=len(raw) - 1).reason, "too_big")
 
@@ -98,7 +98,7 @@ class Huge(Base):
         with mock.patch.object(pdf_reader, "OUT_BUDGET", 4000):
             got = pdf_reader.read(pages(["zq%d " % i + "x" * 1500 for i in range(6)]))
             self.assertEqual((got.status, len(got.pages) < 6, got.left_out > 0), ("ok", True, True))
-            self.assertEqual(self.state("wide.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "too long to read"))
+            self.assertEqual(self.state("wide.pdf"), ({"indexed": 0, "too_long": 1, "type": 0}, "is a PDF that is too long"))
         self.assertFalse(self.found("zq0"))
 
     def test_memory_exhaustion_in_the_child_says_corrupt_not_too_long(self):

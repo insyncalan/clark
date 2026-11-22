@@ -1,4 +1,4 @@
-"""Row 1368: background index runs skip a PDF over 2,000 pages, 100 MB or 120 s and list it as 'too long to read'; the question path keeps its limits.
+"""Row 1368: background index runs skip a PDF over 2,000 pages, 100 MB or 120 s and list it as 'is a PDF that is too long'; the question path keeps its limits.
 Real pdf_reader, its child process and the index; a stand-in pypdf; made-up files only."""
 import unittest
 from unittest import mock
@@ -29,7 +29,8 @@ class Limits(Base):
         self.assertEqual((pdf_reader.MAX_PAGES, pdf_reader.MAX_BYTES, pdf_reader.SECONDS), (200, 20 * 1024 * 1024, 20.0))
 
     def test_the_words_are_exactly_too_long_to_read(self):
-        self.assertEqual(ix.mod().REASON_TOO_LONG, "too long to read")
+        self.assertEqual(ix.mod().REASON_TOO_LONG_PDF, "is a PDF that is too long")
+        self.assertEqual(ix.mod().REASON_TOO_LONG, "is too long")      # any other file (approved words 22-11)
 
     def test_a_pdf_over_the_question_page_limit_is_indexed_but_not_read_for_a_question(self):
         raw = pdf([f"zqpage{i}" for i in range(1, 202)])
@@ -56,7 +57,7 @@ class Limits(Base):
             self.build()
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["too_long"], c["type"]), (1, 1, 0))
-        self.assertEqual(self.left(), {"saved/four.pdf": "too long to read"})
+        self.assertEqual(self.left(), {"saved/four.pdf": "is a PDF that is too long"})
         self.assertTrue(self.found("zqf"))
         self.assertFalse(self.found("zqa"))
 
@@ -69,7 +70,7 @@ class Limits(Base):
             self.build()
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["too_long"]), (1, 1))
-        self.assertEqual(self.left(), {"saved/over.pdf": "too long to read"})
+        self.assertEqual(self.left(), {"saved/over.pdf": "is a PDF that is too long"})
 
     def test_the_time_limit_is_the_index_constant_and_a_slow_file_is_too_long(self):
         self.put("slow.pdf", pdf(["HANG"]), binary=True)
@@ -78,7 +79,7 @@ class Limits(Base):
             self.build()
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["too_long"], c["type"]), (1, 1, 0))
-        self.assertEqual(self.left(), {"saved/slow.pdf": "too long to read"})
+        self.assertEqual(self.left(), {"saved/slow.pdf": "is a PDF that is too long"})
 
     def test_the_index_run_gives_the_reader_all_three_limits_and_the_question_path_none(self):
         seen = []
@@ -121,7 +122,7 @@ class Limits(Base):
             self.build()
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["too_long"], c["type"]), (1, 1, 0))
-        self.assertEqual(self.left(), {"saved/cut.pdf": "too long to read"})
+        self.assertEqual(self.left(), {"saved/cut.pdf": "is a PDF that is too long"})
         self.assertTrue(self.found("zqwhole"))
         self.assertFalse(self.found("zqlead"))
 
