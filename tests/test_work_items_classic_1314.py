@@ -12,7 +12,7 @@ from test_server import chrome
 from test_work_board_page import Base
 from _paths import ROOT
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 SHELL = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 
 
