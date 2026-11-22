@@ -32,6 +32,20 @@ WENT_WRONG = "Something went wrong"
 # #318: a clause that starts with the product name, at the start of a string or after a full stop, colon or semicolon. A word must
 # follow it: an event name like "clark:open" is not a sentence.
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
+# approved label, NEW-WORDS.md :1600 (approved 20-11); a label, not a sentence. Exempt only as a whole string literal, nothing broader.
+APPROVED_LABELS = ("clark default",)
+
+
+def is_approved_label(line, start):
+    """True when the match at start is exactly an approved label as a whole string literal: quote, label, the same quote."""
+    return any(line.startswith(q + label + q, start) for label in APPROVED_LABELS for q in "\"'`")
+
+
+def starts_with_product_name(line):
+    """True when the line has a clause that starts with the product name and is not exactly an approved label."""
+    return any(not is_approved_label(line, m.start()) for m in SENTENCE_STARTS_WITH_PRODUCT_NAME.finditer(line))
+
+
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
 # item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
@@ -422,6 +436,8 @@ class Words(unittest.TestCase):
                 for m in starts.finditer(line):
                     if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
                         continue
+                    if is_approved_label(line, m.start()):
+                        continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
     def test_help_shows_no_real_looking_version_as_an_example(self):
@@ -438,6 +454,16 @@ class Words(unittest.TestCase):
             self.assertIsNotNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(caught), caught)
         for passed in ("note, because clark does x", "after a while, clark does x", "dispatch('clark:open')", "note: the clark folder", "note: clark."):
             self.assertIsNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(passed), passed)
+
+    def test_only_the_exact_approved_label_clark_default_is_exempt_from_the_product_name_rule(self):
+        """#318: the one exemption is the whole string literal "clark default" (NEW-WORDS.md :1600); anything broader is still flagged."""
+        for label in ('"clark default"', "'clark default'", "`clark default`", 'x ? "clark default" : b'):
+            self.assertFalse(starts_with_product_name(label), label)
+        for flagged in ('"clark is ready"', '"clark defaults are on"', '"clark default is ready"', '"clark default x"', '" clark default x"',
+                        '"clark default."', '"clark default" + " clark is ready"', '"Done. clark default"', '"clark default x"', '"clark d x"',
+                        '"clark default\'', "'clark default\"", '"clark  default"', '"Clark default"'):
+            self.assertTrue(starts_with_product_name(flagged), flagged)
+        self.assertEqual(APPROVED_LABELS, ("clark default",))
 
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
