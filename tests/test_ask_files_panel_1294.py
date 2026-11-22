@@ -140,13 +140,13 @@ class Panel(Base):
             p.key("/", code="Slash", vk=191)
             p.until("window.__g.urls.length === 1", "opening it reads once")
 
-    def test_a_file_dragged_over_is_taken_only_while_allowed(self):
+    def test_a_file_dragged_over_shows_the_drop_line_only_while_allowed(self):
         DRAG = "(function(){var dt=new DataTransfer();dt.items.add(new File(['a'],'a.txt',{type:'text/plain'}));var a=document.querySelector('#ask-panel');var e=new DragEvent('dragover',{dataTransfer:dt,bubbles:true,cancelable:true});a.dispatchEvent(e);return e.defaultPrevented})()"
         for mode, taken in (("allowed", True), ("denied", False)):
             with self.subTest(mode=mode), chrome() as cdp:
                 p = self.open_panel(cdp, mode)
                 p.until(HERE if taken else GONE, mode)
-                self.assertEqual(p.js(DRAG), taken)
+                self.assertTrue(p.js(DRAG), "dragover is cancelled in both modes (tech debt 1506: with Files off the browser must not open the file)")
                 self.assertEqual(p.js("!!document.querySelector('#ask-drop-line')"), taken)
 
     def test_an_answer_without_allowed_does_not_take_the_paperclip(self):
