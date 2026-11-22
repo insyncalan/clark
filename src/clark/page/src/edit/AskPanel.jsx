@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, showSettings, token, view, rows, filterCtx, openPeek } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
-import { words } from "./publishApi.js";
+import { words, askFilesRead } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
@@ -98,6 +98,7 @@ export function AskPanel() {
   const saved = showHist ? (histTick.value, chats()) : [];
   const [files, setFiles] = useState([]);       // #1292 S14: the files and pictures waiting for the next question (used for that question only)
   const [dropOver, setDropOver] = useState(false);
+  const [filesOk, setFilesOk] = useState(true);     // row 1294: the Files switch (all projects) and this project's own turn-off, read each time the panel opens; until the server says "not allowed" the paperclip stays, as it does on main (the server checks again for every question)
   const box = useRef(null), log = useRef(null), stopped = useRef(false), picker = useRef(null);
   // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
   useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
@@ -108,6 +109,17 @@ export function AskPanel() {
   const leaving = phase.current === "leaving";
   const finish = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
   useEffect(() => { if (!leaving) return undefined; const t = setTimeout(finish, 400); return () => clearTimeout(t); }, [leaving]);
+  useEffect(() => {
+    if (!open) return undefined;
+    let live = true;
+    askFilesRead(project.value).then((r) => {
+      if (!live) return;
+      const b = r.body, off = r.status === 200 && !!b && b.ok === true && b.allowed === false;
+      setFilesOk(!off);
+      if (off) setFiles([]);
+    });
+    return () => { live = false; };
+  }, [open, project.value]);
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
@@ -150,7 +162,7 @@ export function AskPanel() {
 
   // #1292 S14: files come from the paperclip, a drop on the panel or a paste; what cannot be taken says why in plain words.
   function addFiles(list) {
-    if (!list.length || state !== "ready") return;
+    if (!list.length || state !== "ready" || !filesOk) return;
     const r = F.addFiles(files, list);
     setFiles(r.files); setNote(r.notes.join(" "));
     if (box.current) box.current.focus();
@@ -159,7 +171,8 @@ export function AskPanel() {
     setFiles(F.removeFile(files, f.id)); setNote("");
     setTimeout(() => { const left = document.querySelectorAll("#ask-files .ask-file-del"); const to = left[Math.min(files.findIndex((x) => x.id === f.id), left.length - 1)] || box.current; if (to) to.focus(); }, 0);
   }
-  const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const dragHasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const hasFiles = (e) => filesOk && dragHasFiles(e);
 
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
@@ -216,7 +229,9 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
-    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const came = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const late = came && stopped.current;      // row 1293 line 7: Stop was pressed and an answer still came back: it is not shown, the stopped line is
+    const answered = came && !late;
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
       if (att && att.length) setFiles((now) => (now.length ? now : att));
@@ -230,7 +245,9 @@ export function AskPanel() {
       // #1293 A: what the claims check found follows the answer in the same small block, in the server's own words ([D] a quiet line, not a badge per source).
       // An answer that did not follow the form is shown whole, and its flag (unreadable or disguised) says so: that line is the banner.
       const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
-      const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
+      const shared = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
+      if (classicTheme() && typeof b.index_note === "string" && b.index_note) shared.splice(Math.min(Number.isInteger(b.index_note_at) ? b.index_note_at : shared.length, shared.length), 0, b.index_note);      // row 7 of 1366: the "still reading" note is the Classic theme's, in the place the server gave it
+      const extra = [...shared, ...found];
       const made = readDraft(b.draft);      // row 1292: a draft the answer carries opens beside the panel; nothing is in the report until it is added
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), items: Array.isArray(b.items) ? b.items : [], ...(readOf(b.read) ? { read: readOf(b.read) } : {}), ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
@@ -242,7 +259,7 @@ export function AskPanel() {
     } else if (r.status === 0) {
       turns.value = [...turns.value, { role: "assistant", text: W.NOT_REACHED_LINE, kind: "problem" }];
     } else {
-      const m = r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
+      const m = late ? W.STOPPED_LINE : r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
       turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
     }
     if (epoch !== chatEpoch.value || !queue.value.length) return;
@@ -358,7 +375,7 @@ export function AskPanel() {
     <>
     <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}
       data-drop={dropOver ? "true" : undefined}
-      onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
+      onDragOver={(e) => { if (dragHasFiles(e)) { e.preventDefault(); if (hasFiles(e)) setDropOver(true); } }}      /* item 1506: with Files off the drag is still taken (so the browser does not open the file) but nothing lights up */
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
@@ -520,8 +537,9 @@ export function AskPanel() {
             if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
           }} />
         <div class="ask-actions">
-          <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv,.pdf,.docx,.xlsx,.png,.jpg,.jpeg" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} />
-          <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button>
+          {filesOk ? <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} /> : null}
+          {filesOk ?
+          <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button> : null}
           {busy ? (
             <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" /></svg>
