@@ -354,7 +354,7 @@ class RowsOnly(unittest.TestCase):
             excel.export(path, "DEMO", rows, self.dir / "state.json", on=ON)
             got = excel.read_workbook(path)["actions"][0]
             for f in ("description", "owner", "client_message"):
-                self.assertEqual(got[f], text, (f, text))
+                self.assertEqual(got[f], text.strip() if f == "client_message" else text, (f, text))      # row 1288: an action's client wording is rich now: the sheet carries its words, so edge white space does not come back
             ws = load_workbook(path)["Actions"]                          # not data_only: formulas would show as 'f'
             for c in ws[2]:
                 self.assertNotEqual(c.data_type, "f", (text, c.coordinate))
