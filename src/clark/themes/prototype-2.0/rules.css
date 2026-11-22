@@ -616,10 +616,6 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip.cchip { border-style: solid; border-color: var(--grey-200); background: transparent; color: var(--text-muted); }      /* every chip, Committed and both Planned, is the same muted pill: no fill, solid line (it beats the shell fill and dashed line) */
-/* Row 1390: the Urgent priority icon in the peek and the pickers is maroon in Classic (the High icon is red; the table chip colours are row 1409). */
-.ic-m { color: var(--tone-urgent); }
-
-
 /* Row 1366 row 6: the files left out of a folder (Settings, Source folders) */
 .ask-left-out { flex: 0 0 100%; }
 .ask-left-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; color: var(--brand-blue); font-size: 14px; cursor: pointer; }

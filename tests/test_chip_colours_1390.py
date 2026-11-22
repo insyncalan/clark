@@ -6,7 +6,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "src" / "clark"
-RULES = (ROOT / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+THEME = ROOT / "themes" / "prototype-2.0"
+RULES = (THEME / "rules-2.css").read_text(encoding="utf-8")
+RULES_1 = (THEME / "rules.css").read_text(encoding="utf-8")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_publish_style import need_node  # noqa: E402
@@ -104,6 +106,7 @@ class IconTones(unittest.TestCase):
         self.assertIn("/* Row 1314", RULES)
         self.assertLess(RULES.index(".ic-m { color: var(--tone-urgent); }"), RULES.index("/* Row 1314"))
         self.assertEqual(RULES.count(".ic-m {"), 1)
+        self.assertNotIn(".ic-m", RULES_1)
 
 
 if __name__ == "__main__":
