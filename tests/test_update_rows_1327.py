@@ -150,5 +150,17 @@ class OnThePage(InBrowser):
             self.assertEqual(["Installed", "Update", "Use a file instead"], self.val(LABELS))
 
 
+class HelpLine(unittest.TestCase):
+    def test_the_update_help_line_says_the_button_is_just_Review(self):
+        """The Update row's button reads Review (logic/update.js REVIEW_LABEL); the Help line must not promise a version number on it."""
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "src/clark/page/src"
+        self.assertIn('export const REVIEW_LABEL = "Review";', (root / "logic/update.js").read_text(encoding="utf-8"))
+        text = (root / "help/helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("Review** button with the new version number", text)
+        self.assertIn("**Update** says Up to date, or shows a **Review** button when a newer update is in Downloads.", json.dumps(json.loads(text), ensure_ascii=False).replace("\\u2019", "'"))
+
+
 if __name__ == "__main__":
     unittest.main()

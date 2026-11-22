@@ -1964,7 +1964,7 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button with the new version number when a newer update is in Downloads. The newest version is looked up quietly when you open this card and when you choose **Check now**. It never installs by itself.",
+       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button when a newer update is in Downloads. The newest version is looked up quietly when you open this card and when you choose **Check now**. It never installs by itself.",
        "**Choose zip…**, under **Use a file instead**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
        "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
