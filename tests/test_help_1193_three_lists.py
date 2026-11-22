@@ -11,11 +11,7 @@ SENTENCE = (
     "Reports made before this keep the lists they have."
 )
 
-WORK_ITEMS_LINE = (
-    "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: "
-    "**Add action**, **Add decision**, **Add risk or issue** (a menu of **Add risk** and **Add issue**) and, with no type on the line, "
-    "**Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**). You can do this in View as well as in Edit."
-)
+WORK_ITEMS_LINE = "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."
 
 
 class ThreeListsHelp(unittest.TestCase):
@@ -36,10 +32,12 @@ class ThreeListsHelp(unittest.TestCase):
         self.assertEqual(prev["t"], "Add a section from a template")
 
     def test_generic_work_items_line_unchanged(self):
-        """AP5: the generic Work items line pinned is add-a-work-item s[0] (named by the 22-11 FINAL; the ticket does not say which line, not confirmed)."""
-        tasks = json.loads(HELP.read_text(encoding="utf-8"))["howto"]["tasks"]
-        entry = [t for t in tasks if t["id"] == "add-a-work-item"][0]
-        self.assertEqual(entry["s"][0], WORK_ITEMS_LINE)
+        """AP5: the generic Work items line (helpContent.json:1075, the Work items list row of the reference) stays unchanged."""
+        data = json.loads(HELP.read_text(encoding="utf-8"))
+        row = data["reference"]["sections"][4]["b"][2][2][9]
+        self.assertEqual(row[0], "Work items list")
+        self.assertEqual(row[1], WORK_ITEMS_LINE)
+        self.assertEqual(HELP.read_text(encoding="utf-8").splitlines()[1074].strip(), '"' + WORK_ITEMS_LINE + '",')
 
     def test_sentence_once_in_the_file(self):
         raw = HELP.read_text(encoding="utf-8")
