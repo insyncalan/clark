@@ -19,7 +19,7 @@ const BAR = [
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
-const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", "Font colour"], ["link", "Link", "Link"]];
+const BUBBLE_ALL = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", "Font colour"], ["link", "Link", "Link"]];
 // Row 1364: font colour. Words are exactly these (logged in NEW-WORDS.md); the names are also the tooltip and the aria-label of each swatch.
 const COLOUR_WORDS = [["grey", "Grey"], ["brand", "Brand"], ["red", "Red"], ["amber", "Amber"], ["green", "Green"], ["blue", "Blue"]];
 const AUTOMATIC = "Automatic";
@@ -267,7 +267,8 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
-  const noColour = !classicTheme();      // row 1364: the font colour is Classic only; Cards has no palette CSS and keeps its bar as it was
+  const noColour = !classicTheme();
+  const BUBBLE = BUBBLE_ALL.filter((b) => !(noColour && b[0] === "colour"));      // row 1364: the font colour is Classic only; Cards has no palette CSS and keeps its bar as it was
   const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b) => !(noColour && b[0] === "colour")).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
@@ -289,7 +290,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.filter((b) => !(noColour && b[0] === "colour")).map(button)}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
         {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
