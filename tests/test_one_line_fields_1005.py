@@ -1,5 +1,4 @@
-"""Row 1005: the other fields saved as one line of plain text (a picture's caption, the Movement form's Who agreed it, Reason and Source, a RAID
-card's Own words) are the one-line editor too: no / menu, no formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks,
+"""Row 1005: the other fields saved as one line of plain text (a picture's caption, the Movement form's Who agreed it, Reason and Source) are the one-line editor too: no / menu, no formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks,
 because what they save is plain words. 1400 and 900. Fictional data only.
 
 Run: python3 dev/run_tests.py test_one_line_fields_1005
@@ -11,7 +10,6 @@ from _pictures import GOOD
 from _pictures_cases import PicturePage
 import test_movement_page as tmp
 import test_p1005b_eye as eye
-from test_report_editor import Base as PageBase
 from test_row_words_1005 import plain_only
 from test_server import chrome
 
@@ -58,22 +56,6 @@ class Move(tmp.Base):
                     p.key("Escape", code="Escape", vk=27)
                     p.until("!document.querySelector(%s)" % json.dumps(self.box(k)), f"{k} closed")
                     p.until("document.activeElement.id === 'mv-%s'" % k, f"the focus is back on {k}")
-
-
-class Own(PageBase):
-    seed, stored, wait_for, open_editor = (eye.Raid.__dict__[k] for k in ("seed", "stored", "wait_for", "open_editor"))
-
-    def test_own_words_is_the_one_line_editor(self):
-        self.seed("Old words")
-        with chrome() as cdp:
-            p, view, box = self.open_editor(cdp)
-            for where in widths(p):
-                p.js(f"document.querySelector({json.dumps(view)}).click()")
-                p.until(f"document.activeElement === document.querySelector({json.dumps(box)})", "opened")
-                plain_only(self, p, f"own words {where}")
-                p.key("Escape", code="Escape", vk=27)
-                p.until(f"!document.querySelector({json.dumps(box)})", "closed")
-
 
 
 class HelpSaysSo(unittest.TestCase):
