@@ -118,7 +118,7 @@ class ExcelCells(unittest.TestCase):
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)
         self.assertIn('shown = [s for s in sections or [] if not s.get("hidden")]', cv)
         self.assertLess(cv.index('_line("about", ABOUT)'), cv.index('_line("ids", IDS)'))
-        self.assertIn("ws = wb.create_sheet(COVER_NAME, 0)", ex)
+        self.assertIn("ws = wb.create_sheet(REPORT_NAME, 0)", ex)      # row 1390: the Cover sheet is the Report sheet, still first
         self.assertIn("a quiet About this export block", ex)
 
     def test_the_tab_order_and_the_page_words_already_say_risks_and_issues_with_an_ampersand(self):
