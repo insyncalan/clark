@@ -1803,7 +1803,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorised() or updating(self, route):
             return None
         self.follow_zone()
-        if route == DROP_ROUTE:
+        if route == DROP_ROUTE and self.post_route(route):      # not in setup mode, which has no such route (404 below)
             return self.drop_post(route)
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
