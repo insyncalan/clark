@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_ask_connector_hostile
 """
 import logging
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
@@ -120,6 +121,7 @@ class Size(unittest.TestCase):
     def test_huge_result_refused(self):
         self.assertFalse(cs.screen(READ, "a" * 5_000_000).used)
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_total_boundary(self):
         r = cs.screen_all([(READ, "a" * 40000), (READ, "b" * 30000)])
         self.assertTrue(all(x.used for x in r))
@@ -128,20 +130,24 @@ class Size(unittest.TestCase):
         self.assertFalse(r[1].used)
         self.assertEqual(r[1].reason, cs.REFUSED_TOTAL)
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_total_two_full_results_over(self):
         r = cs.screen_all([(READ, "a" * 40000), (READ, "b" * 40000)])
         self.assertEqual([x.used for x in r], [True, False])
         self.assertEqual(r[1].reason, cs.REFUSED_TOTAL)
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_refused_do_not_use_up_total(self):
         r = cs.screen_all([(READ, "a" * 40001), ("outlook_send_mail", "x" * 10), (READ, "a\u200b"),
                            (READ, "a" * 40000), (READ, "b" * 30000)])
         self.assertEqual([x.used for x in r], [False, False, False, True, True])
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_small_after_total_full(self):
         r = cs.screen_all([(READ, "a" * 40000), (READ, "b" * 30000), (READ, "c")])
         self.assertEqual([x.used for x in r], [True, True, False])
 
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_total_direct(self):
         self.assertTrue(cs.screen(READ, "a", 69999).used)
         self.assertFalse(cs.screen(READ, "a", 70000).used)

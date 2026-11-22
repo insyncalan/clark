@@ -20,6 +20,7 @@ import { richOrPlain } from "../logic/richOrPlain.js";
 import { plainFromEditor } from "./plainWords.js";
 import { tableOf } from "./itemEdit.js";
 import { eyeWords } from "../logic/eyeWords.js";
+import { AskAbout } from "./AskAbout.jsx";
 
 export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build: a work item's text is that many characters at most
 const A = { raid: "a risk", actions: "an action", decisions: "a decision" };
@@ -82,7 +83,7 @@ function EditRow({ row, today, words, type }) {
   const w = eyeWords(true, row), eye = () => change({ kind: "report_hidden", op: "new", id: row.id, place: "eye" }, w.said);
   return (
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
-      <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, todayOf()).tip}><ItemIcon row={row} pill={pill} plain /></Cell></span>
+      <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tipSay={iconWords(row, pill, todayOf())}><ItemIcon row={row} pill={pill} plain /></Cell></span>
       <span class="wl-title c-title" title={words[row.id]}><Words row={row} text={words[row.id]} /></span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
         <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>
@@ -98,6 +99,7 @@ function EditRow({ row, today, words, type }) {
       <span class="c-id wl-id num">
         <button type="button" class="idl" data-open aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button>
         <button type="button" class="ib" data-eye aria-label={w.label} title={w.title} onClick={eye}><Icon name="eye" /></button>
+        <AskAbout kind="item" id={row.id} name={`${row.id} ${words[row.id] || ""}`.trim()} />
       </span>
     </li>
   );

@@ -1,8 +1,8 @@
 // The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc, Close or the ask button closes it (a click outside does not) and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
-import { signal } from "@preact/signals";
-import { peek } from "../stores/report.js";
+import { signal, effect } from "@preact/signals";
+import { peek, project } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
@@ -14,6 +14,7 @@ const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
 
 export const panelOpen = signal(false);
+export const panelDocker = signal("");                  // Row 1293: the server's "not available in the Docker version" sentence when clark runs in Docker, else ""
 export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
 export const panelState = signal("checking");        // "checking" | "unknown" (the check failed: nothing is claimed) | "off" (the server said off) | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
@@ -27,6 +28,7 @@ export const queueHeld = signal("");                   // row 1220: "" (the queu
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
 export const draft = signal(null);                     // row 1292 (S12): the Draft open beside the panel, {html, title, sec} (askDraft.js readDraft), or null; closing the panel or leaving the chat closes it, the report is unchanged
+export const subject = signal(null);                   // row 1292: what "Ask about this" was pressed on, {kind: "item" | "section" | "use case", id, name}, or null; shown as a chip the person can remove
 export const answersReady = signal(0);                 // row 1292: answers that landed while the panel was closed; cleared when it opens
 export const chatEpoch = signal(0);                    // row 1119: kept for a chat that is dropped while an answer is out; row 1292: leaving a page or project no longer bumps it
 
@@ -41,6 +43,12 @@ function initialWidth() {
 export function setWidth(w, keep) {
   panelWidth.value = clampWidth(w);
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
+}
+
+/** Row 1292: a double-click on the grip puts the panel back to its usual width and forgets the kept one, so the next visit opens at the usual width too. */
+export function resetWidth() {
+  panelWidth.value = clampWidth(DEFAULT);
+  try { localStorage.removeItem(KEY); } catch (e) { /* only a convenience */ }
 }
 
 /** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
@@ -90,6 +98,7 @@ function apply(b) {
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
   panelStanding.value = b.standing_instructions === true;
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
+  panelDocker.value = b.docker === true && typeof b.why === "string" && b.why.length <= 300 ? b.why : "";
   if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
 }
@@ -112,6 +121,15 @@ export function handOver(text, send) {
   openPanel();
 }
 
+/** Row 1292: the sparkle: the panel opens (or takes focus) with a chip naming what it was pressed on. */
+export function askAbout(what) {
+  subject.value = what && what.id ? { kind: String(what.kind || "item"), id: String(what.id), name: String(what.name || what.id), project: project.value } : null;
+  if (panelOpen.value) panelFocus.value++; else openPanel();
+}
+
+// Row 1292: the chip names a row of one project, so it goes when the project changes (the panel and the chat stay).
+effect(() => { const s = subject.value; if (s && s.project !== project.value) subject.value = null; });
+
 /** Row 1220: the one place the queue is changed, so a changed list is never held, nor a drop warning kept, for a list it was not about. */
 export function setQueue(list) {
   queue.value = list;
@@ -131,6 +149,7 @@ export function newChat() {
   if (pending.value || !mayDrop()) return;
   setQueue([]);
   draft.value = null;
+  subject.value = null;
   turns.value = [];
   chatId.value = null; histOpen.value = false;
 }
@@ -157,16 +176,18 @@ const typing = (el) => !!el && !!el.tagName && (el.isContentEditable || ["INPUT"
 const otherLayer = () => !!document.querySelector("dialog[open], [role=dialog], [role=menu]");
 
 export function installAskKeys() {
+  // Row 1292: the panel's width is on the page as --ask-w (0 while it is shut), so a peek opened from an answer sits left of the panel, not behind it.
+  effect(() => { document.documentElement.style.setProperty("--ask-w", panelOpen.value ? clampWidth(panelWidth.value) + "px" : "0px"); });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.isComposing && panelOpen.value) {
       if (draft.value && e.target && e.target.closest && e.target.closest("#ask-draft")) return;      // row 1292: Esc in the Draft is the Draft's (it closes its menu, then itself), the panel stays
       e.preventDefault(); closePanel(); return;
     }
-    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
+    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette. Row 1292: pressed again it closes it (closing never stops an answer).
     if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
       if (otherLayer() || helpOpen.value) return;
       e.preventDefault();
-      if (!e.repeat) openPanel();
+      if (!e.repeat) { if (panelOpen.value) closePanel(); else openPanel(); }
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;

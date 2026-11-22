@@ -45,6 +45,22 @@ class Classic(Base):
                        "!!document.querySelector('.toc'), !!document.querySelector('.toc-lines'), n.getAttribute('aria-label')];})()")
             self.assertEqual(got, [168, "grid", "sticky", "Contents", "uppercase", "13px", 28, True, False, False, "Contents"])
 
+    def test_gap_at_1400_the_heading_spacing_is_1_04px_and_the_current_entry_is_the_text_colour(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            got = p.js("[getComputedStyle(document.querySelector('.cnt-h')).letterSpacing, getComputedStyle(document.querySelector('.cnt li a.on')).color]")
+            self.assertEqual(got, ["1.04px", "rgb(29, 36, 51)"])
+
+    def test_gap_at_1400_nothing_but_the_main_padding_sits_left_of_the_column(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            got = p.js("(function(){var n=document.querySelector('.cnt').getBoundingClientRect().left, m=document.querySelector('main'), r=document.querySelector('#report.frame'),"
+                       "rs=getComputedStyle(r), s=document.querySelector('.cnt-grid > .secs').getBoundingClientRect().left;"
+                       "return [Math.round(n), rs.paddingLeft, Math.round(m.getBoundingClientRect().left + parseFloat(getComputedStyle(m).paddingLeft)), Math.round(s)];})()")
+            self.assertEqual(got[1], "0px", "the report frame has no left padding in front of the grid")
+            self.assertEqual(got[0], got[2], "the column starts at the report frame's left edge (was x=105 = frame 77 + padding 28)")
+            self.assertEqual(got[3], got[0] + 168 + 28, "the content starts 168 + 28 after the column")
+
     def test_the_entries_are_the_visible_sections_in_page_order_with_their_own_titles(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)

@@ -172,9 +172,9 @@ class AskNoFolders(unittest.TestCase):
     def test_m32_no_folders_means_no_still_reading_note(self):
         status, body = self.ask()
         self.assertEqual(status, 200, body)
-        self.assertEqual([n for n in body["notes"] if n.startswith("Still reading")], [])
+        self.assertFalse(body.get("index_note"), "no folder, no note")      # the note is its own field (ask_service.py:370), not one of notes
         self.folders = [str(self.d)]
-        self.assertTrue([n for n in self.ask()[1]["notes"] if n.startswith("Still reading")], "with a folder the note is there")
+        self.assertTrue(str(self.ask()[1].get("index_note", "")).startswith("Still reading"), "with a folder the note is there")
 
 
 class Routes(FoldersBase):

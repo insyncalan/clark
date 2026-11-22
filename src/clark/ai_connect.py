@@ -31,8 +31,9 @@ CARD_INTRO = ("Connect Claude or ChatGPT for ask clark: the passages it sends le
 CONNECTED = "Connected. Asking can use its models."          # row 1294 (A8): turning a model on connects it; the words are the approved ones
 CONNECTED_OTHER = CONNECTED
 NOT_SIGNED_IN = {CHATGPT: "ChatGPT is not signed in on this computer. Sign in to the Codex command, then turn it on again."}     # row 1294: the switch goes back off and says this; Claude says what its own check found
-SIZE_LINE = ("Size of one question: {tokens:,} tokens. Each model has its own limit and the lower one applies.")
-QUESTION_TOKENS = 300000                  # row 1294 (A8): the size of one question the page states; the limit that cuts a project is row 1294 slice 7
+SIZE_LINE = ("Size of one question: about {tokens:,} tokens ({chars:,} characters of passages). Each model has its own limit and the lower one applies.")
+CHARS_PER_TOKEN = 4                       # the usual rough figure for English; the page says "about"
+QUESTION_CHARS = ask.BUDGET               # row 1294: the page states the size that really cuts a question (ask.BUDGET), so page and code cannot differ; 1,200,000 characters is 300,000 tokens at 4 characters each (the A8 cut), and ask.MAX_REQUEST = BUDGET + 30000 caps the whole request
 TEST_QUESTION = "Reply with the one word ready."
 TEST_SYSTEM = "You answer in one word."
 TEST_FAILED = "{label} did not answer."
@@ -140,7 +141,7 @@ class AiConnect:
         offered = [m["id"] for m in models]
         picked = self.pick()
         model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
-        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "size": SIZE_LINE.format(tokens=QUESTION_TOKENS), "message": message}
+        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "size": SIZE_LINE.format(tokens=QUESTION_CHARS // CHARS_PER_TOKEN, chars=QUESTION_CHARS), "message": message}
 
     def get(self, *_ignored):
         return 200, self.view()

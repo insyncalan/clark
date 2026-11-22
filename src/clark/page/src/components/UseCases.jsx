@@ -68,7 +68,7 @@ function Row({ s, shown, toggle, ed }) {
         <span class="uccell ucc" data-uccol="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} /></span>
+        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} />{ed && ed.Ask ? <ed.Ask u={u} /> : null}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>

@@ -21,14 +21,16 @@ from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
 KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
-              "use_cases": "use cases"}
+              "use_cases": "use cases", "workstreams": "workstreams"}
 LABELS = {"project": "report: the project", "milestones": "report: milestones", "actions": "report: actions",
-          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases"}
-KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases")
-TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title"}
+          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases",
+          "workstreams": "report: workstreams"}
+KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases", "workstreams")
+TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title",
+         "workstreams": "name"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
 DATES = ("baseline_date", "forecast_date", "actual_date", "due_date", "raised", "closed", "date", "needed_by", "revisit",
-         "week_ending")
+         "week_ending", "created")
 SHOWN = {
     "milestones": ("status", "owner", "baseline_date", "forecast_date", "actual_date", "percent_complete", "state_word",
                    "state_reason", "description", "client_message", "workstream"),
@@ -38,6 +40,7 @@ SHOWN = {
              "workstream", "milestone", "use_case"),
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
+    "workstreams": ("status", "created"),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
@@ -55,6 +58,7 @@ class ProjectData:
     secret: int = 0
     today: str = ""                     # #1293 B: the report's as-at day as DD-MM-YYYY ("" when it is not a day)
     counts: tuple = ()                  # #1293 B: (kind, rows sent, rows in all) for each kind that has rows
+    cut: int = 0                        # Row 1293: how many row lines were longer than MAX_PASSAGE and were cut (the Used line says so)
 
 
 def _is_day(value):
@@ -118,21 +122,28 @@ def _cut_screened(label, lines):
     return _cut(label, keep), len(lines) - len(keep)
 
 
+def long_rows(lines):
+    """Row 1293: how many of `lines` are cut by _cut (longer than MAX_PASSAGE) and still sent (a secret-looking one is left out whole)."""
+    return sum(1 for x in lines if len(x) > MAX_PASSAGE and not ask._secret(x))
+
+
 def _score(words, ids, passage):
     text = passage.text.casefold()
     return sum(5 for i in ids if i.casefold() in text) + sum(1 for w in words if w in text)
 
 
-def choose(passages, question, budget=BUDGET):
+def choose(passages, question, budget=BUDGET, limit=None):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
-    first when it fits."""
+    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
     ids = set(ID_PATTERN.findall(question or ""))
     ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
     keep, used = set(), 0
     for i in ranked:
         size = len(passages[i].text)
+        if limit is not None and len(keep) >= limit:
+            break
         if used + size <= budget:
             keep.add(i)
             used += size
@@ -185,6 +196,14 @@ def partial_lines(counts):
     return [f"{KIND_WORDS[k]}: {sent} of {total} rows sent" for k, sent, total in counts if sent < total]
 
 
+def read_counts(data):
+    """Row 1292: what a question read, for the line under its answer: the rows sent of each kind (work items are actions, risks and
+    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
+    sent = {k: n for k, n, _total in data.counts}
+    return {"work_items": sum(sent.get(k, 0) for k in ("actions", "raid", "decisions")), "milestones": sent.get("milestones", 0),
+            "use_cases": sent.get("use_cases", 0), "as_at": data.today}
+
+
 def left_out_lines(counts):
     """Row 1367 R3: one plain line per kind that was cut, with counts, for the person. Nothing for a kind sent whole, so a project
     where nothing was cut gives no line at all."""
@@ -218,19 +237,25 @@ def own_rows(inputs):
     return out
 
 
-def project_data(store, code, question="", budget=BUDGET, as_at=None):
+def project_data(store, code, question="", budget=BUDGET, as_at=None, limit=None):
     """The open project's own data for one question (row 1367), hidden rows included, archived left out, secret lines screened.
-    Raises publish.PublishError (plain words) for a code that isn't a project."""
+    Raises publish.PublishError (plain words) for a code that isn't a project. `limit` is the most passages kept (none: ask.MAX_PASSAGES; the
+    service passes what a file added to the question leaves)."""
     inputs = publish.read_inputs(store, code, as_at)
     selected = own_rows(inputs)
-    passages, secret = _cut_screened(LABELS["project"], project_lines(publish.select(inputs)["data"].get("project") or {}))
+    project = dict(publish.select(inputs)["data"].get("project") or {})
+    project["current_state"] = publish.clean_html((inputs["data"].get("project") or {}).get("current_state") or "") or project.get("current_state")    # a hidden Current state section does not change what is read
+    own = project_lines(project)
+    passages, secret = _cut_screened(LABELS["project"], own)
+    cut = long_rows(own)
     totals = {}
     for kind in KIND_ORDER:
         rows = [row_line(kind, r) for r in selected[kind]]
         more, n = _cut_screened(LABELS[kind], rows)
+        cut += long_rows(rows)
         passages += more
         secret += n
         totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
-    chosen, left = choose(passages, question, budget)
+    chosen, left = choose(passages, question, budget, ask.MAX_PASSAGES if limit is None else limit)     # the request takes at most MAX_PASSAGES: more is refused
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
-    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts)
+    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, cut)

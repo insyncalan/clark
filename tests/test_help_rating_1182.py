@@ -19,7 +19,7 @@ PRESENT = [
     "For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour.",
     "Its colour from its rating: Urgent or High red, Medium amber, Low green",
     "A risk or issue’s colour follows its rating, which is set from impact and likelihood. Ratings are Urgent, High, Medium and Low.",
-    "the state’s colour, the priority’s (a risk or issue says **Rating**), and the date’s (red when late, amber when due within a week)",
+    "**The title**, then the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour.",   # row 1205 item 10, approved words (NEW-WORDS.md lines 1756 and 1759), replaces the longer sentence
 ]
 
 

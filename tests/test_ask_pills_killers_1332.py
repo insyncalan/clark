@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_ask_pills_killers_1332
 Quick tier: no browser. The two modules are bundled by the pinned esbuild and run in node in one process per test (skips without node).
-The words are the words in askWords.js at this commit.
+The words are the words in askWords.js today and stand in for the ruled ones.
 """
 import json
 import re

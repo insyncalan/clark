@@ -70,7 +70,7 @@ class Protect(unittest.TestCase):
 
     def test_locked_cells_are_grey_and_editable_ones_are_not(self):
         """Item 1157: the shade follows the lock, on every data sheet."""
-        grey = excel.colours.TOKENS["grey-100"]
+        grey = "E7E7E7"
         seen = 0
         for ws in self.wb.worksheets:
             for row in ws.iter_rows(min_row=5):

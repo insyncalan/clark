@@ -114,14 +114,75 @@ class WorkItems(Base):
         row = self.s.read("actions", ref=self.action)
         self.assertEqual((row["owner"], row["due_date"]), ("Sam Lee", None))
 
+    def test_a_plan_carries_the_items_title_and_a_plain_why(self):         # row 1292 step S4: the card's heading and its Why line
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz",
+                             "why": "It was handed over on Monday.\x00 <b>x</b>"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertEqual(plan["why"], "It was handed over on Monday. <b>x</b>", "controls dropped; the page draws it as text")
+        self.assertNotIn("why", plan["after"], "why is not a field of the item")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Kim Roe"})["why"])
+        self.assertEqual(len(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "x" * 900})["why"]), ask_apply.MAX_WHY)
+        self.assertEqual(ask_apply.MAX_WHY, 300)
+        self.assertEqual(len(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "y" * 300})["why"]), 300)
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": "a\x7fb~c"})["why"], "ab~c", "DEL dropped, ~ kept")
+        self.assertIsNone(self.planned({"op": "change", **self.cur(self.action, "actions"), "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
+        self.refused({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Lee Poe", "why": 5}, "not_a_change")
+
+    def test_a_plan_carries_the_items_current_owner_for_a_change_only(self):         # row 1293 line 4: the card shows the owner
+        with self.s.step("dashboard", USER) as st:
+            risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier slips", "raised": "2026-10-01",
+                                      "owner": "Rita Fox", "source": "demo"})
+            dec = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal",
+                                          "source": "demo"})
+            st.update("milestones", self.demo.milestone, {"owner": "Mo Ito"})
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.action, "actions"), "status": "Closed"})["owner"], "Sam Lee")
+        self.assertEqual(self.planned({"op": "change", **self.cur(risk, "raid"), "status": "Closed"})["owner"], "Rita Fox")
+        self.assertEqual(self.planned({"op": "change", **self.cur(dec, "decisions"), "needed_by": "2030-01-05"})["owner"], "Dev Lal", "a decision's owner is made_by")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.milestone, "milestones"), "status": "Done"})["owner"], "Mo Ito")
+        self.assertIsNone(self.planned({"op": "change", **self.cur(self.demo.use_case, "use_cases"), "status": "Flag"})["owner"], "a use case has none")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "Zed Ng"})["owner"], "a new item shows what it creates")
+
+    def cur(self, ref, table):
+        """The id and the title the item has now: a change names the title it is about (row 1293)."""
+        return {"id": ref, "current_title": self.s.read(table, ref=ref)[ask_apply.TITLE[table]]}
+
+    def blank_owner(self, owner):
+        """An action whose stored owner is exactly `owner` (the store makes a missing owner TBC, so a blank one is written straight in)."""
+        ref = self.demo.action()
+        self.s.con.execute("UPDATE actions SET owner = ? WHERE id = ?", (owner, ref))
+        self.s.con.commit()
+        return ref
+
+    def test_a_tbc_owner_is_passed_through_as_stored(self):         # ruling 20-11 on 2035: TBC shows 'Owner: TBC'
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick a venue", "status": "Pending", "made_by": "TBC", "source": "demo"})
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.action(owner="TBC"), "actions"), "status": "Closed"})["owner"], "TBC")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.demo.action(owner=None), "actions"), "status": "Closed"})["owner"], "TBC", "a missing owner is stored as TBC")
+        self.assertEqual(self.planned({"op": "change", **self.cur(self.blank_owner("tbc"), "actions"), "status": "Closed"})["owner"], "tbc", "as stored, not respelt")
+        self.assertEqual(self.planned({"op": "change", **self.cur(dec, "decisions"), "needed_by": "2030-01-05"})["owner"], "TBC", "a decision's TBC too")
+
+    def test_a_blank_owner_or_a_new_item_has_no_owner_to_show(self):
+        for blank in ("", "   "):
+            self.assertIsNone(self.planned({"op": "change", **self.cur(self.blank_owner(blank), "actions"), "status": "Closed"})["owner"], f"{blank!r}")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "TBC"})["owner"], "a new item, even with TBC")
+
+    def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # #1292 sweep A: kills after-for-before
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertNotEqual(plan["after"].get("description"), plan["title"])
+
+    def test_the_rule_for_a_change_asks_for_a_short_reason(self):         # #1292 sweep A: the prompt line that makes the model send why
+        rule = [r for r in ask.RULES.split("\n") if r.startswith("7.")][0]
+        self.assertIn('"status": "Closed", "why": "one short reason"}', rule)
+
     def test_an_offer_is_used_once(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.applied(plan["offer"])
         status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual((status, body["code"]), (409, "no_offer"))
 
     def test_an_offer_is_for_its_own_project_only(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         before = self.counts()
         status, body = self.ask.apply(plan["offer"], "XYZ")
         self.assertEqual((status, body["code"]), (409, "no_offer"))
@@ -178,7 +239,7 @@ class Forged(Base):
         self.assertIn(self.action, body["message"])
 
     def test_a_wrong_owner_is_refused(self):
-        self.refused({"op": "change", "id": self.action, "current_owner": "Kit Moss", "status": "Closed"}, "wrong_owner")
+        self.refused({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "current_owner": "Kit Moss", "status": "Closed"}, "wrong_owner")
 
     def test_a_title_matches_however_it_is_spaced_or_cased(self):
         self.planned({"op": "change", "id": self.action, "current_title": "  draft THE cut-over   plan ", "status": "Closed"})
@@ -187,7 +248,7 @@ class Forged(Base):
         ref = self.demo.action(description="<p>Order the <b>test</b> kit</p>", owner="<p>Sam&nbsp;Lee</p>")
         self.planned({"op": "change", "id": ref, "current_title": "Order the test kit", "current_owner": "Sam Lee", "status": "Closed"})
         self.refused({"op": "change", "id": ref, "current_title": "Order the kit", "status": "Closed"}, "wrong_title")
-        self.refused({"op": "change", "id": ref, "current_owner": "Kit Moss", "status": "Closed"}, "wrong_owner")
+        self.refused({"op": "change", "id": ref, "current_title": "Order the test kit", "current_owner": "Kit Moss", "status": "Closed"}, "wrong_owner")
 
     def test_an_unknown_id_is_refused(self):
         self.refused({"op": "change", "id": "ABC-A-099", "status": "Closed"}, "unknown_id")
@@ -203,16 +264,16 @@ class Forged(Base):
             self.assertIn(ask_apply._plain_name(name), body["message"])
 
     def test_the_id_and_kind_must_agree(self):
-        self.refused({"op": "change", "kind": "milestone", "id": self.action, "status": "Closed"}, "wrong_kind")
+        self.refused({"op": "change", "kind": "milestone", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"}, "wrong_kind")
 
     def test_a_shape_that_isnt_the_form_is_refused(self):
         for change in ({}, {"op": "change"}, {"op": "new", "title": "x"}, {"op": "rewrite", "id": self.action},
-                       {"op": "new", "kind": "action", "id": self.action, "title": "x"}, {"op": "change", "id": self.action, "status": 3},
-                       {"op": "change", "id": self.action, "status": True}, {"op": "change", "id": self.action, "source": "file.docx", "status": "Closed"}):
+                       {"op": "new", "kind": "action", "id": self.action, "title": "x"}, {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": 3},
+                       {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": True}, {"op": "change", "id": self.action, "source": "file.docx", "status": "Closed"}):
             self.refused(change, "not_a_change")
 
     def test_a_suggestion_from_a_real_reply_is_planned(self):
-        reply = ask.read_reply('Closing it.\nCHANGE: {"op": "change", "id": "%s", "status": "Closed"}' % self.action,
+        reply = ask.read_reply('Closing it.\nCHANGE: {"op": "change", "id": "%s", "current_title": "Draft the cut-over plan", "status": "Closed"}' % self.action,
                                codes=("ABC",), exists=lambda ref: ref == self.action)
         self.assertEqual(len(reply.changes), 1)
         self.assertEqual(self.planned(reply.changes[0])["after"]["status"], "Closed")
@@ -227,17 +288,17 @@ class FromTheData(Base):
         self.assertEqual(after["type"], "Risk")
         self.assertEqual(after["priority"], "Urgent")                       # worked out by the store; the suggestion had none
         self.assertEqual(after["raised"], store_module.today())
-        closing = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        closing = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertEqual(closing["after"]["closed"], store_module.today())   # set by the store's closing rule
         self.assertIsNone(closing["before"]["closed"])
 
     def test_before_is_read_from_the_data_not_the_claims(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertEqual(plan["before"]["description"], "Draft the cut-over plan")
         self.assertEqual(plan["before"]["owner"], "Sam Lee")
 
     def test_a_row_changed_since_the_dry_run_is_not_saved(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.demo.update("actions", self.action, {"owner": "Ana Ruiz"})
         before = self.counts()
         status, body = self.ask.apply(plan["offer"], "ABC")
@@ -247,21 +308,21 @@ class FromTheData(Base):
 
     def test_a_store_rule_is_said_in_plain_words_and_nothing_is_saved(self):
         before = self.counts()
-        status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "due": "not a date"})
+        status, body = self.ask.plan("ABC", {"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "due": "not a date"})
         self.assertEqual((status, body["message"]), (400, changes.NOT_A_DATE))      # the hand edit's own words
         self.assertEqual(self.counts(), before)
 
     def test_nothing_to_change_is_refused(self):
-        self.refused({"op": "change", "id": self.action, "owner": "Sam Lee"}, "nothing")
+        self.refused({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Sam Lee"}, "nothing")
 
 
 class TheSwitch(Base):
     def test_off_refuses_the_dry_run(self):
         self.set_switch(0)
-        self.refused({"op": "change", "id": self.action, "status": "Closed"}, "asking_off")
+        self.refused({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"}, "asking_off")
 
     def test_off_blocks_apply(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.set_switch(0)
         before = self.counts()
         status, body = self.ask.apply(plan["offer"], "ABC")
@@ -271,7 +332,7 @@ class TheSwitch(Base):
 
     def test_the_switch_is_read_again_inside_the_step(self):
         """Off between the early check and BEGIN IMMEDIATE still writes nothing (the in-step read is the one that counts)."""
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         answers = iter([True, False])
         before = self.counts()
         with mock.patch.object(store_module.Store, "ask_enabled", lambda _self: next(answers, False)):
@@ -280,7 +341,7 @@ class TheSwitch(Base):
         self.assertEqual(self.counts(), before)
 
     def test_a_switch_that_cant_be_read_is_off(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         with mock.patch.object(store_module.Store, "ask_enabled", lambda _self: 1):     # not exactly True
             status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual(body["code"], "asking_off")
@@ -288,7 +349,7 @@ class TheSwitch(Base):
 
 class FromASource(Base):
     def test_a_change_from_a_passage_needs_confirm(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed", "source": "P2"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed", "source": "P2"})
         self.assertTrue(plan["needs_confirm"])
         before = self.counts()
         for confirm in (False, None, 1, "yes", "true"):
@@ -300,13 +361,13 @@ class FromASource(Base):
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Closed")
 
     def test_the_caller_can_mark_it_from_a_source(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"}, from_source=True)
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"}, from_source=True)
         self.assertTrue(plan["needs_confirm"])
         status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual(body["code"], "needs_confirm")
 
     def test_a_change_from_the_report_needs_no_confirm(self):
-        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
         self.assertFalse(plan["needs_confirm"])
         self.applied(plan["offer"])
 
@@ -320,7 +381,7 @@ class NotYet(Base):
         self.assertEqual(self.s.read("actions", ref=self.action)["archived"], 0)
 
     def test_more_than_five_at_once_is_refused(self):
-        many = [{"op": "change", "id": self.action, "status": "Closed"}] * (ask_apply.MAX_AT_ONCE + 1)
+        many = [{"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"}] * (ask_apply.MAX_AT_ONCE + 1)
         before = self.counts()
         status, body = self.ask.plan_all("ABC", many)
         self.assertEqual((status, body["code"]), (400, "too_many"))

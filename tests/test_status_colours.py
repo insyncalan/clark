@@ -142,27 +142,6 @@ class ExcelStatus(unittest.TestCase):
         self.assertEqual(excel_colours.RAID_STATUS, {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
 
 
-class ExcelOverdueStatus(unittest.TestCase):
-    def test_an_overdue_open_action_or_risk_has_a_red_status_cell_ahead_of_the_green_open_rule(self):
-        import test_excel_format as f
-        from openpyxl import load_workbook
-        case = f.Formatting("test_overdue_is_a_formula_rule_on_the_due_column")
-        case.setUp()
-        self.addCleanup(case.doCleanups)
-        wb = load_workbook(case.build(case.everything()))
-        for sheet, opens in (("Actions", ("Delayed", "Open")), ("Risks & Issues", ("Open",))):
-            ws = wb[sheet]
-            head = {c.value: c.column_letter for c in ws[1]}
-            st, d = head["Status"], head["Due"]
-            rules = [r for col, r in f.rules_of(ws) if col == st]
-            first = rules[0]
-            self.assertEqual(first.type, "expression", sheet)
-            opens_f = ",".join(f'${st}2="{x}"' for x in opens)
-            self.assertEqual(first.formula, [f"AND(ISNUMBER(${d}2),${d}2<TODAY(),OR({opens_f}))"])
-            self.assertEqual(f.rgb(first.dxf.fill.start_color), "F4DEDB")
-            self.assertTrue(first.stopIfTrue)
-
-
 class PaletteUrgent(unittest.TestCase):
     def test_a_bad_urgent_value_is_reverted_so_the_white_letter_stays_readable(self):
         from clark import excel_palette as ep

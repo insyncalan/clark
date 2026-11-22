@@ -23,12 +23,19 @@ def _refuse(message):
     raise ask.AskRefused(message)
 
 
-def passages(files):
+# Row 1294: the words when the Files switch is off (ruled by the design lead 20-11 10:30, NEW-WORDS.md): the file refusal is true here, the question is not sent either
+OFF_WORDS = "Files are turned off for asking, so none were sent. Turn them on in Settings, or ask again without them."
+
+
+def passages(files, allowed=True):
     """The passages for the files named in a request, in order. `files` is the request's value (None or [] means none). Raises
     `ask.AskRefused` (plain words) for a wrong shape, too many or too large files, a bad name, bytes that are not base64, a kind
-    that is not read yet, or a file that looks like it holds a password or a key."""
+    that is not read yet, or a file that looks like it holds a password or a key. Row 1294: with `allowed` False (the Files switch is off for
+    the computer or the project) any file at all is refused, in the words of OFF_WORDS."""
     if files is None or files == []:
         return []
+    if not allowed:
+        _refuse(OFF_WORDS)
     if not isinstance(files, list):
         _refuse("The files could not be read. Nothing was sent. Reload the page and ask again.")
     if len(files) > FILE_MAX:

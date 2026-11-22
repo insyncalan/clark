@@ -460,11 +460,17 @@ class InProcess(TempFolder):
         (call,) = serve.calls
         self.assertIsNone(call.get("ai"))
 
+    def test_the_launcher_wires_the_used_hook_into_the_ask_service(self):
+        # Row 1306: without this argument the 'ask used connector <name>' line is never written in a real run
+        code, out, err, serve = self.run_main("--port", "8123")
+        (call,) = serve.calls
+        self.assertIs(call["ask"].used_hook, launcher.log_connector_used)
+
     def test_the_server_gets_the_stores_data_and_the_built_page_and_the_change_and_undo_handlers(self):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_folders", "ask_instructions", "brand_picture", "change", "data_for", "demo", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "mail", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_body", "section_image", "sneak", "undo", "updater", "use_cases",
+        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_commands", "ask_folders", "ask_instructions", "brand_picture", "change", "data_for", "demo", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "mail", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_body", "section_image", "sneak", "undo", "updater", "use_cases",
                                         "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #282: updater (Settings, Version and updates); #345: publication_mark (Archive and Restore); item 444: excel_import and project_save; item 1297: mail (the mail-app opener seam); #731: demo
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))

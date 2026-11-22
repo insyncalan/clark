@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_connector_screen
 """
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
@@ -68,6 +69,13 @@ class Screen(unittest.TestCase):
         self.assertFalse(s.used)
         self.assertEqual(s.reason, cs.REFUSED_SIZE)
 
+    def test_the_total_is_the_request_ceiling(self):
+        self.assertEqual(cs.MAX_TOTAL, 1_230_000)                      # row 1293: the same as ask.MAX_REQUEST
+        self.assertEqual(cs.MAX_RESULT, 40000)
+        self.assertTrue(cs.screen("sharepoint_search", "a", 1_229_999).used)
+        self.assertFalse(cs.screen("sharepoint_search", "a", 1_230_000).used)
+
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_total_cap(self):
         res = [("sharepoint_search", "a" * 40000), ("sharepoint_search", "b" * 30000), ("sharepoint_search", "c")]
         out = cs.screen_all(res)
@@ -90,7 +98,7 @@ class Line(unittest.TestCase):
                              ("outlook_send_mail", "z")])
         ul = cs.used_line(out)
         self.assertEqual(ul.used, ("Mail",))
-        self.assertEqual(ul.text, "Used: Read your mail. Not used: Teams chats has hidden characters")
+        self.assertEqual(ul.text, "Used: Mail. Not used: Teams chats has hidden characters")
         self.assertIn("unknown connector (tool not allowed)", ul.not_used)
         self.assertNotIn("not allowed", ul.text, "a tool on no part has no approved word, so it is data only")
         self.assertNotIn("SECRET", ul.text)
@@ -101,32 +109,22 @@ class Line(unittest.TestCase):
     def line(self, *pairs):
         return cs.used_line(cs.screen_all(list(pairs))).text
 
-    def test_a_countable_list_shows_its_count_with_the_right_noun(self):
-        self.assertEqual(self.line(("outlook_email_search", '[1, 2, 3]')), "Used: Read your mail (3 messages)")
-        self.assertEqual(self.line(("outlook_email_search", '[1]')), "Used: Read your mail (1 message)")
-        self.assertEqual(self.line(("outlook_calendar_search", '{"value": [1, 2]}')), "Used: Read your calendar (2 events)")
-        self.assertEqual(self.line(("outlook_calendar_search", '[1]')), "Used: Read your calendar (1 event)")
-        self.assertEqual(self.line(("teams_list_chats", '[1, 2]')), "Used: Read your Teams chats (2 messages)")
-        self.assertEqual(self.line(("sharepoint_search", '[1, 2]')), "Used: Read your files (2 files)")
-        self.assertEqual(self.line(("sharepoint_search", '[1]')), "Used: Read your files (1 file)")
-        self.assertEqual(self.line(("find-tasks", '[1, 2]')), "Used: Read your tasks (2 tasks)")
-        self.assertEqual(self.line(("find-tasks", '[1]')), "Used: Read your tasks (1 task)")
-        self.assertEqual(self.line(("outlook_email_search", '[]')), "Used: Read your mail (0 messages)")
+    def test_the_used_line_is_the_connector_name_only_never_a_count(self):
+        for pair, name in ((("outlook_email_search", '[1, 2, 3]'), "Mail"), (("outlook_email_search", '[]'), "Mail"),
+                           (("outlook_calendar_search", '{"value": [1, 2]}'), "Calendar"), (("teams_list_chats", '[1, 2]'), "Teams"),
+                           (("sharepoint_search", '[1]'), "SharePoint and OneDrive"), (("find-tasks", '[1, 2]'), "Todoist"),
+                           (("outlook_email_search", "Subject: Lunch"), "Mail")):
+            self.assertEqual(self.line(pair), f"Used: {name}", pair)
 
-    def test_an_answer_that_is_not_a_countable_list_shows_no_count(self):
-        for text in ("Subject: Lunch", '{"a": 1}', '{"a": [1], "b": [2]}', '"x"', "3", "null"):
-            self.assertEqual(self.line(("outlook_email_search", text)), "Used: Read your mail", text)
+    def test_two_results_of_one_part_name_it_once(self):
+        self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "[3]")), "Used: Mail")
 
-    def test_two_results_of_one_part_add_up_and_one_uncountable_drops_the_count(self):
-        self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "[3]")),
-                         "Used: Read your mail (3 messages)")
-        self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "text")), "Used: Read your mail")
-
+    @mock.patch.object(cs, "MAX_TOTAL", 70000)
     def test_every_not_used_reason_has_its_approved_words(self):
         self.assertEqual(self.line(("outlook_email_search", "x" * 40001)), "Not used: Mail was too long")
         self.assertEqual(self.line(("outlook_email_search", "a\u200bb")), "Not used: Mail has hidden characters")
         self.assertEqual(self.line(("outlook_email_search", "x" * 35000), ("outlook_calendar_search", "y" * 35000),
-                                   ("find-tasks", "z" * 35000)), "Used: Read your mail, Read your calendar. Not used: Tasks was over the total")
+                                   ("find-tasks", "z" * 35000)), "Used: Mail, Calendar. Not used: Tasks was over the total")
         self.assertEqual(cs.used_line([cs.screen("sharepoint_search", "x", on_parts={"Mail"})]).text, "Not used: Files is off")
         self.assertEqual(cs.used_line([cs.screen("find-tasks", "x", on_parts={"Mail"})]).text, "Not used: Tasks is off")
         self.assertEqual(cs.used_line([cs.screen("teams_list_chats", "x", on_parts={"Mail"})]).text, "Not used: Teams chats is off")

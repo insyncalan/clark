@@ -62,9 +62,9 @@ class Box(unittest.TestCase):
                 self.assertEqual(rest["bg"], g["surface"], "surface background")
                 self.assertEqual(rest["pad"], ["0px", "0px"], "no vertical padding: the 34px box is its height, not padding around the line")
                 self.assertEqual(g["box"][1], 34, "34px high")
-                self.assertLessEqual(g["box"][2], 560, "the row is at most 560 wide")
+                self.assertLessEqual(g["box"][0], 560, "the search box is at most 560 wide")
                 if w == 1400:
-                    self.assertEqual(g["box"][2], 560, "the row is 560 wide")
+                    self.assertEqual(g["box"][0], 560, "the search box is 560 wide")
                 self.assertEqual(g["mag"][:2], ["12px", "9px"], "magnifier as before")
                 self.assertEqual(g["magInside"], [True, True], "the magnifier is inside the box (sides)")
                 self.assertEqual(g["magV"], [True, True], "the magnifier is inside the box (top and bottom)")

@@ -40,7 +40,7 @@ Programme managers spend hours each week turning their work items into a report 
 - One user per database. clark's files may sit on OneDrive, but the database stays on the computer's own disk
 
 **Out of scope for now:**
-- Reading mail, Teams, calendars or transcripts.
+- Reading transcripts. Mail, Teams, calendars and SharePoint are read only through a connector that the person turns on in Settings (off by default, read only, a project can turn it off for itself).
 - Sending by email or message. clark never sends mail and never makes an Outlook draft: Draft email only puts text on the clipboard for the user or the client to paste. Putting a file in the client's SharePoint folder is allowed only on the user's tick (approved 28-10-2026).
 - Anything from creaite's private repos.
 - Any real client, company or person's name in the repo. Demo data is fictional.

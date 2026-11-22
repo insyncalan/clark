@@ -457,7 +457,8 @@ def _plural(n, one, many):
 def line_for(counts, reading=None):
     """The status line of one folder. `reading` is (done, total) while it is being read; `counts` the counts of its last full read."""
     if reading is not None:
-        return f"Reading {reading[0]} of {reading[1]} {_plural(reading[1], 'file', 'files')}."
+        done, total = reading
+        return f"Indexing\u2026 {min(99, done * 100 // total) if total > 0 else 0}%"
     total = sum(counts.get(n, 0) for n in NAMES)
     out = [f"Indexed {counts.get('indexed', 0)} of {total} {_plural(total, 'file', 'files')}."]
     t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))
@@ -470,6 +471,15 @@ def line_for(counts, reading=None):
     if s:
         out.append(f"{s} {_plural(s, 'looks', 'look')} like a password or a key and {_plural(s, 'was', 'were')} left out.")
     return " ".join(out)
+
+
+def done_line(counts):
+    """The status line of a folder whose read is finished (row 1371): the share read, and how many files could not be read; the page's "(why)" lists them."""
+    total = sum(counts.get(n, 0) for n in NAMES)
+    if total <= 0 or counts.get("indexed", 0) <= 0:
+        return "No files to index"          # nothing was readable: never "100% indexed"
+    unread = max(total - counts.get("indexed", 0), 0)
+    return "100% indexed" + (f". {unread} {_plural(unread, 'file', 'files')} could not be read" if unread else "")
 
 
 def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
@@ -511,7 +521,7 @@ def folder_status(data_dir, code, folders, live=None):
         if live and f in live:
             out[f] = {"state": "reading", "line": line_for(None, live[f])}
         elif f in saved:
-            out[f] = {"state": "done", "line": line_for(saved[f])}
+            out[f] = {"state": "done", "line": done_line(saved[f])}
             if left.get(f):
                 out[f]["left"] = left[f]
     return out
@@ -593,6 +603,7 @@ class Indexer:
         self.live = {}                       # code -> {folder: (done, total)} for the run in progress
         self.busy = 0
         self.checked = {}                    # code -> when the Settings poll last looked for changed files
+        self.resumed = {}                    # code -> when an unfinished index was last started again
         self.stop = threading.Event()
         self.thread = None
 
@@ -652,11 +663,28 @@ class Indexer:
             self.start(code, folders)               # the index file is gone: build it again, so the line and the next question have it
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
+        elif due and folders and not current(self.data_dir, code, folders):
+            self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
+            with self.wake:
+                live = dict(self.live[code]) if code in self.live else None
         elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
         return folder_status(self.data_dir, code, folders, live)
+
+    def resume(self, code, folders):
+        """Start the read again for an index that is not finished (its first pass was stopped or failed). At most once every
+        STALE_POLL_SECONDS for a project, however often it is asked, so a read that keeps failing is a retry now and then, never a loop.
+        Nothing starts when a read is queued or running, or once clark is closing (`start` refuses then)."""
+        with self.wake:
+            if code in self.queue or code in self.live:
+                return False
+            now = time.monotonic()
+            if now - self.resumed.get(code, -STALE_POLL_SECONDS) < STALE_POLL_SECONDS:
+                return False
+            self.resumed[code] = now
+        return self.start(code, folders)
 
     def not_yet(self, code):
         """How many files of the run in progress for `code` are not read yet (0 when no run is going)."""
@@ -671,6 +699,8 @@ class Indexer:
             self.start(code, folders)               # no index file: build it in the background, this question reads the folders
             return False
         if not current(self.data_dir, code, folders):
+            if folders:
+                self.resume(code, folders)          # the first pass was stopped or failed: carry on in the background; this question reads the folders
             return False
         if stale(self.data_dir, code, folders, self.home):
             self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
