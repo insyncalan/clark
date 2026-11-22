@@ -5,7 +5,14 @@ image fills the section, a small one is centred, no tools. Pins what the page do
 
 Run: python3 dev/run_tests.py test_tpl_imagecap_half_1223
 Needs Chrome (the harness): fails, never skips, without it. Fictional data only."""
+import json
 import unittest
+
+from _demo import USER, DemoStore
+from _pictures import GOOD_JPEG, data, png
+from clark import publish
+from clark import store as store_module
+from clark.section_kinds import imagecap as fi
 
 import test_server  # noqa: F401  the browser harness, named so the browser tier reads this file as a browser test
 import test_tpl_imagecap_full_page as base
@@ -69,6 +76,53 @@ class HalfWidth(Half):
                 self.assertTrue(m["fits"])
                 self.assertAlmostEqual(m["img"], 300, delta=1)
                 self.assertAlmostEqual(m["l"], m["r"], delta=1)
+
+
+class Stored(unittest.TestCase):
+    """Ticket test 14 and the old v1 body, in the store (no browser): the width switch is the section's `beside` flag, nothing else."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+
+    def make(self, body, title):
+        with self.store.step("dashboard", USER) as st:
+            return st.create("report_sections", {"project": "ABC", "type": "imagecap", "title": title, "sort_order": 990,
+                                                 "body": store_module.check_section_body("imagecap", json.dumps(body))})
+
+    def row(self, ref):
+        return next(r for r in self.store.read("report_sections", "ABC") if r["id"] == ref)
+
+    def test_full_to_half_and_back_keeps_the_stored_image(self):
+        """Ticket 1223 test 14: switching a full width Image to half and back keeps the stored image (original, framed copy, framing, caption)."""
+        body = fi.check(fi.with_picture({"v": 2, "shape": "16:9", "fx": 300, "caption": "Fictional plan"}, "original", data(png(w=40, h=20))), None)
+        ref = self.make(body, "Fictional image")
+        before = self.row(ref)
+        self.assertEqual(before["beside"], 0, "starts full width")
+        stored = json.loads(before["body"])
+        self.assertIn("image", stored["pictures"])
+        for beside in (1, 0):
+            with self.store.step("dashboard", USER) as st:
+                st.update("report_sections", ref, {"beside": beside})
+            now = self.row(ref)
+            self.assertEqual(now["beside"], beside)
+            self.assertEqual(json.loads(now["body"]), stored, f"beside={beside}: the body, image included, is unchanged")
+        self.assertEqual(fi.check(json.loads(self.row(ref)["body"]), None), stored, "and it still checks to itself")
+
+    def test_an_old_v1_imagecap_body_opens_and_publishes_as_before(self):
+        """An Image with caption stored before row 1223 (version 1, one picture, caption, alt): kept as stored, at full and half, and published as before."""
+        old = {"v": 1, "caption": "Fictional plan", "alt": "A plan", "pictures": {"image": GOOD_JPEG}}
+        ref = self.make(old, "Fictional old image")
+        self.assertEqual(json.loads(self.row(ref)["body"]), old, "stored and read back as it was")
+        for beside in (1, 0):
+            with self.store.step("dashboard", USER) as st:
+                st.update("report_sections", ref, {"beside": beside})
+            self.assertEqual(json.loads(self.row(ref)["body"]), old)
+        mine = next(s for s in publish.build(self.store, "ABC", now="2030-01-15")["published"]["sections"] if s["id"] == ref)
+        self.assertIn(GOOD_JPEG, json.dumps(mine))
+        self.assertIn("Fictional plan", json.dumps(mine))
+        self.assertNotIn('"full": 1', json.dumps(mine), "an old body is not drawn as the full width Image")
 
 
 if __name__ == "__main__":
