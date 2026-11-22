@@ -290,7 +290,7 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
             break
         if dropped < len(turns):
             dropped += 1
-        elif chosen:                 # no turn is left to drop: leave out the least relevant passage (and say so) before anything is refused
+        elif len(chosen) > 1:        # no turn is left to drop: leave out the least relevant passage (and say so) while another can still be kept; refused only when nothing can (Row 1292 ruling)
             gone_at = _ranked(chosen, question)[-1]
             del chosen[gone_at], kept[gone_at]
             left_out += 1

@@ -186,6 +186,16 @@ class Limits(unittest.TestCase):
         self.assertEqual((r.left_out, list(r.kept), [p[1] for p in r.passages]), (1, [1], ["b.md"]))
         self.assertNotIn("a.md", r.text)
 
+    def test_one_passage_too_big_for_the_request_is_left_out_and_the_others_are_sent_but_nothing_that_fits_is_refused(self):
+        """Row 1292 ruling: over the request limit the least relevant passage goes (M=1) while another can still be kept; a lone passage that cannot fit is refused."""
+        a, b, c = (ask.Passage("a.md", "alpha " * 40), ask.Passage("b.md", "beta " * 40), ask.Passage("c.md", "gamma " * 40))
+        two = len(ask.build_request("alpha beta?", [a, b]).text)
+        r = ask.build_request("alpha beta?", [a, b, c], max_request=two)
+        self.assertEqual((len(r.passages), r.left_out, list(r.kept)), (2, 1, [0, 1]))
+        self.assertNotIn("gamma", r.text)
+        with self.assertRaises(ask.AskRefused):
+            ask.build_request("alpha beta?", [c], max_request=len(ask.build_request("alpha beta?", []).text) + 10)
+
     def test_the_count_of_passages_has_a_ceiling_and_the_rest_are_left_out(self):
         r = ask.build_request("Q?", [ask.Passage("a.md", "x")] * (ask.MAX_PASSAGES + 1))
         self.assertEqual((len(r.passages), r.left_out), (ask.MAX_PASSAGES, 1))
