@@ -372,7 +372,7 @@ class Ui(Base):
         self.assertEqual(self.h.ev("document.querySelector('.ProseMirror').cxed.written()"), stored)
 
     def test_the_colour_button_is_Classic_only(self):
-        """Banner's read of PR 2196: the Cards page has no palette CSS, so with no Classic theme layer (no style#theme) the bar and the bubble have no colour button."""
+        """Review of PR 2196: the Cards page has no palette CSS, so with no Classic theme layer (no style#theme) the bar and the bubble have no colour button."""
         self.h.ev("document.getElementById('theme').id = 'theme-held'; true")
         try:
             self.mount_selected()
