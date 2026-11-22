@@ -1,4 +1,4 @@
-"""Row 1253: the Published reports page takes the Dashboard header's look (Option A). Source tests, no browser.
+"""Row 1253: the Published reports page in Classic has no card and no cover band: the one slim bar is the only band, the sections are flat. Source tests, no browser.
 
 Run: python3 dev/run_tests.py test_published_page_1253
 """
@@ -22,10 +22,21 @@ def rule(sel):
 
 
 class PublishedPage1253(unittest.TestCase):
-    def test_band_is_the_dashboard_band_project_name_is_the_title_and_the_page_name_is_the_kicker(self):
-        self.assertRegex(JSX, r'<header class="cover" id="cover">\s*<h1>\{title\}</h1>')
-        self.assertRegex(JSX, r'<b class="cover-kind">\{L\.TITLE\}</b>')
-        self.assertIn("{L.INTRO}", JSX)
+    def test_classic_has_no_card_no_cover_band_and_the_page_name_is_the_heading(self):
+        classic = JSX[JSX.index("if (classicTheme())"):JSX.index('<div class="pp-page" id="pubs-page">')]
+        self.assertRegex(classic, r'<div class="pp-page pp-flat" id="pubs-page">\s*<h1>\{L\.TITLE\}</h1>\s*<p class="pubs-intro">\{L\.INTRO\}</p>')
+        self.assertNotIn("cover", classic)
+        self.assertNotIn("pp-frame", classic)
+        self.assertNotIn('class="frame', classic)
+
+    def test_cards_keeps_its_card_and_cover_band_as_on_main(self):
+        cards = JSX[JSX.index('<div class="pp-page" id="pubs-page">'):]
+        self.assertIn('<section class="frame pp-frame">', cards)
+        self.assertRegex(cards, r'<h1>\{L\.TITLE\}</h1>\s*<p class="cover-line"><b class="cover-kind">\{title\}</b></p>')
+
+    def test_the_intro_is_muted_text_not_white_on_a_band(self):
+        self.assertIn("var(--text-muted)", rule(".pp-flat .pubs-intro"))
+        self.assertNotIn("var(--white)", rule(".pp-flat .pubs-intro"))
 
     def test_sections_come_in_the_order_where_saved_latest_earlier(self):
         a = JSX.index("pubs-where")
@@ -36,7 +47,7 @@ class PublishedPage1253(unittest.TestCase):
         self.assertLess(JSX.index("L.PAGE.saved"), JSX.index("<PublishedReports"))
 
     def test_sections_are_flat_and_line_divided_not_bordered_cards(self):
-        r = rule(".pp-block")
+        r = rule(".pp-flat .pp-block")
         self.assertIn("border: 0", r)
         self.assertIn("border-bottom: 1px solid var(--grey-200)", r)
         self.assertIn("border-radius: 0", r)
@@ -52,13 +63,13 @@ class PublishedPage1253(unittest.TestCase):
         self.assertNotIn(".pp-block {", CSS.split(m.group(0))[1], "no second .pp-block rule in edit.css")
 
     def test_the_table_scrolls_inside_its_own_box(self):
-        self.assertIn("overflow-x: auto", rule(".pp-earlier"))
+        self.assertIn("overflow-x: auto", rule(".pp-flat .pp-earlier"))
 
     def test_css_added_uses_tokens_only(self):
-        for sel in (".pp-block", ".pp-earlier"):
+        for sel in (".pp-flat .pp-block", ".pp-flat .pp-earlier"):
             r = rule(sel)
             self.assertNotRegex(r, r"#[0-9a-fA-F]{3,8}\b")
-        self.assertEqual(re.findall(r"\d+px", rule(".pp-block")), ["1px"])  # the hairline only
+        self.assertEqual(re.findall(r"\d+px", rule(".pp-flat .pp-block")), ["1px"])  # the hairline only
 
     def test_no_new_words(self):
         for w in ("Published reports", "Where it is saved", "Latest", "Earlier reports", "Show archived", "Change in Settings", "Open", "Archive"):

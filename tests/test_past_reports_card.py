@@ -223,7 +223,7 @@ class Card(InBrowser):
 
     def test_row_1087_the_page_has_the_title_the_cover_where_it_is_saved_the_latest_and_the_earlier_ones(self):
         self.mount()
-        self.assertEqual(self.text("#pubs-page h1"), "Example Programme")      # row 1253: the project name is the title, as on the Dashboard
+        self.assertEqual(self.text("#pubs-page h1"), "Published reports")
         self.assertTrue(self.present("#pubs-page .cover"), "the brand's cover band, as on the Dashboard")
         self.assertIn("Example Programme", self.text("#pubs-page .cover"))
         self.assertFalse(self.val("[...document.querySelectorAll('h2')].some(h => h.textContent.includes('Published reports'))"), "a page, not a Settings card with its own heading")
@@ -231,7 +231,7 @@ class Card(InBrowser):
         self.assertEqual(self.val("[...document.querySelectorAll('#pubs-where dt')].map(d => d.textContent)"), ["Local folder", "Client folder"])
         self.assertEqual(self.text("#pubs-latest h2"), "Publication 3 · Week ending 23-10-2026")
         self.assertEqual(self.text("#pubs-latest p.muted"), "Published 28-10-2026 at 13:30 · Local folder, Client folder · Page, PDF · by Sam Example")
-        self.assertEqual(self.text("#pubs-page .cover-line"), "Published reports", "row 1253: the kicker is the page name; the intro is its own line, so no stray dot starts a wrapped line")
+        self.assertEqual(self.text("#pubs-page .cover-line"), "Example Programme", "the cover line holds the project only: the intro is its own line, so no stray dot starts a wrapped line")
         self.assertEqual(self.text("#pubs-page .pubs-intro"), self.val("T.logic.INTRO"))
         latest = self.text("#pubs-latest")
         for part in ("Latest", "Publication 3", "Week ending 23-10-2026", "28-10-2026 at 13:30", "Local folder, Client folder", "Page, PDF", "Sam Example"):

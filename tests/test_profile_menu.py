@@ -272,7 +272,7 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
             p.until("location.hash.indexOf('#published') === 0", "the Published reports page opened")
             p.until("!!document.querySelector('#pubs-page')", "the Published reports page is there")
-            self.assertEqual(p.js("document.querySelector('#pubs-page .cover-kind').textContent"), "Published reports")
+            self.assertEqual(p.js("document.querySelector('#pubs-page h1').textContent"), "Published reports")
             self.assertEqual(p.js("[...document.querySelectorAll('header.top [role=tab]')].some(t => t.textContent.includes('Published'))"), False, "no tab")
             self.assertEqual(self.rig.everything_written(), before, "opening it writes nothing")
 
