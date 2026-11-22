@@ -221,6 +221,8 @@ class TheFilesSwitch(Base):
         self.assertEqual((status, got["code"]), (400, "refused"), got)
         self.assertEqual(self.sent(), [])
         self.assertEqual(self.question("A plain question")[0], 200, "a question without files still goes")
+        self.assertEqual(len(self.sent()), 1, "only the plain question reached the AI")
+        self.assertNotIn("ZQ-FILE-LINE", repr(self.sent()), "no file passage is in anything sent to the AI while the switch is off")
 
     def test_a_project_turned_off_refuses_files_and_another_project_still_takes_them(self):
         self.flags(off_here=1)
@@ -666,8 +668,8 @@ class TheMigration(unittest.TestCase):
                    "CREATE TABLE projects (code TEXT)", "INSERT INTO projects VALUES ('P')")
         self.run_step(con)
         self.run_step(con)
-        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_enabled", "ask_files"])
-        self.assertEqual(st.columns(con, "projects"), ["code", "ask_files_off"])
+        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_enabled", "ask_files", "ask_new_projects"])
+        self.assertEqual(st.columns(con, "projects"), ["code", "ask_files_off", "ask_off"])
         self.assertEqual(tuple(con.execute("SELECT id, ask_enabled, ask_files FROM app_settings").fetchone()), (1, 0, 1))
         self.assertEqual(tuple(con.execute("SELECT code, ask_files_off FROM projects").fetchone()), ("P", 0))
         with self.assertRaises(sqlite3.IntegrityError):
@@ -680,7 +682,7 @@ class TheMigration(unittest.TestCase):
         con = bare("CREATE TABLE app_settings (id INTEGER, ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1)))", "INSERT INTO app_settings VALUES (1, 0)")
         self.run_step(con)
         self.assertEqual(con.execute("SELECT ask_files FROM app_settings").fetchone()[0], 0)
-        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_files"])
+        self.assertEqual(st.columns(con, "app_settings"), ["id", "ask_files", "ask_new_projects"])
         self.assertEqual([r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")], ["app_settings"], "no projects table was made")
 
     def test_the_step_is_number_33_in_the_list(self):

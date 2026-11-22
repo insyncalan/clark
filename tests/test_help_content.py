@@ -523,5 +523,24 @@ class ProfileCircleWords(unittest.TestCase):
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
+class SideBySideHelp(unittest.TestCase):
+    def test_help_names_text_and_image_side_by_side_and_not_the_old_name(self):
+        """Row 1232 (AP15): the template table in Help lists the new name with its line and widths, and the old name is gone from the whole Help source."""
+        rows = []
+        def walk(x):
+            if isinstance(x, list):
+                if len(x) == 3 and all(isinstance(c, str) for c in x):
+                    rows.append(x)
+                for c in x:
+                    walk(c)
+            elif isinstance(x, dict):
+                for c in x.values():
+                    walk(c)
+        walk(SRC)
+        self.assertIn(["Text and Image Side by Side", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertNotIn("Text and image", [r[0] for r in rows])
+        self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
+
+
 if __name__ == "__main__":
     unittest.main()
