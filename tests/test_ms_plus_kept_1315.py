@@ -38,7 +38,7 @@ class Classic(Base, unittest.TestCase):
             self.assertEqual(g["color"], g["want"], f"the dashed edge is var(--status-blue-text) at {w}: {g}")
 
     def test_classic_milestones_has_no_plan_movement_switch(self):
-        """Row 1329 (Alan 18-11) supersedes the Row 1315 AP12 pin: Classic draws no Plan | Movement switch."""
+        """Row 1329 (ticket comment 18-11) supersedes the Row 1315 AP12 pin: Classic draws no Plan | Movement switch."""
         for cdp, sid, w in self.every():
             self.assertIsNone(cdp.js(SWITCH, sid), f"Classic has no 'Milestones view' group at {w}")
 
