@@ -1,4 +1,4 @@
-// The Edit part RAID cards (#96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
+// The Edit part RAID cards (item 96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
 // saved in place. Every committed choice is one change() to the section's body: one step, one Undo, place "report". A card holds
 // the item's id only, so what the item says is read when the page is drawn or published.
 import { useState } from "preact/hooks";
