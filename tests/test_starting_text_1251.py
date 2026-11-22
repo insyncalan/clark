@@ -94,7 +94,7 @@ class SliceTwoIsReached(unittest.TestCase):
     REACH = {
         "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
         "Table.jsx": ['<StartPrompt id="table"'],
-        "raidEdit.jsx": ['<StartPrompt id={`raid-${base}`}'],
+        "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
         "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startOr("Shown above the list", "work-items", "caption")'],
         "DocLinks.jsx": ['<StartPrompt id="docs-links"'],
         "Checklist.jsx": ['<StartPrompt id="checklist"'],
