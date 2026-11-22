@@ -179,7 +179,7 @@ class Static(unittest.TestCase):
         rules = {sel.strip(): body for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)}
         self.assertIn("min-width: 200px", rules[".ddmenu"])
         self.assertIn("min-width: 200px", rules[".cpop.cmenu:not(.bmenu)"])
-        self.assertIn("min-width: 240px", rules['.ddmenu[aria-label="Group by"]'])
+        self.assertNotIn('.ddmenu[aria-label="Group by"]', rules, "AP3 (ruling 21-11 13:10): the dead 240 rule for Group by is gone; #viewMenuList (224) is the one value")
         for sel, body in rules.items():
             if sel.startswith(".ddmenu") and "min-width" in body and "#viewMenuList" not in sel and "aria-label^=" not in sel:
                 self.assertIn(re.search(r"min-width: (\d+)px", body).group(1), ("200", "240"), f"a production menu width other than 200 or 240: {sel[:90]}")
@@ -196,6 +196,22 @@ class Dashboard(T.Dashboard):
 
 class Work(T.Work):
     test_peek_more_menu_icons_and_duplicate_matches_the_row_menu = test_bulk_menu_with_lines_it_cannot_offer = None
+
+    def test_group_by_menu_is_224_wide_at_1400_and_900(self):
+        """AP3 (ruling 21-11 13:10): the open Group by menu (#viewMenuList) measures 224 wide at 1400 and at 900, light and dark."""
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for w, th in T.LOOKS:
+                d.look(w, th)
+                d.button("#viewMenu", "view menu")
+                d.frames()
+                d.js("document.querySelector('#viewMenu').click()")
+                d.until("(b => !!b && b.getBoundingClientRect().width > 0 && b.getAnimations({subtree: true}).every(a => a.playState === 'finished'))(document.querySelector('#viewMenuList'))", f"the Group by menu is open and still at {w} {th}")
+                got = d.js("document.querySelector('#viewMenuList').getBoundingClientRect().width")
+                self.assertEqual(round(got), 224, f"the Group by menu is {got}px wide at {w} {th}")
+                d.key("Escape", "Escape", 27)
+                d.gone("#viewMenuList", "Group by")
 
 
 class Gantt(T.Gantt):
