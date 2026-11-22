@@ -1,6 +1,7 @@
 """Row 1351 (mock-up A8): the order of the cards on the ask clark page and of its tabs, in a real browser at 1400 and 900.
 
 Run: python3 dev/run_tests.py test_ask_order_1351
+Served in Classic (the Slash, Safety and Usage cards are Classic only).
 The project's tab: Asking in <project>; Used from All projects; Connectors in <project>; Source folders for <project>; Standing instructions.
 The All projects tab: the model card, the other connectors, the standing instructions, then the source folders. The tabs: All projects first,
 the open project second and shown. Chrome is required."""
@@ -15,7 +16,7 @@ from test_ask_settings import make_db, service
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
-from clark import page
+from clark import page, theme
 
 WIDTHS = (1400, 900)
 HEADS = "[...document.querySelectorAll('#ask-tabs ~ section.frame.setting > h2')].map(h => h.textContent)"
@@ -23,7 +24,7 @@ HEADS = "[...document.querySelectorAll('#ask-tabs ~ section.frame.setting > h2')
 
 class Order(unittest.TestCase):
     def setUp(self):
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme.CLASSIC))
         self.addCleanup(self.s.close)
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, d, True)
@@ -41,7 +42,7 @@ class Order(unittest.TestCase):
                 self.assertEqual(js("[...document.querySelectorAll('[data-ask-tab]')].map(b => b.innerText)"), ["All projects", "ABC"])
                 self.assertEqual(js("[...document.querySelectorAll('[data-ask-tab]')].map(b => b.getAttribute('aria-current'))"), [None, "true"])
                 got = js(HEADS)
-                order = [got.index(h) for h in ("Asking in ABC", "Used from All projects", "Connectors in ABC", "Source folders for ABC", "Standing instructions")]
+                order = [got.index(h) for h in ("Asking in ABC", "Used from All projects", "Connectors in ABC", "Source folders for ABC", "Standing instructions", "Slash commands in ABC")]
                 self.assertEqual(order, sorted(order), f"project tab order at {w}: {got}")
                 self.assertTrue(js("document.querySelector('#ask-used-all [data-ask-goall]').offsetHeight > 0"), "the Change link is on show")
                 # Tab from the first card's switch walks forward through the cards in the page order
@@ -69,6 +70,36 @@ class Order(unittest.TestCase):
                 self.assertTrue(js("document.querySelector('#ai-settings').compareDocumentPosition(document.querySelector('#ask-connectors')) & 4"), "model card before connectors")
                 self.assertTrue(js("document.querySelector('#ask-connectors').compareDocumentPosition(document.querySelector('#ask-instructions-all-card')) & 4"), "connectors before the standing instructions")
                 self.assertTrue(js("document.querySelector('#ask-instructions-all-card').compareDocumentPosition(document.querySelector('#ask-all-folders')) & 4"), "instructions before the source folders")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-safety') && !!document.querySelector('#ask-usage-all')"), 20), f"safety and usage cards at {w}")
+                got = js(HEADS)
+                names = ["Slash commands for all projects", "Source folders for all projects", "Changes and safety"]
+                idx = [got.index(h) for h in names]
+                self.assertEqual(idx, sorted(idx), f"all tab order, slash to safety at {w}: {got}")
+                self.assertTrue(js("document.querySelector('#ask-all-folders').compareDocumentPosition(document.querySelector('#ask-safety')) & 4"), "source folders before changes and safety")
+                self.assertTrue(js("document.querySelector('#ask-safety').compareDocumentPosition(document.querySelector('#ask-usage-all')) & 4"), "changes and safety before usage")
+                self.assertEqual(js("[...document.querySelectorAll('#ask-tabs ~ section.frame.setting')].pop().id"), "ask-usage-all", f"usage is the last card at {w}")
+
+
+class SourceOrder(unittest.TestCase):
+    """The same order read from the source (no Chrome): the All projects tab ends Slash commands, Source folders, Changes and safety, Usage LAST;
+    the project tab has Slash commands after the Standing instructions."""
+
+    SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text(encoding="utf-8")
+
+    def body(self, name):
+        start = self.SRC.index(f"function {name}()")
+        return self.SRC[start:self.SRC.index("\n}\n", start)]
+
+    def test_all_tab_slash_folders_safety_usage_last(self):
+        b = self.body("AllProjects")
+        order = [b.index(t) for t in ("<SlashList", "<AllFolders", "<Safety", "<UsageAll")]
+        self.assertEqual(order, sorted(order))
+        self.assertEqual(b.count("<UsageAll"), 1)
+        self.assertNotIn("/>", b.split("<UsageAll")[1].split("</>")[0].split("/>", 1)[1] if "/>" in b.split("<UsageAll")[1] else "", "no card after Usage")
+
+    def test_project_tab_slash_after_standing_instructions(self):
+        b = self.body("ProjectTab") if "function ProjectTab()" in self.SRC else self.SRC
+        self.assertLess(b.index("<OwnInstructions"), b.index('<SlashList scope="project"'))
 
 
 if __name__ == "__main__":

@@ -303,8 +303,8 @@ function AllProjects() {
     {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
     {classicTheme() ? <ChatsAll /> : null}
-    {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
+    {classicTheme() ? <UsageAll /> : null}
     </>
   );
 }
