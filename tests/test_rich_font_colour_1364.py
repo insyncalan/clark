@@ -29,7 +29,7 @@ sys.path.insert(0, str(rp.TOOLS))
 
 NAMES = ["Grey", "Brand", "Red", "Amber", "Green", "Blue"]
 TOKEN = {"grey": "text-muted", "brand": "brand-blue", "red": "tone-red-text", "amber": "tone-amber-text", "green": "tone-green-text", "blue": "tone-blue-text"}
-RULES = ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
+RULES = ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css"
 TEXT = "<p>Some words to pick from</p>"
 THEME_CSS = themes.css(themes.CLASSIC)
 
