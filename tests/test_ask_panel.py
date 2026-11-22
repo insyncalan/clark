@@ -40,6 +40,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.late = False                        # row 1293 line 7: an answer that still comes back after Stop
         self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
@@ -58,7 +59,7 @@ class Stub:
     def ask(self, body):
         self.calls.append(("ask", body))
         self.hold.wait(30)
-        if self.stopped:
+        if self.stopped and not self.late:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
 
@@ -125,6 +126,21 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("document.querySelector('#ask-panel') === null", "closed by escape")
             p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", "focus returned after escape")
+
+    def test_ctrl_j_and_cmd_j_open_it_and_press_again_closes_it(self):
+        """Row 1292 rule 2: Ctrl or Cmd + J opens the panel and the same key closes it; the key held down does not flip it again."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for mod in ("ctrlKey", "metaKey"):
+                send = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', %s: true, bubbles: true, cancelable: true, repeat: %%s}))" % mod
+                p.js(send % "false")
+                p.until("!!document.querySelector('#ask-panel')", "opened by " + mod)
+                p.js(send % "true")
+                time.sleep(0.4)
+                self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "a held key is not a second press")
+                p.js(send % "false")
+                p.until("document.querySelector('#ask-panel') === null", "closed by " + mod)
 
     def test_focus_that_moved_on_after_it_closed_stays_where_it_went(self):
         """Putting focus back waits a moment; if a peek or another control took focus in that moment, it is not pulled away."""
@@ -374,6 +390,23 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_an_answer_that_comes_after_stop_is_not_shown(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)      # 1400 px
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "the panel is open and ready")
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the question stayed and the stopped line followed")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-answer').length"), 0, "no answer is drawn")
+            self.assertNotIn("The pilot goes live in March.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertIn("Stopped. Nothing was changed.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
 
     def test_stop_pressed_puts_focus_back_in_the_question_box(self):
         self.stub.hold.clear()

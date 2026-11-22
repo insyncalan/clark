@@ -24,6 +24,7 @@ SYSTEM_MODULES = {"subprocess", "ctypes"}
 SYSTEM_CALLS = {("os", "startfile"), ("os", "system"), ("os", "popen")}
 SYSTEM_TEXT = ("osascript", "~/Library", "Library/Application Support")
 TEXT_CALLS = {"open", "read_text", "write_text"}
+ZIP_NAMES = {"z", "zf"}     # ZipFile.open takes no encoding and returns bytes
 NOT_TEXT_FILES = {"os", "tarfile", "zipfile", "gzip", "bz2", "lzma", "webbrowser"}     # their open() isn't text-mode open()
 
 
@@ -82,7 +83,7 @@ def problems(source, rel, encoding_only=False):
             func = node.func
             name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
             if name not in TEXT_CALLS or (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)
-                                          and func.value.id in NOT_TEXT_FILES):
+                                          and (func.value.id in NOT_TEXT_FILES or func.value.id in ZIP_NAMES)):
                 continue                                       # os.open takes flags, tarfile.open a tar mode
             if name == "open" and "b" in _mode(node):
                 continue
