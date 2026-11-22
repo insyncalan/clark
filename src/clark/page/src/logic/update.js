@@ -91,7 +91,7 @@ export function fetchView(s) {
 }
 
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
-  files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
+  files: "Show the files", undo: "Undo update", undoShown: "Undo", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
 
 // {status, body} → one sentence. Status 0 is no answer; 403 is a page from before clark was restarted.
 export function answerWords(status, body) {

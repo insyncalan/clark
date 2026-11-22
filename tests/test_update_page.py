@@ -446,6 +446,23 @@ class Rows(InBrowser):
         self.assertTrue(self.val(f"document.querySelector({lit(lower)}).getBoundingClientRect().top >= "
                                  f"document.querySelector({lit(upper)}).getBoundingClientRect().bottom - 1"), f"{lower} is under {upper}")
 
+    def each_row(self, status):
+        for width in WIDTHS:
+            with self.subTest(width=width):
+                self.load(width=width)
+                self.replies(status=OK(status))
+                self.mount()
+                yield width
+
+    def test_the_file_row_is_titled_use_a_file_instead(self):
+        for _ in self.each_row({**STATUS, "available": {"version": "0.3.1", "label": "Review 0.3.1"}, "last": None}):
+            self.assertEqual("Use a file instead", self.text("#update-file-l"))
+            self.assertEqual("For a computer with no internet. Review a clark download you already have.", self.text("#update-file-hint"))
+            self.assertEqual(["Review", "Choose zip…"], self.val("[...document.querySelectorAll('#update-file button')].map(b => b.textContent)"))
+            self.assertFalse(self.present("#update-row [data-review]"))
+        for _ in self.each_row({**STATUS, "available": None, "line": None, "last": None}):
+            self.assertEqual(["Choose zip…"], self.val("[...document.querySelectorAll('#update-file button')].map(b => b.textContent)"))
+
     def test_row_58_each_row_has_its_label_at_the_left_and_a_hint_line_under_its_control(self):
         for _ in self.each({**STATUS, "last": LAST}):
             self.assertEqual(self.val("[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"),

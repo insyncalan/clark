@@ -243,7 +243,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
                     <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-describedby="update-armed" aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
                       {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
                   </div>
-                ) : <div class="row"><button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undo}</button></div>}
+                ) : <div class="row"><button type="button" class="btn" data-undo aria-label={L.LABELS.undo} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undoShown}</button></div>}
               </div>
             </>
           ) : null}

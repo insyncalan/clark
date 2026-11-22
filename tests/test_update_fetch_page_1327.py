@@ -9,6 +9,10 @@ from test_update_page import CONTRAST, OK, REVIEW, STATUS, InBrowser, lit
 
 BASE = {**STATUS, "available": None, "line": None, "last": None}
 AVAIL = {"state": "avail", "version": "0.3.2", "notes": "Faster Dashboard.", "checked": "19-11-2026 11:42", "date": "18-11-2026", "size": "38 MB"}
+LABELS = "[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"
+QUIET = "The newest version is looked up quietly when you open this card and when you choose Check now. It never installs by itself."
+FAILED = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
+OFFLINE = "clark could not reach the releases page. Check your connection, or use a file you downloaded."
 READY = {"state": "ready", "version": "0.3.2", "review_id": "r9", "review": {**REVIEW, "added": {"label": "Added", "names": ["a", "b"]},
          "replaced": {"label": "Replaced", "names": ["c"]}, "removed": {"label": "Removed", "names": []}}}
 
@@ -63,6 +67,69 @@ class Fetch(InBrowser):
         self.assertEqual(self.val("T.calls.filter(c => c[0] === 'install')"), [["install", "r9"]])
         self.assertEqual(1, self.val("T.reloads"))
 
+    def each(self, status):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.load(width=width)
+                self.replies(status=OK(status))
+                self.mount()
+                yield width
+
+    def today(self):
+        return self.val("T.logic.dayText(new Date())")
+
+    def test_the_ready_card_line_reads_released_date_and_size(self):
+        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}):
+            self.assertEqual("Released 18-11-2026 · 38 MB.", self.text("#update-released"))
+            self.assertEqual("Your projects, settings and published reports are kept.", self.text("#update-kept"))
+            self.assertIn("Faster.", self.text("#update-notes"))
+            self.assertEqual(["Installed", "Update", "Last checked", "Use a file instead"], self.val(LABELS))
+            self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"))
+
+
+    def test_the_ready_card_line_without_a_size_has_no_mb(self):
+        for _ in self.each({**BASE, "latest": {**AVAIL, "size": ""}, "fetch": {"state": "idle"}}):
+            self.assertEqual("Released 18-11-2026.", self.text("#update-released"))
+        for _ in self.each({**BASE, "latest": {**AVAIL, "date": ""}, "fetch": {"state": "idle"}}):
+            self.assertFalse(self.present("#update-released"))
+        for _ in self.each({**BASE, "latest": {**AVAIL, "size": ""}, "fetch": {"state": "idle"}}):
+            self.assertNotIn("MB", self.text("#update-released"))
+            self.assertNotIn("unknown", self.text("#update-released"))
+
+
+    def test_the_last_checked_row_today_older_and_not_checked_yet(self):
+        for _ in self.each({**BASE, "latest": {**AVAIL, "checked": f"{self.today()} 11:42"}, "fetch": {"state": "idle"}}):
+            self.assertEqual("Today 11:42. " + QUIET, self.text("#update-checked p"))
+            self.assertEqual("Check now", self.text("#update-checked [data-check]"))
+            self.assertFalse(self.present("#update-row [data-check]"), "the button is in its own row")
+        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}):
+            self.assertEqual("19-11-2026 11:42. " + QUIET, self.text("#update-checked p"))
+        for _ in self.each({**BASE, "latest": {"state": "looking"}, "fetch": {"state": "idle"}}):
+            self.assertEqual("Not checked yet.", self.text("#update-checked p"))
+            self.assertEqual("Check now", self.text("#update-checked [data-check]"))
+
+
+    def test_the_installed_row_names_the_new_version_and_offers_undo(self):
+        last = {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}
+        for _ in self.each({**BASE, "last": last}):
+            self.assertEqual("Updated to clark 0.3.1", self.text("#update-last-l"))
+            self.assertEqual("Everything was kept when clark restarted. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
+            self.assertEqual("Undo", self.text("#update-last [data-undo]"))
+            self.assertEqual("Undo update", self.val("document.querySelector('#update-last [data-undo]').getAttribute('aria-label')"))
+        for _ in self.each({**BASE, "last": {"line": "Last update: x."}}):
+            self.assertEqual("Last update", self.text("#update-last-l"))
+            self.assertEqual("x.", self.text("#update-last p"))
+
+
+    def test_the_failed_check_has_its_title_text_and_download_again(self):
+        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": FAILED}}):
+            self.assertEqual("The download failed its check", self.text("#update-row-l"))
+            self.assertEqual(FAILED, self.text("#update-line"))
+            self.assertEqual("Download again", self.text("#update-row [data-download]"))
+        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": "The check did not finish. Try again."}}):
+            self.assertEqual("Update", self.text("#update-row-l"), "only a failed check takes the failed-check title")
+
+
     def test_not_now_puts_the_download_away(self):
         self.show(AVAIL, READY, cancel=OK({"ok": True}))
         self.click("[data-fetch-cancel]")
@@ -71,13 +138,17 @@ class Fetch(InBrowser):
     def test_up_to_date_and_offline_and_failed_each_have_their_line_and_their_button(self):
         self.show({"state": "latest", "checked": "19-11-2026 11:42"}, check=OK({"ok": True}))
         self.assertEqual(self.text("#update-line"), "You have the latest version (0.3.0). Last checked 19-11-2026 11:42.")
+        self.assertEqual("Update", self.text("#update-row-l"))
         self.click("[data-check]")
         self.assertEqual(self.calls(), ["status", "check", "status"])
-        self.show({"state": "offline", "message": "Could not reach the releases page.", "checked": "x"})
-        self.assertEqual(self.text("#update-line"), "Could not reach the releases page.")
+        self.show({"state": "latest", "checked": f"{self.today()} 11:42"})
+        self.assertEqual(self.text("#update-line"), "You have the latest version (0.3.0). Last checked today 11:42.")
+        self.show({"state": "offline", "message": OFFLINE, "checked": "x"})
+        self.assertEqual(self.text("#update-line"), OFFLINE)
         self.assertEqual(self.text("[data-check]"), "Try again")
-        self.show(AVAIL, {"state": "failed", "version": "0.3.2", "message": "The download failed its check."})
-        self.assertEqual(self.text("#update-line"), "The download failed its check.")
+        self.show(AVAIL, {"state": "failed", "version": "0.3.2", "message": FAILED})
+        self.assertEqual(self.text("#update-line"), FAILED)
+        self.assertEqual(self.text("#update-row-l"), "The download failed its check")
         self.assertEqual(self.text("[data-download]"), "Download again")
 
     def test_an_older_server_with_no_newest_block_draws_the_card_as_before(self):

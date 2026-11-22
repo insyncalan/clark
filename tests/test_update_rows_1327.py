@@ -70,54 +70,12 @@ class OnThePage(InBrowser):
     def today(self):
         return self.val("T.logic.dayText(new Date())")
 
-    def test_row_1_the_ready_card_has_a_released_line_the_notes_and_what_is_kept(self):
-        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}):
-            self.assertEqual("Released 18-11-2026 · 38 MB.", self.text("#update-released"))
-            self.assertEqual("Your projects, settings and published reports are kept.", self.text("#update-kept"))
-            self.assertIn("Faster.", self.text("#update-notes"))
-            self.assertEqual(["Installed", "Update", "Last checked", "Use a file instead"], self.val(LABELS))
-            self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"))
-        for _ in self.each({**BASE, "latest": {**AVAIL, "size": ""}, "fetch": {"state": "idle"}}):
-            self.assertEqual("Released 18-11-2026.", self.text("#update-released"))
-        for _ in self.each({**BASE, "latest": {**AVAIL, "date": ""}, "fetch": {"state": "idle"}}):
-            self.assertFalse(self.present("#update-released"))
-
-    def test_row_2_last_checked_row_holds_the_sentence_and_the_check_now_button(self):
-        for _ in self.each({**BASE, "latest": {**AVAIL, "checked": f"{self.today()} 11:42"}, "fetch": {"state": "idle"}}):
-            self.assertEqual("Today 11:42. " + QUIET, self.text("#update-checked p"))
-            self.assertEqual("Check now", self.text("#update-checked [data-check]"))
-            self.assertFalse(self.present("#update-row [data-check]"), "the button is in its own row")
-        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}):
-            self.assertEqual("19-11-2026 11:42. " + QUIET, self.text("#update-checked p"))
-        for _ in self.each({**BASE, "latest": {"state": "looking"}, "fetch": {"state": "idle"}}):
-            self.assertEqual("Not checked yet.", self.text("#update-checked p"))
-            self.assertEqual("Check now", self.text("#update-checked [data-check]"))
-
     def test_row_2_check_now_in_the_row_asks_the_server_to_look(self):
         self.load()
         self.replies(status=OK({**BASE, "latest": AVAIL, "fetch": {"state": "idle"}}), check=OK({"ok": True}))
         self.mount()
         self.click("#update-checked [data-check]")
         self.assertEqual(["status", "check", "status"], self.calls())
-
-    def test_row_3_use_a_file_instead_row_has_its_text_review_and_choose_zip(self):
-        for _ in self.each({**BASE, "available": {"version": "0.3.1", "label": "Review 0.3.1"}}):
-            self.assertEqual("Use a file instead", self.text("#update-file-l"))
-            self.assertEqual("For a computer with no internet. Review a clark download you already have.", self.text("#update-file-hint"))
-            self.assertEqual(["Review", "Choose zip…"], self.val("[...document.querySelectorAll('#update-file button')].map(b => b.textContent)"))
-            self.assertFalse(self.present("#update-row [data-review]"))
-        for _ in self.each({**BASE}):
-            self.assertEqual(["Choose zip…"], self.val("[...document.querySelectorAll('#update-file button')].map(b => b.textContent)"))
-
-    def test_row_4_the_installed_row_has_its_title_text_and_undo(self):
-        last = {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}
-        for _ in self.each({**BASE, "last": last}):
-            self.assertEqual("Updated to clark 0.3.1", self.text("#update-last-l"))
-            self.assertEqual("Everything was kept when clark restarted. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
-            self.assertEqual("Undo update", self.text("#update-last [data-undo]"))
-        for _ in self.each({**BASE, "last": {"line": "Last update: x."}}):
-            self.assertEqual("Last update", self.text("#update-last-l"))
-            self.assertEqual("x.", self.text("#update-last p"))
 
     def test_row_5_the_update_row_says_the_latest_sentence_with_the_day_word(self):
         for _ in self.each({**BASE, "latest": {"state": "latest", "checked": f"{self.today()} 11:42"}, "fetch": {"state": "idle"}}):
@@ -136,14 +94,6 @@ class OnThePage(InBrowser):
             self.assertEqual(OFFLINE, self.text("#update-line"))
             self.assertEqual("Try again", self.text("#update-row [data-check]"))
             self.assertFalse(self.present("#update-checked"))
-
-    def test_row_8_a_failed_check_has_its_title_text_and_download_again(self):
-        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": FAILED}}):
-            self.assertEqual("The download failed its check", self.text("#update-row-l"))
-            self.assertEqual(FAILED, self.text("#update-line"))
-            self.assertEqual("Download again", self.text("#update-row [data-download]"))
-        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": "The check did not finish. Try again."}}):
-            self.assertEqual("Update", self.text("#update-row-l"), "only a failed check takes the failed-check title")
 
     def test_a_server_that_does_not_look_online_shows_neither_new_row(self):
         for _ in self.each({**BASE}):
