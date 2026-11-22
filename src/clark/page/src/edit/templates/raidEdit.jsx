@@ -87,7 +87,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
       <li class="rce-card" key={i} data-slot={i}>
         <label class="rce-f"><span>{`Card ${i + 1}`}</span>
           <select aria-label={`Card ${i + 1} item`} value={card ? card.id : ""} onChange={choose}>
-            <option value="">{card ? "No item (remove this card)" : "Choose an item…"}</option>
+            <option value="">{card ? `Remove card ${i + 1}` : "Choose an item…"}</option>
             {missing ? <option value={card.id}>{`${card.id}: not in the record any more`}</option> : null}
             {options(card && card.id)}
           </select></label>
