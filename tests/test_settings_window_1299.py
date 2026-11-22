@@ -3,8 +3,8 @@
 
 These four tests carry the names the ticket gives its DoD3 to DoD6. They measure the computed style, one thing each; the longer W4 tests of
 test_settings_window_1299b stay as they are.
-What is NOT pinned here, open for the ruling (ticket Open question 4 and 1): the tile is 24px by ruling of PR 1948 and the mock-up
-(FINAL-settings-A7.html:13 .ti) draws 26px; the mock-up row (padding 5px 8px, radius 9px) is not built, the row is as shell.css draws it; the tile fill is
+Pinned: the tile is 26px, radius 7px, glyph 16px (mock-up FINAL-settings-A7.html:13 .ti; ruling, ticket AP5 and DoD5). NOT pinned, open (ticket Open question 1):
+the mock-up row (padding 5px 8px, radius 9px) is not built, the row is as shell.css draws it; the tile fill is
 per group today and the ticket asks per page (colour values not given).
 Widths 1400 and 900 only. Chrome is required: these tests fail, never skip, without it.
 """
@@ -73,8 +73,8 @@ class WindowDoD(Base):
                            " mid: Math.abs((tb.top + tb.bottom) / 2 - (bb.top + bb.bottom) / 2)}; })")
                 self.assertEqual(len(got), len(PAGES))
                 for g in got:
-                    self.assertEqual((g["w"], g["h"]), (24, 24), g["name"] + ": the tile is 24px by 24px (PR 1948 ruling; the mock-up's 26px is open, ticket Open question 4)")
-                    self.assertEqual(g["radius"], "6px", g["name"] + ": tile corners")
+                    self.assertEqual((g["w"], g["h"]), (26, 26), g["name"] + ": the tile is 26px by 26px (mock-up FINAL-settings-A7.html:13 .ti, ticket AP5 and DoD5)")
+                    self.assertEqual(g["radius"], "7px", g["name"] + ": tile corners")
                     self.assertEqual(g["glyph"], [16, 16], g["name"] + ": glyph 16px, as the mock-up's .ti svg")
                     self.assertTrue(g["inside"], g["name"] + ": the tile sits inside its row")
                     self.assertLess(g["mid"], 1, g["name"] + ": the tile is centred in the row")
