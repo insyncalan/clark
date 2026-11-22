@@ -86,7 +86,7 @@ class Pure(unittest.TestCase):
         src = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")
         self.assertIn("`${cards.length} of ${size} picked`", src)
         self.assertIn("`Remove card ${i + 1}`", src)
-        self.assertIn("{card ? `Remove card ${i + 1}` : \"Choose an item…\"}", src)       # Romanoff: the empty choice of a filled card says Remove card N
+        self.assertIn("{card ? `Remove card ${i + 1}` : \"Choose an item…\"}", src)       # row 1270: the empty choice of a filled card says Remove card N
         self.assertNotIn("No item (remove this card)", src)
 
     def test_the_library_card_sketch_is_three_columns_with_three_edges(self):
