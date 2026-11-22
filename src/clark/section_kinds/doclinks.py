@@ -143,6 +143,36 @@ def allowed_type(name):
     return name
 
 
+# The first bytes a file of each ending starts with (ruling 21-11 on row 1194: the first bytes must match the ending).
+_OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"                           # Word, Excel and PowerPoint before 2007
+_ZIP = (b"PK\x03\x04", b"PK\x05\x06")                                     # Word, Excel and PowerPoint from 2007 are zip containers
+_STARTS = {"pdf": (b"%PDF-",), "doc": (_OLE,), "xls": (_OLE,), "ppt": (_OLE,), "docx": _ZIP, "xlsx": _ZIP, "pptx": _ZIP,
+           "jpg": (b"\xff\xd8\xff",), "jpeg": (b"\xff\xd8\xff",), "png": (b"\x89PNG\r\n\x1a\n",)}
+_TEXT_BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff")
+HEAD_BYTES = 512
+
+
+def matches_ending(name, head):
+    """True when `head` (the file's first bytes) fits the ending of `name`: the signature of a PDF, Word, Excel, PowerPoint, JPG
+    or PNG file; CSV and TXT are plain text (no zero byte in the first HEAD_BYTES, unless it starts with a byte-order mark)."""
+    ending = str(name).rpartition(".")[2].lower()
+    head = bytes(head)[:HEAD_BYTES]
+    if ending in _STARTS:
+        return head.startswith(_STARTS[ending])
+    if ending in ("csv", "txt"):
+        return head.startswith(_TEXT_BOMS) or b"\x00" not in head
+    return False
+
+
+def allowed_content(name, head):
+    """`name` when allowed_type(name) holds and `head` matches its ending; else Bad with the bad_type sentence (the one the
+    file window and the drop both use). Documents and links only."""
+    allowed_type(name)
+    if not matches_ending(name, head):
+        raise Bad(bad_type(name))
+    return name
+
+
 def file_entry(value):
     """{name, rel, bytes}, the address always "Report files/<name>". Else Bad."""
     value = fields(value, ("name", "rel", "bytes"), ("name", "rel", "bytes"))

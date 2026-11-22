@@ -107,6 +107,17 @@ class Checker(unittest.TestCase):
             doclinks.add_file(None, {"name": "a.zip", "rel": "Report files/a.zip", "bytes": 1})
         self.assertEqual(str(e.exception), doclinks.bad_type("a.zip"))
 
+    def test_the_first_bytes_must_match_the_ending(self):
+        """Row 1194 (ruling 21-11): one function, doclinks.allowed_content, for the file window and the drop; the refusal is bad_type."""
+        ok = doclinks.allowed_content
+        self.assertEqual(ok("a.pdf", b"%PDF-1.4"), "a.pdf")
+        self.assertEqual(ok("A.DOCX", b"PK\x03\x04"), "A.DOCX")
+        self.assertEqual(ok("a.txt", "words".encode()), "a.txt")
+        for name, head in (("a.pdf", b"PK\x03\x04"), ("a.png", b"%PDF-"), ("a.doc", b"PK\x03\x04"), ("a.csv", b"a\x00b"), ("a.pdf", b""), ("a.zip", b"PK\x03\x04")):
+            with self.subTest(name=name, head=head), self.assertRaises(section_bodies.Bad) as e:
+                ok(name, head)
+            self.assertEqual(str(e.exception), doclinks.bad_type(name))
+
     def test_a_link_needs_a_description_a_file_does_not(self):
         for label in ("", "   "):
             with self.subTest(label=label):
