@@ -3,6 +3,7 @@ Row 1185: the Latest update box on a risk, an issue and a milestone peek in a re
 milestone Latest update in the published file, and the few source checks that remain (the box itself is covered in test_peek_latest). Run: python3 dev/run_tests.py test_peek_latest_1185
 """
 import json
+import re
 import sys
 import unittest
 
@@ -178,6 +179,39 @@ class DashPeek(unittest.TestCase):
                 self.assertRegex(cdp.js(f"document.querySelector({sel}).textContent.trim()", sid), want)
                 self.assertEqual(cdp.js(f"document.querySelector({sel} + ' b').textContent", sid), "Created")
                 self.assertGreaterEqual(int(cdp.js(f"getComputedStyle(document.querySelector({sel} + ' b')).fontWeight", sid)), 600)
+
+    def test_in_dark_and_auto_the_created_line_is_readable_on_the_dark_box(self):
+        """Row 1470: in the dark theme and in the auto theme with the system on dark, the unfocused Latest update box has the dark ground (rules-2.css) and the Created line's colour is not the ground's (contrast at least 3 to 1)."""
+        def lum(c):
+            f = lambda v: (v / 255 / 12.92) if v / 255 <= 0.03928 else (((v / 255) + 0.055) / 1.055) ** 2.4
+            return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+
+        def rgb(text):
+            nums = [float(n) for n in re.findall(r"[\d.]+", text)]
+            return nums[:3]
+        seen = []
+        for width in (1400, 900):
+            if width == 900 and test_server.PAUSED_900:
+                self.paused = True                         # the 1400 half ran
+                continue
+            for theme in ("dark", "auto"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, "TUL-007", edit=False, dash="view", classic=True, dark=(theme == "dark"))
+                    if theme == "auto":
+                        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]}, sid)
+                        cdp.js("document.documentElement.dataset.theme = 'auto'", sid)
+                    self.assertTrue(wait(lambda: (cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)).startswith("Created ")))
+                    r = cdp.js("(() => { const b = document.querySelector('#peek [data-pk-lbox]'), e = document.querySelector(" + json.dumps(self.SHOWN) + "), c = getComputedStyle(b);"
+                               " return { focused: b.matches(':focus-within'), bg: c.backgroundColor, bc: c.borderTopColor, fg: getComputedStyle(e).color }; })()", sid)
+                    self.assertFalse(r["focused"], "the box is not focused")
+                    self.assertEqual((r["bg"], r["bc"]), ("rgb(25, 36, 64)", "rgb(37, 50, 77)"), r)
+                    self.assertNotEqual(r["fg"], r["bg"], "the Created line is not drawn in the box's own colour")
+                    a, b = sorted((lum(rgb(r["fg"])), lum(rgb(r["bg"]))), reverse=True)
+                    ratio = (a + 0.05) / (b + 0.05)
+                    seen.append((width, theme, r["fg"], r["bg"], round(ratio, 2)))
+                    self.assertGreaterEqual(ratio, 3, r)
+        if getattr(self, "paused", False):
+            raise unittest.SkipTest(test_server.PAUSED_900)
 
     def test_old_item_history_carries_user_and_source_1470(self):
         """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; one with both shows them."""
