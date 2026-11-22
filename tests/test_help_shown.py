@@ -139,7 +139,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 35, 35))   # row 1193 added the three starting lists task; v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 34, 35))   # row 1193 added the three starting lists task; v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 def lacks(code, name):

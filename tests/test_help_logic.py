@@ -128,7 +128,7 @@ class Logic(unittest.TestCase):
     def test_reference_lists_every_section_under_its_group(self):
         lst = self.r["lists"]["reference"]
         self.assertEqual([g["group"] for g in lst], CONTENT["reference"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 35)   # item 1158 took out Needs from you; was 36 with the People entry (#454) and the Feedback entry (#1069)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 34)   # row 1485 took out the Feedback entry again; item 1158 took out Needs from you; was 36 with the People entry (#454) and the Feedback entry (#1069)
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
@@ -171,7 +171,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 38 + 35 + 10)   # row 1193 added the three starting lists task; with the People entries (#454), the AI card task (#446) and the ten guides (#642 guides A, B and C)
+        self.assertEqual(len(p), 7 + 38 + 34 + 10)   # row 1193 added the three starting lists task; with the People entries (#454), the AI card task (#446) and the ten guides (#642 guides A, B and C)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
