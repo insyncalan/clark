@@ -61,7 +61,7 @@ OFF = """(() => {
 
 
 class Row1315Off(Base, unittest.TestCase):
-    def test_off_state_text_is_grey_700_on_all_five_buttons(self):      # Row 1315 AP9 (ruling Jarvis WO-M13853 22-11): grey-500 as text is only 3.13 to 1, grey-700 is 7.41 to 1 in light
+    def test_off_state_text_is_grey_700_on_all_five_buttons(self):      # Row 1315 AP9: grey-500 as text is only 3.13 to 1, grey-700 is 7.41 to 1 in light
         for cdp, sid, w in self.every():
             time.sleep(0.8)      # the colour transition after the theme switch has finished
             g = cdp.js(OFF, sid)
