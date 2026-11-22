@@ -12,7 +12,7 @@ from clark import updater as up
 BASE = {**STATUS, "available": None, "line": None, "last": None}
 AVAIL = {"state": "avail", "version": "0.3.2", "notes": "Faster.", "checked": "19-11-2026 11:42", "date": "18-11-2026", "size": "38 MB"}
 LABELS = "[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"
-QUIET = "The newest version is looked up quietly when you open this card and when you choose Check now. It never installs by itself."
+QUIET = "clark looks quietly when it starts and when you choose Check now. It never installs by itself."
 OFFLINE = "clark could not reach the releases page. Check your connection, or use a file you downloaded."
 FAILED = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
 
@@ -44,7 +44,7 @@ class Words(InBrowser):
     def test_the_approved_titles_and_sentences(self):
         self.assertEqual(["Last checked", "Not checked yet", "Use a file instead", "Updated to clark 1.3.2", "The download failed its check", "Review",
                           "For a computer with no internet. Review a clark download you already have.",
-                          "Everything was kept when clark restarted. If something looks wrong you can go back to 1.3.1.", FAILED],
+                          "clark restarted and kept everything. If something looks wrong you can go back to 1.3.1.", FAILED],
                          [self.val("T.logic.ROWS.checked"), self.val("T.logic.ROWS.notChecked"), self.val("T.logic.ROWS.file"),
                           self.val("T.logic.updatedTo('1.3.2')"), self.val("T.logic.FAILED_TITLE"), self.val("T.logic.REVIEW_LABEL"),
                           self.val("T.logic.FILE_TEXT"), self.val("T.logic.installedText('1.3.1')"), self.val("T.logic.FAILED_TEXT")])
@@ -113,7 +113,7 @@ class OnThePage(InBrowser):
         last = {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}
         for _ in self.each({**BASE, "last": last}):
             self.assertEqual("Updated to clark 0.3.1", self.text("#update-last-l"))
-            self.assertEqual("Everything was kept when clark restarted. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
+            self.assertEqual("clark restarted and kept everything. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
             self.assertEqual("Undo update", self.text("#update-last [data-undo]"))
         for _ in self.each({**BASE, "last": {"line": "Last update: x."}}):
             self.assertEqual("Last update", self.text("#update-last-l"))
