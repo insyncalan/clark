@@ -308,7 +308,7 @@ class Workflow(unittest.TestCase):
         self.assertIn(".github/*) FULL=1 ;;", plan)
 
     def test_a_pull_request_never_requires_the_macos_shards_but_main_does(self):
-        """Alan 22-11 (17:58): the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check); the full macOS suite stays
+        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check); the full macOS suite stays
         required on a push to main and on the nightly."""
         plan = self.jobs["plan"]
         pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]
