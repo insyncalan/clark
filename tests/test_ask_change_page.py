@@ -161,7 +161,7 @@ class TheCard(Card):
             self.assertEqual(self.store.read("use_cases", ref=uc)["status"], "On track")
 
     def test_a_change_from_your_files_needs_the_box_and_enter_alone_never_applies(self):
-        self.says(self.close_it(), "CITE: P5", files=(FILE,))
+        self.says(self.close_it(), "CITE: P6", files=(FILE,))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)
@@ -532,7 +532,7 @@ class TheCard(Card):
 
     def test_markup_in_a_passage_is_inert_text(self):
         planted = ask.Passage("notes/x.md", '<img src=x onerror="window.__pwn=1"><b>bold</b>')
-        self.says(self.close_it(), "CITE: P5", files=(planted,))
+        self.says(self.close_it(), "CITE: P6", files=(planted,))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)
@@ -542,7 +542,7 @@ class TheCard(Card):
             self.assertEqual(p.js("typeof window.__pwn"), "undefined")
 
     def test_laptop_widths_light_and_dark(self):
-        self.says(self.close_it(), "CITE: P5", files=(FILE,))
+        self.says(self.close_it(), "CITE: P6", files=(FILE,))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)
@@ -659,7 +659,7 @@ class CardsStayAsTheyWere(Card):
             self.check_no_stripe(p, cdp, "[data-ask-change]")
 
     def test_the_passage_has_no_one_side_stripe_and_reads(self):       # row 936
-        self.says(self.close_it(), "CITE: P5", files=(FILE,))
+        self.says(self.close_it(), "CITE: P6", files=(FILE,))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)

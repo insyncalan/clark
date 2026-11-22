@@ -228,7 +228,9 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
-    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const came = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const late = came && stopped.current;      // row 1293 line 7: Stop was pressed and an answer still came back: it is not shown, the stopped line is
+    const answered = came && !late;
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
       if (att && att.length) setFiles((now) => (now.length ? now : att));
@@ -256,7 +258,7 @@ export function AskPanel() {
     } else if (r.status === 0) {
       turns.value = [...turns.value, { role: "assistant", text: W.NOT_REACHED_LINE, kind: "problem" }];
     } else {
-      const m = r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
+      const m = late ? W.STOPPED_LINE : r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
       turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
     }
     if (epoch !== chatEpoch.value || !queue.value.length) return;
