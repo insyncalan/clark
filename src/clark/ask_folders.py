@@ -12,14 +12,14 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform, reach
+from clark import ask_exclude, platform, reach, sensitive_names
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 PATH_LIMIT = 1000
 MAX_FOLDERS = 20
 SHARED_FILE = "ask_folders_all.json"      # row 1294: the folders for all projects, kept beside the data (a list of full paths, in the order they were added)
-ACTIONS = ("add", "remove", "undo", "choose")
+ACTIONS = ("add", "remove", "undo", "choose", "exclude")
 PICK_PROMPT = "Choose a folder asking may read"
 WIDE_PLACES = ("/Volumes", "/private/var", "/var", "/private/var/folders", "/private/tmp", "/tmp")   # other disks, and the system's working files (a teammate: LOW)
 
@@ -97,9 +97,27 @@ class AskFolders:
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
 
+    def warned(self, folders, left=None):
+        """Row 1365 S2: [{folder, items: [{name, readable_files, dir}]}] for each folder whose names hold a people or contract word (S1 scan, names only).
+        `left` is {folder: stored list of left-out subfolders}: those are not named. A list that cannot be read leaves the folder unscanned."""
+        out = []
+        for f in folders:
+            try:
+                gone = ask_exclude.parse((left or {}).get(f))
+            except ValueError:
+                continue
+            items = [{"name": h["name"], "readable_files": h["readable_files"], "dir": h["dir"]} for h in sensitive_names.scan(f, gone)]
+            if items:
+                out.append({"folder": f, "items": items})
+        return out
+
     def listed(self, store, code):
         rows = store.read("source_folders", code)
         return [r["path"] for r in sorted(rows, key=lambda r: (r.get("sort_order") or 0, r["path"]))]
+
+    def left_out(self, store, code):
+        """{saved folder: stored list of left-out subfolders} (row 1365)."""
+        return {r["path"]: r.get("excluded") for r in store.read("source_folders", code)}
 
     # ----- GET -----
     def read(self, code):
@@ -113,7 +131,8 @@ class AskFolders:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                out = {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
+                out = {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir),
+                       "warnings": self.warned(self.listed(store, code), self.left_out(store, code))}
                 if self.indexer is not None:
                     out["index"] = self.indexer.status_for(code, [*out["shared"], *out["folders"]])
                 return 200, out
@@ -135,7 +154,7 @@ class AskFolders:
             return 400, self.fail("bad_project_code")
         if action not in ACTIONS:
             return 400, self.fail("bad_action")
-        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action == "choose" else {"project", "action", "path"}
+        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action == "choose" else {"project", "action", "path"}   # exclude takes the saved folder's path, like remove
         if set(body) - allowed or (allowed - {"project", "action"}) - set(body):
             return 400, self.fail("bad_request")
         if action == "undo":
@@ -163,6 +182,8 @@ class AskFolders:
                     return self.undo(store, code, asked)
                 if action == "remove":
                     return self.remove(store, code, asked)
+                if action == "exclude":
+                    return self.exclude(store, code, asked)
                 if action == "choose":
                     return self.choose(store, code)
                 return self.add(store, code, asked)
@@ -319,7 +340,8 @@ class AskFolders:
         step = self.save(store, lambda st: st.create("source_folders", {"project": code, "path": real, "sort_order": order}))
         if step is False:
             return 409, self.fail("cant_save")
-        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step}
+        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step,
+                     "warnings": self.warned([real])}
 
     def choose(self, store, code):
         """The system's folder window, then the same checks and the same one step as an added folder. Cancelled: nothing changes."""
@@ -347,6 +369,29 @@ class AskFolders:
         if step is False:
             return 409, self.fail("cant_save")
         return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["removed"], "apply_id": step}
+
+    def exclude(self, store, code, typed):
+        """Row 1365: leave out the subfolders the name scan flagged in one saved folder (the server finds them: the page sends only the folder).
+        Each is added to the folder's list (at most ask_exclude.MAX_LEFT_OUT); a folder not in the list, or a list that cannot be read, changes nothing.
+        One store step, so one Undo. Nothing on disk is touched."""
+        now = self.listed(store, code)
+        target = typed if typed in now else os.path.realpath(typed) if typed.startswith("/") else None
+        if target not in now:
+            return 409, self.fail("not_in_list")
+        try:
+            have = ask_exclude.parse(self.left_out(store, code).get(target))
+        except ValueError:
+            return 409, self.fail("cant_save")
+        found = [h["path_rel"].replace(os.sep, "/") for h in sensitive_names.scan(target, have) if h["dir"]]
+        new = sorted(set(have) | {r for r in map(ask_exclude.clean, found) if r})
+        if new == sorted(have):
+            return 200, {"ok": True, "folders": now, "warnings": self.warned(now, self.left_out(store, code))}
+        if len(new) > ask_exclude.MAX_LEFT_OUT:
+            return 409, self.fail("cant_save")
+        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", {"excluded": ask_exclude.dump(new)}))
+        if step is False:
+            return 409, self.fail("cant_save")
+        return 200, {"ok": True, "folders": now, "apply_id": step, "warnings": self.warned(now, self.left_out(store, code))}
 
     def undo(self, store, code, step):
         rows = store.step_rows(step)
