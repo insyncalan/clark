@@ -38,6 +38,15 @@ class PublishedPage1253(unittest.TestCase):
         self.assertIn("var(--text-muted)", rule(".pp-flat .pubs-intro"))
         self.assertNotIn("var(--white)", rule(".pp-flat .pubs-intro"))
 
+    def test_classic_draws_the_where_block_then_the_reports_under_the_intro_and_the_intro_and_heading_are_spaced_and_divided(self):
+        classic = JSX[JSX.index("if (classicTheme())"):JSX.index('<div class="pp-page" id="pubs-page">')]
+        self.assertRegex(classic, r'\{L\.INTRO\}</p>\s*\{where\}\s*<PublishedReports \{\.\.\.rest\} />')
+        r = rule(".pp-flat .pubs-intro")
+        self.assertIn("margin: 0;", r)
+        self.assertIn("padding-bottom: var(--space-4);", r)
+        self.assertIn("border-bottom: 1px solid var(--grey-200)", r)
+        self.assertIn("margin: var(--space-4) 0 var(--space-2);", rule(".pp-flat h1"))
+
     def test_sections_come_in_the_order_where_saved_latest_earlier(self):
         a = JSX.index("pubs-where")
         self.assertIn("<PublishedReports", JSX[a:])
