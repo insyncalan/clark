@@ -1,8 +1,8 @@
 """Row 1272 items 2 and 4, on the real page as Chrome lays it out at 1400 px.
 
-Item 2: a half width Callout section is half the full row less the 24 px gap (the shared half column, shell.css). Measured here at 1400 in the
-Classic look: the card is 507.5 px and the callout box inside it 463.5 px (the ticket's figure of 493 is not what this page draws; reported, not
-pinned). Not proved at 900 px: the 900 px subtests are skipped (PAUSED_900), and the grid is one column there.
+Item 2: ruling (PM 22-11): 493 px is the half CARD width at 1400, border-box. The shared half column is 507.5 px (shell.css), 14.5 px over, so a
+Classic-only rule in rules-2.css holds a half section that has a Callout to 493. The test measures the CARD (the section); the box inside it (463.5
+here) is not pinned. Other templates' half cards keep the shared 507.5 (pinned below). Not proved at 900 px: the 900 px subtests are skipped (PAUSED_900), and the grid is one column there.
 Item 4: the Callout's visible Edit field edge (the category field) is --control-edge already (edit.css); the title and words edges are transparent at rest by design, so no rule is added.
 Run: TZ=Asia/Dubai python3 dev/run_tests.py test_tpl_callout_width_1272   (needs Chrome)
 Fictional data only.
@@ -40,6 +40,14 @@ class Callouts(Shared):
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             return p.js("(() => [%s, %s].map((s) => [s.className, s.getBoundingClientRect().width, s.querySelector('.tpl-callout').getBoundingClientRect().width]))()" % (SEC % json.dumps(left), SEC % json.dumps(right)))
 
+    def other_widths(self):
+        with self.store.step("dashboard", USER) as st:
+            refs = [st.create("report_sections", {"project": "ABC", "type": "text", "title": f"Fictional text {n}", "sort_order": 998 + n, "beside": beside, "body": json.dumps({"v": 1, "paras": ["Fictional words."]})}) for n, beside in enumerate((1, 0))]
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            return p.js("(() => [%s, %s].map((s) => [s.className, s.getBoundingClientRect().width]))()" % (SEC % json.dumps(refs[0]), SEC % json.dumps(refs[1])))
+
     def edge(self):
         ref = self.make_pair()[0]
         with chrome() as cdp:
@@ -51,11 +59,21 @@ class Callouts(Shared):
 
 
 class Classic(Callouts):
-    def test_a_half_callout_is_507_5_and_its_box_463_5_at_1400_and_the_pair_fills_the_row(self):
+    def test_a_half_callout_card_is_493_border_box_at_1400(self):
         got = self.widths()
         self.assertEqual([g[0] for g in got], ["sec slot-left band", "sec slot-right band"])
-        self.assertEqual([g[1:] for g in got], [[507.5, 463.5], [507.5, 463.5]])
-        self.assertEqual(507.5 * 2 + 24, 1039, "two halves and the 24 px gap are the full row")
+        self.assertEqual([g[1] for g in got], [493, 493])
+
+    def test_a_half_text_card_is_still_the_shared_507_5_at_1400(self):
+        got = self.other_widths()
+        self.assertEqual([g[0] for g in got], ["sec slot-left band", "sec slot-right band"])
+        self.assertEqual([g[1] for g in got], [507.5, 507.5])
+
+    def test_the_rule_is_scoped_to_a_section_holding_a_callout_so_other_half_cards_are_unchanged(self):
+        self.assertRegex(RULES2, r"\.sec\.slot-left:has\(\.tpl-callout\), \.sec\.slot-right:has\(\.tpl-callout\) \{ box-sizing: border-box; width: 493px; \}")
+        self.assertNotRegex(RULES2, r"\.sec\.slot-(left|right) \{[^}]*width")
+        self.assertNotIn("493", (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8"))
+        self.assertEqual(RULES.count("493px"), 0)
 
     def test_the_visible_callout_edit_field_edge_is_the_control_edge_and_the_title_edge_is_transparent_at_rest(self):
         got = self.edge()
