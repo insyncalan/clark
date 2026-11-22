@@ -278,6 +278,7 @@ class AskService:
             return 400, self.fail("refused", str(e))
         window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
         budget = ask.budget_for(window)
+        budget_left = max(0, budget - sum(len(p.text) for p in added))      # Row 1367 (#2045 CHANGES): a file added to the question keeps its room, in characters and in passages, before the project and the folders take theirs
         with self.lock:
             try:
                 store = self.reader()
@@ -290,7 +291,8 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget))
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget_left),
+                                                  limit=max(0, ask.MAX_PASSAGES - len(added)))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
@@ -300,11 +302,11 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
+            room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders):
-                found = ask_index.folder_data(self.data_dir, code, question, budget - used, ask.MAX_PASSAGES - len(data.passages))
+                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
             else:
-                found = ask_passages.folder_data(folders, self.data_dir, question, budget - used, self.home,
-                                                 ask.MAX_PASSAGES - len(data.passages))
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
