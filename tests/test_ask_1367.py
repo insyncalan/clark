@@ -44,6 +44,16 @@ class HiddenRowsAreRead(unittest.TestCase):
         self.assertNotIn("PUB-M-003", ids)
         self.assertNotIn("PUB-A-011", ids)
 
+    def test_workstreams_are_read_as_their_own_kind(self):
+        got, given = read("workstreams?")
+        hidden = plant.load()["markers"]["PUB-W-002"]
+        self.assertIn(hidden, text_of(got), "the workstream the report leaves out is read")
+        self.assertIn(hidden, "\n".join(p.text for p in got.passages if p.label == ask_data.LABELS["workstreams"]))
+        total = len([w for w in given["data"]["workstreams"] if not w.get("archived") and w.get("project", "PUB") == "PUB"])
+        self.assertIn(("workstreams", total, total), got.counts)
+        cut = ask_data.left_out_lines([("workstreams", total - 1, total)])
+        self.assertEqual(cut, [f"Sent {total - 1} of {total} workstreams (the closest to your question); 1 was left out."])
+
 
 class WhatStaysOut(unittest.TestCase):
     def test_an_archived_row_is_not_read(self):
@@ -112,6 +122,18 @@ class BudgetEdge(unittest.TestCase):
 
     def test_one_char_over_a_whole_number_adds_nothing(self):
         self.assertEqual(len(ask_data.choose(self.passages, "q", 10099)[0]), 100)
+
+    def test_a_project_over_the_share_is_cut_at_the_share_and_the_count_is_said(self):
+        whole = ask_service.PROJECT_SHARE // 100
+        many = [ask.Passage("p", "x" * 100) for _ in range(whole + 1)]        # one passage over the share
+        kept, left = ask_data.choose(many, "q", ask_service.PROJECT_SHARE)
+        self.assertEqual((len(kept), left), (whole, 1))
+        self.assertEqual(ask_data.left_out_lines([("actions", len(kept), len(many))]),
+                         [f"Sent {whole} of {whole + 1} actions (the closest to your question); 1 was left out."])
+
+    def test_exactly_the_share_is_kept_whole(self):
+        kept, left = ask_data.choose(many := [ask.Passage("p", "x" * 100) for _ in range(ask_service.PROJECT_SHARE // 100)], "q", ask_service.PROJECT_SHARE)
+        self.assertEqual((len(kept), left), (len(many), 0))
 
     def test_no_keyword_hit_keeps_path_order(self):
         kept, _ = ask_data.choose([ask.Passage("p", f"{i:03d} " + "x" * 96) for i in range(180)], "zzzz", 1000)
@@ -276,6 +298,15 @@ class NoteThroughTheRoute(route.Base):
         self.assertEqual(status, 200, only)
         self.assertFalse([n for n in only["notes"] if "too long to send in full" in n], only["notes"])
         self.assertTrue([n for n in only["notes"] if n.startswith("Left out to keep")], only["notes"])
+
+    def test_the_folders_get_what_the_project_left_of_the_whole_budget(self):
+        from clark import ask_passages
+        with mock.patch.object(ask_passages, "folder_data", wraps=ask_passages.folder_data) as spy:
+            status, got = self.question("what is late?")
+        self.assertEqual(status, 200, got)
+        budget = spy.call_args[0][3]
+        self.assertLess(budget, ask.BUDGET)                          # the project's own passages came off it
+        self.assertGreater(budget, ask_service.PROJECT_SHARE)        # and the folders may use more than the project's share of what is left
 
     def test_a_whole_project_gives_no_counts_line(self):
         status, got = self.question("what is late?")
