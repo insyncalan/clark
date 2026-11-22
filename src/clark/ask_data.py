@@ -198,10 +198,27 @@ def partial_lines(counts):
 
 def read_counts(data):
     """Row 1292: what a question read, for the line under its answer: the rows sent of each kind (work items are actions, risks and
-    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
+    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Row 1294: `items` is every row sent and
+    `left_out` every row of the project that was cut (0 when nothing was), for the line "N items read, M left out". Counts only; no row, title or text."""
     sent = {k: n for k, n, _total in data.counts}
     return {"work_items": sum(sent.get(k, 0) for k in ("actions", "raid", "decisions")), "milestones": sent.get("milestones", 0),
-            "use_cases": sent.get("use_cases", 0), "as_at": data.today}
+            "use_cases": sent.get("use_cases", 0), "as_at": data.today,
+            "items": sum(n for _k, n, _total in data.counts), "left_out": sum(max(0, total - n) for _k, n, total in data.counts)}
+
+
+# Row 1294 (rule 4): a question that asks for a count, a total or an overview. Said in plain words, whatever the case; a question that
+# only names one item is not one of these.
+_WHOLE = re.compile(r"\b(?:how\s+many|how\s+much|how\s+often|counts?|totals?|number\s+of|overviews?|summary|summaries|summari[sz]e|averages?|percents?|percentages?|per\s+cent|altogether|in\s+all|all\s+of\s+the|breakdowns?|list\s+all|list\s+every|tall(?:y|ies)|sums?|how\s+large)\b", re.I)
+
+
+def partial_answer(question, counts):
+    """The ruled sentence for an answer that covers only part of the project: "" unless something was cut (some kind sent in part) and the
+    question asks for a count, a total or an overview. The numbers are the rows read and the rows left out, as read_counts gives them."""
+    got = read_counts(ProjectData((), {}, 0, 0, "", tuple(counts or ())))
+    if got["left_out"] < 1 or not isinstance(question, str) or not _WHOLE.search(question):
+        return ""
+    n = got["items"]
+    return f"This answer is partial: it covers only the {n} {'item that was' if n == 1 else 'items that were'} read, not the {got['left_out']} that {'was' if got['left_out'] == 1 else 'were'} left out."
 
 
 def left_out_lines(counts):

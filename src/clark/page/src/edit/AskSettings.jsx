@@ -20,7 +20,8 @@ import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askF
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
-const ALL = "all", PROJECT = "project";
+export const ALL = "all";
+const PROJECT = "project";
 const ALL_LINE = "What is the same in every project. A project's own tab shows what belongs to that project.";
 const USED_FROM_ALL = "Connections and the model are yours, not this project's. They are the same in every project.";
 export const askTab = signal(PROJECT);
