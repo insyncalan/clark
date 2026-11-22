@@ -40,6 +40,17 @@ class ClassicPage(InBrowser):
                     self.assertEqual(self.val("document.querySelector('#pubs-page').firstElementChild.tagName"), "H1", "the page starts directly with its heading")
                     self.assertEqual(self.val("getComputedStyle(document.querySelector('#pubs-page'), '::before').content"), "none")
 
+    def test_the_list_page_has_no_frame_no_logo_no_as_at_button_and_no_date_of_its_own(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.load(width=width)
+                self.classic()
+                self.replies(list=OK(LIST), tab=True)
+                self.mount()
+                self.assertEqual(self.val("document.querySelectorAll('#pubs-page .frame, #pubs-page .cover, #pubs-page .logo, #pubs-page header').length"), 0, "no frame, no cover band, no second logo, no second bar")
+                self.assertEqual(self.val("document.querySelectorAll('button.asat, input[type=date]').length"), 0, "no As at date button or date box")
+                self.assertEqual(self.val("document.querySelectorAll('header.top').length"), 0, "the page itself draws no bar: the one slim bar is the shell's")
+
     def test_sections_are_flat_and_the_intro_is_readable(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):

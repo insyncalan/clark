@@ -107,6 +107,15 @@ class InTheFile(Published):
         self.assertEqual(p.js("(document.querySelector('header.top .top-line').textContent.match(/\\b\\d\\d-\\d\\d-\\d{4}\\b/g) || []).length"), 1, "the report line keeps its one date")
         self.assertEqual(p.js("document.querySelectorAll('header.top .top-line button, header.top .top-line a, header.top .top-line input').length"), 0, "plain text")
 
+    def test_one_bar_the_logo_once_no_frame_or_cover_and_no_as_at_button(self):      # row 1253
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                cdp, p = self.bar(width, False)
+                self.assertEqual(p.js("document.querySelectorAll('header.top, header.cover, #cover, .cover').length"), 1, "one bar and no cover band")
+                self.assertEqual(p.js("document.querySelectorAll('.logo').length"), 1, "the logo is drawn once")
+                self.assertEqual(p.js("document.querySelectorAll('button.asat, .asat-wrap').length"), 0, "no As at button")
+                self.assertEqual(p.js("document.querySelectorAll('header.top ~ .frame.cover, #cover.frame').length"), 0, "no frame cover")
+
     def test_no_published_chip_or_weeks_list_in_the_header(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
