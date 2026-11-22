@@ -9,6 +9,7 @@ import { project } from "../stores/report.js";
 import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds } from "../logic/tableColumns.js";
 import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
@@ -20,6 +21,10 @@ const typing = (t) => !!(t && t.closest && (t.isContentEditable || t.closest("in
 export function useColumns(table, css = false) {
   const code = project.value, [mem, setMem] = useState({}), [at, setAt] = useState(null), box = useRef(null);
   const shown = mem[code] || readChoice(table, code);
+  // Row 1499 (pick 7B): the Work items menu in the Classic look is a heading and tick lines only: the Status can be unticked, the title is always drawn and is not
+  // listed, there is no standard reset. Cards (no Classic theme) keeps the menu of row 1222 as it was, Status greyed and always shown.
+  const classic = table === "work" && classicTheme();
+  const lockedIn = (c) => c.locked || (table === "work" && !classic && c.id === "status");
   // The menu is placed under the heading it was opened from (MenuPanel); a long one is moved up, or cut and scrolled, so all of it is inside the window.
   useLayoutEffect(() => {
     const el = box.current;
@@ -48,16 +53,28 @@ export function useColumns(table, css = false) {
     set(next);
     announce.value = W.UNRULED_ANNOUNCE(label, next.includes(id));
   };
-  const menu = at ? (
+  const menu = at && classic ? (
+    <MenuPanel label={W.PANEL_HEADING} cls="cols-menu cm-7b" anchor={at} fixed="start" boxRef={box} onClose={close}>
+      <h5 class="cm-head">{W.PANEL_HEADING}</h5>
+      {defsOf(table).filter((c) => c.id !== "item").map((c) => {
+        const on = shown.includes(c.id);
+        return (
+          <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={c.label} tabIndex={-1} onClick={() => press(c.id, c.label)}>
+            <span class="tk" aria-hidden="true">{on ? "✓" : ""}</span>{c.label}
+          </button>
+        );
+      })}
+    </MenuPanel>
+  ) : at ? (
     <MenuPanel label={W.UNRULED_MENU_LABEL} cls="cols-menu" anchor={at} fixed="start" boxRef={box} onClose={close}>
       {defsOf(table).map((c) => {
         const on = shown.includes(c.id);
         return (
-          <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} aria-disabled={c.locked ? "true" : undefined} data-keep={c.locked ? "" : undefined}
-            data-col-name={c.label} tabIndex={-1} aria-describedby={c.locked ? `cols-why-${c.id}` : undefined} onClick={() => { if (!c.locked) press(c.id, c.label); }}>
+          <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} aria-disabled={lockedIn(c) ? "true" : undefined} data-keep={lockedIn(c) ? "" : undefined}
+            data-col-name={c.label} tabIndex={-1} aria-describedby={lockedIn(c) ? `cols-why-${c.id}` : undefined} onClick={() => { if (!lockedIn(c)) press(c.id, c.label); }}>
             <Icon name={columnIcon(c.id)} cls="mi" />
             <span class="ck" aria-hidden="true" data-on={css && on ? "" : undefined}>{css ? "" : on ? "✓" : ""}</span>
-            <span class="cols-name">{c.label}{c.locked && css ? " " : null}{c.locked ? <small class="cols-why" id={`cols-why-${c.id}`}>{W.UNRULED_LOCKED_REASON}</small> : null}</span>
+            <span class="cols-name">{c.label}{lockedIn(c) && css ? " " : null}{lockedIn(c) ? <small class="cols-why" id={`cols-why-${c.id}`}>{W.UNRULED_LOCKED_REASON}</small> : null}</span>
           </button>
         );
       })}
@@ -65,5 +82,6 @@ export function useColumns(table, css = false) {
       <button type="button" role="menuitem" data-cols-standard="" tabIndex={-1} onClick={() => { set(standardIds(table)); announce.value = W.UNRULED_ANNOUNCE_STANDARD; }}><Icon name={actionIcon("columnsStandard")} cls="mi" />{W.UNRULED_STANDARD}</button>
     </MenuPanel>
   ) : null;
-  return { shown: shownIds(table, shown), has: (id) => shown.includes(id), rowProps, button, menu };
+  const out = shownIds(table, shown), drawn = table === "work" && !classic && !out.includes("status") ? ["status", ...out] : out;      // Cards: the Status stays always shown, even after it was unticked in the Classic look
+  return { shown: drawn, has: (id) => shown.includes(id), rowProps, button, menu };
 }

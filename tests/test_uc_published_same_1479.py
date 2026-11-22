@@ -26,7 +26,7 @@ import sys
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from clark import __main__ as launcher, page, publish, theme, server as sv, to_client, use_cases_read  # noqa: E402
+from clark import __main__ as launcher, page, publish, server as sv, theme as themes, to_client, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, need_chrome  # noqa: E402,F401
 from test_server import chrome, wait  # noqa: E402
@@ -111,7 +111,7 @@ class OneComponent(unittest.TestCase):
             self.assertEqual(code.count(f"{prefix}-card"), 1 if prefix == "ucd" else 0, name)
             if prefix == "ucf":
                 # AP2 and AP4 by source: the file's page gives the layout no slot that draws a control, a hint, an add row, a note or the History card, and writes no control of its own
-                for slot in ("acts=", "top=", "stdHint=", "addWork=", "addMs=", "msNote=", "after="):
+                for slot in ("acts=", "top=", "stdHint=", "addWork=", "addMilestoneRow=", "msNote=", "after="):
                     self.assertNotIn(slot, code, f"{name} gives the layout a {slot} slot: a control or a History card")
                 for tag in ("<button", "<input", "<textarea", "<select", "contenteditable", "History"):
                     self.assertNotIn(tag, code, f"{name} writes {tag}")
@@ -141,7 +141,7 @@ class SamePage(unittest.TestCase):
         shutil.copytree(SRC / "clark" / "page" / "src", cls.src, ignore=shutil.ignore_patterns("shown"))
         (cls.src / "main.jsx").write_text(ENTRY, encoding="utf-8")
         with mock.patch.object(build_page, "SRC", cls.src):
-            cls.built = build_page.build()
+            cls.built = page.layer_theme(build_page.build(), themes.css("prototype-2.0"))   # row 1479: the label rule is Classic's (rules-2.css), so the page is read in Classic
 
     @classmethod
     def tearDownClass(cls):
@@ -153,7 +153,7 @@ class SamePage(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
-        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.layer_theme(self.built, theme.css("prototype-2.0")))
+        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.layer_theme(self.built, themes.css("prototype-2.0")))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
@@ -252,7 +252,7 @@ class SamePage(unittest.TestCase):
                         c = fi["howcss"]
                         self.assertEqual(c["basis"], "100%", "the label takes the whole line")
                         self.assertTrue(c["under"], "the label is under the milestone name")
-                        self.assertLessEqual(c["fs"], c["nameFs"], "the label is no larger than the name (Classic: --size-small and --size-body are both 14px)")
+                        self.assertLessEqual(c["fs"], c["nameFs"], "the label is no larger than the name (Classic: both 14)")
 
     def test_no_control_word_and_no_changing_element(self):
         gone = ("Change status", "On the dashboard", "Click the text to change it", "Add an owner", "Add a next step", "Link an existing work item", "Add a milestone", "...")

@@ -23,8 +23,8 @@ export function Crumb({ p, href, label, backRef, onBack }) {
 // props: p, u (the use case), name (its reference words), work (its work item rows), ms ([{m, how, attr?, side?}]), headRef, root (extra attributes of the page's div),
 // crumb (the Crumb element), ro (read only: no hint), title and headline (the nodes the page draws for them), sub (the status line's nodes before the counts),
 // acts (the controls beside the title), top (a note between the head and the cards), std (the Where it stands body) and stdHint, titleOfRow, noWork, noMs,
-// owner (the Owner value node, none when there is no Owner row), rows (further Details rows), addWork and addMs (the add controls), msNote, after (the cards after Milestones).
-export function UseCaseLayout({ p, u, name, work, ms, headRef, root, crumb, ro, title, headline, sub, acts, top, std, stdHint, titleOfRow, noWork, noMs, owner, rows, addWork, addMs, msNote, after }) {
+// owner (the Owner value node, none when there is no Owner row), rows (further Details rows), addWork and addMilestoneRow (the add controls), msNote, after (the cards after Milestones).
+export function UseCaseLayout({ p, u, name, work, ms, headRef, root, crumb, ro, title, headline, sub, acts, top, std, stdHint, titleOfRow, noWork, noMs, owner, rows, addWork, addMilestoneRow, msNote, after }) {
   const open = work.filter(isOpen), label = u.ref ? `Use case ${u.ref}` : "";
   const counts = work.length ? `${open.length} of ${plural(work.length, "work item")} open` : "No work items";
   return (
@@ -92,7 +92,7 @@ export function UseCaseLayout({ p, u, name, work, ms, headRef, root, crumb, ro, 
               })}</ul>
               : <p class="muted">{noMs}</p>}
             {ms.length ? msNote || null : null}
-            {addMs || null}
+            {addMilestoneRow || null}
           </section>
           {after || null}
         </div>

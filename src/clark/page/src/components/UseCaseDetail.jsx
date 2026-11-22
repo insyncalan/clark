@@ -242,7 +242,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
       </>}
       noMs="No milestones: it is not linked to one directly, and none of its work items is linked to one."
       msNote={<p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p>}
-      addMs={!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
+      addMilestoneRow={!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
       after={(
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>
