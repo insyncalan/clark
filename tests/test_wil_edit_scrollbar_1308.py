@@ -13,7 +13,7 @@ from _paths import SRC
 import test_tpl_workitems as T
 import test_work_items_mockup_1195 as M
 
-RULES = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 EDIT_RULES = [
     '#report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }',
     '#report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }',

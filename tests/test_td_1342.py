@@ -21,7 +21,7 @@ class FeedbackTagClassic(Base, unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fbt-dlg')", sid)))
                 m = cdp.js(M, sid)
                 self.assertEqual((m["size"], m["weight"], m["margin"]), ("17px", "600", "0px 0px 2px"))
-                self.assertEqual(m["pad"], "16px 18px 14px")
+                self.assertEqual(m["pad"], "16px 18px 14px 17px")   # row 1334: left 17 px plus the 1 px border is the 18 px inset of the 324 px box
                 self.assertEqual(m["tagPad"], "14px 7px")
                 self.assertEqual(m["tagRadius"], "10px 0px 0px 10px")
                 self.assertEqual(m["dlgRadius"], "14px 0px 0px 14px")

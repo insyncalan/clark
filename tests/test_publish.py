@@ -36,7 +36,7 @@ from clark.store import open_store  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
 from clark.server import csp_hashes  # noqa: E402
 from _growth import assert_growth  # noqa: E402
-from test_server import _Pipe, chrome, wait as _wait  # noqa: E402  (the #33 browser harness, shared)
+from test_server import _Pipe, chrome, pause_900, wait as _wait  # noqa: E402  (the #33 browser harness, shared)
 
 
 def _icon_href(name, mime):
@@ -1040,6 +1040,7 @@ class Watching(_Pipe):
     """The test harness's pipe, keeping the events Chrome sends (it drops them, which a network test can't)."""
 
     def call(self, method, params=None, session=None):
+        pause_900(method, params)
         self.n += 1
         msg = {"id": self.n, "method": method, "params": params or {}}
         if session:
