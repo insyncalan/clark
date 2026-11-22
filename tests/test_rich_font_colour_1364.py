@@ -46,7 +46,7 @@ class Base(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.h = rp.Harness(chrome).__enter__()
-        cls.h.ev(f"(function(){{ var s = document.createElement('style'); s.textContent = {json.dumps(THEME_CSS)}; document.head.appendChild(s); return true; }})()")
+        cls.h.ev(f"(function(){{ var s = document.createElement('style'); s.id = 'theme'; s.textContent = {json.dumps(THEME_CSS)}; document.head.appendChild(s); return true; }})()")
 
     @classmethod
     def tearDownClass(cls):
@@ -370,6 +370,18 @@ class Ui(Base):
         self.assertEqual(self.h.ev("document.querySelector('.ProseMirror').cxed.html()"), stored)
         self.assertEqual(self.h.ev("[...document.querySelectorAll('.ProseMirror span')].map(function(e){ return e.className; })"), ["rt-c-red", "rt-c-grey"])
         self.assertEqual(self.h.ev("document.querySelector('.ProseMirror').cxed.written()"), stored)
+
+    def test_the_colour_button_is_Classic_only(self):
+        """Banner's read of PR 2196: the Cards page has no palette CSS, so with no Classic theme layer (no style#theme) the bar and the bubble have no colour button."""
+        self.h.ev("document.getElementById('theme').id = 'theme-held'; true")
+        try:
+            self.mount_selected()
+            self.assertEqual(self.h.ev("document.querySelectorAll('.rt-colour').length"), 0, "no colour button in the bar or the bubble on Cards")
+            self.assertGreater(self.h.ev("document.querySelectorAll('.rt-bar button').length"), 3, "the rest of the bar is still there")
+        finally:
+            self.h.ev("window.unmount(); document.getElementById('theme-held').id = 'theme'; true")
+        self.mount_selected()
+        self.assertGreaterEqual(self.h.ev("document.querySelectorAll('.rt-colour').length"), 2, "Classic: one in the bar, one in the bubble")
 
 
 class Colour(PublishedFile, unittest.TestCase):

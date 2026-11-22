@@ -9,6 +9,7 @@ import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
 import { aiClient } from "./aiShared.js";
@@ -51,9 +52,9 @@ function ColourButton({ h, hold, tick, refocus }) {
     if (r.right > window.innerWidth - 8) b.classList.add("end");              // no room to the right: its right edge on the button's
     const its = items();
     (its[cur ? 1 + COLOUR_WORDS.findIndex(([n]) => n === cur) : 0] || its[0]).focus({ preventScroll: true });
-    const away = (e) => { if (!b.contains(e.target) && !(btn.current && btn.current.contains(e.target))) setOpen(false); };
-    document.addEventListener("pointerdown", away, true);
-    return () => document.removeEventListener("pointerdown", away, true);
+    const outside = (e) => { if (!b.contains(e.target) && !(btn.current && btn.current.contains(e.target))) setOpen(false); };
+    document.addEventListener("pointerdown", outside, true);
+    return () => document.removeEventListener("pointerdown", outside, true);
   }, [open]);
   const choose = (name) => { refocus(); h.run("colour", name); setOpen(false); tick((n) => n + 1); };      // refocus first: the palette's own button is about to go, and that must not count as leaving the field
   const barKeys = (e) => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } };
@@ -266,7 +267,8 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
-  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
+  const noColour = !classicTheme();      // row 1364: the font colour is Classic only; Cards has no palette CSS and keeps its bar as it was
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b) => !(noColour && b[0] === "colour")).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
   return (
@@ -287,7 +289,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.filter((b) => !(noColour && b[0] === "colour")).map(button)}
         {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
