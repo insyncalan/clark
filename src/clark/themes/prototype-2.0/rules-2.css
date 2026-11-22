@@ -47,6 +47,13 @@
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1470 (the approved Dashboard peek mock-up, Classic only, Cards keeps today's rules): the Latest update box text is 15 px / 1.55 and the stamp under it is 12 px muted at the left, margin 6px 2px 0 (it was right-aligned in row 1257);
+   in dark the box takes the mock-up's tokens --soft 192440, --line 25324D and the stamp --muted 9AA9BD (the Theme's own dark greys differ). A focused box keeps its own look. */
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover, .pk-lbox .rt-host .ProseMirror { font-size: 15px; line-height: 1.55; }
+.pk-last { display: block; margin: 6px 2px 0; }
+:root[data-theme=dark] .pk-lbox:not(:focus-within) { background: #192440; border-color: #25324D; }
+:root[data-theme=dark] .pk-last { color: #9AA9BD; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: #192440; border-color: #25324D; } :root[data-theme=auto] .pk-last { color: #9AA9BD; } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
