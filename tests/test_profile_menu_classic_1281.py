@@ -95,7 +95,7 @@ class Classic(Base):
                                "var on=getComputedStyle(document.querySelector('#profile-menu .pr[aria-checked=true]')),tr=getComputedStyle(document.querySelector('#profile-menu .ptrack'));"
                                "return {bg:on.backgroundColor===tok('--surface','backgroundColor'),fg:on.color,track:tr.backgroundColor,ap:getComputedStyle(document.querySelector('#profile-menu .ap')).padding,"
                                "shadow:on.boxShadow!=='none'}})()")
-                    # the ticket's values (1281 AP3, AP4, AP5): track #eceff6 (dark #1c3040), chosen text #4f35c9 (dark #a99bff), label block padding 8px 20px 6px; Jarvis's ruling 22-11: the ticket values win
+                    # the ticket's values (1281 AP3, AP4, AP5): track #eceff6 (dark #1c3040), chosen text #4f35c9 (dark #a99bff), label block padding 8px 20px 6px; the ticket values win (ruling 22-11)
                     want = {"light": ("rgb(236, 239, 246)", "rgb(79, 53, 201)"), "dark": ("rgb(28, 48, 64)", "rgb(169, 155, 255)")}[kind]
                     self.assertEqual(got, {"bg": True, "fg": want[1], "track": want[0], "ap": "8px 20px 6px", "shadow": True}, kind)
 
