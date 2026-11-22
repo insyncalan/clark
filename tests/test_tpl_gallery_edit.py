@@ -300,10 +300,16 @@ class Classic(Base):
 
 
 class Kept(Base):
-    def test_an_empty_gallery_keeps_the_edit_part_it_had_in_the_classic_look(self):
-        self.mount(None)
-        self.assertEqual(self.val("document.querySelectorAll('.gal-classic, .fi-bar').length"), 0)
-        self.assertGreater(self.val("document.querySelectorAll('.tpl-gal-one').length"), 0)
+    def test_ap6_an_empty_gallery_keeps_the_old_edit_part_and_one_with_images_has_the_new_one_at_1400_and_900(self):
+        for page, width in ((1400, 1300), (900, 800)):
+            with self.subTest(page=page, empty=True):
+                self.mount(None, page, width)
+                self.assertEqual(self.val("document.querySelectorAll('.gal-classic, .fi-bar, .gal-tile').length"), 0)
+                self.assertGreater(self.val("document.querySelectorAll('.tpl-gal-one').length"), 0)
+            with self.subTest(page=page, empty=False):
+                self.mount(body_of(2, alts=(0, 1)), page, width)
+                self.assertEqual(self.val("document.querySelectorAll('.tpl-gal-one').length"), 0)
+                self.assertGreater(self.val("document.querySelectorAll('.gal-classic .gal-tile').length"), 0)
 
 
 class Cards(Base):
