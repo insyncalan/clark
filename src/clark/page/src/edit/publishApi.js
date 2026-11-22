@@ -92,12 +92,38 @@ export const aiConnectRead = () => call("GET", "/api/providers");
 const changing = async (method, path, body) => { forgetCheck(); try { return await call(method, path, body); } finally { forgetCheck(); } };
 export const aiConnectSend = (provider) => changing("POST", "/api/providers/connect", { provider });
 export const aiDisconnectSend = (provider) => changing("POST", "/api/providers/disconnect", { provider });
+export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
+// Row 1294: the folders for all projects (the All projects tab): the same, with scope "all" in place of a project.
+export const askFoldersAllRead = (project) => call("GET", "/api/ask-folders?scope=all" + (project ? `&project=${encodeURIComponent(project)}` : ""));
+export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });
+export const askFoldersAllChange = (action, path) => call("POST", "/api/ask-folders", { scope: "all", action, path });
+
+// Usage in tokens (row 1294): GET answers {ok, title, asking, projects: [{code, name, questions, tokens}], all: {questions, tokens}, note}.
+export const askUsageRead = () => call("GET", "/api/ask-usage");
+
+// The standing instructions of asking (row 1294): GET answers {ok, all, project, saved, max}; POST takes {scope: "all" | "project", project?, text} or {scope, project?, undo}.
+export const askInstructionsRead = (project) => call("GET", `/api/ask-instructions?project=${encodeURIComponent(project || "")}`);
+export const askInstructionsChange = (body) => call("POST", "/api/ask-instructions", body);
+// The slash commands of ask clark (row 1295): GET answers {ok, all, project, damaged, max, builtins}; POST takes {scope: "all" | "project", project?, action: "save" | "remove" | "reset", ...}.
+export const askCommandsRead = (project) => call("GET", `/api/ask-commands?project=${encodeURIComponent(project || "")}`);
+export const askCommandsChange = (body) => call("POST", "/api/ask-commands", body);
+// Connectors set up on this computer (row 1306, slice C3). GET /api/ask-connectors?project= answers {ok, connectors: [{id, label, on, off_here}]}: only the ones found
+// on this computer, `on` the choice for every project (off until turned on), `off_here` the project's own turn-off. POST {id, on} changes the first, {project, id, off_here}
+// the second; both answer the same list. Words and true or false only: nothing about a connector is kept in a project's data and no key is held.
+export const askConnectorsRead = (project) => call("GET", project ? `/api/ask-connectors?project=${encodeURIComponent(project)}` : "/api/ask-connectors");
+export const askFilesRead = (project) => call("GET", project ? `/api/ask-files?project=${encodeURIComponent(project)}` : "/api/ask-files");
+export const askFilesChange = (body) => call("POST", "/api/ask-files", body);
+export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors", body);
 
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
+
+// The theme for this computer (row 1269): GET /api/theme answers {ok, theme: "classic" | "cards", saved}; POST takes {theme}.
+export const themeRead = () => call("GET", "/api/theme");
+export const themeChange = (theme) => call("POST", "/api/theme", { theme });

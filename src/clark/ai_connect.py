@@ -16,8 +16,9 @@ and what happened, nothing else.
 """
 import logging
 import threading
+import time
 
-from clark import ai_codex, ai_providers, ask, ask_claude, settings
+from clark import ai_codex, ai_providers, ask, ask_claude, platform, settings
 
 LOG = logging.getLogger("clark.ai_connect")
 CLAUDE, CHATGPT = ask_claude.PROVIDER, ai_codex.PROVIDER
@@ -27,8 +28,16 @@ LABELS = {**{m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS
 OFF_WORDS = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this."
 CARD_INTRO = ("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. "
               "No password or key is kept.")
-CONNECTED = "Connected. Asking will use {model}."
-CONNECTED_OTHER = "Connected. Choose one of its models below to use it."
+CONNECTED = "Connected. Asking can use its models."          # row 1294 (A8): turning a model on connects it; the words are the approved ones
+CONNECTED_OTHER = CONNECTED
+NOT_SIGNED_IN = {CHATGPT: "ChatGPT is not signed in on this computer. Sign in to the Codex command, then turn it on again."}     # row 1294: the switch goes back off and says this; Claude says what its own check found
+SIZE_LINE = ("Size of one question: about {tokens:,} tokens ({chars:,} characters of passages). Each model has its own limit and the lower one applies.")
+CHARS_PER_TOKEN = 4                       # the usual rough figure for English; the page says "about"
+QUESTION_CHARS = ask.BUDGET               # row 1294: the page states the size that really cuts a question (ask.BUDGET), so page and code cannot differ; 1,200,000 characters is 300,000 tokens at 4 characters each (the A8 cut), and ask.MAX_REQUEST = BUDGET + 30000 caps the whole request
+TEST_QUESTION = "Reply with the one word ready."
+TEST_SYSTEM = "You answer in one word."
+TEST_FAILED = "{label} did not answer."
+TEST_NOTHING = "Turn on Claude or ChatGPT first, then test the connection."
 DISCONNECTED = "Disconnected. You're still signed in to {name} on this computer, but clark won't use it."
 USING = "Asking will use {model}."
 WEAKER = "{model} is smaller than the recommended model, so its answers may be less careful. Use it anyway?"
@@ -73,6 +82,19 @@ def log_check(name, provider):
         LOG.debug("ai: connect failed, the home folder is not where macOS keeps it")
     elif code is not None:
         LOG.debug("ai: connect failed, a check did not pass")
+
+
+class Pinned(ask.Provider):
+    """One provider asked with one model, for the connection test: the same call a question makes, with the model clark recommends for it."""
+
+    def __init__(self, provider, model):
+        self.provider, self.model = provider, model
+
+    def status(self):
+        return self.provider.status()
+
+    def ask(self, request):
+        return self.provider.ask(request, self.model, prefer=True)
 
 
 def fail(status, code, message):
@@ -121,7 +143,7 @@ class AiConnect:
         offered = [m["id"] for m in models]
         picked = self.pick()
         model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
-        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "message": message}
+        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "size": SIZE_LINE.format(tokens=QUESTION_CHARS // CHARS_PER_TOKEN, chars=QUESTION_CHARS), "message": message}
 
     def get(self, *_ignored):
         return 200, self.view()
@@ -139,7 +161,7 @@ class AiConnect:
         st = ask.answer_status(self.providers[name])
         if not st["connected"]:
             log_check(name, self.providers[name])
-            return fail(409, "not_signed_in", st["why"])
+            return fail(409, "not_signed_in", st["why"] if st["why"] == platform.needs_mac_words() else NOT_SIGNED_IN.get(name) or st["why"])
         with self.lock:
             saved = settings.ai_read(self.data_dir)
             before = self.pick()
@@ -183,6 +205,26 @@ class AiConnect:
                     return fail(409, "weaker", WEAKER.format(model=LABELS[model]))
                 changes["accepted"] = sorted({*accepted, model})
             return self._save(changes, USING.format(model=LABELS[model]), "model chosen")
+
+    def test(self, body, clock=time.monotonic):
+        """Test the connection (row 1294, A8): one short question to each model that is on, and how long each took. It asks the model clark would use
+        for that provider and keeps nothing: no question, answer or key is stored or logged. Only the log line says which provider answered."""
+        if not isinstance(body, dict) or body:
+            return fail(400, "bad_request", BAD)
+        results = []
+        for name, provider in self.providers.items():
+            if not self.view()[name]["connected"]:
+                continue
+            started = clock()
+            got = ask.ask_provider(Pinned(provider, RECOMMENDED[name]), ask.Request(text=TEST_QUESTION, question="", system=TEST_SYSTEM))
+            took = round(clock() - started, 1)
+            answered = isinstance(got, ask.Reply)
+            LOG.info("ai: %s tested, %s", name, "answered" if answered else "no answer")
+            results.append({"provider": name, "label": provider.label, "answered": answered, "seconds": took,
+                            "message": "" if answered else (got.message if isinstance(got, ask.Failure) else TEST_FAILED.format(label=provider.label))})
+        if not results:
+            return fail(409, "nothing_on", TEST_NOTHING)
+        return 200, {"ok": True, "results": results}
 
     def _save(self, changes, message, what):
         try:

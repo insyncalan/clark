@@ -1,5 +1,5 @@
 """#681, row 757: the top bar at 1400 and 900 px (the only widths tested), light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
-project name: every tab label is whole on one line, the header stays 85 px high (129 px at 900), the project name shortens first, then the tab row scrolls inside
+project name: every tab label is whole on one line, the header is at least 85 px high (129 px at 900) and grows to hold a long project name, which wraps (row 1239), then the tab row scrolls inside
 its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
 tests fail, never skip, without it.
 
@@ -104,7 +104,7 @@ class TopBarTabs(Base):
         self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
         self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
         # item 1177: the name is drawn in full in the header (a button with an ellipsis), so the old "name no wider than 73 px while the tabs scroll" rule is gone
-        self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 129 if width <= 900 else 85, delta=0.5, msg=f"{where}: item 1177: the header is not 85 px (129 px at 900)")
+        self.assertGreaterEqual(got["bar"][3] - got["bar"][2], (129 if width <= 900 else 85) - 0.5, f"{where}: item 1177: the header is under 85 px (129 px at 900); row 1239: it grows for a long name")
         self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
         self.assertLessEqual(got["row"][1], got["bar"][1] + 0.5, f"{where}: the tab row runs past the bar")
         items = got["items"]

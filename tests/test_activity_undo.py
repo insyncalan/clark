@@ -71,6 +71,7 @@ class Tab(unittest.TestCase):
         sid = self.open_page(cdp, width, scheme)
         dblclick(cdp, sid, f"#work tbody tr[data-id='{ITEM}'] .c-item")
         self.until(cdp, sid, "!!document.querySelector('[data-pk-htab=activity]')", "the peek has its history tabs in Edit")
+        self.until(cdp, sid, "!document.querySelector('#peek').getAnimations().length", "the peek has stopped sliding in (row 1289: 0.5 s), so the click lands on the tab")
         tuk.click(cdp, sid, "[data-pk-htab=activity]")
         self.until(cdp, sid, "document.querySelectorAll('[data-activity-row]').length > 0", "the history is drawn")
         return sid

@@ -16,7 +16,12 @@ from clark import publish as publish_module
 
 
 class PublishedFile:
+    theme = "classic"      # Cards is unmaintained (row 1363): a stored cards value renders Classic, so published-file tests use Classic
+
     def publish(self):
+        theme = getattr(self, "theme", "classic")
+        if theme:      # None: the test has set the Theme itself
+            self.store.con.execute("UPDATE app_settings SET theme = ? WHERE id = 1", (theme,))
         self.out = tempfile.mkdtemp(prefix="clark-45-")
         self.addCleanup(shutil.rmtree, self.out, ignore_errors=True)
         done = publish_module.publish(self.store, "ABC", self.out, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)

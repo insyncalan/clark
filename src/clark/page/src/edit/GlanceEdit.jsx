@@ -16,9 +16,9 @@ import { hideTile, outlineTile, moveTile, stepOne, dropTile, pendingHealth, pick
 const THRESHOLD = 4;
 
 // The tile `key` dragged to (x, y): { before: key | null, mark: { key, side } } from where the pointer is among the tiles.
-function target(order, key, x, y) {
+function target(order, key, x, y, box) {
   let best = null;
-  for (const el of document.querySelectorAll(`.glance > .tcell`)) {
+  for (const el of (box || document).querySelectorAll(box ? ":scope > .tcell" : ".glance > .tcell")) {
     const r = el.getBoundingClientRect(), cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2, dist = Math.hypot(x - cx, (y - cy) * 2);
     if (!best || dist < best.dist) best = { dist, key: el.dataset.tile, left: x < cx };
   }
@@ -27,7 +27,7 @@ function target(order, key, x, y) {
   return { before: best.left ? best.key : order[i + 1] || null, mark: { key: best.key, side: best.left ? "left" : "right" } };
 }
 
-function startDrag(e, grip, key, order) {
+function startDrag(e, grip, key, order, move_) {
   if (e.button !== 0 || order.length < 2) return;
   e.preventDefault();
   const sx = e.clientX, sy = e.clientY;
@@ -38,7 +38,7 @@ function startDrag(e, grip, key, order) {
     if (cancelled) return;
     if (!dragging && Math.hypot(m.clientX - sx, m.clientY - sy) < THRESHOLD) return;
     dragging = true;
-    aim = target(order, key, m.clientX, m.clientY);
+    aim = target(order, key, m.clientX, m.clientY, grip.closest(".glance"));
     dropTile.value = aim ? aim.mark : null;
   };
   const esc = (k) => { if (k.key === "Escape") { cancelled = true; aim = null; dropTile.value = null; } };
@@ -48,7 +48,7 @@ function startDrag(e, grip, key, order) {
     grip.removeEventListener("pointerup", end);
     grip.removeEventListener("pointercancel", end);
     dropTile.value = null;
-    if (dragging && !cancelled && u.type === "pointerup" && aim) moveTile(key, aim.before, order, "report");
+    if (dragging && !cancelled && u.type === "pointerup" && aim) move_(key, aim.before, order, "report");
   };
   document.addEventListener("keydown", esc);
   grip.addEventListener("pointermove", move);
@@ -56,40 +56,46 @@ function startDrag(e, grip, key, order) {
   grip.addEventListener("pointercancel", end);
 }
 
-function Cell({ tile, order, children }) {
+// `act` (row 1264, the glance template): what a tile's controls ask for, when it is not the built-in At a glance section's own table.
+// { hide(key, hidden), outline(key, value), move(key, before, order), step(key, dir, order), outlines(key) -> bool, eye(key) -> bool, extra?(tile, title) -> the
+// controls after the eye (the glance template's own tiles: the pencil and the bin) }. A tile with `own` set is one the person typed: its title is its label.
+const OWN = { hide: (k, h) => hideTile(k, h), outline: outlineTile, move: moveTile, step: stepOne, outlines: () => true, eye: (k) => k !== "health" };
+
+function Cell({ tile, order, children, act = OWN }) {
   const [menu, setMenu] = useState(false);
   const grip = useRef(null), box = useRef(null);
-  const title = TILE_TITLES[tile.key], drop = dropTile.value && dropTile.value.key === tile.key ? ` drop-${dropTile.value.side}` : "";
+  const title = tile.own ? tile.label : TILE_TITLES[tile.key], drop = dropTile.value && dropTile.value.key === tile.key ? ` drop-${dropTile.value.side}` : "";
   const onKey = (e) => {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
     const dir = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
     if (!dir) return;
     e.preventDefault();
-    stepOne(tile.key, dir, order);
+    act.step(tile.key, dir, order);
   };
   return (
-    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box}
-      onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}>
+    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.own ? " own" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box}
+      onContextMenu={(e) => { if (!act.outlines(tile.key)) return; e.preventDefault(); setMenu(true); }}>
       <button type="button" class="tgrip" ref={grip} data-edit-only data-tile-grip aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
-        aria-label={`Move ${title}. Press Alt with the left or right arrow, or drag. Right-click for its outline colour.`}
-        onKeyDown={onKey} onPointerDown={(e) => startDrag(e, grip.current, tile.key, order)}>
+        aria-label={`Move ${title}. Press Alt with the left or right arrow, or drag.${act.outlines(tile.key) ? " Right-click for its outline colour." : ""}`}
+        onKeyDown={onKey} onPointerDown={(e) => startDrag(e, grip.current, tile.key, order, act.move)}>
         <svg viewBox="0 0 12 18" width="10" height="14" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="3" cy="3" r="1.5" /><circle cx="9" cy="3" r="1.5" /><circle cx="3" cy="9" r="1.5" /><circle cx="9" cy="9" r="1.5" /><circle cx="3" cy="15" r="1.5" /><circle cx="9" cy="15" r="1.5" /></g></svg>
       </button>
-      {tile.key === "health" ? null : (
+      {!act.eye(tile.key) ? null : (
         <button type="button" class="teye" data-edit-only data-tile-eye aria-pressed={tile.hidden ? "true" : "false"}
           aria-label={tile.hidden ? `Show ${title} in the published report` : `Hide ${title} from the published report`}
-          title={tile.hidden ? "Hidden from the published report. Show it." : "Hide from the published report"} onClick={() => hideTile(tile.key, !tile.hidden)}>
+          title={tile.hidden ? "Hidden from the published report. Show it." : "Hide from the published report"} onClick={() => act.hide(tile.key, !tile.hidden)}>
           <Icon name={tile.hidden ? "eyeoff" : "eye"} />
         </button>
       )}
+      {act.extra ? act.extra(tile, title) : null}
       {children}
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
-      {menu ? (
+      {menu && act.outlines(tile.key) ? (
         <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" fade anchor={grip.current} onClose={(how) => { if (how === "esc" && grip.current) grip.current.focus({ preventScroll: true }); setMenu(false); }}>
           <div class="lab" role="presentation">Outline colour</div>
           {OUTLINE_CHOICES.map(([value, name]) => (
             <button key={value || "auto"} type="button" role="menuitemradio" aria-checked={tile.outline === value ? "true" : "false"} tabIndex={-1} data-outline={value || "auto"}
-              onClick={() => { setMenu(false); outlineTile(tile.key, value); }}><Icon name={actionIcon("outline")} cls="mi" />{(tile.outline === value ? "✓ " : "") + name}</button>
+              onClick={() => { setMenu(false); act.outline(tile.key, value); }}><Icon name={actionIcon("outline")} cls="mi" />{(tile.outline === value ? "✓ " : "") + name}</button>
           ))}
         </MenuPanel>
       ) : null}
@@ -138,8 +144,20 @@ function Reason({ health, reason }) {
 }
 
 // The line under the tiles in Edit: what a tile can do. Edit only; the published page never carries it.
-function Hint() {
-  return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
+function Hint({ more = "", text = "" }) {      // `more`: sentences a template adds to the same paragraph; `text`: the whole line instead (the glance template, row 1336: its own approved words)
+  if (text) return <p class="glance-hint" data-glance-hint>{text}</p>;
+  return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.{more ? ` ${more}` : ""}</p>;
 }
 
-export const GLANCE = { Cell, HealthPill, Reason, Hint };
+// Row 1303: Add a tile on the At a glance section lists the tiles hidden with the eye; a pick shows that tile again (one step, one Undo).
+export const ADD_WORDS = { add: "Add a tile", line: "Hidden from the published report. Show it." };
+function AddTile({ hidden, onShow }) {
+  return (
+    <div class="tpl-add" data-glance-add>
+      <Menu label={ADD_WORDS.add} icon={actionIcon("add")} btnCls="sec-add tileadd" id="glance-add" menuId="glance-add-menu" menuLabel={ADD_WORDS.add} left chevron={false}
+        items={hidden.map((t) => ({ id: t.key, icon: actionIcon("add"), name: t.own ? t.label : TILE_TITLES[t.key], line: ADD_WORDS.line }))} onPick={onShow} />
+    </div>
+  );
+}
+
+export const GLANCE = { Cell, HealthPill, Reason, Hint, AddTile, show: (key) => hideTile(key, false) };

@@ -167,12 +167,22 @@ class WhatIsSent(Base):
         (text,) = self.provider.sent
         return text
 
+    # row 1367 (ruling 19-11): an eye-off or report-hidden row is read for the owner; these markers are no longer held back.
+    READ_NOW = frozenset({"PUB-A-010", "PUB-A-011", "PUB-002", "PUB-D-002", "PUB-M-003", "PUB-M-004", "PUB-U-002", "PUB-W-002"})
+
     def test_nothing_the_published_file_leaves_out_is_ever_sent(self):
         text = self.sent()
         p = plant.load()
         for where, marker in p["markers"].items():
+            if where in self.READ_NOW:
+                continue
             for spelled in plant.spellings(marker):
                 self.assertNotIn(spelled, text, f"{where}: {marker!r}")
+
+    def test_the_hidden_rows_are_sent_for_the_owner(self):
+        text = self.sent()
+        for where in ("PUB-A-011", "PUB-M-004", "PUB-D-002"):
+            self.assertIn(plant.load()["markers"][where], text, where)
 
     def test_another_projects_rows_are_never_sent(self):
         text = self.sent("What about the other programme and its actions?")
@@ -222,9 +232,13 @@ class TheReply(Base):
         self.assertEqual(kinds.get("unknown_id"), "PUB-A-999")
         self.assertEqual(kinds.get("unsent_passage"), "P99")
 
-    def test_a_row_the_report_hides_counts_as_unknown(self):
+    def test_an_archived_row_counts_as_unknown(self):      # row 1367: an archived row is not read
+        got = self.ask_with("PUB-A-016 is fine.")
+        self.assertIn(("unknown_id", "PUB-A-016"), [(f["kind"], f["ref"]) for f in got["flags"]])
+
+    def test_a_row_the_report_hides_is_known_to_the_owner(self):      # row 1367: read for the owner
         got = self.ask_with("PUB-A-011 is fine.")
-        self.assertIn(("unknown_id", "PUB-A-011"), [(f["kind"], f["ref"]) for f in got["flags"]])
+        self.assertNotIn(("unknown_id", "PUB-A-011"), [(f["kind"], f["ref"]) for f in got["flags"]])
 
     def test_a_wrong_owner_is_flagged_with_the_reports_owner(self):
         facts = ask_service.ask_data.project_data(st.open_store(self.db, onedrive_roots=[]), CODE).facts
@@ -239,6 +253,16 @@ class TheReply(Base):
         got = self.ask_with('Close it.\nCHANGE: {"id": "PUB-A-001", "status": "Closed"}')
         self.assertEqual(got["changes"], [{"id": "PUB-A-001", "status": "Closed"}])
         self.assertEqual(self.counts(), before)
+
+    def test_a_draft_comes_back_as_data_and_is_not_saved(self):
+        before = self.counts()
+        got = self.ask_with('Here.\nDRAFT: {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"}')
+        self.assertEqual(got["draft"], {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"})
+        self.assertEqual(got["answer"], "Here.")
+        self.assertEqual(self.counts(), before)
+
+    def test_an_answer_without_a_draft_says_none(self):
+        self.assertIsNone(self.ask_with("Fine.")["draft"])
 
     def test_the_sources_list_names_only_cited_passages(self):
         got = self.ask_with("Fine.\nCITE: P1")
@@ -316,6 +340,7 @@ class Stop(Base):
         self.provider.stop.assert_called_once_with(owner=self.s.httpd.ask.owner)
 
 
+INDEX_FILE_OWNER = "ask_index.py"      # it opens only its own index file under the data folder (ask-index/<code>.db), never the project database
 SETTINGS_WRITER = "ask_folders.py"      # the Settings entry's folder list: it saves through the store's one writer (store.step)
 
 
@@ -334,13 +359,49 @@ class Source(unittest.TestCase):
             for n in ast.walk(tree):
                 if isinstance(n, ast.Name) and n.id in ("open_store", "sqlite3_connect"):
                     self.fail(f"{path.name}:{n.lineno} uses {n.id}")
-                if isinstance(n, ast.Attribute) and n.attr in ("open_store", "step", "undo", "executescript"):
+                if isinstance(n, ast.Attribute) and n.attr in ("open_store", "step", "undo", "executescript") and not (
+                        path.name == INDEX_FILE_OWNER and n.attr == "executescript"):      # its own index file's tables, pinned below
                     self.fail(f"{path.name}:{n.lineno} uses .{n.attr}")
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "connect":
                     ro = [k for k in n.keywords if k.arg == "readonly" and isinstance(k.value, ast.Constant) and k.value.value is True]
                     self.assertTrue(ro, f"{path.name}:{n.lineno}: connect() without readonly=True")
-                if isinstance(n, ast.Attribute) and n.attr == "connect" and isinstance(n.value, ast.Name) and n.value.id == "sqlite3":
+                if (isinstance(n, ast.Attribute) and n.attr == "connect" and isinstance(n.value, ast.Name) and n.value.id == "sqlite3"
+                        and path.name != INDEX_FILE_OWNER):      # the one module that owns a file of its own; test_the_index_owner_stays_narrow pins it
                     self.fail(f"{path.name}:{n.lineno} opens a database itself")
+
+    def test_the_index_owner_stays_narrow(self):
+        """ask_index.py may call sqlite3.connect, and only for its own index file: no store, no clark.db, one connect that opens the path
+        _open built with path_for under the data folder, and that file is 0600 in a 0700 folder."""
+        path = SRC / "clark" / INDEX_FILE_OWNER
+        text = path.read_text(encoding="utf-8")
+        tree = ast.parse(text)
+        self.assertFalse([n.lineno for n in ast.walk(tree) if isinstance(n, ast.Constant) and n.value == "clark.db"], "a string clark.db in the code")
+        for n in ast.walk(tree):
+            if isinstance(n, (ast.Import, ast.ImportFrom)):
+                names = [a.name for a in n.names] + [getattr(n, "module", None) or ""]
+                self.assertFalse(any(x.split(".")[-1] == "store" or x == "open_store" for x in names), f"line {n.lineno} imports the store")
+            if isinstance(n, ast.Name):
+                self.assertNotIn(n.id, ("open_store", "sqlite3_connect"), f"line {n.lineno}")
+            if isinstance(n, ast.Attribute):
+                self.assertNotIn(n.attr, ("open_store", "step", "undo"), f"line {n.lineno}")
+        connects = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "connect"]
+        self.assertEqual(len(connects), 1)
+        opener = [f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and connects[0] in list(ast.walk(f))][-1]
+        self.assertEqual(opener.name, "_open")
+        scripts = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr == "executescript"]
+        self.assertTrue(scripts and all(n in list(ast.walk(opener)) for n in scripts), "executescript only inside _open, on the index it just opened")
+        arg = connects[0].args[0]
+        self.assertTrue(isinstance(arg, ast.Name) and arg.id == "p", "it opens the one path _open made")
+        made = [a for a in ast.walk(opener) if isinstance(a, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "p" for t in a.targets)]
+        self.assertEqual([ast.unparse(a.value) for a in made], ["path_for(data_dir, code)"])
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        from clark import ask_index
+        ask_index._open(d, "P1").close()
+        index = ask_index.path_for(d, "P1")
+        self.assertEqual(index.parent, d / "ask-index")
+        self.assertEqual((index.stat().st_mode & 0o777, index.parent.stat().st_mode & 0o777), (0o600, 0o700))
+        self.assertEqual(sorted(p.name for p in d.rglob("*") if p.is_file()), [index.name])
 
     def test_the_checker_sees_a_writing_open(self):
         bad = ast.parse("from clark.store import open_store\ns = open_store(p)\nconnect(p)\n")

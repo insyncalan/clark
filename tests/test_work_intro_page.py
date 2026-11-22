@@ -29,6 +29,7 @@ class WorkIntro(unittest.TestCase):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)
+        demo.plant_builtin_sections(project="ABC")   # the published file has a Work items tab only with a built-in section shown (row 1193)
         path = Path(publish.publish(demo.store, "ABC", folder, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)["path"])
         for width, scheme in VARIANTS:
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:

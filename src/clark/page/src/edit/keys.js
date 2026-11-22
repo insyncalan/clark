@@ -7,6 +7,9 @@ import { view, data, mode, fromFile, peek, shownTabs, show } from "../stores/rep
 import { singleKeys } from "../stores/keyPrefs.js";
 import { helpOpen } from "../help/helpStore.js";
 
+/** True once a V or E key has switched the mode: a Welcome card that opens after that (a slow first read) does not pull the focus into its field. */
+export const modeKeyUsed = { value: false };
+
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 // The pages that have View and Edit with the plain keys: the Dashboard and the Gantt page (#928).
 const MODE_PAGES = ["dashboard", "gantt"];
@@ -24,10 +27,11 @@ export function modeKey(e) {
   if ((k !== "v" && k !== "e") || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
   if (fromFile.value || !data.value || !MODE_PAGES.includes(view.value) || peek.value) return false;
   if (busy(document.activeElement) || busy(e.target)) return false;
-  if (document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu]")) return false;     // one is open, wherever focus is
+  if (document.querySelector("dialog[open],[role=dialog]:not([data-welcome],[hidden]),[role=alertdialog]:not([hidden]),[role=menu]:not([hidden])")) return false;     // one is open, wherever focus is (row 1320: neither the non-modal first-run Welcome card nor an element with the hidden attribute is one)
   const next = k === "e" ? "edit" : "view";
   if (mode.value === next) return false;
   e.preventDefault();
+  modeKeyUsed.value = true;      // row 1320: the Welcome card then leaves the focus alone
   mode.value = next;
   return true;
 }

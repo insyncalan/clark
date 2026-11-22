@@ -21,6 +21,11 @@ from clark import backup, changes, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
+
+# The default sections as a file before this step knows them: the Work items lists (row 1193) are a type the check of that file refuses.
+OLD_DEFAULTS = [dict(s, type={"Risks and issues": "raid", "Open actions": "actions", "Decisions": "decisions"}.get(s["title"], s["type"]), body="")
+                if s["type"] == "workitems" else s for s in store_module.DEFAULT_SECTIONS]
+
 STEP = 4                                            # this step's number
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
@@ -348,7 +353,8 @@ class UndoAcrossTheStep(Base):
         con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT")   # wrote these steps without it, so the column is added for it here
         con.close()
         with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), \
-                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)):
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)), \
+                mock.patch.object(store_module, "DEFAULT_SECTIONS", OLD_DEFAULTS):
             s = open_store(path, onedrive_roots=[])
             with s.step("dashboard", USER) as st:
                 st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
@@ -396,7 +402,8 @@ class OtherBranchesDatabase(Base):
         without_rebuilds = tuple((n, (lambda con: None) if f in (store_module.migrate_section_templates, store_module.migrate_gantt_section_type, store_module.migrate_gantt_table_section_type, store_module.migrate_report_headline_section_type, store_module.migrate_glance_template_section_type) else f)     # same numbers: no gap
                                  for n, f in store_module.MIGRATIONS)
         with mock.patch.object(store_module, "SCHEMA_VERSION", without_rebuilds[-1][0]), \
-                mock.patch.object(store_module, "MIGRATIONS", without_rebuilds):
+                mock.patch.object(store_module, "MIGRATIONS", without_rebuilds), \
+                mock.patch.object(store_module, "DEFAULT_SECTIONS", OLD_DEFAULTS):
             s = open_store(path, onedrive_roots=[])                   # any later step still runs; this one is skipped
             try:
                 self.assertEqual(version(path), str(without_rebuilds[-1][0]))

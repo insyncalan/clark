@@ -732,6 +732,18 @@ def date_text(iso):
     return f"{day}-{month}-{year}"
 
 
+def size_text(n):
+    """The size of a release as a person reads it (Row 1327, one rule for every place): under 10 MB one decimal ("4.2 MB"), 10 MB and
+    over whole ("12 MB"), never "0 MB" (the smallest is "0.1 MB"). An unknown size (not a whole number above zero) is "": no size shown.
+    Whole numbers only, rounded half up, so 9 950 000 bytes is "10 MB" and never "10.0 MB"."""
+    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:
+        return ""
+    tenths = max(1, (n + 50_000) // 100_000)
+    if tenths < 100:
+        return f"{tenths // 10}.{tenths % 10} MB"
+    return f"{(n + 500_000) // 1_000_000} MB"
+
+
 def count_text(label, items):
     return f"{label} ({len(items)} file{'' if len(items) == 1 else 's'})"
 

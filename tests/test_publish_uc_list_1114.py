@@ -14,7 +14,10 @@ from test_publish import EMPTY_BRANDING, chrome, opened, wait  # noqa: E402
 import test_server  # noqa: E402,F401  (this file drives Chrome through test_publish: it is in the browser tier)
 
 
-def made(extra=True):
+THEME = "prototype-2.0"      # row 1324-A: the published list draws its column names and the grouped look only with the Classic Theme
+
+
+def made(extra=True, theme=THEME):
     plant = fx.load()
     d = plant["data"]
     if extra:
@@ -22,7 +25,7 @@ def made(extra=True):
         row.update(id="PUB-U-006", title="ZQ-SECOND-USECASE", status="High risk", ref="9.9", sort_order=6)
         d["use_cases"].append(row)
     pub = publish.select(fx.inputs(plant))
-    return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+    return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True, theme=theme), plant["as_at"], pub["data"]["project"]["name"])
 
 
 class RealBrowser(unittest.TestCase):
@@ -116,7 +119,7 @@ class RealBrowser(unittest.TestCase):
         plant["data"]["use_cases"] = []
         pub = publish.select(fx.inputs(plant))
         self.assertFalse(pub["data"].get("use_case_pages"))
-        text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+        text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True, theme=THEME), plant["as_at"], pub["data"]["project"]["name"])
         with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
             path = Path(tmp) / "r.html"
             path.write_text(text, encoding="utf-8")

@@ -8,6 +8,7 @@ second class opens the real page at 1400 and 900 px, light and dark, in View (th
 import re
 import unittest
 
+from _demo import USER
 from _paths import SRC
 
 from test_glance_page import Setup  # noqa: F401
@@ -92,7 +93,12 @@ class Fill(Setup):
         else:
             self.assertEqual(len({round(c["top"]) for c in cells}), 1, f"one line at {width}")
             self.assertAlmostEqual(cells[-1]["left"] + cells[-1]["width"], right, delta=1.5, msg=f"fills the row at {width}")
-            self.assertAlmostEqual(health["width"], 2 * small["width"] + box["gap"], delta=1.5)
+            if count - 1 == 2:      # row 1303: Project health with 2 visible tiles fills half the row; with 1, three quarters; with 3 it is two shares of four-up
+                self.assertAlmostEqual(health["width"], box["width"] / 2 - box["gap"] / 2, delta=1.5, msg="health is 50% of the row beside two tiles, less its half of the gap")
+            elif count - 1 == 1:
+                self.assertAlmostEqual(health["width"], box["width"] * 3 / 4 - box["gap"] * 3 / 4, delta=1.5, msg="health is 75% of the row beside one tile, less its share of the gap")
+            else:
+                self.assertAlmostEqual(health["width"], 2 * small["width"] + box["gap"], delta=1.5)
         for c in cells[1:]:
             self.assertAlmostEqual(c["width"], small["width"], delta=1.5)
             self.assertGreaterEqual(c["width"], TILE_MIN - 1.5)
@@ -118,8 +124,8 @@ class Fill(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
-                self.check(p, width, 4)
+                p.until("document.querySelectorAll('.glance > .tcell').length === 3", "the three shown tiles in Edit (the hidden one is left out, row 1303)")
+                self.check(p, width, 3)
 
     def test_edit_controls_and_the_hidden_tag_never_cover_the_text_at_900_and_1400_in_light_and_dark(self):
         for width in (1400, 900):
@@ -127,7 +133,7 @@ class Fill(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     p.edit()
-                    p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
+                    p.until("document.querySelectorAll('.glance > .tcell').length === 3", "the three shown tiles in Edit (the hidden one is left out, row 1303)")
                     found = p.js("""(() => {
                       const box = (r) => ({l: r.left, r: r.right, t: r.top, b: r.bottom});
                       const hit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
@@ -144,12 +150,44 @@ class Fill(Setup):
                       return out;
                     })()""")
                     self.assertEqual(found, [], f"nothing in a tile sits under its controls or its tag at {width}")
-                    self.assertTrue(p.js("!!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye') && !!document.querySelector('.glance .thid')"), "the controls and the tag were there to check")
+                    self.assertTrue(p.js("!!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye')"), "the controls were there to check")
+
+    def test_row_1303_health_beside_two_visible_tiles_is_half_the_row_at_1400_and_full_row_at_900(self):
+        for width in (1400, 900):      # the default has Decisions needed hidden: Project health + Overdue actions + High risks
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                self.assertEqual(p.js("document.querySelector('.glance').dataset.others"), "2")
+                self.check(p, width, 3)
+
+    def test_row_1303_health_beside_one_visible_tile_is_three_quarters_at_1400_and_full_row_at_900(self):
+        status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "risks", "changes": {"hidden": 1}})
+        self.assertEqual(status, 200)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                self.assertEqual(p.js("document.querySelector('.glance').dataset.others"), "1", "the hidden tile does not count")
+                self.check(p, width, 2)
+
+    def test_row_1303_health_beside_three_visible_tiles_stays_four_up_at_1400_and_900(self):
+        with self.store.step("dashboard", USER) as st:
+            if not self.store.read("glance_tiles", "ABC"):
+                st.seed_tiles("ABC")
+            st.update("glance_tiles", "ABC|decisions", {"hidden": 0})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                self.assertFalse(p.js("document.querySelector('.glance').hasAttribute('data-others')"), "three tiles keep today's layout")
+                self.check(p, width, 4)
+
+    def test_row_1303_the_rules_are_in_the_css_above_1180_only(self):
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r'@media \(min-width: 1181px\) \{[^@]*\.glance\[data-others="2"\] > \.tcell\.health \{ flex: 0 0 calc\(50% - var\(--space-3\) / 2\); \}')
+        self.assertRegex(css, r'\.glance\[data-others="1"\] > \.tcell\.health \{ flex: 0 0 calc\(75% - var\(--space-3\) \* 3 / 4\); \}')
 
     def test_a_lone_health_tile_fills_the_row(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            p.js("document.querySelectorAll('.glance > .tcell:not(.health)').forEach(e => e.remove())")
+            p.js("document.querySelectorAll('.glance > .tcell:not(.health)').forEach(e => e.remove()); document.querySelector('.glance').removeAttribute('data-others')")
             w = p.js("(() => { const g = document.querySelector('.glance').getBoundingClientRect(), h = document.querySelector('.tcell.health').getBoundingClientRect(); return [g.width, h.width]; })()")
             self.assertAlmostEqual(w[0], w[1], delta=1.5)
 

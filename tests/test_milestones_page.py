@@ -283,8 +283,11 @@ class RealBrowser(BrowserBase, unittest.TestCase):
             sid = self.visit(cdp, 1400, "#milestones&p=TUL")
             self.assertEqual(cdp.js("document.querySelector('.mv-wrap').dataset.zoomPct", sid), "100")
             self.assertIsNone(cdp.js("document.querySelector('[data-zreset]')", sid))
-            h = cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid)
-            cdp.js(f"document.querySelector('.mv-wrap').style.height = '{h * 2}px'", sid)       # what dragging the edge does
+            x, y = cdp.js("(() => { const r = document.querySelector('[data-grip]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
+            cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1}, sid)   # row 1267: the grip on the bottom edge is dragged
+            for i in range(1, 7):
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y + i * 20, "button": "left", "buttons": 1}, sid)
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y + 120, "button": "left", "clickCount": 1}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.mv-wrap').dataset.zoomPct", sid) != "100"), "the line zoomed")
             pct = int(cdp.js("document.querySelector('.mv-wrap').dataset.zoomPct", sid))
             self.assertTrue(70 <= pct <= 300 and pct > 100, pct)

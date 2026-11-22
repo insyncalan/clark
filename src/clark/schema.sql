@@ -27,7 +27,10 @@ CREATE TABLE IF NOT EXISTS projects (
   gantt_title TEXT NOT NULL DEFAULT '' CHECK (length(gantt_title) <= 120),   -- clark: row 926: the Gantt page's own banner title; empty is the project's name
   gantt_hidden_columns TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end,owner' CHECK (length(gantt_hidden_columns) <= 300),   -- clark: row 926: the columns left out of every client file (store.GANTT_COLUMNS)
   gantt_default_rows INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500)),   -- clark: row 926: the saved plan height in rows; NULL shows every row
-  brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)   -- clark: #944: the project's brand id; last, as the migration's ADD COLUMN puts it
+  brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60),   -- clark: #944: the project's brand id, as the migration's ADD COLUMN puts it
+  ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the project's own standing instructions for asking; last, as the migration's ADD COLUMN puts it
+  ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1)),   -- clark: row 1294: 1 when this project keeps files off for asking; as the migration's ADD COLUMN puts it
+  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
@@ -432,10 +435,45 @@ CREATE TABLE IF NOT EXISTS app_settings (
   id          INTEGER PRIMARY KEY CHECK (id = 1),
   ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
   updated_at  TEXT,                   -- set by the writer when the switch changes; empty until then (a new file is the same every time)
-  theme       TEXT NOT NULL DEFAULT 'classic' CHECK (theme IN ('classic','cards'))   -- row 1269: the install's Theme; a new file is Clark Classic, migrate_theme gives a file that already exists 'cards'
+  theme       TEXT NOT NULL DEFAULT 'classic' CHECK (theme IN ('classic','cards')),   -- row 1269: the install's Theme; a new file is Clark Classic, migrate_theme gives a file that already exists 'cards'
+  ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the standing instructions for all projects, as the migration's ADD COLUMN puts it
+  ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1)),   -- clark: row 1294: files may be added to a question (1 on, the starting value); as the migration's ADD COLUMN puts it
+  ask_new_projects INTEGER NOT NULL DEFAULT 1 CHECK (ask_new_projects IN (0,1))   -- clark: row 1294: a project made now starts with asking on (1) or off (0); last, as the migration's ADD COLUMN puts it
 );
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
+
+-- clark: (row 1300) one row for this computer: the Defaults values, at today's values (settingsDefaults.json). The same statements as
+-- INSTALL_DEFAULTS_DDL in store.py, which brings an older file to version 30.
+CREATE TABLE IF NOT EXISTS install_defaults (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  review_days   INTEGER NOT NULL DEFAULT 14,
+  gantt_editor  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_editor IN (0,1)),
+  gantt_client  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_client IN (0,1)),
+  gantt_name    TEXT NOT NULL DEFAULT 'Gantt',
+  updated_at    TEXT
+);
+
+INSERT OR IGNORE INTO install_defaults (id) VALUES (1);
+
+-- clark: (row 1306) what asking may look at beyond the project's own files: one switch per connector for this computer (is_on 0 = Off, the
+-- starting value) and, per project, the connectors that project keeps Off. Switch state only: nothing about a connector's content, no token,
+-- key or app registration. The same statements as CONNECTOR_SWITCHES_DDL in store.py, which brings an older file to version 32.
+CREATE TABLE IF NOT EXISTS connector_switches (
+  connector  TEXT PRIMARY KEY CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  is_on      INTEGER NOT NULL DEFAULT 0 CHECK (is_on IN (0,1)),
+  updated_at TEXT
+);
+
+INSERT OR IGNORE INTO connector_switches (connector) VALUES ('mail'), ('calendar'), ('teams'), ('sharepoint'), ('todoist');
+
+CREATE TABLE IF NOT EXISTS project_connectors (
+  project_id TEXT NOT NULL REFERENCES projects(code),
+  connector  TEXT NOT NULL CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  off        INTEGER NOT NULL DEFAULT 1 CHECK (off IN (0,1)),
+  updated_at TEXT,
+  PRIMARY KEY (project_id, connector)
+);
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
 

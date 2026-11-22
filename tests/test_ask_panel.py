@@ -31,6 +31,7 @@ class Stub:
 
     def __init__(self, enabled=True, connected=True, model=""):
         self.enabled, self.connected, self.model = enabled, connected, model
+        self.standing = None                     # #1292 S13: None leaves the field out; True/False is what the status route says about standing instructions
         self.calls = []                          # ("status" | "ask" | "stop", body)
         self.hold = threading.Event()            # a question waits here while it is clear()ed
         self.hold.set()
@@ -39,6 +40,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.late = False                        # row 1293 line 7: an answer that still comes back after Stop
         self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
@@ -50,12 +52,14 @@ class Stub:
             body["provider"] = self.provider
         if self.model:
             body["model"] = self.model
+        if self.standing is not None:
+            body["standing_instructions"] = self.standing
         return 200, body
 
     def ask(self, body):
         self.calls.append(("ask", body))
         self.hold.wait(30)
-        if self.stopped:
+        if self.stopped and not self.late:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
 
@@ -108,20 +112,35 @@ class Panel(Base):
             p.until("!!document.querySelector('#ask-panel')", "opened on /")
             self.assertEqual(self.stub.count("status"), 1)
 
-    def test_escape_and_a_click_outside_close_it_and_focus_returns(self):
+    def test_escape_closes_it_and_focus_returns_but_a_click_outside_does_not_close_it(self):
+        """#1292 slice 1: only Esc, Close and the ask button close the panel; a click outside leaves it open."""
         with chrome() as cdp:
             p = self.visit(cdp)
-            for how in ("escape", "click"):
-                p.js("document.querySelector('[data-mode=edit]').focus()")
-                p.key("/", code="Slash", vk=191)
-                p.until("!!document.querySelector('#ask-panel')", "opened")
-                if how == "escape":
-                    p.key("Escape", code="Escape", vk=27)
-                else:
-                    p.mouse("mousePressed", 40, 400, 1)
-                    p.mouse("mouseReleased", 40, 400, 0)
-                p.until("document.querySelector('#ask-panel') === null", f"closed by {how}")
-                p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", f"focus returned after {how}")
+            p.js("document.querySelector('[data-mode=edit]').focus()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "opened")
+            p.mouse("mousePressed", 40, 400, 1)
+            p.mouse("mouseReleased", 40, 400, 0)
+            time.sleep(0.6)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "a click outside left it open")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "closed by escape")
+            p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", "focus returned after escape")
+
+    def test_ctrl_j_and_cmd_j_open_it_and_press_again_closes_it(self):
+        """Row 1292 rule 2: Ctrl or Cmd + J opens the panel and the same key closes it; the key held down does not flip it again."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for mod in ("ctrlKey", "metaKey"):
+                send = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', %s: true, bubbles: true, cancelable: true, repeat: %%s}))" % mod
+                p.js(send % "false")
+                p.until("!!document.querySelector('#ask-panel')", "opened by " + mod)
+                p.js(send % "true")
+                time.sleep(0.4)
+                self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "a held key is not a second press")
+                p.js(send % "false")
+                p.until("document.querySelector('#ask-panel') === null", "closed by " + mod)
 
     def test_focus_that_moved_on_after_it_closed_stays_where_it_went(self):
         """Putting focus back waits a moment; if a peek or another control took focus in that moment, it is not pulled away."""
@@ -173,6 +192,61 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.opened(cdp)
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
+
+    def test_s13_the_status_line_says_standing_instructions_on_only_when_they_are_set(self):
+        # #1292 S13: the line reads the status route's standing_instructions flag; the card that sets them is #1294.
+        for flag, shown in ((True, True), (False, False), (None, False)):
+            self.stub.model, self.stub.standing = "Sonnet", flag
+            with chrome() as cdp:
+                p = self.opened(cdp)
+                self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim().startsWith('Answering with Sonnet.')"), True)
+                self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 1 if shown else 0, repr(flag))
+                if shown:
+                    self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on.")
+                    self.assertEqual(p.js("document.querySelector('#ask-status').contains(document.querySelector('#ask-instr'))"), True)
+                    p.js("document.querySelector('#ask-instr').click()")
+                    p.until("location.hash.indexOf('settings') >= 0", "the line opens Settings")
+        self.stub.standing = None
+
+    def test_s13_standing_instructions_are_not_claimed_while_asking_is_off(self):
+        self.stub.enabled, self.stub.standing = False, True
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0)
+        self.stub.enabled, self.stub.standing = True, None
+
+    def test_s13_the_standing_line_is_a_settings_link_hidden_while_working_shown_when_signed_out_and_only_for_true(self):
+        # #1292 S13 killers: the link's own address and marker, the panel closing on click, the line hidden while an answer is out,
+        # shown on the sign-in state too, hidden while a fresh check is out, and only a real true counts.
+        self.stub.model, self.stub.standing = "Sonnet", True
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-instr').getAttribute('href')"), "#settings&s=claude")
+            self.assertEqual(p.js("document.querySelector('#ask-instr').hasAttribute('data-ask-settings')"), True)
+            self.stub.hold.clear()
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0, "no line while an answer is working")
+            self.stub.hold.set()
+            p.until("!!document.querySelector('.ask-turn + .ask-turn, .ask-answer') && !document.querySelector('#ask-stop')", "answered")
+            p.until("!!document.querySelector('#ask-instr')", "the line is back after the answer")
+            p.js("document.querySelector('#ask-instr').click()")
+            p.until("location.hash.indexOf('settings') >= 0", "the line opens Settings")
+            p.until("document.querySelector('#ask-panel') === null", "the panel closes when the link is used")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading, as the other Settings links do")
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 1, "standing instructions are shown while signed out too")
+        self.stub.connected = True
+        for odd in ("yes", 1, "true"):
+            self.stub.standing = odd
+            with chrome() as cdp:
+                p = self.opened(cdp)
+                self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0, repr(odd))
+        self.stub.standing = None
 
     def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
         # row 820: the title is the row's own words; the ready line is a separate sentence and stays
@@ -316,6 +390,23 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_an_answer_that_comes_after_stop_is_not_shown(self):          # row 1293 line 7
+        self.stub.hold.clear()
+        self.stub.late = True
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)      # 1400 px
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "the panel is open and ready")
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the question stayed and the stopped line followed")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-answer').length"), 0, "no answer is drawn")
+            self.assertNotIn("The pilot goes live in March.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertIn("Stopped. Nothing was changed.", p.js("document.querySelector('#ask-panel').textContent"))
+            self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
 
     def test_stop_pressed_puts_focus_back_in_the_question_box(self):
         self.stub.hold.clear()

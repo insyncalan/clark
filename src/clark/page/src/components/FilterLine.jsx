@@ -40,7 +40,7 @@ export function layoutItems(w, board) {
   const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
   const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
   const out = [];
-  out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
+  out.push({ id: "lab-group", lab: "Group by", caps: true }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
   if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", icon: actionIcon("none"), checked: lane === "none" },
     ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, icon: groupIcon(x), checked: lane === x })));
   return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
@@ -79,7 +79,7 @@ function pickLayout(id) {
   else if (what === "lane") { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No lanes." : `${groupLabel(v)} lanes.`; }
 }
 
-function SavedViews({ board }) {
+function SavedViews({ board, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const [moving, setMoving] = useState(null);             // row 1071: the id of the tab Move view is moving with the arrow keys, or null
   const [draft, setDraft] = useState(null);               // row 1071: while a tab is dragged, the ids of the tabs in the order shown; saved when it is let go
@@ -303,6 +303,7 @@ function SavedViews({ board }) {
           <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
         </span>
       )}
+      {add}   {/* row 1260 G11: Classic puts the Add tile at the far right of the tabs row (the page passes it only then) */}
       </div>
       {asked ? (
         <div class="vform vask" role="group" aria-label={LEAVE_PROMPT} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); const f = document.getElementById("fline-input"); if (f) f.focus(); asking.value = false; } }}>      {/* the focus goes to the line first: a prompt removed while it holds the focus would otherwise count as leaving the box and ask again */}
@@ -338,7 +339,7 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
 // does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items view icons). The Work items line (FilterLine, below) is this box with its stores.
-export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, placeholder = FL.PLACEHOLDER, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
@@ -507,7 +508,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
           <input ref={input} id={ids.input} type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? ids.list : undefined}
             aria-activedescendant={listed && active >= 0 ? `${ids.opt}-${active}` : undefined}
             aria-label={label} aria-autocomplete="list" aria-describedby={ids.msg}
-            placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
+            placeholder={chips.length ? undefined : placeholder} value={draft}
             onFocus={() => { setArmed(false); readCaret(); }}
             onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />
@@ -538,11 +539,11 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
 }
 
 // The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, each chip's plain words and the owner:me note.
-export function FilterLine({ board, tools }) {
+export function FilterLine({ board, tools, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
-    <LineBox head={<SavedViews board={board} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
+    <LineBox head={<SavedViews board={board} add={add} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
       tail={<ViewIcons board={board} />} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }

@@ -53,6 +53,7 @@ CASES = [
     ("note_long", {"v": 1, "bespoke": [tile(note="a" * 61)]}),
     ("bad_text", {"v": 1, "bespoke": [tile(note=5)]}),
     ("too_long", {"v": 1, "bespoke": [tile(id=f"t{i}", label="a" * 40, figure="a" * 12, tag="a" * 12, note="a" * 60) for i in range(12)]}),
+    ("bad_per_row", {"v": 1, "per_row": 5}),
 ]
 
 APPROVED_TEXT = {
@@ -72,6 +73,7 @@ APPROVED_TEXT = {
     "note_long": "The tile note is too long (60 characters at most). Shorten it and try again.",
     "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
     "too_long": "At a glance is too long to keep (32 KB at most in all). Remove a tile or shorten the text and try again.",
+    "bad_per_row": "Tiles on a line is 3 or 4. Choose one of those.",
 }
 
 
@@ -190,7 +192,7 @@ class Reads(unittest.TestCase):                                                 
                      {"health": {"shown": "no", "own_row": 7}}, {"builtin": {"overdue": {"outline": "zz", "hidden": 2}}}):
             with self.subTest(junk=junk):
                 u = gt.upgrade(junk)
-                self.assertEqual(set(u), {"v", "health", "order", "builtin", "bespoke"})
+                self.assertEqual(set(u), {"v", "health", "per_row", "order", "builtin", "bespoke"})      # slice 9: + per_row
                 self.assertEqual(u["health"], {"shown": True, "own_row": False})
                 self.assertEqual(sorted(u["order"]), sorted(list(gt.BUILT_IN) + [t["id"] for t in u["bespoke"]]))
         self.assertEqual(gt.upgrade({"bespoke": [None, {"id": "t1", "label": "ok"}, {"id": "t1", "label": "dup"}]})["bespoke"][0]["label"], "ok")
@@ -208,7 +210,7 @@ class Reads(unittest.TestCase):                                                 
     def test_t15_refusals_use_the_approved_words_and_never_quote_the_value(self):
         self.assertEqual(set(gt.WORDS), set(gt.KEYS_OF_WORDS))
         self.assertEqual(set(gt.APPROVED), set(gt.KEYS_OF_WORDS))
-        self.assertEqual(len(gt.APPROVED), 16)
+        self.assertEqual(len(gt.APPROVED), 17)
         got = bad({"v": 1, "bespoke": [tile(label="secret-word" * 10)]})
         self.assertEqual(got, gt.WORDS["label_long"])
         self.assertNotIn("secret-word", got)
@@ -289,15 +291,17 @@ class Published(unittest.TestCase):                                             
         self.assertEqual(out["health"], {"shown": False, "own_row": True})
         plain = gt.published({"v": 1, "bespoke": [tile()]}, None)["content"]
         self.assertEqual(plain["health"], {"shown": True, "own_row": False})
-        self.assertEqual(set(plain), {"health", "order", "builtin", "bespoke"})
+        self.assertEqual(set(plain), {"health", "per_row", "order", "builtin", "bespoke"})      # slice 9: + per_row
         self.assertEqual(plain["builtin"], {n: {"hidden": False, "outline": ""} for n in gt.SETTLED})
 
     def test_t14_a_body_that_is_not_there_publishes_nothing(self):
         for empty in ("", None, [], 0):
             self.assertIsNone(gt.published(empty, None))
-        self.assertIsNone(gt.published({"v": 1}, None))      # slice 1: no own tile to draw
-        self.assertIsNone(gt.published(check({"v": 1, "bespoke": [tile(hidden=True)]}), None))
-        self.assertEqual(gt.EMPTY, "")
+        self.assertIsNone(gt.published({"v": 1, "health": {"shown": False}}, None))      # no own tile, no count, health eye off: nothing to draw
+        self.assertEqual(gt.published({"v": 1}, None)["content"]["health"], {"shown": True, "own_row": False})      # an existing body (no health field) shows health
+        self.assertIsNone(gt.published(check({"v": 1, "health": {"shown": False}, "bespoke": [tile(hidden=True)]}), None))
+        self.assertEqual(gt.EMPTY, "")      # fresh stays left out (row 1251); the Edit writes the eye off on the first change (see test_tpl_glance_body_node_1264)
+        self.assertTrue(gt.upgrade({"v": 1})["health"]["shown"])      # no health field (an existing page): shown
 
     def test_t14b_nothing_of_a_bad_stored_body_reaches_the_file(self):
         out = gt.published({"v": 1, "bespoke": [{"id": "t1", "label": "ok", "x": "leak-word"}, 3], "z": "leak-word"}, None)
@@ -314,7 +318,7 @@ class Registered(unittest.TestCase):                                            
         self.assertTrue(gt.READY is True)
 
     def test_t17_step_29_lets_an_older_file_keep_the_type_and_a_second_run_changes_nothing(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 29)
+        self.assertEqual(store_module.SCHEMA_VERSION, 33)
         self.assertEqual(starter_check.SCHEMA_VERSION, store_module.SCHEMA_VERSION)
         self.assertEqual(dict(store_module.MIGRATIONS)[29], store_module.migrate_glance_template_section_type)
         self.assertEqual(store_module.GLANCE_TEMPLATE_STEP, 29)

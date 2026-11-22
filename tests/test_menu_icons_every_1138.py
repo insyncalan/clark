@@ -66,7 +66,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx", "report-headline-health",
+    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx", "report-headline-health", "glance-add-tile",
 }
 
 
@@ -87,13 +87,14 @@ class Source(unittest.TestCase):
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
         "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",), "edit/RecordContextMenu.jsx": ("record-ctx",),
         "edit/templates/ReportHeadline.jsx": ("report-headline-health",),
+        "edit/templates/glanceTileEditor.jsx": ("glance-add-tile",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
     # Pickers that drew an icon on every line through their own choices (row 1074, test_menu_icons_mutproof_1074), the shared box, and one
     # list that is not a menu of commands.
     OTHER = {
-        "edit/cells/RatingPick.jsx": "row 1074", "edit/cells/StatusPick.jsx": "row 1074", "edit/cells/PriorityPick.jsx": "row 1074",
+        "edit/cells/StatusPick.jsx": "row 1074", "edit/cells/PriorityPick.jsx": "row 1074",
         "edit/PeekPick.jsx": "row 1074", "edit/MilestonePeek.jsx": "row 1074", "components/Menu.jsx": "the shared box and row: every menu above draws through it",
         "edit/ArchivedPeek.jsx": "row 1074", "edit/PeekActivity.jsx": "row 1074", "edit/ArchivedItems.jsx": "row 1074", "components/UseCases.jsx": "row 1074",
         "components/Peek.jsx": "row 1074",
@@ -101,6 +102,8 @@ class Source(unittest.TestCase):
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
         "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
         "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",
+        "edit/AskPanel.jsx": "row 1292: the / list in the ask box completes what is typed (the ask commands), like the command palette: a list of typed matches, not a menu of actions",
+        "edit/AskDraft.jsx": "row 1292: the Add to the report menu draws an icon on every line (doc to replace a section, plus for a new one); driven in test_ask_draft, where the ask answer with a draft exists",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
@@ -111,7 +114,7 @@ class Source(unittest.TestCase):
         "Command palette (edit/Palette.jsx)": "a search over pages, items and commands by what is typed",
         "Work items filter value box (components/WorkFilters.jsx, class fbox, role=group)":
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
-        "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
+        "Native select drop-downs (edit/AiSettings.jsx, edit/ChatsSettings.jsx (how long chats are kept), edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
         "edit/UseCasesEdit.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
         "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
@@ -176,7 +179,7 @@ ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=optio
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
          " const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;"
-         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av');"
+         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av, .tk');   /* row 1499 AP2: the Classic Columns menu line is a 16px tick cell then the name, as the 1195 mock-up draws it (work-items-mockup.html:2011, no icon) */"
          " return {t: b.textContent.trim().slice(0, 40), w: s ? s.getBoundingClientRect().width : 0, off: b.getAttribute('aria-disabled') === 'true'}; }); })")
 CONTEXT = ("(sel => { const el = document.querySelector(sel); const r = el.getBoundingClientRect();"
            " el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2, clientX: r.left + 30, clientY: r.top + 8})); })")
@@ -288,7 +291,7 @@ class Dashboard(Base):
                     d.check("section", f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()", f"[data-id='{ref}'] .menu", 4)
                 d.button(".tgrip", "outline grip")
                 grips = d.js("document.querySelectorAll('.tgrip').length")
-                self.assertGreaterEqual(grips, 4, "the At a glance tiles are drawn")
+                self.assertGreaterEqual(grips, 3, "the At a glance tiles are drawn (a hidden tile is not drawn in Edit, row 1303)")
                 for n in range(grips):
                     d.check("outline", f"document.querySelectorAll('.tgrip')[{n}].dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))", ".tilemenu", 3)
                 d.button("#health-pill", "health pill")
@@ -309,6 +312,17 @@ class Dashboard(Base):
                 d.button("[id^=rh-pill-]", "report headline health pill")
                 d.check("report-headline-health", "document.querySelector('[id^=rh-pill-]').click()", "[role=menu]", 3)
             d.expect(["report-headline-health"])
+
+    def test_glance_template_add_a_tile_menu(self):      # row 1264, slice 6: the Add a tile menu of the Glance template
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional glance", "sort_order": 999})
+        with chrome() as cdp:
+            p, d = self.drive(cdp)
+            for w, th in LOOKS:
+                d.look(w, th)
+                d.button("#glance-add", "the Add a tile button")
+                d.check("glance-add-tile", "document.querySelector('#glance-add').click()", "[role=menu]", 1)
+            d.expect(["glance-add-tile"])
 
     def test_the_section_menu_gives_each_line_its_icon_and_keeps_its_words(self):
         want = {"add": "plus", "up": "chevup", "down": "chevdown", "beside": "board", "full": "arrows-out", "hide": "eyeoff",

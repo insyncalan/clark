@@ -14,7 +14,8 @@ class Parity(base.InThePage):
         self.ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"], "columns": ["owner", "due", "status", "priority"]})
 
     def q(self, p, sel):
-        return p.js(f"document.querySelectorAll({json.dumps(f'[data-id=\"{self.ref}\"] ' + sel)}).length")
+        scoped = json.dumps('[data-id="%s"] ' % self.ref + sel)      # outside the f-string: Python 3.9 refuses a backslash inside {}
+        return p.js(f"document.querySelectorAll({scoped}).length")
 
     def test_edit_rows_change_in_place_and_view_does_not(self):
         with chrome() as cdp:

@@ -13,7 +13,9 @@ class Killers(unittest.TestCase):
             return types.SimpleNamespace(rows=given, as_at=AS_AT)
         noisy = {k: [None, "x", 3, ["y"]] + v for k, v in rows().items()}
         self.assertEqual(counts(gt.published({"v": 1}, stub(noisy))), counts(pub()))
-        self.assertIsNone(gt.published({"v": 1}, stub({"actions": [None, "x"], "raid": [3], "decisions": [["y"]]})))
+        off = {"v": 1, "health": {"shown": False}}
+        self.assertIsNone(gt.published(off, stub({"actions": [None, "x"], "raid": [3], "decisions": [["y"]]})))      # nothing countable and no health eye: no section
+        self.assertNotIn("counts", gt.published({"v": 1}, stub({"actions": [None, "x"], "raid": [3], "decisions": [["y"]]}))["content"])
 
     def test_k02_a_bespoke_tone_is_published_as_stored(self):
         for tone in ("green", "amber", "red", "blue"):

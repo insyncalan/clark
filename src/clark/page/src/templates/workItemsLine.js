@@ -106,11 +106,11 @@ export function readLine(line, base, known = []) {
         const hits = known.filter((k) => k.id === raw || k.names.some((n) => low(bare(n)) === v));
         const byId = hits.filter((k) => k.id === raw);
         const ids = [...new Set((byId.length ? byId : hits).map((k) => k.id))];
-        if (ids.length > 1 && !ids.every((i) => saved.includes(i))) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling, or use the choices under Choose from lists.` };
+        if (ids.length > 1 && !ids.every((i) => saved.includes(i))) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling.` };
         if (ids.length) { for (const i of ids) if (!into[key].includes(i)) into[key].push(i); continue; }
         got = saved.includes(raw) ? raw : null;      // a use case that is gone stays on the list as it was saved, and matches nothing
       } else got = ((t.negate ? (base.not || {})[key] : base[key]) || []).find((x) => bare(x) === raw) || raw;
-      if (!got) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling, or use the choices under Choose from lists.` };
+      if (!got) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling.` };
       if (!into[key].includes(got)) into[key].push(got);
     }
   }

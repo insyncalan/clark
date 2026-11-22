@@ -55,25 +55,8 @@ class Form(unittest.TestCase):
             "   \n ",
             "Answer\nCITE: the plan",
             "Answer\nCITE:",
+            "Answer\nCITE: none P1",
             "Answer\nCITE: P0",
-            'Answer\nCHANGE: {"a": }',
-            "Answer\nCHANGE: not json",
-            "Answer\nCHANGE: []",
-            "Answer\nCHANGE: {}",
-            'Answer\nCHANGE: {"a": {"b": 1}}',
-            'Answer\nCHANGE: {"a": [1]}',
-            'Answer\nCHANGE: {"a": 1, "a": 2}',
-            'Answer\nCHANGE: {"a": NaN}',
-            'Answer\nCHANGE: {"a": Infinity}',
-            'Answer\nCHANGE: {"": 1}',
-            'Answer\nCHANGE: {"a": 1} trailing',
-            "Answer\nCHANGE: " + json.dumps({"a": "x" * (ask.MAX_FIELD_VALUE + 1)}),
-            "Answer\nCHANGE: " + json.dumps({"n" * (ask.MAX_FIELD_NAME + 1): 1}),
-            "Answer\nCHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}),
-            "Answer\nCHANGE: " + json.dumps({"a": "x" * ask.MAX_CHANGE_CHARS}),
-            "\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)),
-            'Good\nCHANGE: {"a": 1}\nCHANGE: broken',                    # one good line does not rescue a bad one
-            "CHANGE: " + "[" * 100000,
         ]
         for text in bad:
             r = read(text)
@@ -82,6 +65,62 @@ class Form(unittest.TestCase):
             self.assertEqual(r.answer, text[:ask.MAX_REPLY].strip())
             self.assertEqual(r.flags[0].kind, "unreadable")
             self.assertEqual(r.flags[0].message, ask.UNREADABLE)
+
+    def test_a_cite_of_none_or_with_a_full_stop_still_parses(self):          # #1293 A [D]
+        for line, cites in (("CITE: none", ()), ("CITE: None.", ()), ("CITE: P1 P2.", ("P1", "P2")), ("CITE: P1.", ("P1",))):
+            r = read("Answer.\n" + line)
+            self.assertTrue(r.parsed, line)
+            self.assertEqual((r.cites, r.answer, r.flags), (cites, "Answer.", ()), line)
+
+    def test_a_bad_change_line_is_dropped_alone_the_answer_and_the_good_change_stand(self):          # #1293 A [D]
+        bad = ['CHANGE: {"a": }', "CHANGE: not json", "CHANGE: []", "CHANGE: {}", 'CHANGE: {"a": {"b": 1}}', 'CHANGE: {"a": 1, "a": 2}',
+               'CHANGE: {"a": 1} trailing', "CHANGE: " + json.dumps({"a": "x" * (ask.MAX_FIELD_VALUE + 1)}),
+               "CHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}), "CHANGE: " + "[" * 20000]      # under MAX_REPLY, so the good line after it is still read
+        for line in bad:
+            r = read("Answer.\n" + line + '\nCHANGE: {"good": 1}')
+            self.assertTrue(r.parsed, line[:40])
+            self.assertEqual((r.answer, r.changes), ("Answer.", ({"good": 1},)), line[:40])
+            self.assertEqual([f.kind for f in r.flags], ["change_unreadable"], line[:40])
+            self.assertEqual(r.flags[0].message, ask.CHANGE_UNREADABLE)
+
+    def test_the_dropped_change_flag_says_its_words_and_names_nothing(self):          # #1293 A [D]
+        r = read('Answer.\nCHANGE: not json\nCHANGE: {"good": 1}')
+        self.assertEqual((r.flags[0].kind, r.flags[0].ref), ("change_unreadable", ""))
+        self.assertEqual(r.flags[0].message, "A change the answer suggested could not be read, so it was left out.")
+
+    def test_changes_over_the_limit_are_dropped_and_said(self):          # #1293 A [D]
+        r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)))
+        self.assertEqual((r.parsed, len(r.changes), kinds(r)), (True, ask.MAX_CHANGES, ["change_limit"]))
+
+    def test_the_read_limit_is_the_apply_limit_and_the_sixth_change_is_dropped_and_said(self):          # Row 1293
+        from clark import ask_apply
+        self.assertEqual((ask.MAX_CHANGES, ask_apply.MAX_AT_ONCE), (5, 5))
+        r = read("\n".join(["Answer"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual([(f.kind, f.message) for f in r.flags],
+                         [("change_limit", "Only the first 5 changes are offered. Ask again for the rest.")])
+
+    def test_the_limit_sentence_is_built_from_the_apply_constant_and_not_said_at_the_limit(self):          # Row 1293
+        from clark import ask_apply
+        self.assertEqual(ask.CHANGE_LIMIT, f"Only the first {ask_apply.MAX_AT_ONCE} changes are offered. Ask again for the rest.")
+        five = read("\n".join(["Answer"] + ['CHANGE: {"n": %d}' % i for i in range(5)]))
+        self.assertEqual((len(five.changes), kinds(five)), (5, []))
+        none = read("Answer")
+        self.assertEqual(kinds(none), [])
+
+    def test_a_bad_line_and_a_cut_change_are_each_said_once(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
+
+    def test_a_bad_line_with_exactly_five_good_changes_says_only_unreadable(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(5)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable"])
+
+    def test_a_bad_line_with_six_good_changes_keeps_five_and_says_unreadable_then_limit(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
 
     def test_the_most_changes_allowed_are_read(self):
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * ask.MAX_CHANGES))
@@ -112,6 +151,82 @@ class Form(unittest.TestCase):
     def test_a_long_reply_is_cut(self):
         r = read("a " * ask.MAX_REPLY)
         self.assertLessEqual(len(r.answer), ask.MAX_REPLY)
+
+
+class Draft(unittest.TestCase):
+    """Row 1292 S12: a DRAFT line carries the text the person may put into a report section; it is data, kept apart from the answer."""
+    LINE = 'DRAFT: {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "ABC-S-001"}'
+
+    def test_a_draft_line_is_read_and_taken_out_of_the_answer(self):
+        r = read("Here is a summary.\n" + self.LINE + "\nCITE: P1")
+        self.assertEqual(r.answer, "Here is a summary.")
+        self.assertEqual(r.draft, {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "ABC-S-001"})
+        self.assertTrue(r.parsed)
+
+    def test_no_draft_line_is_no_draft(self):
+        self.assertIsNone(read("Plain.").draft)
+        self.assertIsNone(read("Plain.\nCHANGE: {\"a\": 1}").draft)
+
+    def test_title_and_section_are_optional_and_other_fields_are_dropped(self):
+        r = read('A.\nDRAFT: {"html": "<p>x</p>", "extra": "no"}')
+        self.assertEqual(r.draft, {"html": "<p>x</p>", "title": "", "sec": ""})
+
+    def test_a_bad_draft_is_dropped_and_the_answer_still_parses(self):
+        bad = ['DRAFT: not json', 'DRAFT: {"html": ""}', 'DRAFT: {"html": "   "}', 'DRAFT: {"title": "t"}', 'DRAFT: {"html": 5}',
+               'DRAFT: {"html": "<p>x</p>", "title": 3}', 'DRAFT: {"html": "<p>x</p>", "sec": ["a"]}', 'DRAFT: ["<p>x</p>"]', 'DRAFT:',
+               'DRAFT: {"html": "<p>x</p>", "html": "<p>y</p>"}', 'DRAFT: {"html": "a\\u0000b"}']
+        for line in bad:
+            r = read("A.\n" + line)
+            self.assertIsNone(r.draft, line)
+            self.assertTrue(r.parsed, line)
+            self.assertEqual(r.answer, "A.", line)
+
+    def test_the_longest_draft_is_read_and_a_longer_one_is_not(self):
+        def line(n):
+            return 'DRAFT: {"html": "' + "a" * n + '"}'
+        n = ask.MAX_DRAFT_CHARS - len('{"html": ""}')
+        self.assertEqual(len(read("A.\n" + line(n)).draft["html"]), n)
+        self.assertIsNone(read("A.\n" + line(n + 1)).draft)
+
+    def test_a_title_or_section_name_that_is_too_long_drops_the_draft(self):
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "' + "t" * 201 + '"}').draft)
+        self.assertIsNotNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "' + "t" * 200 + '"}').draft)
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 41 + '"}').draft)
+        self.assertIsNotNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 40 + '"}').draft)
+
+    def test_the_draft_limit_is_20000_characters_of_json(self):
+        def line(n):
+            return 'DRAFT: {"html": "' + "a" * n + '"}'
+        fixed = len('{"html": ""}')
+        self.assertIsNotNone(read("A.\n" + line(20000 - fixed)).draft)
+        self.assertIsNone(read("A.\n" + line(20001 - fixed)).draft)
+
+    def test_a_title_or_section_name_with_a_nul_drops_the_draft(self):
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "a\\u0000b"}').draft)
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "a\\u0000b"}').draft)
+
+    def test_a_deeply_nested_draft_is_dropped_not_a_crash(self):
+        r = read("A.\nDRAFT: " + "[" * 10000 + "]" * 10000)
+        self.assertIsNone(r.draft)
+        self.assertEqual(r.answer, "A.")
+
+    def test_only_the_first_draft_is_kept(self):
+        r = read('A.\nDRAFT: {"html": "<p>one</p>"}\nDRAFT: {"html": "<p>two</p>"}')
+        self.assertEqual(r.draft["html"], "<p>one</p>")
+        self.assertEqual(r.answer, "A.")
+
+    def test_a_disguised_draft_marker_is_not_acted_on_and_the_reply_is_text(self):
+        r = read('A.\nD\u200bRAFT: {"html": "<p>x</p>"}')
+        self.assertIsNone(r.draft)
+        self.assertFalse(r.parsed)
+
+    def test_a_reply_that_does_not_parse_offers_no_draft(self):
+        r = read("A.\n" + self.LINE + "\nCITE: the plan")
+        self.assertFalse(r.parsed)
+        self.assertIsNone(r.draft)
+
+    def test_the_rules_tell_the_model_the_form(self):
+        self.assertIn("DRAFT:", ask.RULES)
 
 
 class NeverRun(unittest.TestCase):

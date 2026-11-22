@@ -1,7 +1,7 @@
 // Row 1180: the peek's flat chip row. One chip = a coloured icon, the value in words, an optional small sub-line word ("overdue 2 days",
 // "Red kept") and a small chevron; a click, Enter, Space or Alt+Down opens its popover. The chip and the row are generic: the caller
 // (Peek.jsx) says which fields to draw and gives each chip its popover as a function, so the existing pickers (StatusPick, OwnerPick,
-// DuePick, PriorityPick, RatingPick) are used as they are. One popover is open at a time: the open key is the shared openCell signal
+// DuePick, PriorityPick) are used as they are. One popover is open at a time: the open key is the shared openCell signal
 // of the table's cells, with a "peek:" key so the table's popover and the peek's are never both open. With no `pop` (a read-only peek:
 // the published file, the Dashboard in View, a field that cannot be picked) the chip is drawn as a plain span: same look, no control.
 import { Icon } from "./Icon.jsx";

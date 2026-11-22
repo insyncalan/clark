@@ -35,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import docx_fullimage, docx_graphics, docx_read, glance, look, platform, sanitise
+from clark import docx_fullimage, docx_graphics, docx_read, glance, glance_print, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -53,13 +53,15 @@ DOC_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml"
 HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 ROOT = f'xmlns:w="{NS_W}" xmlns:r="{NS_R}"'
 
-TOKENS = dict(colours_table.TOKENS)
+TOKENS = {k: v for k, v in colours_table.TOKENS.items() if k not in colours_table.EXPORT_TOKENS}      # item 1390: the workbook-only tokens are not Word's
 HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
-          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
+          "glancetemplate": "At a glance", "callout": "Callout", "textimage": "Text and Image Side by Side"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+CALLOUT_FILL = {"violet": "blue", "amber": "amber", "red": "red", "green": "green", "grey": "grey"}      # row 1272: Violet is the page's blue token; Plain has no fill
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
@@ -583,6 +585,32 @@ def section_imagecap(published, ctx, title, sec):
     return pic + (para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120)) if caption else "")
 
 
+def section_textimage(published, ctx, title, sec):
+    """Row 1232: Text and Image Side by Side (an old Text and image section reads the same). The section heading, then the image as framed
+    (the file holds only the framed copy) with its caption, and the words; the image comes first when it is on the left, after the words
+    otherwise. A small image sits at its own size, centred. An image that cannot be read leaves the words alone; nothing to say leaves
+    the section out."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    html = c.get("html")
+    words = rich(html, ctx) if isinstance(html, str) and html.strip() else "".join(
+        para(run(str(w))) for w in (c.get("words") or []) if isinstance(w, str) and w.strip())
+    pic = ""
+    got = docx_fullimage.decode(c.get("image"))
+    if got:
+        raw, ext, w, h = got
+        twips = docx_fullimage.width_twips(w, h, TEXT_W * 2 // 3, False)
+        caption = str(c.get("caption") or "").strip()
+        pic = picture_para(ctx, lambda: ((raw, w, h), str(c.get("alt") or "")), twips, ext=ext, keep_next=bool(caption),
+                           align="center" if twips < TEXT_W * 2 // 3 else None, spacing=(120, 40))
+        if pic and caption:
+            pic += para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120))
+    if not pic and not words:
+        return ""
+    first = c.get("side") == "left"                  # Word does not know the section width: left puts the image first, anything else after the words
+    own = " ".join(str(c.get("heading") or "").split())            # the view draws this one line above the picture and the words, under the section heading
+    return _heading(title) + (_heading(own, 2) if own else "") + (pic + words if first else words + pic)
+
+
 def _status_key(word):
     return {v: k for k, v in GANTT_STATUS.items()}[word]
 
@@ -691,7 +719,11 @@ def section_workitems(published, ctx, title, sec):
                      "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
-            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
+            body = text_paras(_words(r, "client_message", "description"), ctx)
+            words = sanitise.rich_plain_text(r.get("latest_update")) if t == "actions" else ""
+            if words:
+                body += text_paras(f"Latest update: {words}", ctx, color=ctx.tok["grey-700"])      # row 1307: an action's update line under its text, as in the Actions section
+            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (body, None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
                      "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
@@ -710,6 +742,8 @@ def section_reportheadline(published, ctx, title, sec):
     none of the three is left out. The words are the published content's own; none are added."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if c.get("pill") is False:      # row 1261: the eye is off, so the pill is not drawn (the page and the file leave it out)
+        health = ""
     if not (health or headline or sentence):
         return ""
     out = [para(rule=True, spacing=(120, 0))]
@@ -725,9 +759,66 @@ def section_reportheadline(published, ctx, title, sec):
     return "".join(out)
 
 
-SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+def section_glancetemplate(published, ctx, title, sec):
+    """Row 1264 slice 7: the glance template as the View draws it: the tiles in the body's order (only the kept ones), the health tile
+    in its place or on a row of its own, each as label, figure, tag and note, as many to a line as the View draws (3 or 4, 2 at half width). Nothing to show leaves the section out."""
+    got = glance_print.read(published, sec)
+    out = [_heading(title)]
+    h = got["health_row"]
+    if h:
+        fill = text = None
+        if h["colour"]:
+            fill, text = ctx.hexes(h["colour"])
+        out.append(para(run(h["label"] + ": ", bold=True) + run(h["figure"], bold=True, color=text), fill=fill, spacing=(60, 60), keep_next=bool(h["colour"])))
+        if h["colour"]:
+            out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
+        if h["note"]:
+            out.append(text_paras(h["note"], ctx, style=None))
+    tiles = got["tiles"]
+    if tiles:
+        cells = []
+        for t in tiles:
+            fill = text = None
+            if t["colour"]:
+                fill, text = ctx.hexes(t["colour"])
+            body = para(run(t["label"], color=ctx.tok["grey-700"], size=16), "TableText")
+            if t["figure"]:
+                body += para(run(t["figure"], bold=True, color=text, size=32), "TableText")
+            if t["tag"]:
+                body += para(run(t["tag"], bold=True, size=16), "TableText")
+            if t["note"]:
+                body += para(run(t["note"], size=16), "TableText")
+            cells.append((body, fill))
+        per = got["per_line"]
+        lines = [cells[i:i + per] for i in range(0, len(cells), per)]
+        lines = [r + [(para("", "TableText"), None)] * (per - len(r)) for r in lines]
+        out.append(table(ctx, None, [1] * per, lines))
+    return "".join(out) if (h or tiles) else ""
+
+
+def section_callout(published, ctx, title, sec):
+    """Row 1272 (1291), ruling M8780: a callout as a text block, in Dashboard order: the heading (the callout's own title, else "Callout"; left out when its
+    heading is off), one bold line "Category: <category>. Colour: <colour>. Icon: <icon>." (empty parts left out; Plain and No icon say nothing extra),
+    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). A callout is left out only when its title, category, colour, icon and words are all empty (row 1272, ruling M8851)."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    cat, col, ico = (str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name"))
+    parts = [f"{label}: {w}." for label, w in (("Category", cat), ("Colour", "" if col == "Plain" else col), ("Icon", ico)) if w]
+    line = " ".join(parts)
+    name = str(c.get("title") or "").strip()
+    body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
+    if not (name or line or body):
+        return ""
+    inner = (para(run(line, bold=True), "TableText") if line else "") + body
+    out = _heading(name or "Callout") if c.get("heading", True) else ""
+    if c.get("tile", True):
+        fill = ctx.hexes(CALLOUT_FILL[c["colour"]])[0] if c.get("colour") in CALLOUT_FILL else None
+        return out + table(ctx, None, [1], [[(inner, fill)]])
+    return out + inner
+
+
+SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "textimage": section_textimage, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
-          "reportheadline": section_reportheadline}
+          "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 
 
 def title_block(published, ctx):

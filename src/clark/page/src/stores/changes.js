@@ -155,7 +155,7 @@ export function change(req, done, named = null) {
     if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
-    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
+    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, done ? `Undone: ${done}` : ""); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
     if (r.reply.apply_id && named && named.silent) keepStep(r.reply.apply_id, code);      // named.silent: no message at all, the step is kept for Cmd/Ctrl+Z (row 1261: no toast on a headline save)
     else if (r.reply.apply_id) say("done", done, r.reply.apply_id, code, false, !!(named && named.quiet));      // named.quiet: not announced (a section drop, whose own live region speaks)
     return r.reply;

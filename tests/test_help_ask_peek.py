@@ -46,8 +46,10 @@ class HelpAskAndSneakPeek(unittest.TestCase):
             self.assertEqual(about_bar, [])
             return
         code = BUTTON.read_text(encoding="utf-8")
-        label = re.search(r'aria-label="([^"]+)"', code).group(1)
-        self.assertEqual(label, "ask clark")
+        self.assertIn("askButtonLabel(open, working, ready)", code)       # row 1349: the label comes from edit/askButtonLabel.js
+        label = (BUTTON.parent / "askButtonLabel.js").read_text(encoding="utf-8")
+        self.assertIn('"ask clark, working"', label)       # row 1292: the label is "ask clark" at rest; it adds "working" or the count of ready answers
+        self.assertIn("aria-label={label}", code)
         self.assertIn("<svg", code)                       # the button draws a speech bubble (a rounded outline with a tail)
         self.assertIn("M4 5.5A2.5 2.5 0 0 1 6.5 3h7", code)
         self.assertIn("<kbd", code)                       # and shows its key, "/"
@@ -79,7 +81,7 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertIn("on from the first start", ref)
         self.assertIn("**Turn off asking**", ref)
         settings = (PAGE / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
-        for name in ("Turn off asking", "Folders asking may read", ">Asking<"):
+        for name in ("Turn off asking", "Source folders for ", "Asking in "):
             self.assertIn(name, settings)
 
     def test_ask_clark_changes_work_items_and_milestones_not_use_cases(self):

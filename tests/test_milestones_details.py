@@ -40,7 +40,7 @@ LOOK = """(() => {
 STATE = """(() => {
   const seen = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
   return {rows: [...document.querySelectorAll('.msl-row')].filter(seen).length, all: [...document.querySelectorAll('.msl-all')].filter(seen).length,
-    marks: [...document.querySelectorAll('.mv-mk, .cal-ms')].filter(seen).length, legend: seen(document.querySelector('.mlg-b')), sw: seen(document.querySelector('.msv-sw')),
+    marks: [...document.querySelectorAll('.mv-mk, .cal-ms')].filter(seen).length, legend: seen(document.querySelector('.mlg-b, .mlg-row')), sw: seen(document.querySelector('.msv-sw')),
     focusable: [...document.querySelectorAll('.msl-box [tabindex], .msl-box .msl-all')].filter(seen).length, toggle: seen(document.querySelector('.msl-det')),
     label: (document.querySelector('.msl-det') || {}).textContent, expanded: (document.querySelector('.msl-det') || {getAttribute() {}}).getAttribute('aria-expanded')};
 })()"""

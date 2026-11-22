@@ -210,7 +210,12 @@ class Page(Base):
             cdp.js("document.activeElement.blur()", sid)          # row 808: the box's list floats over the rows, so the person has left the box before clicking a row
             self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 5", "the rows")
+        self.settle(cdp, sid)               # fonts in and the page still: the first press of a test is aimed at where the rows are, not where they were (CI shard 2/4 lost it twice)
         return sid
+
+    def where_was(self, cdp, sid, what):
+        """What the page showed when a press did not land: the box of the target, the window, the fonts, the hash (so the next red names its cause)."""
+        return cdp.js("JSON.stringify({target: (() => { const e = document.querySelector(%s) || document.querySelector(%s); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; })(), win: [innerWidth, innerHeight, scrollY], fonts: document.fonts.status, hash: location.hash, active: document.activeElement && document.activeElement.tagName})" % (json.dumps(what), json.dumps(f"#work-list tr[data-id='{what}'] .c-item .t")), sid)
 
     def picked(self, cdp, sid):
         return cdp.js(self.PICKED, sid)
@@ -251,8 +256,12 @@ class Page(Base):
         with chrome() as cdp:
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
-            tap(cdp, sid, self.rsel(rows[2]), count=2)
-            self.until(cdp, sid, f"location.hash.includes('item={rows[2]}')", "a double click opens the peek")
+            # A press right after the load can be lost while the page still lays out. A lost double click changes nothing, so it is repeated, up to 3 times, each with an 8 s wait.
+            for _ in range(3):
+                tap(cdp, sid, self.rsel(rows[2]), count=2)
+                if wait(lambda: cdp.js(f"location.hash.includes('item={rows[2]}')", sid), 8):
+                    break
+            self.until(cdp, sid, f"location.hash.includes('item={rows[2]}')", "a double click opens the peek", secs=1, why=lambda: self.where_was(cdp, sid, rows[2]))
             self.assertEqual(self.picked(cdp, sid), [rows[2]])
             tap(cdp, sid, self.rsel(rows[4]))
             self.until(cdp, sid, f"location.hash.includes('item={rows[4]}')", "with the peek open on one, a click moves it")
@@ -338,8 +347,14 @@ class Page(Base):
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             every = [i for _, v in groups for i in v]
             shut, hidden = groups[-1]
-            tap(cdp, sid, f"thead[data-group='{shut}'] .grp-b")
-            self.until(cdp, sid, f"!document.querySelector(\"tbody[data-group='{shut}'] tr[data-id]\")", "a group collapsed")
+            gone = f"!document.querySelector(\"tbody[data-group='{shut}'] tr[data-id]\")"
+            for _ in range(3):              # a lost press leaves the rows; the button is pressed again only while they are still there
+                if cdp.js(gone, sid):
+                    break
+                tap(cdp, sid, f"thead[data-group='{shut}'] .grp-b")
+                if wait(lambda: cdp.js(gone, sid), 8):
+                    break
+            self.until(cdp, sid, gone, "a group collapsed", secs=1, why=lambda: self.where_was(cdp, sid, f"thead[data-group='{shut}'] .grp-b"))
             shown = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(shown[0]))
             self.assertFalse(cdp.js("!!document.querySelector('#sel-all')", sid), "not offered for one")

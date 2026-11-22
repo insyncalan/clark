@@ -55,8 +55,8 @@ class Survivors(Base):
                 got = cdp.js(CAP, sid)
                 self.assertEqual(got["boxPos"], "relative")
                 self.assertGreater(got["sb"], 0, f"the box sets a lift: {got}")
-                self.assertAlmostEqual(got["b"], got["sb"] + 4, delta=1, msg=f"the caption sits that lift plus 4px above the box's bottom edge: {got}")
-                self.assertAlmostEqual(got["lift"], got["sb"] + 4, delta=1.5, msg=str(got))
+                self.assertAlmostEqual(got["b"], got["sb"] + 18, delta=1, msg=f"the caption sits that lift plus 18px (4px, and 14px for the height grip) above the box's bottom edge: {got}")
+                self.assertAlmostEqual(got["lift"], got["sb"] + 18, delta=1.5, msg=str(got))
 
     def test_the_heading_row_leaves_room_for_the_tabs(self):
         for width in (1400, 900):

@@ -186,6 +186,30 @@ class Card(InBrowser):
         self.assertIn("Contact%3A%20sam%40example.org", href)
         self.assertEqual(self.text("a[data-feedback-mail]"), "Open in your mail app")
 
+    def _answer(self, status, body):
+        self.js("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); return Promise.resolve(new Response(JSON.stringify({BODY}), {status: {STATUS}})); }".replace("{BODY}", json.dumps(body)).replace("{STATUS}", str(status)))
+
+    def test_the_ruled_note_shows_under_the_button_only_when_the_open_fails_1297(self):
+        self.mount()
+        self.type("#feedback-message", "The tab is slow")
+        note = "No mail app opened. Use Copy as text and paste it into your mail."
+        self.assertEqual(self.text("[data-mail-note]"), "", "nothing before a click")
+        self._answer(200, {"ok": True})
+        self.click("a[data-feedback-mail]")
+        self.assertEqual(self.val("window.__posts.length"), 1)
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "hidden on success")
+        self._answer(503, {"ok": False, "code": "not_opened", "message": "The mail app could not be opened."})
+        self.click("a[data-feedback-mail]")
+        self.assertEqual(self.text("[data-mail-note]"), note)
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 1)
+        self._answer(200, {"ok": True})
+        self.click("a[data-feedback-mail]")
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "a good open clears the note")
+        self._answer(503, {"ok": False, "message": "x"})
+        self.click("a[data-feedback-mail]")
+        self.type("#feedback-message", "more")
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "typing clears it")
+
     def test_copy_puts_the_whole_email_text_on_the_clipboard(self):
         self.mount()
         self.type("#feedback-message", "Please add a thing")

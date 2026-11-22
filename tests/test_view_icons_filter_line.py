@@ -143,6 +143,7 @@ class ImportExportPlace(Base):
                 self.assertNotIn(word, text, f"{page} still has {word}")
 
     def test_a_published_file_has_no_import_or_export_anywhere(self):
+        self.demo.plant_builtin_sections(project="ABC")   # the published file has a Work items tab only with a built-in section shown (row 1193)
         out = Path(publish.publish(self.store, "ABC", tempfile.mkdtemp(prefix="clark-pub-"), by_user=USER, now="2026-10-29", branding=tempfile.mkdtemp())["path"])
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

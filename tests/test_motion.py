@@ -53,8 +53,8 @@ class Rules(unittest.TestCase):
         # #934: not even the placeholder loops; the loading blocks are still.
         self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [])
         for decl in re.findall(r"animation:([^;]+);", MOTION):
-            self.assertRegex(decl, r"var\(--dur-[a-z]+\)", decl)
-            self.assertRegex(decl, r"var\(--ease-[a-z]+\)", decl)
+            self.assertRegex(decl, r"var\(--(dur|peek-dur)(-[a-z]+)?\)", decl)      # row 1289: the peek's entry has its own pair of tokens, --peek-dur and --peek-ease
+            self.assertRegex(decl, r"var\(--(ease|peek-ease)(-[a-z]+)?\)", decl)
             self.assertNotRegex(decl, r"(?<![-\w(])\d+(\.\d+)?m?s\b", "a literal time: " + decl)
             self.assertTrue(re.search(r"\b1\b|forwards", decl), "runs once: " + decl)
 
@@ -300,14 +300,14 @@ class More(tre.Base):
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('#peek')).pointerEvents"), "auto")
                 else:
                     self.assertEqual(body, ["none", 0], "the body is simply there")
-                    self.assertEqual(panel, ["none", 0], "the panel is simply there")
+                    self.assertEqual(panel[0], "pk-fade" if mode[0] == "media" else "none", "the panel does not travel: the system setting gives a short fade, the page switch none (row 1289)")
                 self.assertGreater(p.js("document.querySelector('#peek [data-pk-body]').offsetHeight"), 0)
         with self.subTest(what="slide"), chrome() as cdp:
             p = self.go(cdp, "#work&p=ABC", MODES[0])
             p.until("!!document.querySelector('#work-count')", "the list drew")
             p.js("clarkPage.openPeek(document.querySelector('table.items tr[data-id]').dataset.id)")
             p.until("!!document.querySelector('#peek')", "the peek opened")
-            self.assertTrue(p.js("document.getAnimations().some(function(a){return a.animationName === 'm-slide';})"), "the panel slides in")
+            self.assertTrue(p.js("document.getAnimations().some(function(a){return a.animationName === 'pk-in';})"), "the panel slides in (row 1289: pk-in, 0.5 s)")
 
     def test_the_timeline_and_calendar_swap_with_a_rise_and_a_fade(self):
         for mode in MODES:

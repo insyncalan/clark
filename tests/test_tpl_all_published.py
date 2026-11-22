@@ -10,9 +10,11 @@ import re
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import _routes as routes_expected
+import _testpage as testpage
 from _paths import ROOT
 from _demo import USER
 from _pictures import GOOD
@@ -49,7 +51,14 @@ class ViewBundleNamesNoRoute(unittest.TestCase):
 class AllTemplates(Base):
     def setUp(self):
         super().setUp()
+        # Classic is the only theme (row 1363), so the served View and the file draw the same Theme.
+        # The served test page layers no Theme, and the work items rows read Classic from the <style id="theme"> element: add it, as the real page does.
+        real_html = testpage.html
+        patch = mock.patch.object(testpage, "html", lambda *a, **k: real_html(*a, **k).replace("</head>", '<style id="theme"></style></head>', 1))
+        patch.start()
+        self.addCleanup(patch.stop)
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.kept = d.action(description=KEPT, due_date=OVERDUE)
         self.hid = d.action(description=HIDDEN, due_date=OVERDUE)
         self.arc = d.action(description=ARCHIVED, due_date=OVERDUE)
@@ -90,8 +99,9 @@ class AllTemplates(Base):
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
             "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional headline", "sentence": "Fictional sentence."},
-            "glancetemplate": {"v": 1, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
+            "glancetemplate": {"v": 1, "builtin": {n: {"hidden": True} for n in ("overdue", "risks", "decisions")}, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
         }
+        # row 1264: the file carries no counts until the counts slice, so the fixture hides the three counting tiles the served View would draw
         self.assertEqual(set(self.bodies), set(section_kinds.TYPES), "one of every template")
         self.refs = {}
         with self.store.step("dashboard", USER) as st:
@@ -137,10 +147,10 @@ class AllTemplates(Base):
     def words(self, p):
         """Each template section's words, by id, with white space folded. How late a work item is counts from the day it is read
         (the served View: today; the file: its as-at day), so that count is folded too. The served View's "Review all N items" link
-        opens the Work items page, so the file has none (Row 1268): it is folded out too."""
+        opens the Work items page, so the file has none (Row 1268): it is folded out too. So is the Classic foot count ("Showing all of N", Row 1195): the file draws no foot."""
         got = p.js("(function(refs){ try { return JSON.stringify(Object.fromEntries(refs.map(function(id){"
                    " var e = document.querySelector('[data-id=\"' + id + '\"]');"
-                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/\\d+ days? late/g, 'N days late').replace(/\\s*Review all \\d+ items$/, '').trim() : null]; }))); }"
+                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/\\d+ days? late/g, 'N days late').replace(/\\s*Review all \\d+ items$/, '').replace(/\\s*Showing (all of )?\\d+( of \\d+)?(, scroll for the rest)?$/, '').trim() : null]; }))); }"
                    " catch (x) { return 'ERROR ' + x.message; } })("
                    + json.dumps(sorted(self.refs.values())) + ")")
         self.assertFalse(str(got).startswith("ERROR"), got)

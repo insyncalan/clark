@@ -50,6 +50,7 @@ class InTheFile(Published):
         """The published file open at a width, light or dark; the browser of the case before is closed first."""
         self.close()
         if not getattr(self, "_path", None):
+            self.demo.plant_builtin_sections()      # the file has a Work items tab only with a built-in section shown (row 1193)
             self._path = self.publish()
             self.addCleanup(self.close)
         path = self._path

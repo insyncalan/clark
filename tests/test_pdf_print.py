@@ -258,6 +258,7 @@ class Browser(unittest.TestCase):
         self.folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(self.demo.close)
         self.addCleanup(shutil.rmtree, self.folder, True)
+        self.demo.plant_builtin_sections(project="ABC")  # a new project's report has Work items lists now; this file pins the built-in sections (row 1193)
         self.shown = self.demo.action(description="Shown on the printed page")
         self.hidden = self.demo.action(description="Eye hidden zebra item")
         self.left_out = self.demo.action(description="Client invisible quokka item", client_visible=0)

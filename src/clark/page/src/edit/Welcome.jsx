@@ -6,6 +6,7 @@
 // change made with no name in Settings carries this computer's login name, as before.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { profile, profileRead, setProfile, welcomeHeld } from "../stores/profile.js";
+import { modeKeyUsed } from "./keys.js";
 
 const KEY = "clark.welcome";
 const answered = () => { try { return localStorage.getItem(KEY) === "done"; } catch (e) { return false; } };
@@ -30,7 +31,7 @@ export function Welcome() {
   const shown = !(gone || welcomeHeld.value || !profileRead.value || profile.value.name);
   useEffect(() => {
     const a = document.activeElement;
-    if (shown && box.current && (!a || a === document.body || a === document.documentElement)) box.current.focus();
+    if (shown && box.current && !modeKeyUsed.value && (!a || a === document.body || a === document.documentElement)) box.current.focus();      // row 1320: not after V or E was pressed
   }, [shown]);
   if (gone || welcomeHeld.value || !profileRead.value || profile.value.name) return null;
   const close = () => { remember(); setGone(true); };

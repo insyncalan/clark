@@ -29,7 +29,9 @@ SECTION_DELETE = "Delete section"
 VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
 # Row menu Delete, signed WO-M0270, #1101 comment 6835416954 (exact string only).
 ROW_DELETE = "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
-SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE}
+# Row 1205: approved in NEW-WORDS.md (the owner-signed list), the peek top-bar line with Duplicate, Archive and Delete (line 1847, 20-11 19:42; PeekMore.jsx lines 9-13 is the code fact).
+PEEK_DELETE = "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **More actions**, a menu of actions for this item: **Duplicate**, **Archive** and **Delete**, then **Make this panel fill the screen** and **Close this panel**."
+SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE, PEEK_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
@@ -103,8 +105,8 @@ class Held(unittest.TestCase):
         self.assertEqual(task["s"][2], intro)
         self.assertIn("No password or key is kept.", src)
         self.assertIn("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. ", src)
-        self.assertEqual(task["s"][1][:len("Press **Connect** under the one you use if it says **Not connected**.")], "Press **Connect** under the one you use if it says **Not connected**.")
-        self.assertEqual(task["s"][4], "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
+        self.assertEqual(task["s"][1][:len("Press **Turn on** under the one you use if it says **Not connected**.")], "Press **Turn on** under the one you use if it says **Not connected**.")
+        self.assertEqual(task["s"][4], "To stop, press **Turn off** under the one you want to stop. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
         self.assertIn("Disconnected. You're still signed in to {name} on this computer, but clark won't use it.", src)
         self.assertNotIn("settings", LATER["reference"])      # the Settings entries are released: every card they name is on the page (checked below)
         self.assertIn("No password or key is kept: the sign-in already on this computer is used.", json.dumps(RAW["reference"]["sections"]))
@@ -120,7 +122,7 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "the-three-starting-lists", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "publishing", "published-reports", "settings", "people", "updating-clark", "diagnostics", "feedback", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 35 - len(LATER["keys"]))
@@ -137,7 +139,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 35))   # v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 35, 35))   # row 1193 added the three starting lists task; v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 def lacks(code, name):
@@ -376,11 +378,12 @@ class NeverDelete(unittest.TestCase):
 # Row 1077: the words box's heading is the owner's own words of 09-11-2026, "Ask clark to update for you", with its capital A. It is the one
 # spelling allowed beside "ask clark"; the heading is matched whole, so "Ask clark" anywhere else still fails.
 WORDS_BOX_HEADING = "Ask clark to update for you"
-ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you)?")
+ABOUT_WORDS = "Ask clark about"      # row 1292, the approved words (NEW-WORDS L1491 tooltip 'Ask clark about this', L1500 aria 'Ask clark about <id title>'): a capital A at the start of the tooltip and the label; 'clark' stays lower case
+ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you| about\b)?")
 
 
 def ask_clark_misspelt(text):
-    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", WORDS_BOX_HEADING)]
+    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", "ask clark about", WORDS_BOX_HEADING, ABOUT_WORDS)]
 
 
 class AskClark(unittest.TestCase):
@@ -399,10 +402,17 @@ class AskClark(unittest.TestCase):
                 bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
+    def test_the_ask_about_words_are_the_approved_ones(self):
+        """Row 1292: the tooltip and the aria label start with a capital A (NEW-WORDS L1491 and L1500); 'clark' stays lower case."""
+        words = (PAGE_SRC / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn('export const ABOUT_TITLE = "Ask clark about this";', words)
+        self.assertIn("export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;", words)
+
     def test_the_heading_is_the_only_exception_and_the_rule_still_bites(self):
         self.assertEqual(ask_clark_misspelt("Ask clark to update for you. Then ask clark again."), [])
         self.assertEqual(ask_clark_misspelt("Ask clark to update. ASK CLARK now. Ask Clark to update for you"), ["Ask clark", "ASK CLARK", "Ask Clark to update for you"])
         self.assertEqual(ask_clark_misspelt("Use ask clark to **Check this report**"), [])
+        self.assertEqual(ask_clark_misspelt("Ask clark about this. Ask Clark about it. ASK CLARK ABOUT it. Ask clark now"), ["Ask Clark about", "ASK CLARK ABOUT", "Ask clark"])      # only the approved capital A before 'about' is allowed
 
     def test_the_first_step_no_longer_starts_with_it(self):
         raw = json.dumps(RAW, ensure_ascii=False)

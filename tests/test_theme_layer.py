@@ -42,8 +42,16 @@ class ThemeReading(unittest.TestCase):
         with mock.patch.object(theme, "LIMIT", biggest - 1):
             self.assertIsNone(theme.css(NAME))
 
-    def test_the_limit_is_64_kilobytes(self):
-        self.assertEqual(theme.LIMIT, 64 * 1024)
+    def test_the_limit_is_128_kilobytes(self):
+        self.assertEqual(theme.LIMIT, 128 * 1024)
+
+    def test_every_shipped_theme_file_is_under_the_limit(self):
+        """A file over the limit is not read and the whole Theme drops: the next overrun fails here, not on the page."""
+        for name in theme.installed():
+            for f in theme.FILES:
+                size = (theme.THEMES / name / f).stat().st_size
+                self.assertLessEqual(size, theme.LIMIT, f"{name}/{f} is {size} bytes, over the {theme.LIMIT} limit")
+            self.assertIsNotNone(theme.css(name), name)
 
     def test_a_symlinked_theme_file_is_refused(self):
         root = Path(tempfile.mkdtemp())
@@ -52,6 +60,7 @@ class ThemeReading(unittest.TestCase):
         folder = root / "themes" / "linked"
         folder.mkdir(parents=True)
         (folder / "rules.css").write_text(".x { color: red; }", encoding="utf-8")
+        (folder / "rules-2.css").write_text(".y { color: red; }", encoding="utf-8")
         (folder / "tokens.css").symlink_to(real)
         with mock.patch.object(theme, "THEMES", root / "themes"):
             self.assertIn("linked", theme.installed())
@@ -60,11 +69,11 @@ class ThemeReading(unittest.TestCase):
             (folder / "tokens.css").write_text(":root { --a: 1; }", encoding="utf-8")
             self.assertIsNotNone(theme.css("linked"))
 
-    def test_the_served_text_is_tokens_file_then_rules_file(self):
+    def test_the_served_text_is_tokens_file_then_the_two_rules_files(self):
         def clean(f):
             return page.strip_css_comments((theme.THEMES / NAME / f).read_text(encoding="utf-8")).strip()
-        self.assertEqual(theme.css(NAME), page.escape_style(clean("tokens.css") + "\n" + clean("rules.css")))
-        self.assertEqual(theme.FILES, ("tokens.css", "rules.css"))
+        self.assertEqual(theme.css(NAME), page.escape_style(clean("tokens.css") + "\n" + clean("rules.css") + "\n" + clean("rules-2.css")))
+        self.assertEqual(theme.FILES, ("tokens.css", "rules.css", "rules-2.css"))
 
 
 class ThemeLayering(unittest.TestCase):

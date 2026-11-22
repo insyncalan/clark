@@ -9,6 +9,7 @@ choices and note, makes no change request until one is used, and a row still pic
 and 900 px, light and dark. The published file in the browser has neither the switch nor Movement.
 """
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -86,8 +87,12 @@ class Published(unittest.TestCase):
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(demo.store, "ABC", folder, by_user=USER, now="2030-01-15", branding=EMPTY_BRANDING)
         text = Path(done["path"]).read_text(encoding="utf-8")
+        # Row 1260 (G4): the Classic theme layer (<style id="theme">) holds a rule that hides the Edit page's Plan sentence; its selector names those
+        # two attributes as CSS, which draws nothing in this file. The check is about the file's markup and script, so the theme's own style block is left out of it.
+        body = re.sub(r'<style id="theme">.*?</style>', "", text, flags=re.S)
+        self.assertNotEqual(body, text, "the theme layer is in the published file, and is the only text left out")
         for never in ("data-mspage-switch", "data-mspv", "data-mspage-hint", "msp.view", "/api/movement", "mvm-", mv.HELP_LINE, mv.TAG_INTERNAL):
-            self.assertNotIn(never, text, never)
+            self.assertNotIn(never, body, never)
         for name, words in js_constants().items():
             if len(words) > 12 and name not in ("NOT_HERE", "ARCHIVED"):
                 self.assertNotIn(words, text, name)

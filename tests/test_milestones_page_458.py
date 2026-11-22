@@ -276,7 +276,7 @@ SEE = """(() => {
   const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
   const sub = q('#ms-summary'), h1 = q('#milestones h1'), add = q('#addMs'), crumbs = q('#milestones .crumbs');
   return {crumbs: crumbs.textContent, title: h1.textContent, summary: sub.textContent, tag: [crumbs.tagName, h1.tagName, sub.tagName],
-          order: r(crumbs).bottom <= r(h1).top + 1 && r(h1).bottom <= r(sub).top + 1,
+          order: r(crumbs).bottom <= r(h1).top + 1, shown: getComputedStyle(sub).display !== 'none' && r(sub).height > 0,
           ratio: ratio(px(getComputedStyle(sub).color), back(sub)), size: parseFloat(getComputedStyle(sub).fontSize),
           add: add && {w: r(add).width, h: r(add).height, name: add.getAttribute('aria-label'), onScreen: r(add).right <= window.innerWidth && r(add).left >= 0,
                        apart: r(add).left >= r(sub).right - 1 || r(add).top >= r(sub).bottom - 1 || r(add).bottom <= r(h1).top + 1},
@@ -300,13 +300,24 @@ class Page(Base):
                     self.assertEqual(seen["tag"], ["P", "H1", "P"])
                     self.assertRegex(seen["summary"], r"^.+ is agreed for \d\d-\d\d-\d{4}( and now expected \d\d-\d\d-\d{4})?\. \d+ achieved, \d+ to come\.$")
                     self.assertIn("0 achieved, 2 to come.", seen["summary"])
-                    self.assertTrue(seen["order"], "the project, then the title, then the sentence")
-                    self.assertGreaterEqual(seen["ratio"], 4.5)
-                    self.assertGreaterEqual(seen["size"], 13)
+                    self.assertTrue(seen["order"], "the project, then the title")
+                    self.assertFalse(seen["shown"], "the normal 'is agreed for' sentence is hidden; its node stays for the tests")
                     self.assertTrue(seen["add"] and seen["add"]["onScreen"] and seen["add"]["apart"], "the Add milestone button sits clear of the head")
                     self.assertEqual(seen["add"]["name"], "Add milestone")
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
                     self.assertTrue(seen["noScroll"], "no page-wide scroll")
+
+    def test_the_cancelled_sentence_is_shown_while_the_agreed_for_sentence_is_hidden(self):
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("milestones"):
+                st.update("milestones", r["id"], {"status": "Cancelled"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#ms-summary')", "the head drew")
+            seen = p.js("(() => { const s = document.querySelector('#ms-summary'); return {text: s.textContent, display: getComputedStyle(s).display, h: s.getBoundingClientRect().height}; })()")
+            self.assertRegex(seen["text"], r"cancelled\.$")
+            self.assertNotEqual(seen["display"], "none", "the cancelled sentence stays shown")
+            self.assertGreater(seen["h"], 0)
 
     def test_view_has_add_milestone_and_sends_no_request_until_it_is_used(self):
         before = {r["id"] for r in self.store.read("milestones")}

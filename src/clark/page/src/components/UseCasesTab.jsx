@@ -14,6 +14,7 @@ import { printing } from "../stores/print.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";   // row 1324-A: the column names over the published list are Classic only (Cards draws what it drew)
 import { groupIcon, sortIcon } from "../menuIcons.js";
 
 const RAGS = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
@@ -78,7 +79,11 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           <p class="muted">No use cases match these filters.</p>
           <button type="button" class="btn" data-clear-all onClick={() => set({ tab: "all" })}>Clear the filters</button>
         </div>
-      ) : f.group === "nothing" ? items(kept) : groups.map((g) => (
+      ) : (<>
+        {classicTheme() ? <div class="ucp-cols" aria-hidden="true">
+          <span class="ucl-c1">Use case</span><span>Where it stands</span><span>Status</span><span>Next steps</span><span></span>
+        </div> : null}
+        {f.group === "nothing" ? items(kept) : groups.map((g) => (
         <div class="wgroup ucp-group" key={g.key} data-group={g.key}>
           <div class="ucp-grp">
             <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggle(g)}>
@@ -87,7 +92,8 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           </div>
           {g.shut ? null : items(g.rows)}
         </div>
-      ))}
+        ))}
+      </>)}
       {paper ? null : <p class="ucp-count num" id="ucp-count" role="status">{plural(kept.length, "use case")}</p>}
     </>
   );

@@ -2,13 +2,14 @@
 // (Overdue actions, High risks and issues, Decisions needed: the same figures as the At a glance tiles). A field is saved when it
 // is left (or its choice made): one change() each, so one step and one Undo. A figure with a label and no number (or the other way
 // round) is saved and waits: the line under it says it stays out of the published page. The preview above is what View shows.
+import { StartPrompt } from "../StartPrompt.jsx";
 import { change } from "../../stores/changes.js";
 import { data } from "../../stores/report.js";
 import { todayIso } from "../../workItems.js";
 import { FigureRow } from "../../templates/FiguresView.jsx";
 import { parseDay } from "../../templates/keydates.js";
 import { dateWords } from "../../templates/safe.js";
-import { PLACES, METRICS, LIMITS, slotsOf, bodyOf, figuresOf } from "../../templates/figures.js";
+import { PLACES, METRICS, LIMITS, metricsOffered, slotsOf, bodyOf, figuresOf } from "../../templates/figures.js";
 
 const BLANK = { mode: "typed", label: "", value: "", detail: "", asof: "" };
 
@@ -21,11 +22,12 @@ export function figuresEdit(type) {
   return function Edit({ section }) {
     const slots = slotsOf(section, places);
     while (slots.length < places) slots.push({ ...BLANK });
+    const offered = metricsOffered(data.value);      // item 1337: a live figure is offered only while its section is there
     const shown = figuresOf(section, data.value, todayIso(), places);
     const put = (i, one) => save(section, slots.map((s, j) => (j === i ? one : s)));
     const mode = (i, e) => {
       const m = e.currentTarget.value;
-      put(i, m === "live" ? { mode: "live", metric: METRICS[0][0] } : { ...BLANK });
+      put(i, m === "live" && offered.length ? { mode: "live", metric: offered[0][0] } : { ...BLANK });
     };
     const field = (i, name) => (e) => {
       const v = e.currentTarget.value.trim();
@@ -38,7 +40,7 @@ export function figuresEdit(type) {
     };
     return (
       <div class="tpl-edit" data-edit-only="" data-template={type}>
-        {shown.length ? <FigureRow list={shown} type={type} /> : <p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p>}
+        {shown.length ? <FigureRow list={shown} type={type} /> : <><StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"} /><p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p></>}
         <div class={`tpl-slots n${places}`}>
           {slots.map((s, i) => (
             <fieldset class="tpl-slot" key={i} data-slot={i}>
@@ -46,13 +48,13 @@ export function figuresEdit(type) {
               <label>Source
                 <select aria-label={`Figure ${i + 1} source`} value={s.mode === "live" ? "live" : "typed"} onChange={(e) => mode(i, e)}>
                   <option value="typed">Typed</option>
-                  <option value="live">Live from the project</option>
+                  {offered.length || s.mode === "live" ? <option value="live">Live from the project</option> : null}
                 </select>
               </label>
               {s.mode === "live" ? (
                 <label>Figure
                   <select aria-label={`Figure ${i + 1} live figure`} value={s.metric} onChange={(e) => put(i, { mode: "live", metric: e.currentTarget.value })}>
-                    {METRICS.map(([k, name]) => <option value={k} key={k}>{name}</option>)}
+                    {METRICS.filter(([k]) => s.metric === k || offered.some(([o]) => o === k)).map(([k, name]) => <option value={k} key={k}>{name}</option>)}
                   </select>
                 </label>
               ) : (

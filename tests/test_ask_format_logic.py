@@ -120,7 +120,7 @@ class Source(unittest.TestCase):
         self.assertNotIn("dangerouslySetInnerHTML", jsx)
         self.assertNotIn("innerHTML", jsx)
         panel = (EDIT / "AskPanel.jsx").read_text(encoding="utf-8")
-        self.assertIn("<FormattedAnswer text={t.text} />", panel)
+        self.assertIn("<FormattedAnswer text={t.text} sources={cited(t)} open={openCite} />", panel)
         self.assertIn("text: b.answer", panel)       # the turn (and the kept chat) holds the model's own words
 
 

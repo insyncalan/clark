@@ -33,9 +33,9 @@ class Check(unittest.TestCase):
     def test_missing_fields_take_their_defaults_and_are_not_stored(self):
         self.assertEqual(check({"v": 1}), {"v": 1})
         self.assertEqual(check({"v": 1, "health": None, "headline": "  ", "sentence": None}), {"v": 1})
-        self.assertEqual(rh.upgrade({"v": 1}), {"v": 1, "health": "", "headline": "", "sentence": ""})
-        self.assertEqual(rh.upgrade(None), {"v": 1, "health": "", "headline": "", "sentence": ""})
-        self.assertEqual(rh.upgrade({"health": "nope", "headline": 4, "sentence": " a "}), {"v": 1, "health": "", "headline": "", "sentence": "a"})
+        self.assertEqual(rh.upgrade({"v": 1}), {"v": 1, "health": "", "headline": "", "sentence": "", "pill": True})
+        self.assertEqual(rh.upgrade(None), {"v": 1, "health": "", "headline": "", "sentence": "", "pill": True})
+        self.assertEqual(rh.upgrade({"health": "nope", "headline": 4, "sentence": " a "}), {"v": 1, "health": "", "headline": "", "sentence": "a", "pill": True})
 
     def test_words_are_trimmed_and_a_long_headline_is_kept(self):
         self.assertEqual(check({"v": 1, "headline": "  Plan holds  "}), {"v": 1, "headline": "Plan holds"})
@@ -52,8 +52,8 @@ class Check(unittest.TestCase):
 
     def test_published_carries_every_field_and_leaves_an_empty_one_out(self):
         self.assertEqual(rh.published({"v": 1, "health": "on_track", "headline": "H"}, None),
-                         {"content": {"health": "on_track", "headline": "H", "sentence": ""}})
-        self.assertEqual(rh.published({"v": 1, "sentence": "S"}, None), {"content": {"health": "", "headline": "", "sentence": "S"}})
+                         {"content": {"health": "on_track", "headline": "H", "sentence": "", "pill": True}})
+        self.assertEqual(rh.published({"v": 1, "sentence": "S"}, None), {"content": {"health": "", "headline": "", "sentence": "S", "pill": True}})
         self.assertIsNone(rh.published({"v": 1}, None))
         self.assertIsNone(rh.published("", None))
 
@@ -173,7 +173,8 @@ class EditInThePage(Base):
             self.assertNotIn("comes in the next step", text)
             self.assertIn(HINT, text)
             self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=Headline]')}').placeholder"), HEAD_PH)
-            self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=\"Supporting sentence\"]')}').placeholder"), SENT_PH)
+            sentence = self.sel(self.empty, 'textarea[aria-label="Supporting sentence"]')      # outside the f-string: Python 3.9 refuses a backslash inside {}
+            self.assertEqual(p.js(f"document.querySelector('{sentence}').placeholder"), SENT_PH)
             self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, '.pillbtn')}').getAttribute('aria-label')"), "Project health: not set. Change it")
             self.assertNotIn(HINT, p.js(f"document.querySelector('{self.sel(self.full)}').textContent"), "the hint is for an empty section only")
 

@@ -145,6 +145,7 @@ class Stored(Api):
 class Published(Api):
     def plant(self):
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked rows sit with the built-in sections (row 1193)
         self.kept = d.action(description=f"{MARK} kept", due_date="2030-02-01")
         self.done = d.action(description=f"{MARK} finished", due_date="2030-02-01")
         d.update("actions", self.done, {"status": "Closed"})
@@ -210,6 +211,7 @@ class InThePage(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked actions sit with the built-in Actions section (row 1193)
         self.a_open = d.action(description="Chase the supplier file", due_date="2030-02-01")
         self.a_done = d.action(description="Book the room", due_date="2030-02-01")
         d.update("actions", self.a_done, {"status": "Closed"})
@@ -399,6 +401,7 @@ class TheFile(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked actions sit with the built-in Actions section (row 1193)
         self.a_open = d.action(description="Chase the supplier file", due_date="2030-02-01")
         self.a_done = d.action(description="Book the room", due_date="2030-02-01")
         d.update("actions", self.a_done, {"status": "Closed"})
@@ -446,8 +449,10 @@ class TheFile(Base):
           const out = [];
           for (const sel of ['.tpl-check-count', '.tpl-check-text', '.tpl-check-state', '.tpl-check-row.is-done .tpl-check-text', '.tpl-check-row.is-done .tpl-check-state', '.tpl-check-row.is-done .tpl-check-box']) {
             const el = document.querySelector(sel); if (!el) { out.push([sel, 0]); continue; }
-            let bg = el, back = 'rgba(0, 0, 0, 0)';
-            while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+            let back = (() => { const L = []; for (let n = el; n; n = n.parentElement) { const m = getComputedStyle(n).backgroundColor.match(/[\\d.]+/g); if (!m) continue; const a = m.length > 3 ? +m[3] : 1; if (a > 0) { L.push([+m[0], +m[1], +m[2], a]); if (a === 1) break; } }
+              let c = L.length && L[L.length - 1][3] === 1 ? L.pop().slice(0, 3) : [255, 255, 255];
+              while (L.length) { const [r, g, b, a] = L.pop(); c = [c[0] * (1 - a) + r * a, c[1] * (1 - a) + g * a, c[2] * (1 - a) + b * a]; }
+              return `rgb(${c.join(', ')})`; })();  // a translucent band (row 1311) is laid over what is behind it, as it is drawn
             out.push([sel, ratio(getComputedStyle(el).color, back)]);
           }
           return JSON.stringify(out);

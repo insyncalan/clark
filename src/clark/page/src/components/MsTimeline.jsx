@@ -7,7 +7,8 @@ import { Fragment } from "preact";
 import { useRef, useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { showDate, timelineSpan, monthStarts, clampZoom, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
+import { classicTheme } from "./Contents.jsx";   // row 1267: the grip's slider keys and the no-grip-on-a-short-line rule are Classic only; Cards keeps what it always did
+import { showDate, timelineSpan, monthStarts, clampZoom, ZOOM_MIN, ZOOM_MAX, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
@@ -24,6 +25,8 @@ const PRINT_TAIL = 60;                          // on paper a month name that wo
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 const LH = 38, TGAP = 10, LEAD = 12, SIDE = 24, CAPROOM = 30;   // row 1230 (the Dashboard section): a two-line label's height, the space between tiers, a leader's first stretch, the label's distance from the line, room under the lowest label for the caption
+const GRIP_MIN = 3;         // fewer drawn milestones than this: the zoom grip is left off
+const LYP = 78, TP = 28, PROOM = 34;   // row 1315 (Classic, Milestones page): the line, the label lane above it and the room under the line for the Today name (14px under the line, 18px tall, inside the 1px border: 34 keeps it inside the strip when there is no sideways scrollbar), read off the prototype picture at 1400
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
 
 export function MsTimeline({ rows: all, today, place, open, client }) {
@@ -37,6 +40,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   const pxd = fit ? PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start)) : PXD[scale];
   const x = (iso) => Math.round((dayNumber(iso) - dayNumber(start)) * pxd * z);
   const W = x(end), RH = LANE, T0 = T00;
+  const [classic] = useState(() => typeof document !== "undefined" && getComputedStyle(document.documentElement).getPropertyValue("--tl-classic").trim() === "1");   // row 1315: the Classic theme (its rules.css sets --tl-classic) draws the Milestones page's line as prototype 2.0 does; Cards leaves the flag unset and draws what it always did
   const R2 = !!place && place !== "page";           // row 1230: the Dashboard's section draws the new timeline; the Milestones page keeps today's
   const labs = [];
   for (const r of rows) {
@@ -62,9 +66,10 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   }
   const lines = R2 ? [] : labelLines(labs.map((l) => l.cx), labs.map(wOf), GAP);
   if (!R2) labs.forEach((l, i) => { l.line = 0; l.hid = lines[i] > 0; });   // no room beside it: the name is left to its mark
-  const LY = R2 ? 44 + (nA ? nA * LH + (nA - 1) * TGAP + SIDE : 0) : LY0;
+  const P = classic && !R2;                         // row 1315: labels above their marks, the Today name under the line, the bottom edge is the grip
+  const LY = P ? LYP : R2 ? 44 + (nA ? nA * LH + (nA - 1) * TGAP + SIDE : 0) : LY0;
   const nLines = 1;
-  const need = R2 ? LY + (nB ? SIDE + nB * LH + (nB - 1) * TGAP : 16) + CAPROOM : T00 + nLines * LANE + 6;
+  const need = P ? LYP + PROOM : R2 ? LY + (nB ? SIDE + nB * LH + (nB - 1) * TGAP : 16) + CAPROOM : T00 + nLines * LANE + 6;
   const UNIT = R2 ? need : BASE + nLines * LINE;
   const height = Math.max(need, Math.round(UNIT * z)) + sb + room;   // the lanes and the box come from the same measured widths
   const hidden = new Set(labs.filter((l) => l.hid).map((l) => l.r.id));
@@ -100,27 +105,52 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     const w = wrap.current;
     if (w && centre.current !== null) { w.scrollLeft = centre.current * W - w.clientWidth / 2; centre.current = null; }
   }, [zoom, scale]);
-  // The user drags the bottom edge (CSS resize): the line zooms to the new height, as creaite's milestone line does.
-  useEffect(() => {
+  // The grip on the centre of the bottom edge (row 1267; was the browser's own corner handle): drag it, or use the arrow keys, and the line zooms to the new height, as creaite's milestone line does.
+  const drag = useRef(null);
+  const zoomTo = (next, keep) => {
     const w = wrap.current;
-    if (!w || typeof ResizeObserver === "undefined") return undefined;
-    let timer = 0;
-    const ro = new ResizeObserver(() => {
-      const h = w.offsetHeight;
-      if (!h || Math.abs(h - height) < 4) return;
-      if (height < h && h <= (parseFloat(getComputedStyle(w).minHeight) || 0) + 1) return;   // the box is held up by its CSS minimum (taller than the lanes need): not a drag
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const next = clampZoom(Math.round((h - sb - room) / UNIT * 100) / 100);
-        if (Math.abs(next - z) < 0.02) return;           // the box only changed by the room kept under an overlay scrollbar: not a drag
-        centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
-        remember(`tlZoom.${place}`, next);
-        setZoom(next);
-      }, 120);
-    });
-    ro.observe(w);
-    return () => { clearTimeout(timer); ro.disconnect(); };
-  }, [height, nLines, place, sb, room, UNIT]);
+    if (w) centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
+    if (keep) remember(`tlZoom.${place}`, next);
+    setZoom(next);
+    return next;
+  };
+  const gripDown = (e) => {
+    if (e.button) return;
+    const w = wrap.current;
+    if (!w) return;
+    drag.current = { y: e.clientY, h: w.offsetHeight, id: e.pointerId, last: z };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* a pointer that is already gone */ }
+    e.preventDefault();
+    e.currentTarget.focus({ preventScroll: true });
+  };
+  const gripMove = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const next = clampZoom(Math.round((d.h + e.clientY - d.y - sb - room) / UNIT * 100) / 100);
+    if (Math.abs(next - d.last) < 0.01) return;
+    d.last = zoomTo(next, false);
+  };
+  const gripUp = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    remember(`tlZoom.${place}`, d.last);
+  };
+  const gripKey = (e) => {                          // Classic: a slider's keys (Up and Right raise the value, Down and Left lower it, Home is 100%, End the highest). Cards: Down grows the line, as dragging down does, and Home is 100%
+    const k = e.key;
+    if (classicTheme()) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (k === "ArrowUp" || k === "ArrowRight") zoomTo(clampZoom(Math.round((z + 0.1) * 100) / 100), true);
+      else if (k === "ArrowDown" || k === "ArrowLeft") zoomTo(clampZoom(Math.round((z - 0.1) * 100) / 100), true);
+      else if (k === "Home") zoomTo(1, true);
+      else if (k === "End") zoomTo(ZOOM_MAX, true);
+      else return;
+    } else if (k === "ArrowDown" || k === "ArrowUp") zoomTo(clampZoom(Math.round((z + (k === "ArrowDown" ? 0.1 : -0.1)) * 100) / 100), true);
+    else if (k === "Home") zoomTo(1, true);
+    else return;
+    e.preventDefault();
+  };
+  const useful = !classicTheme() || labs.length >= GRIP_MIN || zoom !== 1;   // Classic: a line of one or two milestones has nothing to spread: no grip (it stays while a zoom is set, so it can be put back)
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); wrap.current.focus({ preventScroll: true }); };   // the Reset button goes with the zoom: focus stays on the line, not the page
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD[scale] * z, behavior: reduced() ? "auto" : "smooth" }); };
@@ -132,11 +162,10 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   };
   const range = (iso) => `${MONTHS[+iso.slice(5, 7) - 1].slice(0, 3)} ${iso.slice(0, 4)}`;
 
-  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>Drag the bottom edge to zoom{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
-  const Box = R2 ? "div" : Fragment;
+  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>{P ? "Drag the bottom edge to zoom" : "Drag the grip below the timeline to zoom"}{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
   const tierTop = (t) => (t % 2 ? LY + SIDE + (t >> 1) * (LH + TGAP) : LY - SIDE - LH - (t >> 1) * (LH + TGAP));
   return (
-    <div class="mv" data-place={place}>
+    <div class="mv" data-place={place} {...(P ? { "data-look": "classic" } : {})}>
       <div class="mv-bar">
         <button type="button" class="ib" data-mv="-1" aria-label="Earlier" onClick={() => step(-1)}><Icon name="left" /></button>
         <button type="button" class="ib" data-mv="1" aria-label="Later" onClick={() => step(1)}><Icon name="right" /></button>
@@ -149,9 +178,9 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
         {R2 ? null : zoomNote}
       </div>
       {far.length ? <p class="muted mv-far" data-far>{FAR_NOTE}: {far.map((r) => r.name).join(", ")}.</p> : null}
-      <Box {...(R2 ? { class: "mv-box", style: { "--sb": `${sb + room}px` } } : {})}>
+      <div class="mv-box" style={{ "--sb": `${sb + room}px` }}>
       <div class="mv-wrap" ref={wrap} tabindex="0" role="region" data-zoom-pct={Math.round(z * 100)} style={{ height: `${height}px`, maxHeight: `${Math.max(900, height)}px` }}
-        aria-label="Milestone timeline; scroll sideways to see all of it; drag the bottom edge to zoom">
+        aria-label={`Milestone timeline; scroll sideways to see all of it; drag the ${P ? "bottom edge" : "grip below it"} to zoom`}>
         <div class="mv-strip" ref={strip} style={{ width: `${W}px` }}>
           {months.map((m) => {
             const say = `${MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}${m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}`;
@@ -160,7 +189,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
               : <div class="mv-month" key={m} style={{ left: `${x(m)}px` }}>{say}</div>;
           })}
           <div class="mv-line" style={{ top: `${LY}px` }} />
-          <div class="mv-today" data-today style={{ left: `${x(today)}px` }}><b>Today</b></div>
+          <div class="mv-today" data-today style={{ left: `${x(today)}px`, ...(P ? { "--ly": `${LY}px` } : {}) }}><b>Today</b></div>
           {rows.map((r) => {
             const s = r.marks.solid;
             if (!s) return null;
@@ -181,14 +210,16 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
               <span>{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
             </Tag>)) : labs.map((l) => (l.hid
             ? <span class="mv-meas" key={`n${l.r.id}`} aria-hidden="true" data-lab={`${l.r.id}:main`}><b>{l.r.name}</b>{" "}{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
-            : <Tag {...btn(l.r.id)} class={`mv-lab${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${T0 + l.line * RH}px` }}>
+            : <Tag {...btn(l.r.id)} class={`mv-lab${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${(P ? TP : T0) + l.line * RH}px` }}>
               <b>{l.r.name}</b>{" "}{showDate(l.at)}
               {l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}
             </Tag>))}
         </div>
       </div>
+      {fit || !useful ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={Math.round(ZOOM_MIN * 100)} aria-valuemax={Math.round(ZOOM_MAX * 100)} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
+        onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
-      </Box>
+      </div>
     </div>
   );
 }

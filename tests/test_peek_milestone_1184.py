@@ -653,7 +653,15 @@ class Milestone(Base):
                 # busy CI machine the window is not always focused, so the test says outright that the window has the focus and does not depend on it.
                 p.until("document.querySelector('#peek .ProseMirror').textContent.includes('Third')", "the typed text is in the box")
                 self.assertTrue(p.js("document.hasFocus()"), "the page has the focus before the focus moves")
-                p.js("document.querySelector('#peek .pk-title').focus(); true")
+                # The leave-save runs from a focusout (RichText away(), checked one tick later); if that one focus move did not register on a busy runner (a CI shard at 900),
+                # nothing retries it and the old text stays. So: move the focus, wait for the box to close, and if it is still open put the focus back in the text and move it again.
+                from _rich_page import wait_for
+                gone = lambda: p.js("!document.querySelector('#peek .ProseMirror')")
+                for _ in range(3):
+                    p.js("document.querySelector('#peek .pk-title').focus(); true")
+                    if wait_for(gone, 4):
+                        break
+                    p.js("(() => { const e = document.querySelector('#peek .ProseMirror'); if (e) e.focus(); return true; })()")
                 self.saved("description", "<p>First</p><p>Second Third</p>")
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------

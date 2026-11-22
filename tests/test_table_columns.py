@@ -8,6 +8,7 @@ and the project's data do not know about it. At 1400 and 900 px, light and dark.
 """
 import json
 import shutil
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -21,13 +22,13 @@ from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 SRC = Path(page.__file__).parent / "src"
-WORK_ALL = ["Status", "Item", "Owner", "Due", "Priority", "Id", "Type", "Workstream", "Milestone", "Raised", "Closed", "Use case", "Latest update", "Client wording"]
+WORK_ALL = ["Status", "Item", "Owner", "Due", "Priority", "Id", "Type", "Workstream", "Milestone", "Raised", "Closed", "Use case", "Labels", "Latest update", "Client wording"]
 MS_ALL = ["Date", "Milestone", "State", "Progress", "Id", "Description", "Workstream", "Owner", "Agreed", "Forecast", "Order", "State reason"]
 KEYS = {"Tab": 9, "ContextMenu": 93, "F10": 121, "Escape": 27, "Enter": 13}
 # name, address, the heading row's cells, a heading cell by column id, a body cell by column id, a row, every label, the locked labels, the standard labels
 TABLES = {
     "work": ("#work&p=TUL&f=mode:all", "#work table.items thead th", "#work th[data-col='%s']", "#work tbody tr[data-id] td[data-col='%s']", "#work tbody tr[data-id]",
-             WORK_ALL, ["Status", "Item"], ["Status", "Item", "Owner", "Due", "Priority"]),
+             WORK_ALL, ["Status", "Item"], ["Status", "Item", "Owner", "Due", "Priority", "Id"]),
     "milestones": ("#milestones&p=TUL", "#milestones .msl-hd [data-col]", "#milestones .msl-hd [data-col='%s']", "#milestones .msl-cells [data-col='%s']:not(.cols-off)", "#milestones li.msl-row",
                    MS_ALL, ["Milestone", "State"], ["Date", "Milestone", "State", "Progress"]),
 }
@@ -112,6 +113,12 @@ class Columns(unittest.TestCase):
                         self.assertIsNone(self.menu(js), "no menu until it is asked for")
                         self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
                         self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+                        # The menu slides in by a few pixels, so its box is read only once it has stopped (twice the same, 100 ms apart).
+                        seen = []
+                        def still():
+                            seen.append(self.menu(js)["rows"]); time.sleep(.1)
+                            return len(seen) > 1 and seen[-1] == seen[-2]
+                        self.assertTrue(wait(still, 5), "the menu stops moving")
                         got = self.menu(js)
                         self.assertEqual([i["name"] for i in got["items"]], every, "every column the table can show, in the table's own order")
                         for i in got["items"]:
@@ -121,6 +128,10 @@ class Columns(unittest.TestCase):
                         self.assertEqual(len(got["why"]), len(locked), "each locked column says why")
                         for w in got["why"]:
                             self.assertGreater(len(w), 10)
+                        inside = ("(() => { const r = document.querySelector(%s).getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight + 1; })()"
+                                  % json.dumps(MENU))
+                        wait(lambda: js(inside), 5)      # the menu is placed after it first paints: read where it ended up, not where it started (slow CI runners)
+                        got = self.menu(js)
                         r, win = got["rows"], got["win"]
                         self.assertTrue(r["left"] >= 0 and r["right"] <= win[0] and r["top"] >= 0 and r["bottom"] <= win[1] + 1, "the menu is inside the window")
 
@@ -160,7 +171,7 @@ class Columns(unittest.TestCase):
                 was = self.heads(js, table)
                 self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
                 self.assertTrue(wait(lambda: self.menu(js), 5))
-                self.pick(js, "Id")
+                self.pick(js, "Type" if table == "work" else "Id")
                 self.pick(js, "Workstream")
                 self.assertTrue(wait(lambda: len(self.heads(js, table)) == len(was) + 2, 5))
                 js(f"document.querySelector({json.dumps(MENU + ' [data-cols-standard]')}).click()")
@@ -204,16 +215,18 @@ class Columns(unittest.TestCase):
         """Row 1230: the Dashboard section is its own table ("msDash"); its columns choice and widths do not write the Milestones page's keys."""
         keys = "JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('clark.cols')).sort())"
         with chrome() as cdp:
-            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL")
+            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL", SETTLE)
             js = lambda e: cdp.js(e, sid)  # noqa: E731
+            quiet = f"document.fonts.status === 'loaded' && performance.now() - window.__lastScroll > {QUIET_MS}"      # the menu closes on any scroll: ask for it only after the page has stopped moving
             box = ".msv .msl-box"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector('{box} .msl-row')"), 20), "the Dashboard milestones drew their rows")
             js("document.querySelector('[data-mode=edit]').click()")
             head = f"{box} .msl-hd [data-col='state']"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(head)})"), 10), "Edit draws the heading row")
             js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block: 'center'}})")
+            self.assertTrue(wait(lambda: js(quiet), 20), "the page has settled after the scroll")
             self.right_click(cdp, sid, head)
-            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens on the Dashboard heading row")
             self.pick(js, "Workstream")
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(box + ' .msl-hd [data-col=workstream]')})"), 5), "the column appears on the Dashboard")
             chosen = js("localStorage.getItem('clark.cols.show.msDash.TUL')")
@@ -230,14 +243,45 @@ class Columns(unittest.TestCase):
             self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "the Milestones page's widths are untouched")
             self.assertIsNone(js("localStorage.getItem('clark.cols.show.milestones.TUL')"), "and so is its choice")
 
+    def test_the_work_table_shows_the_id_in_its_own_blue_column_and_not_under_the_title(self):
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            self.assertEqual(self.heads(js, "work"), ["status", "item", "owner", "due", "prio", "id"], "the Id column is shown by default, after Priority")
+            got = js("""(() => { const r = document.querySelector('#work tbody tr[data-id]'), c = r.querySelector("td[data-col='id']"), t = r.querySelector('.t');
+                return {id: r.dataset.id, cell: c.textContent.trim(), meta: r.querySelector('.meta').textContent, cc: getComputedStyle(c).color, tc: getComputedStyle(t).color, fw: getComputedStyle(c).fontWeight, ws: getComputedStyle(c).whiteSpace}; })()""")
+            self.assertEqual(got["cell"], got["id"], "the cell holds the id")
+            self.assertNotIn(got["id"], got["meta"], "the id is not under the title")
+            self.assertNotEqual(got["cc"], got["tc"], "the id is blue, not the title's colour")
+            self.assertEqual((got["fw"], got["ws"]), ("600", "nowrap"), "the id is semi-bold and stays on one line")
+            blue = js("(() => { const p = document.createElement('span'); p.style.color = 'var(--link)'; document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
+            self.assertEqual(got["cc"], blue, "the id takes the page's link colour")
+
+    def test_the_open_menu_closes_when_the_page_scrolls(self):
+        """Row 1276: the settle waits of the other tests exist because a scroll closes the menu; so a scroll must close it (MenuPanel listens to the window)."""
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            self.right_click(cdp, sid, "#work th[data-col='owner']")
+            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+            js("window.dispatchEvent(new Event('scroll'))")
+            self.assertTrue(wait(lambda: not self.menu(js), 5), "a scroll of the page closes it")
+
+    def test_a_right_click_inside_a_text_field_of_the_heading_row_leaves_the_browsers_own_menu_alone(self):
+        """Row 1276: typing in a field (copy, paste) keeps the browser's menu; the Columns menu is for the heading itself."""
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            got = js("""(() => { const th = document.querySelector("#work th[data-col='owner']"); const i = document.createElement('input'); th.appendChild(i);
+                const ev = new MouseEvent('contextmenu', {bubbles: true, cancelable: true}); i.dispatchEvent(ev); i.remove(); return ev.defaultPrevented; })()""")
+            self.assertFalse(got, "the page leaves the event alone")
+            self.assertIsNone(self.menu(js), "and opens no Columns menu")
+
     def test_a_blocked_store_still_lets_the_table_redraw(self):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work", early=block)
             self.right_click(cdp, sid, "#work th[data-col='owner']")
             self.assertTrue(wait(lambda: self.menu(js), 5))
-            self.pick(js, "Id")
-            self.assertTrue(wait(lambda: "id" in self.heads(js, "work"), 5), "the table redraws although nothing can be kept")
+            self.pick(js, "Type")
+            self.assertTrue(wait(lambda: "type" in self.heads(js, "work"), 5), "the table redraws although nothing can be kept")
 
     def test_the_menu_key_and_shift_f10_open_the_same_menu_from_a_focused_heading(self):
         for table, (_, _, head, _, _, every, _, _) in TABLES.items():
@@ -311,7 +355,9 @@ class Columns(unittest.TestCase):
         self.assertTrue((SRC / "logic" / "columnsWords.js").is_file(), "every new word is listed for a ruling")
         words = (SRC / "logic" / "columnsWords.js").read_text(encoding="utf-8")
         self.assertIn("UNRULED_STANDARD", words)
-        self.assertNotIn("export const ", words.replace("export const UNRULED_", ""), "every constant is marked UNRULED")
+        self.assertNotIn("export const ", words.replace("export const UNRULED_", "").replace("export const PANEL_HEADING = \"Columns to show\"", ""), "every constant is marked UNRULED, except the one ruled panel heading (row 1499)")
+        self.assertIn('export const UNRULED_BUTTON = "Columns"', words, "the button label is unchanged")
+        self.assertIn('export const UNRULED_BUTTON_TIP = "Choose the columns"', words, "and so is its tip")
 
 
 if __name__ == "__main__":

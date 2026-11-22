@@ -2,6 +2,8 @@
 // ticked, a choice picked, the number or the caption left with Enter or Tab) saves the whole filter as ONE change (one step, one
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
+import { StartPrompt } from "../StartPrompt.jsx";
+import { startOr } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
@@ -9,12 +11,14 @@ import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
-import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
-  editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
+import { Rows, Listing, Foot, today, classicTheme, colTools } from "../../templates/WorkItemsList.jsx";
+import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
+  editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
-import { useColWidths } from "../colWidths.jsx";
+import { useColWidths, useColOrder } from "../colWidths.jsx";
+
+colTools.current = { useColWidths, useColOrder };      // row 1195: the View list uses the same hooks (Classic)
 import { NewTile } from "../../components/NewTile.jsx";
 import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
@@ -62,12 +66,15 @@ export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the word
 // Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
 export const ADD_WORD = "Add work item";
 export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
+const RAID = ["risk", "action", "issue", "decision"];      // row 1195: the approved mock-up's order, drawn only under the Classic layer (Cards keeps ADDABLE's order)
+const RAID_ITEMS = RAID.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
 const addOne = (kind) => addItem(kind, "report", true);
 
 export function Edit({ section }) {
   const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
   const gearRef = useRef(null);
-  const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
+  const cw = useColWidths(`wil-${section.id}`, classicTheme());      // row 1268, item 12: the page's column widths, kept for this list
+  const ord = useColOrder(`wil-${section.id}`);     // row 1195: the order of the columns (Classic), kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -76,7 +83,6 @@ export function Edit({ section }) {
   const ucName = Object.fromEntries((d.use_cases || []).map((u) => [u.id, u.ref ? `${u.ref} ${u.title || ""}`.trim() : (u.title || u.id)]));
   const nameOf = (f, v) => ucName[v] || v;
   const known = (d.use_cases || []).map((u) => ({ id: u.id, names: [u.title, u.ref, u.ref ? `${u.ref} ${u.title || ""}`.trim() : ""].filter(Boolean) }));
-  const none = (f) => (v) => (v === NONE ? WORDS.none[f] : f === "use_case" ? (ucName[v] || v) : v);
 
   // The latest filter the page meant to save, kept while saves are still waiting: a second choice made before the first reply is
   // built on the first, not on the body last read. Once nothing is waiting, the saved body is the truth again.
@@ -87,10 +93,6 @@ export function Edit({ section }) {
     return change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "report" }, SAVED)
       .then((reply) => { if (!reply) setTick((n) => n + 1); return reply; })
       .finally(() => { waiting.current -= 1; if (waiting.current <= 0) meant.current = null; });
-  };
-  const toggle = (field, v) => {
-    const cur = latest(), have = cur[field];
-    save({ ...cur, [field]: have.includes(v) ? have.filter((x) => x !== v) : [...have, v] });
   };
   const toggleColumn = (field, v) => {
     const cur = latest();
@@ -147,39 +149,26 @@ export function Edit({ section }) {
   const rows = drawRows(idsToShow(list, true), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
-      {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      {saved ? null : <><StartPrompt id="work-items" /><p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p></>}
       <div class="wil-line" data-wil-line="">
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
-      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
+      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={classicTheme() ? RAID_ITEMS : ADD_ITEMS} onAdd={addOne} id={`${id}-add`} iconOnly /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
-      <details class="wil-more" data-wil-more="">
-      <summary>Choose from lists</summary>
-      <div class="wil-form-in">
-        <Boxes id={id} legend="Kinds" field="kinds" values={KINDS} words={(v) => WORDS.kinds[v]} chosen={filter.kinds} onToggle={toggle} />
-        <Choice id={id} label="Show" field="mode" values={MODES} words={WORDS.mode} value={filter.mode} onPick={pick} />
-        <Boxes id={id} legend="Due" field="due" values={DUE} words={(v) => WORDS.due[v]} chosen={filter.due} onToggle={toggle} />
-        <Boxes id={id} legend="Status" field="status" values={STATUSES} words={(v) => v} chosen={filter.status} onToggle={toggle} />
-        <Boxes id={id} legend="Priority" field="priority" values={[...PRIORITIES, NONE]} words={none("priority")} chosen={filter.priority} onToggle={toggle} />
-        <Boxes id={id} legend="Owner" field="owner" values={offered("owner", d, filter.owner)} words={none("owner")} chosen={filter.owner} onToggle={toggle} />
-        <Boxes id={id} legend="Workstream" field="workstream" values={offered("workstream", d, filter.workstream)} words={none("workstream")} chosen={filter.workstream} onToggle={toggle} />
-        <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
-      </div>
-      </details>
         <div class="wil-cw" data-wil-cw="" onKeyDown={(e) => { if (e.key === "Escape" && cfg) { e.preventDefault(); e.stopPropagation(); setCfg(false); if (gearRef.current) gearRef.current.focus(); } }}>
           <button type="button" class="wil-gear" ref={gearRef} data-wil-gear="" aria-haspopup="dialog" aria-expanded={cfg ? "true" : "false"} aria-label={CONFIGURE_LABEL} title="Configure" onClick={() => setCfg(!cfg)}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
           </button>
-          <div class="wil-cfg" role="dialog" aria-label={CONFIGURE_LABEL} hidden={!cfg}>
+          <div class="wil-cfg" role={cfg ? "dialog" : undefined} aria-label={CONFIGURE_LABEL} hidden={!cfg}>
             <h4>{CONFIGURE_LABEL}</h4>
-          <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
+          <Choice id={id} label="Sort by" field="sort" values={sortChoices(classicTheme(), filter.sort)} words={WORDS.sort} value={filter.sort} onPick={pick} />
           <label class="wil-sel" data-field="max"><span>Most rows</span>
             <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
           </label>
           <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
             <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
-              <input type="text" name="caption" placeholder="Shown above the list" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+              <input type="text" name="caption" placeholder={startOr("Shown above the list", "work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
             </label>
             <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
           </div>
@@ -189,7 +178,7 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      {saved && rows.length ? <Scroller max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Scroller> : null}
+      {saved && rows.length ? <Listing max={list.max} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} ord={ord} head={headProps} /></Listing> : null}
       {colMenu}
       {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>

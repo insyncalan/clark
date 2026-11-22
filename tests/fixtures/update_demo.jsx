@@ -15,11 +15,14 @@ const api = {
   arm: () => answer("arm"),
   undo: (id, appOnly) => answer("undo", { id, appOnly }),
   who: () => answer("who"),
+  check: () => answer("check"),
+  download: () => answer("download"),
+  cancel: () => answer("cancel"),
 };
 T.mount = () => {
   const root = document.getElementById("root");
   root.innerHTML = '<div id="host" style="padding:16px"></div>';
-  render(<Update api={api} reload={() => { T.reloads += 1; }} sleep={() => Promise.resolve()}
+  render(<Update api={api} reload={() => { T.reloads += 1; }} sleep={() => Promise.resolve()} pollMs={T.pollMs || 1e9}
     copy={(t) => { if (T.copyFails) return Promise.reject(new Error("no")); T.copied.push(t); return Promise.resolve(); }} />,
   document.getElementById("host"));
 };

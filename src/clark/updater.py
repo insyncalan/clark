@@ -16,6 +16,9 @@ Open dialog on this computer, and an install or an undo names only the review or
                   the undo for ARM_SECONDS
   undo(req)       {"arm_id", "app_only": bool}: the armed undo only, within ARM_SECONDS; refuses the full undo when the data
                   changed since, and offers the app and settings only
+  check(req)      {}: look once more for the newest release on the public releases page (release_fetch.py); an answer, never an install
+  download(req)   {}: start downloading the release the last look found, then run review()'s own checks on the downloaded bytes
+  cancel(req)     {}: stop a download, or put away a downloaded and checked update that was not installed
   settle()        once the helper has finished (no marker): records what happened (the update went in, or the undo did and the
                   settings are put back), keeps the line for status() to say once, tidies clark's own folders and keeps the last
                   three. A thread started by watch() calls it when the new version starts; status() calls it too.
@@ -28,14 +31,16 @@ import json
 import logging
 import os
 import secrets
+import shutil
 import threading
 import time
 from pathlib import Path
 
 import clark
-from clark import appfiles, platform, store, update_helper, update_install as ui, updates
+from clark import appfiles, platform, release_fetch, store, update_helper, update_install as ui, updates
 
 LOG = logging.getLogger("clark.updater")
+STALE_RUN_SECONDS = 24 * 3600                          # a run folder this old belongs to a process that is gone
 REVIEW_SECONDS = 15 * 60
 ARM_SECONDS = 5
 PENDING = "pending.json"
@@ -43,6 +48,7 @@ NOTICE = "notice.json"
 WATCH_SECONDS = 120
 WRITES_WAIT_SECONDS = 30            # how long an install or undo waits for saves already running before it backs up
 
+NO_LATEST = "Look for the newest version first, then download it."
 MESSAGES = {
     "bad_request": "That could not be read. Reload the page and try again.",
     "busy": "An update is being installed. One moment.",
@@ -52,6 +58,7 @@ MESSAGES = {
     "not_here": "Updates can't be installed on this computer yet. Download the latest release and replace the clark folder by hand.",
     "dialog": "The window to choose a file could not be opened. Try again; if it keeps happening, restart clark.",
     "generic": "Something went wrong, and nothing was changed. Try again, or restart clark.",
+    "no_latest": NO_LATEST,
 }
 UP_TO_DATE = "Up to date."
 INSTALLING = "Installing version {to}. One moment while clark restarts. Don't close this window."
@@ -72,6 +79,16 @@ UNDO_STOPPED_ASIDE = ("The undo couldn't start. Your data was put back as it was
                       "clark again. Ask for help if your latest changes are missing.")
 UNDO_DONE = "Version {to} has been put back. Your projects are as they were."
 CHOOSE_PROMPT = "Choose the clark update file"
+FETCH_OFFLINE = "You are offline, so clark can't look for the newest version."
+FETCH_BAD = "The check did not finish. Try again."
+FETCH_NOFILE = "No download for this computer was found, or the releases page gave an answer clark could not read. Try again later."
+FETCH_TOOBIG = "The download was refused because it is too big or damaged. Nothing was changed. Try again."
+FETCH_MISMATCH = "The download does not match what the releases page lists, so clark did not use it. Nothing was changed. Download again."
+# A refusal of the review that runs on a downloaded file, by its code: damaged bytes say (b), a file that is not what the page lists
+# (a signature, a version, a system, a name) says (c); a failure inside this computer (space, folder) is the plain check sentence.
+REVIEW_DAMAGED = ("damaged", "incomplete", "unreadable", "toodeep", "link", "unsafe")
+REVIEW_MISMATCH = ("unsigned", "badsig", "nokey", "older", "same", "name", "source", "system", "min_from", "newer_data", "noversion", "installed")
+FETCH_CANCELLED = "Download cancelled."
 
 
 # In the Docker container the clark folder is shared in read-only and the data stays in its own folder, so an update is a
@@ -95,7 +112,7 @@ class Updater:
 
     def __init__(self, data_dir, db_path, port, app_dir=None, system=None, version=None, schema=None, choose=None,
                  downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None, open_db=None,
-                 writes_running=None, sleep=time.sleep):
+                 writes_running=None, sleep=time.sleep, release_opener=None, spawn=None, wall=time.time):
         self.data = Path(data_dir)
         self.db = Path(db_path)
         self.port = port
@@ -115,8 +132,19 @@ class Updater:
         self.writes_running = writes_running               # server.others_busy: another POST route is running (None: never)
         self.sleep = sleep
         self._installing = False
-        self.reviewed = None
-        self.armed = None
+        self.reviewed = None                               # the review of a file from Downloads or one the person chose
+        self.fetched = None                                # the review of the update this copy downloaded: its own slot, so
+        self.armed = None                                  # neither kind of review can put the other away
+        self.release_opener = release_opener or release_fetch.default_opener     # the one outbound call (release_fetch.py); a seam for tests
+        self.spawn = spawn or (lambda work: threading.Thread(target=work, daemon=True).start())
+        self.wall = wall
+        self.flock = threading.Lock()                      # guards `looked`, `latest` and `fetch`
+        self.looked = False                                # the quiet look at the first status has been started
+        self.latest = {"state": "checking"}                # the newest release as the last look found it
+        self.fetch = {"state": "idle"}                     # the download: idle, downloading, checking, ready or failed
+        self.cancel_flag = threading.Event()               # the current download's own flag (a new download makes a new one)
+        self.run = None                                    # the current download's token: a thread that is not it changes nothing
+        self.review_lock = threading.Lock()                # one review at a time: two runs of one version never take in the same copy together
 
     # --- the maintenance flag ---
 
@@ -194,6 +222,11 @@ class Updater:
                                                     and len(released) == 10 and released[4] == "-" else ".")
         blocked = self._blocked()
         newer = None if blocked else self._newer_in_downloads()
+        if not blocked and not self.looked:             # the page's first look: one quiet look for the newest release, never again by itself
+            with self.flock:
+                start, self.looked = not self.looked, True
+            if start:
+                self.spawn(self._look_now)
         last = None if platform.container_mode() else ui.last_update(self.data)      # no Undo update in a container
         notice = self._read(NOTICE)
         if notice is not None:
@@ -202,7 +235,9 @@ class Updater:
                 "available": {"version": newer, "label": f"Review {newer}"} if newer else None,
                 "line": None if blocked or newer else UP_TO_DATE,
                 "last": None, "notice": notice.get("message") if notice and isinstance(notice.get("message"), str) else None,
-                "installing": self._installing}
+                "installing": self._installing,
+                "latest": self._public_latest() if not blocked else ({"state": "none"} if blocked == MESSAGES["not_here"] else None),
+                "fetch": self._public_fetch() if not blocked else ({"state": "idle"} if blocked == MESSAGES["not_here"] else None)}
         if last is not None and not last[1].get("undone"):
             folder, rec = last
             day = updates.date_text("-".join((folder.name[0:4], folder.name[4:6], folder.name[6:8])))
@@ -235,10 +270,18 @@ class Updater:
                 return reply(500, "dialog", platform.refusal_words(e, MESSAGES["dialog"]))
             if path is None:
                 return 200, {"ok": True, "cancelled": True}
-        reinstall = bool(req.get("reinstall", False))
+        return self._review_file(path, req["from"] == "file", bool(req.get("reinstall", False)))
+
+    def _review_file(self, path, chosen, reinstall, slot="reviewed", token=None):
+        """Take the file at `path` in once, check it, plan it and hold the review: the same for a file from Downloads, one the
+        person chose and one this copy downloaded itself. (200, the review) or (409, the refusal)."""
+        with self.review_lock:
+            return self._review_locked(path, chosen, reinstall, slot, token)
+
+    def _review_locked(self, path, chosen, reinstall, slot, token):
         kept = None
         try:
-            kept, digest = ui.take_in(path, self.data, self.system, chosen=req["from"] == "file")
+            kept, digest = ui.take_in(path, self.data, self.system, chosen=chosen)
             release = ui.read_taken(kept, digest, self.system, self.version, self.schema, reinstall=reinstall)
             plan = updates.plan(release, self.app)
         except updates.UpdateError as e:
@@ -249,8 +292,202 @@ class Updater:
             LOG.debug("an update was refused: %s", e.detail)
             return reply(409, e.key, e.message, again=e.key == "same")
         rid = secrets.token_urlsafe(18)
-        self.reviewed = {"id": rid, "path": kept, "digest": digest, "reinstall": reinstall, "at": self.clock(), "to": release.version}
+        held = {"id": rid, "path": kept, "digest": digest, "reinstall": reinstall, "at": self.clock(), "to": release.version}
+        with self.flock:
+            if token is None or self.run is token:         # a run that Cancel or a newer run has passed puts nothing in the slot
+                setattr(self, slot, held)
         return 200, {"ok": True, "review_id": rid, "review": updates.review(release, plan, self.version)}
+
+    # --- the newest release on the releases page: GET /api/update's "latest" and "fetch", POST /check, /download and /cancel ---
+
+    def _checked_text(self):
+        now = time.localtime(self.wall())
+        return time.strftime("%d-%m-%Y %H:%M", now)
+
+    def _look_now(self):
+        """One call to the releases page; the answer is kept for status(). Offline is an answer, not an error. A failed look never
+        replaces a newer version already known (it adds a note to it); the sentence says offline only when it was really offline."""
+        failed = None
+        try:
+            found = release_fetch.latest(self.system, self.release_opener)
+            if release_fetch.newer(found["version"], self.version):
+                latest = {"state": "avail", "version": found["version"], "date": updates.date_text(found["date"]) if found["date"] else "",
+                          "size": updates.size_text(found["size"]), "notes": found["notes"], "url": found["url"], "digest": found["digest"],
+                          "bytes": found["size"], "sig_url": found["sig_url"]}
+            else:
+                latest = {"state": "latest"}
+        except release_fetch.FetchError as e:
+            LOG.info("the look for the newest release failed: %s", e.key)
+            LOG.debug("the look for the newest release failed: %s", e.detail)
+            failed = FETCH_OFFLINE if e.key == "offline" else FETCH_TOOBIG if e.key in ("toobig", "damaged") \
+                else FETCH_NOFILE if e.key in ("nofile", "unreadable") else FETCH_BAD
+        except Exception as e:                       # never let a thread of the quiet look end with a trace on the page's server
+            LOG.info("the look for the newest release failed: %s", type(e).__name__)
+            failed = FETCH_BAD
+        with self.flock:
+            if failed is None:
+                latest["checked"] = self._checked_text()
+                self.latest = latest
+            elif self.latest.get("state") == "avail":
+                self.latest = dict(self.latest, note=failed)
+            else:
+                self.latest = {"state": "offline" if failed == FETCH_OFFLINE else "unavailable", "message": failed, "checked": self._checked_text()}
+
+    def _public_latest(self):
+        with self.flock:
+            return {k: v for k, v in self.latest.items() if k not in ("url", "digest", "bytes", "sig_url")}
+
+    def _public_fetch(self):
+        """The download as the page sees it. A ready update whose review was used is idle again; one older than REVIEW_SECONDS is a
+        failed download (Download again)."""
+        with self.flock:
+            fetch = dict(self.fetch)
+            if fetch["state"] == "ready":
+                held = self.fetched
+                if not (held and held["id"] == fetch["review_id"]):
+                    self.fetch = fetch = {"state": "idle"}                  # used or put away
+                elif self.clock() - held["at"] > REVIEW_SECONDS:
+                    self.fetched = None            # ran out: the page gets Download again, with the check sentence
+                    self.fetch = fetch = {"state": "failed", "version": fetch["version"], "message": FETCH_BAD}
+            return fetch
+
+    def check(self, req):
+        if req not in ({}, None):
+            return reply(400, "bad_request")
+        if self._installing:
+            return reply(409, "busy")
+        blocked = self._blocked()
+        if blocked:
+            return reply(409, "blocked", blocked)
+        with self.flock:
+            if self.fetch["state"] in ("downloading", "checking"):
+                return reply(409, "busy")
+            self.looked = True
+            if self.latest.get("state") != "avail":      # a known newer version stays on show while the look runs
+                self.latest = {"state": "checking"}
+        self._look_now()
+        return 200, {"ok": True, "latest": self._public_latest()}
+
+    def download(self, req):
+        if req not in ({}, None):
+            return reply(400, "bad_request")
+        if self._installing:
+            return reply(409, "busy")
+        blocked = self._blocked()
+        if blocked:
+            return reply(409, "blocked", blocked)
+        with self.flock:
+            if self.fetch["state"] in ("downloading", "checking"):
+                return reply(409, "busy")
+            latest = self.latest
+            if latest.get("state") != "avail":
+                return reply(409, "no_latest")
+            flag, token = threading.Event(), object()
+            self.cancel_flag, self.run = flag, token
+            self.fetch = {"state": "downloading", "version": latest["version"], "pct": 0}
+        self.spawn(lambda: self._run_download(dict(latest), flag, token))
+        return 200, {"ok": True}
+
+    def _set_fetch(self, token, **doc):
+        """The download thread's answer; ignored when Cancel (or a newer download) has made this thread's run history."""
+        with self.flock:
+            if self.run is token:
+                self.fetch = doc
+
+    def _progress(self, token, version, done, total):
+        pct = min(99, done * 100 // total) if total else 0
+        with self.flock:
+            if self.run is token and self.fetch.get("state") == "downloading":
+                self.fetch = {"state": "downloading", "version": version, "pct": pct}
+
+    @staticmethod
+    def _download_words(key):
+        return (FETCH_OFFLINE if key == "offline" else FETCH_TOOBIG if key in ("toobig", "damaged")
+                else FETCH_MISMATCH if key == "mismatch" else FETCH_NOFILE if key in ("nofile", "unreadable") else FETCH_BAD)
+
+    def _run_download(self, latest, flag, token):
+        version = latest["version"]
+        dest = None
+        try:
+            folder = platform.private_folder(self.data / "fetched")
+            self._sweep_runs(folder)
+            run_folder = folder / f"run-{secrets.token_hex(6)}"      # this run's own folder: a later run never shares its file names
+            run_folder.mkdir(mode=0o700)
+            dest = run_folder / f"clark-{version}-{self.system}.zip"
+            release_fetch.download(latest["url"], dest, progress=lambda done, total: self._progress(token, version, done, total),
+                                   cancelled=flag.is_set, expected_size=latest["bytes"], digest=latest["digest"],
+                                   opener=self.release_opener)
+            if updates.signature_required() and latest.get("sig_url"):         # once a release key is in force the signature comes with it
+                release_fetch.download(latest["sig_url"], Path(str(dest) + updates.SIGNATURE_SUFFIX), cancelled=flag.is_set,
+                                       opener=self.release_opener, max_bytes=updates.SIGNATURE_BYTES)
+            if flag.is_set():                                  # Cancel after the last chunk is honoured too
+                raise release_fetch.FetchError("cancelled", "stopped by the person")
+            self._set_fetch(token, state="checking", version=version)
+            status, body = self._review_file(dest, False, False, "fetched", token)
+            if flag.is_set():
+                if status == 200:                                  # no review was made otherwise: a newer ready slot is not this run's
+                    self._drop_fetched(body.get("review_id"))
+                raise release_fetch.FetchError("cancelled", "stopped by the person after the check began")
+            if status == 200:
+                self._set_fetch(token, state="ready", version=version, review_id=body["review_id"], review=body["review"])
+            else:
+                code = body.get("code") if isinstance(body, dict) else None
+                self._set_fetch(token, state="failed", version=version, message=FETCH_TOOBIG if code in REVIEW_DAMAGED
+                                else FETCH_MISMATCH if code in REVIEW_MISMATCH else FETCH_BAD)
+        except release_fetch.FetchError as e:
+            LOG.info("a download was stopped: %s", e.key)
+            LOG.debug("a download was stopped: %s", e.detail)
+            if e.key == "cancelled":
+                self._set_fetch(token, state="idle")
+            else:
+                self._set_fetch(token, state="failed", version=version, message=self._download_words(e.key))
+        except Exception as e:                       # an OSError from the private folder, a PlatformError: never a trace, never a stuck bar
+            LOG.info("a download was stopped: %s", type(e).__name__)
+            self._set_fetch(token, state="failed", version=version, message=FETCH_BAD)
+        finally:
+            if dest is not None:
+                Path(str(dest) + updates.SIGNATURE_SUFFIX).unlink(missing_ok=True)
+                dest.unlink(missing_ok=True)         # take_in made its own private copy; the downloaded one is not kept
+                Path(str(dest) + ".part").unlink(missing_ok=True)
+                try:
+                    dest.parent.rmdir()
+                except OSError:
+                    pass
+
+    def _sweep_runs(self, folder):
+        """Run folders a killed process left behind (a day old or more) are put away when a new run starts; a younger one may be a
+        run still finishing, so it is left."""
+        try:
+            for old in folder.glob("run-*"):
+                try:
+                    if old.is_dir() and not old.is_symlink() and self.wall() - old.stat().st_mtime >= STALE_RUN_SECONDS:
+                        shutil.rmtree(old, ignore_errors=True)
+                except OSError:
+                    pass
+        except OSError:
+            pass
+
+    def _drop_fetched(self, review_id=None):
+        with self.flock:
+            if self.fetched and (review_id is None or self.fetched["id"] == review_id):
+                self.fetched = None
+
+    def cancel(self, req):
+        """Stop a download at once (the bar goes, the thread's own answer is ignored and its file put away), or put away a
+        downloaded update or a failure. Only the downloaded update's own review is put away, never one for a chosen file."""
+        if req not in ({}, None):
+            return reply(400, "bad_request")
+        with self.flock:
+            state = self.fetch["state"]
+            if state in ("downloading", "checking"):
+                self.cancel_flag.set()
+                self.run = None
+                self.fetch = {"state": "idle"}
+            elif state in ("ready", "failed"):
+                self.fetch = {"state": "idle"}
+                if state == "ready":
+                    self.fetched = None
+        return 200, {"ok": True, "message": FETCH_CANCELLED}
 
     # --- POST /api/update/install ---
 
@@ -270,14 +507,16 @@ class Updater:
         try:
             if self._installing:
                 return reply(409, "busy")
-            held = self._held("reviewed", req["review_id"], REVIEW_SECONDS)
-            self.reviewed = None                      # a review is used once
+            slot = "reviewed" if self._held("reviewed", req["review_id"], REVIEW_SECONDS) else "fetched"
+            held = self._held(slot, req["review_id"], REVIEW_SECONDS)
             if held is None:
-                return reply(409, "review_again")
+                self.reviewed = None                  # as before: a try with the wrong or an old id puts that review away
+                return reply(409, "review_again")     # (a downloaded update that ran out stays, so the page can say Download again)
+            setattr(self, slot, None)                 # a review is used once (each kind of review has its own slot)
             self._installing = True
             if not self._writes_done():
                 self._installing = False
-                self.reviewed = held                  # nothing was done: the same review can be installed again
+                setattr(self, slot, held)             # nothing was done: the same review can be installed again
                 return reply(409, "writes_running", MESSAGES["generic"])
             stamp = ui.stamp_now()
             try:

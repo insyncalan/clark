@@ -53,11 +53,17 @@ class ReadmeLinks(unittest.TestCase):
     def test_no_iso_date(self):
         self.assertIsNone(re.search(r"\b\d{4}-\d{2}-\d{2}\b", README))
 
-    def test_the_beta_paragraph_is_current(self):
-        self.assertIn("1.0", README)
-        self.assertNotIn("in Beta until version 1.0", README)
-        self.assertIn("This is the 1.0 build. It is still marked Beta because updating from inside clark is not switched on yet",
-                      README)
+    def test_the_first_paragraph_is_a_full_release_that_runs_on_a_mac_and_says_how_windows_runs(self):
+        # From 1.2.0 clark is a full release. The version number is not pinned, so the next release does not break this; the words are the shipped notes' words.
+        para = next(line for line in README.splitlines() if line.startswith("> "))
+        self.assertNotIn("Beta", para)
+        self.assertNotIn("Themes", para)           # no theme feature is reachable in 1.2
+        self.assertNotIn("come later", para)
+        self.assertIn("clark runs on a Mac.", para)
+        self.assertIn("On Windows, unzip the same download and run clark in Docker; the release notes say how.", para)
+        self.assertNotIn("Windows download", para)   # one download only: no separate Windows asset is implied
+        zip_readme = (ROOT / "docs" / "zip" / "README.md").read_text(encoding="utf-8")
+        self.assertIn(para, zip_readme.splitlines(), "the zip's README carries the same first paragraph")
 
     def test_the_licence_section_is_unchanged(self):
         section = README.split("## Licence", 1)[1].strip()

@@ -110,16 +110,6 @@ class Inline(Shown):
                 got = {g["t"]: g["tone"] for g in self.menu(cdp, sid, "TUL-010:status")}
                 self.assertEqual(got["Open"], "ic-r", "a late action's Open is red, as its pill would be")
 
-    def test_the_rating_menu_of_a_risk_shows_the_bars_in_each_levels_tone(self):
-        for width in WIDTHS:
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.open_page(cdp, width)
-                got = self.menu(cdp, sid, "TUL-007:priority")
-                self.assertEqual([g["t"] for g in got], ["High", "Medium", "Low"] * 2)
-                self.assertEqual({g["icn"] for g in got}, {"bars"})
-                self.assertEqual([g["tone"] for g in got], ["ic-a", "ic-b", "ic-n"] * 2)
-                self.check_drawn(cdp, sid)
-
     def test_the_icon_has_a_gap_before_the_words_and_the_due_choices_keep_their_date_at_the_right(self):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
