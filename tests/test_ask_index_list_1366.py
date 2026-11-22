@@ -46,9 +46,9 @@ class Base(unittest.TestCase):
             p.mkdir(parents=True)
         (self.own / "a.txt").write_text("alpha river", encoding="utf-8")
         for i in range(240):
-            (self.own / f"p{i:03d}.png").write_bytes(b"x")
+            (self.own / f"p{i:03d}.bin").write_bytes(b"x")
         (self.shared / "c.md").write_text("beta lake", encoding="utf-8")
-        (self.shared / "z.png").write_bytes(b"x")
+        (self.shared / "z.bin").write_bytes(b"x")
         db = make_db(self.data)
         self.s.httpd.app_settings = service(db)
         self.ix = ask_index.Indexer(self.data, self.home)
@@ -97,7 +97,7 @@ class Classic(Base):
             n = js("document.querySelectorAll('#ask-folders .ask-left-list li').length")
             self.assertEqual(n, 201)
             self.assertEqual(js("document.querySelector('#ask-folders .ask-left-list li:last-child').innerText"), "and 40 more")
-            self.assertEqual(js("document.querySelector('#ask-folders .ask-left-list li:first-child').innerText"), "p000.png of a type clark can't read yet")
+            self.assertEqual(js("document.querySelector('#ask-folders .ask-left-list li:first-child').innerText"), "p000.bin of a type clark can't read yet")
             for mode in ("light", "dark"):
                 js(f"document.documentElement.dataset.theme = {mode!r}")
                 got = js("(() => { const li = document.querySelector('#ask-folders .ask-left-list li'); const why = li.querySelector('.ask-left-why'); const c = getComputedStyle(why); "
@@ -108,7 +108,7 @@ class Classic(Base):
             self.assertTrue(wait(lambda: js("!document.querySelector('#ask-folders .ask-left-list')"), 10))
             # the folder for all projects has one file left out, no "and N more"
             self.open_list(js, "#ask-folders-shared")
-            self.assertEqual(js("[...document.querySelectorAll('#ask-folders-shared .ask-left-list li')].map(e => e.innerText)"), ["z.png of a type clark can't read yet"])
+            self.assertEqual(js("[...document.querySelectorAll('#ask-folders-shared .ask-left-list li')].map(e => e.innerText)"), ["z.bin of a type clark can't read yet"])
 
     def test_the_keyboard_opens_and_closes_the_list(self):
         with chrome() as cdp:
