@@ -117,7 +117,7 @@ class Words(unittest.TestCase):
         self.assertTrue(t.startswith("To: %s\nSubject: Feedback about clark (Problem)\n\nProblem\n\na" % ADDRESS))
 
     def test_page_words(self):
-        self.assertEqual(call("FT.pageWords({view:'settings',page:'appearance'})"), "Settings, Appearance")
+        self.assertEqual(call("FT.pageWords({view:'settings',page:'appearance'})"), "Settings, Look")
         self.assertEqual(call("FT.pageWords({view:'settings',page:''})"), "Settings, Projects")
         self.assertEqual(call("FT.pageWords({view:'dashboard',helpOpen:true})"), "Help and about")
 
@@ -157,9 +157,9 @@ class Killers(unittest.TestCase):
         self.assertEqual(c, ["Version of clark: 1 2", "System: a b", "Page: c d"])
 
     def test_page_words_every_settings_page_name(self):
-        names = {"people": "People", "profile": "Profile", "folder": "Folder", "brand": "Brand", "appearance": "Appearance", "reports": "Reports",
-                 "backups": "Backups", "data": "Export and import", "claude": "Claude and AI", "logs": "Logs and diagnostics",
-                 "version": "Version and updates", "projects": "Projects"}
+        names = {"people": "People", "profile": "Profile", "folder": "Folder", "brand": "Brand and publishing", "appearance": "Look", "reports": "Reports and pages",
+                 "backups": "Backups", "data": "Data", "claude": "ask clark", "logs": "Logs and diagnostics",
+                 "version": "Version and updates", "projects": "Projects overview"}
         for k, v in names.items():
             self.assertEqual(call("FT.pageWords({view:'settings',page:'%s'})" % k), "Settings, " + v, k)
 
