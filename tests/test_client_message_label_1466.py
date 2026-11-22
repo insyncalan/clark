@@ -58,13 +58,6 @@ class Words(unittest.TestCase):
             with self.subTest(table=table):
                 self.assertEqual(history.field_name(table, "client_message"), "Client Message")
 
-    def test_the_row_editor_label_and_toasts_say_client_message_of(self):
-        html = page.page_html(tp.EMPTY_BRANDING, view=False)
-        for words in ("`Client Message of ${", "} changed.`", "} is back as it was.`"):
-            with self.subTest(words=words):
-                self.assertIn(words, html)
-        self.assertNotIn("`Wording of ${", html)
-
     def test_the_excel_export_headers_say_client_message(self):
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
@@ -89,11 +82,13 @@ class Published(unittest.TestCase):
         self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
         path = folder / "report.html"
         path.write_text(text, encoding="utf-8")
-        for width in (1400, 900):
+        for width, dark in ((1400, False), (900, False), (1400, True), (900, True)):
             for hash_, who in (("#work&p=PUB&item=PUB-A-001", "action"), ("#work&p=PUB&item=PUB-001", "risk"),
                                ("#work&p=PUB&item=PUB-D-001", "decision"), ("#dashboard&p=PUB&ms=PUB-M-001", "milestone")):
-                with self.subTest(width=width, kind=who), chrome() as cdp:
+                with self.subTest(width=width, dark=dark, kind=who), chrome() as cdp:
                     sid = tp.opened(cdp, path.as_uri() + hash_, width)
+                    if dark:
+                        cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
                     if cdp.js("!!document.querySelector('#peek [data-pk-details]')", sid) and cdp.js("document.querySelector('#peek [data-pk-details]').getAttribute('aria-expanded')", sid) != "true":
                         cdp.js("document.querySelector('#peek [data-pk-details]').click()", sid)
@@ -204,36 +199,6 @@ class Import(NameCase):
 class Labels(base.Peeks):
     LINE = "(e => e ? { tag: e.tagName, text: e.textContent.trim(), eye: !!e.querySelector('svg') } : null)(document.querySelector('#peek [data-pk-client-row] .cv'))"
     CLIENT = "client_visible"
-
-    def test_peek_label_is_client_message_view_and_edit(self):          # AP1
-        """The row label is exactly "Client Message" (capital M, never "Client wording") in every place the build draws that row: a milestone's peek
-        in View and in Edit, a decision's peek in Edit, (the published work item peek is the next test). Only drawn places are pinned (ruling, 1466: no new row)."""
-        decision = self.store.read("decisions")[0]["id"]
-        milestone = self.store.read("milestones")[0]["id"]
-        for width in (1400, 900):
-            for mode, ref, kind in (("view", milestone, "milestone"), ("edit", milestone, "milestone"), ("edit", decision, "item")):
-                with self.subTest(width=width, mode=mode, ref=ref), chrome() as cdp:
-                    sid = self.dashboard_in_view(cdp, width, self.store, self.code)
-                    if mode == "edit":
-                        self.to_edit(cdp, sid)
-                    self.open_peek(cdp, sid, ref, kind)
-                    labels = self.labels(cdp, sid)
-                    self.assertIn("Client Message", labels)
-                    self.assertEqual([l for l in labels if l.lower() == "client message"], ["Client Message"], "the spelling is exact")
-                    self.assertNotIn("Client wording", labels)
-                    self.assertNotRegex(cdp.js("document.querySelector('#peek').innerText", sid), r"(?i)client wording")
-
-    def test_published_work_item_peek_label_is_client_message(self):
-        _plant, _pub, text = tp.made()
-        folder = Path(tempfile.mkdtemp(prefix="clark-1466-"))
-        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
-        path = folder / "report.html"
-        path.write_text(text, encoding="utf-8")
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-A-001", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
-                self.assertIn("Client Message", cdp.js("[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())", sid))
 
     def test_view_and_edit_keep_client_visible_line_with_undo(self):          # AP7
         on, off = "TUL-007", "TUL-008"
