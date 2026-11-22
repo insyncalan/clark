@@ -56,6 +56,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); }
 :root[data-theme=dark] .pk-last { color: rgb(154, 169, 189); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); } :root[data-theme=auto] .pk-last { color: rgb(154, 169, 189); } }
+/* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
+@media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
