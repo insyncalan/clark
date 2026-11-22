@@ -118,6 +118,16 @@ class Checker(unittest.TestCase):
                 ok(name, head)
             self.assertEqual(str(e.exception), doclinks.bad_type(name))
 
+    def test_the_first_bytes_rule_csv_txt_bom_zero_byte_and_a_pdf_named_png(self):
+        """Row 1194 (csv rule confirmed 23-11): four cases in one test; a refusal is the bad_type sentence."""
+        ok = doclinks.allowed_content
+        self.assertEqual(ok("a.csv", b"a,b\n1,2\n" + b"x" * 600), "a.csv")
+        self.assertEqual(ok("a.txt", b"\xef\xbb\xbfwords\x00"), "a.txt")
+        for name, head in (("a.csv", b"a,b\x00\n1,2"), ("a.pdf", b"\x89PNG\r\n\x1a\n" + b"\x00" * 8)):
+            with self.subTest(name=name), self.assertRaises(section_bodies.Bad) as e:
+                ok(name, head)
+            self.assertEqual(str(e.exception), doclinks.bad_type(name))
+
     def test_a_link_needs_a_description_a_file_does_not(self):
         for label in ("", "   "):
             with self.subTest(label=label):
