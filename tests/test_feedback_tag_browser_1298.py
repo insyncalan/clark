@@ -149,6 +149,21 @@ class FeedbackTagBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js(f"!{DLG}", sid)), where)
             self.assertEqual(cdp.js("document.activeElement.id", sid), "feedback-tag", where)
 
+    def test_help_search_box_takes_the_focus_before_the_tag_is_shown(self):
+        """Row 1561: the search box is focused in Help's own commit (layout effect), so it is first, never after the tag's focus. A focus listener and a
+        MutationObserver (its callback is a microtask, after the commit, before any deferred effect) are put in before open and log the order."""
+        for cdp, sid, where in self.each():
+            cdp.js("""(() => {
+                window.__ord = [];
+                document.addEventListener('focusin', (e) => { if (e.target.id === 'hpQ') window.__ord.push('search'); }, true);
+                new MutationObserver((_, o) => { if (document.querySelector('#feedback-tag')) { window.__ord.push('tag'); o.disconnect(); } }).observe(document.body, {childList: true, subtree: true});
+                document.activeElement && document.activeElement.blur();
+                window.clarkPage.help.open();
+            })()""", sid)
+            self.assertTrue(wait(lambda: cdp.js("window.__ord.length >= 2", sid)), where + ": both the search focus and the tag happened")
+            self.assertEqual(json.loads(cdp.js("JSON.stringify(window.__ord.slice(0, 2))", sid)), ["search", "tag"], where + ": the search box had the focus before the tag was first seen")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "hpQ", where)
+
     def test_every_control_in_the_dialog_has_a_name_and_no_positive_tab_stop(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
