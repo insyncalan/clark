@@ -67,7 +67,7 @@ class InTheFile(Published):
                 b = p.js(BAR)
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
-                self.assertRegex(b["date"], r"28-10-2026", "issue 1178 ruling: the date is a button in the bar (and also in the profile menu)")
+                self.assertEqual(b["date"], "", "row 1543: the Classic bar has no date button (the date stays in the profile menu)")
                 self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")

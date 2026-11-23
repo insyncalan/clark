@@ -1,9 +1,10 @@
-"""Row 1543 PR 1: the published header's pages group sits where the editor's does (same right edge, same line), and the room the
+"""Row 1543 PR 1 and PR 2a (the Classic header has no "As at"; read only): the published header's pages group sits where the editor's does (same right edge, same line), and the room the
 editor's right-hand buttons use is reserved, so the pages do not move between the two. In a real browser, light and dark, 1400 px,
 and the 1200 and 1100 px edge checks (the 900 px bar is a later part of the row). Fictional data.
 
 Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; run only while the machine's load is under 70)
 """
+from _demo import USER
 import test_glance_page as glance
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
@@ -15,6 +16,17 @@ PROBE = """(() => {
   const list = [...tabs.querySelectorAll('[role=tab]')].map((x) => x.getBoundingClientRect());
   return {gapRight: q(b.right - t.right), gapBottom: q(b.bottom - t.bottom), n: list.length, lefts: list.map((r) => q(r.left)), lastRight: q(list[list.length - 1].right),
     endRight: e ? q(b.right - e.right) : null, wide: document.documentElement.scrollWidth <= innerWidth};
+})()"""
+# PR 2a: the bar's text and buttons, and what the editor draws that a file must not.
+RIGHT = """(() => {
+  const bar = document.querySelector('header.top'), b = bar.getBoundingClientRect(), st = (e, k) => getComputedStyle(e)[k];
+  const box = (e) => { if (!e) return null; const r = e.getBoundingClientRect(); return {w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, right: Math.round((b.right - r.right) * 100) / 100}; };
+  const sw = bar.querySelector('.cm-theme'), me = bar.querySelector('.cm-badge, #profile-btn');
+  return {text: bar.textContent, asatBtn: bar.querySelectorAll('.asat, .asat-wrap, .asat-box').length, week: !!/Week ending/.test(bar.textContent),
+    sw: box(sw), me: box(me), swBorder: sw ? [st(sw, 'borderTopWidth'), st(sw, 'color')] : null, meBg: me ? st(me, 'backgroundColor') : null,
+    meBorder: me ? st(me, 'borderTopWidth') : null, ask: bar.querySelectorAll('#ask-btn, .tb-ask, [aria-label*="Ask" i]').length,
+    buttons: [...bar.querySelectorAll('button')].filter((x) => !x.classList.contains('tab') && !x.closest('.cm-wrap') && !x.closest('.logo')).length,
+    eye: bar.querySelectorAll('.eye, [aria-label*="Client visible" i], [aria-label*="eye" i]').length, tools: bar.querySelectorAll('.tb-act, .hdr-end').length};
 })()"""
 WIDTHS = ((1400, False), (1400, True), (1200, False), (1100, False))
 
@@ -61,6 +73,30 @@ class Header1543(glance.Published):
                 self.assertEqual(three["lastRight"], four["lastRight"], "its last page has not moved")
                 self.assertEqual(three["endRight"], four["endRight"], "nothing to the right of the pages moved")
                 self.assertGreater(three["lefts"][0], four["lefts"][0], "the group is shorter on its left")
+    def right_group(self, width, dark):
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"week_ending": "2026-10-23"})
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, width, dark)
+            p.until("!!document.querySelector('header.top-file .cm-badge')", "the published bar drew")
+            got = p.js(RIGHT)
+            return got
+
+    def test_published_header_no_as_at(self):
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                f = self.right_group(width, dark)
+                self.assertNotIn("As at", f["text"], "no As at in the bar")
+                self.assertEqual(f["asatBtn"], 0, "no date button, box or note in the bar")
+                self.assertTrue(f["week"], "Week ending stays")
+
+    def test_published_header_no_edit_controls(self):
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                f = self.right_group(width, dark)
+                self.assertEqual((f["ask"], f["eye"], f["tools"]), (0, 0, 0), "no ask clark, no eye or Client visible, no editor tool")
+                self.assertEqual(f["buttons"], 0, "the only buttons in the bar are the pages, the switcher and the profile circle")
 
 
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file

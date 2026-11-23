@@ -1,5 +1,5 @@
 """Row 1178: the client published report's header matches the editor dashboard header option C: no 'for <client>' in the heading line
-(file and editor), the date in the header is clickable (tooltip 'Click to change date', a click opens a calendar, same date format),
+(file and editor), the Classic header has no date button (row 1543; the Cards look keeps its own, tests/test_published_date_pick.py),
 the header is 25 percent taller than the item 1146 bar and the logo 20 percent smaller (147x22 at 1400, 120x18 at 900), no published
 chip or published-weeks list in the header (the published info is the last thing in the profile menu), search and ask clark first in the
 menu where it has them, and no View/Edit pill in the client view. In a real browser.
@@ -98,31 +98,6 @@ class InTheFile(Published):
                 want = (147, 22) if width == 1400 else (120, 18)
                 hit = [x for x in b["logoBoxes"] if abs(x["h"] - want[1]) <= 1 and abs(x["w"] - want[0]) <= 1]
                 self.assertTrue(hit, f"some part of the logo (its box, icon, image or svg) is {want[0]}x{want[1]}: {b['logoBoxes']}")
-
-    def test_the_date_is_clickable_with_a_tooltip_and_the_same_format(self):
-        cdp, p = self.bar(1400, False)
-        b = p.js(PROBE)
-        d = b["date"]
-        self.assertIsNotNone(d, "the date is shown in the header at 1400")
-        self.assertRegex(d["text"], r"\b28-10-2026\b", "DD-MM-YYYY, as before")
-        self.assertEqual(d["tip"], "Click to change date")
-        self.assertIsNotNone(d["control"], "the date is a control (button, link or box), not plain text")
-        self.assertTrue(d["tabbable"], "and reachable by keyboard")
-
-    def test_a_click_on_the_date_opens_a_calendar(self):
-        cdp, p = self.bar(1400, False)
-        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 0, "no date box is there before the click")
-        before = p.js(CAL)
-        p.js("""(() => { const bar = document.querySelector('header.top'), re = /\\b\\d\\d-\\d\\d-\\d{4}\\b/;
-          const el = [...bar.querySelectorAll('*')].filter((e) => re.test(e.textContent) && ![...e.children].some((c) => re.test(c.textContent)))
-            .filter((e) => !e.closest('.top-line, .cover-line'))[0];
-          (el.closest('button, a[href], [role=button], input, [tabindex]') || el).click(); })()""")
-        wait(lambda: p.js(CAL)["native"] or p.js(CAL)["pops"] > before["pops"] or p.js(CAL)["days"] >= 28, 3)
-        after = p.js(CAL)
-        self.assertFalse(before["native"], "the date box did not hold focus before the click")
-        opened = after["native"] or after["pops"] > before["pops"] or after["days"] > before["days"]
-        self.assertTrue(opened, f"a calendar opened (before {before}, after {after})")
-        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 1, "the click put one date box on the page")
 
     def test_no_published_chip_or_weeks_list_in_the_header(self):
         for width, dark in CASES:
