@@ -1,6 +1,6 @@
 """Row 1368: what a huge PDF shows today, with the REAL vendored pypdf (no stand-in): too many pages, too many bytes, too much text for
 the output budget, and memory exhaustion in the child. Pins the behaviour as it is; the memory case is `corrupt` (shown as `type`).
-The child sets its own RLIMIT_AS (1 GiB), so run this WITHOUT ulimit -v: bash ~/wo/loadgate.sh -p 70 -- python3 dev/run_tests.py test_ask_index_huge_pdf_1368
+The child sets its own RLIMIT_AS (1 GiB; macOS refuses it, and there the test makes the child's inflater raise MemoryError instead), so run this WITHOUT ulimit -v: bash ~/wo/loadgate.sh -p 70 -- python3 dev/run_tests.py test_ask_index_huge_pdf_1368
 Made-up files only; nothing big is written to disk."""
 import subprocess
 import sys
@@ -56,7 +56,18 @@ WRAP = """import sys, resource
 sys.path.insert(0, sys.argv[1])
 import pdf_reader_child as c
 limit = int(sys.argv[2])
-c._limits = lambda cpu=15: resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+
+def _limit(cpu=15):
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ValueError, OSError):                 # macOS refuses RLIMIT_AS (pdf_reader_child._limits says so), so no real memory limit can be set there:
+        if limit < 1 << 30:                       # for the too-little-memory case the machine's answer is made by hand: the stream inflater runs out of memory
+            import zlib
+
+            def out_of_memory(*a, **k):
+                raise MemoryError()
+            zlib.decompressobj = out_of_memory
+c._limits = _limit
 c.main([sys.argv[0]] + sys.argv[3:])
 """
 
