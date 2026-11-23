@@ -22,7 +22,7 @@ class Base(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
         self.root, self.data, self.scratch = make_dirs(self)
-        self.rig = Rig(self, library=False)
+        self.rig = Rig(self, library=False, trace=True)
         self.rig.httpd.brands = sv.BrandLibrary(self.root, self.data)         # the real dialog and Downloads calls, as shipped
 
     def said(self, status_got):
@@ -50,7 +50,7 @@ class Listing(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
         self.root, self.data, self.scratch = make_dirs(self)
-        self.rig = Rig(self, library=False)
+        self.rig = Rig(self, library=False, trace=True)
         self.rig.httpd.brands = sv.BrandLibrary(self.root, self.data)
 
     def test_the_listing_is_200_with_brands_undo_and_no_review(self):
@@ -75,7 +75,7 @@ class ListingOnAMac(unittest.TestCase):
         root, data, scratch = make_dirs(self)
         with zipfile.ZipFile(scratch / "kit.zip", "w") as z:
             z.writestr("kit/clark-brand.json", json.dumps({"id": "kit"}))
-        rig = Rig(self, library=False)
+        rig = Rig(self, library=False, trace=True)
         rig.httpd.brands = sv.BrandLibrary(root, data, downloads=scratch)
         status, got = rig.call("GET", "/api/brands")
         self.assertEqual((status, got["review_ready"]), (200, True), got)
@@ -133,7 +133,7 @@ class NotInDocker(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
         self.root, self.data, self.scratch = make_dirs(self)
-        self.rig = Rig(self, library=False)
+        self.rig = Rig(self, library=False, trace=True)
 
     def test_a_not_built_refusal_outside_docker_says_the_plain_line(self):
         class Service:

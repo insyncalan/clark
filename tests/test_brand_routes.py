@@ -9,7 +9,9 @@ Run: python3 dev/run_tests.py test_brand_routes
 """
 import http.client
 import json
+import sys
 import threading
+import traceback
 import unittest
 
 from clark import server as sv
@@ -47,13 +49,22 @@ class FakeLibrary:
 
 
 class Rig:
-    def __init__(self, case, library=True):
+    def __init__(self, case, library=True, trace=False):
+        self.trace = trace
+        self.server_errors = []
         self.library = FakeLibrary() if library else None
         self.httpd = sv.LocalServer((sv.HOST, 0), data_for=lambda *a, **k: {}, projects=lambda archived=False: [],
                                     page_html=lambda *a, **k: "<!doctype html><title>t</title>", brands=self.library)
-        self.httpd.handle_error = lambda *a: None
+        self.httpd.handle_error = self._print_error if trace else (lambda *a: None)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         case.addCleanup(self.close)
+
+    def _print_error(self, request, client_address):
+        # trace=True only (row 1559 diagnostic): a handler crash prints its traceback to stderr and is kept for the failure message.
+        text = traceback.format_exc()
+        self.server_errors.append(text)
+        sys.stderr.write("SERVER HANDLER ERROR (client %s):\n%s\n" % (client_address, text))
+        sys.stderr.flush()
 
     def close(self):
         self.httpd.shutdown()
@@ -71,9 +82,15 @@ class Rig:
             if data is not None:
                 headers["Content-Length"] = str(len(data))
                 headers["Content-Type"] = "application/json"
-            conn.request(method, path, data, headers)
-            r = conn.getresponse()
-            text = r.read()
+            try:
+                conn.request(method, path, data, headers)
+                r = conn.getresponse()
+                text = r.read()
+            except (ConnectionError, http.client.RemoteDisconnected) as e:
+                if not self.trace:
+                    raise
+                raise AssertionError("%s on %s %s: %r; server traceback(s) captured: %s" % (
+                    type(e).__name__, method, path, e, "\n".join(self.server_errors) or "none")) from e
             try:
                 return r.status, json.loads(text)
             except ValueError:
