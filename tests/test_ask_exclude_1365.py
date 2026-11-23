@@ -19,6 +19,7 @@ from unittest import mock
 from _paths import SRC  # noqa: F401
 
 import test_ask_route as tr
+import test_open_at_page as oap
 from clark import ask_exclude as ex, ask_passages, ask_service, platform as pl, reach, store as st
 from clark.store import Invalid
 
@@ -528,3 +529,64 @@ class OnTheRoute(tr.Base):
         self.assertEqual((read, data.safety), ("", 1))
         self.assertNotIn("FOLDERKEEP", sent)
         self.assertNotIn("FOLDEROUT", sent)
+
+    def test_a_finished_index_is_not_used_while_a_subfolder_is_left_out_and_is_used_when_none_is(self):
+        """Killers (row 1365 part B): the index knows no left-out subfolder, so with one set the folders are read directly; '[]' means none."""
+        from types import SimpleNamespace
+        self.service.indexer = SimpleNamespace(current=lambda code, folders: True, not_yet=lambda code: 0)
+        for value, via_index in (("[]", True), ('["Contract"]', False)):
+            self.set(value)
+            calls = {"index": 0, "direct": 0}
+            empty = ask_passages.FolderData()
+
+            def index(*a, **k):
+                calls["index"] += 1
+                return empty
+
+            def direct(*a, **k):
+                calls["direct"] += 1
+                return empty
+
+            with mock.patch.object(ask_service.ask_index, "folder_data", side_effect=index), mock.patch.object(ask_passages, "folder_data", side_effect=direct):
+                status, got = self.question("What is the cutover plan?")
+            self.assertEqual(status, 200, got)
+            self.assertEqual(calls, {"index": 1, "direct": 0} if via_index else {"index": 0, "direct": 1}, value)
+
+
+class OpenSourceLeftOut(oap.Tmp):
+    """Killers (row 1365 part B): the route that opens a PDF from a saved folder refuses a file in a left-out subfolder."""
+    post = oap.OnTheRoute.post
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+        (self.d / "data").mkdir()
+        self.db = oap.plant.build_db(self.d / "data" / "clark.db")
+        self.opened = []
+        self.service = ask_service.AskService(self.db, ask_service.ask.StubProvider(reply="x"), [], home=self.d,
+                                              open_pdf=lambda path, url: self.opened.append((str(path), url)))
+        self.s = oap.real_server(self.db, lambda code: None)
+        self.s.httpd.ask = self.service
+        self.addCleanup(self.s.close)
+        store = st.open_store(self.db, onedrive_roots=[])
+        with store.step("dashboard", "tester", place="menu") as s:
+            s.create("source_folders", {"project": oap.CODE, "path": str(self.box), "sort_order": 1})
+        store.close()
+
+    def test_a_pdf_in_a_left_out_subfolder_is_not_opened_and_one_beside_it_is(self):
+        self.pdf("Contract/deal.pdf")
+        self.pdf("Other/fine.pdf")
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.update("source_folders", f"{oap.CODE}|{self.box}", {"excluded": '["Contract"]'})
+        finally:
+            store.close()
+        status, got = self.post(project=oap.CODE, file="Saved Docs/Contract/deal.pdf", page=1)
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "file_unavailable"))
+        self.assertEqual(self.opened, [])
+        status, got = self.post(project=oap.CODE, file="Saved Docs/Other/fine.pdf", page=1)
+        self.assertEqual((status, got), (200, {"ok": True}))
+        self.assertEqual(len(self.opened), 1)
