@@ -39,7 +39,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 33          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 33          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -443,7 +443,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "needs_details", "client_action",
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
                           "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
@@ -658,13 +658,16 @@ def _html_ok(text):
 BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok, html=_html_ok)
 
 
-def check_section_body(kind, body):
+def check_section_body(kind, body, stored=None):
     """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
     door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
     try:
-        return section_bodies.check(kind, body, BODY_RULES)
+        return section_bodies.check(kind, body, BODY_RULES, stored)
     except section_bodies.Bad as e:
         raise Invalid(str(e)) from None
+
+
+UNDOING = "(undoing)"        # rides in `changed` (never a column) when revert_group puts a section's body back
 
 
 def _section_rules(con, table, row, changed):
@@ -681,7 +684,11 @@ def _section_rules(con, table, row, changed):
         # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
         # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
         # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
-        row["body"] = check_section_body(row["type"], row.get("body"))
+        was = con.execute("SELECT body FROM report_sections WHERE id = ?", (row.get("id"),)).fetchone() if row.get("id") else None
+        # what the section holds now: an old entry sent back unchanged stays. An Undo puts back the logged old text, so there that text
+        # is what an entry may stay as (the row now holds the newer text, which has dropped the old entry); a changed or new entry still meets every rule
+        row["body"] = check_section_body(row["type"], row.get("body"), row["body"] if UNDOING in changed else was[0] if was else None)
+        changed.discard(UNDOING)
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -1825,7 +1832,7 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     _not_before_raised(table, row)
     if table in CHECK and not (revert and table == "projects" and "health_reason" in changes):
         CHECK[table](row, current, changes)
-    check_row(con, table, row, set(changes))
+    check_row(con, table, row, set(changes) | ({UNDOING} if revert and table == "report_sections" and "body" in changes else set()))
     return row
 
 
@@ -2100,7 +2107,7 @@ def _revert_removed(con, table, key, rows_, step, apply_id, removed):
         if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
             before[x["field"]] = x["old_value"]
     back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
-    check_row(con, table, dict(back), set(back))
+    check_row(con, table, dict(back), set(back) | ({UNDOING} if table == "report_sections" else set()))   # item 1194: a section deleted with an old entry comes back whole
     _insert_sql(con, table, back)
     for f, v in back.items():
         log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
@@ -3195,12 +3202,15 @@ ASK_FILES_STEP = 33        # row 1294's second step number (31 was its standing 
 ASK_FILES_COLUMNS = (
     ("app_settings", "ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1))"),
     ("projects", "ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1))"),
-)      # the same text as schema.sql's two columns
+    ("app_settings", "ask_new_projects INTEGER NOT NULL DEFAULT 1 CHECK (ask_new_projects IN (0,1))"),
+    ("projects", "ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))"),
+)      # the same text as schema.sql's four columns; ask_new_projects and ask_off are row 1294's asking for new projects, inside this same step (no second version)
 
 
 def migrate_ask_files(con):
     """Schema version 32 to 33 (row 1294): app_settings.ask_files (files may be added to a question, 1 for every file) and projects.ask_files_off
-    (a project's own turn-off, 0 for every project). Each is added at the end of its table, so no table is made again and no value changes; a
+    (a project's own turn-off, 0 for every project), and app_settings.ask_new_projects (the starting value for a new project, 1 on) and
+    projects.ask_off (the project's own turn-off of asking, 0 for every project, so an existing project asks as it did). Each is added at the end of its table, so no table is made again and no value changes; a
     column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's transaction and
     does not touch the version (the runner does). It is step 33 in MIGRATIONS."""
     for table, column in ASK_FILES_COLUMNS:
@@ -4293,6 +4303,32 @@ class Store:
         """True only when the computer-wide Files switch is on and `project` has not turned files off for itself: off wins. Read only."""
         return self.ask_files_on() and not self.ask_files_off_here(project)
 
+    def ask_new_projects_on(self):
+        """True only while a project made now starts with asking on (row 1294): the one row's ask_new_projects is exactly 1. A file without the
+        column, a value that is not 1 and any database error read as False, so a new project never starts with asking on by mistake. Read only."""
+        try:
+            if not self.settings_ready() or "ask_new_projects" not in columns(self.con, "app_settings"):
+                return False
+            row = self.con.execute("SELECT ask_new_projects FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return False
+        return row is not None and row[0] == 1
+
+    def ask_off_here(self, project):
+        """True when asking is off for `project` itself (row 1294). An unknown project, a file without the column and any database error read as
+        True (off): it never fails open. Read only."""
+        try:
+            if "ask_off" not in columns(self.con, "projects"):
+                return True
+            row = self.con.execute("SELECT ask_off FROM projects WHERE code = ?", (project,)).fetchone()
+        except sqlite3.Error:
+            return True
+        return row is None or row[0] != 0
+
+    def ask_allowed(self, project):
+        """True only when the computer-wide switch (ask_enabled) is on and `project` has not turned asking off: either off wins. Read only."""
+        return self.ask_enabled() is True and not self.ask_off_here(project)
+
     def ask_enabled(self):
         """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
         sent to a model. It never fails open: a file with no such table or row, a value that is not exactly 1, or any database
@@ -4500,7 +4536,10 @@ class Step:
         return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
-        """A new row; returns its ref (the ID clark gives it, or its key)."""
+        """A new row; returns its ref (the ID clark gives it, or its key). A new project takes asking's starting value (row 1294): its ask_off
+        is the opposite of app_settings.ask_new_projects, written in this same step, unless the caller says its own."""
+        if kind == "projects" and "ask_off" not in values and "ask_off" in columns(self.con, "projects"):
+            values = {**values, "ask_off": 0 if self.store.ask_new_projects_on() else 1}
         return write_item(self.con, {"table": kind, "op": "new", "values": dict(values)}, self)
 
     def seed_sections(self, code):

@@ -81,7 +81,7 @@ class AskFolders:
     """`db_path` is the database; `onedrive_roots` as the launcher's; `data_dir` is clark's own folder; `home` and `by_user` are
     seams for tests."""
 
-    def __init__(self, db_path, onedrive_roots=None, *, data_dir=None, home=None, by_user=None, choose_folder=None):
+    def __init__(self, db_path, onedrive_roots=None, *, data_dir=None, home=None, by_user=None, choose_folder=None, indexer=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
@@ -89,6 +89,7 @@ class AskFolders:
         self.by_user = by_user or platform.login_name
         self.choose_folder = choose_folder or platform.choose_folder      # the system's folder window (a seam for tests)
         self.lock = threading.Lock()
+        self.indexer = indexer                                # ask_index.Indexer or None: the background reader of the saved folders (Row 1366)
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -112,12 +113,21 @@ class AskFolders:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                return 200, {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
+                out = {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
+                if self.indexer is not None:
+                    out["index"] = self.indexer.status_for(code, [*out["shared"], *out["folders"]])
+                return 200, out
             finally:
                 store.close()
 
     # ----- POST -----
     def change(self, body):
+        status, out = self._change(body)
+        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove", "undo"):
+            self.reindex([body["project"]])
+        return status, out
+
+    def _change(self, body):
         if not isinstance(body, dict):
             return 400, self.fail("bad_request")
         code, action = body.get("project"), body.get("action")
@@ -160,8 +170,43 @@ class AskFolders:
                 store.close()
 
     # ----- the folders for all projects (row 1294) -----
-    def read_all(self):
-        return 200, {"ok": True, "folders": shared_folders(self.data_dir)}
+    def read_all(self, code=None):
+        out = {"ok": True, "folders": shared_folders(self.data_dir)}
+        if self.indexer is not None and isinstance(code, str) and PROJECT_CODE.fullmatch(code):
+            out["index"] = self.indexer.status_for(code, self.all_folders(code))
+        return 200, out
+
+    def all_folders(self, code):
+        """What asking reads in project `code`: the folders for all projects, then the project's own (as ask_service.folders_for)."""
+        out = []
+        try:
+            store = self.store()
+        except Invalid:
+            return list(shared_folders(self.data_dir))
+        try:
+            own = self.listed(store, code)
+        finally:
+            store.close()
+        for p in [*shared_folders(self.data_dir), *own]:
+            if p not in out:
+                out.append(p)
+        return out[:MAX_FOLDERS]
+
+    def reindex(self, codes):
+        """Start the background read for these projects (None: every project that is not archived). Never raises, never waits."""
+        if self.indexer is None:
+            return
+        try:
+            if codes is None:
+                store = self.store()
+                try:
+                    codes = [r["code"] for r in store.read("projects") if not r.get("archived")]
+                finally:
+                    store.close()
+            for c in codes:
+                self.indexer.start(c, self.all_folders(c))
+        except Exception:                                   # noqa: BLE001 the folder change is saved; the read is only a copy
+            pass
 
     def save_shared(self, folders):
         """One atomic write of the list; False when it can't be written. No folder on disk is touched."""
@@ -175,6 +220,12 @@ class AskFolders:
         return True
 
     def change_all(self, body):
+        status, out = self._change_all(body)
+        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove"):
+            self.reindex(None)
+        return status, out
+
+    def _change_all(self, body):
         """{scope: "all", action: "add" | "remove" | "choose", path}: the same checks as a project's folder, then the list for all projects."""
         if not isinstance(body, dict) or body.get("scope") != "all":
             return 400, self.fail("bad_request")

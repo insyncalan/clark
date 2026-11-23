@@ -60,7 +60,7 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
           "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
-          "glancetemplate": "At a glance", "callout": "Callout"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "glancetemplate": "At a glance", "callout": "Callout", "textimage": "Text and Image Side by Side"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
 CALLOUT_FILL = {"violet": "blue", "amber": "amber", "red": "red", "green": "green", "grey": "grey"}      # row 1272: Violet is the page's blue token; Plain has no fill
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
@@ -259,6 +259,10 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 
 
 # ===== Rich text =====
+FONT_COLOUR_TOKEN = {"rt-c-grey": "text-muted", "rt-c-brand": "brand-blue", "rt-c-red": "tone-red-text", "rt-c-amber": "tone-amber-text",
+                     "rt-c-green": "tone-green-text", "rt-c-blue": "tone-blue-text"}      # row 1364: the page's six font colours, each the same token the stylesheet uses
+
+
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
@@ -267,14 +271,16 @@ class _Rich:
         self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
+        self.colours = []                              # row 1364: the token of each open span (None for a span that carries no colour)
         self.stack, self.lists = [], []
 
     def add_text(self, text):
         if not text:
             return
         c = self.ctx
+        token = next((t for t in reversed(self.colours) if t), None)
         r = run(text, bold=bool(self.fmt["strong"]), italic=bool(self.fmt["em"]), strike=bool(self.fmt["s"]),
-                color=c.tok["status-blue-text"] if self.link else None, style="Hyperlink" if self.link else None)
+                color=c.tok[token] if token else c.tok["status-blue-text"] if self.link else None, style="Hyperlink" if self.link else None)
         self.runs.append(f'<w:hyperlink r:id="{self.link}" w:history="1">{r}</w:hyperlink>' if self.link else r)
 
     def flush(self):
@@ -309,6 +315,8 @@ class _Rich:
             self.add_text("☑ " if "checked" in dict(attrs) else "☐ ")
         elif name in self.fmt:
             self.fmt[name] += 1
+        elif name == "span":
+            self.colours.append(FONT_COLOUR_TOKEN.get(dict(attrs).get("class")))
         elif name == "a":
             address = sanitise.href(dict(attrs).get("href"))
             if address and address.lower().startswith(("https://", "mailto:")):
@@ -319,6 +327,9 @@ class _Rich:
     def end(self, name):
         if name in self.fmt:
             self.fmt[name] = max(0, self.fmt[name] - 1)
+        elif name == "span":
+            if self.colours:
+                self.colours.pop()
         elif name == "a":
             self.link = None
         if name in ("p", "h1", "h2", "h3", "li", "blockquote", "ul", "ol"):
@@ -585,6 +596,32 @@ def section_imagecap(published, ctx, title, sec):
     return pic + (para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120)) if caption else "")
 
 
+def section_textimage(published, ctx, title, sec):
+    """Row 1232: Text and Image Side by Side (an old Text and image section reads the same). The section heading, then the image as framed
+    (the file holds only the framed copy) with its caption, and the words; the image comes first when it is on the left, after the words
+    otherwise. A small image sits at its own size, centred. An image that cannot be read leaves the words alone; nothing to say leaves
+    the section out."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    html = c.get("html")
+    words = rich(html, ctx) if isinstance(html, str) and html.strip() else "".join(
+        para(run(str(w))) for w in (c.get("words") or []) if isinstance(w, str) and w.strip())
+    pic = ""
+    got = docx_fullimage.decode(c.get("image"))
+    if got:
+        raw, ext, w, h = got
+        twips = docx_fullimage.width_twips(w, h, TEXT_W * 2 // 3, False)
+        caption = str(c.get("caption") or "").strip()
+        pic = picture_para(ctx, lambda: ((raw, w, h), str(c.get("alt") or "")), twips, ext=ext, keep_next=bool(caption),
+                           align="center" if twips < TEXT_W * 2 // 3 else None, spacing=(120, 40))
+        if pic and caption:
+            pic += para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120))
+    if not pic and not words:
+        return ""
+    first = c.get("side") == "left"                  # Word does not know the section width: left puts the image first, anything else after the words
+    own = " ".join(str(c.get("heading") or "").split())            # the view draws this one line above the picture and the words, under the section heading
+    return _heading(title) + (_heading(own, 2) if own else "") + (pic + words if first else words + pic)
+
+
 def _status_key(word):
     return {v: k for k, v in GANTT_STATUS.items()}[word]
 
@@ -790,7 +827,7 @@ def section_callout(published, ctx, title, sec):
     return out + inner
 
 
-SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "textimage": section_textimage, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
           "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 

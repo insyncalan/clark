@@ -87,7 +87,7 @@ class Look(unittest.TestCase):
 
     def test_the_screen_reader_word_stays_and_the_quip_is_hidden_from_it(self):
         self.assertIn('export const WORKING = "Working";', WORDS)
-        self.assertIn("{busy ? W.WORKING :", PANEL)
+        self.assertIn("{busy ? (classic ? W.WORKING_CLASSIC : W.WORKING) :", PANEL)
         self.assertRegex(PANEL, r'id="ask-quip" aria-hidden="true"')
 
 
