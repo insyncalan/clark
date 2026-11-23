@@ -141,19 +141,15 @@ class MovedFields(unittest.TestCase):
         self.assertIn("Words", peek)
         self.assertNotIn("contenteditable", peek.lower())
 
-    def test_the_move_form_and_the_raid_own_words_draw_the_one_editor(self):
-        """Row 1005: Who agreed it, Reason and Source (Movement) are RichField and what is sent and stored stays plain text on one line (the
-        store refuses a line break there). Row 1288: a RAID card's Own words are RichField too, as the Full editor with its HTML."""
+    def test_the_move_form_draws_the_one_editor_and_stores_plain_text(self):
+        """Row 1005: Who agreed it, Reason and Source (Movement) are RichField (the RAID Own words editor is out of Edit: ticket 1270 line 26, approved 18-11 14:27). What is sent and stored stays
+        plain text on one line (the store refuses a line break there), so an older row and a new one read the same."""
         move = (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8")
         self.assertNotRegex(move, r"<input[^>]*id=\"mv-(who|reason|source)\"")
         for k in ("who", "reason", "source"):
             self.assertIn('<FormRow k="%s"' % k, move)
         self.assertGreaterEqual(move.count("<RichField"), 2, "the note and the form's fields")
         self.assertIn("plainLine(", move)
-        raid = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("<input", raid)
-        self.assertNotIn("<textarea", raid)
-        self.assertIn("<RichField", raid)
 
     def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
         glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
