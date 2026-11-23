@@ -198,7 +198,8 @@ class EveryRouteThatSendsText(unittest.TestCase):
         self.assertIs(got[0], request)
 
     def test_ask_provider_is_reached_only_after_build_request(self):
-        src = inspect.getsource(route_base.ask_service.AskService.ask)
+        self.assertIn("self.ask_one(", inspect.getsource(route_base.ask_service.AskService.ask))      # row 1293: ask() holds the Stop event and hands the question to ask_one()
+        src = inspect.getsource(route_base.ask_service.AskService.ask_one)
         self.assertLess(src.index("ask.build_request("), src.index("ask.ask_provider("))
 
     def test_ai_menu_suggest_screens_before_the_provider(self):

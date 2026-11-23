@@ -88,6 +88,7 @@ function ConnectCard() {
   return (
     <>
     <p class="muted" data-ai-intro>{conn.intro}</p>
+    {conn.profile_line ? <p class="muted" data-ai-profile>{conn.profile_line}</p> : null}
     <div class="ai-provs">
       {TILES.map(([id, name, line]) => {
         const c = conn[id];

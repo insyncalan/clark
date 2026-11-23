@@ -1,7 +1,7 @@
 """#1292 S14: files and pictures for the next question, in the panel (the paperclip, a drop on the panel, a paste).
 
 Run: python3 dev/run_tests.py test_ask_files_panel
-Headless Chrome, the real page, a stub for the server's ask. Widths 1400 and 900. Covers: a paperclip button named "Add a file or picture"
+Headless Chrome, the real page, a stub for the server's ask. Widths 1400 and 900. Covers: a paperclip button named "Add a file"
 beside Send, a file chosen or dropped or pasted shows as a chip (name, size, bin named "Remove <name>") with the screened-for-passwords
 line and the used-for-this-question-only line, a refused file says why in the note and no chip is made, five at most, the bin removes one
 chip and leaves the others, the files go in the question's request (name and base64 bytes) and the chips go with the send, a question
@@ -57,7 +57,7 @@ class Files(Base):
     def test_the_paperclip_is_beside_send_and_named(self):
         with chrome() as cdp:
             p = self.open_panel(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-attach').getAttribute('aria-label')"), "Add a file or picture")
+            self.assertEqual(p.js("document.querySelector('#ask-attach').getAttribute('aria-label')"), "Add a file")
             self.assertTrue(p.js("document.querySelector('#ask-attach').nextElementSibling === null || !!document.querySelector('#ask-send')"))
             self.assertEqual(p.js("document.querySelector('#ask-file-input').hidden"), True)
             self.assertEqual(p.js("document.querySelector('#ask-file-input').multiple"), True)
