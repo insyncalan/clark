@@ -95,7 +95,7 @@ class Box(unittest.TestCase):
 
 
 class Stamp1470(unittest.TestCase):
-    """Row 1470 (Classic): the stamp under the Latest update box reads "Last updated <date> <time> by <name> · Source: <source>", the name and the Source only when clark recorded them."""
+    """Row 1470 (Classic): the stamp under the Latest update box reads "Last updated <date> <time> · Source: <source>", the Source only when clark recorded it; no person is named."""
     load, fresh, refused = _B.load, _B.fresh, _B.refused
     HOLD = _B.HOLD
     setUp = _B.setUp
@@ -114,9 +114,9 @@ class Stamp1470(unittest.TestCase):
             con.close()
         return make
 
-    def test_stamp_has_name_date_time_source_and_omits_unknown(self):
-        cases = ((True, True, rf"^{self.DATE} by Demo Author · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
-                 (True, False, rf"^{self.DATE} by Demo Author$"), (False, False, rf"^{self.DATE}$"))
+    def test_stamp_has_date_time_source_and_omits_unknown(self):
+        cases = ((True, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
+                 (True, False, rf"^{self.DATE}$"), (False, False, rf"^{self.DATE}$"))
         for width in (1400, 900):
             if width == 900 and test_server.PAUSED_900:
                 raise unittest.SkipTest(test_server.PAUSED_900)       # the repo pauses every 900 px case; the 1400 half ran
