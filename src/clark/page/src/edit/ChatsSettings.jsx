@@ -5,7 +5,7 @@ import { KEEP_OPTIONS, keepChoice, setKeep, chats, clearChats, histTick } from "
 
 const KEPT_HEAD = "Chats";
 const KEPT_LABEL = "Chats kept";
-const KEPT_LINE = "The most recent chats kept for each project, in this browser. Clearing them is done in a project's tab.";
+const KEPT_LINE = "The most recent chats kept for each project, with your data. Clearing them is done in a project's tab.";
 const OLDER_GO = "Older chats go the next time a chat is saved.";      // true: askHistory.js keepChat drops the oldest at the next save (pinned in Drop)
 const EARLIER = "Earlier chats";
 
@@ -33,7 +33,7 @@ export function ChatsProject() {
     <section class="frame setting" id="ask-chats-project">
       <h2>{`Chats in ${code}`}</h2>
       <p><b>{EARLIER}</b></p>
-      <p class="muted" id="ask-chats-note">{`Kept in this browser for ${code}.`}</p>
+      <p class="muted" id="ask-chats-note">{`Kept with your data for ${code}.`}</p>
       <div class="row"><button type="button" class="btn" id="ask-chats-clear" data-ask-clear-chats disabled={n === 0} onClick={() => clearChats()}>{`Clear all chats (${n})`}</button></div>
     </section>
   );

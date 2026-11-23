@@ -45,7 +45,7 @@ class Chats(ThemedTabs):
             reload_to_new_page(js, seconds=20)
             self.until(js, "!!document.querySelector('#ask-chats-clear')", "the chats card")
             self.assertEqual(js("document.querySelector('#ask-chats-project h2').textContent"), "Chats in ABC")
-            self.assertEqual(js("document.querySelector('#ask-chats-note').textContent"), "Kept in this browser for ABC.")
+            self.assertEqual(js("document.querySelector('#ask-chats-note').textContent"), "Kept with your data for ABC.")
             self.until(js, "document.querySelector('#ask-chats-clear').innerText === 'Clear all chats (4)'", "counts this project's chats only")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
@@ -65,7 +65,7 @@ class Chats(ThemedTabs):
             self.assertEqual(js("[...document.querySelectorAll('#ask-chats-keep option')].map(o => o.textContent)"), ["10", "20", "30", "50", "100"])
             self.assertEqual(js("document.querySelector('#ask-chats-keep').value"), "30")
             self.assertEqual(js("document.querySelector('#ask-chats-line').textContent"),
-                             "The most recent chats kept for each project, in this browser. Clearing them is done in a project's tab.")
+                             "The most recent chats kept for each project, with your data. Clearing them is done in a project's tab.")
             self.assertEqual(js("document.querySelector('#ask-chats-older').textContent"), "Older chats go the next time a chat is saved.")
             js("var s = document.querySelector('#ask-chats-keep'); s.value = '10'; s.dispatchEvent(new Event('change', {bubbles: true}))")
             self.until(js, "localStorage.getItem('clark.askChatsKeep') === '10'", "the choice is kept")
