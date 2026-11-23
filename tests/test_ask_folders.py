@@ -117,7 +117,7 @@ class Base(unittest.TestCase):
 
 class Allowed(Base):
     def test_an_empty_list_then_add_then_read_then_remove(self):
-        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": [], "warnings": []}))
+        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": [], "warnings": [], "left_out": []}))
         status, body = self.add(self.docs)
         self.assertEqual((status, body["ok"], body["folders"]), (200, True, [str(self.docs)]))
         self.assertTrue(body["message"])

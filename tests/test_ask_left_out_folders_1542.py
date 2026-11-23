@@ -41,6 +41,7 @@ class Base(unittest.TestCase):
         self.db = make_db(self.data)
         self.started = []
         self.indexer = mock.Mock()
+        self.indexer.status_for.return_value = {}
         self.indexer.start.side_effect = lambda code, folders: self.started.append((code, list(folders)))
         self.svc = ask_folders.AskFolders(self.db, [], data_dir=self.data, home=self.home, by_user=lambda: "tester", indexer=self.indexer)
         self.svc.change({"project": "ABC", "action": "add", "path": str(self.root)})
@@ -98,7 +99,7 @@ class Server(Base):
 
     def test_include_refuses_what_is_not_there_and_writes_nothing(self):
         self.leave("Contract")
-        before = self.store().history() if hasattr(st.Store, "history") else None
+        before = self.store().read("source_folders", "ABC")
         for rel, path, code in (("Other", None, 409), ("contract", None, 409), ("Contract", str(self.d / "nope"), 409)):
             status, body = self.include(rel, path)
             self.assertEqual((status, body["ok"]), (code, False), (rel, path))
@@ -106,7 +107,7 @@ class Server(Base):
                     {"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contract", "x": 1}):
             self.assertEqual(self.svc.change(bad)[0], 400, bad)
         self.assertEqual(self.saved(), ["Contract"])
-        self.assertEqual(before, self.store().history() if before is not None else None)
+        self.assertEqual(before, self.store().read("source_folders", "ABC"))
 
     def test_include_refuses_a_list_that_cannot_be_read_and_an_archived_project(self):
         self.leave("Contract")
