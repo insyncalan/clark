@@ -8,7 +8,7 @@ import unittest
 
 from _paths import ROOT
 
-RULES = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8"), flags=re.S)
+RULES = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"), flags=re.S)
 BOARD = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
 GROUP = "#viewMenuList.ddmenu"
 MOVE = '.ddmenu[aria-label^="Move "][aria-label$=" to"]'
@@ -45,9 +45,9 @@ class ThreeMenus(unittest.TestCase):
         ten = "calc(var(--space-2) + 2px)"
         self.assertEqual(decls(GROUP + " .mi", "margin-right"), ten)
         self.assertEqual(decls(MOVE + ":not(#none) .mi", "margin-right"), ten)
-        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8")      # row 1273 sits in rules-2.css (rules.css is at its size limit)
         start = text.index("/* Row 1273")
-        self.assertNotIn("34px", text[start:text.index("/* Row 1409", start)])   # the 34px gap is gone from the Row 1273 block
+        self.assertNotIn("34px", text[start:text.index("/* Row 1314", start)])   # the 34px gap is gone from the Row 1273 block
 
     def test_item_padding_left_is_the_prototype_10px(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"]', "padding-left"), "calc(var(--space-2) + 2px)")   # the prototype's 7px 10px
@@ -55,8 +55,8 @@ class ThreeMenus(unittest.TestCase):
 
     def test_no_tick_slot_in_front_of_the_icon(self):
         # ruling 9A (DECISIONS-17-11 row 9): the tick is right of the word in every menu, so no slot is reserved before the icon
-        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
-        block = text[text.index("/* Row 1273"):text.index("/* Row 1409")]
+        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8")      # row 1273 sits in rules-2.css (rules.css is at its size limit)
+        block = text[text.index("/* Row 1273"):text.index("/* Row 1314")]
         self.assertNotIn("::before", block)
         self.assertNotIn("order: -1", block)
         self.assertNotIn(".ck", re.sub(r"/\*.*?\*/", "", block, flags=re.S))
@@ -91,7 +91,7 @@ class ThreeMenus(unittest.TestCase):
 
     def test_no_other_menu_is_named(self):
         """Every selector of the Row 1273 block names Group by or Move to, and none names the Add menu (row 1462)."""
-        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8")      # row 1273 sits in rules-2.css (rules.css is at its size limit)
         start = text.index("/* Row 1273")
         block = text[start:text.index("/* Row", start + 2)]  # the Row 1273 comment and the rules after it, up to the next Row comment
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
