@@ -479,7 +479,7 @@ class WhatAnUndoMayReverse(Base):
 
     def test_undoable_names_every_kind_and_the_fields(self):
         self.assertEqual(set(changes.UNDOABLE), {"report_sections", "actions", "raid", "decisions", "glance_tiles", "projects",
-                                                 "milestones", "use_cases", "documents", "workstreams", "report_hidden", "gantt_lines"})   # row 926: + the Gantt lines; #126 adds the archivable records
+                                                 "milestones", "use_cases", "documents", "workstreams", "report_hidden", "gantt_lines", "added_pages"})   # row 1252: + the added pages; row 926: + the Gantt lines; #126 adds the archivable records
         self.assertEqual(changes.UNDOABLE["glance_tiles"], ("hidden", "outline", "sort_order"))
         self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand", "archived", "active"))
         self.assertTrue(set(changes.UNDOABLE) >= set(changes.CHANGE_KINDS), "every kind the route admits can be undone")

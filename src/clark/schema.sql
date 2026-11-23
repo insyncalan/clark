@@ -475,6 +475,21 @@ CREATE TABLE IF NOT EXISTS project_connectors (
   PRIMARY KEY (project_id, connector)
 );
 
+-- clark: (row 1252) the pages a person adds from Settings, at most five per project (the prebuilt Gantt page, switched by projects.show_gantt_editor,
+-- counts as one). `sections` is the page's sections as JSON text. The same statement as ADDED_PAGES_TABLE in store.py, which brings an older file to version 34.
+CREATE TABLE IF NOT EXISTS added_pages (
+  id         TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-PG-[0-9][0-9][0-9]'),
+  project    TEXT NOT NULL REFERENCES projects(code),
+  name       TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 40),
+  starter    TEXT NOT NULL CHECK (starter IN ('blank','status','documents','people')),
+  sort_order INTEGER NOT NULL DEFAULT 0 CHECK (typeof(sort_order) = 'integer'),
+  client     INTEGER NOT NULL DEFAULT 0 CHECK (client IN (0,1)),
+  hidden     INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sections   TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS added_pages_project ON added_pages(project, sort_order, id);
+
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
 
 -- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 9's migrate_people makes the
