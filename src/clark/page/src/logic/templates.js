@@ -49,7 +49,7 @@ export const TEMPLATES = [
   { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
     description: "Three counts, an optional project health and tiles of your own.",
     holds: ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"] },
-  { id: "gallery", name: "Picture grid", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
+  { id: "gallery", name: "Picture grid", kind: "text", fit: ["full", "half"], type: "gallery", title: "Image gallery", body: "", start: '{"v":2}', ready: true,
     description: "Pictures in a grid, each with a caption.", holds: ["Heading", "Image", "Caption", "Image", "Caption", "Image"] },
   { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
     description: "Anything with rows: a budget line, a cut-over plan, a training schedule.", holds: ["Heading", "Table"] },
