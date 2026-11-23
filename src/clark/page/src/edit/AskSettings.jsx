@@ -4,13 +4,14 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
-import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { FilesAll, FilesProject } from "./FilesSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { UsageAll, UsageProject } from "./UsageSettings.jsx";
+import { NewProjectsAll, AskHere } from "./NewProjects.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
@@ -209,18 +210,20 @@ function AskProject() {
   }
 
   const list = Array.isArray(folders) ? folders : [];
+  const classic = classicTheme();
   return (
     <>
     <section class="frame setting" id="ask-settings">
       <h2 id="ask-settings-h" tabIndex={-1}>{`Asking in ${code}`}</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? askOnLine(classic) : ASK_OFF_LINE}</p>
       {classicTheme() && askDocker.value ? <p class="muted" id="ask-docker" data-ask-docker>{askDocker.value}</p> : null}
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
-        <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
+        <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{askTurnWord(on, classic)}</button>
       </div>
+      {classic ? <AskHere code={code} /> : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
     <section class="frame setting" id="ask-used-all">
@@ -295,6 +298,7 @@ function AllProjects() {
     <section class="frame setting" id="ask-all">
       <h2 id="ask-settings-h" tabIndex={-1}>Asking for all projects</h2>
       <p class="muted">{ALL_LINE}</p>
+      {classicTheme() ? <NewProjectsAll /> : null}
     </section>
     <AiSettings />
     <ConnectorsAll />
