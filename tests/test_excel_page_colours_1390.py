@@ -11,7 +11,6 @@ import test_excel as te
 from test_excel import setUpModule, tearDownModule  # noqa: F401  (no brand logo on this computer)
 
 
-
 class PageColours(unittest.TestCase):
     def setUp(self):
         self.d = te.Demo()
@@ -44,6 +43,14 @@ class PageColours(unittest.TestCase):
             fills = {r.dxf.fill.bgColor.rgb[-6:] for r in rules if r.dxf and r.dxf.fill and r.dxf.fill.bgColor.rgb}
             self.assertTrue(fills, name)
             self.assertLessEqual(fills, want_fills, name)
+            fonts = {r.dxf.font.color.rgb[-6:] for r in rules if r.dxf and r.dxf.font and r.dxf.font.color and r.dxf.font.color.rgb}
+            self.assertTrue(fonts, name)
+            self.assertLessEqual(fonts, {pairs[n][1] for n in pairs}, name)
+            if name != "Decisions":      # the sheets with a Priority column carry the Urgent rule: maroon fill, white text
+                urgent = [r for r in rules if r.dxf and r.dxf.fill and r.dxf.fill.bgColor.rgb
+                          and r.dxf.fill.bgColor.rgb[-6:] == "6B1D2A"]
+                self.assertTrue(urgent, name)
+                self.assertTrue(all(r.dxf.font.color.rgb[-6:] == "FFFFFF" for r in urgent), name)
 
 
 if __name__ == "__main__":
