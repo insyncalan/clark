@@ -16,6 +16,7 @@ from clark import excel, excel_client, publish
 from test_excel import ON
 from test_gantt_excel_export import plant as gantt_plant
 from test_excel_format import action, raid, decision, use_case
+from test_glance_word_excel_1264 import select as glance_select
 
 # History keeps A3 (header at row 2, rows 1-2 stay): pinned by test_excel.py test_headers_note_and_frozen_header.
 # The client copy has a title block (rows 1-3) above its header (row 4): its panes freeze at A5 (Gantt C5, pinned by test_excel_client_mutwave), the filter starts at A4.
@@ -50,6 +51,15 @@ class HeaderFrozen(unittest.TestCase):
             self.assertTrue(ws.auto_filter.ref and ws.auto_filter.ref.startswith("A4:"), (ws.title, ws.auto_filter.ref))
             self.assertEqual(ws.auto_filter.ref.split(":")[1], f"{get_column_letter(ws.max_column)}{ws.max_row}", ws.title)
             self.assertFalse(ws.protection.autoFilter, ws.title)
+
+    def test_client_at_a_glance_sheet_header_frozen_and_filter_covers_header_and_data(self):
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(glance_select())))
+        self.assertIn("At a glance", wb.sheetnames)
+        ws = wb["At a glance"]
+        self.assertGreater(ws.max_row, 4)                         # at least one tile row under the header (row 4)
+        self.assertEqual(ws.freeze_panes, "A5")
+        self.assertEqual(ws.auto_filter.ref, f"A4:D{ws.max_row}")
+        self.assertFalse(ws.protection.autoFilter)
 
 
 if __name__ == "__main__":
