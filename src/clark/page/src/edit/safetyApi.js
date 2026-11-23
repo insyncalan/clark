@@ -21,3 +21,6 @@ export const previewBackup = (name) => call("POST", "/api/backups/preview", { na
 export const restoreBackup = (name, lastStep) => call("POST", "/api/backups/restore", { name, last_step: lastStep });
 // #622: the optional folder each backup is also copied into ("" turns it off). The server decides and checks; a refusal is plain words.
 export const setCopyFolder = (folder) => call("POST", "/api/backups/copy-folder", { folder });
+// Row 1046 part C: the notices file or folder (the bell's source). "" turns notices off. The server decides and checks; a refusal is plain words.
+export const getNoticesPath = () => call("GET", "/api/notices-path");
+export const setNoticesPath = (path) => call("POST", "/api/notices-path", { path });

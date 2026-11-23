@@ -217,6 +217,8 @@ class RouteTest(Place):
         headers = {"Host": f"127.0.0.1:{httpd.server_port}"}
         if token:
             headers[sv.TOKEN_HEADER] = sv.TOKEN
+        if body is not None:
+            headers["Content-Type"] = "application/json"
         conn.request(method, path, body=body, headers=headers)
         r = conn.getresponse()
         data = r.read()
@@ -249,6 +251,28 @@ class RouteTest(Place):
                 while chunk := conn.recv(4096):
                     reply += chunk
             self.assertTrue(reply.startswith(b"HTTP/1.1 400") or reply.startswith(b"HTTP/1.0 400"), (extra, reply[:60]))
+
+    def test_the_path_is_read_and_saved_through_the_route(self):
+        seam = notices_file.Notices(self.data)
+        self.assertEqual(json.loads(self.ask("GET", "/api/notices-path", seam)[1]), {"ok": True, "path": ""})
+        status, data = self.ask("POST", "/api/notices-path", seam, body=json.dumps({"path": str(self.root / "n.json")}).encode())
+        self.assertEqual((status, json.loads(data)["path"]), (200, str(self.root / "n.json")))
+        self.assertEqual(settings.notices_path(self.data), self.root / "n.json")
+        self.assertEqual(json.loads(self.ask("GET", "/api/notices-path", seam)[1])["path"], str(self.root / "n.json"))
+        status, data = self.ask("POST", "/api/notices-path", seam, body=b'{"path": ""}')
+        self.assertEqual((status, json.loads(data)["path"], settings.notices_path(self.data)), (200, "", None))
+
+    def test_a_path_that_is_not_full_is_refused_and_nothing_changes(self):
+        seam = notices_file.Notices(self.data)
+        settings.set_notices_path(self.data, str(self.root / "n.json"))
+        for body in (b'{"path": "relative/n.json"}', b'{"path": 5}', b'{"path": "/a", "x": 1}', b'{}'):
+            status, data = self.ask("POST", "/api/notices-path", seam, body=body)
+            self.assertEqual((status, json.loads(data)["ok"]), (400, False), body)
+        self.assertEqual(settings.notices_path(self.data), self.root / "n.json")
+
+    def test_the_path_route_needs_the_token_and_the_seam(self):
+        self.assertEqual(self.ask("GET", "/api/notices-path", notices_file.Notices(self.data), token=False)[0], 403)
+        self.assertEqual(self.ask("GET", "/api/notices-path", None)[0], 404)
 
     def test_post_is_not_a_route(self):
         self.assertNotEqual(self.ask("POST", "/api/notices", notices_file.Notices(self.data), body=b"{}")[0], 200)

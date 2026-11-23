@@ -11,7 +11,7 @@ import { announce } from "./aboutYouToast.js";
 import { SettingRow } from "./SettingRow.jsx";
 import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.jsx";
 import { CopyFolder } from "./Safety.jsx";
-import { listBackups, setCopyFolder } from "./safetyApi.js";
+import { listBackups, setCopyFolder, getNoticesPath, setNoticesPath } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
 import { askOn, askStatus, loadAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { useAskFlip } from "./AskSettings.jsx";
@@ -87,6 +87,35 @@ function BackupsRow() {
   );
 }
 
+// Notices (row 1046): the file or folder the bell reads, kept by someone else (often on a shared drive). clark only reads it. Saved by Save or Enter; empty turns notices off.
+function NoticesRow() {
+  const [typed, setTyped] = useState(null);                 // null until the saved path is known
+  const [said, setSaid] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getNoticesPath().then((r) => { if (live) setTyped(r.status === 200 && r.body && r.body.ok === true && typeof r.body.path === "string" ? r.body.path : ""); });
+    return () => { live = false; };
+  }, []);
+  async function save() {
+    if (busy) return;
+    setBusy(true); setSaid(null);
+    const r = await setNoticesPath(typed);
+    setBusy(false);
+    if (r.status === 200 && r.body && r.body.ok === true) { setTyped(r.body.path); setSaid({ kind: "success", text: r.body.message }); }
+    else setSaid({ kind: "error", text: (r.body && r.body.message) || "The notices path could not be saved. Nothing was changed." });
+  }
+  if (typed === null) return <SettingRow id="ess-notices-box" name="Notices"><span class="muted" /></SettingRow>;
+  const bad = said ? <small class={said.kind === "error" ? "fld-bad" : ""} role={said.kind === "error" ? "alert" : "status"}>{said.text}</small> : null;
+  return (
+    <SettingRow id="ess-notices-box" name="Notices" help="The file or folder that holds your notices. clark only reads it. Leave empty to turn notices off." helpId="ess-notices-line" bad={bad} data-ess-notices>
+      <input id="ess-notices-box" type="text" value={typed} autocomplete="off" spellcheck={false} placeholder="/Users/you/shared/clark-notices.json" aria-describedby="ess-notices-line"
+        aria-invalid={said && said.kind === "error" ? "true" : undefined} data-ess-notices-box onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} />
+      <button type="button" class="btn sm" data-ess-notices-save aria-disabled={busy ? "true" : undefined} onClick={save}>Save</button>
+    </SettingRow>
+  );
+}
+
 function AskRow() {
   const on = askOn.value, status = askStatus.value;
   const [busy, setBusy] = useState(false);
@@ -113,6 +142,7 @@ export function Essentials() {
       <MotionRow />
       <SettingRow id="ess-keys" name="Single-key slash commands"><KeysSwitch id="ess-keys" describedby="" data-ess-keys /></SettingRow>
       <BackupsRow />
+      <NoticesRow />
       {open ? <SettingRow id="ess-local-folder" name="Publishing folder"><LocalFolderPick /></SettingRow> : null}
       <AskRow />
     </section>
