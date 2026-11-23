@@ -80,6 +80,14 @@ class Settings(unittest.TestCase):
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
 
 
+    def test_essentials_row_names_all_projects(self):
+        # Classic: the switch row is gone from Essentials; one link row opens the All projects tab (test_essentials_ask_link_1294)
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.until(js, "!!document.querySelector('[data-ess-ask-link]')", "the link row")
+            self.assertTrue(js("document.getElementById('theme') !== null"), "this is the Classic page")
+            self.assertFalse(js("!!document.querySelector('[data-ess-ask]')"))
 
 
 class CardsSettings(Settings):
@@ -110,6 +118,16 @@ class CardsSettings(Settings):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
 
+    def test_essentials_row_names_all_projects(self):
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.until(js, "!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the Asking row")
+            self.assertFalse(js("document.getElementById('theme') !== null"))
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertEqual(js("document.querySelector('[data-ess-ask]').innerText"), "Turn off asking")
+                self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Asking is on.")
 
 
 class Panel(Base):

@@ -2,7 +2,7 @@
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
 Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder,
-ask clark (a link to the All projects tab). The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
+Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 import test_settings_head
@@ -11,7 +11,7 @@ from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "ask clark"]
+NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking on or off"]
 ROWS = """[...document.querySelectorAll('#essentials .set-row')].map(r => r.querySelector('.set-row-text label').textContent)"""
 
 
@@ -120,9 +120,21 @@ class Essentials(test_settings_head.Head):
                     p.until("!!document.querySelector('#ess-safety-copy-said p.success')", "the copy folder saved from Essentials")
                     # Publishing folder: Choose folder is there (the project is open)
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-choose-local]')"))
-                    # Asking: no switch row here any more; one link row opens the All projects tab (test_essentials_ask_link_1294)
-                    self.assertFalse(p.js("!!document.querySelector('[data-ess-ask]')"), "no Asking switch in Essentials")
-                    self.assertTrue(p.js("!!document.querySelector('[data-ess-ask-link]')"), "the link to the All projects tab")
+                    # Asking: the switch is the same one as in Asking
+                    p.until("!document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready")
+                    was = p.js("document.querySelector('[data-ess-ask]').getAttribute('aria-pressed')")
+                    self.to_page(p, "claude")
+                    p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
+                    self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
+                    reads = p.js("window.__askReads || 0")
+                    self.to_page(p, "profile")
+                    # the row first draws with the answer the Asking card left, enabled, and only then asks again (an effect after the paint): wait for that read to be made and answered,
+                    # or the click lands on the old state and a newer read can overtake it
+                    p.until(f"(window.__askReads || 0) > {reads} && !!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled && !/Checking/.test(document.getElementById('ess-ask-line').textContent)", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
+                    p.js("document.querySelector('[data-ess-ask]').click()")
+                    p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
+                    self.to_page(p, "claude")
+                    p.until(f"document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials shows in Asking")
                     self.to_page(p, "profile")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('[id]')].map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i)"), [], "no id is on the page twice")

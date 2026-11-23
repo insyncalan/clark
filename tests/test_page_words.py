@@ -220,7 +220,8 @@ class Words(unittest.TestCase):
             pages = [
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
-                    "No local folder yet.", "Choose folder", "ask clark", "Connections, model, folders, instructions and slash commands for every project", "Open All projects",
+                    "No local folder yet.", "Choose folder", "Asking on or off",
+                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                     "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                     "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613

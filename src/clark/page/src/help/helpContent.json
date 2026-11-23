@@ -1091,14 +1091,9 @@
         "Half or full"
        ],
        [
-        "Image with caption",
-        "One picture with its caption.",
-        "Half or full"
-       ],
-       [
-        "Full width image",
-        "One image across the full width, framed as you choose, with an optional caption.",
-        "Full"
+        "Image",
+        "One image, framed as you choose, with an optional caption.",
+        "Full or half"
        ],
        [
         "Quote",
@@ -1862,7 +1857,7 @@
       [
        [
         "Essentials",
-        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
+        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
        ],
        [
         "Profile",
@@ -2542,7 +2537,7 @@
     {
      "card": "essentials",
      "title": "Essentials",
-     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
+     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
     },
     {
      "card": "profile",
