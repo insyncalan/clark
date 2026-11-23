@@ -61,6 +61,7 @@ class Caption(PicturePage):
             p.js(f"document.activeElement.cxed.editor.commands.setContent({json.dumps(self.HTML)})")
             p.key("Enter", modifiers=2, code="Enter", vk=13)
             self.assertTrue(self.wait_for(lambda: self.stored(ref) == self.HTML), "saved as the editor's HTML")
+            p.until("!!document.querySelector('.toast [data-undo]')", "the Undo is offered")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.wait_for(lambda: self.stored(ref) == "Fictional caption"), "one Undo puts the older caption back")
 

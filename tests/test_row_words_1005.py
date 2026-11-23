@@ -123,6 +123,7 @@ class RowWords(unittest.TestCase):
                     self.assertEqual(sent[-1]["changes"], {"client_message": html}, where)
                     self.assertEqual(self.stored(table, ident), html, where)
                     p.until(f"!document.querySelector({row!r} + ' .ProseMirror') && document.querySelector({row!r} + ' {SHOWN}').textContent.includes('a client can read')", f"{where}: closed and drawn")
+                    p.until("!!document.querySelector('.toast [data-undo]')", f"{where}: the Undo is offered")
                     p.js("document.querySelector('.toast [data-undo]').click()")
                     p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes({json.dumps(words)})", f"{where}: one Undo puts the old words back")
                     self.assertEqual(self.stored(table, ident), words, where)

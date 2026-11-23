@@ -178,6 +178,7 @@ class Raid(PageBase):
             p.js("document.activeElement.cxed.editor.commands.setContent(%s)" % json.dumps(PARAS))
             p.key("Enter", modifiers=2, code="Enter", vk=13)
             self.assertTrue(self.wait_for(lambda: self.stored() == PARAS), "saved as the editor's HTML")
+            p.until("!!document.querySelector('.toast [data-undo]')", "the Undo is offered")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.wait_for(lambda: self.stored() == "Old words"), "one Undo puts the older words back")
 
