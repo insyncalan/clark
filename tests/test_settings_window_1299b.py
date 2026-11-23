@@ -121,21 +121,18 @@ class Window(Base):
         return p.js("(() => { const e = document.createElement('i'); e.style.cssText = 'position:absolute;background:%s;width:%s'; document.body.appendChild(e);"
                     " const cs = getComputedStyle(e), out = {bg: cs.backgroundColor, w: cs.width}; e.remove(); return out; })()" % (css, css))
 
-    def test_W4_each_tile_takes_its_groups_colour_and_each_page_has_one_icon_of_its_own(self):
-        tokens = ["--brand-blue", "--status-green", "--status-red", "--brand-blue-strong", "--brand-blue"]      # groups 1 to 4 have a colour of their own; the fifth (Advanced) has no .set-tile-5 rule and keeps the tile's base colour, the first group's
-        slugs = [(i + 1, slug) for i, (_, pages) in enumerate(GROUPS) for slug, _, _ in pages]
+    def test_W4_each_tile_carries_its_page_class_and_each_page_has_one_icon_of_its_own(self):
+        slugs = [slug for _, pages in GROUPS for slug, _, _ in pages]      # the fill per page is pinned in test_settings_window_1299 (ruling Q1)
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     got = p.js("[...document.querySelectorAll('.set-win .set-chip')].map(b => { const t = b.querySelector('.set-tile');"
-                               " return {cls: t.className, bg: getComputedStyle(t).backgroundColor, svgs: t.querySelectorAll('svg').length, art: t.querySelector('svg').innerHTML}; })")
+                               " return {cls: t.className, svgs: t.querySelectorAll('svg').length, art: t.querySelector('svg').innerHTML}; })")
                     self.assertEqual(len(got), len(slugs))
-                    self.assertEqual(len({n for n, _ in slugs}), len(tokens), "five groups")
-                    for g, (n, slug) in zip(got, slugs):
-                        self.assertEqual(g["cls"], f"set-tile set-tile-{n}", slug + ": the tile carries its group's number")
-                        self.assertEqual(g["bg"], self.token(p, f"var({tokens[n - 1]})")["bg"], f"{slug}: group {n} is {tokens[n - 1]} in {mode}")
+                    for g, slug in zip(got, slugs):
+                        self.assertEqual(g["cls"], f"set-tile set-tile-{slug}", slug + ": the tile carries its page's class")
                         self.assertEqual(g["svgs"], 1, slug + ": one icon in the tile")
                     self.assertEqual(len({g["art"] for g in got}), len(got), "every page has an icon of its own (no two tiles draw the same glyph)")
 

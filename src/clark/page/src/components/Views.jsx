@@ -119,7 +119,7 @@ const GROUPS = [
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
 ];
-// Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's number is its group's place in GROUPS (1 to 4) and the Classic rules in themes/prototype-2.0/rules.css colour it (.set-tile-<n>, tokens only); the tile and the window class are drawn in the Classic theme only, Cards draws neither
+// Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's class is set-tile-<slug> and the Classic rules in themes/prototype-2.0/rules-2.css colour it (one fill per page); the tile and the window class are drawn in the Classic theme only, Cards draws neither
 const SET_ICON = { profile: "user", appearance: "sun", theme: "moon", projects: "board", backups: "archive", reports: "chart", folder: "ul", brand: "flag", people: "people", claude: "sparkle", data: "dl", version: "info", logs: "clock" };
 const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
@@ -191,7 +191,7 @@ function SettingsHead({ groups, page, searching, setSearching }) {
               <span class="set-group-name">{group}</span>
               {group === "Advanced" ? <span class="set-group-line muted">{ADVANCED_LINE}</span> : null}
               <ul class="plain">{pages.map(([slug, name]) => (
-                <li key={slug}><button type="button" class="set-chip" aria-current={page[0] === slug ? "page" : undefined} onClick={() => go(slug)}>{classicTheme() ? <span class={`set-tile set-tile-${GROUPS.findIndex(([g]) => g === group) + 1}`} aria-hidden="true"><Icon name={SET_ICON[slug] || "circleminus"} /></span> : null}{name}</button></li>
+                <li key={slug}><button type="button" class="set-chip" aria-current={page[0] === slug ? "page" : undefined} onClick={() => go(slug)}>{classicTheme() ? <span class={`set-tile set-tile-${slug}`} aria-hidden="true"><Icon name={SET_ICON[slug] || "circleminus"} /></span> : null}{name}</button></li>
               ))}</ul>
             </li>
           ))}</ul>

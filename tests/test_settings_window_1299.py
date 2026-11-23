@@ -4,8 +4,7 @@
 These four tests carry the names the ticket gives its DoD3 to DoD6. They measure the computed style, one thing each; the longer W4 tests of
 test_settings_window_1299b stay as they are.
 Pinned: the tile is 26px, radius 7px, glyph 16px (mock-up FINAL-settings-A7.html:13 .ti; ruling, ticket AP5 and DoD5). NOT pinned, open (ticket Open question 1):
-the mock-up row (padding 5px 8px, radius 9px) is not built, the row is as shell.css draws it; the tile fill is
-per group today and the ticket asks per page (colour values not given).
+nothing of AP5/AP6 now: the row is padding 5px 8px, radius 9px (test_sidebar_row_padding_and_radius_AP5), the tile fill is per page (ruling Q1, FILL below).
 Widths 1400 and 900 only. Chrome is required: these tests fail, never skip, without it.
 """
 import unittest
@@ -20,6 +19,9 @@ from test_settings_head import PAGES, address, ratio, rgb
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
+# AP6, ruling Q1: the fill of each page's tile, the mock-up's (FINAL-settings-A7.html:46) by page; Brand's amber is #c48900, one step darker than the mock-up's #c58a00 (2.996 to 1 with white).
+FILL = {"profile": "#8794b3", "appearance": "#5b47d8", "theme": "#5b47d8", "projects": "#2f4bb8", "backups": "#a3301f", "reports": "#2f4bb8", "folder": "#2f4bb8", "brand": "#c48900",
+        "people": "#006b5e", "claude": "#7a3fd0", "data": "#006b5e", "version": "#475577", "logs": "#8794b3"}
 LAID = "!!document.querySelector('.set-win .set-nav .set-chip[aria-current]') && !!document.querySelector('.set-win .set-cards').children.length"
 
 
@@ -79,6 +81,17 @@ class WindowDoD(Base):
                     self.assertTrue(g["inside"], g["name"] + ": the tile sits inside its row")
                     self.assertLess(g["mid"], 1, g["name"] + ": the tile is centred in the row")
 
+    def test_sidebar_row_padding_and_radius_AP5(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                got = p.js("[...document.querySelectorAll('.set-win .set-chip')].map(b => { const cs = getComputedStyle(b); return {name: b.textContent, pad: cs.padding, radius: cs.borderTopLeftRadius, open: b.hasAttribute('aria-current')}; })")
+                self.assertEqual(len(got), len(PAGES))
+                for g in got:
+                    self.assertEqual(g["pad"], "5px 8px", g["name"] + ": row padding (mock-up .p)")
+                    self.assertEqual(g["radius"], "10px" if g["open"] else "9px", g["name"] + ": row radius (mock-up .p 9px; the open page's chip keeps 10px, ruling 20-11, test_theme_classic_1317)")
+
     def test_tile_fill_per_page_holds_contrast_3_to_1(self):
         for w in WIDTHS:
             for mode in MODES:
@@ -86,10 +99,13 @@ class WindowDoD(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     got = p.js("[...document.querySelectorAll('.set-win .set-chip')].map(b => { const t = b.querySelector('.set-tile');"
-                               " return {name: b.textContent, fill: getComputedStyle(t).backgroundColor, glyph: getComputedStyle(t.querySelector('svg')).color}; })")
+                               " return {name: b.textContent, cls: t.className, fill: getComputedStyle(t).backgroundColor, glyph: getComputedStyle(t.querySelector('svg')).color}; })")
                     self.assertEqual([g["name"] for g in got], [name for _, name, _ in PAGES], "one tile per page")
-                    for g in got:
-                        self.assertNotEqual(g["fill"], "rgba(0, 0, 0, 0)", g["name"] + ": the tile has a fill")
+                    for g, (slug, _, _) in zip(got, PAGES):
+                        want = [int(FILL[slug][i:i + 2], 16) for i in (1, 3, 5)]
+                        self.assertEqual(g["cls"], "set-tile set-tile-" + slug)
+                        self.assertEqual(rgb(g["fill"]), want, "%s: the fill is %s in %s" % (g["name"], FILL[slug], mode))
+                        self.assertEqual(rgb(g["glyph"]), [255, 255, 255], g["name"] + ": white glyph in " + mode)
                         self.assertNotEqual(g["glyph"], g["fill"], g["name"] + ": the glyph is not the fill colour")
                         self.assertGreaterEqual(ratio(rgb(g["glyph"]), rgb(g["fill"])), 3.0, "%s: glyph %s on fill %s in %s" % (g["name"], g["glyph"], g["fill"], mode))
 
