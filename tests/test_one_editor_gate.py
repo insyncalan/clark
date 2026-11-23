@@ -216,7 +216,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections
+                             ["ABC-S-003", "ABC-S-004", "ABC-S-005"])      # item 1188: a text section; row 1266: Header, This week and Next week are the three text sections
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
@@ -271,6 +271,10 @@ class PageGate(unittest.TestCase):
     def test_the_at_a_glance_reason_opens_the_one_editor_with_its_menu(self):          # item 1005
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"health": "At risk", "health_reason": "Old plain words <b>kept</b>\nand a second line"})      # an old plain row
+            for row in self.store.read("report_sections", "ABC"):      # row 1266: a new project starts with the template glance; the reason field is the built-in one's, which an existing project keeps
+                if row["type"] == "glancetemplate":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
