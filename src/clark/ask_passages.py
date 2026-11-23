@@ -81,9 +81,10 @@ def _chunks(lines):
             yield line[i:i + size]
 
 
-def _label(root, path):
+def _label(root, path, prefix=None):
+    """"<folder name>/<name inside it>"; `prefix` stands for the folder name when two saved folders share one (see ask_index._prefixes)."""
     rel = os.path.relpath(path, root)
-    name = f"{os.path.basename(str(root))}/{rel.replace(os.sep, '/')}"
+    name = f"{prefix or os.path.basename(str(root))}/{rel.replace(os.sep, '/')}"
     return name if ask._label_ok(name) else None
 
 

@@ -4,11 +4,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, showSettings, token, view, rows, filterCtx, openPeek } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
-import { words, askFilesRead } from "./publishApi.js";
+import { words, askFilesRead, askFoldersRead } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { copyAnswer, hasActions, questionBefore, recallStep } from "./askActions.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
@@ -89,7 +90,29 @@ export function AskPanel() {
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
   const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
+  // Item 1352: whether this project has folders to read (its own or those for all projects), so the first card says so only when it is true.
+  const [hasFolders, setHasFolders] = useState(false);
+  useEffect(() => { setHasFolders(false); }, [project.value]);      // a project switch starts from the plain line until the new project's folders answer
+  useEffect(() => {
+    if (!open || !classicTheme()) { setHasFolders(false); return undefined; }
+    let live = true;
+    askFoldersRead(project.value).then((r) => {
+      const b = r.body;
+      if (live) setHasFolders(r.status === 200 && !!b && b.ok === true && ((Array.isArray(b.folders) && b.folders.length > 0) || (Array.isArray(b.shared) && b.shared.length > 0)));
+    });
+    return () => { live = false; };
+  }, [open, project.value]);
   useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
+  const recallLast = useRef("");
+  const copiedTimer = useRef(0);               // row 1292: "Copied" stays 2 s, then the line is empty again
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
+  const copyIt = (t) => async () => {
+    const ok = await copyAnswer(t.text);
+    clearTimeout(copiedTimer.current);
+    setNote(ok ? W.ANSWER_COPIED : W.ANSWER_COPY_FAILED);
+    if (ok) copiedTimer.current = setTimeout(() => setNote((n) => (n === W.ANSWER_COPIED ? "" : n)), W.ANSWER_COPIED_MS);
+  };
+  const recalled = useRef(0);                  // row 1292: how many earlier questions Up-arrow has brought back since the box was last typed in
   const [secs, setSecs] = useState(0);
   const [quip, setQuip] = useState("");
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
@@ -171,7 +194,8 @@ export function AskPanel() {
     setFiles(F.removeFile(files, f.id)); setNote("");
     setTimeout(() => { const left = document.querySelectorAll("#ask-files .ask-file-del"); const to = left[Math.min(files.findIndex((x) => x.id === f.id), left.length - 1)] || box.current; if (to) to.focus(); }, 0);
   }
-  const hasFiles = (e) => filesOk && !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const dragHasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const hasFiles = (e) => filesOk && dragHasFiles(e);
 
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
@@ -210,7 +234,7 @@ export function AskPanel() {
   // Asks one question and, when it is answered, sends the next queued one. `from` is the queued message this question came from. It reads the
   // signals, never this render's values, because a queued question is sent from the end of the one before.
   async function run(q, preset, from, att) {
-    setNote(""); stopped.current = false;
+    setNote(""); stopped.current = false; recalled.current = 0;
     if (att && att.length) setFiles([]);          // the chips go with the send; they come back if nothing was answered
     histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = turns.value.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
@@ -374,7 +398,7 @@ export function AskPanel() {
     <>
     <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}
       data-drop={dropOver ? "true" : undefined}
-      onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
+      onDragOver={(e) => { if (dragHasFiles(e)) { e.preventDefault(); if (hasFiles(e)) setDropOver(true); } }}      /* item 1506: with Files off the drag is still taken (so the browser does not open the file) but nothing lights up */
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
@@ -387,7 +411,7 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? (classic ? W.WORKING_CLASSIC : W.WORKING) : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
         {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{classic ? W.CLASSIC_STANDING : W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
@@ -417,7 +441,7 @@ export function AskPanel() {
           {classic ? (<>
             <h3>{W.CARD_HEAD}</h3>
             <ul>
-              <li>{W.CARD_READS}</li>
+              <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
               <li>{W.named(W.CARD_PASSAGES, askProvider.value)}</li>
@@ -448,6 +472,12 @@ export function AskPanel() {
                 <Icon name="doc" />
                 <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
                 <button type="button" class={classicTheme() ? "btn sm pri ask-draftcard-open" : "btn primary"} onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
+              </div>
+            ) : null}
+            {classic && hasActions(t) ? (
+              <div class="ask-turn-acts" data-ask-acts>
+                <button type="button" class="ask-act" data-ask-copy aria-label={W.ANSWER_COPY_LABEL} onClick={copyIt(t)}>{W.ANSWER_COPY}</button>
+                <button type="button" class="ask-act" data-ask-again aria-label={W.ANSWER_AGAIN_LABEL} disabled={busy || state !== "ready"} onClick={() => { const q = questionBefore(list, list.indexOf(t)); if (q) send(null, q); }}>{W.ANSWER_AGAIN}</button>
               </div>
             ) : null}
             {t.sources && t.sources.length ? (
@@ -526,13 +556,17 @@ export function AskPanel() {
         <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={hold} aria-label={hold} disabled={state !== "ready" && state !== "checking"}
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
-          onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
+          onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); recalled.current = 0; }}
           onPaste={(e) => { const got = Array.from((e.clipboardData && e.clipboardData.files) || []); if (got.length) { e.preventDefault(); addFiles(got); } }}
           onKeyDown={(e) => {
             if (menu && !e.isComposing) {
               if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setShut(true); return; }       // the menu closes first; the panel stays
               if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key) && menu.length) { e.preventDefault(); setPick(stepSlash(pick, e.key, menu.length)); return; }
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (menu.length) runSlash(menu[pick]); return; }
+            }
+            if (classic && e.key === "ArrowUp" && !e.isComposing && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && (!text.trim() || recalled.current > 0 && text === recallLast.current)) {     // row 1292: Up-arrow in an empty box brings back the last question; again, the one before
+              const got = recallStep(list, recalled.current);
+              if (got) { e.preventDefault(); recalled.current = got.at; recallLast.current = got.text; setText(got.text); return; }
             }
             if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
           }} />

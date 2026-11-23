@@ -21,6 +21,7 @@ export const FIRST_RUN_LINK = "Open the Asking card in Settings";
 // The connector sentence is rule 11 of the 1292 rules: the connectors are used only when they are turned on in Settings.
 export const CARD_HEAD = "Ask about this project";
 export const CARD_READS = "I read this project's work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
+export const CARD_READS_FOLDERS = "I read this project's work items, milestones and use cases and the folders you named. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";   // item 1352: shown in place of the line above only when the project has folders
 export const CARD_CHANGES = "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
 export const CARD_SENT = "Your question and what it needs go to Claude.";
@@ -104,6 +105,7 @@ export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "m
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];
 export const WORKING = "Working";
+export const WORKING_CLASSIC = "Working. You can close this: it carries on.";   // item 1352: Classic status line while a question is out; true while the page stays loaded (closing the panel does not stop the question)
 // Row 1220: messages typed while an answer is made wait above the box. These words need approval.
 const waitingCount = (n) => (n === 1 ? "1 message is" : `${n} messages are`);
 export const QUEUE_LABEL = "Messages waiting to be sent";
@@ -350,6 +352,14 @@ export const SLASH_HINT = {
   new: "Start a new chat",
 };
 
+// Row 1292 (feature 9): the words under each answer (mock-up ask.js, Copy, Ask again and their notices).
+export const ANSWER_COPY = "Copy";
+export const ANSWER_AGAIN = "Ask again";
+export const ANSWER_COPIED = "Copied";                                         // A NEW-WORDS 1953 and the ticket: "Copied" for 2 s, replacing the longer sentence
+export const ANSWER_COPY_LABEL = "Copy this answer";                            // A NEW-WORDS 1953: the screen-reader name
+export const ANSWER_AGAIN_LABEL = "Ask this question again";                    // A NEW-WORDS 1953: the screen-reader name
+export const ANSWER_COPIED_MS = 2000;
+export const ANSWER_COPY_FAILED = "Could not copy. Select the text and copy it yourself.";
 // Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
 export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
 export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title

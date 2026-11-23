@@ -94,7 +94,7 @@ class Fixture(Base):
     def test_2_counts_add_up_and_each_file_has_one_reason(self):
         self.put("a.txt", "zqone")
         self.put("b.md", "zqtwo")
-        self.put("c.png", b"\x89PNG", binary=True)
+        self.put("c.bin", b"\x89BIN", binary=True)
         self.put("d.js", "var x")
         self.put("prod.env", "K=1")
         self.put("keys.txt", FAKE_KEY)
