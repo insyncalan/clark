@@ -31,8 +31,8 @@ import { closePanel, openPanel, panelOpen } from "./askPanelState.js";
 
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
-const TIP_ORDER = ["preview", "export", "publish"];      // row 1281: the tooltip names Preview, Export, Publish in the ticket order, in both themes
-export const menuTip = (items) => `${MENU_NAME}: ${TIP_ORDER.map((id) => items.find((i) => i.id === id && i.tip)).filter(Boolean).map((i) => i.tip).join(", ")}`;
+const TIP_ORDER = ["preview", "export", "publish"];      // row 1281, Classic only: the tooltip names Preview, Export, Publish in the ticket order; the Cards theme keeps the menu's own order
+export const menuTip = (items) => `${MENU_NAME}: ${(classicTheme() ? TIP_ORDER.map((id) => items.find((i) => i.id === id && i.tip)).filter(Boolean) : items.filter((i) => i.tip)).map((i) => i.tip).join(", ")}`;
 
 // What Preview, Export or Publish did, in words (menuNote.js). The change toast is for Edit only, and this menu is in View too.
 export { note };
@@ -88,8 +88,8 @@ export function ProfileMenu() {
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
-  const pre = { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") }, exc = { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") };
-  const pub = { id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, wrd = { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") };
+  const pub = { id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, pre = { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") };
+  const exc = { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, wrd = { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") };
   const classic = classicTheme();
   const items = open ? (classic ? [pre, exc, pub] : [pub, pre, exc, wrd]) : [];      // row 1281, Classic only: Preview, Export to Excel, Publish… (Export to Word is in Settings › Data and the Publish box); the Cards theme keeps its order, its Word entry and its tooltip
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });

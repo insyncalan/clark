@@ -16,7 +16,7 @@ from test_page import navigate
 from clark import excel, page as clark_page, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
-TIP = "Your menu: Preview, Export, Publish"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
+TIP = "Your menu: Publish, Preview, Export"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
 NAME = "Your menu"
 ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands, in the Cards (main) order; the Classic order is pinned in test_profile_menu_order_1281 (#443: Published reports, after Export; Import from Word is gone, row 1063)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
