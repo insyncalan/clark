@@ -49,10 +49,15 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1261 (Classic only; Cards keeps its rules): the Report headline as the approved mock-up draws it (headline-approved.html:16-20): the pill icon is 14px (shell.css gives it --space-4, 16px) and the headline is in the body colour --text (shell.css gives it --heading). Pinned by tests/test_reportheadline_pill_colour_1261.py. */
+.tpl-rh-block .tpl-rh-pill svg { width: 14px; height: 14px; }
+.tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Row 1272 (Callout half card, Classic only): the ruled width of a half Callout card at 1400 px is 493 px, border-box. A half card is 507.5 px by the shared half column (shell.css, .secs), 14.5 px over, so only a section holding a Callout is held to 493; other templates keep the shared half column. */
 @media (min-width: 901px) { .sec.slot-left:has(.tpl-callout), .sec.slot-right:has(.tpl-callout) { box-sizing: border-box; width: 493px; } }
+/* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
+.set-nav .plain { gap: 4px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
