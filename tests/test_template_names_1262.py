@@ -15,7 +15,7 @@ WORDS = (PAGE / "logic" / "fullImageWords.js").read_text(encoding="utf-8")
 HELP = json.loads((PAGE / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
 NAMES = {                                      # id -> the name on the card (the renamed ones, row 1262)
-    "text-image": "Text with image",      # Romanoff 23-11 10:28: the ticket table's word stands; the starting title stays Text and Image Side by Side
+    "text-image": "Text with image",      # Human 23-11 10:28: the ticket table's word stands; the starting title stays Text and Image Side by Side
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
@@ -64,16 +64,16 @@ class TemplateNames(unittest.TestCase):
             self.assertNotIn(f'"{name}"', block, f"the built-in cards in templates.js no longer use {name}")
         self.assertIn('builtIn("usecases", "Use cases"', block)
         self.assertIn('builtIn("docs", "Documents"', block)
-        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))      # Romanoff 23-11 10:28: section titles are not renamed
+        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))      # Human 23-11 10:28: section titles are not renamed
 
-    def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Romanoff 23-11: Cards keeps Current state; the Dashboard default is not changed
+    def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Human 23-11: Cards keeps Current state; the Dashboard default is not changed
         from clark import changes, default_sections
         self.assertIn('builtIn("current", "Current state", "text"', TEMPLATES)
         self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0]["title"], "Current state")
         self.assertRegex(TEMPLATES, r'\{ id: "current-state", name: "Header and Text", kind: "text", fit: \[[^\]]*\], type: "text", title: "Current state"')
 
-    def test_the_numbers_group_is_in_the_picker(self):      # Romanoff 23-11 ruling point 3: the picker group Figures is named Numbers
+    def test_the_numbers_group_is_in_the_picker(self):      # Human 23-11 ruling point 3: the picker group Figures is named Numbers
         self.assertRegex(TEMPLATES, r'\{ id: "figures", name: "Numbers" \}')
 
     def test_the_gantt_table_card_is_called_gantt_table(self):
