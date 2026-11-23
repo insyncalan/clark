@@ -42,10 +42,11 @@ CASES = [
     ("form", '<form action=x><input name=n></form>after', 'after'),
     ("plain text is escaped, not read as a tag", 'a &lt;b&gt; &amp; c', 'a &lt;b&gt; &amp; c'),
 ]
-ALLOWED = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
+ALLOWED = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input", "span"}
+SIX = ["rt-c-grey", "rt-c-brand", "rt-c-red", "rt-c-amber", "rt-c-green", "rt-c-blue"]      # row 1364: the font colour classes, the only thing a span may carry
 TAG = re.compile(r"<(/?)([A-Za-z][^\s/>]*)([^>]*)>")
 ATTR = re.compile(r'\s+([a-z-]+)(?:="([^"]*)")?')
-WRITTEN = {"a": {"href", "rel"}, "input": {"type", "checked", "disabled"}}
+WRITTEN = {"a": {"href", "rel"}, "input": {"type", "checked", "disabled"}, "span": {"class"}}
 
 
 def allowed_only(out):
@@ -57,6 +58,8 @@ def allowed_only(out):
         for attr, value in ATTR.findall(rest):
             if attr not in WRITTEN.get(name, set()):
                 problems.append(f"attribute {attr} on {name}")
+            if name == "span" and attr == "class" and value not in SIX:
+                problems.append(f"span class {value[:30]}")
             if name == "a" and attr == "href" and not re.match(r"(https?://|mailto:|#)", value, re.I):
                 problems.append(f"address {value[:30]}")
     return problems
@@ -103,6 +106,37 @@ class CleanHtml(unittest.TestCase):
     def test_cleaning_twice_changes_nothing_in_the_page(self):
         once = self.js(self.hostile)
         self.assertEqual(self.js(once), once)
+
+    def test_span_fixed_colour_classes_only(self):
+        """Row 1364 (AP12): a span stays as ONE span with exactly one of the six classes, no style attribute, no other class; in Python and in the page."""
+        for c in SIX:
+            with self.subTest(c):
+                self.assertEqual(sanitise.clean_html(f'<p>a <span class="{c}">b</span> c</p>'), f'<p>a <span class="{c}">b</span> c</p>', "Python keeps it")
+                self.assertEqual(self.page.call("cleanHtml", f'<p>a <span class="{c}">b</span> c</p>'), f'<p>a <span class="{c}">b</span> c</p>', "the page keeps it")
+        # inline: it sits inside a paragraph with strong, em, s and a link around or inside it, and the words stay in order
+        nested = '<p><a href="https://example.com/" rel="noopener noreferrer"><span class="rt-c-red"><strong><em><s>x</s></em></strong></span></a></p>'
+        self.assertEqual(sanitise.clean_html(nested), nested)
+        self.assertEqual(self.page.call("cleanHtml", nested), nested)
+        self.assertEqual(sanitise.INLINE & {"span"}, {"span"}, "span is in the inline set")
+        self.assertEqual(set(sanitise.COLOUR_CLASSES), set(SIX))
+
+    def test_free_class_style_and_hex_dropped(self):
+        """Row 1364 (AP13): a free class, a style attribute, a pasted hex colour, an extra class and an extra attribute all leave the words and no span."""
+        drops = [
+            '<span class="rt-c-pink">x</span>', '<span class="chip">x</span>', '<span style="color:#ff0000">x</span>',
+            '<span class="rt-c-red x">x</span>', '<span class="x rt-c-red">x</span>', '<span class="RT-C-RED">x</span>', '<span class=" rt-c-red">x</span>', '<span class="">x</span>',
+            '<span>x</span>', '<span color="#ff0000">x</span>', '<font color="#ff0000">x</font>', '<span data-raw="[[item:A-1]]" class="chip">x</span>',
+        ]
+        for source in drops:
+            with self.subTest(source):
+                for who, out in (("Python", sanitise.clean_html(f"<p>{source}</p>")), ("the page", self.page.call("cleanHtml", f"<p>{source}</p>"))):
+                    self.assertEqual(out, "<p>x</p>", who)
+        both = sanitise.clean_html('<p><span class="rt-c-red" style="color:#f00" onclick="x()" id="a">x</span></p>')
+        self.assertEqual(both, '<p><span class="rt-c-red">x</span></p>', "a kept span loses every other attribute")
+        self.assertEqual(self.page.call("cleanHtml", '<p><span class="rt-c-red" style="color:#f00" onclick="x()" id="a">x</span></p>'), both)
+        for out in (both, sanitise.clean_html('<p style="color:#123456">y</p>')):
+            self.assertNotIn("style", out)
+            self.assertNotIn("#", out)
 
     def test_empty_and_missing_give_an_empty_string(self):
         self.assertEqual(self.page.ev("[CH.cleanHtml(''), CH.cleanHtml(null), CH.cleanHtml(undefined)]"), ["", "", ""])
