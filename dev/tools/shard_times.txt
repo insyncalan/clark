@@ -85,6 +85,7 @@ test_ask_connectors.py 0.2
 test_ask_connectors_1306.py 13.1
 test_ask_connectors_1306_killers.py 1.5
 test_ask_connectors_1306_killers2.py 10.3
+test_ask_context_300k_1292.py 30.0
 test_ask_done_line_1292.py 3.4
 test_ask_draft.py 412.9
 test_ask_draft_logic.py 3.3
@@ -140,6 +141,8 @@ test_ask_leave_page.py 12.2
 test_ask_look.py 91.6
 test_ask_models_1294.py 49.6
 test_ask_new_projects.py 7.1
+test_ask_new_projects_ui.py 30.0
+test_ask_new_projects_ui_1503.py 30.0
 test_ask_one_screen.py 1.1
 test_ask_order_1351.py 6.1
 test_ask_order_proj_1294.py 4.2
@@ -347,6 +350,7 @@ test_docx_build.py 4.9
 test_docx_callout.py 2.4
 test_docx_gantt.py 1.2
 test_docx_graphics.py 5.7
+test_docx_image_half_1223.py 30.0
 test_docx_read.py 3.9
 test_docx_textimage.py 0.9
 test_draft_email.py 0.4
@@ -456,6 +460,8 @@ test_freshness.py 0.4
 test_freshness_feed.py 1.1
 test_friday_pair.py 2.1
 test_full_image_frame.py 3.6
+test_gallery_v2_server.py 30.0
+test_gallery_v2_survivors.py 30.0
 test_gantt_chart.py 8.5
 test_gantt_drag_esc.py 67.6
 test_gantt_drag_published_1214.py 24.4
@@ -702,6 +708,7 @@ test_menu_tooltip.py 45.9
 test_menu_under_header_1286.py 6.4
 test_menus_one_look_1286.py 69.6
 test_menus_production_six.py 1.8
+test_menus_prototype_three_1273.py 30.0
 test_merge_driver.py 451
 test_merge_main.py 16.7
 test_migration_chain.py 12.7
@@ -916,6 +923,7 @@ test_people_resolve.py 0.5
 test_people_route.py 10
 test_people_store.py 6.9
 test_picker_minimap.py 25.7
+test_picture_button_words.py 30.0
 test_pill_focus_ring.py 2.5
 test_pin_1256.py 5
 test_pins_1189.py 1.5
@@ -951,6 +959,8 @@ test_project_scope_1176.py 1.8
 test_project_switch.py 20.4
 test_project_switch_empty.py 0.2
 test_projects_long_name.py 4.8
+test_projects_overview_1299.py 30.0
+test_projects_overview_hostile_1299.py 30.0
 test_projects_settings_page.py 35.5
 test_projects_wrap_960.py 2.8
 test_prototype_glance_words.py 40.1
@@ -1121,6 +1131,7 @@ test_settings_menu_1280_pins.py 22.9
 test_settings_menu_1280_source.py 0.5
 test_settings_migrate.py 13
 test_settings_no_project.py 38.9
+test_settings_projects_1317.py 30.0
 test_settings_projects_1402.py 16.9
 test_settings_rows.py 203.9
 test_settings_save_1115.py 252.7
@@ -1314,6 +1325,7 @@ test_tpl_headline.py 6.7
 test_tpl_imagecap.py 10.3
 test_tpl_imagecap_full_page.py 12.5
 test_tpl_imagecap_full_view.py 3.6
+test_tpl_imagecap_half_1223.py 30.0
 test_tpl_keydates.py 12
 test_tpl_linkcard.py 15.4
 test_tpl_onedoc.py 9.3
@@ -1457,6 +1469,15 @@ test_vendor_python.py 1.1
 test_vendor_tiptap.py 0.2
 test_view_icons_filter_line.py 37.7
 test_view_long_word.py 14
+test_view_picks_1287.py 30.0
+test_view_picks_1287_cards.py 30.0
+test_view_picks_1287_exception.py 30.0
+test_view_picks_1287_more.py 30.0
+test_view_picks_1287_owner_box.py 30.0
+test_view_picks_1287_rows.py 30.0
+test_view_picks_1287_ruled.py 30.0
+test_view_picks_1287_two_lists.py 30.0
+test_view_picks_1287_writes.py 30.0
 test_view_text_sections.py 1.2
 test_web_marker_whitespace.py 22.7
 test_week_end_pair.py 3.7
@@ -1498,6 +1519,7 @@ test_wording_small_fixes.py 0.4
 test_work_add_item.py 26
 test_work_archived_filter.py 15.2
 test_work_board_menu_edge_1273.py 15.7
+test_work_board_move_head_1273.py 30.0
 test_work_board_move_here_1273.py 14.5
 test_work_board_page.py 172.8
 test_work_columns_menu_1499.py 29.5
