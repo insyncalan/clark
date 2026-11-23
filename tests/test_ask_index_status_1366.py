@@ -34,13 +34,13 @@ class Words(unittest.TestCase):
     def test_the_approved_plural_lines(self):
         c = {"indexed": 180, "type": 242, "online_only": 8, "too_long": 2, "safety": 4}
         self.assertEqual(ask_index.line_for(c), "Indexed 180 of 436 files. 242 are of a type clark can't read yet. 8 are online only and were not opened. "
-                                                "2 PDFs are too long. 4 look like a password or a key and were left out.")
+                                                "2 files are too long. 4 look like a password or a key and were left out.")
         self.assertEqual(ask_index.line_for(None, (180, 422)), "Indexing… 42%")
 
     def test_the_approved_singular_lines(self):
         c = {"indexed": 1, "type": 1, "online_only": 1, "too_long": 1, "safety": 1}
         self.assertEqual(ask_index.line_for(c), "Indexed 1 of 5 files. 1 is of a type clark can't read yet. 1 is online only and was not opened. "
-                                                "1 PDF is too long. 1 looks like a password or a key and was left out.")
+                                                "1 file is too long. 1 looks like a password or a key and was left out.")
         self.assertEqual(ask_index.line_for(None, (1, 422)), "Indexing… 0%")
         self.assertEqual(ask_index.line_for(None, (422, 422)), "Indexing… 99%")
         self.assertEqual(ask_index.line_for(None, (0, 0)), "Indexing… 0%")
@@ -72,13 +72,13 @@ class PerFolder(Base):
     def test_counts_are_per_folder_and_add_up_to_the_files_in_each(self):
         self.put(self.a, "one.txt", "alpha river")
         self.put(self.a, "two.md", "alpha lake")
-        self.put(self.a, "pic.png", "x")
+        self.put(self.a, "pic.bin", "x")
         self.put(self.b, "three.txt", "beta ocean")
         self.put(self.b, "secret.txt", FAKE_KEY)
         self.assertTrue(ask_index.refresh(self.data, "ABC", [str(self.a), str(self.b)], self.home))
         got = ask_index.folder_status(self.data, "ABC", [str(self.a), str(self.b)])
         self.assertEqual(got[str(self.a)], {"state": "done", "line": "100% indexed. 1 file could not be read",
-                                            "left": {"files": [["pic.png", "of a type clark can't read yet"]], "more": 0}})
+                                            "left": {"files": [["pic.bin", "of a type clark can't read yet"]], "more": 0}})
         self.assertEqual(got[str(self.b)], {"state": "done", "line": "100% indexed. 1 file could not be read",
                                             "left": {"files": [["secret.txt", "looks like a password or a key"]], "more": 0}})
         self.assertNotIn("hunter2", json.dumps(got))
