@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from clark import platform, release_fetch as rf, server as sv, update_install as ui, updater as up, updates
+import _signing as sg
 from test_updater import Rig, Served
 from test_updates import make_zip
 
@@ -636,6 +637,76 @@ class DownloadFlowTest(Served2):
         self.up._installing = True
         self.assertEqual("busy", self.up.download({})[1]["code"])
         self.assertEqual("busy", self.up.check({})[1]["code"])
+
+
+class SignedFromFirstSignedTest(Served2):
+    """Row 1328: the download takes the .sig from 1.3.4 up (with the key patched in), not before, and a download that fails its signature says the approved words."""
+    WORDS = "The download failed its check. It was not installed."
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.object(updates, "FIRST_SIGNED", (1, 3, 4))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def release(self, version, sig_asset=True, sig=None):
+        self.set_release(version)
+        if sig is not None:
+            self.sig = sig
+            self.net.routes[self.sig_url] = lambda req: Reply(self.sig, self.sig_url)
+        if not sig_asset:
+            self.doc["assets"] = self.doc["assets"][:1]
+            self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+        self.up.status()
+
+    def fetch_state(self):
+        self.up.download({})
+        return self.up.status()[1]["fetch"]
+
+    def test_1_3_3_is_downloaded_without_its_signature(self):
+        self.release("1.3.3", sig_asset=False)
+        self.assertEqual("ready", self.fetch_state()["state"])
+        self.assertNotIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_1_3_4_takes_its_signature_with_it(self):
+        self.release("1.3.4")
+        self.assertEqual("ready", self.fetch_state()["state"])
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_1_3_4_with_no_signature_on_the_release_still_upgrades(self):
+        """Human ruling (row 1328): the in-clark upgrade works when the release has no signature."""
+        self.release("1.3.4", sig_asset=False)
+        self.assertEqual("ready", self.fetch_state()["state"])
+
+    def test_1_3_4_with_a_wrong_signature_says_the_approved_words(self):
+        for bad in (sg.signature_for(b"other bytes"), b"x" * 64, b"short", b"x" * 200):
+            with self.subTest(len=len(bad)):
+                self.release("1.3.4", sig=bad)
+                fetch = self.fetch_state()
+                self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+                self.assertIsNone(self.up.fetched)
+
+    def test_1_3_4_asks_for_its_signature_by_the_release_version_even_with_the_placeholder_key(self):
+        self.release("1.3.4")
+        with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY):
+            self.fetch_state()
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_a_cancel_while_the_signature_comes_is_a_cancel_not_a_failed_check(self):
+        self.release("1.3.4")
+        real = rf.download
+        def download(url, *a, **k):
+            if url == self.sig_url:
+                raise rf.FetchError("cancelled", "stopped")
+            return real(url, *a, **k)
+        with mock.patch.object(rf, "download", side_effect=download):
+            self.up.download({})
+        self.assertEqual("idle", self.up.status()[1]["fetch"]["state"])
+
+    def test_1_3_4_signature_that_cannot_be_reached_is_still_offline_not_the_check(self):
+        self.release("1.3.4")
+        self.net.routes[self.sig_url] = OSError("down")
+        self.assertEqual(up.FETCH_OFFLINE, self.fetch_state()["message"])
 
 
 class RoutesTest2(Served2):

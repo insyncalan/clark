@@ -83,11 +83,12 @@ FETCH_OFFLINE = "You are offline, so clark can't look for the newest version."
 FETCH_BAD = "The check did not finish. Try again."
 FETCH_NOFILE = "No download for this computer was found, or the releases page gave an answer clark could not read. Try again later."
 FETCH_TOOBIG = "The download was refused because it is too big or damaged. Nothing was changed. Try again."
+FETCH_CHECK = updates.MESSAGES["badsig"]       # a download whose signature is missing or does not verify (1.3.4 and up)
 FETCH_MISMATCH = "The download does not match what the releases page lists, so clark did not use it. Nothing was changed. Download again."
 # A refusal of the review that runs on a downloaded file, by its code: damaged bytes say (b), a file that is not what the page lists
 # (a signature, a version, a system, a name) says (c); a failure inside this computer (space, folder) is the plain check sentence.
 REVIEW_DAMAGED = ("damaged", "incomplete", "unreadable", "toodeep", "link", "unsafe")
-REVIEW_MISMATCH = ("unsigned", "badsig", "nokey", "older", "same", "name", "source", "system", "min_from", "newer_data", "noversion", "installed")
+REVIEW_MISMATCH = ("nokey", "older", "same", "name", "source", "system", "min_from", "newer_data", "noversion", "installed")
 FETCH_CANCELLED = "Download cancelled."
 
 
@@ -403,7 +404,7 @@ class Updater:
     @staticmethod
     def _download_words(key):
         return (FETCH_OFFLINE if key == "offline" else FETCH_TOOBIG if key in ("toobig", "damaged")
-                else FETCH_MISMATCH if key == "mismatch" else FETCH_NOFILE if key in ("nofile", "unreadable") else FETCH_BAD)
+                else FETCH_MISMATCH if key == "mismatch" else FETCH_CHECK if key == "badsig" else FETCH_NOFILE if key in ("nofile", "unreadable") else FETCH_BAD)
 
     def _run_download(self, latest, flag, token):
         version = latest["version"]
@@ -417,9 +418,14 @@ class Updater:
             release_fetch.download(latest["url"], dest, progress=lambda done, total: self._progress(token, version, done, total),
                                    cancelled=flag.is_set, expected_size=latest["bytes"], digest=latest["digest"],
                                    opener=self.release_opener)
-            if updates.signature_required() and latest.get("sig_url"):         # once a release key is in force the signature comes with it
-                release_fetch.download(latest["sig_url"], Path(str(dest) + updates.SIGNATURE_SUFFIX), cancelled=flag.is_set,
-                                       opener=self.release_opener, max_bytes=updates.SIGNATURE_BYTES)
+            if updates.signature_required(version=version) and latest.get("sig_url"):         # from 1.3.4 up the signature comes with it
+                try:
+                    release_fetch.download(latest["sig_url"], Path(str(dest) + updates.SIGNATURE_SUFFIX), cancelled=flag.is_set,
+                                           opener=self.release_opener, max_bytes=updates.SIGNATURE_BYTES)
+                except release_fetch.FetchError as e:
+                    if e.key in ("cancelled", "offline"):
+                        raise
+                    raise release_fetch.FetchError("badsig", f"the signature file could not be fetched: {e.key}")
             if flag.is_set():                                  # Cancel after the last chunk is honoured too
                 raise release_fetch.FetchError("cancelled", "stopped by the person")
             self._set_fetch(token, state="checking", version=version)
@@ -433,6 +439,7 @@ class Updater:
             else:
                 code = body.get("code") if isinstance(body, dict) else None
                 self._set_fetch(token, state="failed", version=version, message=FETCH_TOOBIG if code in REVIEW_DAMAGED
+                                else FETCH_CHECK if code in ("unsigned", "badsig")
                                 else FETCH_MISMATCH if code in REVIEW_MISMATCH else FETCH_BAD)
         except release_fetch.FetchError as e:
             LOG.info("a download was stopped: %s", e.key)
