@@ -436,5 +436,15 @@ class ReadPartsToday(unittest.TestCase):
         self.assertNotEqual(clock[1], "03-02-2026")
 
 
+class AskWordsSayNoShortcuts(unittest.TestCase):
+    """Row 1541 AP1: the rename to Single-key slash commands reaches askWords.js (text read, no browser)."""
+    WORDS = (SRC / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
+
+    def test_ask_words_do_not_say_shortcuts(self):
+        self.assertIn('export const CARD_TIP_AFTER = " in the box for slash commands.";', self.WORDS)
+        self.assertIn("(type / for slash commands)", self.WORDS)
+        self.assertNotIn("shortcuts", self.WORDS)
+
+
 if __name__ == "__main__":
     unittest.main()
