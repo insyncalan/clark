@@ -95,6 +95,7 @@ export const aiDisconnectSend = (provider) => changing("POST", "/api/providers/d
 export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
+export const askFoldersReindex = (project) => call("POST", "/api/ask-folders", { project, action: "reindex" });
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
 // Row 1294: the folders for all projects (the All projects tab): the same, with scope "all" in place of a project.
