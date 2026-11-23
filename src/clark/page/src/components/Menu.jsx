@@ -19,7 +19,7 @@ export function menuMove(e, items) {
   else if (e.key === "End") to = items[items.length - 1];
   else return false;
   e.preventDefault(); e.stopPropagation();
-  if (to) to.focus({ preventScroll: true });
+  if (to) { to.focus({ preventScroll: true }); to.scrollIntoView({ block: "nearest" }); }
   return true;
 }
 
@@ -49,7 +49,7 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
-    const shut = () => closeRef.current("away");
+    const shut = (e) => { if (e && e.type === "scroll" && el.contains(e.target)) return; closeRef.current("away"); };       // the menu's own scrolling (a key moving the focus) keeps it open
     window.addEventListener("scroll", shut, true);
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };

@@ -130,6 +130,18 @@ class ColsPanelHostile(base.InThePage):
             time.sleep(0.5)
             self.assertEqual(p.js("window.__errs"), [])
 
+    def test_the_cut_menu_keeps_the_focused_item_in_view_under_the_keys(self):
+        """164 high: the menu is cut and scrolls; End and Down must bring the focused row into the visible part of the box."""
+        with chrome() as cdp:
+            p = self.ready(cdp)
+            self.size(cdp, p, 1400, 164)
+            got = self.open(p)
+            self.assertGreater(got["scroll"], got["client"], "the menu is cut, as this test needs")
+            p.key("End", vk=35)
+            vis = p.js("(function(){var a=document.activeElement,b=a.getBoundingClientRect(),m=document.querySelector('.cols-menu').getBoundingClientRect();"
+                       "return {inside:b.top>=m.top-1&&b.bottom<=m.bottom+1,top:b.top,bottom:b.bottom,mt:m.top,mb:m.bottom,tag:a.textContent}})()")
+            self.assertTrue(vis["inside"], f"the last row has the focus but is out of sight: {vis}")
+
 
 
 class Selectors(unittest.TestCase):
