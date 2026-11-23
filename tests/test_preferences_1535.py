@@ -313,7 +313,7 @@ class DataFolder1535(Folder1535):
         class Storage { getItem(k) { return k in __m ? __m[k] : null; } setItem(k, v) { __m[k] = String(v); } removeItem(k) { delete __m[k]; }
           get length() { return Object.keys(__m).length; } key(i) { return Object.keys(__m)[i] ?? null; } }
         const __ls = new Storage();
-        const __blocks = { "clark-prefs": JSON.stringify({ imported: false, values: { "clark.peekWidth": "300" } }), "clark-boot": JSON.stringify({ token: "T" }) };
+        const __blocks = { "clark-prefs": JSON.stringify({ imported: false, values: { "clark.peekWidth": "300" } }), "clark-boot": JSON.stringify({ token: "test-run-value" }) };
         globalThis.document = { readyState: "complete", getElementById: (id) => (id in __blocks ? { textContent: __blocks[id] } : null), addEventListener() {} };
         globalThis.window = { document, Storage, localStorage: __ls, setTimeout: (f) => { __timers.push(f); return 1; }, addEventListener() {},
           fetch: async (u, o) => { __calls.push(JSON.parse(o.body)); return { ok: !(__fail && "set" in JSON.parse(o.body)) }; } };
@@ -321,7 +321,7 @@ class DataFolder1535(Folder1535):
         probe = """(async () => {
           await new Promise((r) => setTimeout(r, 20));
           const first = JSON.parse(JSON.stringify(__calls)); const peek = __m["clark.peekWidth"];
-          __ls.setItem("clark.x", "1"); __ls.setItem("other", "2"); __ls.setItem("clark.reader.name", "Pat"); __ls.setItem("clark.y", "2"); __ls.removeItem("clark.y");
+          __ls.setItem("clark.x", "1"); __ls.setItem("other", "2"); __ls.setItem("clark.reader.name", "Reader One"); __ls.setItem("clark.y", "2"); __ls.removeItem("clark.y");
           __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));      // the send is refused
           __fail = false; __ls.setItem("clark.z", "3");
           __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));
@@ -415,10 +415,10 @@ class DataFolder1535(Folder1535):
         self.assertEqual(imports, ["Preferences.jsx", "main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
         _, doc, html = self.page_values()
         self.assertIn(secret, json.dumps(doc))             # the live page is given its own values
-        reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Pat'); return sent; })()"
+        reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Reader One'); return sent; })()"
         got, _ = run_node({}, reader)
         self.assertEqual(got, [])                          # a reader key is never queued
-        self.assertEqual(self.prefs.save({"set": {"clark.reader.name": "Pat", "clark.x y": "no"}})[1]["values"], {"clark.askWidth": secret})
+        self.assertEqual(self.prefs.save({"set": {"clark.reader.name": "Reader One", "clark.x y": "no"}})[1]["values"], {"clark.askWidth": secret})
         self.assertNotIn("clark.reader.name", json.dumps(got))
 
     def test_reset_all_preferences_only(self):

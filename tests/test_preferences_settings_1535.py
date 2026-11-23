@@ -45,7 +45,7 @@ class Kept(Base):
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
                     self.open_backups(p, w, mode)
-                    p.js("""(function(){ localStorage.setItem('clark.peekWidth', '480'); localStorage.setItem('clark.reader.name', 'Pat'); localStorage.setItem('other.key', 'x');
+                    p.js("""(function(){ localStorage.setItem('clark.peekWidth', '480'); localStorage.setItem('clark.reader.name', 'Reader One'); localStorage.setItem('other.key', 'x');
                       sessionStorage.setItem('seen', '[]'); var real = window.fetch.bind(window);
                       window.fetch = function(u, o){ if (String(u).indexOf('/api/preferences') === 0) { var s = JSON.parse(sessionStorage.getItem('seen')); s.push(o.body); sessionStorage.setItem('seen', JSON.stringify(s));
                         return Promise.resolve({ ok: true }); } return real(u, o); }; })()""")
@@ -62,7 +62,7 @@ class Kept(Base):
                     p.until("sessionStorage.getItem('seen') !== '[]'", "the reset was sent")
                     self.assertEqual([json.loads(b) for b in seen()], [{"reset": True}])
                     p.until("localStorage.getItem('clark.peekWidth') === null", "the kept key was taken out of the browser")
-                    self.assertEqual(p.js("[localStorage.getItem('clark.reader.name'), localStorage.getItem('other.key')]"), ["Pat", "x"])
+                    self.assertEqual(p.js("[localStorage.getItem('clark.reader.name'), localStorage.getItem('other.key')]"), ["Reader One", "x"])
 
 
 if __name__ == "__main__":
