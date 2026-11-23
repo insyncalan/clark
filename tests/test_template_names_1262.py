@@ -15,7 +15,7 @@ WORDS = (PAGE / "logic" / "fullImageWords.js").read_text(encoding="utf-8")
 HELP = json.loads((PAGE / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
 NAMES = {                                      # id -> the name on the card (the renamed ones, row 1262)
-    "text-image": "Text with image",      # Romanoff PM 23-11 10:28 (NEW-WORDS.md:2206-2207): the ticket table's word stands; the starting title stays Text and Image Side by Side
+    "text-image": "Text with image",      # PM ruling 23-11 10:28 (NEW-WORDS.md:2206-2207): the ticket table's word stands; the starting title stays Text and Image Side by Side
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
