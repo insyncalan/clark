@@ -10,7 +10,11 @@ import json
 import time
 import unittest
 
+from _demo import USER
+from clark import changes, server as sv
 from clark.section_kinds import gallery
+from test_imagecap_full_server import halves
+from test_server import Running
 from test_tpl_gallery_edit import ADD, FULL, PIC, Page, many
 
 WORDS_ITEMS = {"1": {"caption": "Fictional one", "alt": "A room"}, "2": {"caption": "Fictional two", "alt": "A hall"}, "3": {"caption": "Fictional three", "alt": "A yard"}}
@@ -159,6 +163,51 @@ class Size(Page):          # AP18, the page half: the copy sent is at most 1,600
                 self.assertLessEqual(sent[0], 1600)
                 self.assertGreater(sent[0], 1000, "made smaller only as far as the limit asks")
                 self.assertEqual(sent[1], 200, "a small image is not enlarged")
+
+
+class OrderSaveOnTheRealServer(unittest.TestCase):
+    """What Gallery.jsx take() sends before an add that would show before the last image: the words-only /api/change update carrying
+    `order` (saveWords), then /api/section-image. Here both go to the real server (no stand-in), and the body is read back."""
+
+    def setUp(self):
+        from _demo import DemoStore
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = Running(change=changes.make_change(self.demo.store.path, [], USER))
+        self.addCleanup(self.s.close)
+        self.s.httpd.section_image = changes.make_section_image(self.demo.store.path, [], USER)
+
+    def post(self, path, body):
+        status, _, raw = self.s.api("POST", path, json.dumps(body).encode())
+        self.assertEqual(status, 200, raw)
+        return json.loads(raw)
+
+
+    def stored(self, ref):
+        body = json.loads(next(r for r in self.demo.store.read("report_sections", "ABC") if r["id"] == ref)["body"])
+        body["pictures"] = {k: v for k, v in body.get("pictures", {}).items() if not k.startswith("o")}      # the originals are not slots
+        return body
+
+    def test_the_order_save_then_an_add_puts_the_new_image_last_and_a_version_1_body_stays_version_1(self):
+        have = {str(n): halves(8 + n, 6) for n in (3, 4, 5, 6)}
+        ref = self.post("/api/change", {"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "gallery", "title": "Fictional"}, "after": None})["ref"]
+        self.post("/api/change", {"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "place": "report", "changes": {"body": json.dumps({"v": 2})}})
+        for n in (3, 4, 5, 6):
+            self.post("/api/section-image", {"project": "ABC", "section": ref, "slot": str(n), "image": have[str(n)]})
+        self.assertEqual((self.stored(ref)["v"], sorted(self.stored(ref)["pictures"])), (2, ["3", "4", "5", "6"]))
+        words = {"v": 2, "order": ["3", "4", "5", "6", "1", "2"]}          # what saveWords sends: the stored words plus the new order, never the pictures
+        self.post("/api/change", {"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "place": "report", "changes": {"body": json.dumps(words)}})
+        self.assertEqual(self.stored(ref)["order"], words["order"])
+        self.post("/api/section-image", {"project": "ABC", "section": ref, "slot": "1", "image": halves(20, 6)})
+        got = self.stored(ref)
+        self.assertEqual((got["v"], got["order"][-2:], sorted(got["pictures"])), (2, ["1", "2"], ["1", "3", "4", "5", "6"]))
+        self.assertEqual([s for s in got["order"] if s in got["pictures"]][-1], "1", "the new image shows last")
+        one = self.post("/api/change", {"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "gallery", "title": "Fictional v1"}, "after": None})["ref"]
+        for n in (3, 4):
+            self.post("/api/section-image", {"project": "ABC", "section": one, "slot": str(n), "image": halves(8 + n, 6)})
+        self.post("/api/section-image", {"project": "ABC", "section": one, "slot": "1", "image": halves(20, 6)})
+        got = self.stored(one)
+        self.assertEqual((got["v"], "order" in got, sorted(got["pictures"])), (1, False, ["1", "3", "4"]), "an add with a free slot does not turn version 1 into 2")
 
 
 if __name__ == "__main__":
