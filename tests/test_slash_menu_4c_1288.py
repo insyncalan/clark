@@ -111,6 +111,25 @@ class Slash(unittest.TestCase):
                 self.assertTrue(h.until("document.querySelector('.ProseMirror').textContent.includes('Fresh words')"), w)
                 self.assertEqual(h.ev("[...document.querySelectorAll('.ProseMirror p')].map(p => p.textContent)"), ["Alpha beta", "Fresh words", "Omega tail"], f"{w}: Accept replaces the '/' words")
 
+    def test_a_slash_ask_whose_document_changed_while_it_waited_is_dropped(self):
+        """Row 1288 (review): /api/ai/status is slow; the text is replaced meanwhile; the answer must not be applied to the old '/' range."""
+        with rp.Harness(chrome) as h:
+            layer(h, True)
+            h.ev("window.release = null; window.fetch = (url, init) => { const ok = (b) => Promise.resolve({ status: 200, json: () => Promise.resolve(b) });"
+                 " if (String(url).includes('/api/ai/status')) return new Promise((go) => { window.release = () => go({ status: 200, json: () => Promise.resolve({ ok: true, state: 'ready', line: '' }) }); });"
+                 " return ok({ ok: true, html: '<p>Fresh words</p>', notes: [], changes: [] }); }; true")
+            h.mount("<p>Alpha beta</p><p></p>", ai="current")
+            h.key("End", 0, "End", 35)
+            h.type("/")
+            self.assertTrue(h.until("!!document.querySelector('.rt-slash .rt-ask')"))
+            h.ev("document.querySelector('.rt-slash .rt-ask').click(); true")
+            self.assertTrue(h.until("typeof window.release === 'function'"), "the status request is waiting")
+            h.ev("(() => { const e = document.querySelector('.ProseMirror').cxed.editor; e.commands.setContent('<p>Keep</p>'); })()")
+            h.ev("window.release(); true")
+            h.ev("new Promise(r => setTimeout(r, 500))")
+            self.assertFalse(h.ev("!!document.querySelector('.rt-ai [data-ai-menu]')"), "no AI menu for a document that is gone")
+            self.assertEqual(h.ev("document.querySelector('.ProseMirror').textContent"), "Keep")
+
     def test_no_ask_line_without_an_ai_place(self):
         with rp.Harness(chrome) as h:
             layer(h, True)

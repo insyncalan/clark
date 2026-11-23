@@ -157,12 +157,13 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const askFromSlash = async () => {
     const s = slashRef.current;
     if (!s || !ai || !ed.current) return;
-    const doc = ed.current.editor.state.doc;
+    const made = ed.current, doc = made.editor.state.doc;
     const text = `${doc.textBetween(0, s.from, "\n", "\n")}\n${doc.textBetween(s.to, doc.content.size, "\n", "\n")}`.trim();
     const r = slashBox.current.getBoundingClientRect();
     aiOpen.current = true;
     await aiClient().refresh();
     setSlash(null);
+    if (ed.current !== made || made.editor.state.doc !== doc) { aiOpen.current = false; return; }       // the field or its words changed while the status was asked: s.from and s.to no longer mean this "/"
     setAiAt({ x: r.left + r.width / 2, y: r.bottom + 4, text, from: s.from, to: s.to });
   };
 
