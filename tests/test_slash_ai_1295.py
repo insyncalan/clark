@@ -164,6 +164,27 @@ class Help(AiBase):
             self.type_into(js, "#sl-text", "Typed by hand")
             self.until(js, "document.querySelectorAll('#slash-ai-undo').length === 0", "a typed edit clears the Undo")
 
+    def test_the_ai_row_light_and_dark_at_both_widths(self):
+        """Row 1541 AP4: the AI row in its states (a line, Stop while it works, Undo, the note) and the check verdict, light and dark, 1400 and 900."""
+        with chrome() as cdp:
+            js = self.new_form(cdp)
+            self.click(js, "#slash-ai-write")
+            self.until(js, "!!document.querySelector('#slash-ai-line')", "the line shows")
+            self.look(cdp, js, lambda j: None)
+            self.type_into(js, "#sl-text", "Please list everything that is overdue, grouped by owner, oldest first")
+            self.provider.hold = True
+            self.click(js, "#slash-ai-shorter")
+            self.until(js, "!!document.querySelector('#slash-ai-stop')", "Stop shows")
+            self.look(cdp, js, lambda j: None)
+            self.provider.release.set()
+            self.done(js)
+            self.until(js, "!!document.querySelector('#slash-ai-undo')", "Undo shows")
+            self.look(cdp, js, lambda j: None)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-note').length"), 1)
+            self.click(js, "#slash-check-run")
+            self.until(js, "!!document.querySelector('#slash-check-clear')", "the verdict shows")
+            self.look(cdp, js, lambda j: None)
+
     def test_an_empty_box_says_so_and_the_provider_is_not_asked(self):
         with chrome() as cdp:
             js = self.new_form(cdp)

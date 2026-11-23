@@ -29,6 +29,26 @@ import esbuild  # noqa: E402
 
 EDITOR = "/?slash-editor=1&project=ABC"
 
+# Every part of the editor that is drawn must be whole inside the window and, when it holds text, readable (4.5) on what is behind it; returns the faults.
+SHOWN = ".slash-page h1, #slash-back, .slash-side, .slash-side h2, .slash-side b, .slash-side small, .slash-edit-card, .slash-edit-card h2, .slash-edit-card label, #slash-ai, #slash-ai-line, #slash-ai-note, #slash-ai-stop, #slash-ai-undo, #slash-ai-describe, #slash-ai-write, #slash-ai-clearer, #slash-ai-shorter, #slash-help, #slash-pop, #slash-pop th, #slash-pop td, #slash-pop p, .slash-err, #slash-off, #slash-note, .pub-msg p, #slash-undo, .slash-pickers button, #slash-save, #slash-check, #slash-check dt, #slash-check dd, #slash-tokens, .slash-warn, .slash-preview h3"
+LOOK_JS = """(() => {
+  const rgba = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; };
+  const over = (f, b) => ({ r: f.r * f.a + b.r * (1 - f.a), g: f.g * f.a + b.g * (1 - f.a), b: f.b * f.a + b.b * (1 - f.a), a: 1 });
+  const back = (e) => { const stack = []; for (let n = e; n; n = n.parentElement) stack.push(rgba(getComputedStyle(n).backgroundColor)); let c = { r: 255, g: 255, b: 255, a: 1 }; for (const x of stack.reverse()) c = over(x, c); return c; };
+  const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const bad = [];
+  if (document.documentElement.scrollWidth > innerWidth) bad.push("sideways scroll " + document.documentElement.scrollWidth + " > " + innerWidth);
+  for (const e of document.querySelectorAll(%r)) {
+    const r = e.getBoundingClientRect(), name = e.id || e.className || e.tagName;
+    if (!r.width || !r.height) { bad.push(name + " not drawn"); continue; }
+    if (r.left < -0.5 || r.right > innerWidth + 0.5) bad.push(name + " outside the window " + Math.round(r.left) + ".." + Math.round(r.right));
+    if (!(e.textContent || "").trim() || e.disabled) continue;
+    const cs = getComputedStyle(e), fg = over(rgba(cs.color), back(e)), bg = back(e), a = lum(fg) + 0.05, b = lum(bg) + 0.05, ratio = Math.max(a, b) / Math.min(a, b);
+    if (e.children.length === 0 && ratio < 4.5) bad.push(name + " contrast " + ratio.toFixed(2) + " " + cs.color + " on " + cs.backgroundColor + " " + e.className);
+  }
+  return bad;
+})()""" % SHOWN
+
 
 class Base(unittest.TestCase):
     theme = "prototype-2.0"
@@ -56,8 +76,23 @@ class Base(unittest.TestCase):
         sid = navigate(cdp, self.s.port, "")
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}{path}"}, sid)
         js = lambda e: cdp.js(e, sid)          # noqa: E731
+        self.sid = sid
         self.until(js, "!!document.querySelector('#slash-page') && !!document.querySelector('.slash-side button')", "the editor is on the page", 30)
         return js
+
+    def look(self, cdp, js, states):
+        """Row 1541 AP4: the editor in light and dark at 1400 and 900. `states` is a function (js) -> None that reaches the state; then every selector in
+        SHOWN must sit whole inside the window, with no sideways scroll, text at a 4.5 contrast to what is behind it, the grid in 3 columns at 1400 and 1 at 900."""
+        for scheme in ("light", "dark"):
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                states(js)
+                time.sleep(0.6)                                                  # colours ease over a moment when the scheme changes
+                bad = js(LOOK_JS)
+                self.assertEqual(bad, [], f"{scheme} {w}: {bad}")
+                cols = js("getComputedStyle(document.querySelector('.slash-grid')).gridTemplateColumns.split(' ').length")
+                self.assertEqual(cols, 3 if w == 1400 else 1, f"{scheme} {w}: grid columns")
 
     def type_into(self, js, selector, text):
         js(f"(() => {{ const e = document.querySelector('{selector}'); e.focus(); e.value = {text!r}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
@@ -351,6 +386,26 @@ class Editor(Base):
             self.assertEqual(self.files("ABC"), ["monday.json"])
             self.until(js, "document.querySelectorAll('#slash-undo').length === 0", "the one Undo is used up")
             self.assertEqual(js("document.querySelectorAll('#slash-undo, #slash-ai-undo').length"), 0)
+
+    def test_editor_light_and_dark_at_both_widths(self):
+        """Row 1541 AP4: the list, a command open, the placeholders popup and a name error, light and dark, 1400 and 900 (the AI states are in test_slash_ai_1295)."""
+        self.s.httpd.ask_commands.change({"scope": "project", "project": "ABC", "action": "save", "record": {"menu": "Own line", "text": "Overdue by owner", "scope": "anywhere", "result": "answer", "name": "monday"}})
+        with chrome() as cdp:
+            js = self.editor(cdp)                                                    # the list, nothing open
+            self.look(cdp, js, lambda j: None)
+            self.assertEqual(js("document.querySelectorAll('.slash-edit-card').length"), 0)
+            self.click(js, "[data-pick=monday]")
+            self.until(js, "!!document.querySelector('.slash-edit-card')", "a command opens")
+            self.look(cdp, js, lambda j: None)
+            self.click(js, "#slash-help")
+            self.until(js, "!!document.querySelector('#slash-pop')", "the popup opens")
+            self.look(cdp, js, lambda j: None)
+            self.assertEqual(js("document.querySelectorAll('#slash-pop').length"), 1)
+            js("document.querySelector('#slash-pop').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+            self.until(js, "!document.querySelector('#slash-pop')", "Esc closes it")
+            self.type_into(js, "#sl-name", "Abc")
+            self.until(js, "document.querySelector('#sl-name-m').className === 'slash-err'", "the name error shows")
+            self.look(cdp, js, lambda j: None)
 
     def test_a_built_in_is_saved_as_your_version_reset_and_copied(self):
         with chrome() as cdp:
