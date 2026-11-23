@@ -14,6 +14,7 @@ from openpyxl import load_workbook
 
 from clark import excel
 from clark import excel_import as xi
+from clark.store import Invalid
 from test_excel_roundtrip import RoundTrip, setUpModule, tearDownModule  # noqa: F401  (the hooks keep a brand logo out of every test)
 
 OLD = {
@@ -92,6 +93,43 @@ class OldWorkbook(RoundTrip):
         after = {r["id"]: (r["state"], r["state_set"]) for r in self.s.read("milestones", "ABC")}
         self.assertEqual(before, after)
         self.assertEqual([c for c in p.changes if c.table == "milestones"], [])
+
+    def test_a_sheet_with_both_the_old_and_the_new_heading_for_one_column_is_refused_whole(self):
+        """Item 1390: Title and Description both on Actions mean the same column; the whole workbook is refused, nothing staged."""
+        wb = load_workbook(str(self.path))
+        ws = wb["Actions"]
+        ws.cell(1, ws.max_column + 1, "Title")
+        wb.save(str(self.path))
+        self.assertIn("Description", self.heads("Actions"))
+        with self.assertRaises(Invalid) as cm:
+            self.read()
+        self.assertIn("two columns for the same thing", str(cm.exception))
+        self.assertIn("Description", str(cm.exception))
+        self.assertIn("Title", str(cm.exception))
+
+    def test_the_gantt_sheet_with_both_dashboard_headings_is_refused_whole_like_the_others(self):
+        """Item 1390: On dashboard (older) and On the dashboard (now) are one column; the Gantt sheet refuses the workbook as the other sheets do."""
+        wb = load_workbook(str(self.path))
+        if "Gantt" in wb.sheetnames:
+            del wb["Gantt"]
+        ws = wb.create_sheet("Gantt")
+        ws.append(["ID", "Line", "On dashboard", "On the dashboard"])
+        ws.append(["TBD", "A line", "Yes", "No"])
+        wb.save(str(self.path))
+        with self.assertRaises(Invalid) as cm:
+            xi.read_workbook(self.s, self.path, "ABC", state_path=self.state, sheets=["gantt_lines"])
+        self.assertIn("two columns for the same thing", str(cm.exception))
+        self.assertIn("On dashboard", str(cm.exception))
+        self.assertIn("On the dashboard", str(cm.exception))
+
+    def test_the_milestones_state_column_is_dropped_without_a_note_but_state_set_by_you_is_noted(self):
+        """Item 1390: State is worked out, in the old file and in the new export alike (one heading), so a note on it would show on every
+        re-import and none is given; the older State set by you column is not one the import knows, so it is noted as before."""
+        notes = [n for n in self.read().notes if n.startswith("Milestones:")]
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("State set by you", notes[0])
+        self.assertNotIn("State,", notes[0])
+        self.assertNotIn("State are", notes[0].replace("State set by you are", ""))
 
     def test_a_new_row_typed_under_old_headings_is_added(self):
         from test_excel_roundtrip import add_row
