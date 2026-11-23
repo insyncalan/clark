@@ -159,6 +159,8 @@ class AiConnect:
         for name, provider in self.providers.items():
             st = ask.answer_status(provider)
             connected = st["connected"] and self.is_on(name, saved)
+            if not st["connected"]:
+                self.checked.pop(name, None)           # row 1492: signed out, so its last check no longer stands (signing in again reads "not checked yet")
             done = self.checked.get(name) if connected else None
             tiles[name] = {"connected": connected, "signed_in": st["connected"], "why": "" if st["connected"] else st["why"],
                            "checked": done is not None, "checked_line": CHECKED.format(label=provider.label, **done) if done else ""}
