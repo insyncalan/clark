@@ -36,7 +36,7 @@ so a cropped part is not in the report file. No image: not published.
 """
 from clark.section_kinds import imagecap
 from clark.section_kinds.base import Bad
-from clark.section_kinds.textimage import (BAD_SLOT, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
+from clark.section_kinds.textimage import (ADD_PICTURE_BUTTON, BAD_SIDE, BAD_SLOT, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
                                            picture, pictures_of, put, set_picture)
 
 READY = True
@@ -104,6 +104,11 @@ def _version(value):
 
 
 def _say_image(text):
+    """Picture becomes image in the refusal texts, but the side sentence of textimage.py stays exactly as it is."""
+    if BAD_SIDE in text:
+        return BAD_SIDE.join(_say_image(part) for part in text.split(BAD_SIDE))
+    if ADD_PICTURE_BUTTON in text:        # the button keeps its words
+        return ADD_PICTURE_BUTTON.join(_say_image(part) for part in text.split(ADD_PICTURE_BUTTON))
     return text.replace("a picture", "an image").replace("picture", "image").replace("Picture", "Image")
 
 

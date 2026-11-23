@@ -14,7 +14,7 @@ from test_imagecap_full_server import BLUE, RED, decode, halves, make_png, sized
 from clark import changes, section_bodies, server, store as store_module
 from clark.section_kinds import gallery, imagecap
 from clark.section_kinds.base import Bad
-from clark.section_kinds.textimage import BAD_SLOT, BIG_PICTURE, CAMERA_DETAILS, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, UNKNOWN_FIELD
+from clark.section_kinds.textimage import BAD_SIDE, BAD_SLOT, BIG_PICTURE, CAMERA_DETAILS, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, UNKNOWN_FIELD
 
 
 IMAGE_SLOT = "That image's place isn't in this section. Reload the page and try again."      # BAD_SLOT, said of images
@@ -106,8 +106,8 @@ class SixImages(unittest.TestCase):
             with self.assertRaises(Bad) as e:
                 gallery.with_picture(WHOLE, "1", bad)
             self.assertIn("image", str(e.exception))
-            self.assertNotIn("picture", str(e.exception).replace("Pictures", ""))
-        self.assertIn("image", str(CAMERA_DETAILS.replace("picture", "image")))
+            self.assertNotIn("picture", str(e.exception).replace("Pictures", "").replace("Add a picture", ""))
+        self.assertEqual(gallery._say_image(CAMERA_DETAILS), CAMERA_DETAILS)       # the button keeps its words
 
 
 class Sizes(unittest.TestCase):
@@ -264,6 +264,17 @@ class Columns(unittest.TestCase):
         content = gallery.published(body, None)["content"]
         self.assertEqual((content["columns"], content["shape"], len(content["pictures"])), (2, "square", 6))
         self.assertEqual(gallery.published(six(), None)["content"]["columns"], 3)
+
+
+class SayImage(unittest.TestCase):
+    def test_say_image_leaves_the_side_sentence_alone(self):
+        side = "A picture sits on the left or the right. Choose one and try again."
+        self.assertEqual(BAD_SIDE, side)
+        self.assertEqual(gallery._say_image(side), side)
+        self.assertEqual(gallery._say_image("Oops. " + side), "Oops. " + side)
+        self.assertEqual(gallery._say_image("That picture is big. " + side + " Use a picture."), "That image is big. " + side + " Use an image.")
+        self.assertEqual(gallery._say_image("That picture can't be used."), "That image can't be used.")
+        self.assertEqual(gallery._say_image("Use a picture."), "Use an image.")
 
 
 class Version1Stays(unittest.TestCase):
