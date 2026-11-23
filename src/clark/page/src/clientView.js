@@ -56,13 +56,28 @@ export function remember(st, group) {
   return JSON.stringify({ v: STORAGE_VERSION, type: st.type, mode: st.mode, filters: st.filters, not: st.not, group });
 }
 
-/** The choices from kept text, made safe by normalise; anything unreadable or from another version gives null. */
+/** Step 2 of row 1535: a kept choice from an older version is carried forward, one version at a time, by the step for its version in `steps`
+ * (a function from that version's object to the next one's); a version with no step is carried as it is, and normalise keeps what it knows.
+ * Nothing from an older version is dropped. A newer version (after a roll back) is not ours to read: null. */
+export const MIGRATIONS = {};
+export function migrate(p, current = STORAGE_VERSION, steps = MIGRATIONS) {
+  if (!isObj(p) || !Number.isInteger(p.v) || p.v > current || p.v < 0) return null;
+  let o = p;
+  while (o.v < current) { const step = steps[o.v]; o = { ...(step ? step(o) : o), v: o.v + 1 }; }
+  return o;
+}
+
+/** The choices from kept text, made safe by normalise; anything unreadable or from a newer version gives null. */
 export function recall(text, rows, today) {
   let p;
   try { p = JSON.parse(text); } catch (e) { return null; }
-  return isObj(p) && p.v === STORAGE_VERSION ? normalise(p, rows, today) : null;
+  p = migrate(p);
+  return p ? normalise(p, rows, today) : null;
 }
 
+/** True when the kept text is from a newer version than this page: it is left alone (a roll back keeps what the newer release wrote). */
+const newer = (text) => { try { const p = JSON.parse(text); return isObj(p) && Number.isInteger(p.v) && p.v > STORAGE_VERSION; } catch (e) { return false; } };
+
 // localStorage can be blocked (a private window, a policy) or full: both are silent, and the page works without it.
-export function save(code, text) { try { const k = storageKey(code); if (k) window.localStorage.setItem(k, text); } catch (e) { /* not kept */ } }
+export function save(code, text) { try { const k = storageKey(code); if (k && !newer(window.localStorage.getItem(k))) window.localStorage.setItem(k, text); } catch (e) { /* not kept */ } }
 export function load(code) { try { const k = storageKey(code); return k ? window.localStorage.getItem(k) : null; } catch (e) { return null; } }

@@ -357,6 +357,20 @@ function cleanWidths(raw) {
   return out;
 }
 
+// Step 2 of row 1535: what this release does not understand (a field, or an order or widths for a grouping it no longer has) is not drawn
+// but is kept in storage when the rest is saved, so another release (an upgrade, or a roll back) finds it as it was.
+export function keepUnknown(stored, now) {
+  if (!isMap(stored)) return now;
+  const out = { ...now };
+  for (const k of Object.keys(stored)) if (!(k in out)) out[k] = stored[k];
+  for (const f of ["order", "widths"]) {
+    if (!isMap(stored[f])) continue;
+    out[f] = { ...out[f] };
+    for (const g of Object.keys(stored[f])) if (!(g in out[f]) && !GROUP_IDS.includes(g)) out[f][g] = stored[f][g];
+  }
+  return out;
+}
+
 export function readState(project, storage = browserStorage()) {
   try {
     const all = JSON.parse(storage.getItem(STORAGE_KEY) || "{}");
@@ -371,7 +385,7 @@ export function writeState(project, patch, storage = browserStorage()) {
     let all = {};
     try { all = JSON.parse(storage.getItem(STORAGE_KEY) || "{}") || {}; } catch (e) { all = {}; }
     if (typeof all !== "object" || Array.isArray(all)) all = {};
-    all[project] = now;
+    all[project] = keepUnknown(all[project], now);
     storage.setItem(STORAGE_KEY, JSON.stringify(all));
     return { state: now, saved: true };
   } catch (e) { return { state: now, saved: false }; }

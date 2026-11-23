@@ -73,4 +73,14 @@ export const isStandard = (table, shown) => {
 const keyOf = (table, project) => `cols.show.${table}.${project || "none"}`;
 export const readChoice = (table, project) => shownIds(table, recall(keyOf(table, project), null));
 /** Kept for this table and this project in this browser; the standard set is kept as nothing at all (the key is taken away), so the table follows any later change of the standard. */
-export const writeChoice = (table, project, shown) => (isStandard(table, shown) ? forget(keyOf(table, project)) : remember(keyOf(table, project), shownIds(table, shown)));
+/** Step 2 of row 1535: ids kept in a choice that this table no longer (or not yet) knows. They stay hidden, never drawn, and are not deleted, so a release that renames or retires a column cannot throw away what a person chose. */
+export const unknownIds = (table, stored) => {
+  if (!Array.isArray(stored)) return [];
+  const known = new Set(defsOf(table).map((c) => c.id));
+  return [...new Set(stored.filter((c) => typeof c === "string" && c.length <= 120 && !known.has(c)))].slice(0, 100);
+};
+export const writeChoice = (table, project, shown) => {
+  const keep = unknownIds(table, recall(keyOf(table, project), null));
+  if (isStandard(table, shown) && !keep.length) return forget(keyOf(table, project));
+  return remember(keyOf(table, project), [...shownIds(table, shown), ...keep]);
+};

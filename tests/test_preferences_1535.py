@@ -1,14 +1,23 @@
 """Row 1535 step 1 (AP1 to AP3): the preference registry (src/clark/preferences.py).
 
-Run: python3 -m unittest test_preferences_1535 (from tests/). Quick tier: no browser; it reads the page source and settings.py.
+Run: python3 -m unittest test_preferences_1535 (from tests/). Quick tier: no browser; it reads the page source and settings.py. Steps 2 onward bundle the page's stored-preference code with esbuild and run it in node
+(skipped when node is not on the machine).
 """
+import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
+from _paths import ROOT, SRC, TOOLS
+
+sys.path.insert(0, str(SRC))
+sys.path.insert(0, str(TOOLS))
+import build_page  # noqa: E402
+import esbuild  # noqa: E402
 from clark import preferences  # noqa: E402
 
 PAGE = ROOT / "src" / "clark" / "page" / "src"
@@ -102,6 +111,115 @@ class Registry1535(unittest.TestCase):
             seen.add(p.key)
             if p.where == "browser":
                 self.assertTrue(p.key.startswith("clark."), p.key)
+
+
+ENTRY = ROOT / "tests" / "fixtures" / "prefs_node.js"
+_BUNDLE = {}
+# A browser store that holds `store` (a dict) in node, and prints what it holds afterwards with the probe's result.
+PRELUDE = """
+const __m = %s; globalThis.window = { localStorage: { getItem: (k) => (k in __m ? __m[k] : null), setItem: (k, v) => { __m[k] = String(v); },
+  removeItem: (k) => { delete __m[k]; } } };
+"""
+
+
+def run_node(store, probe):
+    """Run `probe` (JS using Q.board, Q.cols, Q.client, Q.remember) against a store; gives (result, store afterwards)."""
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("no node")
+    with tempfile.TemporaryDirectory() as tmp:
+        if "code" not in _BUNDLE:
+            out = Path(tmp) / "p.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=Q", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
+                                *build_page.preact_flags(), f"--alias:@src={SRC / 'clark' / 'page' / 'src'}", str(ENTRY), f"--outfile={out}"],
+                               cwd=tmp, capture_output=True, text=True)
+            assert done.returncode == 0, done.stderr
+            _BUNDLE["code"] = out.read_text(encoding="utf-8")
+        script = Path(tmp) / "probe.js"
+        script.write_text(PRELUDE % json.dumps(store) + _BUNDLE["code"] + ";\nconst __r = (" + probe + ");\nconsole.log(JSON.stringify([__r, __m]));", encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        result, after = json.loads(done.stdout)
+        return result, after
+
+
+class Migration1535(unittest.TestCase):
+    def test_old_version_value_migrated(self):
+        """AP4: a published page's choice from an older version is carried forward by its step, not dropped; a newer one is left alone."""
+        probe = """(() => {
+          const steps = { 0: (o) => ({ ...o, group: o.oldGroup }) };
+          const got = Q.client.migrate({ v: 0, oldGroup: "owner", type: "all" }, 1, steps);
+          const none = Q.client.migrate({ v: 0, group: "owner" }, 1, {});
+          const future = Q.client.migrate({ v: 9 }, 1, steps);
+          const twice = Q.client.migrate({ v: 0, a: 1 }, 2, { 0: (o) => ({ ...o, b: 2 }), 1: (o) => ({ ...o, c: o.b + 1 }) });
+          return { got, none, future, twice };
+        })()"""
+        r, _ = run_node({}, probe)
+        self.assertEqual(r["got"], {"v": 1, "oldGroup": "owner", "group": "owner", "type": "all"})
+        self.assertEqual(r["none"], {"v": 1, "group": "owner"})      # no step: carried as it is, nothing dropped
+        self.assertIsNone(r["future"])
+        self.assertEqual(r["twice"], {"v": 2, "a": 1, "b": 2, "c": 3})
+
+    def test_newer_version_is_not_overwritten_by_save(self):
+        """AP4: after a roll back, the page does not overwrite what a newer release kept."""
+        newer = json.dumps({"v": 7, "keep": "me"})
+        r, after = run_node({"clark.work.P1": newer}, 'Q.client.save("P1", Q.client.remember({type: "all", mode: "open", filters: {}, not: {}}, "workstream"))')
+        self.assertEqual(after["clark.work.P1"], newer)
+        r, after = run_node({"clark.work.P1": json.dumps({"v": 1})}, 'Q.client.save("P1", Q.client.remember({type: "all", mode: "open", filters: {}, not: {}}, "workstream"))')
+        self.assertEqual(json.loads(after["clark.work.P1"])["v"], 1)
+        self.assertIn("group", json.loads(after["clark.work.P1"]))
+
+    def test_unknown_key_survives(self):
+        """AP5: an unknown or retired key and an unknown field survive every write the page makes."""
+        stored = {"clark.future.thing": "x", "clark.work.v1": json.dumps({"P1": {"view": "board", "later": {"a": 1}, "order": {"retiredGroup": ["a", "b"]}, "widths": {}}, "OLD": {"view": "table"}})}
+        probe = """(() => {
+          Q.remember.remember("peekless", 1); Q.remember.forget("peekless");
+          Q.board.writeState("P1", { group: "owner" });
+          Q.cols.writeChoice("work", "P1", ["item", "status", "owner"]);
+          return Q.board.readState("P1").group;
+        })()"""
+        r, after = run_node(stored, probe)
+        self.assertEqual(r, "owner")
+        self.assertEqual(after["clark.future.thing"], "x")
+        work = json.loads(after["clark.work.v1"])
+        self.assertEqual(work["OLD"], {"view": "table"})
+        self.assertEqual(work["P1"]["later"], {"a": 1})
+        self.assertEqual(work["P1"]["order"]["retiredGroup"], ["a", "b"])
+        self.assertEqual(work["P1"]["group"], "owner")
+        self.assertEqual(work["P1"]["view"], "board")
+
+    def test_unknown_column_id_survives(self):
+        """AP6: an unknown column id stays in the kept choice (hidden, not drawn) when the person changes columns."""
+        stored = {"clark.cols.show.work.P1": json.dumps(["item", "status", "retired_col", "owner"])}
+        probe = """(() => {
+          const before = Q.cols.readChoice("work", "P1");
+          Q.cols.writeChoice("work", "P1", Q.cols.toggled("work", before, "due"));
+          return { before, after: Q.cols.readChoice("work", "P1") };
+        })()"""
+        r, after = run_node(stored, probe)
+        self.assertNotIn("retired_col", r["before"])
+        self.assertNotIn("retired_col", r["after"])
+        self.assertIn("due", r["after"])
+        self.assertIn("retired_col", json.loads(after["clark.cols.show.work.P1"]))
+        # picking the standard set again keeps the unknown id too (the key is not taken away)
+        probe2 = 'Q.cols.writeChoice("work", "P1", Q.cols.standardIds("work"))'
+        _, after2 = run_node(stored, probe2)
+        self.assertIn("retired_col", json.loads(after2["clark.cols.show.work.P1"]))
+
+    def test_changed_default_keeps_set_value(self):
+        """AP7: when a release changes a default (the standard columns, the board's group), what a person set is read back unchanged."""
+        stored = {"clark.cols.show.work.P1": json.dumps(["item", "status", "owner"]),
+                  "clark.work.v1": json.dumps({"P1": {"view": "board", "group": "owner"}})}
+        probe = """(() => {
+          Q.cols.TABLE_COLUMNS.work.find((c) => c.id === "labels").standard = true;      // a release makes Labels standard
+          Q.board.DEFAULT_STATE.group = "status"; Q.board.DEFAULT_STATE.view = "board";  // and changes the board's defaults
+          return { cols: Q.cols.readChoice("work", "P1"), st: Q.board.readState("P1"), other: Q.cols.readChoice("work", "P2") };
+        })()"""
+        r, after = run_node(stored, probe)
+        self.assertEqual(r["cols"], ["status", "item", "owner"])
+        self.assertEqual((r["st"]["view"], r["st"]["group"]), ("board", "owner"))
+        self.assertIn("labels", r["other"])                 # a person who never set it gets the new default
+        self.assertEqual(after, stored)                     # reading changes nothing
 
 
 if __name__ == "__main__":
