@@ -150,7 +150,7 @@ class Words(unittest.TestCase):
 
     def test_cards_theme_unchanged(self):
         import subprocess
-        out = subprocess.run(["git", "diff", "--name-only", "origin/team-cap-1365-s2", "--", "src/clark/themes"], cwd=HERE.parent, capture_output=True, text=True).stdout.split()
+        out = subprocess.run(["git", "diff", "--name-only", "8d7452997", "--", "src/clark/themes"], cwd=HERE.parent, capture_output=True, text=True).stdout.split()
         self.assertTrue(all(n.endswith("prototype-2.0/rules-2.css") for n in out), out)
         css = (HERE.parent / "src/clark/themes/prototype-2.0/rules-2.css").read_text(encoding="utf-8")
         self.assertEqual(len(re.findall(r"^\.ask-left-(?:folders|head)", css, re.M)), 3)
