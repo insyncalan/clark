@@ -1424,11 +1424,11 @@ class Published(unittest.TestCase):
         self.addCleanup(demo.close)
         store = demo.store
         change = changes.make_change(store.path, [], USER)
-        for ref, edit in (("ABC-S-001", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown <b>plan</b>"})):
+        for ref, edit in (("ABC-S-003", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-004", {"title": "Shown <b>plan</b>"})):
             status, body = change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "changes": edit})
             self.assertEqual(status, 200, body)
         with store.step("dashboard", USER) as st:              # words in This week and Next week: an empty text section is left out
-            for ref in ("ABC-S-005", "ABC-S-006"):
+            for ref in ("ABC-S-004", "ABC-S-005"):
                 st.update("report_sections", ref, {"body": "<p>Some words</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
@@ -1445,8 +1445,8 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
-                             "Current state has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; At a glance and the use case summary (#45) and the two text sections with words: the hidden one is left out, and no other type is drawn in a file yet")
+            self.assertEqual(titles, ["Shown <b>plan</b>", "Next week", "Milestones", "Use cases"],
+                             "Header has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; the Headline and the At a glance of a bare project draw nothing (row 1266); the two text sections with words, Milestones and Use cases (#45): the hidden one is left out, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
@@ -1465,19 +1465,19 @@ class Published(unittest.TestCase):
         self.addCleanup(demo.close)
         store = demo.store
         long_word = "Z" * 400
-        bodies = {"ABC-S-001": f"<p>Summary ZQ-SUMMARY <strong>bold</strong></p><ul><li>one</li></ul><p>{long_word}</p>"
+        bodies = {"ABC-S-003": f"<p>Summary ZQ-SUMMARY <strong>bold</strong></p><ul><li>one</li></ul><p>{long_word}</p>"
                                '<script>window.ZQ_RAN=1</script><img src="x" onerror="window.ZQ_RAN=1">'
                                '<a href="javascript:window.ZQ_RAN=1">ZQ-BAD-LINK</a>'
                                '<a href="&#106;avascript:window.ZQ_RAN=1">ZQ-ENC-LINK</a>'      # an address hidden in an entity
                                "<p>Write to ann&#64;example.com ZQ-AT</p>"                       # an entity in plain words
                                '<p style="color:red;background:url(https://evil.example/x)">ZQ-STYLED</p>'
                                '<a href="https://example.com/notes">ZQ-SAFE-LINK</a>',          # the one link that stays
-                  "ABC-S-005": "<p>ZQ-HIDDEN-THIS-WEEK</p>",
-                  "ABC-S-006": "<p>Next week ZQ-NEXT</p>"}
+                  "ABC-S-004": "<p>ZQ-HIDDEN-THIS-WEEK</p>",
+                  "ABC-S-005": "<p>Next week ZQ-NEXT</p>"}
         with store.step("dashboard", USER) as st:                         # past the editor: the store takes a text body
             for ref, body in bodies.items():
                 st.update("report_sections", ref, {"body": body})
-            st.update("report_sections", "ABC-S-005", {"hidden": 1})
+            st.update("report_sections", "ABC-S-004", {"hidden": 1})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1493,17 +1493,17 @@ class Published(unittest.TestCase):
 
             def body(ref):
                 return cdp.js(f"(document.querySelector('[data-id=\"{ref}\"] .sec-body') || {{}}).textContent || null", sid)
-            self.assertIn("Summary ZQ-SUMMARY bold", body("ABC-S-001"))
-            self.assertIn("ZQ-BAD-LINK", body("ABC-S-001"), "an unsafe link keeps its words")
-            self.assertIn("ZQ-ENC-LINK", body("ABC-S-001"), "a link hidden in an entity keeps its words")
-            self.assertIn("Write to ann@example.com ZQ-AT", body("ABC-S-001"), "an entity in the words reads as its letter")
-            self.assertIn("ZQ-STYLED", body("ABC-S-001"), "a styled paragraph keeps its words")
-            links = cdp.js("[...document.querySelectorAll('[data-id=\"ABC-S-001\"] .sec-body a[href]')].map(a => a.getAttribute('href'))", sid)
+            self.assertIn("Summary ZQ-SUMMARY bold", body("ABC-S-003"))
+            self.assertIn("ZQ-BAD-LINK", body("ABC-S-003"), "an unsafe link keeps its words")
+            self.assertIn("ZQ-ENC-LINK", body("ABC-S-003"), "a link hidden in an entity keeps its words")
+            self.assertIn("Write to ann@example.com ZQ-AT", body("ABC-S-003"), "an entity in the words reads as its letter")
+            self.assertIn("ZQ-STYLED", body("ABC-S-003"), "a styled paragraph keeps its words")
+            links = cdp.js("[...document.querySelectorAll('[data-id=\"ABC-S-003\"] .sec-body a[href]')].map(a => a.getAttribute('href'))", sid)
             self.assertEqual(links, ["https://example.com/notes"], "only the safe link has an address")
             self.assertEqual(cdp.js("document.querySelectorAll('.sec-body [style]').length", sid), 0, "no style attribute is left")
-            self.assertEqual(body("ABC-S-006"), "Next week ZQ-NEXT")
-            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"]')", sid), "a hidden section is not drawn")
-            self.assertEqual(cdp.js("document.querySelector('[data-id=\"ABC-S-001\"] .sec-body strong').textContent", sid), "bold")
+            self.assertEqual(body("ABC-S-005"), "Next week ZQ-NEXT")
+            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-004\"]')", sid), "a hidden section is not drawn")
+            self.assertEqual(cdp.js("document.querySelector('[data-id=\"ABC-S-003\"] .sec-body strong').textContent", sid), "bold")
             self.assertIsNone(cdp.js("window.ZQ_RAN || null", sid), "nothing planted ran")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.sec')].filter(s => s.dataset.type !== 'text')"
                                     ".filter(s => s.querySelector('.sec-body')).length", sid), 0, "only a text section has a body")
@@ -1512,7 +1512,7 @@ class Published(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid)),
                                 f"no sideways scroll at {w}, even with a 400-letter word")
                 self.assertEqual(edit_elements(cdp, sid), [], f"nothing to type in at {w}")
-                full = cdp.js("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
+                full = cdp.js("(function(){var s=document.querySelector('[data-id=\"ABC-S-005\"]').getBoundingClientRect(),"
                               "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()", sid)
                 self.assertTrue(full, f"with This week hidden, Next week takes the whole row at {w}")
 
@@ -1525,10 +1525,10 @@ class Published(unittest.TestCase):
         store = demo.store
         picture = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
         with store.step("dashboard", USER) as st:
-            st.update("report_sections", "ABC-S-001", {"body": f'<p><img src="{picture}" alt=""></p>'})
-            st.update("report_sections", "ABC-S-005", {"body": "<p></p><p> \n </p><br><p>&nbsp;<br></p><div><span> </span></div>",
+            st.update("report_sections", "ABC-S-003", {"body": f'<p><img src="{picture}" alt=""></p>'})
+            st.update("report_sections", "ABC-S-004", {"body": "<p></p><p> \n </p><br><p>&nbsp;<br></p><div><span> </span></div>",
                                                             "beside": 1})
-            st.update("report_sections", "ABC-S-006", {"body": "<p>Next week ZQ-NEXT</p>"})
+            st.update("report_sections", "ABC-S-005", {"body": "<p>Next week ZQ-NEXT</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1536,15 +1536,15 @@ class Published(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-006\"] .sec-body')", sid)), "the file drew")
-            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"]')", sid), "an empty This week is not drawn")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
+            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-004\"]')", sid), "an empty This week is not drawn")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.sec-h')].filter(h => h.textContent === 'This week').length", sid), 0)
-            self.assertTrue(cdp.js("!!document.querySelector('[data-id=\"ABC-S-001\"] .sec-body img')", sid), "a picture alone is not empty")
-            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", sid),
+            self.assertTrue(cdp.js("!!document.querySelector('[data-id=\"ABC-S-003\"] .sec-body img')", sid), "a picture alone is not empty")
+            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-full')", sid),
                             "the rows are worked out again without This week")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-005\"]').getBoundingClientRect(),"
                         "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
                 self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with This week empty, Next week takes the whole row at {w}")
 
@@ -1557,14 +1557,14 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "docs"} <= kinds,
+        self.assertTrue({"glancetemplate", "reportheadline", "usecases", "milestones", "text", "workitems", "doclinks"} <= kinds,      # row 1266: the ten new defaults
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:
                 if s["type"] == "text":
                     st.update("report_sections", s["id"], {"body": f"<p>Words ZQ-{s['id']}</p>"})
-            st.update("report_sections", "ABC-S-005", {"beside": 0})          # This week full width
-            st.update("report_sections", "ABC-S-006", {"beside": 1})          # Next week beside Risks and issues
+            st.update("report_sections", "ABC-S-004", {"beside": 0})          # This week full width
+            st.update("report_sections", "ABC-S-007", {"beside": 1})          # Use cases beside Risks and issues (row 1266: Next week is now followed by Milestones)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1575,24 +1575,24 @@ class Published(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-001\"] .sec-body')", sid)), "the file drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-003\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["text", "glance", "usecases", "milestones"] + ["text"] * (len([s for s in sections if s["type"] == "text"]) - 1),
-                             "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
+            self.assertEqual(drawn, ["text"] * len([s for s in sections if s["type"] == "text"]) + ["milestones", "usecases"],
+                             "only text sections, Milestones and the use case summary (#45) are drawn; a bare project's Headline, At a glance and Documents draw nothing (row 1266)")
             for s in sections:
-                if s["type"] not in ("text", "glance", "usecases", "milestones"):
+                if s["type"] not in ("text", "usecases", "milestones"):
                     self.assertIsNone(cdp.js(f"document.querySelector('[data-id=\"{s['id']}\"]')", sid), s["type"])
             page_text = cdp.js("document.body.innerText", sid)
             self.assertNotIn("is not shown", page_text)
             self.assertNotIn(QUIET, page_text)
             self.assertEqual(cdp.js("document.querySelectorAll('.quiet').length", sid), 0, "no quiet line in a file")
-            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", sid),
+            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-full')", sid),
                             "the rows are worked out again without Risks and issues")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
                         "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
-                self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with Risks and issues left out, Next week takes the whole row at {w}")
+                self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with Risks and issues left out, Use cases takes the whole row at {w}")
 
 
 if __name__ == "__main__":
