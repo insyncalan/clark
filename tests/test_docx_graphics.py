@@ -398,6 +398,60 @@ class Labels(unittest.TestCase):
         self.assertLessEqual(len(g.label("abcdefgh", 1)), 1)
         self.assertLessEqual(len(g.label("abcdefgh", 0)), 0)
 
+    def test_a_name_longer_than_19_is_not_cut_with_dots_at_the_old_place(self):
+        """Row 1322 AP2: a long lane name wraps onto at most 2 lines; the dots are only for a name too long for 2 lines."""
+        name = "Customer onboarding review"      # 26 characters
+        self.assertEqual(g.lines(name), ["CUSTOMER ONBOARDING", "REVIEW"])
+        self.assertNotIn("..", "".join(g.lines(name)))
+        self.assertEqual(g.lines("x" * 21), ["X" * 19, "XX"])
+        self.assertEqual(g.lines("short"), ["SHORT"])
+        self.assertEqual(g.lines(""), [""])
+        long = g.lines("word " * 30)
+        self.assertEqual(len(long), 2)
+        self.assertTrue(long[1].endswith(".."))
+        self.assertTrue(all(len(x) <= g.LABEL_MAX for x in long))
+        png = g.plan([ms(1, name=name), ms(2, name="Go")], "2026-11-08", TOKENS)[0][0]
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        tall = g.TOP + 2 * 7 * g.TEXT_SCALE + 4
+        second = lambda y0, y1: sum(1 for y in range(y0, y1) for x in range(g.PAD, g.LABEL_W) if palette[rows[y][x]] == want)
+        self.assertGreater(second(g.TOP + 7 * g.TEXT_SCALE + 6, tall), 20)   # ink on the name's second line
+        self.assertEqual(h, tall + g.LANE + 2)
+
+    def test_gantt_uses_the_same_font_and_name_rule_as_the_plan(self):
+        import test_docx_gantt as tg
+        out = g.gantt([tg.line(1, "Customer onboarding review"), tg.line(2, "Go")], "2026-11-08", TOKENS)
+        h = out["pictures"][0][0][2]
+        self.assertEqual(h, g.G_TOP + 2 * 7 * g.TEXT_SCALE + 4 + g.G_LANE + 2)
+        self.assertEqual(g.lines("Customer onboarding review"), ["CUSTOMER ONBOARDING", "REVIEW"])
+        for n in set(range(1, 4)):   # same glyph set: nothing outside the pixel font is drawn
+            self.assertTrue(all(ch in g._GLYPHS for ln in g.lines("Name \u05e9 " * n) for ch in ln))
+
+    def test_health_bar_has_no_text(self):
+        """Row 1322 AP4: the health bar is three coloured segments and no glyph; it has no font."""
+        want = tok()["text"]
+        for colour in ("green", "amber", "red", None):
+            png, w, h = g.health_bar(colour, TOKENS)
+            _, _, palette, rows = read_png(png)
+            self.assertNotIn(want, {palette[v] for r in rows for v in r}, colour)
+
+    def test_pictures_draw_with_the_pixel_font_when_the_font_is_not_found(self):
+        """Row 1322 AP5: no font file is read; with every font file unreadable the pictures are the same bytes, drawn with the pixel font."""
+        import builtins
+        import test_docx_gantt as tg
+        real = builtins.open
+
+        def no_fonts(file, *a, **k):
+            if str(file).lower().endswith((".ttf", ".otf", ".woff", ".woff2")):
+                raise FileNotFoundError(file)
+            return real(file, *a, **k)
+        rows = [ms(1, name="Customer onboarding review")]
+        before = (g.plan(rows, "2026-11-08", TOKENS)[0][0], g.gantt([tg.line(1, "Customer onboarding review")], "2026-11-08", TOKENS)["pictures"][0][0][0])
+        with mock.patch.object(builtins, "open", no_fonts):
+            after = (g.plan(rows, "2026-11-08", TOKENS)[0][0], g.gantt([tg.line(1, "Customer onboarding review")], "2026-11-08", TOKENS)["pictures"][0][0][0])
+        self.assertEqual(before, after)
+        self.assertGreater(len(g._GLYPHS), 36)
+
     def test_label_tiny_limits_say_what_is_kept_not_only_how_long(self):
         """Mutation sweep: a limit of 1 keeps one dot, 2 keeps two dots, 3 keeps one letter and two dots; a limit below 0 is empty."""
         self.assertEqual(g.label("abcdefgh", 1), ".")
@@ -432,7 +486,8 @@ class Labels(unittest.TestCase):
         ET.fromstring(doc)
         self.assertNotIn(b"<w:p>INJECTED", doc)
         sizes = [read_png(raw)[:2] for n, raw in parts(data).items() if n.startswith("word/media/")]
-        self.assertIn((g.WIDTH, g.TOP + 2 * g.LANE + 2), sizes)
+        # the 21-character name has no space, so it wraps onto two lines and its lane is taller (Row 1322 AP2)
+        self.assertIn((g.WIDTH, g.TOP + 2 * 7 * g.TEXT_SCALE + 4 + g.LANE + 2), sizes)
 
 
 class InTheWordFile(unittest.TestCase):
