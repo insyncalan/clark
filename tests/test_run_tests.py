@@ -134,14 +134,28 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
             self.assertGreaterEqual(weights[heavy], 250, heavy)
 
     def test_the_refreshed_heavy_weights_stay_near_what_was_measured(self):
-        """The refresh set these five files to the mean of the old weight and the macOS median x 0.93 (test_publish_public.py's 277.8 is (79.7 + 476) / 2: its median was taken as measured). A weight that drifts far
+        """Row 1523: the weights are the macOS seconds of run 45060920043. A weight that drifts far
         either way (too small leaves a shard slow, too large starves the others) is caught, within 10 percent of each."""
         weights = run_tests.shard_weights()
-        refreshed = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,
-                     "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 136}
+        refreshed = {"test_publish_public.py": 610.4, "test_publish_public_slow.py": 72.4, "test_publish_scan_time.py": 340.3,
+                     "test_filter_line_page.py": 559, "test_filter_line_page_900.py": 63.8}
         for name, expected in refreshed.items():
             with self.subTest(name=name):
                 self.assertAlmostEqual(weights[name] / expected, 1.0, delta=0.10, msg=name)
+
+    def test_six_shards_by_the_committed_weights_are_within_10_percent_and_cover_every_file_once(self):
+        """Row 1523: with the committed (macOS) weights every test file has a line, each file is in exactly one of the 6
+        shards, and the heaviest shard is within 10 percent of the lightest."""
+        files, weights = everything(), run_tests.shard_weights()
+        self.assertEqual(sorted(f.name for f in files if f.name not in weights), [], "a test file has no line")
+        seen, totals = [], []
+        for i in range(1, 7):
+            mine = run_tests.shard(files, i, 6, weights)
+            seen += [f.name for f in mine]
+            totals.append(sum(weights[f.name] for f in mine))
+        self.assertEqual(sorted(seen), sorted(f.name for f in files))
+        self.assertEqual(len(seen), len(set(seen)))
+        self.assertLessEqual(max(totals), min(totals) * 1.10, totals)
 
     def test_the_files_added_by_the_shard_fixes_are_weighted(self):
         """Mutation audit of PRs 1289 and 1304: those PRs only added lines to shard_times.txt, and deleting any of them (the files then
