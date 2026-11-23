@@ -36,6 +36,44 @@ def bundle():
     return _BUNDLE["code"]
 
 
+COMP = ROOT / "tests" / "fixtures" / "feedbacktag_component_node.js"
+HOOKS = ROOT / "tests" / "fixtures" / "feedbacktag_hooks_stub.js"
+
+
+# The page's stores read the window while loading; a bare object per name is enough, nothing here draws.
+SHIM = """const _n = () => {}; globalThis.addEventListener = _n; globalThis.removeEventListener = _n;
+globalThis.location = { hash: "", search: "", pathname: "/", href: "http://x/" }; globalThis.history = { replaceState: _n, pushState: _n };
+globalThis.matchMedia = () => ({ matches: false, addEventListener: _n, addListener: _n });
+globalThis.document = { addEventListener: _n, removeEventListener: _n, getElementById: () => null, querySelector: () => null, documentElement: { style: {}, dataset: {} } };
+"""
+
+
+def comp_bundle():
+    """The real FeedbackTag.jsx (healthVersion and the component) with preact/hooks swapped for plain stubs, so it runs as a function in node."""
+    if "comp" not in _BUNDLE:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "ftc.js"
+            flags = [f for f in build_page.preact_flags() if not f.startswith("--alias:preact/hooks=")]
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=FC", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
+                                *flags, f"--alias:preact/hooks={HOOKS}", f"--alias:@src={PAGE_SRC}", str(COMP), f"--outfile={out}"],
+                               cwd=tmp, capture_output=True, text=True)
+            assert done.returncode == 0, done.stderr
+            _BUNDLE["comp"] = out.read_text(encoding="utf-8")
+    return _BUNDLE["comp"]
+
+
+def comp_call(expr, pre=""):
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("no node")
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "probe.js"
+        script.write_text(SHIM + comp_bundle() + ";\n(async () => {" + pre + "\nconsole.log(JSON.stringify(await (%s)));})();" % expr, encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout)
+
+
 def call(expr):
     node = shutil.which("node")
     if not node:
@@ -205,3 +243,33 @@ class Killers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RealHealthAndWhere(unittest.TestCase):
+    """Row 1485 mutation round: the real healthVersion (fetch stubbed, no getVersion seam) and the real component's own `where`."""
+
+    FETCH = "globalThis.calls = []; globalThis.fetch = async (...a) => { calls.push(a); return { json: async () => (%s) }; };"
+
+    def health(self, body):
+        return comp_call("(async () => { const v = await FC.healthVersion(); return [v, calls]; })()", self.FETCH % body)
+
+    def test_health_version_asks_for_health_with_no_store_and_returns_the_string(self):
+        v, calls = self.health("{ version: '1.3.7' }")
+        self.assertEqual(v, "1.3.7")
+        self.assertEqual(calls, [["/health", {"cache": "no-store"}]])
+
+    def test_health_version_is_empty_when_the_version_is_not_a_string(self):
+        for body in ("{ version: 5 }", "{}", "null", "{ version: null }"):
+            self.assertEqual(self.health(body)[0], "", body)
+
+    def test_health_version_is_empty_when_the_call_fails(self):
+        self.assertEqual(comp_call("FC.healthVersion()", "globalThis.fetch = async () => { throw new Error('down'); };"), "")
+        self.assertEqual(comp_call("FC.healthVersion()", "globalThis.fetch = async () => ({ json: async () => { throw new Error('bad'); } });"), "")
+
+    def tag(self, state):
+        return comp_call("FC.FeedbackTag({}) === null", state)
+
+    def test_the_component_shows_in_settings_and_not_on_a_published_file(self):
+        self.assertFalse(self.tag("FC.view.value = 'settings'; FC.settingsPage.value = 'projects'; FC.fromFile.value = false;"))
+        self.assertTrue(self.tag("FC.view.value = 'settings'; FC.settingsPage.value = 'projects'; FC.fromFile.value = true;"))
+        self.assertTrue(self.tag("FC.view.value = 'dashboard'; FC.helpOpen.value = true; FC.fromFile.value = true;"))
