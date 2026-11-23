@@ -88,8 +88,87 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 
 /* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
 .ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
+/* Row 1364: font colour. The six colours are design tokens (never a hex); the same classes colour the text in the editor, in the page and in the published file. */
+.rt-c-grey { color: var(--text-muted); }
+.rt-c-brand { color: var(--brand-blue); }
+.rt-c-red { color: var(--tone-red-text); }
+.rt-c-amber { color: var(--tone-amber-text); }
+.rt-c-green { color: var(--tone-green-text); }
+.rt-c-blue { color: var(--tone-blue-text); }
+.rt-colour { position: relative; display: inline-flex; }
+.rt-A { font-weight: 700; line-height: 1.1; border-bottom: 3px solid var(--text); }
+.rt-pal { position: absolute; z-index: 31; top: calc(100% + 4px); left: 0; box-sizing: border-box; width: 208px; padding: 8px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 8px; box-shadow: 0 6px 18px rgba(14, 36, 48, .12); }
+.rt-pal.end { left: auto; right: 0; }
+.rt-pal-auto { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); cursor: pointer; }
+.rt-pal-auto:hover { background: var(--grey-100); }
+.rt-pal-auto:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.rt-sw { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 32px; border: 1px solid var(--grey-200); border-radius: 6px; background: var(--surface);  font-size: var(--size-small); font-weight: 700; cursor: pointer; }
+.rt-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rt-sw[aria-checked="true"] { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.rt-A[data-colour="grey"] { border-bottom-color: var(--text-muted); } .rt-sw-grey { color: var(--text-muted); }
+.rt-A[data-colour="brand"] { border-bottom-color: var(--brand-blue); } .rt-sw-brand { color: var(--brand-blue); }
+.rt-A[data-colour="red"] { border-bottom-color: var(--tone-red-text); } .rt-sw-red { color: var(--tone-red-text); }
+.rt-A[data-colour="amber"] { border-bottom-color: var(--tone-amber-text); } .rt-sw-amber { color: var(--tone-amber-text); }
+.rt-A[data-colour="green"] { border-bottom-color: var(--tone-green-text); } .rt-sw-green { color: var(--tone-green-text); }
+.rt-A[data-colour="blue"] { border-bottom-color: var(--tone-blue-text); } .rt-sw-blue { color: var(--tone-blue-text); }
+/* Row 1261 (Classic only; Cards keeps its rules): the Report headline as the approved mock-up draws it (headline-approved.html:16-20): the pill icon is 14px (shell.css gives it --space-4, 16px) and the headline is in the body colour --text (shell.css gives it --heading). Pinned by tests/test_reportheadline_pill_colour_1261.py. */
+.tpl-rh-block .tpl-rh-pill svg { width: 14px; height: 14px; }
+.tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
+/* Row 1194 (Documents and links; Classic only, Cards keeps the rows, buttons and form it has: its markup is the old one, see templates/DocLinks.jsx). The type badges' fills, the page icon, the row of the approved mockup, the Open and Download icon buttons and the Edit form's icon row. Every rule names the list (.tpl-dl-links) or the editor's group (.tpl-files-edit), so the base rules of shell.css and edit.css, which stay as they are, lose where both apply. */
+:root { /* Row 1194 (approved mock-up, 18-11): the page icons' colours and outline are the mock's (PDF E8410C, XLS 1E9B4B, PPT E8601C, JPG 6B46C1, PNG E0358B, TXT F2A400; DOC, URL, MAIL as before; outline ink 0E2430); no exemption for contrast (ruling 19-11) beyond the named ones in test_doclinks_badge_contrast */ --badge-pdf: rgb(232, 65, 12); --badge-doc: rgb(31, 95, 191); --badge-xls: rgb(30, 155, 75); --badge-ppt: rgb(232, 96, 28); --badge-jpg: rgb(107, 70, 193); --badge-png: rgb(224, 53, 139); --badge-txt: rgb(242, 164, 0); --badge-url: rgb(91, 71, 216); --badge-mail: rgb(14, 124, 134); --badge-file: rgb(90, 107, 119); --badge-ink: rgb(14, 36, 48); }
+.tpl-dl-links .tpl-badge { height: 41px; min-width: 41px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.tpl-badge.tpl-page { min-width: 0; width: 41px; padding: 0; background: none; }
+.tpl-badge.tpl-page svg { display: block; }
+.tpl-dl-links .tpl-dl-i { padding: 8px 10px 8px 14px; border-radius: 12px; }     /* item 1194: the approved mockup's row */
+.tpl-dl-links .tpl-dl-i .tpl-name, .tpl-dl-links .tpl-dl-i .tpl-rename { font-size: 16px; font-weight: 500; }      /* bare 16px and weight 500: the approved mock-up's .nm and .nmin (Classic's --size-body is 14px, --weight-medium 600) */
+.tpl-dl-links .tpl-dl-i .tpl-main { line-height: 1.3; }
+.tpl-dl-links .tpl-acts { display: inline-flex; gap: var(--space-1); align-self: center; }
+.tpl-dl-links a.tpl-act, .tpl-dl-links button.tpl-act { display: inline-flex; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; border-radius: var(--radius); color: var(--text-muted); }
+.tpl-dl-links a.tpl-act:hover, .tpl-dl-links button.tpl-act:hover { background: var(--grey-100); color: var(--link); }
+.tpl-dl-links a.tpl-act:focus-visible, .tpl-dl-links button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.tpl-badge.tpl-plain { width: 41px; padding: 0; border-radius: var(--radius-sm); color: var(--white); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.tpl-badge.tpl-ic-PDF { background: var(--badge-pdf); }  /* white */
+.tpl-badge.tpl-ic-DOC { background: var(--badge-doc); }
+.tpl-badge.tpl-ic-XLS { background: var(--badge-xls); }  /* white */
+.tpl-badge.tpl-ic-PPT { background: var(--badge-ppt); }  /* white */
+.tpl-badge.tpl-ic-JPG { background: var(--badge-jpg); }
+.tpl-badge.tpl-ic-PNG { background: var(--badge-png); }  /* white */
+.tpl-badge.tpl-ic-TXT { background: var(--badge-txt); }  /* white: the mock's file tile, TXT has no tile of its own */
+.tpl-badge.tpl-ic-URL { background: var(--badge-url); }
+.tpl-badge.tpl-ic-MAIL { background: var(--badge-mail); }
+.tpl-badge.tpl-ic-FILE { background: var(--badge-file); }
+.tpl-act-g { font-size: var(--size-h3); line-height: 1; }
+.tpl-act-open::before { content: "\2197"; }
+.tpl-act-download::before { content: "\2193"; }
+.tpl-files-edit .tpl-icons { position: relative; display: flex; justify-content: flex-end; gap: 6px; margin: -56px 0 6px; pointer-events: none; }   /* item 1194: on the title's line, as in the mockup; -56 = the old -43 less the 13 px the title line grew when the title got its underline span (row 1408); measured, not a mock-up value (the mock-up gives centred on the title line, 44 px buttons, 6 px apart, flush right) */
+.tpl-files-edit .tpl-icons > * { pointer-events: auto; }
+.sec:has(.tpl-files-edit) .sec-head { padding-right: 112px; }   /* code measurement, not from the mock: 2 x 44 px buttons + the 6 px gap + 18 px air keep the title clear of the icons */
+.tpl-files-edit .tpl-icons .tpl-form { position: absolute; right: 0; top: 54px; z-index: 6; width: min(340px, calc(100vw - 48px)); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }   /* width 340px and top 54px: the mock's .pop (width min(340px, 100vw - 48px), top 54px); the padding, border and shadow are tokens, not mock values */
+.tpl-files-edit .tpl-allowed { margin: 0; padding: 10px 14px; border: 1px solid var(--grey-200); border-radius: 12px; font-size: var(--size-caption); color: var(--text-muted); }   /* padding 10px 14px and radius 12px: the mock's .al; 13px is the --size-caption token, not the mock's 12.5px (kept, reason in the test) */
+.tpl-files-edit .tpl-allowed strong { color: var(--text); }
+.tpl-files-edit .tpl-icon { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; margin: 0; }
+.tpl-files-edit .tpl-icons > .tpl-icon { border-color: var(--grey-200); border-radius: var(--radius-pill); color: var(--text); }
+.tpl-files-edit .tpl-icons > .tpl-icon:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--brand-blue); }
+.tpl-files-edit .tpl-dl-i .tpl-icon + .tpl-icon { margin-left: -10px; }   /* the row's 12 px gap less 10 = 2 px between the three, the mock's .act gap 2px with 44 px buttons (measured 46 px step at 1400 and 900; the mock's 6px gap is .hdb, the header icons, which .tpl-icons has) */
+.tpl-files-edit .tpl-dl-i .tpl-icon { border: 0; border-radius: 10px; background: none; color: var(--text-muted); }
+.tpl-files-edit .tpl-dl-i .tpl-icon:hover:not([disabled]) { background: var(--brand-blue-tint); color: var(--brand-blue); }
+.tpl-files-edit .tpl-dl-i .tpl-icon[disabled] { opacity: .3; }
+.tpl-files-edit .tpl-hint { font-size: var(--size-caption); }
+.tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; }
+.tpl-files-edit .tpl-rename:hover { border-color: var(--grey-300); }
+.tpl-files-edit .tpl-dl-i { align-items: center; }
+/* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
+.set-nav .plain { gap: 4px; }
+/* Row 1292 (feature 9): Copy and Ask again under each answer, Classic only, as the prototype draws them: two quiet links, shown on hover or focus and always under the last answer. */
+.ask-turn-acts { display: flex; gap: 2px; margin-top: 6px; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-turn.assistant:hover .ask-turn-acts, .ask-turn.assistant:focus-within .ask-turn-acts, .ask-turn.assistant:last-child .ask-turn-acts { opacity: 1; }
+.ask-turn-acts .ask-act { min-height: 24px; padding: 0 8px; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius-sm); }
+.ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
