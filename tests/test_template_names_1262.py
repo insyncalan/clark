@@ -75,13 +75,13 @@ class TemplateNames(unittest.TestCase):
         self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', TEMPLATES)
         self.assertRegex(TEMPLATES, r'\{ id: "gantt-table", name: GANTT_TABLE_NAME, ')
 
-    def test_the_two_picture_cards_keep_their_names(self):      # row 1223 replaces them with one Image card
-        self.assertRegex(WORDS, r'WORDS = \{\s+name: "Full width image",')
-        self.assertRegex(TEMPLATES, r'\{ id: "image-caption", name: "Image with caption", kind:')
+    def test_the_image_card_keeps_its_name(self):      # row 1223 replaced the two picture cards with one Image card
+        self.assertRegex(WORDS, r'name: "Image",')
+        self.assertRegex(TEMPLATES, r'\{ id: "full-image", name: WORDS.name, kind:')
 
     def test_help_has_a_row_headed_with_each_name(self):
         heads = [r[0] for r in help_rows()]
-        for name in set(NAMES.values()) | {"Image with caption", "Full width image"}:
+        for name in set(NAMES.values()) | {"Image"}:
             self.assertIn(name, heads, f"Help has a row headed {name}")
         self.assertEqual(heads.count("Numbers"), 2, "the two Numbers cards have a row each")
 
