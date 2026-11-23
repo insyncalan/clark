@@ -17,6 +17,7 @@ class LabelsCell(unittest.TestCase):
     visit = _Columns.visit
     open_table = _Columns.open_table
     right_click = _Columns.right_click
+    open_menu = _Columns.open_menu
     menu = _Columns.menu
     heads = _Columns.heads
     pick = _Columns.pick
@@ -35,8 +36,7 @@ class LabelsCell(unittest.TestCase):
     def test_the_menu_lists_labels_and_ticking_it_draws_the_names_in_that_row_and_a_dash_in_the_others(self):
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work")
-            self.right_click(cdp, sid, TABLES["work"][2] % "owner")
-            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+            self.assertTrue(self.open_menu(cdp, sid, js, TABLES["work"][2] % "owner"), "the menu opens")
             self.assertIn("Labels", [i["name"] for i in self.menu(js)["items"]], "the menu offers Labels")
             self.pick(js, "Labels")
             self.assertTrue(wait(lambda: "labels" in self.heads(js, "work"), 5), "the column appears")
