@@ -95,8 +95,11 @@ export function PeekLatest({ row }) {
   return <LatestBox id={row.id} now={rec && rec.latest_update ? String(rec.latest_update) : ""} stamp={rec ? stampText(rec.updated_at) : ""} shown={!!row.client} save={save} />;
 }
 
+/** The empty box's text, one for every peek (row 1548: the work item peek and the milestone peek both show it). */
+export const LATEST_PLACEHOLDER = "What changed? Add the latest update…";
+
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
-export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "What changed? Add the latest update…" }) {
+export function LatestBox({ id, now, stamp, shown, save: send, placeholder = LATEST_PLACEHOLDER }) {
   const [open, setOpen] = useState(false);
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
