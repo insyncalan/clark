@@ -102,7 +102,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
                   <label class="rce-ck"><input type="checkbox" checked={on && !off} disabled={off} onChange={(e) => setShow(i, key, e.currentTarget.checked)} /><span>{label}{hint ? <small>{hint}</small> : null}</span></label>
                 );
                 return <>
-                  {box("latest", "Latest update", shows(card.show, "latest"), !has, has ? "" : "This item has no latest update yet")}
+                  {box("latest", "Latest update", shows(card.show, "latest"), !has, has ? "" : "This item has no latest update yet.")}
                   {box("meta", "Owner, status and date", shows(card.show, "meta"), false, "")}
                   {found.kind === "raid" ? box("rating", "Impact and likelihood", shows(card.show, "rating"), false, "") : null}
                 </>;

@@ -133,7 +133,7 @@ class Edit(PageBase):
             p.until(f"document.querySelector('{q} .rce-count').textContent === '3 of 8 picked'", "count follows")
             # the second card's latest update is empty: its box is off and explained; the first card's is on
             self.assertEqual(p.js(f"[...document.querySelectorAll('{q} [data-slot=\"1\"] .rce-ck')].map(l => l.textContent)"),
-                             ["Latest updateThis item has no latest update yet", "Owner, status and date", "Impact and likelihood"])
+                             ["Latest updateThis item has no latest update yet.", "Owner, status and date", "Impact and likelihood"])
             self.assertTrue(p.js(f"document.querySelector('{q} [data-slot=\"1\"] .rce-ck input').disabled"))
             click(p, f"{q} [data-slot='0'] .rce-ck:nth-of-type(3) input")
             self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0].get("show") == {"rating": False}), str(self.stored(sec)))
