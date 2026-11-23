@@ -64,10 +64,20 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
 @media screen { .set-layout.set-win { padding-left: 20px; } }
 @media print { .set-layout.set-win { padding-left: 0; } }
+/* Row 1261 (Classic only; Cards keeps its rules): the Report headline as the approved mock-up draws it (headline-approved.html:16-20): the pill icon is 14px (shell.css gives it --space-4, 16px) and the headline is in the body colour --text (shell.css gives it --heading). Pinned by tests/test_reportheadline_pill_colour_1261.py. */
+.tpl-rh-block .tpl-rh-pill svg { width: 14px; height: 14px; }
+.tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
+/* Row 1292 (feature 9): Copy and Ask again under each answer, Classic only, as the prototype draws them: two quiet links, shown on hover or focus and always under the last answer. */
+.ask-turn-acts { display: flex; gap: 2px; margin-top: 6px; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-turn.assistant:hover .ask-turn-acts, .ask-turn.assistant:focus-within .ask-turn-acts, .ask-turn.assistant:last-child .ask-turn-acts { opacity: 1; }
+.ask-turn-acts .ask-act { min-height: 24px; padding: 0 8px; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius-sm); }
+.ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
