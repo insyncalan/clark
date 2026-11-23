@@ -81,8 +81,13 @@ class Source(unittest.TestCase):
     def test_the_high_pair_sits_in_rules_2_before_row_1314_and_rules_1_does_not_name_it(self):
         base = Path(__file__).resolve().parent.parent / "src/clark/themes/prototype-2.0"
         two = (base / "rules-2.css").read_text(encoding="utf-8")
-        self.assertIn("--pri-high-bg: #F4DEDB; --pri-high-fg: #B3392F;", two)
-        self.assertLess(two.index("--pri-high-bg: #F4DEDB"), two.index("/* Row 1314"))
+        self.assertIn("--pri-high-bg: var(--pri-high-sheet-bg); --pri-high-fg: var(--pri-high-sheet-fg);", two)
+        self.assertLess(two.index("--pri-high-bg: var(--pri-high-sheet-bg)"), two.index("/* Row 1314"))
+        dark = "--pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text);"      # dark and auto-dark keep the status tokens (the sheet's red is light only)
+        self.assertIn(":root[data-theme=dark] { " + dark + " }", two)
+        self.assertIn(":root[data-theme=auto] { " + dark + " } }", two)
+        tokens = (base / "tokens.css").read_text(encoding="utf-8")
+        self.assertIn("--pri-high-sheet-bg: #F4DEDB; --pri-high-sheet-fg: #B3392F;", tokens)
         self.assertNotIn("F4DEDB", (base / "rules.css").read_text(encoding="utf-8").upper())
 
 
