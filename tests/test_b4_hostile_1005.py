@@ -238,7 +238,16 @@ class Movement(tmp.Base):
                 # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
                 # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
                 p.t.assertTrue(wait(lambda: p.js("document.hasFocus() && !!document.querySelector(%s) && document.querySelector(%s).contains(document.activeElement)" % (sel, sel)), 15), "page focused with the caret in the open editor")
+                p.js("""(function(){ var d = function(n){ return !n ? null : (n.nodeType === 9 ? '#document' : (n.id || n.className || n.tagName)); };
+                    window.__ev = []; window.__act = []; window.__e0 = performance.now();
+                    ['keydown', 'keyup', 'focusin', 'focusout'].forEach(function(t){ [document, document.querySelector(%s)].forEach(function(o, i){ if (!o) return;
+                        o.addEventListener(t, function(e){ window.__ev.push([Math.round(performance.now() - window.__e0), t, i ? 'editor' : 'document', e.key || null, d(e.target), d(e.relatedTarget), d(document.activeElement)]); }, true); }); }); })()""" % sel)
                 p.key("Tab", code="Tab", vk=9)
+                for _ in range(20):
+                    time.sleep(0.1)
+                    p.js("window.__act.push([Math.round(performance.now() - window.__e0), document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null])")
+                print("DEBUG1556 %s %s events=%s" % (width, theme, json.dumps(p.js("window.__ev"))), flush=True)
+                print("DEBUG1556 %s %s active100ms=%s" % (width, theme, json.dumps(p.js("window.__act"))), flush=True)
                 # The editor closes when its leave handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
                 gone = None
                 end = time.monotonic() + 10
@@ -248,6 +257,7 @@ class Movement(tmp.Base):
                         break
                     time.sleep(0.05)
                 seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                print("DEBUG1556 end %s %s gone=%s events=%s seen=%s" % (width, theme, gone, json.dumps(p.js("window.__ev")), seen), flush=True)
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
