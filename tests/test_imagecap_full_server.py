@@ -11,7 +11,7 @@ import unittest
 import zlib
 
 from _pictures import EXIF, GOOD_JPEG, GOOD_WEBP, data, jpeg, png
-from clark.section_kinds import imagecap as fi
+from clark.section_kinds import gallery, imagecap as fi
 from clark.section_kinds.base import Bad
 from clark.section_kinds.textimage import BAD_SLOT, CAMERA_DETAILS, NOT_A_PICTURE
 
@@ -179,7 +179,7 @@ class Refusals(unittest.TestCase):
             fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
         said.append(str(e.exception))
         for words in said:
-            self.assertNotIn("picture", words.lower())
+            self.assertNotIn("picture", words.lower().replace("add a picture", ""))     # the button keeps its words
             self.assertIn("image", words)
         with self.assertRaises(Bad) as e:
             fi.check({"v": 1, "pictures": {"image": "data:image/gif;base64,R0lGODlhAQABAAAAACw="}}, None)
@@ -409,8 +409,9 @@ class Limits(unittest.TestCase):
 
     def test_the_server_route_takes_what_this_type_may_send(self):
         from clark import server
-        self.assertEqual(server.IMAGE_FILE_MB * 1024 * 1024, fi.PICTURE_MAX)
-        self.assertGreater(server.ROUTE_BODY_LIMITS["/api/section-image"], fi.PICTURE_MAX * 4 // 3 + server.REQUEST_ENVELOPE)
+        self.assertEqual(server.IMAGE_FILE_MB * 1024 * 1024, gallery.PICTURE_MAX, "the route is sized for the gallery, the largest send")
+        self.assertLess(fi.PICTURE_MAX, server.IMAGE_FILE_MB * 1024 * 1024, "the Image template refuses over its own 8 MiB")
+        self.assertGreater(server.ROUTE_BODY_LIMITS["/api/section-image"], gallery.PICTURE_MAX * 4 // 3 + server.REQUEST_ENVELOPE)
         self.assertGreater(server.BODY_LIMIT, 0)
 
     def test_the_stored_body_limit_is_this_types(self):
