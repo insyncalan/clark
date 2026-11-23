@@ -148,9 +148,13 @@ def lines(text, limit=LABEL_MAX, most=2):
     if len(out) > most:
         # PM ruling: a name of limit*most characters or fewer never gets dots (it is cut at the line width if the word breaks
         # do not fit); a longer one wraps at the line width and keeps '..' at the end of the last line.
-        out = [text[i * limit:(i + 1) * limit] for i in range(most)]
-        if len(text) > limit * most:
-            out[-1] = (out[-1][:max(0, limit - 2)] + "..")[:limit]
+        out, rest = [], text
+        for _ in range(most):                             # a cut never leaves a space at the start or end of a line
+            rest = rest.lstrip(" ")
+            out.append(rest[:limit].rstrip(" "))
+            rest = rest[limit:]
+        if rest:                                          # the name has no trailing space, so what is left is a word
+            out[-1] = (out[-1][:max(0, limit - 2)].rstrip(" ") + "..")[:limit]
     return out
 
 

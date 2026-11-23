@@ -478,6 +478,10 @@ class Labels(unittest.TestCase):
         tall = g.TOP + 2 * 7 * g.TEXT_SCALE + 4
         h = g.plan([ms(1, name="x" * 39), ms(2, name="Go")], "2026-11-08", TOKENS)[0][0]
         self.assertEqual(read_png(h)[1], tall + g.LANE + 2)
+        import test_docx_gantt as tg
+        gh = g.gantt([tg.line(1, "x" * 39), tg.line(2, "Go")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        self.assertEqual(read_png(gh)[1], g.G_TOP + 32 + g.G_LANE + 2)
+        self.assertEqual(2 * 7 * g.TEXT_SCALE + 4, 32)
 
     def test_the_names_in_the_ruling_are_counted_after_upper_casing_and_trimming_not_before(self):
         """Row 1322 ruling: the 38 count is the characters that are drawn."""
