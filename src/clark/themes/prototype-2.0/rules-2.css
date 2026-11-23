@@ -123,6 +123,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-files-edit .tpl-dl-i { align-items: center; }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
+/* Row 1286 AP4 (ruling 23-11; Classic only; here because rules.css is at the 128 KB file limit, beside its Row 1286 menu rules at rules.css:411): the icons of Group by, Add and Move to draw the mock-up tones (menu-icons.css:5) - red, green and blue; amber and grey are already the same. The other menus keep production's tones. The three tokens hold exactly the mock-up values in light and in dark (tests/test_menu_icon_tones_1286.py pins them). */
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-r { color: var(--status-red-text); }
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-g { color: var(--status-green-text); }
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-b { color: var(--tone-blue-text); }
 /* Row 1292 (feature 9): Copy and Ask again under each answer, Classic only, as the prototype draws them: two quiet links, shown on hover or focus and always under the last answer. */
 .ask-turn-acts { display: flex; gap: 2px; margin-top: 6px; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
 .ask-turn.assistant:hover .ask-turn-acts, .ask-turn.assistant:focus-within .ask-turn-acts, .ask-turn.assistant:last-child .ask-turn-acts { opacity: 1; }
