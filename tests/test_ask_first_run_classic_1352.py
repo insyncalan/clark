@@ -6,9 +6,12 @@ panel (mock-up folder 1292-ask-clark-prototype, ask.js line 203 and 207, app.css
 same at both. The Cards theme keeps what it had: its card has no frame (it is still a block with one line under it).
 Only the design and the format are compared; the prototype's own words are not pinned here beyond the ticket's wording.
 """
+import threading
+import time
 import unittest
 
 import _testpage as testpage
+from _new_page import reload_to_new_page
 from _real_server import real_server
 from clark import page, theme as themes
 from test_ask_panel import Stub
@@ -132,8 +135,241 @@ class ClassicWords(Classic):
             self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on")
 
 
+class FoldersSaid:
+    """What the server's folders route says for the open project: nothing set, or its own folders, or only folders for all projects."""
+
+    def __init__(self, own=(), shared=(), status=200, ok=True, gate=None):
+        self.own, self.shared, self.status, self.ok, self.gate = list(own), list(shared), status, ok, gate
+
+    def read(self, code):
+        if self.gate is not None:
+            self.gate.wait(30)
+        return self.status, {"ok": self.ok, "folders": self.own, "shared": self.shared}
+
+
+BULLET = "document.querySelectorAll('#ask-first-run li')[0].textContent"
+PLAIN = "I read this project's work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings."
+NAMED = "I read this project's work items, milestones and use cases and the folders you named. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings."
+
+
+class ClassicFolders(Classic):
+    def bullet(self, folders):
+        self.s.httpd.ask_folders = folders
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-first-run')", "card")
+            p.until(f"{BULLET} === {(NAMED if folders.own or folders.shared else PLAIN)!r}", "the bullet settles on what the folders say")
+            return p.js(BULLET)
+
+    def test_bullet_one_names_the_folders_only_when_the_project_has_some(self):
+        self.assertEqual(self.bullet(FoldersSaid(own=["/home/x/notes"])), NAMED)
+
+    def test_bullet_one_names_the_folders_when_only_folders_for_all_projects_are_set(self):
+        self.assertEqual(self.bullet(FoldersSaid(shared=["/home/x/all"])), NAMED)
+
+    def test_bullet_one_is_the_plain_line_when_the_project_has_no_folders(self):
+        self.assertEqual(self.bullet(FoldersSaid()), PLAIN)
+
+
+class ClassicFoldersWaiting(Classic):
+    def test_bullet_one_is_the_plain_line_until_the_folders_answer_comes_and_then_names_them(self):
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        self.s.httpd.ask_folders = FoldersSaid(own=["/home/x/notes"], gate=gate)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-first-run')", "card")
+            self.assertEqual(p.js(BULLET), PLAIN, "the answer has not come: no folders are claimed")
+            gate.set()
+            p.until(f"{BULLET} === {NAMED!r}", "the bullet names the folders once the answer is in")
+
+
+class FoldersByProject:
+    """The folders route for two projects: ABC has some, any other has none. A project answers only when its event in `gates` is set
+    (a project with no event answers at once), so the test can look at the page while an answer is still out."""
+
+    def __init__(self, gates):
+        self.asked, self.gates = [], gates
+
+    def read(self, code):
+        self.asked.append(code)
+        if code in self.gates:
+            self.gates[code].wait(30)
+        return 200, {"ok": True, "folders": ["/home/x/notes"] if code == "ABC" else [], "shared": []}
+
+
+class ClassicFoldersProjectSwitch(Classic):
+    def test_switching_to_a_project_without_folders_goes_back_to_the_plain_line_even_with_the_panel_open(self):
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        self.s.httpd.ask_folders = said = FoldersByProject({"ZZZ": gate})
+        with self.store.step("dashboard", "tester") as st:
+            st.create("projects", {"code": "ZZZ", "name": "Second Programme", "health": "On track"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            # The page reloads for another project when served over http; this keeps it in place (as a project switch inside one page does),
+            # so what the open panel does with the new project is what is seen.
+            p.js("URLSearchParams.prototype.get = function (k) { return k === 'project' ? (location.hash.match(/p=([A-Z]+)/) || [])[1] || '' : null; }")
+            for width in (1400, 900):
+                self.at(p, width)
+                p.key("/", code="Slash", vk=191)
+                p.until("!!document.querySelector('#ask-first-run')", f"card at {width}")
+                p.until(f"{BULLET} === {NAMED!r}", f"project ABC names its folders at {width}")
+                gate.clear()
+                said.asked.clear()
+                p.js("location.hash = '#dashboard&p=ZZZ'")
+                p.until(f"{BULLET} === {PLAIN!r}", f"the plain line comes back at once on the switch, before ZZZ answers, at {width}")
+                for _ in range(100):
+                    if "ZZZ" in said.asked:
+                        break
+                    time.sleep(0.1)
+                self.assertEqual(said.asked.count("ZZZ"), 1, "ZZZ's folders were asked for")
+                gate.set()
+                p.until(f"{BULLET} === {PLAIN!r}", f"ZZZ has none, so it stays plain at {width}")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until(f"{BULLET} === {NAMED!r}", f"back on ABC the folders are named again at {width}")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("document.querySelector('#ask-panel') === null", "closed")
+
+
+    def test_an_answer_for_the_old_project_that_comes_late_is_not_taken_for_the_new_one(self):
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        self.s.httpd.ask_folders = said = FoldersByProject({"ABC": gate})
+        with self.store.step("dashboard", "tester") as st:
+            st.create("projects", {"code": "ZZZ", "name": "Second Programme", "health": "On track"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("URLSearchParams.prototype.get = function (k) { return k === 'project' ? (location.hash.match(/p=([A-Z]+)/) || [])[1] || '' : null; }")
+            for width in (1400, 900):
+                self.at(p, width)
+                gate.clear()
+                p.key("/", code="Slash", vk=191)
+                p.until("!!document.querySelector('#ask-first-run')", f"card at {width}")
+                p.js("location.hash = '#dashboard&p=ZZZ'")
+                for _ in range(100):
+                    if "ZZZ" in said.asked:
+                        break
+                    time.sleep(0.1)
+                self.assertIn("ZZZ", said.asked)
+                p.until(f"{BULLET} === {PLAIN!r}", f"ZZZ has none: plain at {width}")
+                gate.set()                                   # ABC's answer (it has folders) arrives now, after the switch
+                time.sleep(1)
+                self.assertEqual(p.js(BULLET), PLAIN, f"the old project's late answer does not name folders for the new one at {width}")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until(f"{BULLET} === {NAMED!r}", "back on ABC")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("document.querySelector('#ask-panel') === null", "closed")
+
+
+class ClassicFoldersRefused(Classic):
+    def plain_after(self, folders):
+        self.s.httpd.ask_folders = folders
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-first-run')", "card")
+            p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "risen")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim().length > 0"), True)
+            self.assertEqual(p.js(BULLET), PLAIN)
+
+    def test_bullet_one_stays_plain_when_the_folders_answer_is_not_ok(self):
+        self.plain_after(FoldersSaid(own=["/home/x/notes"], ok=False))
+
+    def test_bullet_one_stays_plain_when_the_folders_answer_is_not_a_200(self):
+        self.plain_after(FoldersSaid(own=["/home/x/notes"], status=500))
+
+
+class ClassicStates(Classic):
+    def test_the_off_state_says_ready_in_the_status_line_and_shows_the_card(self):
+        self.stub.enabled = False
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-off') && !!document.querySelector('#ask-first-run')", "off panel")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project's report data.")
+
+    def test_the_working_state_says_working_in_the_status_line(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled", "ready")
+            p.js("document.querySelector('#ask-box').focus()")
+            p.type("Summarise the risks")
+            p.js("document.querySelector('#ask-send').click()")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Working. You can close this: it carries on.")
+            self.stub.hold.set()
+
+    def ask_one(self, p, text):
+        p.until("!!document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled", "ready")
+        p.js("document.querySelector('#ask-box').focus()")
+        p.type(text)
+        p.js("document.querySelector('#ask-send').click()")
+
+    def test_pin_a_closing_the_panel_while_a_question_is_out_and_opening_it_again_shows_the_answer(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            self.ask_one(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "the panel is closed")
+            self.stub.hold.set()
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-label') === 'ask clark, 1 answer ready'", "the answer landed while closed")
+            p.js("document.querySelector('#ask-btn').click()")
+            p.until("!!document.querySelector('#ask-panel')", "the panel is open again")
+            p.until("document.body.textContent.indexOf('The pilot goes live in March.') >= 0", "the answer is shown")
+            self.assertEqual(self.stub.count("stop"), 0)
+
+    def test_pin_b_page_side_after_a_reload_a_new_question_that_the_server_calls_busy_is_shown_the_busy_words(self):
+        # Page side only: the stub answers "busy" itself, as the real ask_claude does while a run holds its lock (ask_claude.py BUSY);
+        # this pins that the reloaded page shows those words. That the server refuses the second run is not tested here.
+        self.stub.hold.clear()
+        run = {"on": False}
+        real_ask = self.stub.ask
+
+        def ask(body):
+            if run["on"]:
+                self.stub.calls.append(("ask", body))
+                return 200, {"ok": False, "code": "busy", "message": "Another question is being answered. Wait for it, or press Stop."}
+            run["on"] = True
+            try:
+                return real_ask(body)
+            finally:
+                run["on"] = False
+        self.stub.ask = ask
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            self.ask_one(p, "First question")
+            p.until("!!document.querySelector('#ask-stop')", "the first question is out")
+            reload_to_new_page(p.js, what="the page reloaded")
+            p.key("/", code="Slash", vk=191)
+            self.ask_one(p, "Second question")
+            p.until("document.body.textContent.indexOf('Another question is being answered.') >= 0", "the second question is told to wait")
+            self.stub.hold.set()
+
+
 class CardsKeepsItsOwn(Classic):
     THEME = None
+
+    def test_cards_status_line_says_working_while_a_question_is_out(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled", "ready")
+            p.js("document.querySelector('#ask-box').focus()")
+            p.type("Summarise the risks")
+            p.js("document.querySelector('#ask-send').click()")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Working")
+            self.stub.hold.set()
 
     def test_the_cards_theme_has_no_frame_on_the_card(self):
         """The rules above are the Classic theme's: Cards draws the card with the rules it had (a block with one line under it, no radius)."""
@@ -143,6 +379,14 @@ class CardsKeepsItsOwn(Classic):
             p.until("!!document.querySelector('#ask-first-run')", "card")
             card = self.read(p, "#ask-first-run")
             self.assertEqual((card["borderTopWidth"], card["borderTopLeftRadius"]), ("0px", "0px"))
+
+    def test_cards_keeps_its_line_even_when_the_project_has_folders(self):
+        self.s.httpd.ask_folders = FoldersSaid(own=["/home/x/notes"])
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-first-run')", "card")
+            self.assertEqual(p.js("document.querySelector('#ask-first-run p').textContent"), "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.")
 
     def test_cards_is_as_on_main_the_three_plain_lines_and_the_model_in_the_status_line(self):
         self.stub.standing, self.stub.model = True, "Sonnet"
