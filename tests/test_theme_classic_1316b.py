@@ -95,7 +95,8 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c["colsBorderB"], c["lineB"], tag)
                     self.assertEqual((c["colsWeight"], c["colsSize"], c["colsPadT"], c["rowPadR"]), ("700", "13px", "10px", "16px"), tag)
                     self.assertNotIn(c["colsTrack"], ("normal", "0px"), tag)
-                    self.assertEqual(c["st"], "flex column flex-start 3px", tag)
+                    # macOS Chrome reports the computed value of align-items: flex-start as 'flow-start' (same top alignment, other keyword); the CSS value is flex-start
+                    self.assertEqual(c["st"].replace("flow-start", "flex-start"), "flex column flex-start 3px", tag)
                     self.assertEqual((c["chipPad"], c["chipBorderW"], c["chipSize"], c["chipWeight"]), ("2px 9px", "1px", "14px", "400"), tag)
                     self.assertEqual(c["chipBorderC"], c["grey300"], tag)
                     self.assertTrue(c["fits"], tag)
