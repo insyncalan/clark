@@ -2,7 +2,7 @@
 // which are shown and how many are unread come from logic/notices.js. Read ids are kept per person in this browser (try/catch: a private window keeps them for this visit only).
 import { signal, computed } from "@preact/signals";
 import { noticesRead } from "./publishApi.js";
-import { zoneFetch } from "../api.js";
+import { readHealth } from "../stores/version.js";
 import { todayIso } from "../workItems.js";
 import { visible, unreadIds, markRead, markAllRead, pruneRead, arrivals } from "../logic/notices.js";
 
@@ -44,14 +44,12 @@ export async function loadNotices() {
   if (r && r.status === 200 && b && b.ok === true && Array.isArray(b.notices) && b.why !== "away") pushNotices(b.notices);
   return r && r.status;
 }
-// The installed version, for a notice's version test (installedBelow): read once from this server's own /health answer (server.health_answer; no outbound call).
+// The installed version, for a notice's version test (installedBelow): read from this server's own /health answer, the one read the page shares (server.health_answer; no outbound call).
 // An answer that is not a plain x.y.z leaves it unknown, and an unknown version keeps the notice.
 export async function loadInstalled() {
-  try {
-    const r = await zoneFetch("/health", { cache: "no-store" });
-    const b = r && r.status === 200 ? await r.json() : null;
-    if (b && typeof b.version === "string" && /^\d+\.\d+\.\d+$/.test(b.version)) installed.value = b.version;
-  } catch (e) { /* stays unknown */ }
+  const r = await readHealth();   // the same one read the profile menu's version line uses (stores/version.js), never a second one
+  const b = r.status === 200 ? r.body : null;
+  if (b && typeof b.version === "string" && /^\d+\.\d+\.\d+$/.test(b.version)) installed.value = b.version;
   return installed.value;
 }
 let timer = null;

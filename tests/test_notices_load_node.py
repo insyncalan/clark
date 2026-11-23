@@ -108,14 +108,18 @@ class LoadInstalled(unittest.TestCase):
         if not node:
             raise unittest.SkipTest("no node")
         answers = [{"status": 500, "body": None}, "throw", {"status": 200, "body": {"ok": True}}, {"status": 200, "body": {"ok": True, "version": "1.3.x"}},
-                   {"status": 200, "body": {"ok": True, "version": "1.3.7"}}]
-        with tempfile.TemporaryDirectory() as tmp:
-            script = Path(tmp) / "probe.js"
-            script.write_text(SHIM + bundle() + ";\n" + PROBE_INSTALLED % json.dumps(answers), encoding="utf-8")
-            done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
-            assert done.returncode == 0, done.stderr
-            got = json.loads(done.stdout.strip().splitlines()[-1])
-        self.assertEqual((got.get("start"), got["got"]), (None, [None, None, None, None, "1.3.7"]))
+                   {"status": 500, "body": {"version": "1.3.7"}}, {"status": 200, "body": {"ok": True, "version": "1.3.7"}}]
+        got = []
+        for a in answers:      # the shared read keeps a good answer, so each answer gets its own page
+            with tempfile.TemporaryDirectory() as tmp:
+                script = Path(tmp) / "probe.js"
+                script.write_text(SHIM + bundle() + ";\n" + PROBE_INSTALLED % json.dumps([a]), encoding="utf-8")
+                done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
+                assert done.returncode == 0, done.stderr
+                one = json.loads(done.stdout.strip().splitlines()[-1])
+                self.assertIsNone(one.get("start"))
+                got.append(one["got"][0])
+        self.assertEqual(got, [None, None, None, None, None, "1.3.7"])
 
 
 PROBE_HEALTH_CALL = r"""
@@ -142,6 +146,18 @@ class LoadInstalledStrict(unittest.TestCase):
         answers = [{"status": 500, "body": {"version": "1.3.7"}}, {"status": 200, "body": {"version": ["1.3.7"]}}, {"status": 200, "body": {"version": "1.3.7-beta"}}]
         got = self.probe(PROBE_INSTALLED % json.dumps(answers))
         self.assertEqual(got["got"], [None, None, None], "a 500 with a version, an array version and a suffixed version leave it unknown")
+
+    def test_the_bell_and_the_profile_menu_share_one_health_read_and_a_failed_read_is_asked_again(self):
+        got = self.probe(r"""
+let n = 0;
+globalThis.fetch = async () => { n += 1; return n === 1 ? { status: 500, ok: false, json: async () => ({ version: "9.9.9" }) } : { status: 200, ok: true, json: async () => ({ version: "1.3.7" }) }; };
+(async () => {
+  const a = await NS.loadInstalled();                    // a 500: unknown, and not kept
+  const b = await NS.loadInstalled(); const c = await NS.loadVersion(); const d = await NS.loadInstalled(); await NS.loadVersion();
+  console.log(JSON.stringify({ a, b, d, shown: NS.version.value, n }));
+})();
+""")
+        self.assertEqual(got, {"b": "1.3.7", "d": "1.3.7", "shown": "1.3.7", "n": 2})   # a is undefined (dropped by JSON): one failed read, one good read, then no more
 
     def test_a_notices_answer_must_say_ok_true_exactly(self):
         got = run([ok("keep"), {"status": 200, "body": {"ok": "yes", "notices": []}}])
