@@ -182,7 +182,7 @@ def _excel_groups(raw, truncated):
             lines, header = [], None
             for n, row in enumerate(ws.iter_rows(values_only=True)):
                 if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
-                    break
+                    raise TooLong("too many rows or cells")      # never cut silently: the file is listed "too long to read" and none of it is indexed
                 if CLOCK() - began > MAX_EXCEL_SECONDS:
                     raise TooLong("too slow")
                 cells += len(row)
@@ -434,8 +434,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
         state = "safety"
     except TooLong:
         state = "too_long"
-    except (docx_read.WordRefused, ask_picture.PictureUnreadable, ValueError, UnicodeError):
-        # damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
+    except (docx_read.WordRefused, ask_picture.PictureUnreadable, ValueError, UnicodeError, OSError):
+        # a read error on this one file (OSError) leaves only this file out, so the pass goes on and the files already read stay; damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
         state = "type"
     if state == "indexed":
         every = "\n".join("\n".join(lines) for _n, lines in groups)

@@ -602,6 +602,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         indexer = ask_index.Indexer(store.path.parent, allowed=ask_service.AskService(store.path, None, roots).enabled)      # Row 1366: the background reader of the saved folders; stopped in the finally below
+        folders_seam = ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent, indexer=indexer)
+        folders_seam.start_missing()                                # Row 1366: a saved folder with no index file is read from launch, not only once the page or a question asks
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         draft_seam = draft_email_feed.make(
             store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
@@ -618,7 +620,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
                      safety=safety.Safety(store.path, roots), logs=logs, mail=mail_open.MailOpen(),
-                     ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent, indexer=indexer),
+                     ask_folders=folders_seam,
                      ask_instructions=standing_instructions.StandingInstructions(store.path, roots),
                      ask_commands=ask_commands_service.AskCommandsService(store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),

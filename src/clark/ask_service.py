@@ -323,7 +323,7 @@ class AskService:
         try:
             room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders):
-                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
+                found = ask_index.folder_data(self.data_dir, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), budget_left - used, room)      # a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
                 found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
