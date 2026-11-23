@@ -4,7 +4,7 @@
 // date are always written beside their icon.
 import { dayNumber, dueField, isOpen, isLate, pillOf } from "./workItems.js";
 
-export const TONES = ["r", "a", "g", "b", "n"];
+export const TONES = ["r", "a", "g", "b", "n", "m"];      // m (maroon) is the Classic Urgent priority icon only
 const PRIORITY_TONE = { Urgent: "r", High: "a", Medium: "b", Low: "n" };
 
 /** The status icon takes the state's own colour: the one the list's pill shows. */
@@ -12,6 +12,13 @@ export function statusTone(row, today) { return pillOf(row, today).class; }
 
 /** Urgent red, High amber, Medium blue; Low and no priority grey. */
 export function priorityTone(priority) { return PRIORITY_TONE[priority] || "n"; }
+
+const CLASSIC_PRIORITY_TONE = { Urgent: "m", High: "r", Medium: "n", Low: "n" };
+const CLASSIC_RATING_TONE = { Urgent: "m", High: "r", Medium: "a", Low: "g" };      // a risk or an issue: Medium amber, Low green
+// Same test as classicTheme() in components/Contents.jsx (kept here so this file stays free of JSX imports).
+const isClassic = () => { const doc = globalThis.document; return !!(doc && doc.getElementById('theme')); };
+/** Row 1390, Classic only: Urgent maroon, High red, Medium and Low and no priority grey; a risk or an issue (kind) has Medium amber and Low green. No blue. The Cards theme keeps priorityTone. */
+export function priorityToneFor(priority, classic = isClassic(), kind) { return classic ? ((kind === "risk" || kind === "issue" ? CLASSIC_RATING_TONE : CLASSIC_PRIORITY_TONE)[priority] || "n") : priorityTone(priority); }
 
 /** The date: red when an open ACTION is past its date (the prototype reddens late actions only), amber when it is within 7 days or when any other open item (a risk, an issue or a decision) is past its date, blue for a later date or a closed item's date, grey for no date. A late date also says "N days late" beside it, so the tone is never the only signal. */
 export function dateTone(row, today) {
