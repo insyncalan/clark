@@ -8,7 +8,7 @@ appears or disappears without this file being changed fails the comparison, so a
 # Each route says which piece of work added it.
 GET_ROUTES = (
     "/api/activity", "/api/providers", "/api/ai/status", "/api/as-at", "/api/ask-enabled", "/api/ask-instructions", "/api/ask-commands", "/api/ask-usage", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/theme", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/brands", "/api/data", "/api/demo", "/api/diagnostics",
-    "/api/export", "/api/milestones", "/api/movement", "/api/past-report", "/api/people", "/api/profile", "/api/projects",
+    "/api/export", "/api/milestones", "/api/movement", "/api/past-report", "/api/people", "/api/profile", "/api/projects", "/api/projects-overview",
     "/api/publication", "/api/publications", "/api/section-file", "/api/update", "/api/use-cases",
 )     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity; #443: the Published reports list and Open (neither writes anything); #349: as-at, rebuilt in a copy (writes nothing); #282: the update status; #944: the brand list; row 1221: section-file (read one listed file, Open and Download); row 1269: theme (the install's Theme); row 1295: ask-commands (the slash commands: read and change); row 1294: ask-new-projects (the starting value of asking for new projects and a project's own asking: read and change)
 

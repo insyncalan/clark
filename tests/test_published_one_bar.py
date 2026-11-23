@@ -106,8 +106,9 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(BAR)
-                self.assertEqual(b["tabPad"], ["8px", "9px"])
-                self.assertAlmostEqual(b["tab"]["h"] - b["tabLine"], 17, delta=0.6, msg="the tab is its text plus 8 above and 9 below")
+                below = 12 if width > 900 else 9      # row 1543: above 900 px as the editor's tabs (8 and 12), the 900 px bar is a later part
+                self.assertEqual(b["tabPad"], ["8px", f"{below}px"])
+                self.assertAlmostEqual(b["tab"]["h"] - b["tabLine"], 8 + below, delta=0.6, msg=f"the tab is its text plus 8 above and {below} below")
                 self.assertEqual((b["after"], b["afterBottom"]), (3, "0px"), "the cyan line is at the foot of that short tab")
                 self.assertEqual(b["tabNames"][:2], ["Dashboard", "Work items"])
 
