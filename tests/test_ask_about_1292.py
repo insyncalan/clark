@@ -115,6 +115,7 @@ class AskAbout(Classic):
             p.js("document.querySelector('.wil-table tr[data-id] [data-ask-about]').click()")
             p.until("!!document.querySelector('#ask-panel') && !!document.querySelector('#ask-chip')", "the panel opened with a chip")
             self.assertTrue(p.js("document.querySelector('#ask-chip').textContent.trim().startsWith('About ')"))
+            p.until("document.querySelectorAll('#ask-pills button').length > 0", "the panel's read of the project's own asking switch finished and the suggestions are drawn")
             pills = p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)")
             self.assertEqual(pills, ["Is it late?", "Who owns it?", "What is it needed for?", "Draft an update", "Move it a week"])
             p.js("document.querySelector('#ask-chip-x').click()")
