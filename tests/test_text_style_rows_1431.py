@@ -82,6 +82,9 @@ class Rows(unittest.TestCase):
         found = 0
         for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
             if "menuitemradio" in sel:
+                # The View menu's Group by (#viewMenuList) is a different menu with its own row rule (Row 1273); only text-style menu rules are checked here.
+                if "#viewMenuList" in sel and ".rt-bar" not in sel:
+                    continue
                 found += 1
                 self.assertIn(".rt-bar .ddmenu", sel, f"a menu row rule names more than the Text style menu: {sel.strip()[:90]}")
                 self.assertNotRegex(sel, r"\.menu-item|\.rt-slash|\.gt-")
