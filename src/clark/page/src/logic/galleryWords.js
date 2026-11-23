@@ -1,5 +1,6 @@
 // Row 1233 (the Image gallery's Edit page): the words and numbers, in one place. Words are ruled (the approved 1233 lines in NEW-WORDS);
 // the numbers in them come from the constants here, never typed into the text. "image", never "picture", on screen. Pure: no DOM.
+import { STARTING_TEXT } from "../edit/startingText.js";
 export const SLOTS = ["1", "2", "3", "4", "5", "6"];
 export const MOST_IMAGES = SLOTS.length;
 export const PICTURE_MAX = 10 * 1024 * 1024;       // gallery.py PICTURE_MAX: what a person may add (decoded)
@@ -31,7 +32,7 @@ export function nextSlots(v, pics, n) {
 }
 
 export const WORDS = {
-  empty: "Choose images, or drop them here (up to six)",
+  empty: STARTING_TEXT.gallery.empty[0],           // the one line of the empty area; ruled in startingText.js (Row 1251), not typed twice
   addTile: "Add an image",
   full: "A gallery holds up to six images. Remove one to add another.",
   tooBig: (mb = FILE_MB) => `That file is too big. Choose one under ${mb} MB.`,
