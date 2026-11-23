@@ -765,6 +765,13 @@ OPEN_SCRIPT = """on run argv
   end if
   return POSIX path of (choose file with prompt (item 1 of argv))
 end run"""
+OPEN_TYPES_SCRIPT = """on run argv
+  set kinds to {}
+  repeat with i from 2 to (count of argv)
+    set end of kinds to (item i of argv)
+  end repeat
+  return POSIX path of (choose file with prompt (item 1 of argv) of type kinds)
+end run"""
 
 
 def choose_folder(prompt, start=None, run=None, on=None):
@@ -785,10 +792,13 @@ def choose_save_file(prompt, default_name, start=None, run=None, on=None):
     return _dialog(SAVE_SCRIPT, [prompt, safe_name(default_name)] + ([str(start)] if start else []), run, "Save")
 
 
-def choose_open_file(prompt, start=None, run=None, on=None):
+def choose_open_file(prompt, start=None, run=None, on=None, types=None):
     """The system's own Open dialog, for one existing file (#96: a file for a section template). The chosen file, or None if the
-    person cancelled. clark only learns the path; nothing is read here."""
+    person cancelled. clark only learns the path; nothing is read here. `types`: file endings (no dot) the dialog offers, and
+    nothing else; with it the dialog has no start folder."""
     _only_mac("The Open dialog", on)
+    if types:
+        return _dialog(OPEN_TYPES_SCRIPT, [prompt, *types], run, "file")
     return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "file")
 
 
