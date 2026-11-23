@@ -19,13 +19,13 @@ export function Edit({ section }) {
   const [words, setWords] = useState(savedWords);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
-  const seen = useRef(section.body);
-  useEffect(() => {                       // a save or an Undo brought another body: show it (never on the first draw, which would undo typing)
-    if (seen.current === section.body) return;
-    seen.current = section.body;
+  const seen = useRef({ label: savedLabel, words: savedWords });
+  useEffect(() => {                       // a save or an Undo brought other words: show them (never on the first draw, which would undo typing; never for a file choice, which changes the body but not these two)
+    if (seen.current.label === savedLabel && seen.current.words === savedWords) return;
+    seen.current = { label: savedLabel, words: savedWords };
     setLabel(savedLabel);
     setWords(savedWords);
-  }, [section.body]);
+  }, [savedLabel, savedWords]);
   const file = fileOf(content.file);
   const d = oneDoc(section);
 
