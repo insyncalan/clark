@@ -231,7 +231,7 @@ function ProjectTabs({ current, lead }) {
       <ul>
         {lead ? <li><button type="button" class="set-tab" data-all="1" aria-current={settingsAll.value ? "page" : undefined} onClick={chooseSettingsAll}>All projects</button></li> : null}
         {list.map((p) => (
-          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} disabled={p.code !== current && !switchTabs.value} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
+          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} aria-disabled={p.code !== current && !switchTabs.value ? "true" : undefined} onClick={() => { if (p.code === current || switchTabs.value) chooseSettingsProject(p.code); }}>{p.name || p.code}</button></li>
         ))}
       </ul>
     </nav>

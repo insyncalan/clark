@@ -88,7 +88,7 @@ class Tabs(Base):
             p = self.page(cdp)
             self.open_settings(p, 1400, slug="people")
             p.until(f"{TABS}.length === 2", "the tabs drew")
-            self.assertEqual(p.js(f"[{TABS}[0].disabled, {TABS}[1].disabled]"), [False, True], "the other tab cannot be chosen")
+            self.assertEqual(p.js(f"[{TABS}[0].getAttribute('aria-disabled'), {TABS}[1].getAttribute('aria-disabled'), {TABS}[0].disabled, {TABS}[1].disabled]"), [None, "true", False, False], "the other tab says aria-disabled and is not disabled (no focus trap)")
             before = p.js("[location.href, document.querySelector('#project-name').textContent]")
             p.js(f"{TABS}[1].click()")
             self.assertEqual(p.js(f"{TABS}[0].getAttribute('aria-current')"), "page", "the open project's tab stays marked")
