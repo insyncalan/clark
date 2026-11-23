@@ -38,7 +38,7 @@ function TemplateEdit({ section, tools, slot }) {
   return Edit ? <Edit section={section} tools={tools} slot={slot} /> : <p class="quiet">Not shown on this page yet.</p>;
 }
 
-export function Section({ section, index, count, slot, anchor, tools, clean }) {
+export function Section({ section, index, count, slot, anchor, tools, clean, pick }) {      // row 1287: `pick` is the Edit cell picker, given in View on the page clark serves (never to a published file)
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
@@ -66,7 +66,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
       </header>
       {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} section={section} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} section={section} />
-        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} slot={slot} /> : <tpl.view section={section} data={data.value} clean={clean} />)
+        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} slot={slot} /> : <tpl.view section={section} data={data.value} clean={clean} pick={pick} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
@@ -75,7 +75,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : clean && (section.type === "current" || (!editing && section.type === "text"))     // row 850: Edit draws the Current state text too (read only: the project's headline text has no write kind yet, see edit/richSave.js)
         ? <ViewText html={clean(section.type === "current" ? ((data.value && data.value.project) || {}).current_state : section.body)} />
-        : KINDS[section.type] ? (editing ? <tools.ItemRowsEdit type={section.type} section={section} /> : <ItemRows type={section.type} />)     // risks and issues, actions, decisions: their rows (A-D5)
+        : KINDS[section.type] ? (editing ? <tools.ItemRowsEdit type={section.type} section={section} /> : <ItemRows type={section.type} pick={pick} scope={section.id} />)     // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );

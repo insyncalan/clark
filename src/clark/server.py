@@ -196,7 +196,7 @@ ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: 
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 ASK_BODY_LIMIT = 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024)     # #1292 S14: a question (128 KiB) and up to five files of 10 MB in base64 (ask_files.FILE_MAX, FILE_BYTES); the route screens each file
 EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
-IMAGE_FILE_MB = 8                      # row 1223: the most one image may take when sent to /api/section-image (section_kinds/imagecap.py PICTURE_MAX, a test keeps them equal); the other picture templates hold their own 1 MiB, checked in changes.py
+IMAGE_FILE_MB = 10                     # row 1233: the most one image may take when sent to /api/section-image (section_kinds/gallery.py PICTURE_MAX, a test keeps them equal; the Image and Text and image templates refuse over 8 MiB by their own check, imagecap.py PICTURE_MAX); the other picture templates hold their own 1 MiB, checked in changes.py
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
@@ -225,7 +225,7 @@ PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colo
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
-                     "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
+                     "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB); row 1233: to one gallery picture sent (14 MiB), each template keeps its own size limit
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
