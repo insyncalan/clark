@@ -102,7 +102,7 @@ class PublishedPlanSummary(Base):
         self.assertNotIn("Where we are", src.replace("// ", ""), "the skeleton is read from its one module, not copied")
         tpl = (logic / "templates.js").read_text(encoding="utf-8")
         self.assertIn("body: PLAN_SUMMARY_BODY,", tpl, "the template and the empty check read the same body")
-        self.assertNotIn("<h2>Where we are", tpl, "the template does not keep its own copy")
+        self.assertNotRegex(tpl, r"Where we are(?!, what)", "the template does not keep its own copy")
 
 if __name__ == "__main__":
     unittest.main()

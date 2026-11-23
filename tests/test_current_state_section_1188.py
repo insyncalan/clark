@@ -18,10 +18,6 @@ class Body(unittest.TestCase):
     def test_the_first_visible_text_section_titled_current_state_gives_its_cleaned_body(self):
         self.assertEqual(publish.current_state_section_body([sec("<p>Ok.</p><script>x()</script>")]), "<p>Ok.</p>")
 
-    def test_the_title_header_gives_its_cleaned_body_too(self):
-        self.assertEqual(publish.current_state_section_body([sec("<p>Ok.</p><script>x()</script>", title=" header ")]), "<p>Ok.</p>")
-        self.assertEqual(publish.current_state_section_body([sec("<p>H.</p>", title="Header"), sec("<p>C.</p>")]), "<p>H.</p>", "the first of the two titles, in order")
-
     def test_title_case_and_spacing_do_not_matter(self):
         self.assertEqual(publish.current_state_section_body([sec("<p>A.</p>", title="  CURRENT   state ")]), "<p>A.</p>")
 
@@ -68,21 +64,6 @@ class Reads(Base):
         self.change(self.sections()[0]["id"], title="Current state", body="<p>Build is half done.</p>")
         self.assertEqual(self.state(), "<p>Build is half done.</p>")
 
-    def test_a_new_report_titled_header_publishes_its_headline_and_ask_reads_it(self):
-        """Row 1262: a section titled Header (the Classic template's starting title) is read as the headline too; the Dashboard default stays Current state."""
-        first = self.sections()[0]
-        self.assertEqual(first["title"], "Current state")
-        self.change(first["id"], title="Header", body="<p>Build is half done.</p>")
-        self.assertEqual(self.state(), "<p>Build is half done.</p>")
-        text = repr(ask_data.project_data(self.s, "ABC", "build half", budget=40000).passages)
-        self.assertIn("Build is half done.", text)
-
-    def test_an_old_report_titled_current_state_publishes_its_headline_and_ask_reads_it(self):
-        self.change(self.sections()[0]["id"], title="Current state", body="<p>Old report words.</p>")
-        self.assertEqual(self.state(), "<p>Old report words.</p>")
-        text = repr(ask_data.project_data(self.s, "ABC", "old report", budget=40000).passages)
-        self.assertIn("Old report words.", text)
-
     def test_a_hidden_section_gives_nothing(self):
         self.change(self.sections()[0]["id"], body="<p>Secret.</p>", hidden=1)
         self.assertEqual(self.state(), "")
@@ -108,7 +89,7 @@ class Reads(Base):
         self.assertEqual(self.state(inputs), "<p>Column.</p>")
 
     def test_ask_sees_the_section_body(self):
-        self.change(self.sections()[0]["id"], title="Current state", body="<p>Vendor contract signed.</p>")      # row 1262: a report that has the title Current state keeps it; the new default is Header
+        self.change(self.sections()[0]["id"], body="<p>Vendor contract signed.</p>")
         text = repr(ask_data.project_data(self.s, "ABC", "current state vendor", budget=40000).passages)
         self.assertIn("Vendor contract signed.", text)
 

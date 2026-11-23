@@ -30,9 +30,9 @@ export const KINDS = [
 export const RECENT = "recent";
 export const RECENT_MAX = 3;
 
-// Row 1068: the card name and the starting title of the Gantt table template (type gantttable), the owner's word. The Notes grid
+// Row 1068: the starting title of the Gantt table template (type gantttable), the owner's word; its card name is "Gantt table" (row 1262). The Notes grid
 // template (type table) is also called Table; the ONE place to change this one's word (Help's row carries the same word).
-export const GANTT_TABLE_NAME = "Gantt table";
+export const GANTT_TABLE_NAME = "Table";
 
 // Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
@@ -90,7 +90,7 @@ export const TEMPLATES = [
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
     description: "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The Gantt chart"] },
-  { id: "gantt-table", name: GANTT_TABLE_NAME, kind: "dates", fit: ["full", "half"], type: "gantttable", title: GANTT_TABLE_NAME, body: "", ready: true,
+  { id: "gantt-table", name: "Gantt table", kind: "dates", fit: ["full", "half"], type: "gantttable", title: GANTT_TABLE_NAME, body: "", ready: true,
     description: "The plan as a table, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The plan table"] },
   { id: "one-doc", name: "One file", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
@@ -110,7 +110,7 @@ export const LATER = [
 // Row 1411: the built-in At a glance card is gone too (the glance template is its own card).
 // Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
 // so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
-const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+const USECASES_CARD = { name: "Use cases", fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
                         holds: ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"] };
 // Item 1192: the Milestones card is a library card like the others; the section it makes is the built-in's own (type milestones, MsBlock),
 // so the timeline or calendar, the list, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only.
@@ -119,7 +119,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
-  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files", { name: "Documents" }),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
 // "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.

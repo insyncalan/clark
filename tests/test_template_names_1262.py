@@ -15,7 +15,7 @@ WORDS = (PAGE / "logic" / "fullImageWords.js").read_text(encoding="utf-8")
 HELP = json.loads((PAGE / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
 NAMES = {                                      # id -> the name on the card (the renamed ones, row 1262)
-    "text-image": "Text with image",      # Human 23-11 10:28: the ticket table's word stands; the starting title stays Text and Image Side by Side
+    "text-image": "Text with image",      # Romanoff PM 23-11 10:28 (NEW-WORDS.md:2206-2207): the ticket table's word stands; the starting title stays Text and Image Side by Side
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
@@ -55,25 +55,26 @@ class TemplateNames(unittest.TestCase):
         for id_, name in NAMES.items():
             self.assertRegex(TEMPLATES, r'\{ id: "%s", name: "%s", kind:' % (re.escape(id_), re.escape(name)), f"{id_} is called {name}")
 
-    def test_the_built_in_cards_keep_their_names_because_a_card_name_is_the_section_title(self):      # builtIn() sets title = name: a rename would rename report sections (Human 23-11: no section title changes)
+    def test_the_built_in_cards_are_named_use_cases_and_documents_and_start_with_the_old_titles(self):      # ticket To do line "Do not change other section titles": the card name changes, the starting title stays
         from clark import changes
+        self.assertRegex(TEMPLATES, r'name: "Use cases", fit:')
         self.assertIn('builtIn("usecases", "Use case summary"', TEMPLATES)
-        self.assertIn('builtIn("docs", "Supporting documents"', TEMPLATES)
+        self.assertIn('builtIn("docs", "Supporting documents", "files", { name: "Documents" })', TEMPLATES)
         self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))
 
-    def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Human 23-11: Cards keeps Current state; the Dashboard default is not changed
+    def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # comment 7084952761: Cards keeps Current state; the Dashboard default is not changed
         from clark import changes, default_sections
         self.assertIn('builtIn("current", "Current state", "text"', TEMPLATES)
         self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0]["title"], "Current state")
         self.assertRegex(TEMPLATES, r'\{ id: "current-state", name: "Header and Text", kind: "text", fit: \[[^\]]*\], type: "text", title: "Current state"')
 
-    def test_the_numbers_group_is_in_the_picker(self):      # Human 23-11 ruling point 3: the picker group Figures is named Numbers
+    def test_the_numbers_group_is_in_the_picker(self):      # comment 7084952761 (3): the picker group Figures is named Numbers
         self.assertRegex(TEMPLATES, r'\{ id: "figures", name: "Numbers" \}')
 
     def test_the_gantt_table_card_is_called_gantt_table(self):
-        self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', TEMPLATES)
-        self.assertRegex(TEMPLATES, r'\{ id: "gantt-table", name: GANTT_TABLE_NAME, ')
+        self.assertIn('export const GANTT_TABLE_NAME = "Table";', TEMPLATES)      # the starting title stays Table (ticket AP12)
+        self.assertRegex(TEMPLATES, r'\{ id: "gantt-table", name: "Gantt table", kind: "dates", fit: \[[^\]]*\], type: "gantttable", title: GANTT_TABLE_NAME, ')
 
     def test_the_image_card_keeps_its_name(self):      # row 1223 replaced the two picture cards with one Image card
         self.assertRegex(WORDS, r'name: "Image",')

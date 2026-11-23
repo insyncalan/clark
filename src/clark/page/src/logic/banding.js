@@ -24,11 +24,11 @@ export function bandIds(items) {
   return out;
 }
 
-// The summary is the Current state block: the older type "current", or the default text section titled "Header" (a report that already has "Current state" keeps that title; item 1188, row 1262).
+// The summary is the Current state block: the older type "current", or the default text section titled "Current state" (item 1188).
 export function isSummary(e) {
   if (e.dataset.type === "current") return true;
   const h = e.querySelector(".sec-h");
-  return e.dataset.type === "text" && !!h && ["Header", "Current state"].includes(h.textContent.trim());
+  return e.dataset.type === "text" && !!h && h.textContent.trim() === "Current state";
 }
 
 // The DOM side: read the sections of `.secs` under root, set or clear .band on each. Returns the ids banded.
