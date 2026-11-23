@@ -10,10 +10,10 @@ import threading
 
 from clark import ai_codex, ask, ask_claude
 
-# Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
-# more than two characters of English, but text in other scripts can be fewer, and the provider's own prompt and the reply need room.
+# Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are 4 a token, the same figure as
+# ai_connect.CHARS_PER_TOKEN (row 1293 ruling); the provider's own prompt and the reply need room, which ask.REQUEST_OVERHEAD keeps free.
 CONTEXT_TOKENS = {"opus": 1000000, "sonnet": 1000000, "haiku": 1000000, "fable": 1000000}
-CHARS_PER_TOKEN = 2.0       # row 1293: characters allowed per token of the window (half of the 4 a token often is); it was 0.5, a unit bug
+CHARS_PER_TOKEN = 4         # row 1293 ruling: 4 characters a token, the same as ai_connect.CHARS_PER_TOKEN (it was 2.0, and 0.5 before that)
 TOO_BIG = "That is too much text for {model}, so nothing was sent. Ask about less, or choose another model in Settings."
 
 

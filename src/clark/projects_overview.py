@@ -32,11 +32,13 @@ MESSAGES = {
 }
 
 
-def days_since(stamp, now):
+def days_since(stamp, now, local=None):
     """Whole calendar days (on the user's own clock) from `stamp`, a backup's time, to `now`, an aware time; 0 when it is today or later.
+    `local` turns the stamp into the user's own time by the zone's rules for that date (daylight saving); without it `now`'s own offset is used.
     None when `stamp` is not a time clark stores."""
     try:
-        then = timefmt.parse(stamp).astimezone(now.tzinfo or timezone.utc)
+        then = timefmt.parse(stamp)
+        then = local(then) if local else then.astimezone(now.tzinfo or timezone.utc)
     except (ValueError, OverflowError, OSError):
         return None
     return max(0, (now.date() - then.date()).days)
@@ -57,10 +59,20 @@ def attention_for(row):
     return out
 
 
+def effective_folders(own, shared):
+    """How many folders asking reads for a project: the ones for all projects first, then its own, the same path once, at most MAX_FOLDERS
+    (the rule of AskService.folders_for)."""
+    out = []
+    for p in [*shared, *own]:
+        if p not in out:
+            out.append(p)
+    return min(len(out), ask_folders.MAX_FOLDERS)
+
+
 def overview_rows(projects, folder_counts, shared, asking, default_days, backup_days):
     """The overview's rows, one for each project row in `projects` (dicts from the store), in the order given, at most LIMIT.
-    A row that is not a dict, or whose code is not a project code, is left out. `folder_counts` maps a code to how many folders that project
-    has of its own, `shared` is how many folders all projects share, `asking` is this computer's switch, `default_days` the Review days default,
+    A row that is not a dict, or whose code is not a project code, is left out. `folder_counts` maps a code to the paths of the folders that project
+    has of its own, `shared` is the paths of the folders all projects share, `asking` is this computer's switch, `default_days` the Review days default,
     `backup_days` the whole days since the newest backup (None: none)."""
     out = []
     for p in projects:
@@ -73,7 +85,7 @@ def overview_rows(projects, folder_counts, shared, asking, default_days, backup_
         days = review_days_for(p)
         row = {"code": p["code"], "name": name if isinstance(name, str) and name.strip() else p["code"], "asking": asking is True,
                "brand": brand, "brand_override": brand != BRAND_DEFAULT,
-               "folders": folder_counts.get(p["code"], 0) + shared,
+               "folders": effective_folders(folder_counts.get(p["code"], []), shared),
                "review_days": days, "review_override": days != default_days,
                "client_folder": client.strip() if isinstance(client, str) else "", "last_backup_days": backup_days}
         row["attention"] = attention_for(row)
@@ -83,13 +95,15 @@ def overview_rows(projects, folder_counts, shared, asking, default_days, backup_
 
 class ProjectsOverview:
     """`db_path` is the database; `onedrive_roots` as the launcher's; `backups` is the folder of backups (beside the database unless given);
-    `now` is a seam for tests (a function giving an aware time)."""
+    `now` and `local` are seams for tests (a function giving an aware time; a function giving a time in the user's zone). Without `now`, the
+    system's own rules for each date are used, so a backup from the other side of a daylight-saving change keeps its own day."""
 
-    def __init__(self, db_path, onedrive_roots=None, *, backups=None, now=None):
+    def __init__(self, db_path, onedrive_roots=None, *, backups=None, now=None, local=None):
         self.db_path = Path(db_path)
         self.backups = Path(backups) if backups is not None else self.db_path.parent / "backups"
         self.onedrive_roots = list(onedrive_roots or [])
         self.now = now or (lambda: datetime.now().astimezone())
+        self.local = local or (None if now else (lambda t: t.astimezone()))
         self.lock = threading.Lock()
 
     def fail(self, code):
@@ -98,9 +112,9 @@ class ProjectsOverview:
     def newest_backup_days(self, now):
         try:
             found = backup.entries(self.backups)
-        except OSError:
+        except (OSError, ValueError):
             return None
-        return days_since(max(e.stamp for e in found), now) if found else None
+        return days_since(max(e.stamp for e in found), now, self.local) if found else None
 
     def read(self):
         with self.lock:
@@ -112,13 +126,14 @@ class ProjectsOverview:
                 projects = store.read("projects", archived=False)
                 counts = {}
                 for r in store.read("source_folders"):
-                    counts[r["project"]] = counts.get(r["project"], 0) + 1
+                    counts.setdefault(r["project"], []).append(r["path"])
                 asking = store.ask_enabled()
-                default_days = store.con.execute("SELECT review_days FROM install_defaults WHERE id = 1").fetchone()[0]
+                row = store.con.execute("SELECT review_days FROM install_defaults WHERE id = 1").fetchone()
+                default_days = row[0] if row else review_days_for(None)         # a deleted defaults row reads as the default
             finally:
                 store.close()
         now = self.now()
-        rows = overview_rows(sorted(projects, key=lambda p: p["code"]), counts, len(ask_folders.shared_folders(self.db_path.parent)), asking,
+        rows = overview_rows(sorted(projects, key=lambda p: p["code"]), counts, ask_folders.shared_folders(self.db_path.parent), asking,
                              default_days, self.newest_backup_days(now))
         return 200, {"ok": True, "projects": rows, "attention_count": sum(1 for r in rows if r["attention"]),
                      "default_brand": BRAND_DEFAULT, "default_review_days": default_days}

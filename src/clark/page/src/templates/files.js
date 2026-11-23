@@ -96,6 +96,19 @@ export function kindWords(name) {
 }
 
 
+// The page-style icon's label for an entry: PDF, DOC, XLS, PPT, JPG, PNG, TXT for a file; URL for a link; MAIL for an email link.
+const BADGES = { pdf: "PDF", doc: "DOC", docx: "DOC", xls: "XLS", xlsx: "XLS", csv: "XLS", ppt: "PPT", pptx: "PPT", jpg: "JPG", jpeg: "JPG", png: "PNG", txt: "TXT" };
+export function badgeWords(item) {
+  if (item.kind === "link") return /^mailto:/i.test(item.href) ? "MAIL" : "URL";
+  const m = /\.([A-Za-z0-9]{1,8})$/.exec(String(item.name || ""));
+  return (m && BADGES[m[1].toLowerCase()]) || "FILE";
+}
+// The type as a person reads it on the second line: PDF, Word, Excel, PowerPoint, Image, File, Web link, Email link.
+const TYPES = { PDF: "PDF", DOC: "Word", XLS: "Excel", PPT: "PowerPoint", JPG: "Image", PNG: "Image", URL: "Web link", MAIL: "Email link" };
+export const typeWords = (item) => TYPES[badgeWords(item)] || "File";
+// The second line of a row: "<Type> · <size or site>".
+export const factsWords = (item) => [typeWords(item), item.kind === "link" ? item.shown : sizeWords(item.bytes)].filter(Boolean).join(" · ");
+
 // Edit's check of a typed link before it is sent, in the same words as the store's (section_kinds/doclinks.py BAD_LINK): "" when
 // it can be saved.
 export const BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again.";
