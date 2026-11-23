@@ -145,6 +145,8 @@ class Killers(Tile):
     HELPERS = r"""(()=>{ if (window.__rules) return; window.__rules = []; window.__log = []; window.__delays = []; window.__timers = []; window.__cleared = []; window.__shrink = false; window.__errors = [];
       window.addEventListener('error', (e) => window.__errors.push(String(e.message))); window.addEventListener('unhandledrejection', (e) => window.__errors.push(String(e.reason)));
       const real = window.fetch.bind(window);
+      window.__prov = null;      // the card's own answer as the server gives it now, to be changed by a test and sent back
+      real('/api/providers', {headers: {'X-Clark-Token': JSON.parse(document.getElementById('clark-boot').textContent).token}}).then((r) => r.json()).then((b) => { window.__prov = b; });
       window.fetch = (u, i) => { i = i || {}; const m = i.method || 'GET'; const p = new URL(String(u), location.href).pathname; window.__log.push([m, p]);
         for (const r of window.__rules) if (r.m === m && r.p === p) return r.f(i); return real(u, i); };
       const st = window.setTimeout.bind(window), ct = window.clearTimeout.bind(window);
@@ -155,7 +157,15 @@ class Killers(Tile):
     def start(self, width=1400):
         js = self.show(self.cdp, width)
         js(self.HELPERS)
+        self.assertTrue(wait(lambda: js("!!window.__prov"), 10))
         return js
+
+    def answer_prov(self, js, method, path, status, mutate):
+        """Answer `method path` with the card's own body, changed by the JS statements `mutate` (on `b`), under `status`."""
+        self.rule(js, method, path, f"() => Promise.resolve(new Response(JSON.stringify((() => {{ const b = JSON.parse(JSON.stringify(window.__prov)); {mutate}; return b; }})()), {{status: {status}}}))")
+
+    def steps(self, js):
+        return js("document.querySelectorAll('[data-ai-tile=claude] [data-ai-step]').length")
 
     def rule(self, js, method, path, body_js):
         """From now on the page's `method path` is answered by body_js (a JS function of the init, returning a promise)."""
@@ -296,6 +306,157 @@ class Killers(Tile):
         self.assertTrue(wait(lambda: self.tag(js) == "Connected", 10))
         self.assertEqual(js("window.__delays"), [35000])
         self.assertTrue(js("window.__cleared.includes(window.__timers[0])"), "the wait set for the answer is cleared when the answer comes")
+
+    def test_a_reread_answered_with_an_error_status_changes_nothing(self):
+        js = self.start()
+        self.answer_prov(js, "GET", "/api/providers", 503, "b.docker = true")
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers") == 1, 5))
+        self.assertFalse(wait(lambda: not js("!!document.querySelector('[data-ai-tile=claude]')"), 1.5), "an answer with an error status is not used, whatever it holds")
+
+    def test_focus_while_a_check_runs_reads_nothing_and_a_read_answered_late_changes_nothing(self):
+        hold = threading.Event()
+        self.claude.hold = hold
+        self.addCleanup(hold.set)
+        js = self.start()
+        js("window.__gate = new Promise((res) => { window.__open = res; })")
+        self.rule(js, "GET", "/api/providers", "() => window.__gate.then(() => new Response(JSON.stringify(Object.assign({}, window.__prov, {docker: true})), {status: 200}))")
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers") == 1, 5))
+        js("document.querySelector('[data-ai-check=claude]').click()")
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-step=ask]')"), 10))
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertFalse(wait(lambda: self.calls(js, "GET", "/api/providers") > 1, 1.5), "a tab that gets focus while a check runs asks nothing")
+        js("window.__open()")
+        self.assertFalse(wait(lambda: not js("!!document.querySelector('[data-ai-tile=claude]')"), 1.5), "a read that was started before the check and answered during it is not used")
+
+    def test_the_card_stops_listening_for_focus_once_it_is_not_classic(self):
+        js = self.start()
+        js("document.getElementById('theme').remove()")
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers") == 1, 5))
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude] [data-ai-status]') && document.querySelector('[data-ai-tile=claude] [data-ai-status]').innerText") == "Connected. Asking can use its models.", 10), "the card drew again, not Classic")
+        threading.Event().wait(0.5)     # the effect of the new draw runs after it
+        js("window.__log.length = 0")
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertFalse(wait(lambda: self.calls(js, "GET", "/api/providers") > 0, 1.5))
+
+    def test_a_refused_check_gives_the_servers_sentence_only_when_it_is_a_refusal_with_one(self):
+        generic = "Something went wrong while this was working. Nothing was changed. If it happens again, restart clark."
+        js = self.start()
+        cases = ((400, {"ok": False, "code": "x", "message": "Said at 400."}, "Said at 400."), (400, {"ok": False, "message": "Said at 400 with no code."}, "Said at 400 with no code."), (499, {"ok": False, "message": "Said at 499."}, "Said at 499."),
+                 (400, {"ok": False, "code": "x"}, generic), (200, {"ok": True, "message": "hello"}, generic), (500, {"ok": False, "message": "secret"}, generic),
+                 (503, None, "Could not check the connection just now. Wait a moment and try again."))
+        for n, (status, body, expect) in enumerate(cases, 1):
+            with self.subTest(status=status, body=body):
+                js("window.__rules.length = 0")
+                if status == 503:       # a whole card with a failing status is still a failure
+                    self.answer_prov(js, "POST", "/api/providers/verify", 503, "b.message = 'Connected.'")
+                else:
+                    self.answer(js, "POST", "/api/providers/verify", status, body)
+                js("document.querySelector('[data-ai-check=claude]').click()")
+                self.assertTrue(wait(lambda: self.calls(js, "POST", "/api/providers/verify") == n and not js("!!document.querySelector('[data-ai-step]')"), 10))
+                self.assertEqual(self.why(js), expect)
+                self.assertEqual(js("document.querySelector('[data-ai-msg]').innerText"), "", "a failed check says nothing in the message line")
+
+    def test_while_a_check_runs_the_other_buttons_wait_and_are_free_again_when_it_ends(self):
+        hold = threading.Event()
+        self.claude.hold = hold
+        self.addCleanup(hold.set)
+        js = self.start()
+        js("document.querySelector('[data-ai-check=claude]').click()")
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-step=ask]')"), 10))
+        self.assertEqual(js("document.querySelector('[data-ai-connect=chatgpt]').getAttribute('aria-disabled')"), "true", "Turn on on the other tile waits")
+        self.assertEqual(js("[...document.querySelectorAll('[data-ai-tile=claude] [data-ai-step]')].map(e => e.getAttribute('role'))"), ["status"] * 3)
+        hold.set()
+        self.assertTrue(wait(lambda: self.tag(js) == "Connected", 10))
+        self.assertEqual(js("document.querySelectorAll('[data-ai-tile] [aria-disabled]').length"), 0, "nothing waits once the check has ended")
+
+    def test_while_a_check_runs_turn_off_and_check_again_on_the_other_tile_wait(self):
+        hold = threading.Event()
+        self.claude.hold = hold
+        self.addCleanup(hold.set)
+        self.s.httpd.ai_connect.connect({"provider": "chatgpt"})
+        js = self.start()
+        js("document.querySelector('[data-ai-check=claude]').click()")
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-step=ask]')"), 10))
+        self.assertEqual(js("document.querySelector('[data-ai-disconnect=chatgpt]').getAttribute('aria-disabled')"), "true")
+        self.assertEqual(js("document.querySelector('[data-ai-check=chatgpt]').getAttribute('aria-disabled')"), "true")
+
+    def test_the_tiles_are_worded_and_marked_by_what_the_check_found(self):
+        self.chatgpt.signed_in, self.chatgpt.failed, self.chatgpt.why = False, "no_login", "Not signed in words."
+        js = self.start()
+        tile = "document.querySelector('[data-ai-tile=%s]')"
+        self.assertEqual(js(tile % "claude" + ".className"), "ai-prov", "signed in but not checked: not marked on")
+        self.assertEqual(js(tile % "claude" + ".querySelector('.tag').className"), "tag")
+        self.assertEqual(js("document.querySelector('[data-ai-check=claude]').previousSibling.textContent"), " ", "a space between Turn off and Check again")
+        self.assertEqual(self.why(js, "chatgpt"), "Not signed in words.", "the status words show when no check has been made")
+        self.assertEqual(js(tile % "chatgpt" + ".querySelectorAll('[data-ai-status]').length"), 0, "a tile that is not on has no not-checked line")
+        self.assertEqual(js("document.querySelector('[data-ai-connect=chatgpt]').className"), "btn pri sm")
+        self.answer_prov(js, "GET", "/api/providers", 200, "b.chatgpt.connected = false; b.chatgpt.checked = true; b.chatgpt.checked_line = 'Connected. x.'")
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers") == 1, 5))
+        self.assertFalse(wait(lambda: self.tag(js, "chatgpt") != "Not connected", 1.5), "checked on a tile that is not connected is not Connected")
+
+    def test_turn_on_names_the_provider_when_the_server_cannot_be_reached(self):
+        self.chatgpt.signed_in = False
+        js = self.start()
+        self.rule(js, "POST", "/api/providers/verify", "() => Promise.reject(new TypeError('x'))")
+        js("document.querySelector('[data-ai-connect=chatgpt]').click()")
+        self.assertTrue(wait(lambda: "could not be reached" in self.why(js, "chatgpt"), 10))
+        self.assertEqual(self.why(js, "chatgpt"), "ChatGPT could not be reached. Check your internet connection, then press Check again.")
+
+    def test_a_new_check_clears_the_test_the_connection_answer(self):
+        js = self.start()
+        self.answer(js, "POST", "/api/providers/test", 200, {"ok": True, "results": [{"label": "Claude", "answered": True, "seconds": 1}]})
+        js("document.querySelector('[data-ai-test]').click()")
+        self.assertTrue(wait(lambda: "answered" in js("document.querySelector('[data-ai-test-out]').innerText"), 10))
+        js("document.querySelector('[data-ai-check=claude]').click()")
+        self.assertTrue(wait(lambda: self.tag(js) == "Connected", 10))
+        self.assertEqual(js("document.querySelector('[data-ai-test-out]').innerText"), "")
+
+    def test_a_progress_answer_without_a_step_for_this_check_changes_nothing_and_breaks_nothing(self):
+        hold = threading.Event()
+        self.claude.hold = hold
+        self.addCleanup(hold.set)
+        js = self.start()
+        self.rule(js, "GET", "/api/providers/progress", "() => Promise.resolve(new Response(window.__prog, {status: 200}))")
+        js("window.__prog = JSON.stringify(null)")
+        js("document.querySelector('[data-ai-check=claude]').click()")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers/progress") >= 1, 5))
+        js("window.__prog = JSON.stringify({})")
+        n = self.calls(js, "GET", "/api/providers/progress")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers/progress") > n, 5))
+        self.assertEqual(js("window.__errors"), [], "no fault in the page")
+        js("window.__prog = JSON.stringify({steps: {claude: 'ask'}})")
+        self.assertTrue(wait(lambda: self.steps(js) == 3, 5))
+        js("window.__prog = JSON.stringify({steps: {chatgpt: 'ask'}})")
+        n = self.calls(js, "GET", "/api/providers/progress")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers/progress") > n + 1, 5))
+        self.assertEqual(self.steps(js), 3, "an answer that says nothing about this check does not take the steps back")
+        js("window.__prog = JSON.stringify({steps: {claude: 'unknown-step'}})")
+        n = self.calls(js, "GET", "/api/providers/progress")
+        self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers/progress") > n + 1, 5))
+        self.assertEqual(self.steps(js), 1, "a step the page does not know shows the first step, never none")
+
+
+class KillersCards(Tile):
+    """The Cards theme: the tile does not read again when the tab gets focus."""
+    html = staticmethod(cards_html)
+    HELPERS = Killers.HELPERS
+    start = Killers.start
+    calls = Killers.calls
+
+    def setUp(self):
+        super().setUp()
+        cm = chrome()
+        self.cdp = cm.__enter__()
+        self.addCleanup(cm.__exit__, None, None, None)
+
+    def test_cards_does_not_reread_on_focus(self):
+        js = self.start()
+        js("window.dispatchEvent(new Event('focus'))")
+        self.assertFalse(wait(lambda: self.calls(js, "GET", "/api/providers") > 0, 1.5))
 
 
 class Cards(Tile):
