@@ -70,6 +70,23 @@ class StopBeforeTheProvider(unittest.TestCase):
         self.assertEqual(self.provider.sent, [], "nothing left the machine")
         self.assertEqual(self.provider.cancels, [])
 
+    def test_stop_during_the_data_read_drops_the_late_answer(self):          # AP7, the ticket's named test
+        real = ask_data.project_data
+
+        def read_then_stop(*a, **k):
+            data = real(*a, **k)
+            self.service.stop()                      # Stop pressed as the data read ends: the answer below would be late
+            return data
+
+        with mock.patch.object(ask_data, "project_data", read_then_stop):
+            status, got = self.question()
+        self.assertEqual((status, got["ok"], got["message"]), (200, False, ask.STOPPED))
+        self.assertNotIn("answer", got)
+        self.assertNotIn("on track", repr(got), "the provider's reply never reaches the page")
+        self.assertEqual(self.provider.sent, [])
+        status, again = self.question()              # and the next question is answered, not cancelled by the old Stop
+        self.assertEqual((status, again["ok"]), (200, True))
+
     def test_a_stop_with_no_question_still_says_nothing_is_running(self):
         self.assertEqual(self.service.stop()[1]["stopped"], False)
         self.question()
