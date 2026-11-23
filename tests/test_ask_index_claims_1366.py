@@ -339,7 +339,7 @@ class StatusLine(Base):
         self.put("a.txt", "zqfine")
         self.build()
         got = ask_index.folder_status(self.data, "P1", [str(self.box)])[str(self.box)]
-        self.assertEqual(sorted(map(tuple, got["left"]["files"])), [("c.png", "of a type clark can't read yet"), ("keys.txt", "looks like a password or a key")])
+        self.assertEqual(sorted(map(tuple, got["left"]["files"])), [("c.png", ask_index.REASON_PICTURE), ("keys.txt", "looks like a password or a key")])
         shown = json.dumps([got, ix.mod().files_left_out(self.data, "P1"), ix.mod().folder_data(self.data, "P1", "zqnote hunter2 password")], default=str)
         for secret in ("hunter2", "zqnote", FAKE_KEY):
             self.assertNotIn(secret, shown)
@@ -355,7 +355,7 @@ class StatusLine(Base):
 class HelpWordsAreTheAppsWords(unittest.TestCase):
     def test_each_quoted_example_equals_the_app_string_character_for_character(self):
         t = paragraph("The line under each folder")
-        quoted = re.findall("“([^”]*)”", t)
+        quoted = [q.replace("’", "'") for q in re.findall("“([^”]*)”", t)]
         reading = ask_index.line_for(None, (180, 422))
         done = ask_index.done_line({"indexed": 180})
         unread = ask_index.done_line({"indexed": 180, "type": 242})
@@ -366,18 +366,18 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         self.assertEqual(unread, "100% indexed. 242 files could not be read")
         self.assertEqual(none, "No files to index")
         self.assertEqual(note, "Still reading 120 files, so this answer may miss some.")
-        self.assertEqual(quoted, [reading, done, unread, none, note])
+        reasons = [ask_index.REASON_TYPE, ask_index.REASON_TOO_LONG_PDF, ask_index.REASON_TOO_LONG, ask_index.REASON_PICTURE, ask_index.REASON_SAFETY]
+        self.assertEqual(quoted, [reading, done, unread, none, *reasons, note])
         self.assertIn("**(why)**", t)
 
     def test_the_status_paragraph_lists_the_reasons_the_app_gives(self):
         t = paragraph("The line under each folder").replace("’", "'")
-        for words in ("files of a type clark can't read yet", "PDFs that are too long", "files that look like a password or a key"):
-            self.assertIn(words, t)
-        for app in (ask_index.REASON_TYPE, ask_index.REASON_SAFETY):
-            self.assertTrue(app.replace("looks", "look") in t or app in t, app)
-        # the list holds exactly these three reasons: a file that is online only is counted as not read but is not listed
-        self.assertEqual({ask_index.REASON_TYPE, ask_index.REASON_SAFETY, ask_index.REASON_TOO_LONG},
-                         set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
+        # the reasons in the paragraph are the app's own words, read from the constants and not retyped
+        reasons = {ask_index.REASON_TYPE, ask_index.REASON_SAFETY, ask_index.REASON_TOO_LONG, ask_index.REASON_TOO_LONG_PDF, ask_index.REASON_PICTURE}
+        for app in reasons:
+            self.assertIn("\u201c" + app + "\u201d", t, app)
+        # the list holds exactly these reasons: a file that is online only is counted as not read but is not listed
+        self.assertEqual(reasons, set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
         self.assertIn("online only and was not opened", ask_index.line_for({"indexed": 1, "online_only": 1}))
         self.assertIn("is counted in the number that could not be read, but is not in that list", t)
         self.assertEqual(ask_index.MAX_LEFT_OUT_SHOWN, 200)

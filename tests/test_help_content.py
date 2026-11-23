@@ -55,6 +55,16 @@ def texts(o, path=""):
 
 # The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
+# One approved sentence names the company that runs the service ("Claude"): approved wording (NEW-WORDS, row 1366 AP27 item 6), exempt as this exact text only.
+APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",)
+
+
+def without_approved(s):
+    for a in APPROVED_WORDS:
+        s = s.replace(a, "")
+    return s
+
+
 DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
 
 
@@ -202,7 +212,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
+        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(without_approved(s)) or self.PATH.search(without_approved(s)))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):

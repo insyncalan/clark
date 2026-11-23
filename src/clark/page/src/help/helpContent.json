@@ -161,7 +161,7 @@
    ],
    [
     "ask clark reads; you decide",
-    "It works from this project’s data and the source folders you list. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. What it changes can be undone. Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+    "It works from this project’s data and the source folders you list. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. What it changes can be undone. Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question. On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
    ]
   ],
   "text": {
@@ -1443,7 +1443,7 @@
      ],
      [
       "p",
-      "The line under each folder in **Source folders for** says how far the index has got. While it reads, it says “Indexing… 42%”. When it is done, it says “100% indexed”, and, when some files in the folder could not be read, how many: “100% indexed. 242 files could not be read”. When no file in the folder can be read, it says “No files to index”. Press **(why)** next to the line to see the files left out, by name and reason: files of a type clark can’t read yet, PDFs that are too long, and files that look like a password or a key; a password or key itself is never shown. A file that is online only and was not opened is counted in the number that could not be read, but is not in that list. The list shows up to 200 names and then says how many more. While some files are still being read, an answer says “Still reading 120 files, so this answer may miss some.”"
+      "The line under each folder in **Source folders for** says how far the index has got. While it reads, it says “Indexing… 42%”. When it is done, it says “100% indexed”, and, when some files in the folder could not be read, how many: “100% indexed. 242 files could not be read”. When no file in the folder can be read, it says “No files to index”. Press **(why)** next to the line to see the files left out, by name and reason. The reasons are “of a type clark can’t read yet”, “is a PDF that is too long”, “is too long”, “is a picture and this computer cannot read pictures” and “looks like a password or a key”; a password or key itself is never shown. A file that is online only and was not opened is counted in the number that could not be read, but is not in that list. The list shows up to 200 names and then says how many more. While some files are still being read, an answer says “Still reading 120 files, so this answer may miss some.”"
      ],
      [
       "p",
