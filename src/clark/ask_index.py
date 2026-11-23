@@ -182,7 +182,7 @@ def _excel_groups(raw, truncated):
             lines, header = [], None
             for n, row in enumerate(ws.iter_rows(values_only=True)):
                 if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
-                    break
+                    raise TooLong("too many rows or cells")       # Row 1537: a workbook over a cap is not cut, it is not indexed (counted too long, like a PDF over its pages)
                 if CLOCK() - began > MAX_EXCEL_SECONDS:
                     raise TooLong("too slow")
                 cells += len(row)

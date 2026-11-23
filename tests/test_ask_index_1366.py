@@ -197,5 +197,42 @@ class Files(Base):
         self.assertGreaterEqual(ix.status(self.data, "P1", [self.box])["safety"], 2)
 
 
+class Row1537(Base):
+    """Row 1537: the parts of row 1366 that were missing. Every file is made in the test from made-up text."""
+
+    def state(self, name):
+        from clark import ask_index
+        return ask_index._open_read(self.data, "P1").execute("SELECT state FROM files WHERE label LIKE ?", (f"%{name}",)).fetchone()[0]
+
+    def test_excel_over_row_cell_cap_counted_too_long_not_indexed(self):
+        from clark import ask_index
+        from test_ask_index_types_1366 import xlsx
+        rows = [["item", "owner"]] + [[f"t{i}", f"zqrow{i}"] for i in range(10)]
+        cells = [[f"zqa{i}", f"b{i}", f"c{i}"] for i in range(10)]
+        self.put("rows.xlsx", xlsx({"Plan": rows}), binary=True)
+        self.put("cells.xlsx", xlsx({"One": cells, "Two": [["zqsecondsheet", "x", "y"]]}), binary=True)
+        self.put("small.xlsx", xlsx({"S": [["zqsmall", "x"]]}), binary=True)
+        with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 5), mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 12):
+            self.build()
+        for word in ("zqrow0", "zqrow1", "zqa0", "zqa1", "zqsecondsheet"):
+            self.assertFalse(self.found(word), word)           # nothing of a workbook over a cap is indexed, not even its first rows
+        self.assertTrue(self.found("zqsmall"))
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["indexed"], s["too_long"], s["type"]), (1, 2, 0))
+        self.assertEqual(self.state("rows.xlsx"), "too_long")
+        self.assertEqual(self.state("cells.xlsx"), "too_long")
+        left = dict(ask_index.files_left_out(self.data, "P1", 200)["files"])
+        self.assertEqual(left, {"saved/rows.xlsx": ask_index.REASON_TOO_LONG, "saved/cells.xlsx": ask_index.REASON_TOO_LONG})
+
+    def test_excel_exactly_at_the_row_and_cell_cap_is_indexed(self):
+        from clark import ask_index
+        from test_ask_index_types_1366 import xlsx
+        self.put("edge.xlsx", xlsx({"S": [[f"zqedge{i}", "v"] for i in range(4)]}), binary=True)
+        with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 4), mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 8):
+            self.build()
+        self.assertTrue(self.found("zqedge3"))
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["too_long"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

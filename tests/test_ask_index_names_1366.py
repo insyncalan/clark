@@ -455,15 +455,17 @@ class ExcelLimits(Base):
                 ask_index._excel_groups(xlsx({"S": [["a"]]}), False)
         self.assertEqual(str(c.exception), "excel")
 
-    def test_the_row_limit_and_the_cell_limit_each_stop_a_sheet_alone(self):
+    def test_the_row_limit_and_the_cell_limit_each_refuse_a_sheet_alone(self):      # Row 1537: over a cap the workbook is refused, not cut
         from test_ask_index_types_1366 import xlsx
         raw = xlsx({"S": [[f"w{i}", f"v{i}"] for i in range(6)]})
-        with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 3):
-            self.assertEqual(len(ask_index._excel_groups(raw, False)[0][1]), 3)
-        with mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 4):
-            self.assertEqual(len(ask_index._excel_groups(raw, False)[0][1]), 2)
-        with mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 5):
-            self.assertEqual(len(ask_index._excel_groups(raw, False)[0][1]), 3)
+        for name, cap, refused in (("MAX_EXCEL_ROWS", 3, True), ("MAX_EXCEL_ROWS", 6, False), ("MAX_EXCEL_CELLS", 4, True),
+                                   ("MAX_EXCEL_CELLS", 5, True), ("MAX_EXCEL_CELLS", 12, False)):
+            with mock.patch.object(ask_index, name, cap):
+                if refused:
+                    with self.assertRaises(ask_index.TooLong, msg=(name, cap)):
+                        ask_index._excel_groups(raw, False)
+                else:
+                    self.assertEqual(len(ask_index._excel_groups(raw, False)[0][1]), 6, (name, cap))
         self.assertEqual(len(ask_index._excel_groups(raw, False)[0][1]), 6)
 
     def test_a_workbook_that_takes_too_long_says_so(self):
