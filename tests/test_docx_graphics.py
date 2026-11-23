@@ -453,6 +453,36 @@ class Labels(unittest.TestCase):
         cy = (2 * g.G_TOP + two + two + g.G_LANE) // 2
         self.assertEqual((min(drawn), max(drawn)), (cy - 6, cy + 5))
 
+    def test_a_name_of_38_characters_or_fewer_gets_no_dots_and_a_longer_one_keeps_them_on_line_2(self):
+        """Row 1322 ruling: 38 or fewer characters wrap into 2 lines of 19 without dots; over 38 wraps to 2 lines and line 2 ends in '..'."""
+        n38 = "aaaa bbbb cccc dddd eeee ffff gggg hhhh"[:38]
+        self.assertEqual(len(n38), 38)
+        out = g.lines(n38)
+        self.assertEqual(len(out), 2)
+        self.assertNotIn("..", "".join(out))
+        self.assertTrue(all(len(x) <= 19 for x in out))
+        self.assertEqual(g.lines("x" * 38), ["X" * 19, "X" * 19])
+        self.assertEqual(g.lines("x" * 39), ["X" * 19, "X" * 17 + ".."])
+        self.assertEqual(g.lines("ab " * 14)[1][-2:], "..")
+        self.assertEqual(len(g.lines("ab " * 14)), 2)
+
+    def test_a_38_character_name_with_many_short_words_still_fits_two_lines_without_dots(self):
+        """Row 1322 ruling: word breaks never push a 38-character name to a third line or into dots."""
+        name = "a b c d e f g h i j k l m n o p q r s t"[:38]
+        out = g.lines(name)
+        self.assertLessEqual(len(out), 2)
+        self.assertNotIn("..", "".join(out))
+
+    def test_the_plan_and_gantt_pictures_draw_a_39_character_name_in_two_lines(self):
+        """Row 1322 ruling: the lane height for a 39-character name is the two-line height in the plan."""
+        tall = g.TOP + 2 * 7 * g.TEXT_SCALE + 4
+        h = g.plan([ms(1, name="x" * 39), ms(2, name="Go")], "2026-11-08", TOKENS)[0][0]
+        self.assertEqual(read_png(h)[1], tall + g.LANE + 2)
+
+    def test_the_names_in_the_ruling_are_counted_after_upper_casing_and_trimming_not_before(self):
+        """Row 1322 ruling: the 38 count is the characters that are drawn."""
+        self.assertEqual(g.lines("y" * 38), ["Y" * 19, "Y" * 19])
+
     def test_a_long_word_after_a_short_one_keeps_the_short_one_and_the_cut_is_made_on_the_whole_name(self):
         """Row 1322 AP1 mutation sweep: a word longer than a line does not drop the words before it; the dots come from the whole name, not its first 100 characters."""
         self.assertEqual(g.lines("AB CDEFGHIJ", 5, 3), ["AB", "CDEFG", "HIJ"])

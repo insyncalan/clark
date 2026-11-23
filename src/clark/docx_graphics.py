@@ -146,8 +146,11 @@ def lines(text, limit=LABEL_MAX, most=2):
             line = word
     out.append(line)
     if len(out) > most:
-        out = out[:most]
-        out[-1] = (out[-1][:max(0, limit - 2)] + "..")[:limit]
+        # Romanoff ruling: a name of limit*most characters or fewer never gets dots (it is cut at the line width if the word breaks
+        # do not fit); a longer one wraps at the line width and keeps '..' at the end of the last line.
+        out = [text[i * limit:(i + 1) * limit] for i in range(most)]
+        if len(text) > limit * most:
+            out[-1] = (out[-1][:max(0, limit - 2)] + "..")[:limit]
     return out
 
 
