@@ -52,6 +52,18 @@ class Browser(unittest.TestCase):
                 after = cdp.js(ROWS, sid)
                 self.assertAlmostEqual(after["box"], sum(before["closed"][:3]), delta=1, msg=f"the box stays the first 3 rows as they were closed (before is all closed), never moved by the open one: {before} -> {after}")
 
+    def test_a_resize_event_that_arrives_after_the_first_row_opens_leaves_the_box_alone(self):
+        # Row 1551: the macOS shard saw the box grow by one open row's share (789 vs 585). A resize event that comes late (ucRefit.js says slow on macOS) must not drop the open row from the fit when the width did not change.
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                sid = self.draw(cdp, tmp, width)
+                before = cdp.js(ROWS, sid)
+                cdp.js("document.querySelector('.uc .ucrows > .ucrow [role=button]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.uc .ucrows > .ucrow.open')", sid)))
+                cdp.js("window.dispatchEvent(new Event('resize'))", sid)
+                after = cdp.js(ROWS, sid)
+                self.assertAlmostEqual(after["box"], sum(before["closed"][:3]), delta=1, msg=f"a late resize event with the same width moved the box: {before} -> {after}")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -127,9 +127,10 @@ export function UseCases({ tools, section }) {
     const first = rows.slice(0, Math.ceil(n)).map((r) => shut.current.get(r.dataset.uc)).filter(Boolean);
     if (first.length) ul.style.setProperty("--ucrow-h", first.reduce((a, b) => a + b, 0) / first.length + "px");       // n times this is the first n closed rows added up
   };
-  useLayoutEffect(() => { fit(rowsHigh); });
+  const wide = useRef(0);       // the window width the memory was taken at: a resize event at the same width (one that arrives late) changes no row, so it must not drop an open row's height (#1551)
+  useLayoutEffect(() => { wide.current = window.innerWidth; fit(rowsHigh); });
   useEffect(() => {
-    return watchRefit(window, document, box.current, () => { shut.current.clear(); fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
+    return watchRefit(window, document, box.current, (resized) => { if (!resized || window.innerWidth !== wide.current) shut.current.clear(); wide.current = window.innerWidth; fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
   });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));

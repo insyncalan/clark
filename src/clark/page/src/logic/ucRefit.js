@@ -4,7 +4,7 @@
 // fires the observer, and an open row's closed height is only in that memory, so clearing it there would drop the row from the fit and move the box.
 export function watchRefit(win, doc, ul, again, soft) {
   let live = true;
-  const go = () => { if (live) again(); };
+  const go = (e) => { if (live) again(e); };       // again(event) for the resize event, again() for the fonts
   const near = () => { if (live) (soft || again)(); };
   win.addEventListener("resize", go);
   let ro = null;
@@ -13,6 +13,6 @@ export function watchRefit(win, doc, ul, again, soft) {
     ro.observe(ul);
     [...ul.children].forEach((r) => ro.observe(r));
   }
-  if (doc && doc.fonts && doc.fonts.ready && doc.fonts.status !== "loaded") doc.fonts.ready.then(go, () => {});       // the effect re-runs on every render (a row opening): fonts already loaded changed nothing
+  if (doc && doc.fonts && doc.fonts.ready && doc.fonts.status !== "loaded") doc.fonts.ready.then(() => go(), () => {});       // the effect re-runs on every render (a row opening): fonts already loaded changed nothing
   return () => { live = false; win.removeEventListener("resize", go); if (ro) ro.disconnect(); };
 }
