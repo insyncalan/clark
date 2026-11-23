@@ -54,6 +54,7 @@ class CardsDom(BrowserBase, unittest.TestCase):
             out["calendar"] = cdp.js(grab, sid)
             cdp.js("document.querySelector('[data-msvb=tl]') && document.querySelector('[data-msvb=tl]').click()", sid)
             wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid))
+            cdp.js("(() => { const f = window.fetch; window.fetch = (u, o) => /\\/api\\/movement/.test(String(u && u.url || u)) ? new Promise(() => {}) : f.call(window, u, o); })()", sid)      # this server has no movement route: left alone, Movement.jsx flips from "Loading Movement." (the pin) to "couldn't be loaded" while we hash; hold the read so the loading text stays
             cdp.js("document.querySelector('[data-mspv=move]') && document.querySelector('[data-mspv=move]').click()", sid)
             wait(lambda: cdp.js("!document.querySelector('.mv-wrap')", sid))
             out["move"] = cdp.js(grab, sid)
