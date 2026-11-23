@@ -64,7 +64,7 @@ class Gap1315b(Base, unittest.TestCase):
             self.assertNotIn("#milestones .msv-b", inner)
             self.assertNotIn("#milestones .cal-sc", inner)
         with chrome() as cdp:
-            sid = self.show(cdp, 900, "light")      # skipped with the stated reason while test_server.PAUSED_900 is set; runs when it is switched off
+            sid = self.show(cdp, 900, "light")      # runs: test_server.PAUSED_900 is None
             m = cdp.js(M, sid)
             for k in ("sw", "sc"):
                 self.assertEqual(m[k]["pad"], "14px 14px", (k, m))
