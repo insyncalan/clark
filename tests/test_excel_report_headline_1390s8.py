@@ -126,5 +126,16 @@ class InTheWorkbook(unittest.TestCase):
             self.assertEqual((c.data_type, c.quotePrefix), ("s", True), c.value)      # a string cell, never a formula
 
 
+class HelpSentence(unittest.TestCase):
+    """The B-2 Help sentence about the hidden History sheet is pinned word for word (read 23-11: no test held it)."""
+
+    SENTENCE = ("**History** lists the changes made to the items; it is hidden: right-click any sheet tab and choose Unhide.")
+
+    def test_the_report_and_history_sentence_is_in_the_help(self):
+        raw = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        text = json.dumps(json.loads(raw), ensure_ascii=False)
+        self.assertIn(json.dumps(self.SENTENCE, ensure_ascii=False)[1:-1], text)
+
+
 if __name__ == "__main__":
     unittest.main()
