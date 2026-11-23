@@ -76,7 +76,8 @@ class TemplateList(unittest.TestCase):
 
 
 # Measured on the 24 templates as built (the same at 1400 and 900, light and dark): template id -> {control: count}
-# Each entry is a View control that is NOT yet ruled to be a reader tool: the list of the 18 reader tools (audit README) is not in the README text, so these were not checked against it; Jarvis lists them for Romanoff.
+# Each entry is a View control as measured. The audit lists 18 of them as reader tools (gallery 1, work-items 2 rows and Review, gantt, gantt-table 3); the 6 work-items cell-pick pickers (row 1287) are not among them.
+# A pin here is a finding, not an approval.
 FINDINGS = {
     "gallery": {"button.tpl-gal-open": 1},
     "work-items": {"tr.wil-k-action": 1, "tr.wil-k-risk": 1, "button.wil-review": 1, "button.cell-pick": 6},      # 2 rows (tabindex 0, role button) + the Review button + 6 in-place pickers (row 1287 puts pickers in View on the Dashboard lists); the 5 column heads are plain th (AP3)
@@ -167,7 +168,7 @@ TITLE_JS = """(ref) => { const h = document.querySelector('.sec[data-id="' + ref
 
 
 class ViewKeepsTheTitle(F.Family):
-    """Row 1225 AP3, Romanoff's ruling 23-11: View shows a section's title as Edit does (the Full width image and the stored Image with caption included)."""
+    """Row 1225 AP3 (the ticket ruling of 23-11): View shows a section's title as Edit does (the Full width image and the stored Image with caption included)."""
     def test_view_shows_the_title_edit_shows(self):
         for width in (1400, 900):
             got = self.read(width, False, TITLE_JS)
