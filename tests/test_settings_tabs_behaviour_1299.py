@@ -11,6 +11,7 @@ from test_settings_tabs_1299 import Rigged, LIVE, TABS
 
 
 class TabBehaviour(Rigged):
+    switch = True
     def test_tab_click_hash_history_and_independence(self):
         with chrome() as cdp:
             p = self.page(cdp)

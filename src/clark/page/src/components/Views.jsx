@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject, settingsAll, chooseSettingsAll } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject, settingsAll, chooseSettingsAll, switchTabs } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
@@ -213,9 +213,7 @@ function SettingsHead({ groups, page, searching, setSearching }) {
 // Row 1299 (project tabs, Classic only): across the top of the project pages, one tab for each project, pinned while the page scrolls. The tab is the project
 // open in the app (the address's `p`); a click on another sets the Settings-only project (stores/report.js settingsProject): no page read, the top bar stays, the address keeps the tab's project as `p` (this entry rewritten, no new one). Pages that hold one project's settings only; All projects and You pages have none.
 export const PROJECT_PAGES = ["reports", "brand", "people", "claude", "data"];
-// Off until the project cards (client folder, review days, brand, people, ask clark, data) read settingsProjectNow() and not the open project: a click on another tab
-// would say "Affects: HAR" while the controls still edit the open project. With it off the other tabs are drawn but cannot be chosen.
-const SWITCH_TABS = false;
+// The switch is switchTabs (stores/report.js), off in the served page: see there.
 
 function ProjectTabs({ current, lead }) {
   const [list, setList] = useState([]);
@@ -233,7 +231,7 @@ function ProjectTabs({ current, lead }) {
       <ul>
         {lead ? <li><button type="button" class="set-tab" data-all="1" aria-current={settingsAll.value ? "page" : undefined} onClick={chooseSettingsAll}>All projects</button></li> : null}
         {list.map((p) => (
-          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} disabled={p.code !== current && !SWITCH_TABS} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
+          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} disabled={p.code !== current && !switchTabs.value} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
         ))}
       </ul>
     </nav>

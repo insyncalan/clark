@@ -1,7 +1,7 @@
 // The browser tests' way into the page (#63, #42): window.clarkPage. Only the test build (main-test.jsx) imports this file, so
 // neither the served page nor a published file carries it. `tools` is what Edit adds; Help (#82) is among them.
 import { workSelection } from "./stores/selection.js";
-import { data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
+import { switchTabs, data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
 import { markChanged, changed, useClock } from "./stores/changed.js";
 import { welcomeHeld } from "./stores/profile.js";
 import { openImport } from "./edit/wordState.js";
@@ -19,6 +19,7 @@ export function install(tools) {
   const peekHelp = Object.freeze({ open: openContext, toggle: toggleContext, close: closeContext, isOpen: () => contextOpen.value, useText: useContextText });
   const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
   window.clarkPage = Object.freeze({ show, setQuery, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
+    switchTabs: (on) => { switchTabs.value = !!on; },      // row 1299 AP11: the project tabs' switch is off in the served page; the tests of a tab click turn it on
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },

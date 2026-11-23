@@ -56,6 +56,9 @@ export const item = signal(start.item);              // the open peek: a work it
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
 export const settingsAll = signal(false);   // row 1299 AP11: the ask clark page's leading "All projects" tab is the chosen one
+// Row 1299 AP11: the project tabs' switch. Off in the served page until the project cards read settingsProjectNow() and not the open project (a click on another tab
+// would say "Affects: HAR" while the controls still edit the open project): the other tabs are drawn but cannot be chosen. Only the test build turns it on (testhook.js clarkPage.switchTabs).
+export const switchTabs = signal(false);
 export const settingsProject = signal("");   // row 1299: see chooseSettingsProject
 export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
 export const settingsFeedbackShown = signal(false);   // Settings search is showing the Feedback card (set by the search box, Views.jsx); the Feedback tag stands aside then (#1298)

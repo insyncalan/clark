@@ -15,6 +15,7 @@ LINE = "[...document.querySelectorAll('.set-affects')].map(e => e.textContent.tr
 
 
 class Affects(Rigged):
+    switch = True
     def test_affects_label_on_each_page(self):
         for w in WIDTHS:
             with chrome() as cdp:
