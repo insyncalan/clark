@@ -258,6 +258,32 @@ class Row1537(Base):
         self.assertEqual(len(got), 1, got)
         self.assertIn("A-12", got[0].text)
 
+    def test_oserror_on_file_3_does_not_reread_files_1_2(self):
+        from clark import ask_index
+        for n in (1, 2, 3, 4):
+            self.put(f"f{n}.txt", f"zqfile{n} text")
+        reads, fail = {}, {"on": True}
+        real = reach.read_bytes
+
+        def counting(path, *a, **k):
+            name = Path(path).name
+            reads[name] = reads.get(name, 0) + 1
+            if name == "f3.txt" and fail["on"]:
+                raise OSError("read error")
+            return real(path, *a, **k)
+        with mock.patch.object(reach, "read_bytes", counting):
+            with self.assertRaises(OSError):
+                ask_index.refresh(self.data, "P1", [self.box])        # the Indexer's worker catches this and the run is left not current
+            self.assertFalse(ask_index.current(self.data, "P1", [self.box]))
+            fail["on"] = False
+            self.assertTrue(ask_index.refresh(self.data, "P1", [self.box]))      # the next try (resume) carries on
+        self.assertEqual((reads["f1.txt"], reads["f2.txt"]), (1, 1), reads)
+        self.assertEqual(reads["f3.txt"], 2)
+        self.assertEqual(reads["f4.txt"], 1)
+        self.assertTrue(ask_index.current(self.data, "P1", [self.box]))
+        for n in (1, 2, 3, 4):
+            self.assertTrue(self.found(f"zqfile{n}"), n)
+
 
 if __name__ == "__main__":
     unittest.main()

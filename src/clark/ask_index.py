@@ -289,7 +289,13 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
         return True
     db = _open(data_dir, code)
     try:
+        trusted = _screen_ok(db) or db.execute("SELECT count(*) FROM files").fetchone()[0] == 0      # kept text is trusted when screened by this version, or when there is none yet (a first pass)
         return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress)
+    except OSError:
+        if trusted:
+            _set(db, "screen", str(SCREEN_VERSION))      # what was read so far was screened now; the index stays not complete, so nothing is given out
+        db.commit()                              # Row 1537: a read error keeps the files read so far (the index stays not complete), so the next try carries on and does not read them again
+        raise
     finally:
         db.close()                               # also when a read fails half way: no connection is left open by the worker
 
