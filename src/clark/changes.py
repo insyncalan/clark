@@ -574,8 +574,12 @@ def _keep_pictures(section, body):
     stored = _stored_value(section)
     if type(stored) is dict and stored.get(PICTURES):
         value[PICTURES] = stored[PICTURES]
-        if value.get("v") == 2 and stored.get("v") != 2 and "original" not in value[PICTURES]:
-            value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
+        if value.get("v") == 2 and stored.get("v") != 2:
+            if "image" in value[PICTURES]:
+                if "original" not in value[PICTURES]:
+                    value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
+            else:
+                value["v"] = 1      # row 1567: a version 1 gallery (slots "1" to "6") keeps its pictures as stored, so its words stay version 1
     return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
 
 
