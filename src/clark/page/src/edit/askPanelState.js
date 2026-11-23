@@ -9,6 +9,7 @@ import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
 import { chatId, histOpen } from "./askHistory.js";
 import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
+import { askNewRead } from "./publishApi.js";
 
 const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
@@ -82,11 +83,27 @@ let opener = null;
 
 async function readStatus() {
   const kept = keptCheck();
-  if (kept) { apply(kept); return; }            // row 858: asked a moment ago and it was ready: no second wait
+  if (kept) { apply(kept); await hereCheck(); return; }            // row 858: asked a moment ago and it was ready: no second connection check
   panelState.value = "checking";
   const b = await runCheck();
   if (!panelOpen.value) return;
   apply(b);
+  await hereCheck();
+}
+
+// Row 1294: the connection check above is for the computer, not for a project. A project whose own asking is off reads as off here BEFORE anything is sent (the server
+// refuses it too). Fail closed: while this is out the panel reads as checking, and a read that fails reads as unknown, which sends nothing.
+async function hereCheck() {
+  const was = panelState.value, code = project.value;
+  if ((was !== "ready" && was !== "signed-out") || !code) return;
+  panelState.value = "checking";
+  const r = await askNewRead(code);
+  if (!panelOpen.value || panelState.value !== "checking" || project.value !== code) return;
+  if (r.status === 404 && r.body && r.body.code === "not_found") { panelState.value = was; return; }      // a server with no settings store has no per-project value to read (the server always has one when run for real)
+  const b = r.body;
+  if (!(r.status === 200 && b && b.ok === true && typeof b.off_here === "boolean")) { panelState.value = "unknown"; return; }
+  if (b.off_here) { panelState.value = "off"; panelModel.value = ""; panelStanding.value = false; return; }
+  panelState.value = was;
 }
 
 function apply(b) {
