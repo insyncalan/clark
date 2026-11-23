@@ -94,6 +94,9 @@ class WithABrand(Rig):
         return wb, cells
 
     def test_brand_one_like(self):
+        sec = next(x for x in self.demo.store.data_for("ABC")["report_sections"] if x["type"] == "glancetemplate")      # row 1266: a new project's At a glance has the Health tile off and no counts, so no bar; this test is about the bars' colours, so Health is switched on
+        with self.demo.store.step("dashboard", {"name": "Sam Example", "email": "sam.example@example.com"}) as st:
+            st.update("report_sections", sec["id"], {"body": '{"health":{"shown":true},"v":1}'})
         wb, cells = self.check(BRAND_ONE, "0B2545", "0A7C74", "Segoe UI")
         bars = {c[3] for (sheet, _), c in cells.items() if sheet == "Cover" and c[3]}
         self.assertTrue(bars)

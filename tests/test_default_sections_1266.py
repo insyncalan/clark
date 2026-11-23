@@ -8,7 +8,7 @@ import unittest
 
 from _demo import USER, DemoStore
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
-from clark import default_sections, docx_build, docx_read, excel_cover, publish
+from clark import default_sections, docx_build, docx_read, excel_cover, glance_print, publish
 
 
 class DefaultSections1266(unittest.TestCase):
@@ -60,6 +60,26 @@ class DefaultSections1266(unittest.TestCase):
         self.assertIn("Header", texts)
         for gone in ("Current state", "Use case summary", "Summary"):
             self.assertNotIn(gone, texts)
+
+    def cover_tiles(self):
+        got = excel_cover.from_store(self.store, "ABC", "01-06-2030 20:30 (UTC+04:00)", "Sam Example", "Kim Example", "kim.example@example.com", "INTERNAL", as_at="2030-01-15")
+        return [t for x in got if x["kind"] == "tiles" for t in x["tiles"]]
+
+    def test_ap11_excel_cover_default_glance_template_has_the_page_tiles_and_no_health_tile(self):
+        """Romanoff's ruling 23-11 13:24: the Cover reads the glance template the way the published report does; health off puts no Health tile."""
+        built = publish.build(self.store, "ABC", now="2030-01-15")
+        sec = next(s for s in built["published"]["sections"] if s.get("type") == "glancetemplate")
+        want = [t["label"] for t in glance_print.read(built["published"], sec)["tiles"]]
+        got = [t["title"] for t in self.cover_tiles()]
+        self.assertTrue(got)
+        self.assertEqual(got, want)
+        self.assertNotIn("health", [t["tile"] for t in self.cover_tiles()])
+
+    def test_ap11_excel_cover_glance_template_with_health_on_shows_the_health_tile(self):
+        sec = next(s for s in self.store.data_for("ABC")["report_sections"] if s["type"] == "glancetemplate")
+        with self.store.step("dashboard", USER) as st:
+            st.update("report_sections", sec["id"], {"body": '{"health":{"shown":true},"v":1}'})
+        self.assertIn("health", [t["tile"] for t in self.cover_tiles()])
 
 
 if __name__ == "__main__":

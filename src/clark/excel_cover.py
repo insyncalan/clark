@@ -143,7 +143,7 @@ def _tile(t):
             "detail": cut(detail, 2000), "colour": colour or None}
 
 
-def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal=""):
+def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", published=None):
     """The Cover as a list of {"kind", "text", ...}.
 
     project  the project row: "name" (or "code"), "current_state" (HTML), "week_ending" and "client_name"; read only
@@ -152,7 +152,9 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
     exported the words for the export's date and time, for example excel.exported_text()
     by       the name that exported it (Settings › Profile); owner, email: who the file goes back to
     internal the INTERNAL sentence (excel.INTERNAL_NOTE): when given, the title band carries the tag INTERNAL. The sentence
-             itself is not on the Cover."""
+             itself is not on the Cover.
+    published what publish.select gave (row 1266 AP11): a glance template section is read from it the way the Word report and the client
+             workbook read it (glance_print.read), so the Cover shows the tiles the template shows and no Health tile when it is off."""
     name = str(project.get("name") or project.get("code") or "").strip()
     title = _line("title", cut(name, 200))
     if internal:
@@ -170,6 +172,14 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
                 out += [_line("heading", cut(sec.get("title") or "Current state", 200))] + body
         elif kind == "glance":
             part = [_tile(t) for t in tiles or [] if not t.get("hidden")]
+            if part:
+                out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
+        elif kind == "glancetemplate" and published is not None:
+            from clark import glance_print
+            got = glance_print.read(published, sec)
+            part = [_tile({"tile": t["key"], "title": t["label"], "value": t["figure"], "detail": t["note"], "reason": t["note"],
+                           "colour": t["colour"], "pill": {"colour": t["colour"]}})
+                    for t in ([got["health_row"]] if got["health_row"] else []) + got["tiles"]]
             if part:
                 out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
         elif kind == "text":
@@ -206,4 +216,4 @@ def from_store(store, code, exported, by=None, owner=None, email=None, internal=
                              deleted=inputs.get("sections_deleted"))
     tiles = glance.tiles(inputs["data"], today, for_client=True, kept=kept)
     sections = [dict(s, hidden=0) for s in shown["sections"]]
-    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal)
+    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal, published=shown)
