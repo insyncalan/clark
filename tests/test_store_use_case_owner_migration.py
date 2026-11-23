@@ -200,7 +200,7 @@ class Migrating(unittest.TestCase):
         for t in before:
             if t not in ("meta",):
                 self.assertEqual(after[t], before[t], t)
-        self.assertEqual(set(after) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors"}, set(before))      # row 1107 (layout 24) adds that table, row 1300 (layout 30) install_defaults
+        self.assertEqual(set(after) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors", "added_pages"}, set(before))      # row 1107 (layout 24) adds that table, row 1300 (layout 30) install_defaults
 
 
 if __name__ == "__main__":
