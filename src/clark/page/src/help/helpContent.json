@@ -137,7 +137,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
+    "Preview, Export to Excel, Publish, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
     ""
    ],
    [
@@ -927,7 +927,7 @@
        "**Publish…**: the Publish box, on the Dashboard.",
        "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Settings**: opens Settings. Until you add your name, the top line is a link to Settings too.",
-       "**Appearance**: System, Light or Dark; the one in use has a tick.",
+       "**Appearance**: System, Light or Dark.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
       ]
      ],
