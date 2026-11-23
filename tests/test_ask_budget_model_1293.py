@@ -87,15 +87,15 @@ class Cut(unittest.TestCase):
         self.assertGreater(len(text), ask.BUDGET - 10000)
         self.assertIn(ask_service.left_out_note(1), got["notes"])
 
-    def test_gpt_61_five_hundred_thousand_tokens_is_cut_to_970000(self):
-        got, text = self.check(self.codex(), "gpt-6.1-sol", 970000)
-        self.assertGreater(len(text), 960000)
+    def test_gpt_61_five_hundred_thousand_tokens_is_cut_to_the_budget(self):
+        got, text = self.check(self.codex(), "gpt-6.1-sol", ask.BUDGET)
+        self.assertGreater(len(text), ask.BUDGET - 10000)
         self.assertIn(ask_service.left_out_note(1), got["notes"])
 
-    def test_gpt_6_two_seventy_two_thousand_tokens_is_cut_to_514000_and_said(self):
-        got, text = self.check(self.codex(), "gpt-6-sol", 514000)
-        self.assertGreater(len(text), 500000)
-        self.assertLessEqual(len(text), 544000)
+    def test_gpt_6_two_seventy_two_thousand_tokens_is_cut_to_1058000_and_said(self):
+        got, text = self.check(self.codex(), "gpt-6-sol", 1058000)
+        self.assertGreater(len(text), 1040000)
+        self.assertLessEqual(len(text), 1088000)
         self.assertIn(ask_service.left_out_note(1), got["notes"])
         self.assertTrue(all(n for n in got["notes"]))
 
@@ -107,7 +107,7 @@ class Cut(unittest.TestCase):
         self.assertTrue(ask.BUDGET - ask_service.PROJECT_SHARE <= self.budgets[0] <= ask.BUDGET, self.budgets)
 
     def test_a_tiny_model_is_refused_only_for_a_question_that_cannot_fit(self):
-        sub = self.claude({"sonnet": 1000, "opus": 1000})        # 2,000 characters in all
+        sub = self.claude({"sonnet": 500, "opus": 500})        # 2,000 characters in all
         status, got, sent = self.run_with(sub, "sonnet", {**BODY, "question": "Q" * 3000})
         self.assertEqual((status, got["ok"], got["message"], sent), (400, False, ask.TOO_MUCH, []))
         status, got, sent = self.run_with(sub, "sonnet", {**BODY, "question": "What is late?"})
@@ -115,7 +115,7 @@ class Cut(unittest.TestCase):
         self.assertLessEqual(len(sent[0].text), 2000)
 
     def test_a_model_with_room_for_the_overhead_only_cuts_to_nothing_and_still_asks(self):
-        sub = self.claude({"sonnet": 15000, "opus": 15000})      # 30,000 characters: the budget is 0
+        sub = self.claude({"sonnet": 7500, "opus": 7500})        # 30,000 characters: the budget is 0
         status, got, sent = self.run_with(sub, "sonnet")
         self.assertEqual((status, got["ok"], self.budgets), (200, True, [0]), got)
         self.assertLessEqual(len(sent[0].text), 30000)
@@ -142,12 +142,12 @@ class Handed(Cut):
         return seen
 
     def test_the_project_data_takes_no_more_than_the_budget_and_the_cap_is_the_window(self):
-        seen = self.spy(15005)                       # 30,010 characters: a budget of 10
-        self.assertEqual((seen["project"], seen["cap"]), (10, 30010))
-        self.assertLessEqual(self.budgets[0], 10)
+        seen = self.spy(7505)                        # 30,020 characters: a budget of 20
+        self.assertEqual((seen["project"], seen["cap"]), (20, 30020))
+        self.assertLessEqual(self.budgets[0], 20)
 
     def test_a_big_window_hands_on_the_share_and_max_request(self):
-        seen = self.spy(1000000)                     # 2,000,000 characters
+        seen = self.spy(1000000)                     # 4,000,000 characters
         self.assertEqual((seen["project"], seen["cap"]), (ask_service.PROJECT_SHARE, ask.MAX_REQUEST))
 
 
@@ -155,8 +155,8 @@ class Edges(unittest.TestCase):
     def test_the_budget_for_a_window_is_the_window_less_the_overhead_never_more_than_the_budget(self):
         self.assertEqual(ask.REQUEST_OVERHEAD, 30000)
         self.assertEqual(ask.budget_for(None), ask.BUDGET)
-        self.assertEqual(ask.budget_for(544000), 514000)
-        self.assertEqual(ask.budget_for(1000000), 970000)
+        self.assertEqual(ask.budget_for(1088000), 1058000)
+        self.assertEqual(ask.budget_for(1200000), 1170000)
         self.assertEqual(ask.budget_for(2000000), ask.BUDGET)
         self.assertEqual(ask.budget_for(ask.MAX_REQUEST), ask.BUDGET)
         self.assertEqual(ask.budget_for(ask.MAX_REQUEST - 1), ask.BUDGET - 1)
@@ -168,7 +168,7 @@ class Edges(unittest.TestCase):
 
     def test_the_request_cap_is_the_window_up_to_max_request(self):
         self.assertEqual(ask.request_cap(None), ask.MAX_REQUEST)
-        self.assertEqual(ask.request_cap(544000), 544000)
+        self.assertEqual(ask.request_cap(1088000), 1088000)
         self.assertEqual(ask.request_cap(ask.MAX_REQUEST), ask.MAX_REQUEST)
         self.assertEqual(ask.request_cap(ask.MAX_REQUEST + 1), ask.MAX_REQUEST)
         self.assertEqual(ask.request_cap(ask.MAX_REQUEST - 1), ask.MAX_REQUEST - 1)
@@ -192,7 +192,7 @@ class Edges(unittest.TestCase):
 
     def test_the_provider_still_refuses_a_text_longer_than_the_window_at_exactly_one_over(self):
         sub = ai_providers.ClaudeSubscription(Fake("claude", ("sonnet",)))
-        for model, chars in (("sonnet", 2000000),):
+        for model, chars in (("sonnet", 4000000),):
             ok = ask.Request(text="a" * chars, question="q", passages=(), hidden={})
             self.assertEqual(sub.most_chars(model), chars)
             self.assertNotEqual(getattr(sub.ask(ok, model), "message", ""), ai_providers.TOO_BIG.format(model="Sonnet"))
@@ -201,9 +201,9 @@ class Edges(unittest.TestCase):
 
     def test_chosen_gives_the_window_of_the_chosen_model_and_none_when_nothing_is_connected(self):
         sub = ai_providers.ChatGPTSubscription(Fake("codex", tuple(ai_codex.CONTEXT_TOKENS)))
-        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, "gpt-6-sol", False), "off").most_chars(), 544000)
-        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, "gpt-6.1-terra", False), "off").most_chars(), 1000000)
-        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, None, True), "off").most_chars(), 544000)
+        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, "gpt-6-sol", False), "off").most_chars(), 1088000)
+        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, "gpt-6.1-terra", False), "off").most_chars(), 2000000)
+        self.assertEqual(ai_providers.Chosen([sub], lambda: (sub, None, True), "off").most_chars(), 1088000)
         self.assertIsNone(ai_providers.Chosen([sub], lambda: None, "off").most_chars())
 
 
