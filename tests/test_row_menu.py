@@ -24,6 +24,7 @@ from test_work_items import bundled, page_target  # noqa: E402
 import test_work_board_page as board  # noqa: E402
 import test_multi_select as ms  # noqa: E402
 import _testpage as testpage  # noqa: E402
+import _dbg1549  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NOT_OFFERED = "This item cannot go in an email: it is hidden from the report, marked sensitive or restricted, or no longer open."
@@ -602,7 +603,11 @@ class Menu(board.Base):
         self.demo.plant_builtin_sections()      # the Dashboard's Actions list needs its built-in section (row 1193)
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops"))
+            dbg = _dbg1549.arm(lambda e: cdp.js(e, sid), self.id().split('.')[-1] + " work", '.rowmenu [role=menu]')
+            try:
+                self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops"))
+            finally:
+                dbg.dump()
             work = [e[1] for e in self.entries(cdp, sid)]
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
@@ -611,7 +616,11 @@ class Menu(board.Base):
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-type=actions] .wl-row')", "a Dashboard row")
             self.calm(cdp, sid)
-            self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
+            dbg = _dbg1549.arm(lambda e: cdp.js(e, sid), self.id().split('.')[-1] + " dashboard", '.rowmenu [role=menu]')
+            try:
+                self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
+            finally:
+                dbg.dump()
             dash = [e[1] for e in self.entries(cdp, sid)]
             self.assertEqual(dash[1:], work[1:], "the same entries after the Draft email entry, which names the row's owner")
             self.assertTrue(dash[0].startswith("Draft email to "))
