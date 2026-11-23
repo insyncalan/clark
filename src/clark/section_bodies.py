@@ -198,7 +198,7 @@ def _flat_lines(kind, value, strict):
         if not isinstance(text, str) or not sanitise.HTML_START.match(text):
             continue                         # plain text (an older save, or a caller that sends words) is checked and stored as it always was
         try:
-            html = sanitise.rich_or_plain(text)
+            html = re.sub(r"[\r\n]+", " ", sanitise.rich_or_plain(text))      # as _clean_rich: a line feed left in the HTML would be refused by the next check
         except sanitise.SanitiseError:
             if strict:
                 raise Bad(RICH_TOO_LONG) from None

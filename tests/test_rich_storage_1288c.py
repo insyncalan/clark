@@ -325,6 +325,14 @@ class RichLines(unittest.TestCase):
             with self.subTest(kind):
                 self.assertEqual(self.stored(kind, make, where, "<p>Hello <strong>there</strong></p>"), "<p>Hello <strong>there</strong></p>")
 
+    def test_a_line_feed_inside_the_html_is_a_space_and_the_stored_value_passes_a_second_check(self):
+        """Row 1288 (review): <p>one&#10;two</p> cleans to a literal line feed; stored as it came, the next check (a picture change runs it again) refused it."""
+        for kind, make, where, _ in LINES:
+            with self.subTest(kind):
+                first = check(kind, make("<p>one&#10;two&#13;three</p>"))
+                self.assertEqual(where(first), "<p>one two three</p>")
+                self.assertEqual(where(check(kind, first)), "<p>one two three</p>")
+
     def test_old_plain_text_is_stored_as_it_was_and_read_as_the_same_words(self):
         for kind, make, where, file_of in LINES:
             for plain in ("a < b & c", 'say "hi" it\'s', "x", "Fictional plan"):
