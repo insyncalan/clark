@@ -20,7 +20,7 @@ import { Icon } from "./Icon.jsx";
 import { classicTheme } from "./Contents.jsx";
 import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
-import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
+import { statusTone, priorityToneFor, dateTone, iconClass } from "../iconColours.js";
 import { stateOf, LOOK } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { MsProgress } from "./MsList.jsx";
@@ -91,7 +91,7 @@ function ItemChips({ row, tools, editing }) {
   return (
     <PeekChips>
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityToneFor(prio, undefined, row.kind)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} subTone={classicTheme() && row.kind === "decision" ? "word" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
@@ -115,8 +115,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Made on" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind === "issue" ? <Row key_="priority" ref_={row.id} name="Rating"><Toned icon="bars" tone={priorityTone(row.priority)}>{colourOf(row.priority).word}{row.priority ? ` · ${row.priority}` : ""}</Toned></Row>      /* row 1183: an issue's Priority row is its Rating: the colour word and the level word */
-        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
+      {row.kind === "issue" ? <Row key_="priority" ref_={row.id} name="Rating"><Toned icon="bars" tone={priorityToneFor(row.priority, undefined, row.kind)}>{colourOf(row.priority).word}{row.priority ? ` · ${row.priority}` : ""}</Toned></Row>      /* row 1183: an issue's Priority row is its Rating: the colour word and the level word */
+        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityToneFor(row.kind === "decision" ? row.peek_priority : row.priority, undefined, row.kind)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating>{row.kind === "issue" ? ` ${kept} kept` : ` · ${kept}`}</span> : null}      {/* row 1183: a closed issue says "Red kept" under its Closed pill (the Risk ticket's sub-line) */}

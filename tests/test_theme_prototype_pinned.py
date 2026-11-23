@@ -47,6 +47,8 @@ LIGHT = {
         '--tile-on-bg': '#ECE9FB',
         '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
+        '--pri-high-sheet-bg': '#F4DEDB',
+        '--pri-high-sheet-fg': '#B3392F',
         '--ms-amber-shape': '#C58A00',
     }
 DARK = {
