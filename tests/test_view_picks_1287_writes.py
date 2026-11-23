@@ -102,8 +102,8 @@ class ViewPickWrites(T.InThePage):
                     self.assertIsNone(p.js("window.__pwn === undefined ? null : window.__pwn"), "typed markup never ran")
                     self.assertEqual(p.js("document.querySelectorAll('#report img[src=x], [data-pop] img[src=x]').length"), 0, "typed markup drew no element")
                     owner = self.store.read("actions", ref=self.a_due)["owner"]
-                    self.assertTrue(owner == before_owner or owner == text, f"the store holds the old owner or the literal text, not a changed one: {owner!r}")
-                    self.assertLessEqual(len(owner or ""), 200, "oversize text is never stored whole")
+                    self.assertTrue(owner == before_owner or owner == text[:200], f"the store holds the old owner or the literal text (the box keeps 200 characters), nothing else: {owner!r}")
+                    self.assertLessEqual(len(owner or ""), 200, "oversize text is cut to 200, never stored whole")
                     self.assertGreater(self.store.con.execute("SELECT count(*) FROM actions").fetchone()[0], 0, "the table is intact")
                     with self.store.step("dashboard", T.USER) as st:
                         st.update("actions", self.a_due, {"owner": before_owner})
