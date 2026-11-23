@@ -15,6 +15,8 @@ from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
+from test_ask_change_route import Base as RouteBase
+
 import test_docx_read as tdx
 from clark import reach
 
@@ -215,6 +217,41 @@ class FirstRunAndHelpWords(unittest.TestCase):
         self.assertIn(self.SENTENCE, json.dumps(entries, ensure_ascii=False))
         for held in ("PNG", "JPG"):
             self.assertNotIn(held, said.get("CARD_PASSAGES", ""))
+
+
+class QuestionNeedsNoPassages(RouteBase):
+    """AP27 'only when your question needs them': a question that matches nothing in the listed folders sends no folder passage."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.box = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.box, True)
+        (self.box / "tank.txt").write_text("The zebrafish tank is cleaned on Tuesdays.", encoding="utf-8")
+        self.service.folders_for = lambda store, code: [str(self.box)]
+        from clark import ask_index
+        self.ix = ask_index.Indexer(self.service.data_dir)
+        self.addCleanup(self.ix.shutdown)
+        self.service.indexer = self.ix
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+
+    def ask(self, question):
+        self.provider.reply = "ok"
+        before = len(self.provider.sent)
+        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": question})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(len(self.provider.sent), before + 1)
+        return self.provider.sent[-1]
+
+    def test_a_question_that_needs_no_passages_sends_none(self):
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        unneeded = self.ask("milestones")
+        self.assertNotIn("zebrafish", unneeded)
+        self.assertNotIn("tank.txt", unneeded)
 
 
 if __name__ == "__main__":
