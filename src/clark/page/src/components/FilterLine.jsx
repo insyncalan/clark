@@ -373,12 +373,12 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
     }
     const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx, extra), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
     if (c.chips.length) { setChips(next); want.current = c.caret; }
-    setDraft(c.text); later(Q.joinLine(next, c.text));
+    setDraft(c.text); later(Q.joinLine(next, group ? GW.strip(c.text, group.onBoard) : c.text));
   };
   const dropChip = (i) => {
     clearTimeout(timer.current);
     const next = live.current.chips.filter((_, j) => j !== i);
-    setChips(next); apply(Q.joinLine(next, live.current.draft));
+    setChips(next); apply(Q.joinLine(next, group ? GW.strip(live.current.draft, group.onBoard) : live.current.draft));
     if (input.current) input.current.focus();
   };
   const readCaret = () => { if (input.current) setCaret(input.current.selectionStart || 0); };
@@ -499,7 +499,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { leave(); if (onLeave) onLeave(); } }}>
       {head}
       <div class="fline-row">
-      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
+      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, group ? GW.strip(draft, group.onBoard) : draft)}>
         {chip ? (
           <span class="fchips" data-gchips>
             <span class="fchip word" data-group-chip={chip.text}>{chip.text}

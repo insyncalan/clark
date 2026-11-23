@@ -33,6 +33,11 @@ const prefixOf = (v, onBoard) => ids(onBoard).concat(onBoard ? ["nothing"] : [])
 export function mask(text, onBoard) {
   return String(text || "").replace(WORD, (m, lead, w) => (prefixOf(w.slice(6), onBoard) ? lead + "x".repeat(w.length) : m));
 }
+/** The text without its unfinished `group:<start of a choice>` words (the ones `mask` hides): they are never part of the applied line. */
+export function strip(text, onBoard) {
+  const t = String(text || ""), r = t.replace(WORD, (m, lead, w) => (prefixOf(w.slice(6), onBoard) ? lead : m));
+  return r === t ? t : r.replace(/\s+/g, " ").trim();
+}
 export function unmask(pieces, text) {
   let at = 0;
   return pieces.map((p) => { const t = String(text).slice(at, at + p.text.length); at += p.text.length; return { ...p, text: t }; });
