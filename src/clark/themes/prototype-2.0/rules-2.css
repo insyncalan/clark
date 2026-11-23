@@ -63,6 +63,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1263: the Numbers card's count control (3 | 4) and each number's Typed | Live switch are 32px high, at least 40px wide, 14px text, 8px corners, 1px border; the pressed one is tinted (the shared .cb-btn rule) at weight 600. */
+.tpl-edit [data-count] .cb-btn, .tpl-edit [data-source] .cb-btn { box-sizing: border-box; height: 32px; min-height: 32px; min-width: 40px; justify-content: center; font-size: 14px; border: 1px solid var(--control-edge); border-radius: 8px; }
+.tpl-edit [data-count] .cb-btn[aria-checked="true"], .tpl-edit [data-source] .cb-btn[aria-checked="true"] { font-weight: 600; border-color: var(--brand-blue); }
+.tpl-edit [data-source] .cb-btn:disabled { cursor: default; opacity: 0.5; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

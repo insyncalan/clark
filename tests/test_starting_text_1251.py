@@ -29,7 +29,7 @@ WANT = {
     "plan-summary": {"empty": ["Write here.", "Add a step."]},
     "current-state": {"empty": ["Say where the project stands."]},
     # slice 2
-    "figures-4": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
+    "numbers": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
     "figures-3": {"empty": ["Pick what each number shows."]},
     "table": {"empty": ["Add the first row."]},
     "raid-3": {"empty": ["Choose the items to show."]},
@@ -66,6 +66,8 @@ class TheList(unittest.TestCase):
     def test_every_listed_id_is_a_template_in_the_library(self):
         lib = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
         for tid in WANT:
+            if tid == "figures-3":      # row 1263: the old three-numbers type is no longer a library card; its saved sections keep their prompt
+                continue
             self.assertIn(f'id: "{tid}"', lib, tid)
 
     def test_the_publish_switch_is_one_constant_that_shows_the_words_as_written(self):
@@ -91,7 +93,7 @@ class SliceTwoIsReached(unittest.TestCase):
     """Each slice 2 template's Edit part draws its words from startingText.js (never typed into the part itself)."""
     EDIT = PAGE_SRC / "edit" / "templates"
     REACH = {
-        "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
+        "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "numbers" : "figures-3"}'],
         "Table.jsx": ['<StartPrompt id="table"'],
         "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
         "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startOr("Shown above the list", "work-items", "caption")'],
@@ -110,7 +112,7 @@ class SliceTwoIsReached(unittest.TestCase):
                 self.assertIn(n, text, f"{name}: {n}")
 
     def test_no_slice_two_word_is_typed_into_a_part(self):
-        words = sorted({w for k in ("figures-4", "figures-3", "table", "raid-3", "raid-4", "work-items", "docs-links", "checklist", "link-preview", "key-dates", "gantt", "gantt-table")
+        words = sorted({w for k in ("numbers", "figures-3", "table", "raid-3", "raid-4", "work-items", "docs-links", "checklist", "link-preview", "key-dates", "gantt", "gantt-table")
                         for v in WANT[k].values() for w in ([v] if isinstance(v, str) else v)})
         for p in (PAGE_SRC / "edit").rglob("*"):
             if p.suffix in (".js", ".jsx") and p.name != "startingText.js":

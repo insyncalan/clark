@@ -380,7 +380,7 @@ def make_cases(TYPE, PLACES):
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] [data-slot]').length"), PLACES)
                 steps = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
                 for name, text in (("label", "Users trained"), ("number", "120")):
-                    p.js(f"(function(){{var el=document.querySelector('[data-id={json.dumps(ref)}] [aria-label=\"Figure 1 {name}\"]'); el.focus(); el.value={json.dumps(text)};"
+                    p.js(f"(function(){{var el=document.querySelector('[data-id={json.dumps(ref)}] [aria-label=\"Number 1 {name}\"]'); el.focus(); el.value={json.dumps(text)};"
                          "el.dispatchEvent(new Event('change', {bubbles: true}));})()")
                     p.saved()
                     p.clear_toast()
@@ -396,13 +396,13 @@ def make_cases(TYPE, PLACES):
             box must be the same one, still focused, still holding what was typed."""
             ref = self.add()
             sec = f"[data-id={json.dumps(ref)}]"
-            num = f"document.querySelector('{sec} [aria-label=\"Figure 1 number\"]')"
+            num = f"document.querySelector('{sec} [aria-label=\"Number 1 number\"]')"
             with chrome() as cdp:
                 p = self.visit(cdp)
                 cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
                 p.edit()
                 p.until(f"!!document.querySelector('{sec} [data-slot]')", "the places")
-                p.js(f"(function(){{var el=document.querySelector('{sec} [aria-label=\"Figure 1 label\"]'); el.focus(); el.value='Users trained'; window.__num = {num};"
+                p.js(f"(function(){{var el=document.querySelector('{sec} [aria-label=\"Number 1 label\"]'); el.focus(); el.value='Users trained'; window.__num = {num};"
                      "el.dispatchEvent(new Event('change', {bubbles: true}));})()")
                 p.js(f"{num}.focus()")
                 p.type("12")
@@ -428,23 +428,23 @@ def make_cases(TYPE, PLACES):
                 self.assertIn("Overdue actions", p.js(f"document.querySelector('[data-id={json.dumps(ref)}]').textContent"))
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] [data-slot]')", "Edit")
-                self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] [aria-label=\"Figure 1 live figure\"]').value"), "overdue")
+                self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] [aria-label=\"Number 1 live figure\"]').value"), "overdue")
 
         def test_edit_offers_no_live_source_for_a_new_project_and_all_three_for_one_with_the_sections(self):
-            """Row 1337: the source select of an empty place offers Live only while a built-in section of a kind exists."""
+            """Row 1337: the source switch of an empty place enables Live only while a built-in section of a kind exists."""
             ref = self.add()
-            sel = f"document.querySelector('[data-id={json.dumps(ref)}] [data-slot=\"0\"] select')"
+            sel = f"document.querySelector('[data-id={json.dumps(ref)}] [data-slot=\"0\"] [data-source]')"
             def options():
                 with chrome() as cdp:
                     p = self.visit(cdp)
                     p.edit()
                     p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] [data-slot]')", "Edit")
-                    return p.js(f"Array.from({sel}.options).map(o => o.value).join()")
-            self.assertEqual(options(), "typed,live")      # setUp gave the project the built-in sections
+                    return p.js(f"Array.from({sel}.querySelectorAll('button:not(:disabled)')).map(o => o.textContent).join()")
+            self.assertEqual(options(), "Typed,Live")      # setUp gave the project the built-in sections
             with self.store.step("dashboard", USER) as st:
                 for r in self.store.read("report_sections", "ABC"):
                     if r["type"] in ("actions", "raid", "decisions"):
                         st.update("report_sections", r["id"], {"hidden": 1})
-            self.assertEqual(options(), "typed")
+            self.assertEqual(options(), "Typed")
 
     return Contract, Published, ThroughTheStore, PageSide, InThePage

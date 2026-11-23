@@ -2,13 +2,13 @@
 // colour is never the only signal: the figure's words say it (aria-label), and the dot is decoration.
 import { data } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
-import { figuresOf, PLACES } from "./figures.js";
+import { figuresOf, countOf, PLACES } from "./figures.js";
 
 const WORDS = { g: "green", a: "amber", r: "red" };
 
-export function FigureRow({ list, type }) {
+export function FigureRow({ list, type, count }) {
   return (
-    <div class={`tpl-figs n${PLACES[type]}`} data-figures={type}>
+    <div class={`tpl-figs n${count || PLACES[type]}`} data-figures={type}>
       {list.map((f, i) => (
         <div class={`fig rag-${f.rag}`} role="group" data-fig="figure" key={i}
           aria-label={`${f.label}: ${f.value}${f.detail ? ", " + f.detail : ""}${f.asof ? ", as of " + f.asof : ""}${WORDS[f.rag] ? ", " + WORDS[f.rag] : ""}`}>
@@ -24,9 +24,9 @@ export function FigureRow({ list, type }) {
 
 // The view part and isEmpty for one of the two templates.
 export function figuresParts(type) {
-  const list = (section, d) => figuresOf(section, d || data.value, todayIso(), PLACES[type]);
+  const list = (section, d) => figuresOf(section, d || data.value, todayIso(), countOf({ ...section, type }));
   return {
-    View: ({ section, data: d }) => <FigureRow list={list(section, d)} type={type} />,
+    View: ({ section, data: d }) => <FigureRow list={list(section, d)} type={type} count={countOf({ ...section, type })} />,
     isEmpty: (section, d) => list(section, d).length === 0,
   };
 }

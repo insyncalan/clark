@@ -5,6 +5,8 @@ Pure: no file, no database; it imports nothing from clark at load time (the publ
 only inside published(), when publish has already loaded it.
 
 Stored body, one object: {"v": 1, "figures": [slot, ...]}, at most as many slots as the template has places (4 or 3).
+Row 1263: the Numbers card (figures4) may also store "count" (3 or 4: how many numbers it shows; 4 when not stored); a body saved before
+row 1263 has none and reads as it did. figures3 refuses a count.
 A slot is {"mode": "typed", "label", "value", "detail", "asof"} (plain text; asof a real day YYYY-MM-DD or "") or
 {"mode": "live", "metric": "overdue" | "risks" | "decisions"}: the same three figures as the At a glance tiles, counted by
 glance.py (the reference) from the rows publish kept, so a hidden, archived, not client-visible or Sensitive item is never
@@ -60,14 +62,22 @@ def _text(slot, field, limit, rules):
     return got
 
 
+COUNTS = (3, 4)
+
+
 def checker(places):
     def check(value, rules):
-        if type(value) is not dict or value.get("v") != VERSION or set(value) - {"v", "figures"}:
+        if type(value) is not dict or value.get("v") != VERSION or set(value) - ({"v", "figures", "count"} if places == 4 else {"v", "figures"}):
             raise Bad(BAD_SHAPE)
+        head = {}
+        if "count" in value:
+            if type(value["count"]) is not int or value["count"] not in COUNTS:
+                raise Bad(BAD_SHAPE)
+            head["count"] = value["count"]
         slots = value.get("figures", [])
         if type(slots) is not list:
             raise Bad(BAD_SHAPE)
-        if len(slots) > places:
+        if len(slots) > head.get("count", places):
             raise Bad(TOO_MANY)
         out = []
         for slot in slots:
@@ -91,7 +101,7 @@ def checker(places):
                 out.append(one)
             else:
                 raise Bad(BAD_MODE)
-        return {"v": VERSION, "figures": out}
+        return {"v": VERSION, **head, "figures": out}
     return check
 
 
@@ -111,8 +121,9 @@ def publisher(places):
     def published(value, ctx):
         live = None
         out = []
+        count = value.get("count") if isinstance(value, dict) and places == 4 and value.get("count") in COUNTS else None
         for slot in (value.get("figures") if isinstance(value, dict) else None) or []:
-            if len(out) >= places:
+            if len(out) >= (count or places):
                 break
             if slot.get("mode") == "live":
                 live = _live(ctx) if live is None else live
@@ -122,7 +133,7 @@ def publisher(places):
             elif slot.get("mode") == "typed" and slot.get("label") and slot.get("value"):
                 out.append({"mode": "typed", "label": slot["label"], "value": slot["value"], "detail": slot.get("detail") or "",
                             "rag": "n", "asof": slot.get("asof") or ""})
-        return {"figures": out} if out else None
+        return ({"figures": out, **({"count": count} if count else {})}) if out else None
     return published
 
 

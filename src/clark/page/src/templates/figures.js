@@ -14,6 +14,16 @@ export const LIMITS = { label: 60, value: 30, detail: 80 };
 const KIND_OF = { overdue: "actions", risks: "raid", decisions: "decisions" };
 const text = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 
+// Row 1263: how many numbers a section shows. Only the Numbers card (figures4) may store "count" (3 or 4); nothing stored reads as before
+// (4 for figures4, 3 for figures3). The published file carries "count" only when the body had one.
+export const COUNTS = [3, 4];
+export function storedCount(section) {
+  let v = null;
+  try { v = typeof section.body === "string" ? (section.body ? JSON.parse(section.body) : null) : section; } catch (e) { v = null; }
+  return section.type === "figures4" && v && COUNTS.includes(v.count) ? v.count : 0;
+}
+export const countOf = (section) => storedCount(section) || PLACES[section.type];
+
 // The stored slots of a section (an array no longer than its places): a body that is empty or does not read gives none.
 export function slotsOf(section, places) {
   let v = null;
@@ -25,11 +35,11 @@ export function slotsOf(section, places) {
 }
 
 // The body to save for these slots: trailing empty ones dropped; none left is no content ("").
-export function bodyOf(slots) {
+export function bodyOf(slots, count = 0) {
   const empty = (s) => s.mode === "typed" && !s.label && !s.value && !s.detail && !s.asof;
   const list = slots.slice();
   while (list.length && empty(list[list.length - 1])) list.pop();
-  return list.length ? JSON.stringify({ v: 1, figures: list }) : "";
+  return list.length || count ? JSON.stringify({ v: 1, ...(count ? { count } : {}), figures: list }) : "";
 }
 
 // The rules the live figures work under (the same ones the published file is cut with).
