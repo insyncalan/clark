@@ -130,6 +130,17 @@ class Follows(unittest.TestCase):
                 return [...secs.children].map((e) => e.classList.contains('band')); })()""", sid)
             self.assertEqual(got, [False, True, False, True])      # type current is the plain summary; At a glance is the first counted section, banded
 
+    def test_a_text_section_titled_header_or_current_state_is_the_plain_summary(self):
+        with chrome() as cdp:
+            sid, path = target(cdp)
+            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+            for title in ("Header", "Current state"):
+                got = cdp.js("""(() => { document.querySelectorAll('.secs').forEach((e) => e.remove()); const secs = document.createElement('div'); secs.className = 'secs';
+                    secs.innerHTML = '<div class="sec" data-type="text"><div class="sec-h">%s</div></div>' + '<div class="sec" data-type="text"><div class="sec-h">Other</div></div>'.repeat(3);
+                    document.body.appendChild(secs); BD.applyBands(document);
+                    return [...secs.children].map((e) => e.classList.contains('band')); })()""" % title, sid)
+                self.assertEqual(got, [False, True, False, True], title)      # the summary is plain and does not count
+
     def test_hiding_needs_no_manual_call_in_the_page_wiring(self):
         """Dashboard.jsx wires applyBands on render and a class or type change, Classic only, no address or history touched (read from the source: Chrome's page has no dashboard data here)."""
         src = (Path(__file__).resolve().parents[1] / "src" / "clark" / "page" / "src" / "components" / "Dashboard.jsx").read_text(encoding="utf-8")

@@ -6,6 +6,7 @@ const SECTION_HINTS = __CLARK_SECTION_HINTS__;
 
 /** The RichField's `empty` text for a text section (undefined keeps the field's own "Click to write."). */
 export function richHint(section) {
+  if (section && section.type === "text" && section.title === "Header" && classicLook()) return startText(textTemplateId(section), "empty");      // row 1262 with row 1251: the Header section in Classic says the starting words; Cards keeps the build's hint
   return section && section.type === "text" && Object.prototype.hasOwnProperty.call(SECTION_HINTS, section.title) ? SECTION_HINTS[section.title]
     : section && section.type === "text" && classicLook() ? startText(textTemplateId(section), "empty") : undefined;      // row 1251: the Text and Header and Text starting words
 }

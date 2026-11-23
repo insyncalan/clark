@@ -68,17 +68,18 @@ BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "act
 
 
 CURRENT_STATE_TITLE = "Current state"
+CURRENT_STATE_TITLES = (CURRENT_STATE_TITLE, "Header")      # row 1262: a report that already has Current state keeps it; a new report's first text section is titled Header
 
 
 def current_state_section_body(sections):
     """Item 1188: the cleaned body of the report's text section that is the Current state (the first not hidden text section with
-    that title, casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
+    one of those titles (Current state or Header), casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
     section, or no section rows, reads the project's current_state column instead (the caller)."""
-    title = CURRENT_STATE_TITLE.casefold()
+    titles = {t.casefold() for t in CURRENT_STATE_TITLES}
     sections = sorted(sections or (), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))      # display order, as select() sorts
     instructions = {" ".join(t.split()) for t in (CURRENT_STATE_PREFILL, *SECTION_HINTS.values())}
     for s in sections:
-        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() == title:
+        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() in titles:
             body = clean_html(s.get("body"))
             text = " ".join(htmllib.unescape(re.sub(r"<[^>]*>", " ", body)).split())
             return "" if text in instructions else body      # a body that is only an editor hint (stored by an earlier build) never reaches a client
