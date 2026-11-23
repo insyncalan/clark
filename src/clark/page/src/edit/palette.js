@@ -3,7 +3,7 @@
 // with words typed: commands, pages, work items (an ID first), use cases and milestones, then actions, projects (Classic: projects come right after the pages, before the work items); with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
-import { data, shownTabs, TITLES, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
+import { data, shownTabs, TITLES, titleOf, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { KIND_WORDS } from "../workItems.js";
 import { liveOf, nameOf, refOf } from "../logic/useCasesList.js";
@@ -42,7 +42,7 @@ function commands() {
 }
 
 function pages() {
-  return shownTabs.value.filter((v) => v !== "settings" && v !== "published" && TITLES[v]).map((v) => ({ id: "page-" + v, kind: "Page", label: TITLES[v], more: "", disabled: "", current: view.value === v, run: () => show(v) }));
+  return shownTabs.value.filter((v) => v !== "settings" && v !== "published" && titleOf(v)).map((v) => ({ id: "page-" + v, kind: "Page", label: titleOf(v), more: "", disabled: "", current: view.value === v, run: () => show(v) }));
 }
 
 // The create entries, each calling the very function the existing Add button calls: the Add menu on Work items (addItem) and the Milestones page's add. The words are the Add buttons' own (filters.js KIND_ADD, ADD_MILESTONE).
