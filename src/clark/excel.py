@@ -884,9 +884,8 @@ def wraps(table, field):
 
 
 def freeze_cell(table, cols):
-    """Where the panes freeze: below the header row, and after the item's title column (C2 where the title is the second column, D2 on Use cases, whose Reference comes second; item 1160)."""
-    fields = [f for _, f in cols]
-    return f"{get_column_letter(fields.index(TITLE_OF[table]) + 2)}2"
+    """Where the panes freeze: below the header row only, no column (A2; Row 1390 AP4, "freeze the header row")."""
+    return "A2"
 
 
 def _ordered(table, rows):
@@ -1024,7 +1023,7 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
             c.alignment = Alignment(wrap_text=f in ("name", "note", "deliverable", "depends"), vertical="top")
             if f in GANTT_DATES:
                 c.number_format = DATE_FORMAT
-    ws.freeze_panes = "C2"
+    ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(lines) + 1}"
     protect_sheet(ws)
     return ws
@@ -1057,6 +1056,7 @@ def write_history(wb, view, pal=None):
     if last:
         put(ws.max_row + 1, [history_cell(last)], italic=True)
     ws.freeze_panes = "A3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(len(HISTORY_COLUMNS))}{2 + len(view['rows'])}"      # Row 1390 AP4: the filter covers the header (row 2) and the history rows, not the closing line
     protect_sheet(ws)
     return ws
 

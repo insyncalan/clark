@@ -113,17 +113,17 @@ class Formatting(unittest.TestCase):
 
     # ── panes, filter, header ────────────────────────────────────────────────
 
-    def test_header_and_the_id_and_title_columns_are_frozen_on_every_sheet(self):
+    def test_header_row_only_is_frozen_on_every_sheet(self):
         wb = load_workbook(self.build(self.everything()))
         titles = {"Milestones": "Milestone", "Actions": "Title", "Risks & Issues": "Title", "Decisions": "Decision",
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
             if name == "Use cases":          # item 1160: Reference sits between ID and Use case, so the title is the third column
-                self.assertEqual(ws.freeze_panes, "D2", name)
+                self.assertEqual(ws.freeze_panes, "A2", name)
                 self.assertEqual([ws["A1"].value, ws["B1"].value, ws["C1"].value], ["ID", "Reference", title], name)
                 continue
-            self.assertEqual(ws.freeze_panes, "C2", name)
+            self.assertEqual(ws.freeze_panes, "A2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
     def test_every_data_sheet_is_in_the_looks_office_font_header_body_and_the_empty_rows(self):
