@@ -47,6 +47,8 @@ class FeedbackTagBrowser(unittest.TestCase):
     def open_help(self, cdp, sid):
         cdp.js("window.clarkPage.help.open()", sid)   # the one door (helpStore.openHelp); "?" on Work opens the Help peek, not Help
         self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), "Help drew the tag")
+        # Help's mount effect puts focus on its search box after paint; a click before that would be undone by it (slow runners)
+        self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "hpQ"), "Help took focus on its search box")
 
     def each(self):
         """(cdp, sid, where) for width x theme."""
