@@ -15,7 +15,7 @@ from test_server import Running  # noqa: F401
 # Measured on the 24 templates as built (the same at 1400 and 900, light and dark): template id -> {control: count}
 FINDINGS = {
     "gallery": {"button.tpl-gal-open": 1},
-    "work-items": {"tr.wil-k-action": 1, "tr.wil-k-risk": 1, "button.wil-review": 1},      # 2 rows (tabindex 0, role button) + the Review button; the 5 column heads are plain th (AP3)
+    "work-items": {"tr.wil-k-action": 1, "tr.wil-k-risk": 1, "button.wil-review": 1, "button.cell-pick": 6},      # 2 rows (tabindex 0, role button) + the Review button + 6 in-place pickers (row 1287 puts pickers in View on the Dashboard lists); the 5 column heads are plain th (AP3)
     "gantt": {"button.gt-ib": 7, "button.gt-zf": 1, "button.gt-wd": 1, "button.gt-tflag": 1, "div.gt-b.gt-b-phase": 1, "div.gt-b.gt-b-task": 1},
     "gantt-table": {"button": 3},
 }

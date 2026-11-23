@@ -10,6 +10,7 @@ import unittest
 
 import _tpl_family as F
 from test_report_editor import tearDownModule  # noqa: F401
+from test_server import Running  # noqa: F401
 
 FLOOR = 4.5
 
