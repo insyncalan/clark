@@ -2,6 +2,7 @@
 footers of a pair are level (the footer sits at the bottom of the card), with or without Show all items and with lists of any length.
 Classic only; the published file has neither link. Run: CLARK_CHROME=/usr/local/bin/creaite-chrome python3 dev/run_tests.py test_wil_footer_one_row_1475.py"""
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -123,14 +124,14 @@ class FooterOneRow(Look):
         with chrome() as cdp:
             p = self.show(cdp, 1400)
             self.drawn(p, probe)
-            n = geo(p, probe)["rows"]
+            n = int(re.search(r"of (\d+)", geo(p, probe)["html"]).group(1))      # the Foot says "Showing all of N"
         self.assertGreater(n, 2)
         exact = self.add({"mode": "all", "columns": COLS, "kinds": ["action"], "max": n}, title="Exact list", after=probe)
         with chrome() as cdp:
             p = self.show(cdp, 1400)
             self.drawn(p, exact)
             g = geo(p, exact)
-            self.assertEqual(g["rows"], n, g)
+            self.assertIn(f"of {n}", g["html"], g)
             self.assertIsNone(g["all"], f"a list of exactly Most rows has no Show all items: {g}")
             self.assertIsNotNone(g["rev"], g)
 
