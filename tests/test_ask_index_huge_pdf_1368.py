@@ -55,17 +55,29 @@ def pages(words):
 WRAP = """import sys, resource
 sys.path.insert(0, sys.argv[1])
 import pdf_reader_child as c
-limit = int(sys.argv[2])
-c._limits = lambda cpu=15: resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
-c.main([sys.argv[0]] + sys.argv[3:])
+limit, refuse = int(sys.argv[2]), sys.argv[3] == "refuse"
+def cap(cpu=15):
+    try:
+        if refuse:
+            raise ValueError("simulated: the platform refuses RLIMIT_AS")
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (AttributeError, ValueError, OSError):
+        sys.stderr.write("LIMIT_REFUSED")        # like the child's own _limits: macOS refuses RLIMIT_AS; the test reports it, never hides it
+c._limits = cap
+c.main([sys.argv[0]] + sys.argv[4:])
 """
+SKIP_REASON = "RLIMIT_AS refused on this platform: memory assertion not run"
+
+
+def run_child(raw, as_limit, refuse=False):
+    """The real child, with its RLIMIT_AS replaced by `as_limit` bytes (`refuse` simulates a platform that refuses it); returns (status it prints, limit refused)."""
+    src = str(pdf_reader_child.__file__.rsplit("/", 1)[0])
+    done = subprocess.run([sys.executable, "-c", WRAP, src, str(as_limit), "refuse" if refuse else "set", str(pdf_reader.VENDOR), "200", "50000"], input=raw, capture_output=True, timeout=120)
+    return done.stdout.decode(), b"LIMIT_REFUSED" in done.stderr
 
 
 def child_says(raw, as_limit):
-    """The real child, with its RLIMIT_AS replaced by `as_limit` bytes; returns the status it prints."""
-    src = str(pdf_reader_child.__file__.rsplit("/", 1)[0])
-    done = subprocess.run([sys.executable, "-c", WRAP, src, str(as_limit), str(pdf_reader.VENDOR), "200", "50000"], input=raw, capture_output=True, timeout=120)
-    return done.stdout.decode()
+    return run_child(raw, as_limit)[0]
 
 
 class Huge(Base):
@@ -105,7 +117,24 @@ class Huge(Base):
         raw = real_pdf([], big=20 * 1024 * 1024)
         self.assertEqual(len(raw) < 100 * 1024, True)
         self.assertIn('"status": "ok"', child_says(raw, 3 * 10 ** 9))                       # the same file reads fine with room
-        self.assertEqual(child_says(raw, 200 * 1024 * 1024), '{"status": "corrupt", "pages": []}')   # too little memory: the catch-all says corrupt
+
+    def memory_case(self, refuse):
+        """The 200 MiB case: only this assertion is skipped (with a reason) when the platform refuses the limit."""
+        out, refused = run_child(real_pdf([], big=20 * 1024 * 1024), 200 * 1024 * 1024, refuse)
+        if refused:
+            self.skipTest(SKIP_REASON)
+        self.assertEqual(out, '{"status": "corrupt", "pages": []}')                         # too little memory: the catch-all says corrupt
+
+    def test_memory_exhaustion_in_the_child_says_corrupt_where_the_limit_is_accepted(self):
+        self.memory_case(False)
+
+    def test_memory_case_is_skipped_with_a_reason_where_the_limit_is_refused(self):
+        with self.assertRaises(unittest.SkipTest) as caught:
+            self.memory_case(True)
+        self.assertEqual(str(caught.exception), SKIP_REASON)
+        out, refused = run_child(real_pdf([], big=20 * 1024 * 1024), 3 * 10 ** 9, True)      # the other assertions still run: the child reads the file uncapped
+        self.assertEqual(refused, True)
+        self.assertIn('"status": "ok"', out)
 
     def test_a_flate_bomb_past_pypdfs_own_75mb_cap_is_corrupt_and_listed_as_type(self):
         raw = real_pdf([], big=600 * 1024 * 1024)                 # pypdf refuses a stream past 75 MB itself (a 70 MB one reads, with 3 GiB or 1 GiB): not memory, but the same answer
