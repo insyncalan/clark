@@ -39,7 +39,7 @@ Routes:
 - GET  /api/providers    Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
 - POST /api/providers/connect {provider}: clark may use it; POST /api/providers/disconnect {provider}: clark stops using it, and the sign-in stays
 - POST /api/providers/model {model, accept?}: the model asking uses, from a fixed list
-- GET /api/providers/progress; POST /api/providers/verify {provider}: Check again (row 1492), one real request; POST /api/providers/cancel {provider}
+- GET /api/providers/progress; POST /api/providers/verify {provider}: the re-check (row 1492), one real request; POST /api/providers/cancel {provider}
 - POST /api/providers/test {}: Test the connection (row 1294): one short question to each model that is on, and how long each took
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
