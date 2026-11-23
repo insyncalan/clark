@@ -402,7 +402,7 @@ class Editor(Base):
             self.assertEqual(js("document.querySelectorAll('#sl-text').length"), 0)
 
     def test_one_undo_per_change(self):
-        """Row 1541 AP3: Remove gives one #slash-undo and a restore uses it up; a typed edit clears it."""
+        """Row 1541 AP3: Remove gives one #slash-undo and a restore uses it up (the AI result Undo and the typed-edit clearing are in test_slash_ai_1295)."""
         with chrome() as cdp:
             js = self.editor(cdp, EDITOR + "&new=1")
             self.until(js, "!!document.querySelector('#sl-name')", "the form opens")

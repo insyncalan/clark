@@ -11,7 +11,7 @@ import time
 from _paths import SRC  # noqa: F401
 from test_ai_route import Fake
 from test_server import chrome, wait
-from test_slash_editor_1295 import Base, EDITOR
+from test_slash_editor_1295 import Base, EDITOR, EditorStates
 
 from clark import ai_service, ask_service
 
@@ -267,6 +267,82 @@ class Help(AiBase):
                 self.assertIn("Overdue by owner", sent)
                 for word in project_words:
                     self.assertNotIn(word, sent)
+
+
+class UndoAndStates(AiBase):
+    def test_one_undo_per_ai_result_and_a_typed_edit_clears_it(self):
+        """Row 1541 AP3: an AI result gives exactly one #slash-ai-undo; a second result still gives one, keeping the fields that result replaced; a click restores them and uses the step up; a typed edit clears it."""
+        with chrome() as cdp:
+            js = self.new_form(cdp)
+            count = lambda: js("document.querySelectorAll('#slash-ai-undo').length")   # noqa: E731
+            first = "Please list everything that is overdue, grouped by owner, oldest first"
+            self.type_into(js, "#sl-text", first)
+            self.assertEqual(count(), 0)
+            self.click(js, "#slash-ai-shorter")
+            self.until(js, "document.querySelector('#sl-text').value === 'Overdue by owner'", "the first result")
+            self.assertEqual(count(), 1)
+            self.assertEqual(js("document.querySelectorAll('#slash-undo').length"), 0)
+            self.done(js)
+            self.click(js, "#slash-ai-clearer")
+            self.until(js, f"document.querySelector('#sl-text').value.includes({CLEARER_ADD!r})", "the second result")
+            self.done(js)
+            self.assertEqual(count(), 1)
+            self.click(js, "#slash-ai-undo")
+            self.until(js, "document.querySelector('#sl-text').value === 'Overdue by owner'", "the click restores the fields the second result replaced")
+            self.assertEqual(count(), 0)
+            self.type_into(js, "#sl-text", first)                # the same reply as the text is no suggestion, so the text is made longer again
+            before = len(self.provider.requests)
+            self.click(js, "#slash-ai-shorter")
+            self.assertTrue(wait(lambda: len(self.provider.requests) > before, 20), "asked again")
+            self.until(js, "document.querySelectorAll('#slash-ai-undo').length === 1", "an Undo again", 20)
+            self.done(js)
+            self.type_into(js, "#sl-text", "A typed change")
+            self.until(js, "document.querySelectorAll('#slash-ai-undo').length === 0", "a typed edit clears the Undo")
+
+    def states_at_both_widths(self, check):
+        for width, tracks in ((1400, 3), (900, 1)):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    self.until(js, "!!document.querySelector('#slash-ai-write')", "the AI help is on the page", 30)
+                    self.until(js, "document.querySelector('#slash-ai-write').disabled === false", "the AI state is known", 30)
+                    check(js, tracks)
+
+    def grid(self, js, tracks):
+        self.until(js, "!!document.querySelector('.slash-grid')", "the grid is drawn")
+        self.assertEqual(js(EditorStates.TRACKS), tracks)
+
+    def test_the_ai_check_verdict_shows_at_both_widths(self):
+        """Row 1541 AP4 state 5: #slash-check-run shows the verdict (#slash-check with -clear, -reads, -changes) in light and dark at 1400 and 900."""
+        def check(js, tracks):
+            self.type_into(js, "#sl-text", "Tell me who owns {item}")
+            self.click(js, "#slash-check-run")
+            self.until(js, "!!document.querySelector('#slash-check-clear')", "the verdict is shown")
+            self.done(js)
+            self.grid(js, tracks)
+            for part in ("clear", "reads", "changes"):
+                self.assertTrue(js(f"document.querySelector('#slash-check-{part}').offsetHeight > 0"), part)
+            self.assertEqual(js("document.querySelector('#slash-check-reads').innerText"), "only work items.")
+        self.states_at_both_widths(check)
+
+    def test_an_error_message_is_a_role_alert_at_both_widths(self):
+        """Row 1541 AP4 state 5: a save the server cannot do shows its error in .pub-msg with role alert, in light and dark at 1400 and 900."""
+        def check(js, tracks):
+            self.assertEqual(js("document.querySelector('.pub-msg').getAttribute('role')"), "status")
+            self.type_into(js, "#sl-name", "monday")
+            self.type_into(js, "#sl-menu", "Monday summary")
+            self.type_into(js, "#sl-text", "Group the overdue items by owner.")
+            self.until(js, "!document.querySelector('#slash-save').disabled", "Save is on")
+            store = self.s.httpd.ask_commands
+            self.s.httpd.ask_commands = None                     # the store goes away after the page loaded
+            self.addCleanup(setattr, self.s.httpd, "ask_commands", store)
+            self.click(js, "#slash-save")
+            self.until(js, "document.querySelector('.pub-msg').getAttribute('role') === 'alert'", "the message is an alert")
+            self.s.httpd.ask_commands = store
+            self.assertTrue(js("document.querySelector('.pub-msg p.error').innerText.length > 0"))
+            self.assertTrue(js("document.querySelector('.pub-msg').offsetHeight > 0"))
+            self.grid(js, tracks)
+        self.states_at_both_widths(check)
 
 
 class Check(AiBase):
