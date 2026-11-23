@@ -146,8 +146,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
   return <PeekDetails summary={summary}>{rows}</PeekDetails>;
 }
 
-// The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, by name. On the live page
-// the Edit part reads it (tools.PeekSource, GET /api/activity, with " by <name>"); a published file draws the name its data carries (publish.select).
+// The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, naming the source and no person (row 1258). On the live page
+// the Edit part reads it (tools.PeekSource, GET /api/activity, source name only); a published file draws the name its data carries (publish.select).
 // The text is drawn as text; nothing is drawn when there is none.
 export function SourceLine({ text }) {
   return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;

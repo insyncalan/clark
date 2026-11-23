@@ -1460,7 +1460,7 @@
        "**The title**, then the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour.",
        "**Latest update** (in Edit; a published file shows it as a read-only line), and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details** (in Edit a tab, with Activity; in View the same rows with no tab): Workstream, Milestone, Raised, and in Edit the Client visible line (a risk and an issue also have Use case); a decision has its own rows instead; an open decision also has Raised and Last reviewed. Status, Owner, Due and Priority are the chips above it. An item’s description is its title.",
-       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. It names the source and nothing else: no person. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],

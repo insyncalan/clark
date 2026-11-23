@@ -512,7 +512,8 @@ class PeekSourceWords(unittest.TestCase):
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("**Source** (in Edit, in View and in a published file)", text)
         self.assertNotIn("**Source** (in Edit)", text)
-        self.assertIn("a published file shows only the name", text)
+        self.assertIn("It names the source and nothing else: no person.", text)      # row 1258: no \" by <name>\"
+        self.assertNotIn("ends with by and the name", text)
 
 
 class ProfileCircleWords(unittest.TestCase):
