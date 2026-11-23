@@ -13,7 +13,7 @@ from clark import page, theme
 from _real_server import real_server
 from test_work_board_page import Base
 
-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+RULES = ((ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
 SHELL = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 PEEK = (ROOT / "src" / "clark" / "page" / "src" / "components" / "Peek.jsx").read_text(encoding="utf-8")
 

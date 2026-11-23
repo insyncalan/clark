@@ -25,7 +25,7 @@ class Build(unittest.TestCase):
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving", 'DRAFT: {"title"'):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 14)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "58c3443356ed619e54b809966d4b5d91d611814d2f8edac43af29851d2ea7a8c")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "3b7013bf21a271888da7b46121fc70274791101aa5cf9ddffd4263d83aeec0f7")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
@@ -46,7 +46,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "connectors", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "connectors", "cancel", "person"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; person (row 1331) is the profile name; owner and cancel (#284) let a Stop end only its own service's run
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
