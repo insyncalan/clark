@@ -1,6 +1,7 @@
-"""Row 1289: the peek's side padding is 20 px (the final mock-up), Classic only (rules-2.css); the shared frame in shell.css is untouched.
-The words box (a foot band the full width of the peek) is pulled out to the peek's edges by a negative margin, so in Classic it is pulled
-out by the same 20 px: it reaches the peek's inner edges and no further, at 1400 and 900. Cards keeps its 24 px.
+"""Row 1289 AP7 (PM ruling): Classic peek padding equals the prototype (app.css .pk-top 10px 16px 6px 20px, .pk-scroll 4px 24px 24px), at 1400 and 900;
+Classic only (rules-2.css), the shared frame in shell.css is untouched and Cards keeps its own. The toolbar is the .pk-top, the rest the .pk-scroll.
+The words box (a foot band the full width of the peek) is pulled out to the peek's edges by a negative margin equal to the 24 px body inset:
+it reaches the peek's inner edges and no further, at 1400 and 900.
 Run: CLARK_CHROME=/usr/local/bin/creaite-chrome python3 dev/run_tests.py test_peek_padding_1289.py
 """
 import json
@@ -20,15 +21,17 @@ T = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
 R2 = (T / "rules-2.css").read_text(encoding="utf-8")
 SHELL = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 GEO = """(() => { const p = document.querySelector('#peek'), w = p.querySelector('.wordsbox'), pr = p.getBoundingClientRect(), wr = w.getBoundingClientRect(), c = getComputedStyle(p),
-  f = p.querySelector('.pk-fields, .pk-title, h2, h3'), fr = f.getBoundingClientRect(), wc = getComputedStyle(w);
+  tb = p.querySelector('.pk-tb'), tbr = tb.getBoundingClientRect(), bd = p.querySelector('.pk-body'), f = p.querySelector('.pk-fields, .pk-title, h2, h3'), fr = f.getBoundingClientRect(), wc = getComputedStyle(w);
   return { padL: c.paddingLeft, padR: c.paddingRight, inL: pr.left + p.clientLeft, inR: pr.left + p.clientLeft + p.clientWidth, boxL: wr.left, boxR: wr.right,
-           textL: wr.left + parseFloat(wc.paddingLeft), contentL: fr.left }; })()"""
+           textL: wr.left + parseFloat(wc.paddingLeft), contentL: fr.left,
+           tb: (t => ({ pad: t.paddingTop + ' ' + t.paddingRight + ' ' + t.paddingBottom + ' ' + t.paddingLeft, mb: t.marginBottom, L: tbr.left, R: tbr.right, top: tbr.top }))(getComputedStyle(tb)),
+           bodyPad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, bodyL: bd.getBoundingClientRect().left, bodyR: bd.getBoundingClientRect().right, peekTop: pr.top + p.clientTop }; })()"""
 
 
 class Padding(unittest.TestCase):
-    def test_classic_peek_side_padding_is_20(self):
-        m = re.search(r"(?m)^\.peek \{[^}]*padding:\s*var\(--space-3\) 20px var\(--space-5\);[^}]*\}", R2)
-        self.assertTrue(m, "rules-2.css needs .peek { padding: var(--space-3) 20px var(--space-5); }")
+    def test_classic_peek_rules_are_the_prototype_values(self):
+        self.assertRegex(R2, r"(?m)^\.peek \{ padding: 0 24px 24px; \}")
+        self.assertRegex(R2, r"(?m)^\.peek \.pk-tb \{ margin: 0 -24px 4px; padding: 10px 16px 6px 20px; top: 0; \}")
 
     def test_the_shared_frame_keeps_its_rule(self):
         self.assertIn("padding: var(--space-3) var(--space-5) var(--space-5); }", SHELL)
@@ -62,11 +65,22 @@ class WordsBox(Peeks):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .wordsbox')", sid)), "two slashes open the box")
             return cdp.js(GEO, sid)
 
-    def test_classic_words_box_reaches_the_peek_edges_and_no_further_1400_and_900(self):
+    def test_classic_peek_padding_is_the_prototype_and_words_box_reaches_the_edges_1400_and_900(self):
         for width in (1400, 900):
             with self.subTest(width=width):
                 g = self.geo(True, width)
-                self.assertEqual((g["padL"], g["padR"]), ("20px", "20px"), g)
+                # .pk-top: the toolbar, full width of the peek, padding 10px 16px 6px 20px, at the top
+                self.assertEqual(g["tb"]["pad"], "10px 16px 6px 20px", g)
+                self.assertAlmostEqual(g["tb"]["L"], g["inL"], delta=1, msg=str(g))
+                self.assertAlmostEqual(g["tb"]["R"], g["inR"], delta=1, msg=str(g))
+                self.assertAlmostEqual(g["tb"]["top"], g["peekTop"], delta=1, msg=str(g))
+                # .pk-scroll: 4 above (the toolbar's bottom margin), 24 left and right, 24 below
+                self.assertEqual(g["tb"]["mb"], "4px", g)
+                self.assertEqual(g["bodyPad"], "0px 24px 24px 24px", g)
+                self.assertAlmostEqual(g["bodyL"], g["inL"] + 24, delta=1, msg=str(g))
+                self.assertAlmostEqual(g["bodyR"], g["inR"] - 24, delta=1, msg=str(g))
+                self.assertAlmostEqual(g["contentL"], g["inL"] + 24, delta=1, msg=str(g))
+                # the words box reaches the peek's edges and no further
                 self.assertAlmostEqual(g["boxL"], g["inL"], delta=1, msg=str(g))
                 self.assertAlmostEqual(g["boxR"], g["inR"], delta=1, msg=str(g))
                 self.assertAlmostEqual(g["textL"], g["contentL"], delta=1, msg="the box's words line up with the peek's content: " + str(g))
@@ -76,6 +90,9 @@ class WordsBox(Peeks):
             with self.subTest(width=width):
                 g = self.geo(False, width)
                 self.assertEqual((g["padL"], g["padR"]), ("24px", "24px"), g)
+                self.assertEqual(g["bodyPad"], "12px 24px 24px 24px", g)   # the shared frame, measured on main
+                self.assertEqual(g["tb"]["pad"], "12px 0px 12px 0px", g)
+                self.assertEqual(g["tb"]["mb"], "0px", g)
                 self.assertAlmostEqual(g["boxL"], g["inL"], delta=1, msg=str(g))
                 self.assertAlmostEqual(g["boxR"], g["inR"], delta=1, msg=str(g))
 
