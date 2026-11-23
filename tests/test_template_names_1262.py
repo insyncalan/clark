@@ -55,16 +55,11 @@ class TemplateNames(unittest.TestCase):
         for id_, name in NAMES.items():
             self.assertRegex(TEMPLATES, r'\{ id: "%s", name: "%s", kind:' % (re.escape(id_), re.escape(name)), f"{id_} is called {name}")
 
-    def test_no_built_in_keeps_a_name_from_the_old_list(self):      # row 1262 table: Use case summary -> Use cases, Supporting documents -> Documents
+    def test_the_built_in_cards_keep_their_names_because_a_card_name_is_the_section_title(self):      # builtIn() sets title = name: a rename would rename report sections (Human 23-11: no section title changes)
         from clark import changes
-        old = ("Use case summary", "Supporting documents")
-        lines = TEMPLATES.splitlines()
-        block = next(l for l in lines if l.lstrip().startswith('builtIn("current"')) + "\n" + next(l for l in lines if l.lstrip().startswith('builtIn("milestones"'))
-        for name in old:
-            self.assertNotIn(f'"{name}"', block, f"the built-in cards in templates.js no longer use {name}")
-        self.assertIn('builtIn("usecases", "Use cases"', block)
-        self.assertIn('builtIn("docs", "Documents"', block)
-        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))      # Human 23-11 10:28: section titles are not renamed
+        self.assertIn('builtIn("usecases", "Use case summary"', TEMPLATES)
+        self.assertIn('builtIn("docs", "Supporting documents"', TEMPLATES)
+        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))
 
     def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Human 23-11: Cards keeps Current state; the Dashboard default is not changed
         from clark import changes, default_sections

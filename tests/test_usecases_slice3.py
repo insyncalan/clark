@@ -39,9 +39,8 @@ class UseCasesSlice3(unittest.TestCase):
     def test_the_card_and_the_default_make_the_same_section(self):
         card = run('T.BUILT_INS.find(x => x.type === "usecases")')
         start = default_usecases()[0]
-        self.assertEqual(card["type"], start["type"])
-        self.assertEqual(card["title"], "Use cases", "row 1262: the card's name; the default report's own title is not renamed")
-        self.assertEqual(changes.BUILT_IN_TITLES["usecases"], card["title"], "the store re-adds it with the card's title")
+        self.assertEqual((card["type"], card["title"]), (start["type"], start["title"]))
+        self.assertEqual(changes.BUILT_IN_TITLES["usecases"], start["title"], "the store re-adds it with the default's own title")
 
     def test_the_card_is_offered_only_when_the_section_was_taken_out(self):
         report = [{"id": "a", "type": "text", "title": "x", "beside": 0}]
