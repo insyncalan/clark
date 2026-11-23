@@ -233,6 +233,31 @@ class Row1537(Base):
         self.assertTrue(self.found("zqedge3"))
         self.assertEqual(ix.status(self.data, "P1", [self.box])["too_long"], 0)
 
+    def test_followup_terms_find_item_file_passage(self):
+        self.put("owners.txt", "ABC-12 is owned by zqdana from the supplier team")
+        self.put("other.txt", "ABC-99 is owned by zqomar and the ticket count is 12")
+        self.build()
+        from clark import ask_index
+        self.assertFalse(self.found("zzfollow zzup"), "the question alone names no item")
+        got = ask_index.search(self.data, "P1", "zzfollow zzup", extra=["ABC-12"])
+        self.assertEqual([p.text for p in got if "zqdana" in p.text and "zqomar" not in p.text], [p.text for p in got][:1])
+        self.assertTrue(any("zqdana" in p.text for p in got))
+        # the phrase "ABC 12" must be adjacent: ABC-99 with a 12 elsewhere in its text is not the item
+        self.assertFalse(any("zqomar" in p.text for p in ask_index.search(self.data, "P1", "zzzz", extra=["ABC-12"])))
+        # an id in the question itself is found the same way; the 40-word cap never cuts the extra terms
+        filler = " ".join(f"zzf{i}" for i in range(45))
+        self.assertTrue(any("zqdana" in p.text for p in ask_index.search(self.data, "P1", filler, extra=["ABC-12"])))
+        self.assertTrue(any("zqdana" in p.text for p in ask_index.search(self.data, "P1", "who owns ABC-12")))
+
+    def test_an_id_such_as_a_dash_12_is_found_by_the_fts5_query(self):
+        self.put("a.txt", "the item A-12 is late")
+        self.put("b.txt", "the item A-99 is late and has 12 users")
+        self.build()
+        from clark import ask_index
+        got = ask_index.search(self.data, "P1", "zzzz", extra=["A-12"])
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("A-12", got[0].text)
+
 
 if __name__ == "__main__":
     unittest.main()

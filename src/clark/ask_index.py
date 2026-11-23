@@ -461,10 +461,24 @@ def build(data_dir, code, folders, home=None):
     refresh(data_dir, code, folders, home)
 
 
-def search(data_dir, code, question, limit=MAX_RESULTS):
-    """Passages for `question`, best first (newer file first when equal). Opens no source file."""
+def _phrases(question, extra):
+    """The item IDs of the question and the `extra` terms (a follow-up's earlier IDs), each as one FTS5 phrase of its words, so "ABC-12" needs
+    ABC and 12 side by side, not anywhere in the passage. Not cut by the 40-word cap; duplicates dropped."""
+    out = []
+    for term in [*ask_data.ID_PATTERN.findall(question or ""), *(extra or ())]:
+        ws = _WORD.findall(term)
+        phrase = '"' + " ".join(w.replace('"', "") for w in ws) + '"'
+        if ws and phrase not in out:
+            out.append(phrase)
+    return out
+
+
+def search(data_dir, code, question, limit=MAX_RESULTS, extra=()):
+    """Passages for `question`, best first (newer file first when equal). Opens no source file. `extra`: more terms to search with
+    (Row 1537: the item IDs of the last turns of a chat, as the project's own ranker takes them)."""
     words = _WORD.findall(question or "")
-    if not words:
+    phrases = _phrases(question, extra)
+    if not words and not phrases:
         return []
     db = _open_read(data_dir, code)
     if db is None:
@@ -472,7 +486,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
     try:
         if not _screen_ok(db):
             return []                                # text screened by an older screen is never given out; the next read screens it again
-        match = " OR ".join('"' + w.replace('"', "") + '"' for w in words[:40])
+        match = " OR ".join(['"' + w.replace('"', "") + '"' for w in words[:40]] + phrases)
         rows = db.execute("SELECT text, file, part, mtime FROM p WHERE p MATCH ? ORDER BY round(rank, 6), mtime DESC LIMIT ?", (match, limit)).fetchall()
     except sqlite3.Error:
         return []

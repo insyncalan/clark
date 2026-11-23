@@ -166,6 +166,19 @@ class AskNoFolders(unittest.TestCase):
         self.assertEqual((status, body.get("ok")), (200, True), body)
         self.assertEqual(idx.call_count, 1)
 
+    def test_row1537_a_followup_searches_with_the_item_ids_of_the_last_four_turns_in_both_readers(self):
+        self.folders = [str(self.d)]
+        earlier = [{"role": "user", "text": "Tell me about ABC-1 and ABD-2 please"}, {"role": "assistant", "text": "ABC-1 is late. Used: XYZ-9"},
+                   {"role": "user", "text": "ok"}, {"role": "assistant", "text": "fine"}, {"role": "user", "text": "ok again"}]
+        for target in ("ask_index", "ask_passages"):
+            self.indexer.current = lambda code, folders, on=(target == "ask_index"): on
+            with mock.patch.object(getattr(ask_service, target), "folder_data", return_value=ask_passages.FolderData(passages=())) as fd:
+                status, body = self.service.ask({"project": "PUB", "question": "and who owns it?", "earlier": earlier})
+                self.assertEqual((status, body.get("ok")), (200, True), body)
+                asked = [a for a in fd.call_args.args if isinstance(a, str) and "who owns" in a][0]
+            # only the last 4 turns count: ABC-1 and ABD-2 sit in turn 1 of 5 and XYZ-9 in turn 2
+            self.assertEqual(asked, "and who owns it? ABC-1 XYZ-9", target)
+
     def test_m32_no_folders_means_no_still_reading_note(self):
         status, body = self.ask()
         self.assertEqual(status, 200, body)
