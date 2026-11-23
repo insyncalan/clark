@@ -1017,6 +1017,7 @@ def write_history(wb, view, pal=None):
     rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
     st = Styles(_pal(pal))
     ws = wb.create_sheet(HISTORY_NAME)
+    ws.sheet_state = "hidden"             # 1390: hidden, not very hidden, so right-click a tab > Unhide shows it; the import reads sheets by name
 
     def put(row, values, **kw):
         for i, v in enumerate(values, start=1):

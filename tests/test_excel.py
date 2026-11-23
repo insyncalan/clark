@@ -231,7 +231,7 @@ class ExcelTests(unittest.TestCase):
         wb = load_workbook(self.d.path)
         self.assertEqual(wb.sheetnames[-3:-1], ["History", "Lists"])
         self.assertEqual(wb["Lists"].sheet_state, "hidden")
-        self.assertEqual(wb["History"].sheet_state, "visible")
+        self.assertEqual(wb["History"].sheet_state, "hidden")        # 1390
 
     def test_every_sheet_named_in_a_formula_exists_and_needs_no_quotes(self):
         import re

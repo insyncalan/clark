@@ -153,3 +153,17 @@ class ReportSheetFollowsTheDashboard(unittest.TestCase):
         self.assertIn("The vendor test slipped to Friday.", column)
         self.assertLess(column.index("\u25a0  Report headline"), column.index("The vendor test slipped to Friday."))
         self.assertEqual(export(as_at="2030-05-20")["A3"].value, "Shown as at 20-05-2030")
+
+
+class HistorySheetHidden(RoundTrip):
+    def test_history_sheet_is_hidden_not_very_hidden_1390(self):
+        """1390 DoD 'History hidden': the editor export's History sheet is plain hidden (Unhide shows it), a visible sheet is
+        active, and the import still reads the workbook with its hidden History."""
+        wb = load_workbook(self.path)
+        self.assertEqual(wb[excel.HISTORY_NAME].sheet_state, "hidden")
+        self.assertEqual(wb.active.sheet_state, "visible")
+        self.assertNotEqual(wb.active.title, excel.HISTORY_NAME)
+        edit(self.path, "Actions", self.a1, Owner="Sam Example")
+        p = self.read()
+        self.assertEqual(p.problems, [])
+        self.assertEqual({c.table: c.after for c in p.changes}["actions"], {"owner": "Sam Example"})
