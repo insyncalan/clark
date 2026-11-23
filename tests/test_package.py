@@ -857,16 +857,15 @@ def _files_in_zip(listed_items):
 
 
 def release_tags(run=subprocess.run):
-    """Item 1167: the v* release tags, newest first. A shallow clone with none (push-run CI is depth 1) fetches them; if there are
-    still none the tests fail loudly instead of skipping."""
+    """Item 1167: the v* release tags, newest first. A shallow clone (CI is depth 1) fetches them, whether it has none (a push run) or only
+    the tag being built (a tag run); if there are still none the tests fail loudly instead of skipping."""
     def listing():
         return run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
     tags = listing()
-    if not tags:
-        shallow = run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
-        if shallow == "true":
-            run(["git", "-C", str(ROOT), "fetch", "--tags", "--depth=1", "origin"], capture_output=True, text=True)
-            tags = listing()
+    shallow = run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
+    if shallow == "true":      # a tag run checks out depth 1: the one tag being built is there, the older ones are not, so fetch them even when the list is not empty
+        run(["git", "-C", str(ROOT), "fetch", "--tags", "--depth=1", "origin"], capture_output=True, text=True)
+        tags = listing()
     if not tags:
         raise AssertionError("no v* release tag: fetch tags (git fetch --tags)")
     return tags
@@ -891,6 +890,30 @@ class ReleaseTagsTest(unittest.TestCase):
         calls = []
         self.assertEqual(["v1.0.8", "v1.0.7"], release_tags(self._runner(calls, True, True)))
         self.assertIn("fetch", calls)
+
+    def test_a_shallow_tag_run_with_only_its_own_tag_still_fetches_the_older_ones(self):
+        """The release-tag run checks out depth 1 with just v1.3.8; the old code fetched only when the list was empty."""
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append(cmd[3])
+            out = ""
+            if cmd[3] == "tag":
+                out = "v1.3.8\nv1.0.7\nv1.0.6\n" if "fetch" in calls else "v1.3.8\n"
+            elif cmd[3] == "rev-parse":
+                out = "true\n"
+            return subprocess.CompletedProcess(cmd, 0, stdout=out)
+        self.assertEqual(["v1.3.8", "v1.0.7", "v1.0.6"], release_tags(run))
+        self.assertIn("fetch", calls)
+
+    def test_a_full_clone_with_tags_does_not_fetch(self):
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append(cmd[3])
+            return subprocess.CompletedProcess(cmd, 0, stdout="v1.3.8\n" if cmd[3] == "tag" else "false\n")
+        self.assertEqual(["v1.3.8"], release_tags(run))
+        self.assertNotIn("fetch", calls)
 
     def test_no_tags_after_the_fetch_fails_loudly(self):
         with self.assertRaises(AssertionError):
