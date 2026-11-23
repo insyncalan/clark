@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
+import { Preferences } from "./Preferences.jsx";
 
 // Item 1200: the example shown in the empty copy-folder box (placeholder text, not a value).
 export const COPY_PLACEHOLDER = "/Users/you/OneDrive/clark backups";
@@ -156,6 +157,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </div>
       ) : null}
       <div class="pub-msg" ref={msgEl} tabIndex={-1} role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      <Preferences />
     </section>
   );
 }

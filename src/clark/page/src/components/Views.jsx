@@ -117,12 +117,12 @@ const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
-  ["Data and safety", [["backups", "Backups", ["Safety", "Preferences"]], ["data", "Export and import", ["Data"]]]],
+  ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
 ];
 const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Preferences: "preferences-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {

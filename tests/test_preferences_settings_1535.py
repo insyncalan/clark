@@ -1,4 +1,4 @@
-"""Row 1535 step 5 (AP16, AP17): Settings › Backups says "Your preferences are kept with your data" and has "Reset all preferences", in a real browser at
+"""Row 1535 step 5 (AP16, AP17): Settings › Backups (the foot of its card) says "Your preferences are kept with your data" and has "Reset all preferences", in a real browser at
 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_preferences_settings_1535. Chrome is required: these tests fail, never skip, without it.
 
 What is asserted: the line and the button are on the Backups page; the page never scrolls sideways; the first press asks (Cancel appears, nothing is sent), Cancel
@@ -34,7 +34,7 @@ class Kept(Base):
                     self.open_backups(p, w, mode)
                     self.assertEqual(p.js("document.getElementById('preferences-kept').textContent"), LINE)
                     self.assertEqual(p.js("document.getElementById('preferences-reset').textContent"), BUTTON)
-                    self.assertEqual(p.js("document.getElementById('preferences-h').textContent"), "Preferences")
+                    self.assertTrue(p.js("!!document.getElementById('preferences').closest('#safety')"), "it is in the Backups card")
                     box = p.js("(function(){ var r = document.getElementById('preferences-reset').getBoundingClientRect(); return [r.left, r.right, r.width, r.height, window.innerWidth]; })()")
                     self.assertTrue(0 <= box[0] and box[1] <= box[4] and box[2] > 0 and box[3] >= 24, box)
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, "no sideways scroll")
