@@ -40,7 +40,7 @@ class WindowDoD(Base):
 
     def test_window_ring_shadow_and_ground_light_and_dark(self):
         ring = {"light": "rgb(233, 237, 246)", "dark": "rgb(43, 56, 80)"}      # the mock-up's --line (#e9edf6, dark #2b3850)
-        drop = {"light": "rgba(6, 47, 58, 0.18)", "dark": "rgba(0, 0, 0, 0.6)"}      # 0 12px 36px rgba(6,47,58,.18); dark keeps the --shadow token's colour
+        drop = {"light": "rgba(6, 47, 58, 0.18)", "dark": "rgba(6, 47, 58, 0.18)"}      # 0 12px 36px rgba(6,47,58,.18); dark is the same (ruling 23-11, mock-up A7:7, no dark override); was the --shadow token's colour
         ground = {"light": "rgb(241, 243, 249)", "dark": "rgb(21, 31, 44)"}      # the mock-up's --win (#f1f3f9, dark #151f2c)
         for w in WIDTHS:
             for mode in MODES:
@@ -90,7 +90,7 @@ class WindowDoD(Base):
                 self.assertEqual(len(got), len(PAGES))
                 for g in got:
                     self.assertEqual(g["pad"], "5px 8px", g["name"] + ": row padding (mock-up .p)")
-                    self.assertEqual(g["radius"], "10px" if g["open"] else "9px", g["name"] + ": row radius (mock-up .p 9px; the open page's chip keeps 10px, ruling 20-11, test_theme_classic_1317)")
+                    self.assertEqual(g["radius"], "9px", g["name"] + ": row radius 9px on every row, the open one too (ruling 23-11, mock-up A7:12)")
 
     def test_tile_fill_per_page_holds_contrast_3_to_1(self):
         for w in WIDTHS:

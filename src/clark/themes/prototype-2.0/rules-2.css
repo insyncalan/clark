@@ -57,7 +57,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .set-tile-profile { background: #8794b3; } .set-tile-appearance { background: #5b47d8; } .set-tile-theme { background: #5b47d8; } .set-tile-projects { background: #2f4bb8; } .set-tile-backups { background: #a3301f; } .set-tile-reports { background: #2f4bb8; } .set-tile-folder { background: #2f4bb8; } .set-tile-brand { background: #c48900; } .set-tile-people { background: #006b5e; } .set-tile-claude { background: #7a3fd0; } .set-tile-data { background: #006b5e; } .set-tile-version { background: #475577; } .set-tile-logs { background: #8794b3; }
 /* Row 1299 AP5: the menu row is padding 5px 8px with 9px corners, as the mock-up's .p (FINAL-settings-A7.html:12). */
 .set-win .set-chip { padding: 5px 8px; }
-.set-win .set-chip:not([aria-current]) { border-radius: 9px; }      /* the open page's chip keeps the 10px of the ruling of 20-11 (test_theme_classic_1317) */
+.set-win .set-chip, .set-win .set-chip[aria-current], .set-win .set-chip[aria-current]:hover { border-radius: 9px; }      /* every row incl. the open one is 9px (ruling 23-11, mock-up A7:12 '.p{padding:5px 8px;border-radius:9px}'; '.p.on' only adds colour); wins over rules.css's 10px of the ruling of 20-11 */
 .set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
 @media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
 @media (min-width: 1100px) { .set-layout.set-win { grid-template-columns: 270px minmax(0, 1fr); } }      /* the mock-up's sidebar column from 1100 up */

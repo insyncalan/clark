@@ -82,7 +82,7 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
-        '--set-ring': '#2B3850', '--set-win': '#151F2C', '--set-shadow': 'rgba(0, 0, 0, .6)',
+        '--set-ring': '#2B3850', '--set-win': '#151F2C', '--set-shadow': 'rgba(6, 47, 58, .18)',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
