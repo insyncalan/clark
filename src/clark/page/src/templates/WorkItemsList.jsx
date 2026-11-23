@@ -5,7 +5,7 @@
 // carries (a published file). isEmpty: no row to show, or no filter saved yet; the section then stays out of View and the file.
 import { signal } from "@preact/signals";
 import { useRef, useLayoutEffect } from "preact/hooks";
-import { asAt, fromFile, openPeek, openWork } from "../stores/report.js";
+import { asAt, fromFile, openPeek, openPeekEdit, openWork } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { listOf, drawRows, drawn, idsToShow, filterOf, footWords, reviewWords, pageState, priorityCell, WORDS } from "./workItemsList.js";
 import { clientPill } from "../logic/sectionRows.js";
@@ -51,13 +51,14 @@ function Cell({ row, col, now }) {
 // Row 1195: the page layers a Theme in <style id="theme"> (clark.page.layer_theme); Cards layers nothing, so there is no such element.
 export const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
-export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord }) {
+export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord, edit, scope }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
     onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
+  const titleOpen = (row) => (edit ? { onClick: (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) edit(row.id); } } : {});      // row 1287 (View, Classic only): the title opens the peek in full edit; it is never edited in the list
   // Row 1195 (Classic, Edit): the headings after Item can be dragged or moved with Alt and an arrow (edit/colWidths.jsx useColOrder); the order is kept on this computer.
   const moved = ord && classicTheme() ? ord.apply(columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"))) : null;
   const th = (c, text) => <th key={c} class={`wil-c-${c}${moved ? ord.cls(c) : ""}`} scope="col" style={cw ? cw.style(c) : undefined} {...(cw ? cw.head(c, text) : {})} {...(moved ? ord.props(c, moved) : {})}>{text}{cw ? cw.grip(c, text) : null}</th>;
-  const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
+  const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} scope={scope} {...(classicTheme() ? { said: cellText(row, c, now) } : {})} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = moved || columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
   // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
@@ -79,7 +80,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord 
             <tr key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
               <td class="wil-c-tile">{tile(row)}</td>
               {before.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
-              <td class="wil-c-title">{row.title || ""}</td>
+              <td class="wil-c-title" {...titleOpen(row)}>{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
               {Eye ? <td class="wil-c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
             </tr>
@@ -90,7 +91,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord 
         {rows.map((row) => (
           <li key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
             <span class="wil-tile">{tile(row)}</span>
-            <span class="wil-t">{row.title || ""}</span>
+            <span class="wil-t" {...titleOpen(row)}>{row.title || ""}</span>
             {kinds && columns.includes("priority") && ratedRow(row) ? <span class="wil-hpr"><Cell row={row} col="priority" now={now} /></span> : null}
             {kinds ? <span class="wil-m">{columns.filter((c) => c !== "type" && c !== "priority").map((c) => cellText(row, c, now)).filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
               : <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>}
@@ -169,7 +170,7 @@ function Live({ draw, hooks, id }) {
   return draw(cw, ord);
 }
 
-export function View({ section, data }) {
+export function View({ section, data, pick }) {
   const now = today();
   const list = listOf(section, data, now);
   const rows = drawRows(idsToShow(list, !fromFile.value), drawn(data, !fromFile.value));
@@ -177,7 +178,7 @@ export function View({ section, data }) {
   const draw = (cw, ord) => (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Listing max={list.max || rows.length} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} cw={cw} ord={ord} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Listing max={list.max || rows.length} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} cw={cw} ord={ord} scope={section.id} Cell={fromFile.value || !classicTheme() ? undefined : pick || undefined} edit={fromFile.value || !pick || !classicTheme() ? undefined : openPeekEdit} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
