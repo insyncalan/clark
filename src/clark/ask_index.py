@@ -813,14 +813,13 @@ class Indexer:
             self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
-        elif due and current(self.data_dir, code, folders):
-            differs, per = changes(self.data_dir, code, folders, self.home)
-            if differs:
-                with self.wake:
-                    self.changed[code] = per
-                self.start(code, folders)           # a file changed since the last read: read again, so the line stays right
-                with self.wake:
-                    live = dict(self.live[code]) if code in self.live else None
+        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
+            per = changes(self.data_dir, code, folders, self.home)[1]      # the count for "Updating… N files changed", made only once a change is found
+            with self.wake:
+                self.changed[code] = per
+            self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
+            with self.wake:
+                live = dict(self.live[code]) if code in self.live else None
         with self.wake:
             pending = code in self.queue or code in self.live
             failed = code in self.failed
