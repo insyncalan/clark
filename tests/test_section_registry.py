@@ -338,7 +338,7 @@ class PageSide(unittest.TestCase):
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST and not x.get("start")]
         # row 1268: the Work items list has no entry without a start (its start is the saved filter it begins from), so it counts here by that one entry
-        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] in ("workitems", "textimage")]      # row 1232: Text and Image Side by Side is the type textimage started with a version 2 body
+        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] in ("workitems", "imagecap", "textimage")]      # row 1232: Text and Image Side by Side is the type textimage started with a version 2 body; row 1223: the Image card (imagecap) also has a start
         # row 1263: figures3 (Key figures, three) has no library card of its own (the one Numbers card is figures4); sections saved as figures3 keep drawing and publishing
         self.assertEqual(sorted(cat_types), sorted(t for t in types if t != "figures3"), "one catalogue entry per template type")
         self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("text-image", "textimage", '{"v":2}'), ("full-image", "imagecap", '{"v":2}')],

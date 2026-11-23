@@ -827,10 +827,10 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "In **Settings**, open **Version and updates** and press **Check now**. When a newer version is there, press **Download**; when it says the download is checked, press **Install and restart**. If you were sent the update file, press **Choose zip…** under **Use a file instead** and pick it; **Review** shows the version before you install.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
-     "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
+     "To go back, press **Undo** in the **Updated to clark** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
     ],
     "page": [
      "settings#update"
@@ -1086,14 +1086,9 @@
         "Half or full"
        ],
        [
-        "Image with caption",
-        "One picture with its caption.",
-        "Half or full"
-       ],
-       [
-        "Full width image",
-        "One image across the full width, framed as you choose, with an optional caption.",
-        "Full"
+        "Image",
+        "One image, framed as you choose, with an optional caption.",
+        "Full or half"
        ],
        [
         "Quote",
@@ -1414,7 +1409,7 @@
      ],
      [
       "p",
-      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. The Asking switch in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
       "ul",
@@ -1897,7 +1892,7 @@
        ],
        [
         "Version and updates",
-        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo**. See [Updating clark](#ref-updating-clark)."
        ],
        [
         "Brands",
@@ -1913,7 +1908,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
+        "The Asking switch (it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -1959,11 +1954,11 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button with the new version number when a newer update is in Downloads. There is no online check.",
-       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
+       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button when a newer update is in Downloads. The newest version is looked up quietly when you open this card and when you choose **Check now**. It never installs by itself.",
+       "**Choose zip…**, under **Use a file instead**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
        "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
-       "**Undo update** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
+       "**Undo** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
       ]
      ]
     ],

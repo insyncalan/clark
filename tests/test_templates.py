@@ -46,13 +46,12 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
     {"id": "gallery", "description": "Pictures in a grid, each with a caption."},
-    {"id": "image-caption", "description": "One picture with its caption."},
-    {"id": "full-image", "description": "One image across the full width, framed as you choose, with an optional caption."},
+    {"id": "full-image", "description": "One image, framed as you choose, with an optional caption."},
     {"id": "quote", "description": "A voice from the business."},
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
-FIRST_SLICE = ["text", "text-image", "numbers", "glance-template", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "report-headline", "callout", "image-caption", "full-image", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "numbers", "glance-template", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "report-headline", "callout", "full-image", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 BOX = FIRST_SLICE[:-1] + ["gantt", "gantt-table"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) and the Gantt table (row 1068) sit before One document, placeable since the store takes their types (layouts 19 and 21)
 
 
@@ -142,8 +141,7 @@ class Logic(unittest.TestCase):
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
-            "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
-            "full-image": ("One image across the full width, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full"]),      # row 1223
+            "full-image": ("One image, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full", "half"]),      # row 1223: Image, full or half
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
@@ -262,7 +260,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(sorted(x["id"] for x in by.values() if x["type"] in ("figures3", "figures4")), ["numbers"])
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 24)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance
+        self.assertEqual(len(self.t("list()")), 23)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance      # row 1223: - the Image with caption card
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["numbers", "glance-template"])      # the kind's name is searched too: Project at a glance is in Figures
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -350,6 +348,22 @@ class Logic(unittest.TestCase):
         self.assertEqual(hits, ["addSection.js"])
         self.assertIn("ADD_SECTION_EVENT = ADD_EVENT", (SRC / "clark" / "page" / "src" / "edit" / "addDialog.js").read_text(encoding="utf-8"))
 
+    def test_the_picker_lists_image_not_image_with_caption_at_full_and_half(self):
+        """Row 1223 (tests 12 and 13, the card side): one card named Image, offered full and half, and no Image with caption; Help says the same."""
+        cat = self.t("TEMPLATES")
+        names = [x["name"] for x in cat]
+        self.assertIn("Image", names)
+        self.assertNotIn("Image with caption", names)
+        self.assertNotIn("Full width image", names)
+        by = {x["id"]: x for x in cat}
+        self.assertEqual(set(by["full-image"]["fit"]), {"full", "half"})
+        self.assertEqual(by["full-image"]["type"], "imagecap")      # the old sections keep their stored type, so they open as they were
+        self.assertNotIn("image-caption", by)
+        help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("Image with caption", help_)
+        self.assertNotIn("Full width image", help_)
+        self.assertIn('"Image",\n        "One image, framed as you choose, with an optional caption.",\n        "Full or half"', help_)
+
     def test_the_box_code_escapes_the_selector_and_does_not_touch_state_after_closing(self):
         src = (SRC / "clark" / "page" / "src" / "edit" / "AddDialog.jsx").read_text(encoding="utf-8")
         self.assertIn("CSS.escape(after)", src, "the id is escaped before it goes into a selector")
@@ -403,7 +417,7 @@ class Box(Base):
                              "the page behind cannot be reached")
             self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 24)      # row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates24", "Project information2", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates23", "Project information2", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
