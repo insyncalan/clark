@@ -14,7 +14,7 @@
 //   ed.run(name, arg), ed.can(name), ed.active(name)   the toolbar's commands (see COMMANDS)
 //   ed.focus(), ed.destroy()
 // Keys: Cmd or Ctrl + Enter saves (onSave), Esc cancels (onCancel). A plain profile also saves on Enter (one line).
-import { createEditor } from "tiptap";
+import { createEditor, Mark } from "tiptap";
 import { cleanHtml, href, SanitiseError } from "../logic/cleanHtml.js";
 import { toHtml, forEditor } from "./richHtml.js";
 
@@ -23,8 +23,24 @@ export { SanitiseError };
 // Left out of the vendored feature set: Markdown and the raw-HTML nodes, code, images, and the claim mark.
 const DROP = new Set(["markdown", "htmlBlock", "htmlBlockFromMarked", "htmlInline", "literal", "image", "code"]);
 
+// Row 1364: font colour. One mark, written as ONE span with a class from the fixed set (no style attribute, never a hex): the cleaner
+// (sanitise.COLOUR_CLASSES) keeps exactly these, and the page's and the published file's stylesheets draw each from a design token.
+export const COLOURS = ["grey", "brand", "red", "amber", "green", "blue"];
+const FontColour = Mark.create({
+  name: "fontColour",
+  addAttributes() { return { colour: { default: null, parseHTML: (el) => (el.getAttribute("class") || "").replace(/^rt-c-/, ""), renderHTML: () => ({}) } }; },
+  parseHTML() { return [{ tag: "span", getAttrs: (el) => (COLOURS.some((c) => el.getAttribute("class") === `rt-c-${c}`) ? null : false) }]; },
+  renderHTML({ mark }) { return ["span", { class: `rt-c-${mark.attrs.colour}` }, 0]; },
+  addCommands() {
+    return {
+      setFontColour: (colour) => ({ commands }) => COLOURS.includes(colour) && commands.setMark(this.name, { colour }),
+      unsetFontColour: () => ({ commands }) => commands.unsetMark(this.name, { extendEmptyMarkRange: true }),
+    };
+  },
+});
+
 function rich(list) {
-  return list.filter((e) => !DROP.has(e.name)).map((e) => {
+  return list.concat([FontColour]).filter((e) => !DROP.has(e.name)).map((e) => {
     if (e.name === "starterKit") {
       return e.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false, underline: false, code: false, dropcursor: false,
         gapcursor: false, link: false, trailingNode: false, horizontalRule: {}, blockquote: {}, strike: {} });
@@ -130,10 +146,12 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
         if (!a) return false;
         return c.extendMarkRange("link").setLink({ href: a }).run();
       }
+      if (name === "colour") return (COLOURS.includes(arg) ? c.setFontColour(arg) : c.unsetFontColour()).run();      // no name = Automatic
       if (name === "unlink") return c.extendMarkRange("link").unsetLink().run();
       const f = COMMANDS[name];
       return f ? f(c).run() : false;
     },
+    colour: () => { const c = (editor.getAttributes("fontColour") || {}).colour; return COLOURS.includes(c) ? c : null; },      // the colour at the selection, or null (Automatic)
     linkAddress: () => (editor.getAttributes("link") || {}).href || "",
     focus: () => editor.commands.focus("end"),
     destroy() { if (!done) { done = true; editor.destroy(); } },
