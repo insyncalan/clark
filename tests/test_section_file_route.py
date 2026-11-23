@@ -22,7 +22,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _real_server import real_server
-from clark import changes, log as clark_log, page, platform, publish_flow, section_files, server as sv, to_client
+from clark import changes, log as clark_log, page, platform, publish_flow, section_files, server as sv, theme, to_client
 from clark.section_kinds import doclinks
 from test_report_editor import EMPTY_BRANDING, Base as PageBase
 from test_server import Running, chrome
@@ -56,8 +56,9 @@ class Route(unittest.TestCase):
         self.change = changes.make_change(self.s.path, [], USER)
         self.undo = changes.make_undo(self.s.path, [], USER)
 
-    def choose(self, prompt, start=None):
+    def choose(self, prompt, start=None, types=None):
         self.asked.append(prompt)
+        self.types = types
         return self.chosen[0]
 
     def section(self, kind="doclinks", title="Fictional papers"):
@@ -141,7 +142,7 @@ class Route(unittest.TestCase):
         self.assertEqual(doclinks.file_name(body["file"]["name"]), "Q3 plan- final-.pdf")
 
     def test_a_hidden_device_name_is_not_left_as_a_device_name(self):
-        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux"):
+        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux.txt"):
             ref = self.section()
             f = self.src / odd
             f.write_bytes(PDF)
@@ -170,7 +171,7 @@ class Route(unittest.TestCase):
         ref = self.section()
         (self.client / "Report files").mkdir()
         there = self.client / "Report files" / "Budget.xlsx"
-        there.write_bytes(b"fictional budget")
+        there.write_bytes(b"PK\x03\x04 fictional budget")
         self.chosen = [there]
         status, body = self.attach(ref)
         self.assertEqual(status, 200, body)
@@ -240,10 +241,22 @@ class Route(unittest.TestCase):
 
     def test_a_full_section_is_refused_before_the_dialog(self):
         ref = self.section()
-        full = [{"kind": "link", "href": f"https://example.org/{n}", "label": ""} for n in range(doclinks.MAX_ITEMS)]
+        full = [{"kind": "link", "href": f"https://example.org/{n}", "label": f"Page {n}"} for n in range(doclinks.MAX_ITEMS)]
         self.change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "place": "report",
                      "changes": {"body": json.dumps({"v": 1, "items": full})}})
         self.assertEqual(self.refused(ref, "full", dialog=False), doclinks.TOO_MANY)
+
+    def test_add_a_file_keeps_an_old_stored_entry_that_the_new_rules_refuse_OPTION_A(self):
+        """A section that holds a link with no words (stored before item 1194) still takes a file: the old entry stays as it was
+        (never repaired, never dropped), the new file meets every rule."""
+        ref = self.section()
+        old = {"kind": "link", "href": "https://example.org/old", "label": ""}
+        self.s.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (json.dumps({"v": 1, "items": [old]}), ref))
+        self.s.con.commit()
+        status, body = self.attach(ref)
+        self.assertEqual(status, 200, body)
+        self.assertEqual([i.get("href") or i["name"] for i in self.items(ref)["items"]], ["https://example.org/old", "Plan v2.pdf"])
+        self.assertEqual(self.items(ref)["items"][0]["label"], "", "the old entry is stored as it was")
 
     def test_an_archived_project_is_read_only(self):
         ref = self.section()
@@ -276,6 +289,88 @@ class Route(unittest.TestCase):
                 self.chosen = [chosen]
                 self.refused(ref, "never_place")
 
+    def test_the_file_window_offers_only_the_allowed_endings_for_documents_and_links(self):
+        ref = self.section()
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(tuple(self.types), doclinks.ALLOWED_ENDINGS)
+
+    def test_a_file_of_a_type_that_is_not_allowed_is_refused_before_any_copy(self):
+        ref = self.section()
+        for name in ("page.html", "pic.svg", "bundle.zip", "run.exe", "report.pdf.exe", "noending"):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(b"fictional")
+                self.asked.clear()
+                self.chosen = [bad]
+                message = self.refused(ref, "bad_type")
+                self.assertEqual(message, doclinks.bad_type(name))
+                self.assertEqual(message, f"{name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.")
+        self.assertIsNone(self.files(), "no Report files folder was made")
+        self.assertIsNone(self.items(ref))
+        upper = self.src / "Plan.PDF"
+        upper.write_bytes(PDF)
+        self.chosen = [upper]
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), ["Plan.PDF"])
+
+    def test_a_file_whose_first_bytes_do_not_match_its_ending_is_refused_before_any_copy(self):
+        """Row 1194 (ruling 21-11): the first bytes must match the ending; the refusal is the bad_type sentence."""
+        ref = self.section()
+        for name, data in (("fake.pdf", b"MZ\x90\x00 a program"), ("fake.png", PDF), ("fake.docx", PDF), ("fake.xls", b"PK\x03\x04 zip"),
+                           ("fake.jpg", b"<html>"), ("fake.txt", b"text\x00binary"), ("empty.pdf", b""), ("shifted.pdf", b" %PDF-1.4")):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(data)
+                self.asked.clear()
+                self.chosen = [bad]
+                self.assertEqual(self.refused(ref, "bad_type"), doclinks.bad_type(name))
+        self.assertIsNone(self.files(), "no Report files folder was made")
+        self.assertIsNone(self.items(ref))
+
+    def test_a_file_whose_first_bytes_match_its_ending_is_taken(self):
+        ref = self.section()
+        good = {"a.pdf": b"%PDF-1.7\n", "a.doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "a.xlsx": b"PK\x03\x04x", "a.PPTX": b"PK\x03\x04x",
+                "a.jpg": b"\xff\xd8\xff\xe0", "a.png": b"\x89PNG\r\n\x1a\nx", "a.txt": b"plain words", "a.csv": b"a,b\n1,2\n", "u.txt": b"\xff\xfea\x00"}
+        for name, data in good.items():
+            with self.subTest(name=name):
+                f = self.src / name
+                f.write_bytes(data)
+                self.chosen = [f]
+                self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), sorted(good))
+
+    def test_the_ending_is_judged_on_the_name_that_is_saved_before_the_file_is_written(self):
+        ref = self.section()
+        for name in ("..pdf", " .pdf", ". .pdf"):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(b"fictional")
+                self.chosen = [bad]
+                before = self.snapshot()
+                got = self.pub.section_file({"project": "ABC", "section": ref})
+                self.assertEqual((got[0], got[1]["ok"], got[1]["code"]), (409, False, "bad_type"), got)
+                self.assertEqual(got[1]["message"], doclinks.bad_type(name))
+                self.assertIn(self.files(), (None, []), "nothing in Report files")
+                self.assertEqual(self.snapshot(), before)
+                self.assertIsNone(self.items(ref))
+        (self.client / "Report files").mkdir(exist_ok=True)
+        for name in ("..pdf", " .pdf", ". .pdf"):
+            with self.subTest(same_folder=name):
+                there = self.client / "Report files" / name
+                there.write_bytes(b"fictional")
+                self.chosen = [there]
+                got = self.pub.section_file({"project": "ABC", "section": ref})
+                self.assertEqual((got[0], got[1]["ok"], got[1]["code"]), (409, False, "bad_type"), got)
+                self.assertEqual(got[1]["message"], doclinks.bad_type(name))
+                self.assertIsNone(self.items(ref))
+                there.unlink()
+        self.assertEqual(self.files(), [])
+        fine = self.src / "a.pdf"
+        fine.write_bytes(PDF)
+        self.chosen = [fine]
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), ["a.pdf"])
+
     def test_a_folder_a_missing_file_and_a_file_too_big(self):
         ref = self.section()
         self.chosen = [self.src]
@@ -307,7 +402,7 @@ class Route(unittest.TestCase):
     def test_a_dialog_that_fails_says_so(self):
         ref = self.section()
 
-        def broken(prompt, start=None):
+        def broken(prompt, start=None, types=None):
             self.asked.append(prompt)
             raise platform.PlatformError("The file window could not be opened. " + platform.TRY_AGAIN)
         self.pub.choose_open_file = broken
@@ -356,10 +451,10 @@ class InThePage(PageBase):
         self.source.write_bytes(PDF)
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"publish_client": str(self.client)})
-        self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None: self.source,
+        self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None, types=None: self.source,
                                           by_user=lambda: USER, data_dir=self.tmp / "data", today=lambda: "2030-01-15")
-        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING), seam=self.seam,
-                             publisher=self.pub)
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING, theme=theme.CLASSIC), seam=self.seam,
+                             publisher=self.pub)      # the look of item 1194 is Classic's
         self.addCleanup(self.s.close)
 
     def add(self, kind):
@@ -373,11 +468,11 @@ class InThePage(PageBase):
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-add-file]')", "the Edit part drew")
-            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').textContent"), "Add a file…")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').getAttribute('aria-label')"), "Add a file")
             p.js(f"document.querySelector('{sel} [data-add-file]').click()")
             p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the file is drawn")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-name').textContent"), "Plan v2.pdf")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "2 KB")
+            self.assertEqual(p.js(f"document.querySelector('{sel} input[data-rename-input]').value"), "Plan v2.pdf", "in Edit the name is a box in place")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "PDF · 2 KB")
             p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
             self.assertIn("was copied into the client folder", p.js("document.querySelector('.toast').textContent"))
             p.js("document.querySelector('[data-undo]').click()")
