@@ -67,6 +67,9 @@ class DefaultSections1266(unittest.TestCase):
 
     def test_ap11_excel_cover_default_glance_template_has_the_page_tiles_and_no_health_tile(self):
         """Romanoff's ruling 23-11 13:24: the Cover reads the glance template the way the published report does; health off puts no Health tile."""
+        with self.store.step("dashboard", USER) as st:      # a new project has nothing to count, and a template with nothing to show is left out of the file: the counts read only the rows of a built-in section (the new defaults carry Work items lists instead), so add a Risks and issues section and one risk
+            st.create("report_sections", {"project": "ABC", "type": "raid", "title": "Risks", "sort_order": 999})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ a risk", "raised": "2030-01-10", "source": "demo", "impact": "High", "likelihood": "High", "owner": "Pat Demo"})
         built = publish.build(self.store, "ABC", now="2030-01-15")
         sec = next(s for s in built["published"]["sections"] if s.get("type") == "glancetemplate")
         want = [t["label"] for t in glance_print.read(built["published"], sec)["tiles"]]

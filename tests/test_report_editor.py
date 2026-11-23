@@ -216,11 +216,14 @@ class Pg:
 
 
 class Base(unittest.TestCase):
+    OLD = False                              # row 1266: True puts the pre-1266 ten sections in the store (OldBase)
+
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
-        old_layout(self.store)
+        if self.OLD:
+            old_layout(self.store)
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.store_answered = 0
@@ -261,7 +264,12 @@ class Base(unittest.TestCase):
         return p
 
 
-class Modes(Base):
+class OldBase(Base):
+    """This file's classes pin the editor on the layout it was written on (row 1266); the other files that import Base get a new project's own sections."""
+    OLD = True
+
+
+class Modes(OldBase):
     def test_editor_modes(self):
         """View and Edit switch with no reload and no navigation; Edit is in memory only (no address, no history entry)."""
         with chrome() as cdp:
@@ -360,7 +368,7 @@ class Modes(Base):
             self.assertIsNone(sent.get("after"), "at the end")
 
 
-class Keys(Base):
+class Keys(OldBase):
     """#103: the plain keys V and E switch the Dashboard to View and Edit, as the two buttons do, and only there."""
 
     def mode(self, p):
@@ -457,7 +465,7 @@ class Keys(Base):
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "and on the Dashboard it does")
 
 
-class Sections(Base):
+class Sections(OldBase):
     def test_hide_is_dropped_in_view_dimmed_in_edit_and_undo_shows_it(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -920,7 +928,7 @@ class Sections(Base):
             self.assertEqual(p.js("document.querySelector('.sec-h').textContent"), "Changed elsewhere")
 
 
-class Failures(Base):
+class Failures(OldBase):
     """Every failure says plain words and nothing the server said; nothing is drawn that was not saved."""
     STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 
@@ -1016,7 +1024,7 @@ class Failures(Base):
             self.assertEqual(gate["max"], 1, "never two at once")
 
 
-class Gutter(Base):
+class Gutter(OldBase):
     """#101: one quiet control in each section's left margin: a grip with a + under it, and its menu."""
 
     CTL = "document.querySelector('[data-id=\"%s\"] .sec-ctl')"
@@ -1377,7 +1385,7 @@ class Gutter(Base):
         self.assertNotRegex("\n".join(lines), r"font-size:\s*(?:[0-9]|1[0-2])px")
 
 
-class Look(Base):
+class Look(OldBase):
     def test_no_sideways_scroll_targets_and_text_size_at_1400_and_900(self):
         with chrome() as cdp:
             p = self.visit(cdp)
