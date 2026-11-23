@@ -390,7 +390,7 @@ class DataFolder1535(Folder1535):
     def test_no_preference_content_leaves(self):
         """AP12: no value is logged, sent to a server other than this one, put in a published file; only the live page is given them, and reader keys never go."""
         import logging
-        secret = "SECRET-WIDTH-7731"
+        sentinel = "SENTINEL-WIDTH-7731"
         records = []
         handler = logging.Handler()
         handler.emit = lambda r: records.append(r.getMessage())
@@ -398,27 +398,27 @@ class DataFolder1535(Folder1535):
         old = root.level
         root.addHandler(handler); root.setLevel(1)
         try:
-            self.prefs.save({"set": {"clark.askWidth": secret}})
+            self.prefs.save({"set": {"clark.askWidth": sentinel}})
             self.prefs.get()
             self.prefs.save({"reset": True})
-            self.prefs.save({"set": {"clark.askWidth": secret}})
+            self.prefs.save({"set": {"clark.askWidth": sentinel}})
             from test_store_migration import make_v1
             from clark import backup
             backup.make(make_v1(self.dir), self.dir / "backups", [], tag="daily")
         finally:
             root.removeHandler(handler); root.setLevel(old)
-        self.assertEqual([m for m in records if secret in m], [])
+        self.assertEqual([m for m in records if sentinel in m], [])
         src = ROOT / "src" / "clark"
         users = sorted(p.name for p in src.glob("*.py") if re.search(r"\bpreferences\.(?:Preferences|FILE|read|kept)|import preferences|, preferences,", p.read_text(encoding="utf-8")))
         self.assertEqual(sorted(set(users) - {"__main__.py", "backup.py", "preferences.py", "server.py"}), [])      # not the publishers, the exports or the log
         imports = sorted(p.name for p in PAGE.rglob("*.js*") if "prefsSync" in p.read_text(encoding="utf-8") and p.name != "prefsSync.js")
         self.assertEqual(imports, ["Preferences.jsx", "main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
         _, doc, html = self.page_values()
-        self.assertIn(secret, json.dumps(doc))             # the live page is given its own values
+        self.assertIn(sentinel, json.dumps(doc))             # the live page is given its own values
         reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Reader One'); return sent; })()"
         got, _ = run_node({}, reader)
         self.assertEqual(got, [])                          # a reader key is never queued
-        self.assertEqual(self.prefs.save({"set": {"clark.reader.name": "Reader One", "clark.x y": "no"}})[1]["values"], {"clark.askWidth": secret})
+        self.assertEqual(self.prefs.save({"set": {"clark.reader.name": "Reader One", "clark.x y": "no"}})[1]["values"], {"clark.askWidth": sentinel})
         self.assertNotIn("clark.reader.name", json.dumps(got))
 
     def test_reset_all_preferences_only(self):
