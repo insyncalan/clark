@@ -200,7 +200,7 @@ class Files(Base):
 
 
 class FirstRunAndHelpWords(unittest.TestCase):
-    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (items 6 and 10)."""
+    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (item 6; item 10 is held)."""
     PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
     SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
 
@@ -215,9 +215,10 @@ class FirstRunAndHelpWords(unittest.TestCase):
         self.assertIn("W.CARD_PASSAGES", panel)
         entries = json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8"))
         self.assertIn(self.SENTENCE, json.dumps(entries, ensure_ascii=False))
-        self.assertEqual(said.get("CARD_PICTURES"), self.PICTURES)
-        self.assertIn("W.CARD_PICTURES", panel)
-        self.assertIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
+        # item 10 (pictures read on this Mac) is held until the picture reader exists: it is in neither the card nor Help.
+        self.assertNotIn("CARD_PICTURES", said)
+        self.assertNotIn("CARD_PICTURES", panel)
+        self.assertNotIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
 
 
 class QuestionNeedsNoPassages(RouteBase):
