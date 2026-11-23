@@ -9,7 +9,7 @@ bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light an
   - every other menu keeps production: lines 14px, not the prototype's padding and radius, the icon 17px in from the edge and 8px from its words
     (the date and owner pickers are forms, not menus, and are left out)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
-  - the head of a group is plain: no capitals, no letter spacing
+  - the head of a group is plain: no capitals, no letter spacing, except the two heads Row 1273 draws in capitals (the Group by head of the View menu and the Move <id> to head of a card)
   - the panel radius: 10px on every menu, as the prototype .pop (Row menu-radius), except the Gantt Show panel .gt-pop: 12px (1197 item 10)
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
@@ -56,7 +56,7 @@ MEASURE = r"""(root => {
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
    const c = cs(b);
-   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, ibl: Math.round((ir.left - b.getBoundingClientRect().left) * 10) / 10, tx: after.length ? Math.round((Math.min(...after) - b.getBoundingClientRect().left) * 10) / 10 : null, ckl: ckr && ckr.width > 0 ? Math.round((ckr.left - b.getBoundingClientRect().left) * 10) / 10 : null, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + parseFloat(c.paddingLeft))) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  const bc = cs(box);
@@ -67,6 +67,7 @@ def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
+    r1273 = name in {"view", "board-move", "board-move-lanes"}     # row 1273 changes Group by and Move to only; the Add menu is row 1462
     want = "12px" if name in GANTT_SHOW or name in COLUMNS_7B else "10px"      # 1197 item 10: the Gantt Show panel keeps 12; row 1499 AP5: the Classic Columns panel is 12 (the 7B mock-up .ctxm); every other popover is 10
     test.assertEqual(m["rad"], want, f"{where}: the panel radius is {m['rad']}, expected {want} (the prototype popover (.pop) draws 10px, the Gantt Show panel 12px by 1197 item 10)")
     if three:
@@ -80,19 +81,31 @@ def check(test, name, look, m):
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
-            test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
-            if three:
+            if r1273:
+                test.assertEqual((r["pad"].split()[:3], r["rad"]), (["7px", "10px", "7px"], "6px"), f"{where}: the line {r['t']!r} padding (top, right, bottom) and radius")
+                test.assertEqual(r["pad"].split()[3], "10px", f"{where}: the line {r['t']!r} has {r['pad'].split()[3]} of left padding, the prototype draws 7px 10px")
+                test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
+                test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, row 1273 draws 10")
+                # 7px 10px padding, [16px icon][10px gap][text]: icon at x10, text at x36 from the item's left edge; the mock's x60 includes a tick slot that ruling 9A (tick right of the word) removes
+                test.assertAlmostEqual(r["slot"], 0, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px before its icon, 9A reserves no tick slot")
+                test.assertAlmostEqual(r["ibl"], 10, delta=0.5, msg=f"{where}: the icon of {r['t']!r} is {r['ibl']}px from the item's left edge, the padding")
+                test.assertAlmostEqual(r["tx"], 36, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx']}px from the item's left edge, 10 + 16 + 10")
+            elif three:
+                test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
                 test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
             else:
+                test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 grid = 10 if name == "gantt-show-chart" else 8      # row 1197 item 10: the chart Show menu rows gap 10
                 test.assertAlmostEqual(r["gap"], grid, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, production's grid is {grid}")
         if r.get("side"):
             test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
-        test.assertEqual(h["tt"], "none", f"{where}: the head {h['t']!r} is in capitals")
-        test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
+        caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
+        test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")
+        if not caps:
+            test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
 
 
 class Seen:

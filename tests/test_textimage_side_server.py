@@ -210,7 +210,9 @@ class FramedPixels(unittest.TestCase):
         from _pictures import EXIF
         with self.assertRaises(base.Bad) as e:
             ti.with_picture({"v": 2}, "original", EXIF)
-        self.assertEqual(str(e.exception), ti.CAMERA_DETAILS.replace("picture", "image").replace("Add a image", "Add an image"))
+        self.assertEqual(str(e.exception), ti.CAMERA_DETAILS)
+        self.assertEqual(ti.CAMERA_DETAILS, "That image still carries details from the camera, such as where it was taken. Add it again with Add a "
+                                            "picture, which removes them.")
         with self.assertRaises(base.Bad) as e:
             ti.with_picture({"v": 2}, "original", sized_jpeg(3500))
         self.assertEqual(str(e.exception), imagecap.TOO_WIDE)
