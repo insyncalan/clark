@@ -118,6 +118,8 @@ export const askConnectorsRead = (project) => call("GET", project ? `/api/ask-co
 export const askFilesRead = (project) => call("GET", project ? `/api/ask-files?project=${encodeURIComponent(project)}` : "/api/ask-files");
 export const askFilesChange = (body) => call("POST", "/api/ask-files", body);
 export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors", body);
+export const askNewRead = (project) => call("GET", project ? `/api/ask-new-projects?project=${encodeURIComponent(project)}` : "/api/ask-new-projects");
+export const askNewChange = (body) => call("POST", "/api/ask-new-projects", body);
 
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
