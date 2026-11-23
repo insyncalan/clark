@@ -437,6 +437,27 @@ class RichLines(unittest.TestCase):
                         check(kind, make(bad))
 
 
+class OddShapes(unittest.TestCase):
+    """Killers for the walk over RICH_LINES places: a container that is not a list or object is left for the module to refuse, and a
+    publish never changes the value it was given."""
+
+    def test_a_container_that_is_not_a_list_or_object_is_refused_not_a_crash(self):
+        for kind, body in (("raid3", {"v": 1, "cards": 5}), ("raid4", {"v": 1, "cards": 5}), ("gallery", {"v": 1, "items": 7}),
+                           ("raid3", {"v": 1, "cards": "abc"}), ("gallery", {"v": 1, "items": "abc"})):
+            with self.subTest(kind=kind, body=body):
+                with self.assertRaises(section_bodies.Bad):
+                    check(kind, body)
+
+    def test_publish_does_not_change_the_value_it_is_given(self):
+        ctx = section_bodies.Context({"raid": [{"id": "ABC-001", "description": "t", "client_message": ""}]})
+        for kind, make, where, _ in LINES:
+            with self.subTest(kind):
+                value = make("<p>one</p><p>two</p>")
+                before = copy.deepcopy(value)
+                published(kind, value, ctx)
+                self.assertEqual(value, before)
+
+
 class Overlaps(unittest.TestCase):
     def test_the_other_rich_keys_are_kept(self):
         self.assertEqual(section_bodies.RICH_KEYS["textimage"], ("html",))
