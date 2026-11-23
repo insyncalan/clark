@@ -2318,7 +2318,7 @@ def _do_added_page_change(store, by_user, req, project, table, columns, op, plac
         if "starter" in changes:
             raise Refused("A page keeps its starter.")
     for k, v in {**(values or {}), **(changes or {})}.items():
-        if k in ("client", "hidden", "sort_order") and type(v) is not int:       # a whole number only: True, 1.0 and "1" are refused
+        if k in ("client", "hidden", "sort_order") and (type(v) is not int or not -2**63 <= v < 2**63):       # a whole number only (True, 1.0, "1" and one past SQLite's range are refused)
             raise Refused(clark_store.ADDED_PAGE_BAD_PLACE if k == "sort_order" else clark_store.ADDED_PAGE_BAD_FLAG)
     if op != NEW and not (isinstance(ref, str) and ADDED_PAGE_ID.fullmatch(ref) and _belongs(table, ref, project)):
         raise Refused(NOT_MINE_RECORD)

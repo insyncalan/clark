@@ -809,7 +809,7 @@ def added_page_sections(value):
             raise Invalid(ADDED_PAGE_BAD_SECTIONS)
         if s.get("type") not in SECTION_TYPES or not isinstance(s.get("id"), str) or not s["id"] or s["id"] in seen \
                 or not isinstance(s.get("title", ""), str) or len(s.get("title", "")) > TITLE_LIMIT \
-                or not isinstance(s.get("body", ""), (str, type(None))) or any(s.get(f, 0) not in (0, 1) or isinstance(s.get(f, 0), bool) for f in ("beside", "hidden")):
+                or not isinstance(s.get("body", ""), (str, type(None))) or any(type(s.get(f, 0)) is not int or s.get(f, 0) not in (0, 1) for f in ("beside", "hidden")):
             raise Invalid(ADDED_PAGE_BAD_SECTIONS)
         if s["type"] in ADDED_PAGE_NOT_HAND:
             raise Invalid(ADDED_PAGE_NO_GANTT)
