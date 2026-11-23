@@ -197,5 +197,73 @@ class Files(Base):
         self.assertGreaterEqual(ix.status(self.data, "P1", [self.box])["safety"], 2)
 
 
+class Followups(Base):
+    """Row 1537 (the rest of row 1366): AP6, AP8."""
+
+    def test_fixture_library_has_no_client_names(self):
+        import sys
+        from _paths import TOOLS
+        sys.path.insert(0, str(TOOLS))
+        import publish_public
+        from test_ask_index_types_1366 import xlsx, pptx
+        from test_ask_pdf_passages import pdf
+        files = {
+            "text.pdf": pdf(["zqpdf one", "zqpdf two"]), "long.pdf": pdf([f"zqlong page {i}" for i in range(30)]), "scan.pdf": pdf([None, None]),
+            "letter.docx": tdx.docx(tdx.P("zqdocx text")), "table.xlsx": xlsx({"Plan": [["item", "owner"], ["t1", "zqowner"]]}),
+            "deck.pptx": pptx({1: ["zqslide text"]}, {1: ["zqnote text"]}), "page.html": b"<html><body><p>zqhtml text</p></body></html>",
+            "picture.png": b"\x89PNG\r\n\x1a\nzqpicture", "cloud.txt": b"x" * 37, "keys.txt": FAKE_KEY.encode(),
+        }
+        self.assertEqual(len(files), 10)
+        for name, raw in files.items():
+            self.assertEqual(publish_public.guard_kinds("tests/" + name, raw), set(), name)
+
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        import json
+        from _paths import ROOT
+        page = ROOT / "src" / "clark" / "page" / "src"
+        six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+        words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn(f'export const FOLDERS_GO = "{six}";', words)
+        self.assertIn(f'export const PICTURES_LOCAL = "{ten}";', words)
+        panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertEqual(panel.count("W.FOLDERS_GO"), 2, "the Classic card and the Cards card")
+        self.assertEqual(panel.count("W.PICTURES_LOCAL"), 2)
+        text = json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        self.assertIn(six, text)
+        self.assertIn(ten, text)
+
+
+class IndexAnswerPage(unittest.TestCase):
+    """AP7 (was AP28): the Used line (row 1292) of an answer that names items and cites files from the index, at 1400 and 900, in Chrome.
+    The server's answer is the stub of test_ask_about_1292 with sources named like the index labels them. The people and contract warning
+    of row 1365 is not drawn by the page on this main (sensitive_names.py has no caller), so it is not asserted here."""
+
+    def test_people_contract_warning_and_used_line_with_index_passages(self):
+        import test_ask_about_1292 as about
+        from test_server import chrome
+
+        class Run(about.Classic):
+            def runTest(self):
+                for width in (1400, 900):
+                    with self.subTest(width=width), chrome() as cdp:
+                        p = self.edit_ready(cdp, width)
+                        ident = p.js("document.querySelector('.wil-table tr[data-id]').dataset.id")
+                        self.stub.answer = f"{ident} is late. The contract file says why."
+                        self.stub.items = [ident]
+                        self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026"}
+                        self.stub.sources = [{"id": "F1", "label": "saved/plan.xlsx"}, {"id": "F2", "label": "saved/notes.docx"}]
+                        p.key("/", code="Slash", vk=191)
+                        p.until("!document.querySelector('#ask-send') || !document.querySelector('#ask-send').disabled", "ready")
+                        self.ask(p, "What is late?")
+                        p.until("!!document.querySelector('[data-ask-used]') && !!document.querySelector('.ask-sources')", "answered")
+                        self.assertEqual(p.js("document.querySelector('[data-ask-used]').textContent.replace(/\\s+/g, ' ').trim()"), f"Used: 1 {ident}")
+                        self.assertEqual(p.js("[...document.querySelectorAll('.ask-sources li')].map((l) => l.textContent)"), ["saved/plan.xlsx", "saved/notes.docx"])
+                        self.assertTrue(p.js("(() => { const u = document.querySelector('[data-ask-used]').getBoundingClientRect(), a = document.querySelector('#ask-panel').getBoundingClientRect(); return u.width > 0 && u.left >= a.left - 1 && u.right <= a.right + 1; })()"), "the Used line sits inside the panel")
+
+        res = unittest.TextTestRunner(stream=open(os.devnull, "w")).run(Run())
+        self.assertTrue(res.wasSuccessful(), [str(f[1]) for f in res.failures + res.errors])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -25,6 +25,9 @@ export const CARD_READS_FOLDERS = "I read this project's work items, milestones 
 export const CARD_CHANGES = "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
 export const CARD_SENT = "Your question and what it needs go to Claude.";
+// row 1537 AP6, approved wording 23-11 04:58: shown on the first-run card and in Help (sentences 6 and 10 of the 1366 words). named() swaps the provider in use.
+export const FOLDERS_GO = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
+export const PICTURES_LOCAL = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out.";
 export const CARD_LINK = "What will be sent? (Settings)";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
