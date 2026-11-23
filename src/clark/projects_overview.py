@@ -112,7 +112,7 @@ class ProjectsOverview:
     def newest_backup_days(self, now):
         try:
             found = backup.entries(self.backups)
-        except OSError:
+        except (OSError, ValueError):
             return None
         return days_since(max(e.stamp for e in found), now, self.local) if found else None
 
@@ -128,7 +128,8 @@ class ProjectsOverview:
                 for r in store.read("source_folders"):
                     counts.setdefault(r["project"], []).append(r["path"])
                 asking = store.ask_enabled()
-                default_days = store.con.execute("SELECT review_days FROM install_defaults WHERE id = 1").fetchone()[0]
+                row = store.con.execute("SELECT review_days FROM install_defaults WHERE id = 1").fetchone()
+                default_days = row[0] if row else review_days_for(None)         # a deleted defaults row reads as the default
             finally:
                 store.close()
         now = self.now()

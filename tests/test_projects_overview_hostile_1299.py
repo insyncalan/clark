@@ -238,10 +238,13 @@ class Service(unittest.TestCase):
             self.assertEqual(got[0], 200, repr(odd))
             self.assertIsNone(got[1]["projects"][0]["last_backup_days"])
 
-    def test_a_backup_folder_path_with_a_nul_is_a_fault_of_the_service_not_a_none(self):
+    def test_a_backup_folder_path_with_a_nul_shows_no_backup_age(self):
+        self.make("AAA", publish_client="/c")
         svc = po.ProjectsOverview(self.db, [], backups="a\x00b", now=lambda: NOW)
-        with self.assertRaises(ValueError):
-            svc.read()                    # newest_backup_days catches OSError only; the route turns this into a 500
+        status, got = svc.read()
+        self.assertEqual(status, 200)
+        self.assertTrue(got["ok"])
+        self.assertIsNone(got["projects"][0]["last_backup_days"])
 
     def test_odd_characters_in_the_database_path_and_a_missing_file(self):
         odd = self.d / "dä ta ; 'q' é \U0001f600 $x"
@@ -269,12 +272,13 @@ class Service(unittest.TestCase):
             self.assertEqual(svc.read()[0], 409)
         self.assertFalse(svc.lock.locked())
 
-    def test_a_missing_install_defaults_row_is_a_fault_and_the_store_is_still_closed_and_the_lock_free(self):
+    def test_a_missing_install_defaults_row_reads_as_the_default_and_the_store_is_still_closed_and_the_lock_free(self):
         self.make("AAA", publish_client="/c")
         self.store.con.execute("DELETE FROM install_defaults")
         self.store.con.commit()
-        with self.assertRaises(TypeError):                    # fetchone() is None: [0] is not guarded (projects_overview.py read)
-            self.svc.read()
+        status, got = self.svc.read()
+        self.assertEqual((status, got["ok"], got["default_review_days"]), (200, True, 14))
+        self.assertEqual(got["projects"][0]["review_days"], 14)
         self.assertFalse(self.svc.lock.locked())
 
     def test_repeated_reads_give_the_same_answer_and_change_nothing(self):
@@ -360,13 +364,12 @@ class Service(unittest.TestCase):
         (self.d / "ask_folders_all.json").write_text('["/ok", "rel", 5, null, "/ok2"]', encoding="utf-8")
         self.assertEqual(self.svc.read()[1]["projects"][0]["folders"], 2)       # only text that starts with "/" counts
 
-    def test_a_shared_folders_file_nested_far_too_deep_is_a_recursion_error_out_of_the_read(self):
-        """FOUND: ask_folders.shared_folders (ask_folders.py:70) catches OSError, ValueError, TypeError but not RecursionError, which json.loads
-        raises for a deeply nested array: the overview read raises (a 500 on the route) instead of showing no shared folders. Pinned as it is."""
+    def test_a_shared_folders_file_nested_far_too_deep_shows_no_shared_folders(self):
+        """ask_folders.shared_folders catches RecursionError (json.loads raises it for a deeply nested array): the overview reads and shows none."""
         self.make("AAA", publish_client="/c")
         (self.d / "ask_folders_all.json").write_text("[" * 100000, encoding="utf-8")
-        with self.assertRaises(RecursionError):
-            self.svc.read()
+        status, got = self.svc.read()
+        self.assertEqual((status, got["ok"], got["projects"][0]["folders"]), (200, True, 0))
         self.assertFalse(self.svc.lock.locked())
 
     def test_source_folders_of_an_archived_project_or_an_unknown_code_do_not_make_a_row_or_a_count(self):
