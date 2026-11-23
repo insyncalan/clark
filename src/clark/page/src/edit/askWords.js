@@ -350,6 +350,14 @@ export const SLASH_HINT = {
   new: "Start a new chat",
 };
 
+// Row 1292 (feature 9): the words under each answer (mock-up ask.js, Copy, Ask again and their notices).
+export const ANSWER_COPY = "Copy";
+export const ANSWER_AGAIN = "Ask again";
+export const ANSWER_COPIED = "Copied";                                         // A NEW-WORDS 1953 and the ticket: "Copied" for 2 s, replacing the longer sentence
+export const ANSWER_COPY_LABEL = "Copy this answer";                            // A NEW-WORDS 1953: the screen-reader name
+export const ANSWER_AGAIN_LABEL = "Ask this question again";                    // A NEW-WORDS 1953: the screen-reader name
+export const ANSWER_COPIED_MS = 2000;
+export const ANSWER_COPY_FAILED = "Could not copy. Select the text and copy it yourself.";
 // Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
 export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
 export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title
