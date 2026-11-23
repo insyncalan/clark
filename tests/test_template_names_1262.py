@@ -58,15 +58,15 @@ class TemplateNames(unittest.TestCase):
     def test_the_built_in_cards_are_named_use_cases_and_documents_and_start_with_the_old_titles(self):      # ticket To do line "Do not change other section titles": the card name changes, the starting title stays
         from clark import changes
         self.assertRegex(TEMPLATES, r'fit: \["full"\], name: "Use cases",')
-        self.assertIn('builtIn("usecases", "Use case summary"', TEMPLATES)
+        self.assertIn('builtIn("usecases", "Use cases"', TEMPLATES)      # row 1266 AP6: the Use cases section starts with the title Use cases
         self.assertIn('builtIn("docs", "Supporting documents", "files", { name: "Documents" })', TEMPLATES)
-        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))
+        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use cases", "Supporting documents"))      # row 1266 AP6
 
     def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # comment 7084952761: Cards keeps Current state; the Dashboard default is not changed
         from clark import changes, default_sections
         self.assertIn('builtIn("current", "Current state", "text"', TEMPLATES)
         self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
-        self.assertEqual(default_sections.DEFAULT_SECTIONS[0]["title"], "Current state")
+        self.assertEqual(default_sections.DEFAULT_SECTIONS[0]["title"], "Headline")      # row 1266: a new project starts with the Headline; the Current state card is unchanged
         self.assertRegex(TEMPLATES, r'\{ id: "current-state", name: "Header and Text", kind: "text", fit: \[[^\]]*\], type: "text", title: "Current state"')
 
     def test_the_numbers_group_is_in_the_picker(self):      # comment 7084952761 (3): the picker group Figures is named Numbers
