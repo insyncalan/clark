@@ -525,6 +525,15 @@ class ProfileCircleWords(unittest.TestCase):
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
+class MilestonesHelpLine(unittest.TestCase):
+    """Row 1329: the Milestones line of Where things are is true for both looks, and the Movement entries stay."""
+    def test_the_line_is_exact_and_the_movement_entries_stay(self):
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones. Where the page has a **Plan** and **Movement** switch, **Movement** shows slippage, for you and the team only."), 1)
+        for kept in ("handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Milestones and Movement"):
+            self.assertIn(kept, text, kept)
+
+
 class SideBySideHelp(unittest.TestCase):
     def test_help_names_text_and_image_side_by_side_and_not_the_old_name(self):
         """Row 1232 (AP15): the template table in Help lists the new name with its line and widths, and the old name is gone from the whole Help source."""
