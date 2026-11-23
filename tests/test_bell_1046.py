@@ -80,7 +80,9 @@ class Bell(Base):
                 self.assertEqual(p.js("document.querySelector('.bell-empty') ? 1 : 0"), 0, "the three notices stay listed, read")
                 p.key("Escape", 0, "Escape", 27)
                 p.until("!document.querySelector('#bell-pop')", "Esc closed the popup")
-                p.until("!document.querySelector('#bell-btn')", "nothing unread: the bell is gone")
+                p.until("document.activeElement && document.activeElement.id === 'bell-btn'", "focus is back on the bell, which stays while it has focus")
+                p.js("document.activeElement.blur()")
+                p.until("!document.querySelector('#bell-btn')", "nothing unread: the bell is gone once focus leaves it")
 
     def test_close_gives_focus_back_and_an_action_goes_inside_clark(self):
         with chrome() as cdp:
@@ -98,6 +100,24 @@ class Bell(Base):
             self.assertEqual(p.js("document.querySelector('.bell-act').textContent"), "Open Settings")
             p.js("document.querySelector('.bell-act').click()")
             p.until("!document.querySelector('#bell-pop')", "the action closed the popup")
+
+    def test_close_after_mark_all_as_read_keeps_focus_on_the_bell_until_it_leaves(self):
+        """Romanoff 23-11: Mark all as read makes the count 0; Close or Esc must still put focus on the bell (it stays drawn until focus leaves)."""
+        for how in ("close", "esc"):
+            with self.subTest(how):
+                with chrome() as cdp:
+                    p = self.at(cdp, 1400)
+                    p.js("window.clarkPage.pushNotices([{id:'a', severity:'info', title:'Upgrade available', body:'A newer clark is out.', date:" + MAKE + "(1, ['info'])[0].date}])")
+                    p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+                    p.js("document.querySelector('#bell-btn').click()")
+                    p.until("!!document.querySelector('#bell-pop')", "the popup opened")
+                    p.js("document.querySelector('#bell-all').click()")
+                    if how == "close":
+                        p.js("document.querySelector('#bell-close').click()")
+                    else:
+                        p.js("document.querySelector('#bell-pop').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+                    p.until("!document.querySelector('#bell-pop')", "the popup closed")
+                    p.until("document.activeElement && document.activeElement.id === 'bell-btn'", "focus is on the bell")
 
     def test_the_popup_shadow_is_the_token_not_a_literal(self):
         import re

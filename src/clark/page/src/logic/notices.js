@@ -6,7 +6,7 @@
 export const SEVERITIES = ["info", "warning", "critical"];
 export const LABELS = { info: "Info", warning: "Warning", critical: "Critical" };      // shown as the icon's word, so a colour is never the only sign
 export const WORDS = {
-  caughtUp: "You are all caught up",
+  caughtUp: "You're all caught up.",
   markRead: "Mark as read",
   markAll: "Mark all as read",
   close: "Close",

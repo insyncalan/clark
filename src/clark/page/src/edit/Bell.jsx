@@ -1,6 +1,6 @@
 // Row 1046, piece 2: the bell in the top bar, left of search. Editor only; not drawn at all while nothing is unread (and not while the popup is open,
 // so it never vanishes under the person's hands). The popup is a non-modal dialog: it never opens by itself, focus goes in and comes back to the bell on Esc or Close.
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { WORDS, LABELS, badgeText, bellName, bellShown } from "../logic/notices.js";
 import { shown, unread, readIds, announced, noticesOpen, readOne, readAll, startNotices, stopNotices } from "./noticesState.js";
 import { show } from "../stores/report.js";
@@ -18,13 +18,13 @@ function go(to) {      // an action only names a place inside clark (logic/notic
 }
 
 export function Bell() {
-  const btn = useRef(null), box = useRef(null), back = useRef(false);
+  const btn = useRef(null), box = useRef(null), back = useRef(false), [kept, setKept] = useState(false);      // kept: the bell stays drawn until focus is back on it (after Mark all as read the count is 0 and a bell with nothing unread is not drawn: it stays until focus leaves it)
   const count = unread.value.length, open = noticesOpen.value;
   useEffect(() => { startNotices(); return stopNotices; }, []);
-  const close = () => { back.current = true; noticesOpen.value = false; };      // focus goes back in the effect below, after the popup is gone: a focus call here can be undone by the pending focus-in effect (a quick Close under load)
+  const close = () => { back.current = true; setKept(true); noticesOpen.value = false; };      // focus goes back in the effect below, after the popup is gone: a focus call here can be undone by the pending focus-in effect (a quick Close under load)
   useEffect(() => {
     if (open && box.current) box.current.focus();
-    else if (!open && back.current) { back.current = false; if (btn.current) btn.current.focus(); }
+    else if (!open && back.current) { back.current = false; if (btn.current) btn.current.focus();  }
   }, [open]);
   useEffect(() => {
     if (!open) return undefined;
@@ -35,8 +35,8 @@ export function Bell() {
   const live = <span class="sr-only" role="status" aria-live="polite" id="bell-live">{announced.value}</span>;
   return (
     <span class="bell-wrap">
-      {bellShown(count) || open ? (
-        <button type="button" class="tb-act tb-bell" id="bell-btn" ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label={bellName(count)} title={bellName(count)} onClick={() => { noticesOpen.value = !open; }}>
+      {bellShown(count) || open || kept ? (
+        <button type="button" class="tb-act tb-bell" id="bell-btn" ref={btn} onBlur={() => { if (!noticesOpen.value) setKept(false); }} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label={bellName(count)} title={bellName(count)} onClick={() => { noticesOpen.value = !open; }}>
           <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 14V9a5 5 0 0 1 10 0v5l1.5 1.5h-13zM8.5 17.5h3" /></svg>
           {count > 0 ? <span class="bell-badge num" aria-hidden="true">{badgeText(count)}</span> : null}
         </button>

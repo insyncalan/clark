@@ -171,4 +171,4 @@ class Logic(InBrowser):
         self.assertEqual(self.val(f"T.logic.arrivals(['a'], {lit(shown)})"), ["b"])
 
     def test_the_words_are_the_ones_listed_for_the_ruling(self):
-        self.assertEqual(self.val("T.logic.WORDS"), {"caughtUp": "You are all caught up", "markRead": "Mark as read", "markAll": "Mark all as read", "close": "Close"})
+        self.assertEqual(self.val("T.logic.WORDS"), {"caughtUp": "You're all caught up.", "markRead": "Mark as read", "markAll": "Mark all as read", "close": "Close"})
