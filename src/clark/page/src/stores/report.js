@@ -235,8 +235,11 @@ export function openUseCases() {
 }
 
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
+export const peekEdit = signal("");      // row 1287: the item whose peek a View-mode click on a description opened in full edit; any other open clears it
+export function openPeekEdit(id) { openPeek(id, "item"); peekEdit.value = id; }
 export function openPeek(id, kind) {
   const d = data.value;
+  peekEdit.value = "";
   if (!peek.value) openedF = filterText.value;           // the filters as they were when the peek opened: closing steps Back only if they still are
   const milestone = kind ? kind === "milestone" : known(d, id, true);
   if (d && !known(d, id, milestone)) return;               // with no data loaded there is nothing to check it against: open it
