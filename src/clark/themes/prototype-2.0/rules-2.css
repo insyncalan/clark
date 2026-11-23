@@ -106,6 +106,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
+.ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
+.ask-warn p { margin: 0; }
+.ask-warn [data-ask-warn-name] { font-weight: 500; }
+.ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ask-warn-btns .btn:not(.pri) { color: var(--text); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

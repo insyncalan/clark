@@ -105,7 +105,7 @@ class Settings(unittest.TestCase):
         self.s.httpd.app_settings = service(self.db)
 
     def theme(self):
-        """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules.css), so its test layers the Classic theme; the rest stay as they were."""
+        """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules-2.css), so its test layers the Classic theme; the rest stay as they were."""
         name = self._testMethodName
         return "prototype-2.0" if any(k in name for k in ("amber", "choose_other_folders", "provider", "singular", "saved_notice", "leave_")) else None
 
@@ -471,7 +471,7 @@ class Settings(unittest.TestCase):
             self.assertFalse(js("!!document.querySelector('[data-ask-warn]')"))
 
     def test_cards_shows_no_people_or_contract_notice(self):
-        """Row 1365: the notice's CSS is Classic-only (rules.css), so under Cards (the default theme here) a flagged folder is listed as before and no notice is drawn."""
+        """Row 1365: the notice's CSS is Classic-only (rules-2.css), so under Cards (the default theme here) a flagged folder is listed as before and no notice is drawn."""
         with chrome() as cdp:
             js = self.warn_page(cdp, 1400, "light")
             js("document.querySelector('[data-ask-choose]').click()")
