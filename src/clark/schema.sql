@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS workstreams (
   archived   INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
-  start TEXT,            -- clark: row 1417 (step 34), the workstream's first day (ISO), read by ask clark, never published
-  end TEXT,              -- clark: row 1417 (step 34), its last day (ISO)
-  latest_update TEXT,    -- clark: row 1417 (step 34), as raid and milestones carry it (step 25)
+  start TEXT,            -- clark: row 1417 (step 35), the workstream's first day (ISO), read by ask clark, never published
+  end TEXT,              -- clark: row 1417 (step 35), its last day (ISO)
+  latest_update TEXT,    -- clark: row 1417 (step 35), as raid and milestones carry it (step 25)
   UNIQUE (project, name COLLATE NOCASE)
 );
 -- Not copied: channel (a Teams channel; clark has no Teams).
@@ -334,6 +334,7 @@ CREATE TABLE IF NOT EXISTS source_folders (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   path    TEXT NOT NULL,
   sort_order INTEGER NOT NULL,
+  excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000),     -- row 1365 (schema version 34): the subfolders left out, a JSON list of relative paths
   PRIMARY KEY (project, path)
 );
 
