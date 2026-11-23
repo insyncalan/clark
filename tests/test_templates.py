@@ -139,7 +139,7 @@ class Logic(unittest.TestCase):
             "callout": ("One thing the reader must see.", ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
-            "quote": ("A voice from the business.", ["Heading", "Text (quote)", "Person"], ["half", "full"]),
+            "quote": ("A voice from the business.", ["Heading", "Quote", "Said by", "Role"], ["half", "full"]),
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
