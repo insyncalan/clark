@@ -141,7 +141,7 @@ class SignatureCheckTest(SignedBase):
         self.assertEqual("0.3.1", self.read(path).version)
 
     def test_no_signature_file_is_accepted_for_an_in_clark_upgrade_but_check_signature_alone_still_says_unsigned(self):
-        """Alan's ruling (row 1328): the upgrade works when the release has no .sig. The pinned key stays; a .sig that is there is still checked."""
+        """Human ruling (row 1328): the upgrade works when the release has no .sig. The pinned key stays; a .sig that is there is still checked."""
         path = make_zip(self.tmp, sign=False)
         self.assertEqual("0.3.1", self.read(path).version)
         with self.assertRaises(UpdateError) as said:

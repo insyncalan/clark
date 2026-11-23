@@ -674,7 +674,7 @@ class SignedFromFirstSignedTest(Served2):
         self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
 
     def test_1_3_4_with_no_signature_on_the_release_still_upgrades(self):
-        """Alan's ruling (row 1328): the in-clark upgrade works when the release has no signature."""
+        """Human ruling (row 1328): the in-clark upgrade works when the release has no signature."""
         self.release("1.3.4", sig_asset=False)
         self.assertEqual("ready", self.fetch_state()["state"])
 
