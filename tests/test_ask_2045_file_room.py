@@ -100,6 +100,7 @@ class FileRoom(Base):
         self.assertEqual(status, 200, got)
         self.assertIn("ZQ-UPLOADED", self.provider.sent[-1])
         self.assertLess(len(self.provider.sent[-1]), full)
+        self.assertNotIn("ZQ-PLAIN2", self.provider.sent[-1])        # the last folder passage, not the file, was the one left out
 
     def test_without_a_file_the_project_still_takes_the_whole_limit(self):
         self.fill(300)
