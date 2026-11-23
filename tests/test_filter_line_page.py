@@ -35,6 +35,7 @@ def wait(check, seconds=15):
 
 from test_work_filters import click, expect, key, need_chrome, page_rows, pause, select_line, set_line, where  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
+from test_glance_tiles import builtin_glance  # noqa: E402
 
 INPUT = "#fline-input"
 SIZES = (1400,)        # #912: the 900 px half of every loop over SIZES is test_filter_line_page_900 (the same tests, run at 900), a file of its own
@@ -75,6 +76,7 @@ class Line(unittest.TestCase):
         shared.start()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.projects = cls.store.read("projects")
+        builtin_glance(cls.store, [p["code"] for p in cls.projects])      # row 1266: a new project starts with the template glance; the tiles walked here are the built-in one's
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.projects}
 
     @classmethod

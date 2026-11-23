@@ -280,6 +280,11 @@ class Dashboard(Base):
         return p, Drive(self, cdp, p.sid)
 
     def test_dashboard_menus(self):
+        with self.store.step("dashboard", "tester") as st:      # row 1266: a new project starts with the template glance; this walk is the built-in one's (health pill, tiles), which an existing project keeps
+            for row in self.store.read("report_sections", "ABC"):
+                if row["type"] == "glancetemplate":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
         with chrome() as cdp:
             p, d = self.drive(cdp)
             for w, th in LOOKS:
@@ -288,7 +293,7 @@ class Dashboard(Base):
                 d.check("profile", "document.querySelector('#profile-btn').click()", "#profile-menu", 8)
                 d.button("#project-name", "project switch")
                 d.check("project-switch", "document.querySelector('#project-name').click()", "[role=menu]", 1)
-                for ref in IDS:
+                for ref in d.js("[...document.querySelectorAll('.secs > .sec[data-id]')].map(s => s.dataset.id)"):      # the page's own sections: the swapped glance has a new id
                     d.button(f"[data-id='{ref}'] [data-options]", "section options")
                     d.check("section", f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()", f"[data-id='{ref}'] .menu", 4)
                 d.button(".tgrip", "outline grip")
