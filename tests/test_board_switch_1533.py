@@ -15,6 +15,9 @@ from pathlib import Path
 from _paths import SRC
 from clark import changes, store as store_module
 from test_gantt_store import Base
+from test_publish_dialog import Base as PageBase
+from test_server import chrome
+from test_settings_head import Head
 from test_store_use_case_done_migration import make_at
 
 LABEL = "Show the board to clients"
@@ -24,6 +27,14 @@ class Migration(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
+
+    @staticmethod
+    def migrate(con):
+        con.row_factory = sqlite3.Row      # the store's own connections read columns by name
+        try:
+            store_module.migrate_board_client(con)
+        finally:
+            con.row_factory = None
 
     def test_the_step_is_37_and_the_version_says_so(self):
         self.assertEqual(store_module.BOARD_CLIENT_STEP, 37)
@@ -36,7 +47,7 @@ class Migration(unittest.TestCase):
         con.execute("INSERT INTO projects (code, name, health, health_reason) VALUES ('DEF', 'Other Programme', 'At risk', 'Late supplier')")
         self.assertNotIn("show_board_client", [c[1] for c in con.execute("PRAGMA table_info(projects)")])
         before = con.execute("SELECT * FROM projects ORDER BY code").fetchall()
-        store_module.migrate_board_client(con)
+        self.migrate(con)
         info = {c[1]: c for c in con.execute("PRAGMA table_info(projects)")}
         self.assertEqual(list(info)[-1], "show_board_client", "added at the end of the table")
         self.assertEqual((info["show_board_client"][2], info["show_board_client"][3], info["show_board_client"][4]), ("INTEGER", 1, "0"))
@@ -44,10 +55,16 @@ class Migration(unittest.TestCase):
         self.assertEqual([r[:-1] for r in rows], before, "no existing value changed")
         self.assertEqual([r[-1] for r in rows], [0] * len(rows), "off for every project")
         self.assertTrue(rows)
-        store_module.migrate_board_client(con)      # a second run
+        self.migrate(con)      # a second run
         self.assertEqual(con.execute("SELECT * FROM projects ORDER BY code").fetchall(), rows)
         with self.assertRaises(sqlite3.IntegrityError):
             con.execute("UPDATE projects SET show_board_client = 2")
+        con.close()
+
+    def test_a_file_with_no_projects_table_is_left_alone(self):
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        self.migrate(con)
+        self.assertEqual(con.execute("SELECT count(*) FROM sqlite_master").fetchone()[0], 0)
         con.close()
 
     def test_the_schema_file_says_the_same_column_as_the_step(self):
@@ -84,6 +101,7 @@ class Switch(Base):
         self.assertEqual((self.proj()["show_board_client"], body["project"]["show_board_client"]), (1, 1))
         out = self.undo_step(body["apply_id"])
         self.assertIn("board view for the client", out["words"])
+        self.assertEqual(out["project"]["show_board_client"], 0, "the Undo's echo carries it too")
         self.assertEqual(self.proj()["show_board_client"], 0)
         self.assertEqual(self.put(0)[1]["apply_id"], None, "off to off changes nothing and has no Undo")
 
@@ -104,6 +122,36 @@ class Switch(Base):
     def test_the_schema_checks_it_too(self):
         with self.assertRaises(sqlite3.IntegrityError):
             self.s.con.execute("UPDATE projects SET show_board_client = 2")
+
+
+class SettingsTick(PageBase):
+    """The Settings tick, in Chrome at 1400 and 900, light and dark: on the Reports page, under the Gantt card, labelled exactly as approved."""
+
+    def drawn(self, cdp, w, mode):
+        p = self.page(cdp)
+        Head.open_settings(self, p, w, mode, "reports")
+        p.until("!!document.getElementById('board-client')", "the board tick is drawn")
+        return p
+
+    def test_the_reports_page_shows_the_tick_off_with_its_label_under_the_gantt_card(self):
+        for w in (1400, 900):
+            for mode in ("light", "dark"):
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.drawn(cdp, w, mode)
+                    self.assertEqual(p.js("document.querySelector('#board-client').closest('.set-row').textContent.includes(%r)" % LABEL), True)
+                    self.assertEqual(p.js("document.getElementById('board-setting-h').textContent"), "Work items board")
+                    self.assertFalse(p.js("document.getElementById('board-client').checked"), "off by default")
+                    self.assertTrue(p.js("document.getElementById('gantt-setting').compareDocumentPosition(document.getElementById('board-setting')) & Node.DOCUMENT_POSITION_FOLLOWING"), "under the Gantt card")
+                    self.assertTrue(p.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+
+    def test_a_click_saves_it_and_reset_puts_it_back_off(self):
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.drawn(cdp, w, "light")
+                p.js("document.getElementById('board-client').click()")
+                p.until("document.getElementById('board-client').checked && !!document.querySelector('#board-client').closest('.set-row').querySelector('.set-reset')", "the tick saved and Reset is offered")
+                p.js("document.querySelector('#board-client').closest('.set-row').querySelector('.set-reset').click()")
+                p.until("!document.getElementById('board-client').checked", "Reset put it back off")
 
 
 if __name__ == "__main__":

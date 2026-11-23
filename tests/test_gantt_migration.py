@@ -99,7 +99,7 @@ class Migrating(unittest.TestCase):
                                  (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS + ("brand", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off"))      # row 1294 (step 31): the standing instructions, in two tables; #94; row 1269 (step 27)4: layout 20 adds brand after these; item 1185 (layout 25) adds latest_update to raid and milestones
+        after = every_row(path, NEW_COLUMNS + ("brand", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "show_board_client"))      # row 1294 (step 31): the standing instructions, in two tables; #94; row 1269 (step 27)4: layout 20 adds brand after these; item 1185 (layout 25) adds latest_update to raid and milestones
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual(set(after) - set(before) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors"}, {"gantt_lines"})      # row 1107 (layout 24) adds the other, row 1300 (layout 30) install_defaults
         self.assertEqual(after["gantt_lines"], [])
@@ -185,8 +185,8 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual([c[1] for c in project_columns(path)][-10:-4], list(NEW_COLUMNS))
-        self.assertEqual([c[1] for c in project_columns(path)][-4], "brand")      # #944: the brand column comes after the Gantt ones; row 1294 (step 31) adds ask_instructions after it, step 33 ask_files_off and ask_off
+        self.assertEqual([c[1] for c in project_columns(path)][-11:-5], list(NEW_COLUMNS))
+        self.assertEqual([c[1] for c in project_columns(path)][-5], "brand")      # #944: the brand column comes after the Gantt ones; row 1294 (step 31) adds ask_instructions after it, step 33 ask_files_off and ask_off
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_columns_in_the_same_order(self):
         path = make_at(self.dir, STEP - 1)
