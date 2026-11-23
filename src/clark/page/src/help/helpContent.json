@@ -1164,7 +1164,7 @@
      ],
      [
       "p",
-      "A Quote section shows up to 6 quotes, each with the words, a name and a role. Choose Left or Centre, and 2 or 3 quotes in a row. A half-width section, and a window 900 px wide or narrower, show them one under the other."
+      "A Quote section shows up to 6 quotes, each with the words, a name and a role. Choose Left or Centre, and 2 or 3 quotes in a row. A half-width section, and a window narrower than 900 px, show them one under the other."
      ],
      [
       "p",
