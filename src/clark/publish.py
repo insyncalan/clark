@@ -595,6 +595,8 @@ def select(inputs):
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
     proj["current_state"] = (clean_html(proj["current_state"]) or current_state_section_body(sections)) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body; a built-in current section with an empty column falls back to it
+    if type(project.get("show_board_client")) is int and project["show_board_client"] == 1:      # row 1533: the author's switch for the client's Board choice, exactly the whole number 1; absent or 0 draws no board
+        proj["board"] = 1
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them

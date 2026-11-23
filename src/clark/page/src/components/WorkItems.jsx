@@ -37,7 +37,8 @@ import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic 
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
-import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
+import { ReadBoard, LANE_WORDS } from "./ReadBoard.jsx";
+import { GROUPS, LANE_GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
 // The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
 // (tools.addItem, edit/addItem.js). The published file has no Add (#204); a page with no tools says, in words, that nothing was added.
@@ -305,6 +306,27 @@ function GroupBy({ board }) {
   );
 }
 
+// Row 1533: the published file's Layout choice (List or Board) and the swimlanes, drawn only when the author switched the board on for the client.
+// The list is the default; the choice is the viewer's own and lives in memory (stores/work.js).
+function LayoutChoice({ board }) {
+  const w = work.value, g = boardGroup(w.group);
+  return (
+    <>
+      <div class="seg" role="group" aria-label="Layout" id="layout-seg">
+        {[["table", "List"], ["board", "Board"]].map(([v, t]) => (
+          <button type="button" key={v} data-layout={v} aria-pressed={(v === "board") === board ? "true" : "false"}
+            onClick={() => { setWork({ view: v }); announce.value = v === "board" ? `Showing the board, grouped by ${groupLabel(g)}.` : "Showing the list."; }}>{t}</button>
+        ))}
+      </div>
+      {board ? (
+        <Menu label={`Swimlanes: ${w.lane ? LANE_WORDS[w.lane] : "None"}`} ariaLabel={`Swimlanes: ${w.lane ? LANE_WORDS[w.lane] : "None"}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left
+          items={[{ id: "none", name: "None" }, ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: x, name: LANE_WORDS[x], icon: groupIcon(x) }))]}
+          onPick={(id) => { setWork({ lane: id === "none" ? null : id }); announce.value = id === "none" ? "No swimlanes." : `Swimlanes by ${LANE_WORDS[id]}.`; }} />
+      ) : null}
+    </>
+  );
+}
+
 // The published file's search box (#69): it filters as the client types and is never re-created by a click, so nothing moves.
 function SearchBox() {
   return (
@@ -322,7 +344,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
   const cs = chips(st);
   const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
   const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
-  const board = !!Board && work.value.view === "board";
+  const board = !!Board && work.value.view === "board" && !printing.value;      // row 1533: a printed or saved page is the table's print, the list
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
@@ -377,7 +399,10 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); if (tools && tools.HandOver) tools.HandOver.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
-  const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
+  const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type);
+  // Row 1533: a published report draws the read only board when the author switched it on (the project block carries board: 1); the editor's own board is Edit's.
+  const clientBoard = fromFile.value && !!d && !!d.project && d.project.board === 1;
+  const Board = tools ? tools.Board : clientBoard ? ReadBoard : null;
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const CM = tools && tools.columns && !fromFile.value ? tools.columns : null;     // row 1222: the columns menu; the page clark serves only
@@ -411,7 +436,7 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox /></Switches>
+                  <Switches>{clientBoard ? <LayoutChoice board={board} /> : null}<GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Eye={Eye} CW={CW} CM={CM} Bulk={tools && tools.Bulk} />
                 </>
