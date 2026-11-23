@@ -1,7 +1,7 @@
 """Row 1443: the Work items owner column in Edit, at 900 and 1400 px, light and dark.
 
 Run: python3 dev/run_tests.py test_owner_col_900_1443.py
-Ruling (Romanoff PM word 22-11 02:52): 130 px stays at 900 px; 170 px applies at full width only. The mock-up
+Ruling (PM word 22-11 02:52): 130 px stays at 900 px; 170 px applies at full width only. The mock-up
 (mockups/1195-work-items-template/work-items-mockup.html) has own:170 in its default S.w (line 1962) and no owner width for 900 px
 (its only width rule is @media(max-width:640px), line 82, which hides the owner). The list is table.items (edit.css, the 900 px rule).
 """

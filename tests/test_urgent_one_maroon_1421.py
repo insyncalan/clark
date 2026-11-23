@@ -1,4 +1,4 @@
-"""Row 1421: one maroon for Urgent in the page, the Word file and the Excel export. The ruled value is 6B1D2A (Alan: "Maroon is 6B1D2A (export tokens)").
+"""Row 1421: one maroon for Urgent in the page, the Word file and the Excel export. The ruled value is 6B1D2A (ruling: "Maroon is 6B1D2A (export tokens)").
 Run: python3 dev/run_tests.py test_urgent_one_maroon_1421"""
 import re
 import unittest
