@@ -10,6 +10,7 @@ import { toast } from "../stores/changes.js";
 import { MenuNote } from "./ProfileMenu.jsx";
 import { undoKey, dismissKey } from "./undoKey.js";
 import { ToastCard } from "./ToastCard.jsx";
+import { RefreshToast } from "./RefreshToast.jsx";
 
 export function Toast() {
   useEffect(() => {                                   // #197: Cmd or Ctrl+Z undoes the last change (undoKey.js)
@@ -17,7 +18,7 @@ export function Toast() {
     window.addEventListener("keydown", dismissKey);   // on the window, after the page's own Esc handlers (they say so with preventDefault)
     return () => { document.removeEventListener("keydown", undoKey); window.removeEventListener("keydown", dismissKey); };
   }, []);
-  if (mode.value !== "edit" && view.value === "dashboard") return null;      // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
+  if (mode.value !== "edit" && view.value === "dashboard") return <RefreshToast />;      // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
   const t = toast.value, editing = mode.value === "edit";
   return (
     <div class="toasts" data-edit-only={editing ? "" : undefined} role={t && t.quiet ? undefined : "status"} aria-live={t && t.quiet ? "off" : "polite"}>      {/* a quiet toast (a section drop) is shown, not announced */}
@@ -25,6 +26,7 @@ export function Toast() {
         <ToastCard t={t} />
       ) : null}
       <MenuNote />
+      <RefreshToast />
     </div>
   );
 }

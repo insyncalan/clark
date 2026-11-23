@@ -140,6 +140,20 @@ class Bell(Base):
                 self.assertEqual(got, [], f"at {width} px")
 
 
+    def test_database_refreshed_toast_has_its_own_slot_and_the_look(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.until("!!window.clarkPage.refreshed", "the test hook is there")
+            p.js("window.clarkPage.refreshed()")
+            p.until("!!document.querySelector('.toast.refresh')", "the toast is drawn")
+            got = p.js("(function(){var t=document.querySelector('.toast.refresh');"
+                       "return [t.textContent.indexOf('Database refreshed') >= 0, !!t.querySelector('svg'), !!t.querySelector('[data-undo]'), !!t.querySelector('[data-dismiss]'),"
+                       "t.querySelector('.toast-bar').getAttribute('style').indexOf('8000ms') >= 0, getComputedStyle(t).borderLeftWidth];})()")
+            self.assertEqual(got, [True, True, False, True, True, "6px"], "words, icon, no Undo, Close, 8 s, teal edge")
+            p.js("document.querySelector('.toast.refresh [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast.refresh')", "Close takes it away")
+
+
 class CardsDrawsNoBell(Base):
     def test_cards_draws_no_bell_and_no_wrapper_even_with_notices_pushed(self):
         for width in (1400, 900):

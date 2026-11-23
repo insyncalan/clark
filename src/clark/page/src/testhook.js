@@ -19,6 +19,7 @@ export function install(tools) {
   const peekHelp = Object.freeze({ open: openContext, toggle: toggleContext, close: closeContext, isOpen: () => contextOpen.value, useText: useContextText });
   const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
   window.clarkPage = Object.freeze({ show, setQuery, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
+    refreshed: () => tools.notices.refreshed(),            // row 1046: the tests raise the "Database refreshed" toast as clark will
     pushNotices: (list) => tools.notices.push(list),      // row 1046: the tests push notices as clark will
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
