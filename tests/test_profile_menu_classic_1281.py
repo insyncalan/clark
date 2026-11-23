@@ -53,7 +53,7 @@ class Classic(Base):
         p.until("!!document.querySelector('#profile-menu [data-kind=help] .hver')", "the version arrived")
 
     # Export to Word
-    def test_C_export_to_word_is_not_in_the_menu_and_stays_in_settings_data(self):
+    def test_profile_menu_no_word_1281(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
@@ -63,8 +63,12 @@ class Classic(Base):
         src = ROOT / "src" / "clark" / "page" / "src" / "edit" / "Data.jsx"
         self.assertIn("data-word-export", src.read_text(encoding="utf-8"), "Settings > Data still has its Export to Word button")
 
-    # The pill
-    def test_C_the_pill_is_one_line_group_of_three_radios_with_the_mockup_values(self):
+    # The pill (AP3, AP4, AP5: one ticket-named test runs both looks)
+    def test_appearance_pill_look_1281(self):
+        self.look_shape_and_sizes()
+        self.look_chosen_cell_and_colours()
+
+    def look_shape_and_sizes(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
@@ -81,7 +85,7 @@ class Classic(Base):
                            "rad:q('.pr').borderRadius,on:q('.pr[aria-checked=true]').fontWeight,eq:Math.max.apply(null,w)-Math.min.apply(null,w)<=1?1:w.join()}})()")
                 self.assertEqual(got, {"lab": "13px", "r": "999px", "pad": "3px", "gap": "2px", "cell": "6px 4px", "fs": "14px", "rad": "999px", "on": "600", "eq": 1})
 
-    def test_C_the_chosen_cell_is_a_raised_surface_pill_with_accent_text_in_light_and_dark(self):
+    def look_chosen_cell_and_colours(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
@@ -100,7 +104,7 @@ class Classic(Base):
                     want = {"light": ("rgb(236, 239, 246)", "rgb(79, 53, 201)", "rgb(255, 255, 255)", "rgb(74, 85, 120)"), "dark": ("rgb(28, 48, 64)", "rgb(169, 155, 255)", "rgb(19, 35, 46)", "rgb(159, 176, 189)")}[kind]
                     self.assertEqual(got, {"bg": want[2], "fg": want[1], "track": want[0], "ap": "8px 20px 6px", "shadow": "rgba(0, 0, 0, 0.2) 0px 1px 3px 0px", "lab": want[3]}, kind)
 
-    def test_C_the_keys_reach_the_pill_as_one_stop_and_left_right_choose(self):
+    def test_appearance_pill_keys_1281(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
@@ -133,7 +137,7 @@ class Classic(Base):
             self.assertEqual((self.active(p), self.chosen(p)), ("Dark", "Dark"), "End chooses the last radio")
             self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark")
 
-    def test_C_a_click_chooses_and_closes_the_menu(self):
+    def test_appearance_pill_storage_1281(self):
         with chrome() as cdp:
             p = self.page(cdp)
             for kind, theme_ in (("dark", "dark"), ("light", None), ("system", None)):
@@ -145,7 +149,7 @@ class Classic(Base):
                     self.assertEqual(p.js("document.documentElement.dataset.theme"), theme_)
 
     # The version
-    def test_C_the_help_line_carries_clark_ver_from_health_at_its_right_end(self):
+    def test_help_line_version_1281(self):
         for w in WIDTHS:
             with self.subTest(width=w), mock.patch.object(sv, "VERSION", VER), chrome() as cdp:      # a version no source file holds
                 p = self.page(cdp)
@@ -206,7 +210,7 @@ class CardsStaysAsItWas(Base):
     def setUp(self):
         self.rig = Rig(self, saved=True)
 
-    def test_C_the_cards_menu_has_no_pill_no_version_and_keeps_export_to_word(self):
+    def test_profile_menu_cards_unchanged_1281(self):
         with mock.patch.object(sv, "VERSION", VER), chrome() as cdp:
             p = self.page(cdp)
             self.assertFalse(p.js("!!document.getElementById('theme')"))
