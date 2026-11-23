@@ -142,6 +142,8 @@ class FeedbackTag1334(unittest.TestCase):
                 red = cdp.js("(() => { const p = document.createElement('span'); p.style.color = 'var(--status-red-text)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()", sid)
                 self.assertEqual((e["fontSize"], e["marginTop"], e["color"]), ("13px", "4px", red), where + " b) empty-send line")
                 body = cdp.js("getComputedStyle(document.body).fontSize", sid)
+                # Classic body is 14px; mock-up says 15px, accepted by PM
+                self.assertEqual(body, "14px", where + " b) Classic body is 14px; mock-up says 15px, accepted by PM")
                 self.assertEqual(d["fontSize"], body, where + " b) the dialog sets no text size of its own: it is the page body size (mock-up: font inherit)")
                 for btn in ("[data-fbt-copy]", "[data-fbt-mail]"):
                     self.assertEqual(self.probe(cdp, sid, btn, "fontSize")["fontSize"], body, where + " d) button text is font: inherit, the page body size: " + btn)
