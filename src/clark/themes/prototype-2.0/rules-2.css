@@ -159,10 +159,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
-/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
-.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
-.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
 
 /* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
 .toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
@@ -174,3 +170,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .crit-text { flex: 1 1 24ch; min-width: 0; overflow-wrap: anywhere; }
 .crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
 .crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }

@@ -2,6 +2,7 @@
 // which are shown and how many are unread come from logic/notices.js. Read ids are kept per person in this browser (try/catch: a private window keeps them for this visit only).
 import { signal, computed } from "@preact/signals";
 import { noticesRead } from "./publishApi.js";
+import { zoneFetch } from "../api.js";
 import { todayIso } from "../workItems.js";
 import { visible, unreadIds, markRead, markAllRead, pruneRead, arrivals } from "../logic/notices.js";
 
@@ -47,7 +48,7 @@ export async function loadNotices() {
 // An answer that is not a plain x.y.z leaves it unknown, and an unknown version keeps the notice.
 export async function loadInstalled() {
   try {
-    const r = await fetch("/health", { cache: "no-store" });
+    const r = await zoneFetch("/health", { cache: "no-store" });
     const b = r && r.status === 200 ? await r.json() : null;
     if (b && typeof b.version === "string" && /^\d+\.\d+\.\d+$/.test(b.version)) installed.value = b.version;
   } catch (e) { /* stays unknown */ }
