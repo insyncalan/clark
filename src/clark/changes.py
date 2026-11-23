@@ -62,6 +62,7 @@ GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_nam
 PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand",)
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
+ADDED_PAGE_FIELDS = ("name", "starter", "sort_order", "client", "hidden", "sections")      # row 1252: what a page takes (starter on a new page only)
 CHANGE_KINDS = {
     "report_sections": {NEW: ("type", "title", "body"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
@@ -88,11 +89,13 @@ CHANGE_KINDS = {
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
+    "added_pages": {NEW: ADDED_PAGE_FIELDS, UPDATE: ADDED_PAGE_FIELDS, DELETE: ()},      # row 1252: add, change (name, place, flags, sections) and remove a page; each is one step with one Undo
     "gantt_lines": {NEW: GANTT_FIELDS, UPDATE: GANTT_FIELDS, MOVE: (), DELETE: ()},      # row 926: the eye is an update of `show`; each op is one step with one Undo
 }
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")},
+                "added_pages": {NEW: ("values",), UPDATE: ("id", "changes"), DELETE: ("id",)},
                 "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids"), DELETE: ("id",)}    # item 455: a new use case is only `values` (its reference, name, status and headline); no id is sent. item 485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline", "new_person")     # #136: a milestone's agreed date moves with a `rebaseline`; row 986: and an owner may be a new person
@@ -111,6 +114,7 @@ HEALTHS = ("On track", "At risk", "Off track")
 UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions": None, "report_hidden": None,
             "glance_tiles": ("hidden", "outline", "sort_order"),
             "projects": PROJECT_FIELDS + ("archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
+            "added_pages": None,                                                                     # row 1252: an added page, any field (an added-page step holds nothing else)
             "gantt_lines": None,                                                                     # row 926: a Gantt line, any field (a Gantt step holds nothing else: see _eligible)
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note",
@@ -761,6 +765,8 @@ def _do_change(store, by_user, req):
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
     columns = clark_store.columns(store.con, table)
+    if kind == "added_pages":                                        # row 1252: an added page's add, edit and remove
+        return _do_added_page_change(store, by_user, req, project, table, columns, op, place)
     if kind == "gantt_lines":                                        # row 926: a Gantt line's add, edit, eye, move and delete
         return _do_gantt_change(store, by_user, req, project, table, columns, op, place)
     if kind == "documents":                                         # #74: a document link's add or edit
@@ -2291,6 +2297,50 @@ def _do_gantt_change(store, by_user, req, project, table, columns, op, place):
     return _gantt_reply(store, project, ref, apply_id)
 
 
+ADDED_PAGE_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-PG-\d{3}")
+
+
+def _do_added_page_change(store, by_user, req, project, table, columns, op, place):
+    """Row 1252: add an added page to THIS project (the next free id, at the end of the menu unless a place is sent), change its name, place,
+    flags or sections, or remove it with its sections, each in one step with one Undo (a removed page comes back whole). The store checks the
+    five-page cap and every other rule again on write; a refusal writes nothing. The prebuilt Gantt page is no row: it is the project's
+    show_gantt_editor switch, changed as the project's other fields are."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    ref = req.get("id")
+    values = changes = None
+    if op == NEW:
+        values = _fields(req.get("values"), table, NEW, columns, "the new page's values")
+    elif op == UPDATE:
+        changes = _fields(req.get("changes"), table, UPDATE, columns, "the changes")
+        if not changes:
+            raise Refused("Say what to change.")
+        if "starter" in changes:
+            raise Refused("A page keeps its starter.")
+    for k, v in {**(values or {}), **(changes or {})}.items():
+        if k in ("client", "hidden", "sort_order") and (type(v) is not int or not -2**63 <= v < 2**63):       # a whole number only (True, 1.0, "1" and one past SQLite's range are refused)
+            raise Refused(clark_store.ADDED_PAGE_BAD_PLACE if k == "sort_order" else clark_store.ADDED_PAGE_BAD_FLAG)
+    if op != NEW and not (isinstance(ref, str) and ADDED_PAGE_ID.fullmatch(ref) and _belongs(table, ref, project)):
+        raise Refused(NOT_MINE_RECORD)
+    with store.step(VIA, by_user, place=place) as st:
+        try:
+            rows = store.read(table, project=project)
+            if op == NEW:
+                values.setdefault("sort_order", order.end_slot(rows))
+                ref = st.create(table, {**values, "project": project})
+            elif ref not in {r["id"] for r in rows}:
+                raise Refused(NOT_MINE_RECORD)
+            elif op == UPDATE:
+                st.update(table, ref, changes)
+            else:
+                st.cancel(table, ref)
+        except Invalid as e:                                        # a rule of the store, in fixed words: no value quoted
+            raise Refused(str(e)) from None
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+                 "pages": order.in_order(store.read(table, project=project))}
+
+
 def _add(st, project, rows, ids, title, after, kind="text", body=None):
     """Make a section of type `kind` (text, needs or tracker) just after section `after` (None: at the end); its id. A needs or
     tracker section starts with the body the registry gives it (section_bodies.EMPTY), never one from the request. When no whole number fits between its
@@ -2326,6 +2376,8 @@ def _row_is_ours(row, project, project_step, flagged):
     allowed = UNDOABLE[table]
     if table == "report_sections":
         return key.startswith(project + "-S-")
+    if table == "added_pages":                                      # row 1252
+        return bool(ADDED_PAGE_ID.fullmatch(key)) and key.startswith(project + "-PG-")
     if table == "gantt_lines":                                      # row 926
         return bool(clark_store.GANTT_ID.fullmatch(key)) and key.startswith(project + "-GNT-")
     if table == "report_hidden":                                    # #67: the key is "CODE|item id"; the separator keeps ABC from matching ABCD
@@ -2415,6 +2467,8 @@ def _eligible(rows, project, hand_over=False):
     flagged = {(r["table"], str(r["key"])) for r in rows if r.get("field") == "archived"}
     beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active") + PROJECT_FIELDS + ("note",)}
     project_step = ("projects", project) in flagged
+    if any(r["table"] == "added_pages" for r in rows):              # row 1252: an added-page step is one family: pages of this project and nothing else
+        return all(r["table"] == "added_pages" and r["via"] == VIA and _row_is_ours(r, project, False, flagged) for r in rows)
     if any(r["table"] == "gantt_lines" for r in rows):              # row 926: a Gantt step is one family: lines of this project and nothing else
         return all(r["table"] == "gantt_lines" and r["via"] == VIA and _row_is_ours(r, project, False, flagged) for r in rows)
     items = {"actions": re.compile(re.escape(project) + r"-A-\d{3}"), "raid": re.compile(re.escape(project) + r"-\d{3}"),
