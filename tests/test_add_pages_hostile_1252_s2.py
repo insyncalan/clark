@@ -206,7 +206,7 @@ class Rules(Base):
             self.assertEqual(self.s.read("added_pages", ref=b["ref"])[f], 1)
 
 
-class Cap(Base):
+class Limit(Base):
     def project(self, **c):
         return self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": c})
 

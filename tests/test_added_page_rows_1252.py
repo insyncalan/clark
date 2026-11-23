@@ -3,7 +3,7 @@
 ACCEPTANCE VALUES (written first; sources: the issue's AP1, AP5, AP6, AP7, AP11 and the approved mock-up frames 1, 3, 4, 6, 7)
   Card: heading "Pages", on the Reports page after Gantt; Classic only (Cards: no card, no row), a project open, Edit.
   Row 1, "Add page": help "A custom page for <project>, built from a template, then named, placed and marked client or internal"; button "Add page".
-  Cap line (always): "Up to 5 added pages per project". Meter text: "<n> of 5 added pages", n = the added pages + 1 (the prebuilt Gantt page counts ALWAYS,
+  Limit line (always): "Up to 5 added pages per project". Meter text: "<n> of 5 added pages", n = the added pages + 1 (the prebuilt Gantt page counts ALWAYS,
   hidden or shown), so 1 of 5 with none added and 5 of 5 with four. At 5: the button is disabled (background var(--hover)) and the amber box reads
   "You have 5 added pages. Remove one to add another." No "no pages yet" text: with none added the list holds only the Gantt row.
   List order: the prebuilt Gantt row first (name "Gantt", words "Hidden from you and from the client. Counts as one of the 5. Sections built in: Header and

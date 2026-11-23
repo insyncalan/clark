@@ -16,7 +16,7 @@ ACCEPTANCE VALUES (written first; sources: the issue's AP2, AP3, AP4 and the app
     added page), closes the box and the toast reads: Added “<name>” to the menu. with Undo, which removes the page again.
   Gantt starter: switches the prebuilt Gantt page on (show_gantt_editor 1, its tab name is the typed name when it is not "Gantt"), stores no row, same toast.
     It cannot be chosen while the Gantt page is already on.
-  Cap: the prebuilt Gantt page always counts; with 4 added pages the Add page button is disabled so the box cannot open (the server refuses a sixth too).
+  Limit: the prebuilt Gantt page always counts; with 4 added pages the Add page button is disabled so the box cannot open (the server refuses a sixth too).
 Run: python3 dev/run_tests.py test_add_page_box_1252
 """
 import json
