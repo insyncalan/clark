@@ -126,10 +126,9 @@ class Workflow(unittest.TestCase):
         plan = self.jobs["plan"]
         self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
-        self.assertIn("*,full-ci,*) FULL=1; MACOS=1 ;;", plan)
+        self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1 ;;", plan)               # a push to main: full Ubuntu, NO macOS
-        self.assertNotIn("push) FULL=1; MACOS=1", plan)
+        self.assertIn("push) FULL=1; MACOS=1 ;;", plan)               # a push to main: full Ubuntu and the full macOS suite (17:58 order)
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -141,13 +140,18 @@ class Workflow(unittest.TestCase):
         self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
         self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
         # #593: a file renamed away from a guarded path is seen too: both the new name and the old one (previous_filename) are listed
-        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
         for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
                         "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
                         ".github/*"):
             self.assertIn(guarded, plan)
         # a failed API call is full, not cheap
-        self.assertRegex(plan, r"else\s+echo \"could not list[^\n]*\n\s+FULL=1; MACOS=1")
+        self.assertRegex(plan, r"else\s+(?:#[^\n]*\n\s+)?echo \"could not list[^\n]*\n\s+FULL=1\n")
+        # the fail-safe never selects macOS (spend needs the owner), and a rate limit is retried a bounded number of times
+        tail = plan[plan.index("could not list"):]
+        self.assertNotIn("MACOS=1", tail[:tail.index("\n          fi\n")])
+        self.assertIn("rate limit|HTTP 429", plan)
+        self.assertIn('[ "$ATTEMPT" -lt 4 ]', plan)
         # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
         self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
 
@@ -232,7 +236,7 @@ class Workflow(unittest.TestCase):
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.x"', mac)
         self.assertNotIn("--quick", mac)
-        self.assertNotIn("continue-on-error", mac)
+        self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the Sunday run
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
         self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ matrix.shards }}", mac)
         self.assertIn("fail-fast: false", mac)
@@ -262,30 +266,59 @@ class Workflow(unittest.TestCase):
         self.assertIn('test "$PLAN" = "success"', passed)
         self.assertIn('test "$TESTS" = "success"', passed)
         self.assertIn('if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
-        self.assertIn('if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi', passed)
-        for job, body in self.jobs.items():
-            self.assertNotIn("continue-on-error", body, job)
+        self.assertIn('if [ -n "$WANT_MACOS" ] && [ -z "$ADVISORY" ]; then test "$MACOS" = "success"; elif [ -z "$WANT_MACOS" ]; then test "$MACOS" = "skipped"; fi', passed)
+        self.assertIn('if [ -n "$WANT_SMOKE" ]; then test "$SMOKE" = "success"; else test "$SMOKE" = "skipped"; fi', passed)
+        for job, body in self.jobs.items():      # only the full macOS job may be advisory, and only on the plan's say-so
+            if job == "macos":
+                self.assertIn("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", body)
+            else:
+                self.assertNotIn("continue-on-error", body, job)
+
+    def test_the_nightly_runs_the_full_macos_suite_and_it_is_required(self):
+        wf = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('- cron: "0 22 * * *"', wf)
+        self.assertIn('- cron: "0 23 * * 0"', wf)
+        self.assertIn("schedule) FULL=1; MACOS=1 ;;", wf)      # every nightly: full macOS, required (no smoke-only, no advisory)
+        self.assertNotIn("ADVISORY=1", wf[wf.index("schedule) FULL=1"):wf.index("schedule) FULL=1") + 80])
+        smoke = self.jobs["macos-smoke"]
+        self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
+        self.assertIn("runs-on: macos-latest", smoke)
+        for f in ("test_updates", "test_updater", "test_platform", "test_launcher", "test_doctor", "test_package", "test_main"):
+            self.assertIn(" " + f + " ", smoke + " ")
+        self.assertNotIn("--shard", smoke)
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 
     def test_macos_runs_for_mac_specific_files_not_for_every_guarded_file(self):
         """The owner, 04-11-2026: macOS runs at the release gate, not on every push of a guarded pull request. A guarded file is the full Ubuntu
         matrix (FULL=1) and no macOS; only the Mac-specific code (platform, updates, the launcher and the package files) also asks for macOS.
-        Each pattern is judged on its own: a Mac file must be in a MACOS=1 line, and no other pattern may share one."""
+        Each pattern is judged on its own: a Mac file must be in a SMOKE=1 line (a pull request runs the Mac smoke set, never the full macOS shards), and no other pattern may share one."""
         plan = self.jobs["plan"]
         seen = {}
         for ln in plan.splitlines():
             m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s+(FULL=1[^#]*)", ln)
             if not m or "/" not in m.group(1):
                 continue
-            macos = "MACOS=1" in m.group(2)
+            macos = "SMOKE=1" in m.group(2)
             for pattern in m.group(1).split("|"):
                 is_mac = pattern.rsplit("/", 1)[-1] in self.MAC_FILES and pattern != "clark/__init__.py"
-                self.assertEqual(macos, is_mac, f"{pattern}: macOS only for a Mac-specific file, and a Mac file only on a MACOS=1 line")
+                self.assertEqual(macos, is_mac, f"{pattern}: macOS only for a Mac-specific file, and a Mac file only on a SMOKE=1 line")
                 seen[pattern.rsplit("/", 1)[-1]] = macos
         for name in self.MAC_FILES:
             self.assertTrue(seen.get(name), f"{name} must be in the plan's Mac-specific list")
         self.assertIn(".github/*) FULL=1 ;;", plan)
+
+    def test_a_pull_request_never_requires_the_macos_shards_but_main_does(self):
+        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check); the full macOS suite stays
+        required on a push to main and on the nightly."""
+        plan = self.jobs["plan"]
+        pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]
+        self.assertNotIn("MACOS=1", pr_part)          # no pull-request path asks for the macOS shards
+        self.assertIn("SMOKE=1", pr_part)
+        passed = self.jobs["passed"]
+        self.assertIn("EVENT: ${{ github.event_name }}", passed)
+        self.assertIn('if [ "$EVENT" = "pull_request" ]; then :; elif [ -n "$WANT_MACOS" ]', passed)
+        self.assertIn('if [ -n "$WANT_SMOKE" ]; then test "$SMOKE" = "success"', passed)
 
     def test_a_pull_request_that_targets_a_release_branch_gets_macos_too(self):
         plan = self.jobs["plan"]
@@ -343,7 +376,7 @@ class WideByTestFiles(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         a = text.index("while IFS= read -r F; do")
         b = text.index('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi') + len('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi')
-        script = 'FULL=""; MACOS=""; REL=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
+        script = 'FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
         out = subprocess.run(["bash", "-c", script], input="", capture_output=True, text=True, check=True,
                              env={"PATH": "/usr/bin:/bin", "CHANGED": changed}).stdout
         return out.strip()

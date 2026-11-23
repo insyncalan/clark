@@ -512,7 +512,7 @@ def _section_body(section, body):
     try:
         if _picture_kind(section["type"]) is not None:
             return _keep_pictures(section, body)
-        return clark_store.check_section_body(section["type"], body)
+        return clark_store.check_section_body(section["type"], body, section.get("body"))
     except Invalid as e:
         raise Refused(str(e)) from None
 
@@ -536,6 +536,7 @@ PICTURES = "pictures"                     # the one field of a picture template'
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
 FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
 WORK_ITEMS_START = section_kinds.REGISTRY["workitems"].START       # row 1268: the one body a new Work items list may be given (the saved filter it starts from)
+REPORT_HEADLINE_START = section_kinds.REGISTRY["reportheadline"].START   # row 1261: the one body a new Report headline may be given (the health pill off, when At a glance already shows the health)
 SIDE_BY_SIDE_START = section_kinds.REGISTRY["textimage"].START   # row 1232: the one body a new textimage section may be given (Text and Image Side by Side)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
@@ -802,6 +803,8 @@ def _do_change(store, by_user, req):
                 start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
             elif new_type == "workitems" and values["body"] == WORK_ITEMS_START:
                 start_body = values["body"]                         # row 1268: a new Work items list starts with a saved filter, and only with this one
+            elif new_type == "reportheadline" and values["body"] == REPORT_HEADLINE_START:
+                start_body = values["body"]                         # row 1261: a new Report headline starts with its health pill off, and only with this body
             elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
             else:
@@ -3422,9 +3425,10 @@ class _Dry(Exception):
 class _AskStore:
     """The store as _do_change sees it for ask clark: every read is the store's own; a step is ask clark's (see above)."""
 
-    def __init__(self, store, dry, expect, table, ref):
-        self._store, self.dry, self.expect, self.table, self.ref = store, dry, expect, table, ref
+    def __init__(self, store, dry, expect, table, ref, project):
+        self._store, self.dry, self.expect, self.table, self.ref, self.project = store, dry, expect, table, ref, project
         self.before = self.after = None
+        self.committed = []                      # a mark for each step of this call that was committed
 
     def __getattr__(self, name):
         return getattr(self._store, name)
@@ -3437,37 +3441,45 @@ class _AskStore:
     def step(self, via, by_user, place=None, src_ref=None):
         if via != VIA:
             raise Invalid("not a step of a change")
-        with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
-            if self._store.ask_enabled() is not True:
-                raise Refused(ASK_OFF, 409, "asking_off")
-            self.before = self.shown(self.ref) if self.ref is not None else None
-            if self.expect is not None and self.before != self.expect:
-                raise Refused(ASK_CHANGED, 409, "changed")
-            yield st
-            made = self.ref
-            if made is None and st.peek_apply_id() is not None:
-                made = next((r["key"] for r in self._store.step_rows(st.peek_apply_id())
-                             if r["table"] == self.table and r["op"] == MADE_OP), None)
-            self.ref, self.after = made, self.shown(made)
-            if self.dry:
-                raise _Dry()
+        seen = []
+        try:
+            with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
+                seen.append(st)
+                if self._store.ask_allowed(self.project) is not True:      # row 1294: the computer-wide switch and the project's own asking, read again inside the step
+                    raise Refused(ASK_OFF, 409, "asking_off")
+                self.before = self.shown(self.ref) if self.ref is not None else None
+                if self.expect is not None and self.before != self.expect:
+                    raise Refused(ASK_CHANGED, 409, "changed")
+                yield st
+                made = self.ref
+                if made is None and st.peek_apply_id() is not None:
+                    made = next((r["key"] for r in self._store.step_rows(st.peek_apply_id())
+                                 if r["table"] == self.table and r["op"] == MADE_OP), None)
+                self.ref, self.after = made, self.shown(made)
+                if self.dry:
+                    raise _Dry()
+        finally:
+            if seen and seen[0].committed:             # Row 1293: COMMIT ran, whatever was raised after it
+                self.committed.append(True)
 
 
-def _do_ask(store, by_user, req, dry, expect):
+def _do_ask(store, by_user, req, dry, expect, committed=None):
     project, kind, op, place = _shape(req)
     if kind not in ASK_KINDS or op not in ASK_OPS or any(k not in ASK_KEYS[op] for k in req):
         raise Refused(ASK_NOT_YET, code="not_yet")
     part = req.get(ASK_PART[op])
     if not ASK_FIELDS[kind][op] or not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
         raise Refused(ASK_NOT_YET, code="not_yet")
-    if store.ask_enabled() is not True:
+    if store.ask_allowed(project) is not True:      # row 1294: the computer-wide switch and the project's own asking (an unknown project reads as off)
         raise Refused(ASK_OFF, 409, "asking_off")
     ref = req.get("id") if op == UPDATE else None
     if op == UPDATE and not _belongs(kind, ref, project):
         raise Refused(NO_MILESTONE if kind == "milestones" else NO_USE_CASE if kind == "use_cases" else ITEM_NOT_MINE)
     if expect is not None and not isinstance(expect, dict):
         raise Refused(STALE)
-    ask = _AskStore(store, dry, expect, kind, ref)
+    ask = _AskStore(store, dry, expect, kind, ref, project)
+    if committed is not None:
+        ask.committed = committed
     try:
         _status, body = _do_change(ask, by_user, req)
     except _Dry:
@@ -3482,5 +3494,15 @@ def make_ask_change(path, onedrive_roots=None, by_user=None):
     work item or milestone only. A dry run (the default) says {ok, dry, kind, ref, before, after} and saves nothing; `dry=False`
     saves it as one step (route "assistant", actor "clark") and adds apply_id and undoable, for /api/undo."""
     def ask_change(req, dry=True, expect=None):
-        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_ask(store, who, r, dry is not False, expect), req)
+        committed = []                           # Row 1293: marked once the step's COMMIT ran
+        try:
+            status, body = _call(path, onedrive_roots, by_user,
+                                 lambda store, who, r: _do_ask(store, who, r, dry is not False, expect, committed), req)
+        except BaseException as e:
+            if committed:
+                e.committed = True               # a fault after the save: the caller must not save it again
+            raise
+        if committed and status != 200:
+            body = {**body, "committed": True}
+        return status, body
     return ask_change

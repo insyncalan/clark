@@ -108,7 +108,7 @@ PUBLISH_FIELDS = {
              "priority", "status", "raised", "closed", "latest_update", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
                   "revisit", "replaces", "priority", "latest_update", "use_case", "source"),
-    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
+    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment", "owner"),   # #709: the flag goes with the use case; row 1479 (the 20-11 decision): the owner, as plain text, for the use case's own page (never owner_id)
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
@@ -174,7 +174,7 @@ VOID = {"br", "hr", "img"}
 ALLOWED_TAGS = {"p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "code", "pre", "blockquote", "span", "div",
                 "ul", "ol", "li", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
 ALLOWED_ATTRS = {"a": ("href", "title"), "img": ("src", "alt", "title"), "td": ("colspan", "rowspan"),
-                 "th": ("colspan", "rowspan")}
+                 "th": ("colspan", "rowspan"), "span": ("class",)}
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]*", re.I)
 SPAN = re.compile(r"[0-9]{1,3}")
 
@@ -224,7 +224,11 @@ class _Cleaner(HTMLParser):
                 return                                            # an image that isn't embedded is dropped whole
             if name in ("colspan", "rowspan") and not SPAN.fullmatch(value.strip()):
                 continue
+            if name == "class" and value not in sanitise.COLOUR_CLASSES:       # row 1364: a span keeps only one of the six font colour classes
+                continue
             keep.append(f' {name}="{htmllib.escape(value.strip() if name == "src" else value, quote=True)}"')
+        if tag == "span" and not keep:
+            return                                                # no colour class: unwrapped, its text stays
         if tag == "img" and not any(a.startswith(" src=") for a in keep):
             return
         if tag == "a":
@@ -319,7 +323,7 @@ def _content(s, ctx=None):
     by an older or another clark, or by hand) never reaches the file. What is published is fields picked by name from the
     CHECKED value (section_bodies.published), never the stored text, and never passed through clean_html."""
     try:
-        text = check_section_body(s["type"], s.get("body"))
+        text = check_section_body(s["type"], s.get("body"), s.get("body"))      # row 1194: the section's own stored text rides along, so an entry it already holds (no description, a file ending outside the list) still publishes
     except StoreInvalid:
         return {} if s["type"] in section_bodies.VIEW_TYPES else None      # row 1234, row 1230: the use case summary and the Milestones section are never left out for its view setting: no setting, or a bad one, is the defaults
     if not text:
@@ -567,7 +571,7 @@ def select(inputs):
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
-                for f in ("ref", "title", "headline"):
+                for f in ("ref", "title", "headline", "owner"):
                     c[f] = reason_text(c[f])
                 if c.get("commitment") not in COMMITMENTS:         # #709: only the owner's words reach the file; anything else reads as no flag
                     c["commitment"] = None
@@ -1393,6 +1397,7 @@ def read_inputs(store, code, as_at=None):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
               for t in ("projects",) + KINDS + ("workstreams", "gantt_lines")}
+    fields["workstreams"] += ("created",)      # row 1367: ask clark reads when a workstream began; select() keeps only PUBLISH_FIELDS, so no file changes
     fields["projects"] += tuple(c for c in ("archived",) if c not in fields["projects"])      # #126: publish() refuses an archived project
     try:
         got = store.publish_inputs(code, fields)

@@ -8,13 +8,12 @@ A result over MAX_RESULT characters is refused; once MAX_TOTAL is used up, furth
 used_line(): names what was used and what was not, and keeps no connector content. Provenance: `mark(text)` returns a Sourced value
 that carries the flag `from_connector`, so a text that came from a connector can be told apart wherever it travels.
 """
-import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
 
 MAX_RESULT = 40000
-MAX_TOTAL = 70000
+MAX_TOTAL = 1_230_000    # row 1293: the same as ask.MAX_REQUEST (the budget of passages and 30,000 for the question, turns and rules)
 
 # connector part -> the read-only tool names allowed for it. Nothing that sends, replies, deletes, moves, creates or updates.
 ALLOWED_TOOLS = {
@@ -22,7 +21,7 @@ ALLOWED_TOOLS = {
     "Calendar": frozenset(("outlook_calendar_search", "outlook_find_available_time", "find_meeting_availability")),
     "Teams": frozenset(("chat_message_search", "teams_list_teams", "teams_list_channels", "teams_list_channel_messages",
                         "teams_list_chats")),
-    "SharePoint and OneDrive": frozenset(("sharepoint_search", "sharepoint_folder_search", "read_resource")),
+    "SharePoint and OneDrive": frozenset(("sharepoint_search", "sharepoint_folder_search")),
     "Todoist": frozenset(("find-tasks", "find-tasks-by-date", "find-projects", "find-sections", "find-comments",
                           "find-completed-tasks", "fetch-object", "get-overview")),
 }
@@ -160,32 +159,14 @@ REASON_WORDS = {
 }
 
 
-def count_of(text):
-    """How many things a result lists, only when the answer is a countable list: a JSON list, or a JSON object holding exactly one
-    list. Anything else (plain text, no list, more than one list) is not countable: None."""
-    try:
-        data = json.loads(text)
-    except (ValueError, TypeError):
-        return None
-    if isinstance(data, dict):
-        lists = [v for v in data.values() if isinstance(v, list)]
-        data = lists[0] if len(lists) == 1 else None
-    return len(data) if isinstance(data, list) else None
-
-
 def used_line(screened):
-    """The Used line from Screened verdicts: 'Used: Read your mail (3 messages)' (the count only when the answer is a countable list)
-    and 'Not used: Mail was too long'. Names and counts only; no connector content or tool arguments. A refusal that belongs to no
+    """The Used line from Screened verdicts: 'Used: Mail, Calendar' (the connector names only, as the Connectors page shows them; Row 1306 ruling)
+    and 'Not used: Mail was too long'. Names only; no connector content, counts or tool arguments. A refusal that belongs to no
     connector part (a tool not on the list) is in `not_used` as data but is not worded in the line."""
     counts, skipped, data_skipped = {}, [], []
     for s in screened:
         if s.used:
-            n = count_of(s.text)
-            if s.part in counts:
-                prev = counts[s.part]
-                counts[s.part] = None if prev is None or n is None else prev + n
-            else:
-                counts[s.part] = n
+            counts[s.part] = None
         elif s.part in SHOWN:
             item = f"{SHOWN[s.part][0]} {REASON_WORDS[s.reason]}"
             if item not in skipped:
@@ -196,13 +177,9 @@ def used_line(screened):
             item = f"unknown connector ({s.reason})"
             if item not in data_skipped:
                 data_skipped.append(item)
-    read = []
-    for part, n in counts.items():
-        _, what, one, many = SHOWN.get(part, (part, part, "", ""))
-        read.append(f"Read your {what}" + ("" if n is None else f" ({n} {one if n == 1 else many})"))
     parts = []
-    if read:
-        parts.append("Used: " + ", ".join(read))
+    if counts:
+        parts.append("Used: " + ", ".join(counts))
     if skipped:
         parts.append("Not used: " + ", ".join(skipped))
     return UsedLine(tuple(counts), tuple(data_skipped), ". ".join(parts))

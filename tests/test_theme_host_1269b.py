@@ -59,7 +59,7 @@ class Host(Base):
 
 BODY = "(() => { const s = getComputedStyle(document.body); return [s.backgroundImage, s.backgroundColor]; })()"
 SEC = ("(() => [...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e); "
-       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle]; }))()")
+       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle, e.classList.contains('band') || e.dataset.type === 'current', e.classList.contains('slot-left')]; }))()")
 NUM = "getComputedStyle(document.querySelector('.secs .sec-head'), '::before').content"
 COVER = "(() => { const c = document.querySelector('.cover'); if (!c) return null; const s = getComputedStyle(c); return [s.display, s.backgroundColor]; })()"
 OVERFLOW = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
@@ -93,10 +93,12 @@ class Classic(Host):
     def test_4_a_section_has_the_gutter_rule_and_no_card_in_every_size_and_mode(self):
         for (w, m), rows in self.every(SEC).items():
             self.assertTrue(rows, f"{w} {m}: sections")
-            for i, (lw, tw, shadow, style) in enumerate(rows):
-                want = ("0px", "0px", "none") if i % 2 == 0 else ("2px", "0px", "solid")      # row 1311: the 1st, 3rd... are bands with no gutter rule
+            for i, (lw, tw, shadow, style, bare, left) in enumerate(rows):
+                # row 1311 (ruling 19-11): a banded section and the summary have no gutter rule; the others keep it; a line above every section but the first
+                want = ("0px", "1px" if i else "0px", "none") if bare else ("2px", "1px" if i else "0px", "solid")
                 self.assertEqual((lw, tw, style), want, f"{w} {m} section {i + 1}")
-                self.assertEqual(shadow, "none", f"{w} {m}")
+                if not left:
+                    self.assertEqual(shadow, "none", f"{w} {m}")
 
     def test_5_sections_are_numbered_and_nothing_overflows_sideways(self):
         for (w, m), c in self.every(NUM).items():
@@ -121,7 +123,7 @@ class Cards(Host):
         for (w, m), (img, _c) in self.every(BODY).items():
             self.assertEqual(img, "none", f"{w} {m}: no gradient ground in Cards")
         for (w, m), rows in self.every(SEC).items():
-            for lw, tw, shadow, style in rows:
+            for lw, tw, shadow, style, *_ in rows:
                 self.assertNotEqual((lw, style), ("2px", "solid"), f"{w} {m}: no gutter rule in Cards")
             self.assertEqual(self.every_one(OVERFLOW, w, m)[0] <= self.every_one(OVERFLOW, w, m)[1], True)
 

@@ -39,13 +39,14 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 32          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 33          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
 SETTINGS_TABLES = ("app_settings", "install_defaults", "connector_switches", "project_connectors")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+HIDDEN_CONNECTORS = ("todoist",)      # row 1306: found but never offered, never On: its read-only tools are not checked yet (filed as a Tech Debt row)
 CONNECTORS = ("mail", "calendar", "teams", "sharepoint", "todoist")      # row 1306: the connectors asking may one day be allowed to read; the same five words as schema.sql's CHECKs
 THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
 THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
@@ -442,7 +443,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action",
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
                           "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
@@ -657,13 +658,16 @@ def _html_ok(text):
 BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok, html=_html_ok)
 
 
-def check_section_body(kind, body):
+def check_section_body(kind, body, stored=None):
     """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
     door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
     try:
-        return section_bodies.check(kind, body, BODY_RULES)
+        return section_bodies.check(kind, body, BODY_RULES, stored)
     except section_bodies.Bad as e:
         raise Invalid(str(e)) from None
+
+
+UNDOING = "(undoing)"        # rides in `changed` (never a column) when revert_group puts a section's body back
 
 
 def _section_rules(con, table, row, changed):
@@ -680,7 +684,11 @@ def _section_rules(con, table, row, changed):
         # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
         # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
         # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
-        row["body"] = check_section_body(row["type"], row.get("body"))
+        was = con.execute("SELECT body FROM report_sections WHERE id = ?", (row.get("id"),)).fetchone() if row.get("id") else None
+        # what the section holds now: an old entry sent back unchanged stays. An Undo puts back the logged old text, so there that text
+        # is what an entry may stay as (the row now holds the newer text, which has dropped the old entry); a changed or new entry still meets every rule
+        row["body"] = check_section_body(row["type"], row.get("body"), row["body"] if UNDOING in changed else was[0] if was else None)
+        changed.discard(UNDOING)
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -908,6 +916,25 @@ def _gantt_rules(con, table, row, changed):
         return fresh or bool(set(names) & set(changed))
     if row.get("type") not in ALLOWED[("gantt_lines", "type")]:
         raise Invalid(GANTT_BAD_TYPE)
+    _gantt_text_rules(row, touched)
+    _gantt_value_rules(row, fresh, touched)
+    _gantt_date_rules(row, touched)
+    row_id, project = row.get("id"), row.get("project")
+    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
+    parent = row.get("parent") or None
+    row["parent"] = parent
+    if touched("parent", "type"):
+        _gantt_parent_rules(con, table, row, here, row_id, project, parent)
+    if touched("depends"):
+        _gantt_depends_rules(con, table, row, here, row_id, project)
+    if fresh:
+        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
+        if n >= MAX_GANTT_LINES:
+            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_text_rules(row, touched):
+    """The line's texts: the name, the plain texts and the note, checked and tidied."""
     if touched("name"):
         row["name"] = gantt_plain(row.get("name"), GANTT_TEXT_LIMITS["name"], GANTT_NO_NAME)
     for f in ("owner", "workstream", "deliverable"):
@@ -915,6 +942,10 @@ def _gantt_rules(con, table, row, changed):
             row[f] = gantt_plain(row.get(f), GANTT_TEXT_LIMITS[f], GANTT_BAD_TEXT, blank_ok=True)
     if touched("note"):
         row["note"] = gantt_plain(row.get("note"), GANTT_TEXT_LIMITS["note"], GANTT_BAD_TEXT, blank_ok=True, lines=True)
+
+
+def _gantt_value_rules(row, fresh, touched):
+    """The done %, the health and priority words, the effort and budget numbers and the place in the list."""
     if fresh and row.get("pct") is None:
         row["pct"] = 0                                   # a new line starts at 0 % done
     if touched("pct") and (type(row.get("pct")) is not int or not 0 <= row["pct"] <= 100):
@@ -930,6 +961,10 @@ def _gantt_rules(con, table, row, changed):
             _gantt_number(row, f)
     if touched("sort_order") and type(row.get("sort_order")) is not int:
         raise Invalid(GANTT_BAD_PLACE)
+
+
+def _gantt_date_rules(row, touched):
+    """The dates are real days with the end not before the start and a milestone on one day; the baseline end is not before its start."""
     start, end = row.get("start"), row.get("end")
     if touched("start", "end", "type"):
         if not start or not end:
@@ -941,42 +976,41 @@ def _gantt_rules(con, table, row, changed):
     base_start, base_end = row.get("baseline_start"), row.get("baseline_end")
     if touched("baseline_start", "baseline_end") and base_start and base_end and base_end < base_start:
         raise Invalid(GANTT_BAD_BASELINE)
-    row_id, project = row.get("id"), row.get("project")
-    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
-    parent = row.get("parent") or None
-    row["parent"] = parent
-    if touched("parent", "type"):
-        if parent is not None:
-            if row["type"] == "phase":
-                raise Invalid(GANTT_PHASE_TOP)
-            found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
-            if found is None or found["project"] != project or parent == row_id:
-                raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
-            if found["type"] != "phase":
-                raise Invalid(GANTT_PARENT_PHASE)
-        if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
-                con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
-            raise Invalid(GANTT_PHASE_KEEPS)
-    if touched("depends"):
-        wanted = gantt_list(row.get("depends"))
-        had = gantt_list(here["depends"]) if here is not None else []
-        if len(wanted) > MAX_GANTT_DEPENDS:
-            raise Invalid(GANTT_TOO_MANY_DEPENDS)
-        for d in wanted:
-            if d == row_id:
-                raise Invalid(GANTT_SELF_DEPENDS)
-            if d in had:
-                continue
-            found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
-            if found is None or found["project"] != project:
-                raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
-        if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
-            raise Invalid(GANTT_LOOP)
-        row["depends"] = ",".join(wanted)
-    if fresh:
-        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
-        if n >= MAX_GANTT_LINES:
-            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_parent_rules(con, table, row, here, row_id, project, parent):
+    """The parent is a phase of this project and the line is not one; a phase with lines under it stays a phase."""
+    if parent is not None:
+        if row["type"] == "phase":
+            raise Invalid(GANTT_PHASE_TOP)
+        found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
+        if found is None or found["project"] != project or parent == row_id:
+            raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
+        if found["type"] != "phase":
+            raise Invalid(GANTT_PARENT_PHASE)
+    if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
+            con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
+        raise Invalid(GANTT_PHASE_KEEPS)
+
+
+def _gantt_depends_rules(con, table, row, here, row_id, project):
+    """Depends names other lines of this project, never the line itself, and never goes round in a circle (an id already in the list is
+    not asked about again); the list is stored tidy."""
+    wanted = gantt_list(row.get("depends"))
+    had = gantt_list(here["depends"]) if here is not None else []
+    if len(wanted) > MAX_GANTT_DEPENDS:
+        raise Invalid(GANTT_TOO_MANY_DEPENDS)
+    for d in wanted:
+        if d == row_id:
+            raise Invalid(GANTT_SELF_DEPENDS)
+        if d in had:
+            continue
+        found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
+        if found is None or found["project"] != project:
+            raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
+    if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
+        raise Invalid(GANTT_LOOP)
+    row["depends"] = ",".join(wanted)
 
 
 def _gantt_detach(con, gone, step):
@@ -1798,7 +1832,7 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     _not_before_raised(table, row)
     if table in CHECK and not (revert and table == "projects" and "health_reason" in changes):
         CHECK[table](row, current, changes)
-    check_row(con, table, row, set(changes))
+    check_row(con, table, row, set(changes) | ({UNDOING} if revert and table == "report_sections" and "body" in changes else set()))
     return row
 
 
@@ -2027,78 +2061,84 @@ def _return_links(con, step, key, undoing):
     return out
 
 
-def revert_group(con, apply_id, table, key, rows_, step):
-    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
-    def entry(r, **k):
-        return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
+def _revert_entry(key, r, **k):
+    return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
 
-    created = [r for r in rows_ if r["op"] == OP_MADE]
-    if created:                                        # the step created the row: remove it, only if untouched since
-        made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
-                           "ORDER BY rowid", (apply_id, table, key)).fetchall()
-        whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
-                            (apply_id, table, key)).fetchall()
-        final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
-        #                                                            changed (or deleted) in the same step still goes back whole
-        later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
-        if not holds(con, table, key, final) or later:
-            return [], [entry(rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
-        if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
-            return [entry(r, change="removed") for r in rows_], []
-        ref = referred_to(con, key)
-        if ref:
-            return [], [entry(rows_[0], field=None, by_step=None,
-                              why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
-        current = fetch(con, table, key)
-        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
-            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
-        elif table == "use_cases":
-            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
-        con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
-        log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
-            undoes=made[0]["rowid"])
-        return [entry(r, change="removed") for r in rows_], []
-    removed = [r for r in rows_ if r["field"] == REMOVED]
-    if removed:                                        # the step deleted a link or a label: put it back while it is still gone
-        r = removed[0]
-        if fetch(con, table, key) is not None:
-            return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
-        old = json.loads(r["old_value"])
-        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
-            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
-        back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
-        before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
-        for x in rows_:
-            if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
-                before[x["field"]] = x["old_value"]
-        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
-        check_row(con, table, dict(back), set(back))
-        _insert_sql(con, table, back)
-        for f, v in back.items():
-            log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        out = [entry(x, change="put back") for x in rows_]
-        if table in DELETABLE_ITEMS:
-            out += _return_links(con, step, key, apply_id)
-        return out, []
-    done, skipped, changes, undoes = [], [], {}, {}
-    row = fetch(con, table, key)
-    if row is None:
-        return [], [entry(rows_[0], field=None, why="no longer exists", by_step=None)]
-    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
-        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+
+def _revert_created(con, apply_id, table, key, rows_, step):
+    """The step created the row: remove it, only if untouched since. Returns (done, skipped)."""
+    made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
+                       "ORDER BY rowid", (apply_id, table, key)).fetchall()
+    whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
+                        (apply_id, table, key)).fetchall()
+    final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
+    #                                                            changed (or deleted) in the same step still goes back whole
+    later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
+    if not holds(con, table, key, final) or later:
+        return [], [_revert_entry(key, rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
+    if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
+        return [_revert_entry(key, r, change="removed") for r in rows_], []
+    ref = referred_to(con, key)
+    if ref:
+        return [], [_revert_entry(key, rows_[0], field=None, by_step=None,
+                          why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
+    current = fetch(con, table, key)
+    if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+        con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+    elif table == "use_cases":
+        con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
+    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+    log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
+        undoes=made[0]["rowid"])
+    return [_revert_entry(key, r, change="removed") for r in rows_], []
+
+
+def _revert_removed(con, table, key, rows_, step, apply_id, removed):
+    """The step deleted a link, a label or an item: put it back while it is still gone. Returns (done, skipped)."""
+    r = removed[0]
+    if fetch(con, table, key) is not None:
+        return [], [_revert_entry(key, x, why="is back already: left as it is", by_step=None) for x in rows_]
+    old = json.loads(r["old_value"])
+    if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+        return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
+    back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
+    before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
+    for x in rows_:
+        if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
+            before[x["field"]] = x["old_value"]
+    back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
+    check_row(con, table, dict(back), set(back) | ({UNDOING} if table == "report_sections" else set()))   # item 1194: a section deleted with an old entry comes back whole
+    _insert_sql(con, table, back)
+    for f, v in back.items():
+        log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
+    out = [_revert_entry(key, x, change="put back") for x in rows_]
+    if table in DELETABLE_ITEMS:
+        out += _return_links(con, step, key, apply_id)
+    return out, []
+
+
+def _revert_judge_fields(con, table, key, rows_, row, step, skipped):
+    """Each field the step changed: put back to its first old value unless it has changed since (then named in `skipped`).
+    Returns (by_field, changes, undoes)."""
+    changes, undoes = {}, {}
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
-    for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
+    for r in rows_:                                   # to its first old value (the whole-step Undo)
         by_field.setdefault(r["field"], []).append(r)
     for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
-            skipped.append(entry(rs[-1], why="has changed since: left as it is",
+            skipped.append(_revert_entry(key, rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
         elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
             gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
-            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+            skipped.append(_revert_entry(key, rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
         else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
+    return by_field, changes, undoes
+
+
+def _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field):
+    """A project's health change takes its reason back too, or leaves the reason as it stands."""
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
         hr = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = 'projects' AND item_id = ? "
                          "AND field = 'health_reason' AND op = 'update' ORDER BY rowid", (apply_id, key)).fetchall()
@@ -2108,6 +2148,18 @@ def revert_group(con, apply_id, table, key, rows_, step):
             by_field["health_reason"] = [dict(x) for x in hr]
     if table == "projects" and "health" in changes and "health_reason" not in changes:
         changes["health_reason"] = row["health_reason"]       # the pick kept the reason as it stood: put it back as it stands (no change)
+
+
+def _revert_changed(con, apply_id, table, key, rows_, step):
+    """The step changed fields of a row that is still there: put each back unless it has changed since. Returns (done, skipped)."""
+    done, skipped = [], []
+    row = fetch(con, table, key)
+    if row is None:
+        return [], [_revert_entry(key, rows_[0], field=None, why="no longer exists", by_step=None)]
+    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
+        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+    by_field, changes, undoes = _revert_judge_fields(con, table, key, rows_, row, step, skipped)
+    _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field)
     if not changes:
         return done, skipped
     write_item(con, {"table": table, "op": "update", "id": key, "changes": _typed(con, table, changes), "revert": True,
@@ -2117,10 +2169,20 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if f not in changes:
             continue
         if text(after[f]) == rs[0]["old_value"]:
-            done.extend(entry(r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
+            done.extend(_revert_entry(key, r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
         else:                                          # derived (a RAID priority, a closed date): it follows other fields
-            skipped.append(entry(rs[-1], why="it follows other fields: left as it is", by_step=None))
+            skipped.append(_revert_entry(key, rs[-1], why="it follows other fields: left as it is", by_step=None))
     return done, skipped
+
+
+def revert_group(con, apply_id, table, key, rows_, step):
+    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
+    if any(r["op"] == OP_MADE for r in rows_):
+        return _revert_created(con, apply_id, table, key, rows_, step)
+    removed = [r for r in rows_ if r["field"] == REMOVED]
+    if removed:
+        return _revert_removed(con, table, key, rows_, step, apply_id, removed)
+    return _revert_changed(con, apply_id, table, key, rows_, step)
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
@@ -3136,6 +3198,27 @@ def migrate_connector_switches(con):
         con.execute(statement)
 
 
+ASK_FILES_STEP = 33        # row 1294's second step number (31 was its standing instructions), written once here and used by MIGRATIONS
+ASK_FILES_COLUMNS = (
+    ("app_settings", "ask_files INTEGER NOT NULL DEFAULT 1 CHECK (ask_files IN (0,1))"),
+    ("projects", "ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1))"),
+    ("app_settings", "ask_new_projects INTEGER NOT NULL DEFAULT 1 CHECK (ask_new_projects IN (0,1))"),
+    ("projects", "ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))"),
+)      # the same text as schema.sql's four columns; ask_new_projects and ask_off are row 1294's asking for new projects, inside this same step (no second version)
+
+
+def migrate_ask_files(con):
+    """Schema version 32 to 33 (row 1294): app_settings.ask_files (files may be added to a question, 1 for every file) and projects.ask_files_off
+    (a project's own turn-off, 0 for every project), and app_settings.ask_new_projects (the starting value for a new project, 1 on) and
+    projects.ask_off (the project's own turn-off of asking, 0 for every project, so an existing project asks as it did). Each is added at the end of its table, so no table is made again and no value changes; a
+    column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 33 in MIGRATIONS."""
+    for table, column in ASK_FILES_COLUMNS:
+        have = columns(con, table)
+        if have and column.split()[0] not in have:
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN " + column)      # fixed text per table, never a person's value
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -3150,7 +3233,7 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (REPORT_HEADLINE_STEP, migrate_report_headline_section_type),
               (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
               (INSTALL_DEFAULTS_STEP, migrate_install_defaults), (ASK_INSTRUCTIONS_STEP, migrate_ask_instructions),
-              (CONNECTOR_SWITCHES_STEP, migrate_connector_switches))
+              (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files))
 
 
 def migration_plan(version, table=None):
@@ -3467,6 +3550,7 @@ class Store:
         try:
             yield st
             self.con.execute("ROLLBACK" if dry else "COMMIT")
+            st.committed = not dry
         except BaseException:
             self.con.execute("ROLLBACK")
             backup.finish(pending, False)        # a failed undo or import leaves no copy behind and costs no older one its place
@@ -4171,7 +4255,7 @@ class Store:
             if self.connectors_ready():
                 for c, v in self.con.execute("SELECT connector, is_on FROM connector_switches"):
                     if c in out:
-                        out[c] = v == 1
+                        out[c] = v == 1 and c not in HIDDEN_CONNECTORS
         except sqlite3.Error:
             return {c: False for c in CONNECTORS}
         return out
@@ -4192,6 +4276,58 @@ class Store:
         if connector not in CONNECTORS:
             return False
         return self.connector_switches()[connector] and connector not in self.project_connectors_off(project)
+
+    def ask_files_on(self):
+        """True only while files may be added to a question on this computer (row 1294): the one row's ask_files is exactly 1. A file without
+        the column, a value that is not 1 and any database error read as False: it never fails open. Read only."""
+        try:
+            if not self.settings_ready() or "ask_files" not in columns(self.con, "app_settings"):
+                return False
+            row = self.con.execute("SELECT ask_files FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return False
+        return row is not None and row[0] == 1
+
+    def ask_files_off_here(self, project):
+        """True when `project` keeps files off for itself (row 1294). An unknown project, a file without the column and any database error read
+        as True (off): it never fails open. Read only."""
+        try:
+            if "ask_files_off" not in columns(self.con, "projects"):
+                return True
+            row = self.con.execute("SELECT ask_files_off FROM projects WHERE code = ?", (project,)).fetchone()
+        except sqlite3.Error:
+            return True
+        return row is None or row[0] != 0
+
+    def ask_files_allowed(self, project):
+        """True only when the computer-wide Files switch is on and `project` has not turned files off for itself: off wins. Read only."""
+        return self.ask_files_on() and not self.ask_files_off_here(project)
+
+    def ask_new_projects_on(self):
+        """True only while a project made now starts with asking on (row 1294): the one row's ask_new_projects is exactly 1. A file without the
+        column, a value that is not 1 and any database error read as False, so a new project never starts with asking on by mistake. Read only."""
+        try:
+            if not self.settings_ready() or "ask_new_projects" not in columns(self.con, "app_settings"):
+                return False
+            row = self.con.execute("SELECT ask_new_projects FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return False
+        return row is not None and row[0] == 1
+
+    def ask_off_here(self, project):
+        """True when asking is off for `project` itself (row 1294). An unknown project, a file without the column and any database error read as
+        True (off): it never fails open. Read only."""
+        try:
+            if "ask_off" not in columns(self.con, "projects"):
+                return True
+            row = self.con.execute("SELECT ask_off FROM projects WHERE code = ?", (project,)).fetchone()
+        except sqlite3.Error:
+            return True
+        return row is None or row[0] != 0
+
+    def ask_allowed(self, project):
+        """True only when the computer-wide switch (ask_enabled) is on and `project` has not turned asking off: either off wins. Read only."""
+        return self.ask_enabled() is True and not self.ask_off_here(project)
 
     def ask_enabled(self):
         """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
@@ -4240,66 +4376,94 @@ class Store:
         when it is Movement), at most MOVE_PER_MILESTONE each and MOVE_PER_PROJECT in all (the newest across the project);
         `total` counts them before the cut and `truncated` says something was cut. A note row is kept only in a step that also
         has a date, status, state or Movement row, so a note written alone (a Hold's dated line) never comes out."""
-        con = connect(self.path, readonly=True)
-        try:
-            con.execute("BEGIN")
-            if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
-                return None
-            live = [r["id"] for r in con.execute("SELECT id FROM milestones WHERE project = ? AND archived = 0 ORDER BY id", (code,))]
-            rows = sorted(con.execute(MOVE_SQL % ", ".join("?" * len(MOVE_FIELDS)), (code + "-M-", code + "-M.") + MOVE_FIELDS),
-                          key=lambda r: r["rowid"])
-            reverted = reverted_rowids(con)
-        finally:
-            con.close()
+        read = _move_read(self.path, code)
+        if read is None:
+            return None
+        live, rows, reverted = read
         by_milestone = {m: [] for m in live}
         for r in rows:
             if r["item_id"] in by_milestone:
                 by_milestone[r["item_id"]].append(r)
-        out, kept = {}, []
-        for mid, mine in by_milestone.items():
-            beside = {r["apply_id"] for r in mine if r["field"] in MOVE_DATED}
-            steps = {}
-            for r in mine:
-                if r["field"] == "note":
-                    steps.setdefault(r["apply_id"], []).append(r["new_value"] or "")
-            original = next((r["new_value"] for r in mine if r["field"] == "baseline_date" and r["new_value"] is not None
-                             and r["undone_at"] is None and not str(r["via"]).startswith(REVERT_VIA)
-                             and r["rowid"] not in reverted), None)
-            made = {r["apply_id"] for r in mine if r["field"] == "id"}     # the step that made the milestone is not a movement
-            shown = [r for r in mine if r["apply_id"] not in made and (r["field"] != "note" or r["apply_id"] in beside)]
-            undone_by = {r["undoes"]: r["event_id"] for r in shown if r["undoes"] is not None}
-            events = []
-            for r in shown:
-                found = MOVE_DECISION.findall(" ".join(steps.get(r["apply_id"], ())))
-                events.append({
-                    "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": "milestones",
-                    "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
-                    "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"],
-                    "src_ref": r["src_ref"] if r["src_ref"] == MOVE_PLACE_NAME else None, "decision": found[-1] if found else "",
-                    "undoes": r["undoes"], "is_undo": str(r["via"]).startswith(REVERT_VIA),
-                    "undone_by": undone_by.get(r["event_id"]), "in_force": not r["undone_at"] and r["rowid"] not in reverted})
-            events.sort(key=lambda e: e["event_id"], reverse=True)
-            from clark import milestone_rows        # the count of moves is made here, over the whole history, before any cut
-            # Same counting rule as the Movement page's list and card (one function, milestone_rows.moves); test_store_movement pins the two together.
-            moves = milestone_rows.moves(milestone_rows.movement(events, mid))
-            out[mid] = {"original": original, "total": len(events), "moves": moves, "events": cut_whole_steps(events, MOVE_PER_MILESTONE)}
-            kept.extend((e["event_id"], mid) for e in out[mid]["events"])
+        out = {mid: _move_block(mid, mine, reverted) for mid, mine in by_milestone.items()}
         truncated = any(len(b["events"]) < b["total"] for b in out.values())
-        if len(kept) > MOVE_PER_PROJECT:
-            groups = {}
-            for b_id, b in out.items():
-                for e in b["events"]:
-                    groups.setdefault((b_id, e["step"]), []).append(e)
-            keep, used = set(), 0
-            for key, g in sorted(groups.items(), key=lambda kv: max(e["event_id"] for e in kv[1]), reverse=True):
-                if keep and used + len(g) > MOVE_PER_PROJECT:
-                    break
-                keep.add(key)
-                used += len(g)
-            for b_id, b in out.items():
-                b["events"] = [e for e in b["events"] if (b_id, e["step"]) in keep]
+        if sum(len(b["events"]) for b in out.values()) > MOVE_PER_PROJECT:
+            _cut_project_moves(out)
             truncated = True
         return {"project": code, "milestones": out, "truncated": truncated}
+
+
+def _move_read(path, code):
+    """milestone_moves, the read: (live milestone ids, change rows oldest first, reverted rowids) in one read-only transaction, or None
+    when there is no such project."""
+    con = connect(path, readonly=True)
+    try:
+        con.execute("BEGIN")
+        if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
+            return None
+        live = [r["id"] for r in con.execute("SELECT id FROM milestones WHERE project = ? AND archived = 0 ORDER BY id", (code,))]
+        rows = sorted(con.execute(MOVE_SQL % ", ".join("?" * len(MOVE_FIELDS)), (code + "-M-", code + "-M.") + MOVE_FIELDS),
+                      key=lambda r: r["rowid"])
+        return live, rows, reverted_rowids(con)
+    finally:
+        con.close()
+
+
+def _move_original(mine, reverted):
+    """The first agreed date still standing: the first baseline_date row that was not undone or reverted."""
+    return next((r["new_value"] for r in mine if r["field"] == "baseline_date" and r["new_value"] is not None
+                 and r["undone_at"] is None and not str(r["via"]).startswith(REVERT_VIA)
+                 and r["rowid"] not in reverted), None)
+
+
+def _move_events(mid, mine, reverted):
+    """One milestone's events, newest first: the step that made it is left out, and a note row stays only in a step that also has a date,
+    status, state or Movement row."""
+    beside = {r["apply_id"] for r in mine if r["field"] in MOVE_DATED}
+    steps = {}
+    for r in mine:
+        if r["field"] == "note":
+            steps.setdefault(r["apply_id"], []).append(r["new_value"] or "")
+    made = {r["apply_id"] for r in mine if r["field"] == "id"}     # the step that made the milestone is not a movement
+    shown = [r for r in mine if r["apply_id"] not in made and (r["field"] != "note" or r["apply_id"] in beside)]
+    undone_by = {r["undoes"]: r["event_id"] for r in shown if r["undoes"] is not None}
+    events = []
+    for r in shown:
+        found = MOVE_DECISION.findall(" ".join(steps.get(r["apply_id"], ())))
+        events.append({
+            "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": "milestones",
+            "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
+            "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"],
+            "src_ref": r["src_ref"] if r["src_ref"] == MOVE_PLACE_NAME else None, "decision": found[-1] if found else "",
+            "undoes": r["undoes"], "is_undo": str(r["via"]).startswith(REVERT_VIA),
+            "undone_by": undone_by.get(r["event_id"]), "in_force": not r["undone_at"] and r["rowid"] not in reverted})
+    events.sort(key=lambda e: e["event_id"], reverse=True)
+    return events
+
+
+def _move_block(mid, mine, reverted):
+    """One milestone's reply block: original, total, moves and the events cut to MOVE_PER_MILESTONE."""
+    from clark import milestone_rows        # the count of moves is made here, over the whole history, before any cut
+    events = _move_events(mid, mine, reverted)
+    # Same counting rule as the Movement page's list and card (one function, milestone_rows.moves); test_store_movement pins the two together.
+    moves = milestone_rows.moves(milestone_rows.movement(events, mid))
+    return {"original": _move_original(mine, reverted), "total": len(events), "moves": moves,
+            "events": cut_whole_steps(events, MOVE_PER_MILESTONE)}
+
+
+def _cut_project_moves(out):
+    """Keep the newest whole steps across the project, at most MOVE_PER_PROJECT events (the newest step is always kept)."""
+    groups = {}
+    for b_id, b in out.items():
+        for e in b["events"]:
+            groups.setdefault((b_id, e["step"]), []).append(e)
+    keep, used = set(), 0
+    for key, g in sorted(groups.items(), key=lambda kv: max(e["event_id"] for e in kv[1]), reverse=True):
+        if keep and used + len(g) > MOVE_PER_PROJECT:
+            break
+        keep.add(key)
+        used += len(g)
+    for b_id, b in out.items():
+        b["events"] = [e for e in b["events"] if (b_id, e["step"]) in keep]
 
 
 OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
@@ -4348,6 +4512,7 @@ class Step:
         self.via, self.route, self.place, self.origin, self.actor, self.src_ref = via, route, place, origin, actor, src_ref
         self.by_user = str(by_user).strip()
         self._apply_id = None
+        self.committed = False                 # Row 1293: set once COMMIT has run, so a fault after it is known to have saved
         self.result = {}                       # #126: what a project's archive or restore did: {"counts": {table: n}, "found_step": bool}
 
     def apply_id(self):
@@ -4371,7 +4536,10 @@ class Step:
         return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
-        """A new row; returns its ref (the ID clark gives it, or its key)."""
+        """A new row; returns its ref (the ID clark gives it, or its key). A new project takes asking's starting value (row 1294): its ask_off
+        is the opposite of app_settings.ask_new_projects, written in this same step, unless the caller says its own."""
+        if kind == "projects" and "ask_off" not in values and "ask_off" in columns(self.con, "projects"):
+            values = {**values, "ask_off": 0 if self.store.ask_new_projects_on() else 1}
         return write_item(self.con, {"table": kind, "op": "new", "values": dict(values)}, self)
 
     def seed_sections(self, code):

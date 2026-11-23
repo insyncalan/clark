@@ -94,9 +94,13 @@ class Items(R.Base):
         self.assertEqual([i["id"] for i in got["items"]], [A1])
         self.assertIn(("unknown_id", "PUB-A-999"), [(f["kind"], f["ref"]) for f in got["flags"]])
 
-    def test_a_row_the_report_hides_is_never_an_item(self):
-        got = self.ask_with(f"{HIDDEN} is late.")
+    def test_an_archived_row_is_never_an_item(self):      # row 1367: an archived row is not read
+        got = self.ask_with("PUB-A-016 is late.")
         self.assertEqual(got["items"], [])
+
+    def test_a_row_the_report_hides_is_an_item_for_the_owner(self):      # row 1367 (ruling 19-11): hidden rows are read
+        got = self.ask_with(f"{HIDDEN} is late.")
+        self.assertEqual([i["id"] for i in got["items"]], [HIDDEN])
 
     def test_an_id_that_cannot_be_looked_up_is_dropped(self):
         with self.with_facts({}, broken=(A2,)):

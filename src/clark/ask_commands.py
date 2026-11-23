@@ -1,5 +1,5 @@
-"""#1295: where the shortcuts of ask clark are kept, one small JSON file per shortcut in an `ask-commands` folder (ruled: files, not the settings
-store). Unguarded; nothing routes here yet. The rules are those of page/src/logic/askShortcuts.js, in the same words.
+"""Row 1295: where the slash commands of ask clark are kept: the store, one small JSON per slash command in an `ask-commands` folder of clark's own data folder
+(ruled 20-11: JSON in the store). Unguarded; ask_commands_service.py routes to it. The rules are those of page/src/logic/askShortcuts.js, in the same words.
 
 A file is `<name>.json` holding {name, menu, text, scope, result} (a person's own version of a built-in also has "replaces": that name; an
 AI-written one has "ai": true). read() skips a file it cannot trust and lists it, so one damaged file never hides the rest. write() checks
@@ -42,9 +42,9 @@ def name_problem(name, taken=(), self_name="", builtins=()):
     if n == self_name:
         return ""
     if n in builtins:
-        return "That name is used by a built-in shortcut. Choose another."
+        return "That name is used by a built-in slash command. Choose another."
     if n in taken:
-        return "You already have a shortcut with that name."
+        return "You already have a slash command with that name."
     return ""
 
 
@@ -52,7 +52,7 @@ def problems(rec, taken=(), self_name="", builtins=()):
     """Every plain-words problem with a record's fields (empty list when it can be saved)."""
     out = []
     if not isinstance(rec, dict):
-        return ["That shortcut could not be read."]
+        return ["That slash command could not be read."]
     if not rec.get("replaces"):
         p = name_problem(rec.get("name"), taken, self_name, builtins)
         if p:
@@ -76,15 +76,16 @@ def problems(rec, taken=(), self_name="", builtins=()):
 
 
 class AskCommands:
-    """`root` is the folder that holds `ask-commands` (clark's own data folder); `builtins` the names of the built-in shortcuts."""
+    """`root` is the folder that holds `ask-commands` (clark's own data folder); `builtins` the names of the built-in slash commands."""
 
-    def __init__(self, root, builtins=LOCKED):
-        self.folder = Path(root) / FOLDER
+    def __init__(self, root, builtins=LOCKED, sub=""):
+        """`sub` is a project's code: its commands are in a folder of their own inside `ask-commands` (the same names there win in that project)."""
+        self.folder = Path(root) / FOLDER / sub
         self.builtins = tuple(builtins)
 
     def _file(self, name):
         if name_problem(name, (), name):           # a name that passes is only a-z, 0-9 and hyphen: no path can be built from it
-            raise Refused("That is not a shortcut's name.")
+            raise Refused("That is not a name a slash command can have.")
         return self.folder / (name + ".json")
 
     def read(self):
@@ -109,17 +110,17 @@ class AskCommands:
         return good, damaged
 
     def write(self, rec, was=None):
-        """Saves one shortcut. `was` is the name it had when opened (a rename removes the old file after the new one is whole).
+        """Saves one slash command. `was` is the name it had when opened (a rename removes the old file after the new one is whole).
         A record with "replaces" is the person's version of a built-in; a locked built-in cannot be saved."""
         if not isinstance(rec, dict):
-            raise Refused("That shortcut could not be read.")
+            raise Refused("That slash command could not be read.")
         keep = {k: rec[k] for k in FIELDS + ("replaces", "ai") if k in rec}
         rep = keep.get("replaces")
         if rep is not None:
             if rep in LOCKED:
                 raise Refused("/%s is an action, not a question, so it cannot be edited." % rep)
             if rep not in self.builtins:
-                raise Refused("No built-in shortcut has that name.")
+                raise Refused("No built-in slash command has that name.")
             keep["name"] = rep
             keep.pop("ai", None)
         elif not keep.get("ai"):
@@ -130,7 +131,7 @@ class AskCommands:
         if p:
             raise Refused(p[0])
         if rep is None and len(own) >= MAX_SHORTCUTS:
-            raise Refused("You can keep %d shortcuts in a project. Remove one to add another." % MAX_SHORTCUTS)
+            raise Refused("You can keep %d slash commands in a project. Remove one to add another." % MAX_SHORTCUTS)
         target = self._file(keep["name"])
         self.folder.mkdir(parents=True, exist_ok=True)
         side = target.with_name(target.name + ".part")
@@ -139,16 +140,16 @@ class AskCommands:
             os.replace(side, target)
         except OSError:
             side.unlink(missing_ok=True)
-            raise Refused("That shortcut could not be saved. Nothing was changed.")
+            raise Refused("That slash command could not be saved. Nothing was changed.")
         if was and was != keep["name"] and rep is None:
             self._file(was).unlink(missing_ok=True)
         return keep
 
     def remove(self, name):
-        """Removes one of the person's own shortcuts."""
+        """Removes one of the person's own slash commands."""
         mine, _ = self.read()
         if not any(m["name"] == name and not m.get("replaces") for m in mine):
-            raise Refused("Only your own shortcuts can be removed.")
+            raise Refused("Only your own slash commands can be removed.")
         self._file(name).unlink(missing_ok=True)
 
     def reset(self, name):

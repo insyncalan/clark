@@ -6,6 +6,7 @@
 // that is left out says so in words (`left`: the set of ids). View and a published file pass neither.
 import { useState, useLayoutEffect, useRef } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { fromFile } from "../stores/report.js";
@@ -81,7 +82,7 @@ const xText = (id, r) => { const t = String((XCELL[id] || (() => ""))(r) || "").
 // The Dashboard section in View and in a published file: the same heading row, with no grips and no Columns button (Edit's `Sized` draws its own, row 1104).
 // The Milestones page has none here: its heading row is Edit's alone.
 function Heads({ place }) {
-  return <div class="msl-hdw"><div class="msl-hd" aria-hidden="true" data-msl-hd={place}><div class="msl-hc">{STD_OF(place).map((id) => <span key={id} data-col={id}>{labelOf(id, place)}</span>)}</div></div></div>;
+  return <div class={`msl-hdw${classicTheme() ? " plain" : ""}`}><div class="msl-hd" aria-hidden="true" data-msl-hd={place}><div class="msl-hc">{STD_OF(place).map((id) => <span key={id} data-col={id}>{labelOf(id, place)}</span>)}</div></div></div>;
 }
 
 function MsRows({ view, rows, place, open, internalTag, Eye, Note, More, left, legend, canFold = true, vars, hd, cols, menu }) {

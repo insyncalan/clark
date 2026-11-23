@@ -26,6 +26,12 @@ export function todayIso() {
   return `${String(t.getFullYear()).padStart(4, "0")}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
+// Today as a Date at local midnight, for text that fills {today}; it follows todayIso, so it is the one clock too.
+export function todayDate() {
+  const [y, m, d] = todayIso().split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // A day number for a real calendar day, null for anything else (including 2026-02-30). Both dates are read as plain days
 // in UTC, so a clock change never moves a count.
 export function dayNumber(iso) {

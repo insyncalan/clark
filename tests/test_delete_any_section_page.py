@@ -70,7 +70,7 @@ class DeleteAnySection(Base):
                 p.until("!!document.querySelector('[data-template=built-in-milestones]')", "Add a section offers Milestones again")
                 self.assertIsNone(p.js("document.querySelector('[data-template=built-in-usecases]')"), "a built-in that is there is not offered")
                 for kind in ("raid", "actions", "decisions"):
-                    self.assertIsNotNone(p.js(f"document.querySelector('[data-template=built-in-{kind}]')"), f"rows 1193-8 to 10: the default {kind} list is a Work items list, so the built-in one is offered")
+                    self.assertIsNone(p.js(f"document.querySelector('[data-template=built-in-{kind}]')"), f"row 1407: no card for {kind}, the Work items list covers it")
                 p.js("document.querySelector('[data-template=built-in-milestones] input').click()")
                 p.js("document.querySelector('button[data-place]').click()")
                 p.until("document.querySelectorAll('.secs > .sec').length === 10", "added")

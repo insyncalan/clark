@@ -70,8 +70,8 @@ class ContainerMode(Case):
             with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1"}), markers(marker):
                 self.assertTrue(pl.container_mode(), marker)
 
-    def test_it_agrees_with_the_server_s_own_rule(self):
-        """server.py (guarded) keeps its own copy of the rule so it imports nothing; the two must never differ."""
+    def test_the_server_asks_platform_and_holds_no_second_copy_of_the_rule(self):
+        """item 575: server.container_mode answers from platform.container_mode, whatever the setting and markers are."""
         for value in (None, "1", "0"):
             for present in ((), ("/.dockerenv",), ("/run/.containerenv",), ("/.dockerenv", "/run/.containerenv")):
                 env = {"CLARK_CONTAINER": value} if value is not None else {}
@@ -79,6 +79,13 @@ class ContainerMode(Case):
                     if value is None:
                         os.environ.pop("CLARK_CONTAINER", None)
                     self.assertEqual(pl.container_mode(), server.container_mode(), (value, present))
+        for answer in (True, False):
+            with mock.patch.object(pl, "container_mode", return_value=answer):
+                self.assertIs(server.container_mode(), answer)
+        import inspect
+        body = inspect.getsource(server.container_mode).split('"""')[2]
+        self.assertNotIn("CLARK_CONTAINER", body)
+        self.assertNotIn("os.path", body)
 
 
 class OnedriveRoots(Case):

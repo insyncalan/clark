@@ -78,9 +78,20 @@ class Models(unittest.TestCase):
         self.assertFalse(b["chatgpt"]["connected"])
         self.assertTrue(self.chatgpt.signed_in)
 
+    def test_the_size_the_page_states_is_the_size_the_code_cuts_at(self):
+        # row 1294 audit: the page said 300,000 tokens while ask.BUDGET cut at 40,000 characters; since row 1293 ask.BUDGET is 1,200,000 and the page follows it
+        from clark import ask
+        line = self.connect.get()[1]["size"]
+        self.assertIn(format(ask.BUDGET, ","), line)
+        self.assertIn(format(ask.BUDGET // 4, ","), line)
+        passages = [("P%d" % i, "x" * ask.MAX_PASSAGE) for i in range(ask.MAX_PASSAGES)]       # the most passages of the most characters is 240,000: under the figure, accepted
+        self.assertEqual((ask.MAX_PASSAGES, ask.MAX_PASSAGE), (60, 4000), "the limits that keep a question under the budget")
+        self.assertLess(ask.MAX_PASSAGES * ask.MAX_PASSAGE, ask.MAX_REQUEST)
+        ask.build_request("What is open?", passages)
+
     def test_the_size_of_one_question_is_stated_with_the_lower_limit_rule(self):
         line = self.connect.get()[1]["size"]
-        self.assertEqual(line, "Size of one question: 300,000 tokens. Each model has its own limit and the lower one applies.")
+        self.assertEqual(line, "Size of one question: about 300,000 tokens (1,200,000 characters of passages). Each model has its own limit and the lower one applies.")
 
 
 class TestTheConnection(unittest.TestCase):
@@ -209,7 +220,7 @@ class OnThePage(unittest.TestCase):
     def test_test_the_connection_shows_the_seconds_for_each_model_on_and_the_size_line(self):
         with chrome() as cdp:
             js = self.show(cdp, 900)
-            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: 300,000 tokens. Each model has its own limit and the lower one applies.")
+            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: about 300,000 tokens (1,200,000 characters of passages). Each model has its own limit and the lower one applies.")
             self.assertEqual(js("document.querySelector('[data-ai-test]').innerText"), "Test the connection")
             js("document.querySelector('[data-ai-test]').click()")
             self.assertTrue(wait(lambda: re.fullmatch(r"Claude answered in \d+(\.\d)? seconds\.", js("document.querySelector('[data-ai-test-out]').innerText") or ""), 15))

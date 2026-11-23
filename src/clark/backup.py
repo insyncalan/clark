@@ -17,6 +17,9 @@ Backups › Copy my backups to): `copy_out` puts each finished copy there too, u
 same name and the same retention, and only ever a single finished file, never the live database or its -wal and -shm. That folder may be
 in OneDrive (the live database never may). A failed copy there is a plain warning (`copy_warning`) and never stops a save or a backup.
 Each kept publication (#347, published_copies) is copied there once too, into its `published-copies` folder, and never again; a restore never touches them.
+DECISION (row 1380): the kept publications are in a backup ONLY when 'Copy my backups to' is set. The local backup (`take`, `_write`)
+never carries `published-copies`: with no copy folder, the kept copies live only in the data folder beside clark.db and are in no backup
+(a restore does not remove them either). This is on purpose, not an oversight; see docs/handoff/decision-1380-kept-copies-and-backups.md.
 `bring_in` is the other way: a file from that folder, checked, into the backups folder for a restore. Standard library only, Python 3.9.
 """
 import contextlib

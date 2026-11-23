@@ -1,10 +1,11 @@
-"""#1295: the rules of ask clark shortcuts (logic/askShortcuts.js): the name rules, built-ins edited, reset and copied, /history and /new locked,
+"""#1295: the rules of ask clark slash commands (logic/askShortcuts.js): the name rules, built-ins edited, reset and copied, /history and /new locked,
 placeholders filled or reported, the limits. The editor screens, the slash menu, the live test and the AI help are not here (browser tests, not built).
 
 Run: python3 dev/run_tests.py test_ask_shortcuts_node
 Quick tier: no browser. Bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -52,12 +53,12 @@ def js(expr, timeout=None):
 
 class Names(unittest.TestCase):
     def test_each_rule_gives_its_message(self):
-        self.assertIn("at least 2", js('AS.nameProblem("a")'))
-        self.assertIn("at most 24", js('AS.nameProblem("a".repeat(25))'))
-        self.assertIn("lower case", js('AS.nameProblem("Check")'))
-        self.assertIn("spaces", js('AS.nameProblem("my check")'))
-        self.assertIn("start with a letter", js('AS.nameProblem("1ab")'))
-        self.assertIn("only lower case letters, numbers and hyphens", js('AS.nameProblem("a_b")'))
+        self.assertEqual(js('AS.nameProblem("a")'), "The name needs at least 2 characters.")
+        self.assertEqual(js('AS.nameProblem("a".repeat(25))'), "The name can be at most 24 characters.")
+        self.assertEqual(js('AS.nameProblem("Check")'), "Use lower case letters only in the name.")
+        self.assertEqual(js('AS.nameProblem("my check")'), "The name cannot have spaces. Use a hyphen instead.")
+        self.assertEqual(js('AS.nameProblem("1ab")'), "The name must start with a letter.")
+        self.assertEqual(js('AS.nameProblem("a_b")'), "The name can have only lower case letters, numbers and hyphens.")
         self.assertIn("built-in", js('AS.nameProblem("who",[],"",B)'))
         self.assertIn("already have", js('AS.nameProblem("check",["check"],"",B)'))
 
@@ -104,12 +105,12 @@ class Builtins(unittest.TestCase):
 class Limits(unittest.TestCase):
     def test_twenty_shortcuts_at_most(self):
         many = "[" + ",".join('{name:"aa-%d",menu:"m",text:"t",scope:"anywhere",result:"answer"}' % i for i in range(20)) + "]"
-        self.assertIn("20 shortcuts", js('T(()=>AS.save(%s,%s,B))' % (many, GOOD)))
-        self.assertIn("20 shortcuts", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % many))
+        self.assertIn("20 slash commands", js('T(()=>AS.save(%s,%s,B))' % (many, GOOD)))
+        self.assertIn("20 slash commands", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % many))
 
     def test_lengths_say_why(self):
-        self.assertIn("at most 70", js('AS.problems({...%s,menu:"m".repeat(71)},[],B)[0]' % GOOD))
-        self.assertIn("at most 1,000", js('AS.problems({...%s,text:"t".repeat(1001)},[],B)[0]' % GOOD))
+        self.assertEqual(js('AS.problems({...%s,menu:"m".repeat(71)},[],B)[0]' % GOOD), "The line in the menu can be at most 70 characters.")
+        self.assertEqual(js('AS.problems({...%s,text:"t".repeat(1001)},[],B)[0]' % GOOD), "The instructions can be at most 1,000 characters.")
         self.assertEqual(js('AS.problems(%s,[],B)' % GOOD), [])
         self.assertTrue(js('AS.problems({...%s,text:"  "},[],B).length' % GOOD))
 
@@ -179,7 +180,7 @@ class Killers(unittest.TestCase):
     def test_copy_details(self):
         self.assertEqual(js('AS.copy([{name:"check-2",%s,result:"draft"}],{name:"check-2"},B).map(x=>[x.name,x.result])' % 'menu:"m",text:"t",scope:"anywhere"')[1], ["check-3", "draft"])
         self.assertEqual(js('AS.copy([],{builtin:true,name:"who"},[{name:"who",menu:"m",text:"t",scope:"anywhere",result:"answer",builtin:true},{name:"who-2",menu:"m",text:"t",scope:"anywhere",result:"answer",builtin:true}])[0].name'), "who-3")
-        self.assertIn("Nothing to copy", js('T(()=>AS.copy([],{name:"zz"},B))'))
+        self.assertEqual(js('T(()=>AS.copy([],{name:"zz"},B))'), "ERR Nothing to copy.")
         self.assertLessEqual(len(js('AS.copy([{name:%s,%s}],{name:%s},B)[1].name' % ((json.dumps("a" * 23),) + (OWN,) + (json.dumps("a" * 23),)))), 24)
         r = js('AS.copy(AS.save([],{builtin:true,name:"who",menu:"Mine",text:"My text",scope:"anywhere",result:"draft"},B),{builtin:true,name:"who"},B)')
         self.assertEqual([r[1]["text"], r[1]["result"]], ["My text", "draft"])
@@ -255,3 +256,64 @@ class KillersRound2(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BuiltinsAreTheMenus(unittest.TestCase):
+    """Row 1295: the built-in slash commands the rules know are the ones the / menu lists (edit/askSlash.js COMMANDS), with the same menu line and question."""
+
+    def test_names_menu_lines_and_questions_agree(self):
+        src = (PAGE_SRC / "edit" / "askSlash.js").read_text(encoding="utf-8")
+        words = (PAGE_SRC / "edit" / "askWords.js").read_text(encoding="utf-8")
+        hints = dict(re.findall(r'^  ([a-z]+): "([^"]+)",$', words.split("export const SLASH_HINT = {", 1)[1].split("};", 1)[0], re.M))
+        menu = re.findall(r'\{ name: "([a-z]+)", hint: W\.SLASH_HINT\.[a-z]+,(?: ask: "([^"]+)"| act: "([a-z]+)") \}', src)
+        got = js('AS.BUILTINS.map((b) => [b.name, b.menu, b.text])')
+        self.assertEqual(got, [[n, hints[n], ask] for n, ask, _ in menu])
+        self.assertEqual([n for n, _, act in menu if act], ["history", "new"])
+
+
+class TheMenuFeed(unittest.TestCase):
+    """Row 1295: what the / menu gets from the person's files (edit/askOwn.js menuCommands, askSlash.js withOwn)."""
+    REC = '{name:"monday",menu:"Monday summary",text:"Overdue by owner on {today}",scope:"anywhere",result:"answer"}'
+
+    def test_an_own_command_is_filled_with_today_and_marked_yours(self):
+        got = js('AS.menuCommands({all:[%s],project:[]}, new Date(2026,10,17))' % self.REC)
+        self.assertEqual(got, [{"name": "monday", "hint": "Monday summary", "ask": "Overdue by owner on 17-11-2026", "own": True}])
+
+    def test_today_without_a_second_argument_follows_the_pinned_day_and_the_clock_when_unpinned(self):
+        """Row 2032: todayDate() reads the pinned day (pinToday) and the clock again once the pin is cleared."""
+        run = 'AS.menuCommands({all:[%s],project:[]})[0].ask'
+        self.assertEqual(js('(()=>{AS.pinToday("2026-02-03");return ' + run % self.REC + '})()'), "Overdue by owner on 03-02-2026")
+        clock = js('(()=>{AS.pinToday("2026-02-03");AS.pinToday("");return ' + run % self.REC + '})()')
+        self.assertNotIn("03-02-2026", clock)
+        now = js('(()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear()})()')
+        self.assertEqual(clock, "Overdue by owner on " + now)
+
+    def test_only_what_runs_from_the_box_as_it_is_is_listed(self):
+        recs = ",".join('{...%s,name:"%s",%s}' % (self.REC, n, extra) for n, extra in (("a-item", 'scope:"item"'), ("a-chg", 'result:"changes"'), ("a-inp", 'text:"Who is {input}"')))
+        self.assertEqual(js('AS.menuCommands({all:[%s],project:[]}).map((m) => m.name)' % recs), [])
+
+    def test_a_project_command_wins_over_the_same_name_for_all_projects(self):
+        got = js('AS.menuCommands({all:[%s],project:[{...%s,menu:"Own line"}]}).map((m) => [m.name, m.hint])' % (self.REC, self.REC))
+        self.assertEqual(got, [["monday", "Own line"]])
+
+    def test_an_edited_built_in_replaces_the_question_and_is_not_marked_yours(self):
+        mine = '{name:"check",replaces:"check",menu:"My check",text:"Check my way",scope:"anywhere",result:"answer"}'
+        own = js('AS.menuCommands({all:[%s],project:[]})' % mine)
+        self.assertEqual(own, [{"name": "check", "hint": "My check", "ask": "Check my way", "own": False}])
+        menu = js('AS.withOwn(AS.menuCommands({all:[%s],project:[]})).map((c) => [c.name, c.hint, c.ask || c.act])' % mine)
+        self.assertEqual(menu[0], ["check", "My check", "Check my way"])
+        self.assertEqual([m[0] for m in menu], ["check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new"])
+
+    def test_a_new_one_follows_the_built_ins_and_a_typed_prefix_filters(self):
+        menu = js('AS.slashMatches("/m", false, AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
+        self.assertEqual(menu, ["milestones", "monday"])
+        self.assertEqual(js('AS.slashMatches("/", false, []).length'), 8)
+
+    def test_the_built_in_questions_are_answers_that_may_be_anywhere_and_an_act_is_kept_by_its_name(self):
+        """Row 1295 mutation sweep: BUILTINS' scope and result, and withOwn keeping a built-in act when a name clashes."""
+        self.assertEqual(js('AS.BUILTINS.map((b) => [b.scope, b.result, b.builtin])'), [["anywhere", "answer", True]] * 8)
+        self.assertEqual(js('AS.withOwn([{name:"history",hint:"x",ask:"y"}]).find((c) => c.name === "history").act'), "history")
+
+    def test_history_and_new_cannot_be_replaced(self):
+        mine = '{name:"history",replaces:"history",menu:"x",text:"y",scope:"anywhere",result:"answer"}'
+        self.assertEqual(js('AS.menuCommands({all:[%s],project:[]})' % mine), [])

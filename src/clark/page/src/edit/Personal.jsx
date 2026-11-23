@@ -147,8 +147,8 @@ export function Profile() {
   );
 }
 
-const KEYS_ON = "Single-key shortcuts are on";
-const KEYS_OFF = "Single-key shortcuts are off";
+const KEYS_ON = "Single-key slash commands are on";
+const KEYS_OFF = "Single-key slash commands are off";
 
 // The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
 // Appearance and Spacing apply at once too (row 1115 S5): a quiet toast says the new choice, and its Undo puts the old one back.
@@ -182,10 +182,10 @@ function pickByArrow(e) {
   if (btn) btn.focus();
 }
 
-// The Single-key shortcuts switch, shared by the Personal card and the Essentials card (row 1115): one state, two places.
+// The Single-key slash commands switch, shared by the Personal card and the Essentials card (row 1115): one state, two places.
 export function KeysSwitch({ describedby = "keys-line", ...rest }) {
   return (
-    <button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby={describedby || undefined} onClick={flipKeys} {...rest}></button>
+    <button type="button" class="switch" role="switch" aria-label="Single-key slash commands" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby={describedby || undefined} onClick={flipKeys} {...rest}></button>
   );
 }
 
@@ -228,7 +228,7 @@ export function Personal() {
       <fieldset class="styles keys">
         <legend>Keys</legend>
         <label class="sw key-sw"><KeysSwitch />
-          <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
+          <span><b>Single-key slash commands</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>
   );

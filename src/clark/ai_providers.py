@@ -10,10 +10,10 @@ import threading
 
 from clark import ai_codex, ask, ask_claude
 
-# Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
-# more than two characters of English, but text in other scripts can be fewer, and the provider's own prompt and the reply need room.
+# Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are 4 a token, the same figure as
+# ai_connect.CHARS_PER_TOKEN (row 1293 ruling); the provider's own prompt and the reply need room, which ask.REQUEST_OVERHEAD keeps free.
 CONTEXT_TOKENS = {"opus": 1000000, "sonnet": 1000000, "haiku": 1000000, "fable": 1000000}
-CHARS_PER_TOKEN = 0.5
+CHARS_PER_TOKEN = 4         # row 1293 ruling: 4 characters a token, the same as ai_connect.CHARS_PER_TOKEN (it was 2.0, and 0.5 before that)
 TOO_BIG = "That is too much text for {model}, so nothing was sent. Ask about less, or choose another model in Settings."
 
 
@@ -104,12 +104,19 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.last_tokens = None            # row 1294: the tokens the chosen command reported for the last answered question, None when none were
+        self.last_line = None              # row 1306: the whole UsedLine of the last answered question's connector run, None when none (or ChatGPT)
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
             provider.command.lock = self.lock
 
     def _active(self):
         return self.pick() or (None, None, False)
+
+    def most_chars(self):
+        """Row 1293: the longest request text the chosen model takes, None when nothing is connected (the fixed budget then applies)."""
+        provider, model, _prefer = self._active()
+        return provider.most_chars(model) if provider is not None else None
 
     @property
     def label(self):
@@ -122,9 +129,14 @@ class Chosen(ask.Provider):
 
     def ask(self, request):
         provider, model, prefer = self._active()
+        self.last_tokens = None
+        self.last_line = None
         if provider is None:
             return ask.Failure(self.off_words)
-        return provider.ask(request, model, prefer=prefer)
+        got = provider.ask(request, model, prefer=prefer)
+        self.last_tokens = getattr(provider.command, "last_tokens", None) if isinstance(got, str) else None      # row 1294: read at once, before a choice can change
+        self.last_line = getattr(provider.command, "last_line", None) if isinstance(got, str) else None      # row 1306: read at once, before a choice can change
+        return got
 
     def stop(self, owner=None):
         return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed

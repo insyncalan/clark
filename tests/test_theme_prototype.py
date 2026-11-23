@@ -16,7 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
-THEME_ONLY = {"--sec-band-bg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
+THEME_ONLY = {"--sec-band-bg", "--ms-amber-shape", "--tile-on-bg", "--tile-on-fg"}      # rows 1311, 1396 and 1395: set and read by this Theme alone; declaring them in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
@@ -59,8 +59,8 @@ class ThemePrototype(unittest.TestCase):
         declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
-        own = set(re.findall(r"(--wil-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures, set and read by rules.css alone
-        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb"}), [], "rules.css reads declared names only, and two the milestone line sets itself: --ly inline, --sb on its box (row 1315)")
+        own = set(re.findall(r"(--(?:wil|pri|adc|badge)-[a-z0-9-]+)\s*:", RULES))      # row 1347: the four --adc-blue* properties (Draft ready button blue, a named exception, ruling 19-11); row 1195: the Work items colours the mock-up measures; row 1409: the four --pri-* priority pairs; row 1194: the --badge-* file-type colours of Documents and links; set and read by rules.css alone
+        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w", "--ad-r"}), [], "rules.css reads declared names only, and four the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js), --ad-r on the Draft sheet from AskDraft.jsx (row 1346)")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
@@ -74,7 +74,13 @@ class ThemePrototype(unittest.TestCase):
 
     def test_rules_hold_no_colour_literals_and_no_client_text(self):
         # the primary-buttons block carries three literals from the prototype (gradient start, dark text, ring): see its own comment and test_theme_primary_1319
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
+        # one named exemption (row 1343 final table): the filter-line underline is the mock-up's rgb(137,148,176) and no token holds that value (--grey-500 is rgb(135,148,179))
+        fline_underline = ".fline { border: 0; border-bottom: 1px solid #8994b0;"
+        self.assertEqual(RULES.count(fline_underline), 1, "the exempt literal is on the one .fline rule")
+        # and the typed-word box on that line (row 1343): background rgb(238,240,246) has no token; text rgb(29,36,51) is the mock-up pair, kept literal so the box reads the same in dark
+        ftxt = "border-radius: 6px; background: #eef0f6; color: #1d2433; box-shadow: none; }"
+        self.assertEqual(RULES.count(ftxt), 1, "the exempt literals are on the one .fk.k-txt rule")
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.replace(fline_underline, "").replace(ftxt, "").split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
         self.assertIsNone(re.search(r"/\*[^*]*#\d", RULES + TOKENS), "no hash-digit in a comment")
 
     def test_body_and_muted_text_reach_4_5_to_1_in_light_and_dark(self):

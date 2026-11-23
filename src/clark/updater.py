@@ -311,9 +311,8 @@ class Updater:
         try:
             found = release_fetch.latest(self.system, self.release_opener)
             if release_fetch.newer(found["version"], self.version):
-                size = max(1, round(found["size"] / 1_000_000))
                 latest = {"state": "avail", "version": found["version"], "date": updates.date_text(found["date"]) if found["date"] else "",
-                          "size": f"{size} MB", "notes": found["notes"], "url": found["url"], "digest": found["digest"],
+                          "size": updates.size_text(found["size"]), "notes": found["notes"], "url": found["url"], "digest": found["digest"],
                           "bytes": found["size"], "sig_url": found["sig_url"]}
             else:
                 latest = {"state": "latest"}

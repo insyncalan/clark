@@ -6,6 +6,7 @@ Fictional data only. No file, network or process is used.
 import dataclasses
 import hashlib
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import ask, edit_ai
@@ -24,7 +25,7 @@ class Build(unittest.TestCase):
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving", 'DRAFT: {"title"'):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 14)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "58c3443356ed619e54b809966d4b5d91d611814d2f8edac43af29851d2ea7a8c")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "3b7013bf21a271888da7b46121fc70274791101aa5cf9ddffd4263d83aeec0f7")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
@@ -45,7 +46,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "connectors", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "connectors", "cancel", "person"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; person (row 1331) is the profile name; owner and cancel (#284) let a Stop end only its own service's run
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
@@ -98,12 +99,16 @@ class Limits(unittest.TestCase):
         self.assertEqual(ask.TOO_MUCH, "That needs too much text to send. Ask a narrower question.")
         self.assertEqual(ask.BAD_INPUT, "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark.")
 
-    def test_the_passage_budget_is_forty_thousand_characters(self):
-        self.assertEqual(ask.BUDGET, 40000)
-        each = ask.Passage("a.md", "x" * 4000)
-        ask.build_request("Q?", [each] * 10)                                        # exactly 40,000
-        with self.assertRaises(ask.AskRefused) as cm:
-            ask.build_request("Q?", [each] * 10 + [ask.Passage("b.md", "y")])
+    def test_the_passage_budget_is_300000_tokens_at_4_characters(self):
+        self.assertEqual(ask.BUDGET, 300_000 * 4)
+        self.assertEqual(ask.BUDGET, 1_200_000)
+        self.assertEqual(ask.MAX_REQUEST, ask.BUDGET + 30000)
+        each = ask.Passage("a.md", "x" * ask.MAX_PASSAGE)
+        ask.build_request("Q?", [each] * 10)                                        # well inside it
+        with mock.patch.object(ask, "MAX_PASSAGES", 1000):
+            ask.build_request("Q?", [each] * (ask.BUDGET // ask.MAX_PASSAGE))       # exactly 1,200,000
+            with self.assertRaises(ask.AskRefused) as cm:
+                ask.build_request("Q?", [each] * (ask.BUDGET // ask.MAX_PASSAGE) + [ask.Passage("b.md", "y")])
         self.assertEqual(str(cm.exception), ask.TOO_MUCH)
 
     def test_one_passage_and_the_count_of_passages_have_a_ceiling(self):
@@ -120,8 +125,9 @@ class Limits(unittest.TestCase):
 
     def test_a_long_chat_drops_the_oldest_turns_first_instead_of_refusing(self):
         turns = [("user" if i % 2 == 0 else "assistant", chr(65 + i) * ask.MAX_TURN) for i in range(ask.MAX_EARLIER_TURNS)]
-        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)] * 10, earlier=turns)
-        self.assertLessEqual(len(r.text), ask.MAX_REQUEST)
+        with mock.patch.object(ask, "MAX_REQUEST", 70000):                 # the rule at a small ceiling: ten full passages and ten full turns
+            r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)] * 10, earlier=turns)
+        self.assertLessEqual(len(r.text), 70000)
         self.assertGreater(r.dropped_turns, 0)
         self.assertNotIn("A" * 50, r.text)                                 # the oldest went
         self.assertIn(chr(65 + ask.MAX_EARLIER_TURNS - 1) * 50, r.text)    # the newest stayed

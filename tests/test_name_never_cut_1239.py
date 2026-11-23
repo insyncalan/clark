@@ -1,12 +1,11 @@
 """Row 1239: the project name in the header is never cut with an ellipsis and never clipped. A long name is shown whole: it wraps to more
-lines and the bar grows to hold it (the --topbar token follows the bar's real height). In the editor header and the published file's bar, at 1400
-and 900 px. Chrome is required: these tests fail, never skip, without it.
+lines and the bar grows to hold it (the --topbar token follows the bar's real height). In the editor header at 1400
+and 900 px (Cards; the Classic look and the published file are one line since row 1305). Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_name_never_cut_1239
 """
 import unittest
 
-import test_glance_page as glance
 import test_publish_dialog as dialog
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
@@ -57,18 +56,7 @@ class Editor(Check, dialog.Base):
                 self.assertGreater(got["lines"], 1, f"a long name wraps to more lines at {width} px")
 
 
-class InTheFile(Check, glance.Published):
-    def check(self, width, name):
-        path = self.publish()
-        with chrome() as cdp:
-            p = self.draw(cdp, path, width, False)
-            p.until("!!document.querySelector('.top-file .top-name')", "the bar drew")
-            got = self.whole(p, ".top-file .top-name", name, f"in the file at {width} px")
-            if name == LONG:
-                self.assertGreater(got["lines"], 1, f"a long name wraps to more lines at {width} px")
-
-
-for _cls in (Editor, InTheFile):
+for _cls in (Editor,):
     for _w in (1400, 900):
         for _k, _n in (("words", LONG), ("one_word", ONE_WORD)):
             setattr(_cls, f"test_{_w}_{_k}", lambda self, w=_w, n=_n: self.check(w, n))

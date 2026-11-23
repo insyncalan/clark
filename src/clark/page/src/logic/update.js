@@ -52,6 +52,7 @@ export const FETCH = {
   checkingHint: "Checking the download is complete and every file matches its list.",
   willChange: (add, rep, rem) => `Will add ${add} file${add === 1 ? "" : "s"}, replace ${rep}, remove ${rem}. You can undo it afterwards.`,
   progress: (pct) => `${pct}%`,
+  downloaded: (v) => `Version ${v} is downloaded and checked.`,      // WORDING FOR APPROVAL (1327 s2): the mock-up's "is downloaded and checked" line
   didNotFinish: "The check did not finish. Try again.",
 };
 export const FETCH_LABELS = { download: "Download", checkNow: "Check now", cancel: "Cancel", tryAgain: "Try again", downloadAgain: "Download again",

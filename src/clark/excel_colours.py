@@ -18,8 +18,14 @@ TOKEN_NAMES = (
     "status-red-tint", "status-red-text", "status-red",
     "tone-red-text", "tone-red-tint", "tone-amber-text", "tone-amber-tint", "tone-green-text", "tone-green-tint", "tone-blue-text",
     "tone-blue-tint", "tone-grey-text", "tone-grey-tint", "tone-urgent",
+    "text-muted",         # row 1364: the Grey font colour of rich text, as the page draws it
 )
-TOKENS = {name: look.colour(name) for name in TOKEN_NAMES}
+# Item 1390: tokens only the workbook reads, so they are not in the page's tokens.css (the Cards page's style blocks are pinned by md5 and
+# tokens.css is one of them). locked-fill is the fill of a locked cell, the Cover's grey (E7E7E7); a brand's own tokens.css may still set --locked-fill.
+EXPORT_TOKENS = {"locked-fill": "E7E7E7"}
+TOKEN_NAMES += tuple(EXPORT_TOKENS)
+TOKENS = {name: look.colour(name) for name in TOKEN_NAMES if name not in EXPORT_TOKENS}
+TOKENS.update(EXPORT_TOKENS)
 
 # Colour name -> (fill token, text token). The names are what the value tables below use.
 COLOURS = {

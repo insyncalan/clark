@@ -18,6 +18,7 @@ import { showPublished } from "./PublishedReports.jsx";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport } from "./wordState.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { toast } from "../stores/changes.js";
 import { ToastCard, ToastBar, startHeld, keepFocus } from "./ToastCard.jsx";
 import { actionIcon } from "../menuIcons.js";
@@ -85,8 +86,9 @@ export function ProfileMenu() {
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
-  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") },
-    { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") }] : [];
+  const pub = { id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, pre = { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") };
+  const exc = { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, wrd = { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") };
+  const items = open ? (classicTheme() ? [pre, exc, wrd, pub] : [pub, pre, exc, wrd]) : [];      // row 1281, Classic only: Preview, Export to Excel, Publish…; the Cards theme keeps its order and its tooltip
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", icon: actionIcon("settings") });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
   items.push({ id: "help", name: "Help", icon: actionIcon("help") });

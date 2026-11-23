@@ -13,6 +13,7 @@ import { scrollTargets, entries, countOf } from "../logic/minimap.js";
 import { todayIso } from "../workItems.js";
 import { slots as slotsOf } from "../logic/placement.js";
 import { emptyBody } from "../logic/emptyBody.js";
+import { applyBands } from "../logic/banding.js";
 export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsFor } from "./ItemRows.jsx";
@@ -70,6 +71,16 @@ export function Dashboard({ tools }) {
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
   const was = useRef({ editing, at: null });
   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
+  // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws) and when a class or the type of a section changes. Classic only: Cards draws exactly what it drew. No address or history is touched.
+  useLayoutEffect(() => {
+    const secs = classicTheme() && document.querySelector(".secs");
+    if (!secs) return undefined;
+    const run = () => applyBands(document);
+    run();
+    const watch = new MutationObserver(run);
+    watch.observe(secs, { subtree: true, attributes: true, attributeFilter: ["class", "data-type"] });
+    return () => watch.disconnect();
+  });
   useLayoutEffect(() => { glide(document.querySelector(".secs")); }, [dragList.value]);      // row 1214: the sections that moved glide to their new place
   useLayoutEffect(() => {
     const at = was.current.at;

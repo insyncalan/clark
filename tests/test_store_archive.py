@@ -4,6 +4,7 @@ import ast
 import unittest
 from unittest import mock
 
+from _ask_index_pin import ASK_INDEX, problems as ask_index_problems
 from _demo import USER, DemoStore
 from _paths import SRC
 from clark import store as store_module
@@ -130,14 +131,14 @@ class Archive(unittest.TestCase):
                 st.update("actions", self.action, {"archived": 1, "revert": True})
         import inspect
         self.assertNotIn("revert", inspect.signature(store_module.Step.update).parameters)
-        sets = []                                          # `revert` as a dict key is written only inside revert_group
+        sets = []                                          # `revert` as a dict key is written only inside _revert_changed (the part of revert_group that puts changed fields back)
         for path in sorted((SRC / "clark").rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
                 for node in ast.walk(fn):
                     if isinstance(node, ast.Dict) and any(isinstance(k, ast.Constant) and k.value == "revert" for k in node.keys):
                         sets.append((path.name, fn.name))
-        self.assertEqual(sorted(set(sets)), [("store.py", "revert_group")])
+        self.assertEqual(sorted(set(sets)), [("store.py", "_revert_changed")])
 
     def test_a_later_change_makes_undo_skip_and_name_the_row(self):
         a = self.archive("actions")
@@ -345,7 +346,7 @@ class ProjectArchive(unittest.TestCase):
 
 
 class NoOtherDelete(unittest.TestCase):
-    def test_delete_from_appears_only_in_delete_row_and_revert_group(self):
+    def test_delete_from_appears_only_in_delete_row_and_the_undo_that_removes_a_creation(self):
         found = []
         for path in sorted((SRC / "clark").rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -360,7 +361,13 @@ class NoOtherDelete(unittest.TestCase):
                         found.append((path.name, fn.name))
         # #349: rewound_copy deletes only in a temporary copy of clark.db (the Dashboard as at a day); clark.db is opened read only there
         # #731: remove_demo deletes only the demo projects the person never touched (demo_seed.py decides which), after a safety copy
-        self.assertEqual(sorted(set(found)), [("store.py", "delete_row"), ("store.py", "remove_demo"), ("store.py", "revert_group"), ("store.py", "rewound_copy")])
+        # Row 1366: ask_index.py deletes only inside its own rebuildable index file (never clark.db); excused only while _ask_index_pin holds
+        ask = sorted(set(f for f in found if f[0] == "ask_index.py"))
+        tree = ast.parse((SRC / ASK_INDEX).read_text(encoding="utf-8"))
+        self.assertEqual(ask_index_problems(tree), [])
+        self.assertEqual(ask, [("ask_index.py", "_drop"), ("ask_index.py", "_refresh_open")])
+        found = [f for f in found if f[0] != "ask_index.py"]
+        self.assertEqual(sorted(set(found)), [("store.py", "_revert_created"), ("store.py", "delete_row"), ("store.py", "remove_demo"), ("store.py", "rewound_copy")])
 
 
 

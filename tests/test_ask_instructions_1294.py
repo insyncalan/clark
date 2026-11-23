@@ -14,6 +14,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from _paths import SRC  # noqa: F401
@@ -262,10 +263,11 @@ class Sending(Base):
         self.assertGreaterEqual(len(with_text.text) - len(base.text), 8000)
         passages = [("Plan", "x" * 2000) for _ in range(19)]        # 38,000 characters: under the passage budget
         chat = [("user" if i % 2 == 0 else "assistant", "c" * 3000 + str(i)) for i in range(10)]      # 30,000 more: together near the whole-request limit
-        before = ask.build_request("What?", passages, chat)
-        after = ask.build_request("What?", passages, chat, instructions={"all": "a" * 4000, "project": "b" * 4000})
+        with mock.patch.object(ask, "MAX_REQUEST", 70000):         # the rule at the small ceiling these sizes were written for
+            before = ask.build_request("What?", passages, chat)
+            after = ask.build_request("What?", passages, chat, instructions={"all": "a" * 4000, "project": "b" * 4000})
         self.assertGreater(after.dropped_turns, before.dropped_turns, "the oldest turns gave way to make room for them")
-        self.assertLessEqual(len(after.text), ask.MAX_REQUEST)
+        self.assertLessEqual(len(after.text), 70000)
 
     def test_a_blank_one_leaves_no_heading_and_a_key_in_a_stored_text_stops_the_question(self):
         self.assertNotIn("STANDING", ask.build_request("What?", [], instructions={"all": "  ", "project": ""}).text)

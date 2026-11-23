@@ -219,7 +219,7 @@ class Words(unittest.TestCase):
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
-                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
+                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
                     "No local folder yet.", "Choose folder", "Asking on or off",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
@@ -259,7 +259,7 @@ class Words(unittest.TestCase):
                     "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                     "Comfortable", "Each Dashboard section is its own card, with room between them.",
                     "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
-                    "Keys", "Single-key shortcuts",            # #193
+                    "Keys", "Single-key slash commands",            # #193
                     "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
                 ]),
                 ('reports', 'Reports', [
@@ -283,23 +283,24 @@ class Words(unittest.TestCase):
                 ]),
                 ('claude', ASK_PAGE, [
                     "Settings for", "All projects", "ABC",      # row 1294: the two tabs; the project's own opens first
-                    "Asking",             # #47: the switch and its folders, below the client folder
+                    "Asking in ABC",             # row 1351: the project heading names the project (stale pin: the build's words, not new words)
                     "Claude is started on this computer for you.",
                     "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
-                    "Turn on asking", "FOLDERS ASKING MAY READ",
+                    "Turn on asking",
+                    "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
+                    "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
+                    "Connectors in ABC",      # row 1306 C3: the Connectors block; this server has no connector route, so it says they cannot be checked
+                    "Connectors can't be checked just now. None is used until they can be.",
+                    "Only the connectors that are On for all projects appear here.",
+                    "Source folders for ABC",      # row 1351: the folders card follows Connectors, headed by the project
                     "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                     "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                     "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                    "Connectors in ABC",      # row 1306 C3: the Connectors block under the folders; this server has no connector route, so it says they cannot be checked
-                    "Connectors can't be checked just now. None is used until they can be.",
-                    "Only the connectors that are On for all projects appear here.",
-                    "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
-                    "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
                     "Standing instructions",      # row 1294, slice 3: the card for the project's own (this server has no instructions route, so it says they could not be read)
                     "The standing instructions could not be read just now. Reload the page to try again.",
                     "For all projects", "Set under All projects. Sent first.", "Change",
-                    "For ABC", "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the 300,000 tokens every time.", "0 of 4,000",
+                    "For ABC", "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the size of one question every time.", "0 of 4,000",
                 ]),
                 ('logs', 'Logs and diagnostics', [
                     "Logs and diagnostics",      # #110
