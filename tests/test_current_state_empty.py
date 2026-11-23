@@ -21,10 +21,10 @@ from test_server import Running, chrome, wait
 
 LINE = default_sections.CURRENT_STATE_PREFILL
 HINTS = default_sections.SECTION_HINTS
-TITLES = ("Current state", "This week", "Next week")                # items 1188, 1193: the three default text sections that start empty
-IDS = dict(zip(TITLES, ("ABC-S-001", "ABC-S-005", "ABC-S-006")))
+TITLES = ("Header", "This week", "Next week")                # items 1188, 1193: the three default text sections that start empty
+IDS = dict(zip(TITLES, ("ABC-S-003", "ABC-S-004", "ABC-S-005")))
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-FIRST = "ABC-S-001"
+FIRST = "ABC-S-003"
 
 
 def leaks(text):
@@ -41,7 +41,7 @@ class Data(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
 
-    def say(self, body, title="Current state"):
+    def say(self, body, title="Header"):
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", IDS[title], {"body": body})
 
@@ -52,7 +52,7 @@ class Data(unittest.TestCase):
 
     def test_the_store_seeds_an_empty_body_and_the_line_is_kept_once_as_a_constant(self):
         first = next(s for s in self.store.data_for("ABC")["report_sections"] if s["id"] == FIRST)
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Header", ""))
         self.assertTrue(LINE.startswith("Say where the project stands today"))
 
     def test_item_1193_new_project_seed_gives_all_four_text_sections_an_empty_body(self):
@@ -76,7 +76,7 @@ class Data(unittest.TestCase):
         with self.store.step("dashboard", USER) as st:
             st.seed_sections("OLD")
         rows = self.store.read("report_sections", "OLD")
-        first = next(s for s in rows if s["type"] == "text" and s["title"] == "Current state")
+        first = next(s for s in rows if s["type"] == "text" and s["title"] == "Header")
         self.assertEqual(first.get("body") or "", "")
         self.assertFalse([s for s in rows if LINE in (s.get("body") or "")])
         texts = {s["title"]: s.get("body") or "" for s in rows if s["type"] == "text"}
@@ -147,7 +147,7 @@ class Browser(unittest.TestCase):
             self.assertNotIn(LINE, cdp.js(f"{first}.textContent", sid))
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid), 15))
-            self.assertEqual(cdp.js(f"{first}.querySelector('[data-rich=body] .quiet').textContent", sid), LINE, "Edit: the hint")
+            self.assertEqual(cdp.js(f"{first}.querySelector('[data-rich=body] .quiet').textContent", sid), "Click to write.", "Edit: no long hint on the Header (row 1266 AP4; the Classic starting text is startingText.js)")
             for t in TITLES[1:]:                                                                        # item 1193
                 one = f"document.querySelector('[data-id=\"{IDS[t]}\"]')"
                 self.assertEqual(cdp.js(f"{one}.querySelector('[data-rich=body] .quiet').textContent", sid), HINTS[t], f"Edit: the hint of {t}")
