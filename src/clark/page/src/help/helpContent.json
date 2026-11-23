@@ -1091,14 +1091,9 @@
         "Half or full"
        ],
        [
-        "Image with caption",
-        "One picture with its caption.",
-        "Half or full"
-       ],
-       [
-        "Full width image",
-        "One image across the full width, framed as you choose, with an optional caption.",
-        "Full"
+        "Image",
+        "One image, framed as you choose, with an optional caption.",
+        "Full or half"
        ],
        [
         "Quote",
@@ -1419,7 +1414,7 @@
      ],
      [
       "p",
-      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. The Asking switch in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
       "ul",
@@ -1918,7 +1913,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
+        "The Asking switch (it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
