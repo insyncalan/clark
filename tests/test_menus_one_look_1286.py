@@ -38,6 +38,8 @@ COLUMNS_7B = {"columns"}      # row 1499 (pick 7B, mock-up work-items-mockup.htm
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
 PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
+TONES_NEW = {"r": ("rgb(163, 48, 31)", "rgb(255, 155, 138)"), "g": ("rgb(0, 107, 94)", "rgb(79, 209, 189)"), "b": ("rgb(47, 75, 184)", "rgb(157, 176, 255)")}      # row 1286 AP4 (PM ruling): light and dark computed colours of #a3301f/#ff9b8a, #006b5e/#4fd1bd, #2f4bb8/#9db0ff
+PRODUCTION_W = {"gantt-show-chart": 240}      # row 1286 AP5: widths read in the browser (filled below from the first run)
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -70,6 +72,10 @@ def check(test, name, look, m):
     r1273 = name in {"view", "board-move", "board-move-lanes"}     # row 1273 changes Group by and Move to only; the Add menu is row 1462
     want = "12px" if name in GANTT_SHOW or name in COLUMNS_7B else "10px"      # 1197 item 10: the Gantt Show panel keeps 12; row 1499 AP5: the Classic Columns panel is 12 (the 7B mock-up .ctxm); every other popover is 10
     test.assertEqual(m["rad"], want, f"{where}: the panel radius is {m['rad']}, expected {want} (the prototype popover (.pop) draws 10px, the Gantt Show panel 12px by 1197 item 10)")
+    if name == "view":      # row 1286 AP3: Group by is 224px wide, not more (the 240px rule was dead code and is gone)
+        test.assertEqual(m["w"], 224, f"{where}: Group by is {m['w']}px wide")
+    if name in PRODUCTION_W:      # row 1286 AP5: production widths, 200px for a plain menu, 240px for the Gantt Show panel
+        test.assertEqual(m["w"], PRODUCTION_W[name], f"{where}: the menu is {m['w']}px wide, production draws {PRODUCTION_W[name]}")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
         test.assertEqual(m["pad"], "6px 6px 6px 6px", f"{where}: the popup padding")
@@ -113,6 +119,7 @@ class Seen:
     names = set()
     leaving = None
     live = None
+    tones = {}
 
 
 def setUpModule():
@@ -142,6 +149,14 @@ def setUpModule():
             Seen.leaving = self.js("(() => { const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const b = d.firstChild, p = e => { const c = getComputedStyle(e); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }; const r = [p(d), p(b)]; d.remove(); return r; })()")
             self.t.assertEqual(Seen.leaving[0], "4px 4px 4px 4px", "the fading Gantt menu: box padding")
             self.t.assertEqual(Seen.leaving[1], "6px 12px 6px 12px", "the fading Gantt menu: line padding is 12px at the sides (Row 1286)")
+        if name in THREE or name == "profile":      # row 1286 AP4: no line of these menus carries a tone class today, so the computed colour of each of the six tone classes is read from a probe icon placed in the open menu
+            probe = f"""((root) => {{ const box = [...document.querySelectorAll(root)].filter(e => e.getBoundingClientRect().width > 0).pop(); const out = {{}};
+              for (const t of 'ragbn') {{ const s = document.createElement('span'); s.className = 'ic-' + t; box.append(s); out[t] = getComputedStyle(s).color; s.remove(); }} return out; }})"""
+            Seen.tones[(name in THREE, self.look_is)] = self.js(f"({probe})({json.dumps(root)})")
+            want = {t: TONES_NEW[t][self.look_is[1] == "dark"] for t in TONES_NEW}
+            read = Seen.tones[(name in THREE, self.look_is)]
+            for t in TONES_NEW:
+                self.t.assertEqual(read[t] == want[t], name in THREE, f"{name} at {self.look_is}: the tone {t} reads {read[t]}, {'the prototype colour ' + want[t] if name in THREE else 'production, not ' + want[t]}")
         Seen.names.add(name)
         return got
     start(mock.patch.object(T.Drive, "lines", lines))
@@ -166,6 +181,30 @@ class Static(unittest.TestCase):
                 found += 1
                 self.assertRegex(sel, r"#viewMenuList|#newBtnMenu|aria-label\^=", f"a 15px, 224px or 7px 10px menu rule names a menu other than the three: {sel.strip()[:90]}")
         self.assertGreaterEqual(found, 2)
+
+    def test_the_menu_icon_grid_is_8px_with_the_tick_on_the_right(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        self.assertIn(".ddmenu .mi { margin-right: var(--space-2); }", css, "8px between the icon and its words")
+        self.assertIn(".ddmenu [role=\"menuitem\"], .ddmenu [role=\"menuitemradio\"]:not(.hp), .cols-menu [role=\"menuitemcheckbox\"] { padding-left: 16px; padding-right: 16px; }", css)
+        self.assertRegex(css, r"\.ddmenu \[role=\"menuitemradio\"\]:not\(\.hp\) \.ck[^{]*\{[^}]*order: 1; margin-left: auto", "the tick is on the right")
+
+    def test_group_by_is_224px_wide(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        self.assertNotIn('.ddmenu[aria-label="Group by"]', css, "the dead 240px Group by rule is gone")
+        self.assertIn("#viewMenuList { min-width: 224px; }", css)
+
+    def test_the_icon_tones_of_the_three_menus(self):
+        css = (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8")
+        for hexv in ("#a3301f", "#006b5e", "#2f4bb8", "#ff9b8a", "#4fd1bd", "#9db0ff"):
+            self.assertEqual(len(re.findall(re.escape(hexv) + ";", css)), 2 if hexv in ("#ff9b8a", "#4fd1bd", "#9db0ff") else 1, hexv)
+        self.assertLess(css.index("Row 1286 AP4"), css.index("/* Row 1314"), "the rule sits above the Row 1314 block")
+        self.assertNotIn("#a3301f", RULES)
+
+    def test_the_production_menu_widths_are_200_and_240(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        self.assertIn(".ddmenu { min-width: 200px; }", css)
+        self.assertIn(".cpop.cmenu:not(.bmenu) { min-width: 200px; }", css)
+        self.assertIn(".gt-pop { min-width: 240px;", css + (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"))
 
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
