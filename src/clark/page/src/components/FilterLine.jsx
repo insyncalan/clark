@@ -489,7 +489,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
             {chips.map((c, i) => {
               const name = Q.chipName(c, rows, ctx, extra), g = glossOf(c);
               return (
-                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
+                <span class={Q.chipClass(c, rows, ctx, extra)} key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
                   onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{c}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
