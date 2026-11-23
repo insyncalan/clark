@@ -1,6 +1,7 @@
 // The Edit part RAID cards (item 96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
 // saved in place. Every committed choice is one change() to the section's body: one step, one Undo, place "report". A card holds
-// the item's id only, so what the item says is read when the page is drawn or published.
+// the item's id only, so what the item says is read when the page is drawn or published. The "Also show on the card" boxes are drawn for the
+// one RAID cards card only (`choice`): an old three or four across section saves a version 1 body, which has no show (raid3 _check refuses it).
 import { useState } from "preact/hooks";
 import { StartPrompt } from "../StartPrompt.jsx";
 import { data } from "../../stores/report.js";
@@ -94,7 +95,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
         {card ? (
           <>
             <button type="button" class="rce-rm" aria-label={`Remove card ${i + 1}`} onClick={() => remove(i)}>×</button>
-            {found ? <fieldset class="rce-show"><legend>Also show on the card</legend>
+            {found && choice ? <fieldset class="rce-show"><legend>Also show on the card</legend>
               {(() => {
                 const has = !!latestOf(found.row);
                 const box = (key, label, on, off, hint) => (

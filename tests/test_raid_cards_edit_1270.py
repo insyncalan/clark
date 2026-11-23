@@ -53,6 +53,20 @@ class Edit(PageBase):
             self.assertTrue(self.wait_for(lambda: len(self.stored(sec)["cards"]) == 8), "eight cards are saved")
             self.assertFalse(p.js(f"!!document.querySelector('{q} select[aria-label=\"Card 9 item\"]')"), "no ninth slot")
 
+    def test_the_also_show_boxes_are_drawn_for_the_cards_card_only_not_for_an_old_three_across_section(self):
+        sec, made = self.seed()
+        with self.store.step("dashboard", USER) as st:
+            old = st.create("report_sections", {"project": "ABC", "type": "raid3", "title": "Fictional old cards", "sort_order": 1000,
+                                                "body": json.dumps({"v": 1, "cards": [{"id": made[0], "source": "client"}]})})
+        with chrome() as cdp:
+            cdp.FOCUS_EMULATION = False
+            p = self.visit(cdp)
+            p.edit()
+            for ref in (sec, old):
+                p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] select[aria-label=\"Card 1 item\"]')", "the card row is there")
+            self.assertTrue(p.js(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-show')"), "the cards card draws the boxes")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(old)}] .rce-show')"), "an old three across section does not: it saves no show")
+
 
 if __name__ == "__main__":
     unittest.main()
