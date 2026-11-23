@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from clark import glance, publish, sanitise
 from clark import ask
 from clark import milestones, timefmt
-from clark.ask import BUDGET, MAX_PASSAGE, Passage
+from clark.ask import BUDGET, ID_PATTERN, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
 KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
@@ -42,8 +42,6 @@ SHOWN = {
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
     "workstreams": ("status", "created"),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
 }
-WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
-ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
 _TAG = re.compile(r"<[^>]*>")
 
 
@@ -127,27 +125,12 @@ def long_rows(lines):
     return sum(1 for x in lines if len(x) > MAX_PASSAGE and not ask._secret(x))
 
 
-def _score(words, ids, passage):
-    text = passage.text.casefold()
-    return sum(5 for i in ids if i.casefold() in text) + sum(1 for w in words if w in text)
-
-
 def choose(passages, question, budget=BUDGET, limit=None):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
     first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
-    words = {w.casefold() for w in WORDS.findall(question or "")}
-    ids = set(ID_PATTERN.findall(question or ""))
-    ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
-    keep, used = set(), 0
-    for i in ranked:
-        size = len(passages[i].text)
-        if limit is not None and len(keep) >= limit:
-            break
-        if used + size <= budget:
-            keep.add(i)
-            used += size
-    return tuple(passages[i] for i in sorted(keep)), len(passages) - len(keep)
+    keep, left = ask.choose([(p.label, p.text) for p in passages], question, budget, len(passages) if limit is None else limit)
+    return tuple(passages[i] for i in keep), left
 
 
 def state_of(kind, row, today):
