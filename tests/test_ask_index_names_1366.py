@@ -321,8 +321,8 @@ class Pins(unittest.TestCase):
         self.assertEqual((m.MAX_EXCEL_TOTAL, m.MAX_EXCEL_SHARED, m.MAX_EXCEL_PART, m.MAX_EXCEL_SECONDS), (50 * 1024 * 1024, 8 * 1024 * 1024, 30 * 1024 * 1024, 20))
         self.assertEqual(m.NAMES, ("indexed", "type", "online_only", "too_long", "safety", "picture", "not_yet"))
         self.assertEqual(m.COUNTED, ("indexed", "type", "too_long", "picture"))
-        self.assertEqual((m.REASON_TYPE, m.REASON_SAFETY, m.REASON_TOO_LONG, m.REASON_PICTURE),
-                         ("of a type clark can't read yet", "looks like a password or a key", "is a PDF that is too long", "is a picture and this computer cannot read pictures"))
+        self.assertEqual((m.REASON_TYPE, m.REASON_SAFETY, m.REASON_TOO_LONG_PDF, m.REASON_TOO_LONG, m.REASON_PICTURE),
+                         ("of a type clark can't read yet", "looks like a password or a key", "is a PDF that is too long", "is too long", "is a picture and this computer cannot read pictures"))
         self.assertEqual(m.MAX_RESULTS, m.ask.MAX_PASSAGES)
 
     def test_the_default_waits(self):
@@ -608,7 +608,7 @@ class Ledger(Base):
             self.put(name, "zqlim")
         with mock.patch.object(ask_index.reach, "read_bytes", spy), mock.patch.object(ask_index.ask_picture, "reader", return_value=lambda raw: ""):
             ix.refresh(self.data, "P1", [self.box])
-        self.assertEqual(got, {".txt": ask_index.ask_passages.MAX_TEXT_BYTES, ".pdf": ask_index.pdf_reader.MAX_BYTES, ".xlsx": ask_index.MAX_EXCEL_BYTES,
+        self.assertEqual(got, {".txt": ask_index.ask_passages.MAX_TEXT_BYTES, ".pdf": ask_index.INDEX_PDF_BYTES, ".xlsx": ask_index.MAX_EXCEL_BYTES,
                                ".docx": ask_index.docx_read.MAX_FILE_BYTES, ".pptx": ask_index.MAX_PPTX_BYTES, ".html": ask_index.ask_extract.MAX_HTML_BYTES,
                                ".png": ask_index.ask_picture.MAX_PICTURE_BYTES})
         self.assertEqual(ask_index.status(self.data, "P1")["safety"], 7)
