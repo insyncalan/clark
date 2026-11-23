@@ -138,7 +138,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
-/* Row 1543 part 1: the published header's pages group sits where the editor's does, above 900px. The editor's bar has 28px at the sides, 22px between its parts, the tabs stretch to 10px above the bottom and end 22px before the right-hand buttons (search, ask clark, profile). The published bar reserves their width (228.94px, and 94.94px less at 1100px and below where ask clark is only an icon: the widths the editor draws, measured) and puts the switcher and the profile circle at its far end. The date (until it goes) sits in the reserved room above 1100px, and left of the pages below it, so it never moves them. */
+/* Row 1543 part 1: the published header's pages group sits where the editor's does, above 900px. The editor's bar has 28px at the sides, 22px between its parts, the tabs stretch to 10px above the bottom and end 22px before the right-hand buttons (search, ask clark, profile). The published bar reserves their width (228.94px, and 94.94px less at 1100px and below where ask clark is only an icon: the widths the editor draws, measured) and puts the switcher and the profile circle at its far end. */
 @media (min-width: 901px) {
   .top-file { gap: 22px; padding: 10px 28px; }
   .top-file .tabs { order: 2; margin-left: auto; flex: none; align-self: stretch; align-items: flex-end; }
@@ -148,7 +148,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
   .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2)); }
 }
 @media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
-@media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
+/* Row 1543 part 2: the right-hand group is the editor's buttons, read only. The switcher is a 32px bordered button like the editor's search button (white, the same border, radius and hover), the profile circle is 32px and filled like the editor's (aqua with a navy mark, the same ring). No "As at" date is drawn; the room the editor uses for ask clark stays empty. */
+.top-file .cm-theme { border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); color: var(--white); }
+.top-file .cm-theme:hover { background: color-mix(in srgb, var(--white) 14%, transparent); color: var(--white); }
+.top-file .cm-badge { border: 2px solid color-mix(in srgb, var(--white) 25%, transparent); background: var(--brand-cyan); color: var(--brand-navy); }
+.top-file .cm-badge:hover, .top-file .cm-badge[aria-expanded="true"] { border-color: color-mix(in srgb, var(--white) 60%, transparent); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

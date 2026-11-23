@@ -1,4 +1,4 @@
-"""Row 1543 PR 1 and PR 2a (the Classic header has no "As at"; read only): the published header's pages group sits where the editor's does (same right edge, same line), and the room the
+"""Row 1543 PR 1 and PR 2a (the Classic header has no "As at"; read only) and 2b (the 32 px switcher and profile circle): the published header's pages group sits where the editor's does (same right edge, same line), and the room the
 editor's right-hand buttons use is reserved, so the pages do not move between the two. In a real browser, light and dark, 1400 px,
 and the 1200 and 1100 px edge checks (the 900 px bar is a later part of the row). Fictional data.
 
@@ -90,6 +90,19 @@ class Header1543(glance.Published):
                 self.assertNotIn("As at", f["text"], "no As at in the bar")
                 self.assertEqual(f["asatBtn"], 0, "no date button, box or note in the bar")
                 self.assertTrue(f["week"], "Week ending stays")
+
+    def test_published_header_switcher_and_profile_sizes(self):
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                f = self.right_group(width, dark)
+                self.assertEqual((f["sw"]["w"], f["sw"]["h"]), (32, 32), "the switcher is 32 px")
+                self.assertEqual((f["me"]["w"], f["me"]["h"]), (32, 32), "the profile circle is 32 px")
+                if width > 900:
+                    self.assertEqual(f["me"]["right"], 28, "the circle ends at the bar's 28 px side, where the editor's does")
+                self.assertEqual(f["swBorder"][0], "1px", "the switcher has the editor's button border")
+                self.assertEqual(f["swBorder"][1], "rgb(255, 255, 255)", "and its white mark")
+                self.assertEqual(f["meBg"], "rgb(56, 224, 238)", "the profile circle is filled, as the editor's")
+                self.assertEqual(f["meBorder"], "2px", "with the editor's ring")
 
     def test_published_header_no_edit_controls(self):
         for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
