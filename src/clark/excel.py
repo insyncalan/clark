@@ -1149,7 +1149,7 @@ SHEET_LINK_ROWS = (("Use cases", "Use cases"), ("Milestones", "Milestones"), ("R
                    ("Actions", "Actions"), ("Decisions", "Decisions"), ("Gantt", None))      # (Dashboard section, its sheet; None: the Gantt tab's own name)
 KEY_CHIP_COLUMNS = 2                # grid columns of one chip in the colour key
 COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
-                "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells"}
+                "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells", "history": "History sheet"}
 COVER_FONT = OFFICE_FONT
 COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
 COVER_SIZE = 10                     # body text, in points

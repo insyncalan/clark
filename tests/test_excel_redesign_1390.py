@@ -156,6 +156,21 @@ class ReportSheetFollowsTheDashboard(unittest.TestCase):
 
 
 class HistorySheetHidden(RoundTrip):
+    def test_the_report_sheet_says_how_to_unhide_the_history_1390(self):
+        """1390: the editor workbook's Report sheet carries the approved sentence exactly; the client export (no History) does not."""
+        sentence = "The History sheet is hidden: right-click any sheet tab and choose Unhide."
+        wb = load_workbook(self.path)
+        report = [str(c.value) for row in wb[excel.REPORT_NAME].iter_rows() for c in row if c.value is not None]
+        self.assertIn(sentence, report)
+        self.assertEqual(sentence, cover.HISTORY_HIDDEN)
+        import io
+        import _publish_fixture as fx
+        from clark import publish
+        client = load_workbook(io.BytesIO(excel_client.workbook_bytes(publish.select(fx.inputs(fx.load())))))
+        texts = [str(c.value) for ws in client.worksheets for row in ws.iter_rows() for c in row if c.value is not None]
+        self.assertNotIn(sentence, texts)
+        self.assertFalse([t for t in texts if "Unhide" in t])
+
     def test_history_sheet_is_hidden_not_very_hidden_1390(self):
         """1390 DoD 'History hidden': the editor export's History sheet is plain hidden (Unhide shows it), a visible sheet is
         active, and the import still reads the workbook with its hidden History."""

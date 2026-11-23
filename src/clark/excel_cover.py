@@ -35,12 +35,13 @@ IDS = ("Please don't change or move IDs. Each ID stays with its own row: if you 
 LOCKED_CELLS = ("Grey cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
                 "To change them, choose Review, then Unprotect Sheet. There is no password. "
                 "Excel will not sort a protected sheet; unprotect it first.")
+HISTORY_HIDDEN = "The History sheet is hidden: right-click any sheet tab and choose Unhide."     # row 1390 (approved 21-11): the editor export only
 SUBTITLE_KIND = "Weekly report"
 AS_AT = "Shown as at"                                  # row 1390: the line under the title band, only when the report is shown as at a day
 COUNTS_HEADING = "Risks and issues by type"
 SHEETS_HEADING = "Sections of the Dashboard that have a sheet"
 COLOUR_KEY_HEADING = "Colour key"
-KINDS = ("title", "subtitle", "asat", "heading", "text", "tiles", "pair", "counts", "sheets", "key", "about", "exported", "caution", "return", "where", "ids", "locked")
+KINDS = ("title", "subtitle", "asat", "heading", "text", "tiles", "pair", "counts", "sheets", "key", "about", "exported", "caution", "return", "where", "ids", "locked", "history")
 LINE_POINTS = 13.5            # one line of the 10 point body text, for the row heights
 MAX_ROW_POINTS = 409          # Excel's tallest row
 
@@ -155,7 +156,7 @@ def _tile(t):
             "detail": cut(detail, 2000), "colour": colour or None}
 
 
-def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", as_at=None, counts=None):
+def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", as_at=None, counts=None, history=False):
     """The Cover as a list of {"kind", "text", ...}.
 
     project  the project row: "name" (or "code"), "current_state" (HTML), "week_ending" and "client_name"; read only
@@ -166,7 +167,8 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
     internal the INTERNAL sentence (excel.INTERNAL_NOTE): when given, the title band carries the tag INTERNAL. The sentence
              itself is not on the Cover.
     as_at    (row 1390) the day the report is shown as at, only when one is used: the line "Shown as at DD-MM-YYYY" under the title band
-    counts   (row 1390) [(type, n)] open risks and issues by type (raid_counts): a "counts" line after the sections, none when empty"""
+    counts   (row 1390) [(type, n)] open risks and issues by type (raid_counts): a "counts" line after the sections, none when empty
+    history  (row 1390) True for the editor export, which has a hidden History sheet: a last "history" line says how to unhide it"""
     name = str(project.get("name") or project.get("code") or "").strip()
     title = _line("title", cut(name, 200))
     if internal:
@@ -211,6 +213,8 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
             _line("caution", CAUTION), _line("return", cut(return_note(owner, email), 1000)),
             _line("where", WHERE_TO_EDIT), _line("ids", IDS),
             _line("locked", LOCKED_CELLS)]
+    if history:
+        out.append(_line("history", HISTORY_HIDDEN))
     return out
 
 
@@ -228,4 +232,4 @@ def from_store(store, code, exported, by=None, owner=None, email=None, internal=
     tiles = glance.tiles(inputs["data"], today, for_client=True, kept=kept)
     sections = [dict(s, hidden=0) for s in shown["sections"]]
     return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal,
-                 as_at=today if show_as_at else None, counts=raid_counts(shown))
+                 as_at=today if show_as_at else None, counts=raid_counts(shown), history=True)

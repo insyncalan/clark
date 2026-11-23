@@ -385,9 +385,9 @@ class InTheWorkbook(unittest.TestCase):
         col = [c.value for c in ws["A"] if c.value]
         self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending 31-05-2030", "■  Current state"])
         self.assertEqual([v for v in col if str(v).startswith("■")], ["■  Current state", "■  At a glance", "■  Summary", "■  " + cover.SHEETS_HEADING, "■  " + cover.COLOUR_KEY_HEADING])
-        tail = [c.value for c in ws["A"] if c.value][-7:]
+        tail = [c.value for c in ws["A"] if c.value][-8:]
         self.assertEqual(tail, ["About this export", "Exported", "Caution", "Sending changes back", "Where to make changes", "IDs",
-                                "Locked cells"])
+                                "Locked cells", "History sheet"])
 
     def test_the_tiles_sit_side_by_side_with_a_label_a_big_number_and_a_sub_line(self):
         ws = self.cover_sheet()
