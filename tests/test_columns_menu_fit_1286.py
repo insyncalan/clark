@@ -111,6 +111,26 @@ class ColumnsMenuCardsPinned(base.InThePage):
                 p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
                 p.until("!document.querySelector('.cols-menu')", f"closed at {w}x{h}")
 
+    def test_cards_keys_do_not_scroll_the_menu_and_the_menu_stays_open(self):
+        """Cards is frozen: menuMove keeps focus({preventScroll}) with no scrollIntoView, and the scroll-closer is as on main (Menu.jsx gates both to Classic)."""
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "this is the Cards page")
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 164, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.until("innerHeight === 164", "window 1400x164")
+            p.js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block:'start'}})")
+            time.sleep(0.3)
+            p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until(f"!!({MEASURE})", "the Columns menu opened")
+            p.until("document.getAnimations().length === 0", "animations finished")
+            p.key("End", vk=35)
+            time.sleep(0.3)
+            self.assertEqual(p.js("(function(){var m=document.querySelector('.cols-menu');return m?m.scrollTop:-1})()"), 0, "Cards: End moved the focus without scrolling the menu")
+
 
 for _cls in (ColumnsMenuFit, ColumnsMenuCardsPinned):
     for _name in dir(base.InThePage):      # the Work items tests of the base class are run by their own file, not again here
