@@ -111,6 +111,9 @@ class Editor(Setup):
             p.until("document.scrollingElement.clientHeight <= 300 && document.scrollingElement.scrollHeight > 300 && (document.scrollingElement.scrollTo(0, %s), Math.abs(document.scrollingElement.scrollTop - %s) < 2)"
                     % (to, "(document.scrollingElement.scrollHeight - document.scrollingElement.clientHeight)" if bottom else "0"), "the page is at its edge")
             settle(p)
+            # A page that grew after the first hit leaves scrollTop short of the edge: go to the edge again and wait again.
+            p.js("document.scrollingElement.scrollTo(0, %s)" % ("1e6" if bottom else "0"))
+            settle(p)
             before = p.js(EDGE_PROBE)
             before["numbers"] = p.js(EDGE_NUMBERS)
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 200, "y": 150, "deltaX": 0, "deltaY": 600 if bottom else -600}, p.sid)
@@ -135,6 +138,7 @@ class Editor(Setup):
                         before, after = self.edge(width, hash_, bottom)
                         self.assertEqual(before["overscroll"], "none")
                         self.assertGreater(before["max"], 0, "the page is taller than the window, so it has a bottom to test")
+                        self.assertEqual(before["scrollTop"], before["max"] if bottom else 0, "the page is at its edge before the wheel; before %s" % before["numbers"])
                         said = "a wheel past the edge does not move the page; before %s after %s" % (before["numbers"], after["numbers"])
                         self.assertEqual(after["scrollTop"], before["scrollTop"], said)
                         self.assertEqual(after["top"], before["top"], said)
