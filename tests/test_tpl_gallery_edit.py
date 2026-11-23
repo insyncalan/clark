@@ -182,14 +182,14 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
     def test_frame_radius_9_cover_and_the_blue_grey_ground(self):
         for page in (1400, 900):
             self.mount(many(2), page)
-            self.assertEqual(self.style(".tpl-gal-frame", "borderTopLeftRadius", "overflow", "backgroundColor"), ["9px", "hidden", "rgb(232, 237, 248)"])
+            self.assertEqual(self.style(".tpl-gal-frame", "borderTopLeftRadius", "overflow", "backgroundColor"), ["9px", "hidden", "rgb(230, 235, 246)"])   # --grey-100 (the mock-up draws #E8EDF8, a hex the Classic guards refuse)
             self.assertEqual(self.style(".tpl-gal-frame img", "objectFit"), ["cover"])
 
     def test_add_tile_is_dashed_and_gone_at_six(self):
         self.mount(many(3))
         self.assertEqual(self.text(".tpl-gal-add"), "+" + ADD)
         self.assertEqual(self.val("document.querySelector('.tpl-gal-add').getAttribute('aria-label')"), ADD)
-        self.assertEqual(self.style(".tpl-gal-add", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius"), ["dashed", "2px", "rgb(184, 193, 220)", "12px"])
+        self.assertEqual(self.style(".tpl-gal-add", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius"), ["dashed", "2px", "rgb(196, 206, 227)", "12px"])   # --grey-300 (the mock-up draws #b8c1dc: no hex in the Classic block)
         self.assertGreaterEqual(self.val("document.querySelector('.tpl-gal-add').getBoundingClientRect().height"), 120)
         self.assertEqual(self.style(".tpl-gal-add b", "fontSize")[0], "26px")
         self.assertEqual(self.style(".tpl-gal-add span", "fontSize")[0], "13px")
@@ -201,7 +201,7 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.mount("", page)
             self.assertEqual(self.count(".tpl-gal-tile"), 0)
             self.assertEqual(self.text(".tpl-gal-empty span"), EMPTY)
-            self.assertEqual(self.style(".tpl-gal-empty", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius"), ["dashed", "2px", "rgb(184, 193, 220)", "12px"])
+            self.assertEqual(self.style(".tpl-gal-empty", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius"), ["dashed", "2px", "rgb(196, 206, 227)", "12px"])
             self.assertGreaterEqual(self.val("document.querySelector('.tpl-gal-empty').getBoundingClientRect().height"), 200)
             w = self.val("[document.querySelector('.tpl-gal-empty').getBoundingClientRect().width, document.querySelector('#root').getBoundingClientRect().width]")
             self.assertAlmostEqual(w[0], w[1], delta=2, msg="full width")
@@ -297,6 +297,52 @@ class Words(Page):         # the fields and the count line
 
     def test_the_gallery_code_says_no_300_dpi(self):
         self.assertNotIn("300 dpi", (SRC / "clark" / "section_kinds" / "gallery.py").read_text(encoding="utf-8"))
+
+
+class ApprovedWords(Page):     # every approved string of the Edit page, character for character (NEW-WORDS :1484, :1595-1596, :1900, :1979-1980, :1996-2000, :2142)
+    def test_a_partial_add_says_added_n_of_the_files_with_the_count_from_the_real_numbers(self):
+        self.mount(many(4))
+        self.val("add(5)", True)
+        self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
+        self.assertEqual(self.toast_text(), "Added 2 of the 5 files. A gallery holds up to six images.")
+        self.mount(many(5))
+        self.val("add(5)", True)
+        self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
+        self.assertEqual(self.toast_text(), "Added 1 of the 5 files.", "one added: no second sentence")
+
+    def test_the_field_words_name_the_selected_image_by_its_number(self):
+        self.mount(many(3))
+        self.assertEqual(self.val("document.querySelector('.tpl-gal-fields label').textContent"), "Selected image 1: describe it for people who cannot see it")
+        self.assertEqual(self.text(".tpl-gal-fields label .quiet"), "for people who cannot see it")
+        self.val("document.querySelectorAll('.tpl-gal-tile')[2].click()")
+        self.until("document.querySelector('.tpl-gal-fields label').textContent.startsWith('Selected image 3: describe it')", "image 3 selected")
+        self.assertEqual(self.val("document.querySelector('.tpl-gal-fields label').textContent"), "Selected image 3: describe it for people who cannot see it")
+        self.assertEqual(self.val("[...document.querySelectorAll('.tpl-gal-tile')].map(e => e.getAttribute('aria-label'))"), ["Image 1", "Image 2", "Image 3"])
+        self.assertEqual(self.text(".tpl-gal-fields label[for$='caption-3'] .quiet, .tpl-gal-fields .tpl-pic-lbl .quiet"), "optional")
+        caption = self.val("[...document.querySelectorAll('.tpl-gal-fields label, .tpl-gal-fields .tpl-pic-lbl')].map(e => e.textContent)")
+        self.assertEqual(caption[1], "Caption optional")
+        self.assertEqual(self.text("[data-alt-note]"), "No description yet.")
+
+    def test_image_added_is_said_after_one_image_is_added(self):
+        self.mount("")
+        self.val("add(1)", True)
+        self.until("F.server.calls.length >= 1", "sent")
+        self.until("(F.toast() || {}).text === 'Image added.'", "said")
+        self.assertEqual(self.toast_text(), "Image added.")
+
+    def test_making_the_image_ready_shows_in_the_empty_area_while_the_image_is_made(self):
+        self.mount("")
+        self.cdp.js("window.__seen = []; new MutationObserver(() => { const s = document.querySelector('.tpl-gal-empty span'); if (s) window.__seen.push(s.textContent); }).observe(document.getElementById('root'), {subtree: true, childList: true, characterData: true});", self.sid)
+        self.val("add(1)", True)
+        self.until("F.server.calls.length >= 1", "sent")
+        self.assertIn("Making the image ready\u2026", self.cdp.js("window.__seen", self.sid))
+
+    def test_description_saved_is_said_after_a_description_is_typed(self):
+        self.mount(many(2))
+        self.val("(function(){ const i = document.querySelector('.tpl-gal-fields input[type=text]'); i.focus(); i.value = 'A fictional room'; i.blur(); return 1; })()")
+        self.until("(F.toast() || {}).text === 'Description saved.'", "said")
+        self.assertEqual(self.toast_text(), "Description saved.")
+        self.assertEqual(self.body()["items"]["1"]["alt"], "A fictional room")
 
 
 if __name__ == "__main__":
