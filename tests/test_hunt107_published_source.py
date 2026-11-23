@@ -26,7 +26,6 @@ class Source(unittest.TestCase):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         wide = media_block(css, "max-width: 1000px")
         self.assertRegex(wide, r"\.top \.tabs \{[^}]*overflow-x: auto")
-        self.assertRegex(wide, r"\.top \.asat \{[^}]*white-space: nowrap")
         self.assertNotRegex(media_block(css, "max-width: 700px"), r"\.top \.tabs \{[^}]*overflow-x")
 
     def test_printing_ignores_the_open_use_case(self):

@@ -21,7 +21,7 @@ NOT_TEXT = {(".cp-m", "18px"),
 
 # Fixed boxes that a 14 px label overfills at 900 px: the "As at" date in the top bar, the avatars (initials in a 26 or 24 px
 # circle), the Type badge (102 px column), the template tick box (18 px).
-CAPTION = [".asat", ".av", ".cp-name .av", ".type", ".tpl-check-box", ".sb-a"]
+CAPTION = [".av", ".cp-name .av", ".type", ".tpl-check-box", ".sb-a"]
 
 # Headings sit on the heading sizes, so none is smaller than the body text around it. The wordmark is 24 px (--size-h2): the owner's
 # answer to #453 question 1, "Make these changes", restores PR 240's size, which #428 had set back to 20 px.

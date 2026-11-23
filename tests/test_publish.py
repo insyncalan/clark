@@ -1119,9 +1119,9 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 1, "row 1178: the bar has the one date button (the old chip is gone)")
+            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 0, "row 1543: the bar has no As at date button")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
-            self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
+            self.assertNotIn("As at", cdp.js("document.querySelector('#client-menu').textContent", sid), "row 1543: no As at in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
                 cdp.js(f"document.querySelector('[data-view={view}]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == h1), view)
@@ -1210,7 +1210,7 @@ class RealBrowser(unittest.TestCase):
             allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b, .mv-mk, .mv-lab, .mv-lab2, [data-msdet]"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.classList.contains('asat') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
             logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)
