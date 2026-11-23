@@ -33,7 +33,7 @@ import struct
 import zlib
 
 from clark.section_kinds.base import Bad
-from clark.section_kinds.textimage import (BIG_PICTURE, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
+from clark.section_kinds.textimage import (ADD_PICTURE_BUTTON, BIG_PICTURE, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
                                            picture, pictures_of, put, set_picture)
 from clark.section_kinds.textimage import PICTURE_MAX as V1_PICTURE_MAX
 
@@ -347,21 +347,23 @@ def _same_as_original(numbers):
     return "shape" not in numbers and "crop" not in numbers
 
 
-def _make_framed(original, numbers):
-    """The framed copy (a data address) of `original`; the original itself when nothing is cut and it is not too wide."""
+def _make_framed(original, numbers, width_max=None, framed_max=None):
+    """The framed copy (a data address) of `original`; the original itself when nothing is cut and it is not too wide.
+    `width_max` and `framed_max` are this template's limits; the Image gallery (row 1233) passes its own and shares the rest."""
+    width_max, framed_max = width_max or WIDTH_MAX, framed_max or FRAMED_MAX      # read when called (a test may change the module's limits)
     kind, raw = _decode_data(original)
     if _same_as_original(numbers):
         size = png_size(raw) if kind == "png" else (_jpeg_size(raw) if kind == "jpeg" else _webp_size(raw))
-        if size is not None and size[0] <= WIDTH_MAX and len(raw) <= FRAMED_MAX:
+        if size is not None and size[0] <= width_max and len(raw) <= framed_max:
             return original
     if kind != "png":
         raise Bad(CANT_FRAME)
     w, h, ch, rows = _read_png(raw)
     x0, y0, x1, y1 = _window(w, h, numbers)
     rows = [r[x0 * ch:x1 * ch] for r in rows[y0:y1]]
-    rows, nw, nh = _smaller(rows, x1 - x0, y1 - y0, ch, WIDTH_MAX)
+    rows, nw, nh = _smaller(rows, x1 - x0, y1 - y0, ch, width_max)
     made = _write_png(rows, nw, nh, ch, _digest(original, numbers))
-    if len(made) > FRAMED_MAX:
+    if len(made) > framed_max:
         raise Bad(STILL_BIG)
     return _encode_data(made)
 
@@ -390,6 +392,8 @@ def _version(value):
 
 def _say_image(text):
     """A version 2 refusal says "image", never "picture" (the version 1 texts, in textimage.py, are unchanged)."""
+    if ADD_PICTURE_BUTTON in text:        # the button keeps its words
+        return ADD_PICTURE_BUTTON.join(_say_image(part) for part in text.split(ADD_PICTURE_BUTTON))
     return text.replace("a picture", "an image").replace("picture", "image").replace("Picture", "Image")
 
 
