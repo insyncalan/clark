@@ -1,6 +1,6 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
 // the three tabs. A layer in place of the open page; Esc returns to it. Edit-served pages only (edit/index.js).
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts, stepPicture } from "./helpLogic.js";
 import { pictureUrl } from "./helpPictures.js";
 import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo } from "./helpStore.js";
@@ -305,7 +305,7 @@ export function Help() {
     if (el) el.focus({ preventScroll: true });
   }, [helpLand.value]);
   useEffect(() => { if (helpFocusSearch.value && search.current) { search.current.focus(); search.current.select(); } }, [helpFocusSearch.value]);
-  useEffect(() => { const el = search.current || box.current; if (el) el.focus({ preventScroll: true }); }, []);      // full Help opens on the search box, so typing goes in at once
+  useLayoutEffect(() => { const el = search.current || box.current; if (el) el.focus({ preventScroll: true }); }, []);      // full Help opens on the search box, so typing goes in at once
   const onTabKey = (e) => {
     const ks = TABS.map((t) => t.key), i = ks.indexOf(tab);
     const j = e.key === "ArrowRight" ? (i + 1) % ks.length : e.key === "ArrowLeft" ? (i + ks.length - 1) % ks.length : e.key === "Home" ? 0 : e.key === "End" ? ks.length - 1 : -1;
