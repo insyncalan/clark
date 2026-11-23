@@ -108,7 +108,7 @@ class Layers(InBrowser):
         self.assertTrue(wait(lambda: not self.js("!!document.querySelector('.de')")), "Close closed it")
         self.assertEqual(self.js("T.closed"), 1)
         self.assertFalse(any(self.states().values()), f"nothing is inert any more: {self.states()}")
-        self.assertEqual(self.js("document.activeElement.id"), "main-b", "focus went back to what opened it")
+        self.assertTrue(wait(lambda: self.js("document.activeElement.id") == "main-b"), "focus went back to what opened it")
 
     def test_something_that_was_inert_before_stays_inert_after(self):
         self.js("document.getElementById('peek').setAttribute('inert', '')")

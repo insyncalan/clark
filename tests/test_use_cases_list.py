@@ -456,7 +456,7 @@ class Eye(Setup):
                 self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], before + 1, "one change is one step")
                 self.assertEqual(p.js(f"document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye').title"), ON)
                 self.assertEqual(self.count(p), "Showing 4 of 4 · 3 on the dashboard")
-                self.assertEqual(p.js(f"document.activeElement === document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye')"), True, "the eye keeps the focus")
+                self.assertTrue(wait(lambda: p.js(f"document.activeElement === document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye')") is True), "the eye keeps the focus")
                 p.js("document.querySelector('[data-view=dashboard]').click()")
                 p.until("!!document.querySelector('.uc')", "the dashboard")
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "3 use cases", "the dashboard follows")

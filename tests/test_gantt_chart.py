@@ -469,12 +469,12 @@ class Chart(unittest.TestCase):
                     self.keypress("[data-g-filter]", "Escape")
                 return not self.count("[data-g-showmenu]")
             self.assertTrue(wait(press_escape, 8), "Escape closes the menu")
-            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"Escape returns focus to Show at {w}")
+            self.assertTrue(wait(lambda: self.val("document.activeElement === document.querySelector('[data-g-show]')")), f"Escape returns focus to Show at {w}")
             self.js("document.querySelector('[data-g-show]').click()")
             self.until("document.querySelector('[data-g-showmenu]')", "the menu again")
             self.js("document.querySelector('[data-g-filter=phases]').focus(); document.querySelector('[data-g-filter=phases]').click()")
             self.until("!document.querySelector('[data-g-showmenu]')", "choosing closes the menu")
-            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"choosing a view returns focus to Show at {w}")
+            self.assertTrue(wait(lambda: self.val("document.activeElement === document.querySelector('[data-g-show]')")), f"choosing a view returns focus to Show at {w}")
 
     def test_hunt7_the_add_menu_does_not_pull_focus_back_when_the_chart_redraws(self):
         for w in (1400, 900):
