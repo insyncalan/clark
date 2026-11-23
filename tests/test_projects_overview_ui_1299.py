@@ -85,16 +85,19 @@ class Overview(Base):
             p.until("document.querySelectorAll('.ov-table tbody tr').length === 2", "all again")
 
     def test_O_a_click_on_a_value_opens_that_setting_for_that_project(self):
-        for key, slug in (("client", "Brand and publishing"), ("review", "Reports and pages"), ("asking", "ask clark"), ("backup", "Backups")):
-            with self.subTest(value=key), chrome() as cdp:
+        for w, (key, slug) in ((w, kv) for w in WIDTHS for kv in (("client", "Brand and publishing"), ("review", "Reports and pages"), ("asking", "ask clark"), ("backup", "Backups"))):
+            with self.subTest(width=w, value=key), chrome() as cdp:
                 p = self.page(cdp)
-                self.open_settings(p, 1400)
+                self.open_settings(p, w)
                 p.until("!!document.querySelector('#projects-overview .ov-table')", "the overview drew")
+                before = (list(self.rig.store.con.iterdump()), [dict(r, attention=list(r["attention"])) for r in self.rows])      # everything stored, and ABC's overview row
                 p.js(f"document.querySelector('tr[data-ov-project=ABC] [data-ov={key}]').click()")
                 p.until(f"document.querySelector('.set-chip[aria-current]').textContent.trim() === {slug!r}", "the page opened")
                 if key != "backup":
                     self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: PUB", "the switch is off: the cards edit the open project, so no other project is chosen")
+                    p.until("!!document.querySelector('.set-tab[aria-current]')", "the project tabs drew")      # the tabs are read after the page opens
                     self.assertEqual(p.js("document.querySelector('.set-tab[aria-current]').textContent.trim()"), TWO[0]["name"])
+                self.assertEqual(before, (list(self.rig.store.con.iterdump()), self.rows), "nothing of ABC (or any project) was edited by the click")
 
 
 class OverviewClean(Overview):
