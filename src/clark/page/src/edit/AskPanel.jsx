@@ -443,7 +443,7 @@ export function AskPanel() {
             <ul>
               <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
-              {hasFolders ? <li data-ask-folders-go>{W.named(W.FOLDERS_GO, askProvider.value)} {W.PICTURES_LOCAL}</li> : null}
+              {hasFolders ? <li data-ask-folders-go>{W.named(W.FOLDERS_GO, askProvider.value)}</li> : null}
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
             </ul>
             <p class="ask-first-tip">{W.CARD_TIP_BEFORE}<kbd>{W.CARD_TIP_KEY}</kbd>{W.CARD_TIP_AFTER}</p>
@@ -451,7 +451,7 @@ export function AskPanel() {
             <p>{W.FIRST_RUN_READS}</p>
             <p>{W.FIRST_RUN_CHANGES}</p>
             <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
-            {hasFolders ? <p data-ask-folders-go>{W.named(W.FOLDERS_GO, askProvider.value)} {W.PICTURES_LOCAL}</p> : null}
+            {hasFolders ? <p data-ask-folders-go>{W.named(W.FOLDERS_GO, askProvider.value)}</p> : null}
             <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
           </>)}
         </section>

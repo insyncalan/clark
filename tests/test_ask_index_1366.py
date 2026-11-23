@@ -217,21 +217,19 @@ class Followups(Base):
         for name, raw in files.items():
             self.assertEqual(publish_public.guard_kinds("tests/" + name, raw), set(), name)
 
-    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+    def test_first_run_cards_and_help_state_passages_go_to_claude(self):
         import json
         from _paths import ROOT
         page = ROOT / "src" / "clark" / "page" / "src"
         six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
-        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
         words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
         self.assertIn(f'export const FOLDERS_GO = "{six}";', words)
-        self.assertIn(f'export const PICTURES_LOCAL = "{ten}";', words)
         panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
         self.assertEqual(panel.count("W.FOLDERS_GO"), 2, "the Classic card and the Cards card")
-        self.assertEqual(panel.count("W.PICTURES_LOCAL"), 2)
         text = json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
         self.assertIn(six, text)
-        self.assertIn(ten, text)
+        self.assertNotIn("PICTURES_LOCAL", words + panel)
+        self.assertNotIn("PNG and JPG", text)
 
 
 class IndexAnswerPage(unittest.TestCase):

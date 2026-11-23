@@ -26,7 +26,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-# 'Keep the model I have' and 'Use it anyway' are the buttons of the Settings AI card (edit/AiSettings.jsx, #446); the prototype has no AI card. Claude and ChatGPT are named only as the two providers the card connects.
+# 'Keep the model I have' and 'Use it anyway' are the buttons of the Settings AI card (edit/AiSettings.jsx, #446); the prototype has no AI card. Claude and ChatGPT are named only as the two providers the card connects and in Claude, which Anthropic runs (NEW-WORDS:2192).
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
@@ -197,7 +197,7 @@ class Places(unittest.TestCase):
 
 class Words(unittest.TestCase):
     JARGON = re.compile(r"\b(sweeps?|proposals?|stag(?:e|ed|ing)|vault|live server|extract(?:s|ed|ion)?|refus(?:e|ed|al)|valid|invalid|"
-                        r"(?<!Progress )(?<!Status )tracker|prototype|demo|creaite|Claude(?! (?:or|and) ChatGPT)(?!, which Anthropic runs)|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
+                        r"(?<!Progress )(?<!Status )tracker|prototype|demo|creaite|Claude(?! (?:or|and) ChatGPT|, which Anthropic runs)|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
     # "close the list to apply it" is ordinary English for a filter; nothing here means creaite's apply
     PATH = re.compile(r"(?:\w+/){2,}|\.py\b|\.js\b|\.json\b|\.md\b|~/|\\")
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
