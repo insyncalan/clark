@@ -227,7 +227,7 @@ function ChangeCard({ plan, turn, index, passages }) {
       {classic && typeof plan.why === "string" && plan.why ? <p class="ask-why" data-ask-why><span class="muted">{W.WHY}: </span>{plan.why}</p> : null}
       {confirm && state === "offered" && live ? (
         <div class="ask-confirm">
-          <p class="ask-confirm-line">{passages ? W.CONFIRM_LINE : W.CONFIRM_NO_PASSAGE_LINE}</p>
+          <p class="ask-confirm-line">{plan.client === true && plan.from_source !== true ? W.CONFIRM_CLIENT_LINE : passages ? W.CONFIRM_LINE : W.CONFIRM_NO_PASSAGE_LINE}</p>
           <label><input type="checkbox" data-ask-confirm checked={ticked} onChange={(e) => setTicked(e.currentTarget.checked)}
             onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} /> {W.CONFIRM_BOX}</label>
         </div>

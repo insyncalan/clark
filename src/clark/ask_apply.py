@@ -76,6 +76,8 @@ NOT_ALLOWED = "Asking can't set the {name} of this item. Nothing was changed. Ch
 NOTHING = "That suggestion doesn't say what to change. Nothing was changed. Ask again."
 NEEDS_CONFIRM = ("This change comes from one of your files. Read the passage, then press Confirm to save it. "
                  "Nothing was changed yet.")
+NEEDS_CONFIRM_CLIENT = ("This change is to something your client sees. Check it, then press Confirm to save it. "
+                        "Nothing was changed yet.")      # row 1416: words proposed, to Jarvis for approval before the PR
 NO_OFFER = "That change is no longer waiting to be saved. Nothing was changed. Ask again."
 ASKING_OFF = changes.ASK_OFF
 BUSY = "The saved data could not be opened just now. Wait a moment and try again. Nothing was changed."
@@ -203,6 +205,26 @@ def read_suggestion(project, change, from_source=False):
     return Plan(table, op, ref, request, claims, bool(from_source) or source is not None, why)
 
 
+# Row 1416 (PM ruling 24-11): the columns of a change that alter what the client report shows, per table. Not here: workstream, milestone link, priority
+# (the PM ruled no tick for them), nor anything the ask path cannot reach. A change to one of these on an item that is on the client report needs the extra tick.
+CLIENT_COLUMNS = {
+    "actions": ("description", "owner", "due_date", "status"),
+    "raid": ("description", "owner", "due_date", "status", "impact", "likelihood"),
+    "decisions": ("decision", "made_by", "date", "needed_by", "status"),
+    "milestones": ("name", "owner", "baseline_date", "forecast_date", "actual_date", "status"),
+    "use_cases": ("headline", "standing", "status"),
+}
+
+
+def _client_sees(before, after, plan, fields, on_report):
+    """Row 1416: True when the change alters what a client sees. An existing item that is on the client report (client_visible on) and a
+    changed column that the report shows (CLIENT_COLUMNS); or a new item that would be on the report. An item that is off the report, or
+    a column the report does not need a tick for, needs none. Asking can never turn the flag itself, so `before` decides for a change."""
+    if plan.op == OP_NEW:
+        return bool(after) and after.get("client_visible", 1) == 1      # a milestone's row does not carry the flag: a new one is on the report
+    return on_report is True and any(f in CLIENT_COLUMNS.get(plan.table, ()) for f in fields)
+
+
 @dataclass
 class Offer:
     project: str
@@ -210,6 +232,7 @@ class Offer:
     expect: object
     from_source: bool
     at: float
+    client: bool = False          # Row 1416: the change alters something a client sees (the item is on the client report); it needs the same extra tick
     ref: object = None            # Row 1293: the item a change is about (None for a new item)
     stale: str = ""               # Row 1293: the sentence to give when another change to the same item has been saved first ("" when not)
 
@@ -268,6 +291,7 @@ class AskApply:
             owner = plan.claims.get("current_owner")
             if owner is not None and _fold(owner) != _fold(row.get(OWNER[plan.table])):
                 raise Refusal("wrong_owner", WRONG_OWNER.format(ref=plan.ref))
+            return row.get("client_visible") == 1      # row 1416: is the item on the client report (a milestone's `before` does not carry the flag)
         finally:
             store.close()
 
@@ -317,7 +341,7 @@ class AskApply:
         `before` and `after` come from the data (changes.make_ask_change, rolled back); `fields` the shown fields that differ."""
         try:
             plan = read_suggestion(project, change, from_source)
-            self.check_data(plan)
+            on_report = self.check_data(plan)
         except Refusal as r:
             return fail(r.code, r.message, r.status)
         status, body = self.ask_change(plan.request, dry=True)
@@ -329,13 +353,14 @@ class AskApply:
         fields = [k for k in after if k != "id" and (after[k] is not None if before is None else before.get(k) != after[k])]
         if not fields:
             return fail("nothing", NOTHING)
+        client = _client_sees(before, after, plan, fields, on_report)
         offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock(),
-                                plan.ref if plan.op == OP_CHANGE else None))
+                                client, plan.ref if plan.op == OP_CHANGE else None))
         out = {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
                "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
                "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None,
                "owner": _owner_shown(before, plan), "why": plan.why,
-               "needs_confirm": plan.from_source}
+               "needs_confirm": plan.from_source or client, "client": client, "from_source": bool(plan.from_source)}
         if plan.op == OP_NEW:
             said = self.duplicate_of(plan, after, earlier)
             if said:
@@ -376,8 +401,8 @@ class AskApply:
             if held.stale:                             # Row 1293: the first change to this item was saved; nothing is written for this one
                 del self.offers[offer]
                 return fail("changed", held.stale, 409)
-            if held.from_source and confirm is not True:
-                return fail("needs_confirm", NEEDS_CONFIRM, 409)
+            if (held.from_source or held.client) and confirm is not True:
+                return fail("needs_confirm", NEEDS_CONFIRM if held.from_source else NEEDS_CONFIRM_CLIENT, 409)
             del self.offers[offer]                     # taken while it is saved, so a second Apply at the same moment finds nothing
         try:
             status, body = self.ask_change(held.request, dry=False, expect=held.expect)

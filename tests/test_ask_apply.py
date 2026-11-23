@@ -31,7 +31,7 @@ class Base(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
             self.other = st.create("actions", {"project": "XYZ", "description": "Order the badges", "owner": "Kit Moss",
                                                "raised": "2026-10-01", "source": "demo"})
-        self.action = self.demo.action(owner="Sam Lee")
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, so a plain Apply needs no extra tick; tests/test_ask_client_tick_1416.py has the client-visible cases
         self.ask = ask_apply.AskApply(self.path, [], USER)
         self.undo = changes.make_undo(self.path, [], USER)
 
@@ -77,7 +77,7 @@ class WorkItems(Base):
         self.assertIsNone(plan["before"])
         self.assertEqual(plan["after"]["description"], "Book the training room")
         self.assertEqual(plan["after"]["status"], "Open")                  # the store's default, not the suggestion's
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         ref = done["ref"]
         self.assertEqual(self.s.read("actions", ref=ref)["description"], "Book the training room")
         events = self.ask_events(ref)
@@ -93,7 +93,7 @@ class WorkItems(Base):
     def test_an_item_ask_clark_creates_has_the_source_added_by_ask_clark(self):      # #1009: not 'by hand'
         for kind, table, title in (("action", "actions", "Book the van"), ("milestone", "milestones", "Pilot starts")):
             plan = self.planned({"op": "new", "kind": kind, "title": title, **({"owner": "Sam Lee"} if kind == "action" else {"agreed_date": "2030-02-01"})})
-            done = self.applied(plan["offer"])
+            done = self.applied(plan["offer"], confirm=True)
             self.assertEqual(self.s.read(table, ref=done["ref"])["source"], changes.ASK_SOURCE)
             self.assertEqual(changes.ASK_SOURCE, "Added by ask clark")
         hand = self.demo.action(owner="Sam Lee")
@@ -104,7 +104,7 @@ class WorkItems(Base):
                              "current_owner": "Sam Lee", "owner": "Ana Ruiz", "due": "2030-01-15"})
         self.assertEqual((plan["before"]["owner"], plan["after"]["owner"]), ("Sam Lee", "Ana Ruiz"))
         self.assertEqual(sorted(plan["fields"]), ["due_date", "owner"])
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         self.assertTrue(done["undoable"])
         row = self.s.read("actions", ref=self.action)
         self.assertEqual((row["owner"], row["due_date"]), ("Ana Ruiz", "2030-01-15"))
