@@ -2,8 +2,7 @@
 filter line from its own menu. Tests only: nothing in the page changes.
 
 Run: python3 dev/run_tests.py test_core_view_names_702
-The page tests drive the committed page in headless Chrome at 1400 and 900 px (the 900 cases are skipped with the stated reason while
-test_server.PAUSED_900 is set, as in test_filter_line_page). The words test reads the source files.
+The page tests drive the committed page in headless Chrome at 1400 and 900 px (the 900 cases run; test_server.PAUSED_900 is None). The words test reads the source files.
 """
 import json
 import re
