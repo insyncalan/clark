@@ -68,6 +68,18 @@ class OverTheBudget(unittest.TestCase):
         with self.assertRaises(ask.AskRefused):
             ask.build_request("What is late?", passages[:1], max_request=10)
 
+    def test_a_file_added_to_the_question_goes_last_even_when_it_shares_no_word_with_the_question(self):
+        body = lambda w: (w + " ").ljust(1000, "x")
+        passages = [("project", body("alpha")), ("notes/a.md", body("zzz")), ("notes/b.md", body("yyy")), ("notes/c.md", body("xxx")), ("upload.txt", body("qqq"))]
+        full = ask.build_request("What is late?", passages, files=1)
+        cut = ask.build_request("What is late?", passages, max_request=len(full.text) - 1, files=1)
+        self.assertEqual((cut.kept, cut.left_out), ((0, 1, 2, 4), 1))           # item 1292: a folder passage went, the file stayed (the file is last, so a tie used to cut it first)
+        self.assertIn("upload.txt", cut.text)
+        every = ask.build_request("What is late?", passages, max_request=len(full.text) - 3000, files=1)
+        self.assertEqual(every.kept, (0, 4))                                    # the file goes only when no other passage can
+        self.assertEqual(ask.build_request("What is late?", passages, max_request=len(full.text) - 4000, files=1).kept, (0,))      # then the file goes, never the first passage
+        self.assertEqual(ask.build_request("What is late?", passages, max_request=len(full.text) - 1).kept, (0, 1, 2, 3))      # no files named: unchanged
+
     def test_earlier_turns_go_before_any_passage_is_left_out(self):
         passages = [("notes/a.md", "alpha " * 100), ("notes/b.md", "late " * 100)]
         earlier = [("user", "first " * 100), ("assistant", "reply " * 100)]

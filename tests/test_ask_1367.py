@@ -237,6 +237,12 @@ class AsAtAndNoteOrder(unittest.TestCase):
 
 
 class NoteThroughTheRoute(route.Base):
+    def request_cut(self, extra, question="what is late?"):
+        """The reply of a question whose folder read hands back `extra` passages more than the passage limit (2) leaves room for: the request itself leaves them out (item 1292)."""
+        folder = ask_passages.FolderData(passages=tuple(ask.Passage("f%d.md" % i, "plan %d" % i) for i in range(extra)), left_out=0)
+        with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder), mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 2):
+            return self.question(question)
+
     def test_the_counts_line_comes_straight_after_the_report_line_position_and_before_folder_lines(self):
         with mock.patch.object(ask_service, "folder_notes", return_value=["ZQ-FOLDER-LINE"]), mock.patch.object(ask_service, "PROJECT_SHARE", 600):
             status, got = self.question("what is late?")
@@ -253,14 +259,13 @@ class NoteThroughTheRoute(route.Base):
         self.assertFalse([n for n in got["notes"] if "too long to send in full" in n], got["notes"])
 
     def test_the_reply_notes_say_how_many_passages_were_left_out(self):
-        with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 1):
-            status, got = self.question("what is late?")
+        status, got = self.request_cut(3)
         self.assertEqual(status, 200, got)
         lines = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
         self.assertEqual(len(lines), 1, got["notes"])
         self.assertRegex(lines[0], r": [1-9][0-9]* passages?\.$")
 
-    def test_the_size_limit_line_says_the_sum_of_the_project_cut_and_the_request_cut(self):
+    def test_the_size_limit_line_counts_the_request_cut_only_the_project_cut_has_its_counts_lines(self):
         real = ask_data.project_data
 
         def cut_by(extra):
@@ -281,14 +286,22 @@ class NoteThroughTheRoute(route.Base):
 
         request_only = number(0)
         self.assertGreaterEqual(request_only, 1)                 # the request cut leaves something out on its own
-        self.assertEqual(number(3), request_only + 3)            # and the project cut of 3 is added to it, not dropped and not alone
+        self.assertEqual(number(3), request_only)                # the project cut of 3 is told by the counts lines (Sent X of Y ...), so it is not counted a second time here (item 1292)
+
+    def test_a_project_cut_is_told_once_by_the_counts_lines_and_not_again_by_the_size_limit_line(self):
+        with mock.patch.object(ask_service, "PROJECT_SHARE", 600):
+            status, got = self.question("what is late?")
+        self.assertEqual(status, 200, got)
+        self.assertTrue([n for n in got["notes"] if n.startswith("Sent ")], got["notes"])
+        self.assertEqual([n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit")], [], got["notes"])      # item 1292: one cut, one kind of line
 
     def test_the_notes_come_in_one_fixed_order_with_the_size_limit_line_after_the_report_line(self):
         """The order of the reply notes: earlier messages, secret, report too long, size limit, counts, folders, hidden characters."""
         with mock.patch.object(ask, "dropped_note", return_value="N1-DROPPED"), mock.patch.object(ask, "secret_note", return_value="N2-SECRET"), \
                 mock.patch.object(ask_service, "left_out_note", return_value="N3-REPORT"), mock.patch.object(ask, "left_out_text", side_effect=lambda c: "N4-SIZE-%d" % c), \
                 mock.patch.object(ask_data, "left_out_lines", return_value=["N5-COUNTS"]), mock.patch.object(ask_service, "folder_notes", return_value=["N6-FOLDER"]), \
-                mock.patch.object(ask_service, "hidden_notes", return_value=["N7-HIDDEN"]), mock.patch.object(ask, "MAX_PASSAGES", 1):
+                mock.patch.object(ask_service, "hidden_notes", return_value=["N7-HIDDEN"]), \
+                mock.patch.object(ask_service.ask_passages, "folder_data", return_value=ask_passages.FolderData(passages=tuple(ask.Passage("f%d.md" % i, "plan") for i in range(3)), left_out=0)), mock.patch.object(ask, "MAX_PASSAGES", 2):
             status, got = self.question("what is late?")
         self.assertEqual(status, 200, got)
         ours = [n for n in got["notes"] if n.startswith("N") and n[1:2].isdigit()]
@@ -303,9 +316,8 @@ class NoteThroughTheRoute(route.Base):
 
     def test_the_reply_notes_say_1_passage_and_n_passages(self):
         counts = {}
-        for keep in range(1, 12):
-            with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", keep):
-                status, got = self.question("what is late?")
+        for extra in range(1, 5):
+            status, got = self.request_cut(extra)
             self.assertEqual(status, 200, got)
             for n in got["notes"]:
                 m = re.match(r"Left out to keep this question under the size limit: (\d+) (passages?)\.$", n)
@@ -335,7 +347,8 @@ class NoteThroughTheRoute(route.Base):
         self.assertEqual(ask_service.left_out_note(0), "")
         self.assertFalse([n for n in base["notes"] if n.startswith("Left out to keep")], base["notes"])
         self.assertEqual([n for n in base["notes"] if "too long to send in full" in n], [ask_service.left_out_note(2)], base["notes"])      # files cut, request not cut
-        with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 1):
+        folder = ask_passages.FolderData(passages=(ask.Passage("a.md", "plan one"), ask.Passage("b.md", "plan two"), ask.Passage("c.md", "plan three")), left_out=0)
+        with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder), mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 2):
             status, only = self.question("what is late?")                                                                                  # request cut, no file cut
         self.assertEqual(status, 200, only)
         self.assertFalse([n for n in only["notes"] if "too long to send in full" in n], only["notes"])

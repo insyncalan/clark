@@ -256,11 +256,11 @@ def _standing(instructions):
     return out
 
 
-def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None):
+def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None, files=0):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
-    text than the budget. Text is carried exactly as given."""
+    text than the budget. Text is carried exactly as given. `files` is how many of the last `passages` are files added to the question: when the text is too long they go last (item 1292)."""
     max_request = MAX_REQUEST if max_request is None else max_request      # Row 1293: a model with a smaller window gives a smaller cap
     turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out, left_out = [], [], 0, 0
@@ -292,7 +292,9 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
         if dropped < len(turns):
             dropped += 1
         elif len(chosen) > 1:        # no turn is left to drop: leave out the least relevant passage (and say so) while another can still be kept; refused only when nothing can (Row 1292 ruling)
-            gone_at = _ranked(chosen, question)[-1]
+            ranked = _ranked(chosen, question)
+            file_from = len(passages or ()) - files        # item 1292: the question's own files are cut only when no other passage can go
+            gone_at = next((i for i in reversed(ranked) if i and kept[i] < file_from), ranked[-1])
             del chosen[gone_at], kept[gone_at]
             left_out += 1
         else:
