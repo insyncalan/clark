@@ -138,6 +138,30 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1233 (the Image gallery's Edit page, Classic only; Cards keeps the slot list). Values read from the approved mock-up (gallery-source.html, line numbers there): the grid (50), tile and frame (51-52, 20), add tile (56, 55), empty area (55, 108), caption (55). Three across, two at half width and at 900 px. */
+.tpl-gal-tiles { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-gal-tiles.c2, .slot-left .tpl-gal-tiles, .slot-right .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tpl-gal-tile { position: relative; box-sizing: border-box; padding: 0; border: 2px solid transparent; border-radius: 12px; cursor: pointer; min-width: 0; }
+.tpl-gal-tile.sel { border-color: var(--brand-blue); }
+.tpl-gal-frame { position: relative; width: 100%; overflow: hidden; border-radius: 9px; background-color: #E8EDF8; aspect-ratio: 4 / 3; }
+.tpl-gal-tiles.s11 .tpl-gal-frame { aspect-ratio: 1; }
+.tpl-gal-tiles.s169 .tpl-gal-frame { aspect-ratio: 16 / 9; }
+.tpl-gal-tiles.swhole .tpl-gal-frame { aspect-ratio: auto; }
+.tpl-gal-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tpl-gal-tiles.swhole .tpl-gal-frame img { height: auto; }
+.tpl-gal-tcap { margin: 6px 2px 0; font-size: 13px; color: var(--text-muted); }
+.tpl-gal-add { display: grid; place-items: center; box-sizing: border-box; min-height: 120px; border: 2px dashed #b8c1dc; border-radius: 12px; background: none; color: rgb(106, 117, 146); font: inherit; cursor: pointer; aspect-ratio: 4 / 3; }
+.tpl-gal-tiles.s11 .tpl-gal-add { aspect-ratio: 1; }
+.tpl-gal-tiles.s169 .tpl-gal-add { aspect-ratio: 16 / 9; }
+.tpl-gal-tiles.swhole .tpl-gal-add { aspect-ratio: 3 / 2; }
+.tpl-gal-add b { display: block; font-size: 26px; line-height: 1; }
+.tpl-gal-add span { font-size: 13px; }
+.tpl-gal-empty { display: grid; place-items: center; gap: 4px; box-sizing: border-box; width: 100%; min-height: 200px; border: 2px dashed #b8c1dc; border-radius: 12px; background: none; color: rgb(106, 117, 146); font: inherit; cursor: pointer; }
+.tpl-gal-empty b { font-size: 28px; }
+.tpl-gal-add:hover:not([disabled]), .tpl-gal-empty:hover:not([disabled]), .tpl-gal-empty.over, .tpl-gal-tiles.over .tpl-gal-add { border-color: var(--brand-blue); color: var(--brand-blue); }
+.tpl-gal-warn { margin: 3px 0 0; color: #BE3A2B; font-size: 13px; }
+.tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
