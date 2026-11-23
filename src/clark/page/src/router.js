@@ -24,6 +24,8 @@
 export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
 // Settings shows one page at a time (row 1024): "#settings&s=people". Plain "#settings" is the first page, Projects, so that one is never written.
 export const SETTINGS_PAGES = ["projects", "people", "profile", "folder", "brand", "theme", "appearance", "reports", "backups", "data", "claude", "logs", "version"];
+export const PAGE_VIEW = /^page:[A-Z][A-Z0-9]{2,6}-PG-[0-9]{3,}$/;     // row 1252: an added page's view is "page:" and its id; the router cannot know the ids, so it trusts this shape and the page falls back when none matches
+export const isPageView = (v) => typeof v === "string" && PAGE_VIEW.test(v);
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
@@ -41,7 +43,7 @@ function opaque(v) {
 function clean(state) {
   const s = state && typeof state === "object" ? state : {};
   const text = (v) => (typeof v === "string" ? v : "");
-  const view = VIEWS.includes(s.view) ? s.view : "dashboard";
+  const view = VIEWS.includes(s.view) || isPageView(s.view) ? s.view : "dashboard";
   const project = CODE.test(text(s.project)) ? s.project : "";
   const peekable = view !== "settings" && view !== "published";                    // Settings has no peek; one peek at a time, an item before a milestone
   const item = peekable && ID.test(text(s.item)) ? s.item : "";

@@ -257,6 +257,23 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1252: the Pages card of Settings, Reports. The disabled Add page button and the empty meter use the quiet fill; the amber line is the cap message; at 900 the rows stack. */
+#add-pages { --hover: var(--grey-100); }
+#add-pages .ap-limit { background: var(--tone-amber-tint); color: var(--tone-amber-text); border: 1px solid var(--tone-amber-text); border-radius: var(--radius); padding: 8px 14px; margin: 8px 0; }
+#add-pages .ap-list { margin: 0; padding: 0; list-style: none; }
+#add-pages .ap-page { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 11px 0; border-top: 1px solid var(--line-soft); }
+#add-pages .ap-text { flex: 1 1 240px; min-width: 0; }
+#add-pages .ap-text small, #add-pages .ap-meter, #add-pages .ap-cap { display: block; margin: 2px 0 0; color: var(--text-muted); font-size: var(--size-caption); }
+#add-pages .ap-bar { height: 6px; width: min(260px, 100%); background: var(--hover); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+#add-pages .ap-bar i { display: block; height: 100%; background: var(--brand-blue); }
+#add-pages .btn:disabled { background: var(--hover); color: var(--text-muted); cursor: default; }
+#add-pages .ap-configure { margin-top: 12px; border-top: 1px solid var(--line-soft); }
+#add-pages .ap-pos { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+#add-pages .ap-strip { display: flex; margin: 0; padding: 0; list-style: none; overflow-x: auto; background: var(--bar-end); border-radius: var(--radius); }
+#add-pages .ap-strip li { flex: none; padding: 10px 12px; color: rgba(255, 255, 255, .75); white-space: nowrap; font-size: 13px; }
+#add-pages .ap-strip li[aria-current] { color: #fff; box-shadow: inset 0 -3px 0 var(--accent-line); }
+#add-pages .ap-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 900px) { #add-pages .set-row { flex-wrap: wrap; } #add-pages .set-row-ctl { max-width: 100%; } }
 /* Row 1273 (Classic only; Cards keeps its menu rules): the two prototype menus, the View menu's Group by (#viewMenuList) and Move to, and no other (the Add menu is row 1462; the use case Group by menus keep theirs). Main's Row 1286 rules give them 15px and 224px. The prototype line: 7px 10px padding, then the icon at x10 and 10px (a space-2 and 2px) from icon to words: words at x36. The tick of the item in use is on the right of the word, as in every menu (ruling 9A: no tick slot in front of the icon); main's tick rule places it. Only two heads are drawn in capitals, Group by and the card's Move to head; the words stay as they are. */
 #viewMenuList.ddmenu [role="menuitemradio"], .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) [role="menuitem"] { gap: 0; padding-left: calc(var(--space-2) + 2px); }   /* :not(#none) only lifts Move to above the Row 1286 rule that names the three menus in one :is() list */
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }

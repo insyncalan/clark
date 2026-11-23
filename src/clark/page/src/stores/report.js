@@ -15,6 +15,9 @@ import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
 export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383)
+/** A view's tab name: an added page is named as it was named (row 1252); the others are in TITLES. */
+export const titleOf = (v) => (route.isPageView(v) ? ((data.value && data.value.added_pages || []).find((p) => p.id === v.slice(5)) || {}).name || "" : TITLES[v]);
+export const addedPage = computed(() => (route.isPageView(view.value) && data.value && data.value.added_pages || []).find((p) => "page:" + p.id === view.value) || null);
 export const SHORT_TITLES = {};   // a tab's name for a narrow window, where it has a shorter one; the page keeps the full name (none has one now)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
@@ -84,7 +87,13 @@ export const SERVED_TABS = VIEWS;   // the served page offers every view; a publ
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 // The tabs the bar offers right now. A published file lists its own (the server decides, #926); the served page adds the Gantt tab only
 // when the open project's setting says so, and until a project is read it does not (a reload on #gantt opens it once the setting is known).
-export const shownTabs = computed(() => (fromFile.value ? tabs.value : tabs.value.filter((v) => v !== "gantt" || editorOn(data.value && data.value.project))));
+export const shownTabs = computed(() => {
+  if (fromFile.value) return tabs.value;
+  const own = tabs.value.filter((v) => v !== "gantt" || editorOn(data.value && data.value.project));
+  const added = ((data.value && data.value.added_pages) || []).filter((p) => p.hidden !== 1).map((p) => "page:" + p.id);      // row 1252: after Gantt, before Settings, in the menu's order (the server sends them so)
+  const at = own.indexOf("settings");
+  return at < 0 ? [...own, ...added] : [...own.slice(0, at), ...added, ...own.slice(at)];
+});
 // The served page with the setting off (or turned off after) has no Gantt page: the address opens the first tab, as a reload of it does.
 effect(() => { if (view.value === "gantt" && !fromFile.value && status.value === "ready" && !shownTabs.value.includes("gantt")) { view.value = SERVED_TABS[0]; route.navigate({ view: SERVED_TABS[0], project: project.value, item: "", ms: "", f: "" }, { replace: true }); } });
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each

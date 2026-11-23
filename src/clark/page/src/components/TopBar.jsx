@@ -3,7 +3,7 @@ import { ClientMenu } from "./ClientMenu.jsx";
 import { CardsDate } from "./CardsDate.jsx";
 import { classicTheme } from "./Contents.jsx";
 import { coverLine } from "../logic/cover.js";
-import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
+import { TITLES, titleOf, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
@@ -92,7 +92,7 @@ export function TopBar({ tools }) {
       <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
           ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
-          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
+          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{titleOf(v)}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : titleOf(v)}</button>
         ))}
       </nav>
       {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header */}

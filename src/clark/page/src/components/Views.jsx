@@ -117,15 +117,15 @@ export function Milestones({ tools }) {
 const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
-  ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
+  ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting", "AddPages"]]]],
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
 ];
 // Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's class is set-tile-<slug> and the Classic rules in themes/prototype-2.0/rules-2.css colour it (one fill per page); the tile and the window class are drawn in the Classic theme only, Cards draws neither
 const SET_ICON = { profile: "user", appearance: "sun", theme: "moon", projects: "board", backups: "archive", reports: "chart", folder: "ul", brand: "flag", people: "people", claude: "sparkle", data: "dl", version: "info", logs: "clock" };
-const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
+const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting", "AddPages"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", AddPages: "add-pages-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {
