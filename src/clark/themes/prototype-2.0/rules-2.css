@@ -167,7 +167,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 
 /* Row 1046: the Critical (upgrade required) banner under the top bar. */
 .crit-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-4); background: color-mix(in srgb, var(--status-red) 12%, var(--surface)); color: var(--status-red-text); border-bottom: 1px solid var(--status-red); font-weight: 600; }
-.crit-text { flex: 1 1 24ch; min-width: 0; overflow-wrap: anywhere; }
+.crit-text { flex: 1 1 24ch; min-width: 0; overflow-wrap: break-word; }
 .crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
 .crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 
