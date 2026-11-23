@@ -15,7 +15,7 @@ WORDS = (PAGE / "logic" / "fullImageWords.js").read_text(encoding="utf-8")
 HELP = json.loads((PAGE / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
 NAMES = {                                      # id -> the name on the card (the renamed ones, row 1262)
-    "text-image": "Text and Image Side by Side",      # main's word (its own rename), not the Row 1262 list's Text with image
+    "text-image": "Text with image",      # Romanoff 23-11 10:28: the ticket table's word stands; the starting title stays Text and Image Side by Side
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
@@ -62,10 +62,9 @@ class TemplateNames(unittest.TestCase):
         block = next(l for l in lines if l.lstrip().startswith('builtIn("current"')) + "\n" + next(l for l in lines if l.lstrip().startswith('builtIn("milestones"'))
         for name in old:
             self.assertNotIn(f'"{name}"', block, f"the built-in cards in templates.js no longer use {name}")
-            self.assertNotIn(name, changes.BUILT_IN_TITLES.values(), f"Add a section no longer makes a section titled {name}")
         self.assertIn('builtIn("usecases", "Use cases"', block)
         self.assertIn('builtIn("docs", "Documents"', block)
-        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use cases", "Documents"))
+        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))      # Romanoff 23-11 10:28: section titles are not renamed
 
     def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Romanoff 23-11: Cards keeps Current state; the Dashboard default is not changed
         from clark import changes, default_sections

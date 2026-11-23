@@ -229,8 +229,7 @@ class ReAdd(Base):
     def test_every_built_in_is_added_again_once_with_its_own_title_and_settings(self):
         for t in BUILT_INS:
             with self.subTest(type=t):
-                self.of_type(t)[0]["title"]
-                title = changes.BUILT_IN_TITLES[t]      # row 1262: the re-added title is the one Add a section names (Use cases, Documents), not the seeded one
+                title = self.of_type(t)[0]["title"]
                 self.ok("delete", id=self.of_type(t)[0]["id"])
                 got = self.ok("new", values={"type": t, "title": "Something else"})
                 row = self.s.read(KIND, ref=got["ref"])

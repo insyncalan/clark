@@ -364,7 +364,7 @@ class Logic(unittest.TestCase):
     def test_text_and_image_side_by_side_is_listed_by_its_new_name_and_starts_a_version_2_body(self):
         """Row 1232 (ticket test 10): the picker lists the new name, not the old one, and the new section starts with a body of version 2."""
         names = [x["name"] for x in self.t("TEMPLATES")]
-        self.assertIn("Text and Image Side by Side", names)
+        self.assertIn("Text with image", names)
         self.assertNotIn("Text and image", names)
         p = self.t(f"plan({lit(S)}, 'text-image', 'a', false)")
         self.assertEqual(p["requests"][0]["values"], {"type": "textimage", "title": "Text and Image Side by Side", "body": '{"v":2}'})

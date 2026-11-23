@@ -63,8 +63,8 @@ class DefaultRisksList(unittest.TestCase):
 
     def test_every_built_in_keeps_its_title_whatever_the_defaults_hold(self):
         from clark import changes
-        self.assertEqual(changes.BUILT_IN_TITLES, {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
-                                                    "raid": "Risks and issues", "actions": "Open actions", "decisions": "Decisions", "docs": "Documents"})
+        self.assertEqual(changes.BUILT_IN_TITLES, {"current": "Current state", "glance": "At a glance", "usecases": "Use case summary", "milestones": "Milestones",
+                                                    "raid": "Risks and issues", "actions": "Open actions", "decisions": "Decisions", "docs": "Supporting documents"})
 
 
 if __name__ == "__main__":
