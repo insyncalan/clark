@@ -368,6 +368,8 @@ class Columns(unittest.TestCase):
 
     def test_the_choice_is_not_in_the_data_and_the_excel_export_does_not_read_it(self):
         for py in sorted((Path(page.__file__).parent.parent).glob("*.py")):
+            if py.name == "preferences.py":  # row 1535: the registry names the key; it holds no choice
+                continue
             self.assertNotIn("cols.show", py.read_text(encoding="utf-8"), f"{py.name}: the choice is the browser's own, not the project's data")
         excel = (Path(page.__file__).parent.parent / "excel.py").read_text(encoding="utf-8")
         self.assertNotIn("tableColumns", excel)
