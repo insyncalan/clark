@@ -67,6 +67,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-edit [data-count] .cb-btn, .tpl-edit [data-source] .cb-btn { box-sizing: border-box; height: 32px; min-height: 32px; min-width: 40px; justify-content: center; font-size: 14px; border: 1px solid var(--control-edge); border-radius: 8px; }
 .tpl-edit [data-count] .cb-btn[aria-checked="true"], .tpl-edit [data-source] .cb-btn[aria-checked="true"] { font-weight: 600; border-color: var(--brand-blue); }
 .tpl-edit [data-source] .cb-btn:disabled { cursor: default; opacity: 0.5; }
+/* Row 1263: at 900 and below the Numbers card (View and Edit) is one column, whatever the count or the slot; the half-width rules of shell.css (2 columns for four, 1 for three) are overridden by listing them. */
+@media (max-width: 900px) { .tpl-figs.n3, .tpl-figs.n4, .tpl-slots.n3, .tpl-slots.n4, .slot-left .tpl-figs.n4, .slot-right .tpl-figs.n4, .slot-left .tpl-slots.n4, .slot-right .tpl-slots.n4 { grid-template-columns: 1fr; } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

@@ -77,7 +77,7 @@ def checker(places):
         slots = value.get("figures", [])
         if type(slots) is not list:
             raise Bad(BAD_SHAPE)
-        if len(slots) > head.get("count", places):
+        if len(slots) > places:          # row 1263: a stored 4th number is kept while the count is 3 (it comes back on 3 to 4); the published file draws only the count
             raise Bad(TOO_MANY)
         out = []
         for slot in slots:
@@ -122,9 +122,7 @@ def publisher(places):
         live = None
         out = []
         count = value.get("count") if isinstance(value, dict) and places == 4 and value.get("count") in COUNTS else None
-        for slot in (value.get("figures") if isinstance(value, dict) else None) or []:
-            if len(out) >= (count or places):
-                break
+        for slot in ((value.get("figures") if isinstance(value, dict) else None) or [])[:count or places]:
             if slot.get("mode") == "live":
                 live = _live(ctx) if live is None else live
                 got = live.get(slot.get("metric"))

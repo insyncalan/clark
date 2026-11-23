@@ -9,7 +9,7 @@ import { todayIso } from "../../workItems.js";
 import { FigureRow } from "../../templates/FiguresView.jsx";
 import { parseDay } from "../../templates/keydates.js";
 import { dateWords } from "../../templates/safe.js";
-import { COUNTS, METRICS, LIMITS, metricsOffered, slotsOf, bodyOf, figuresOf, countOf, storedCount } from "../../templates/figures.js";
+import { COUNTS, PLACES, METRICS, LIMITS, metricsOffered, slotsOf, bodyOf, figuresOf, countOf, storedCount } from "../../templates/figures.js";
 
 const BLANK = { mode: "typed", label: "", value: "", detail: "", asof: "" };
 
@@ -21,12 +21,12 @@ export function figuresEdit(type) {
   return function Edit({ section }) {
     const places = countOf({ ...section, type });      // row 1263: the Numbers card shows 3 or 4 (the count control); the older Key figures, three keeps its three
     const kept = storedCount({ ...section, type });       // written only once the person changes it
-    const slots = slotsOf(section, places);
+    const slots = slotsOf(section, PLACES[type]);       // every stored number, so the 4th is kept while the count is 3 (row 1263); only the first `places` are drawn
     while (slots.length < places) slots.push({ ...BLANK });
     const offered = metricsOffered(data.value);      // item 1337: a live figure is offered only while its section is there
     const shown = figuresOf(section, data.value, todayIso(), places);
     const put = (i, one) => save(section, slots.map((s, j) => (j === i ? one : s)), kept);
-    const recount = (n) => save(section, slots.slice(0, n), n);
+    const recount = (n) => save(section, slots, n);       // the count changes, no number is dropped
     const mode = (i, m) => {
       put(i, m === "live" && offered.length ? { mode: "live", metric: offered[0][0] } : { ...BLANK });
     };
@@ -50,7 +50,7 @@ export function figuresEdit(type) {
           </div>
         ) : null}
         <div class={`tpl-slots n${places}`}>
-          {slots.map((s, i) => (
+          {slots.slice(0, places).map((s, i) => (
             <fieldset class="tpl-slot" key={i} data-slot={i}>
               <legend>{`Number ${i + 1}`}</legend>
               <div class="cb-grp" role="radiogroup" aria-label={`Number ${i + 1} source`} data-source="">

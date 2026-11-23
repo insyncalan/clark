@@ -51,9 +51,10 @@ class Library(unittest.TestCase):
         self.assertEqual(ok("figures4", {"v": 1, "count": 3, "figures": [typed()] * 3})["count"], 3)
         self.assertEqual(ok("figures4", {"v": 1, "count": 4, "figures": [typed()] * 4})["count"], 4)
         self.assertNotIn("count", ok("figures4", {"v": 1, "figures": [typed()]}), "an old body is not given a count")
+        self.assertEqual(len(ok("figures4", {"v": 1, "count": 3, "figures": [typed()] * 4})["figures"]), 4, "a 4th number is kept while the count is 3")
         for t, v in (("figures3", {"v": 1, "count": 3, "figures": []}), ("figures4", {"v": 1, "count": 2, "figures": []}),
                      ("figures4", {"v": 1, "count": "3", "figures": []}), ("figures4", {"v": 1, "count": True, "figures": []}),
-                     ("figures4", {"v": 1, "count": 3, "figures": [typed()] * 4})):
+                     ("figures4", {"v": 1, "count": 4, "figures": [typed()] * 5})):
             with self.subTest(t=t, v=v), self.assertRaises(base.Bad):
                 section_bodies.check(t, json.dumps(v), store_module.BODY_RULES)
 
@@ -62,7 +63,8 @@ class Library(unittest.TestCase):
         pub = lambda t, v: section_bodies.published(t, v, ctx)
         rows = [typed(label=f"L{i}", value=str(i)) for i in range(4)]
         self.assertEqual(pub("figures4", {"v": 1, "count": 3, "figures": rows})["count"], 3)
-        self.assertEqual(len(pub("figures4", {"v": 1, "count": 3, "figures": rows})["figures"]), 3)
+        self.assertEqual([f["label"] for f in pub("figures4", {"v": 1, "count": 3, "figures": rows})["figures"]], ["L0", "L1", "L2"], "the kept 4th number is not published")
+        self.assertEqual(pub("figures4", {"v": 1, "count": 3, "figures": [typed(label="", value=""), rows[1], rows[2], rows[3]]}).get("figures")[0]["label"], "L1", "a blank place does not pull the 4th in")
         self.assertNotIn("count", pub("figures4", {"v": 1, "figures": rows}))
         self.assertEqual(len(pub("figures4", {"v": 1, "figures": rows})["figures"]), 4)
         self.assertNotIn("count", pub("figures3", {"v": 1, "figures": rows}))
@@ -99,7 +101,7 @@ class Page(Section):
         ref = self.add("figures4", {"v": 1, "count": 3, "figures": [typed(label=f"L{i}", value=str(i)) for i in range(3)]})
         sec = f"[data-id={json.dumps(ref)}]"
         cols = f"getComputedStyle(document.querySelector('{sec} .tpl-figs')).gridTemplateColumns.split(' ').length"
-        for width, want in ((1400, 3),):      # the 900 column count of AP3 is not asserted: no rule in shell.css or the theme sets one (not checked against the mock-up, which was not found)
+        for width, want in ((1400, 3), (900, 1)):      # AP3: three across at 1400, one column at 900 (rules-2.css; shell.css has no 900 rule)
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp)
                 _shell(p, width)
@@ -114,6 +116,40 @@ class Page(Section):
             p.js(f"document.querySelector('{sec} [data-count] button:first-child').click()")
             self.assertTrue(wait(lambda: self.stored(ref).get("count") == 3, 10), self.stored(ref))
             p.until(f"document.querySelectorAll('{sec} [data-slot]').length === 3 && !!document.querySelector('{sec} .tpl-slots.n3')", "three places")
+
+    def test_a_filled_4th_number_survives_4_to_3_to_4_one_change_and_one_undo_each(self):
+        rows = [typed(label=f"L{i}", value=str(i)) for i in range(4)]
+        ref = self.add("figures4", {"v": 1, "figures": rows})
+        sec = f"[data-id={json.dumps(ref)}]"
+        n = lambda: self.store.read("report_sections", ref=ref)
+        with chrome() as cdp:
+            p = self.open_edit(cdp, ref, 1400)
+            step = self.demo.last_step()
+            p.clear_toast()
+            p.js(f"document.querySelector('{sec} [data-count] button:first-child').click()")
+            p.saved()
+            self.assertEqual(self.stored(ref)["count"], 3)
+            self.assertEqual(self.demo.last_step(), step + 1, "4 to 3 is one change")
+            self.assertEqual([f["label"] for f in self.stored(ref)["figures"]], ["L0", "L1", "L2", "L3"], "4 to 3 keeps the 4th number stored")
+            p.until(f"document.querySelectorAll('{sec} [data-slot]').length === 3", "three drawn")
+            p.clear_toast()
+            p.js(f"document.querySelector('{sec} [data-count] button:last-child').click()")
+            p.saved()
+            self.assertEqual(self.stored(ref)["count"], 4)
+            self.assertEqual(self.demo.last_step(), step + 2, "3 to 4 is one change")
+            p.until(f"document.querySelectorAll('{sec} [data-slot]').length === 4", "four drawn")
+            self.assertEqual(p.js(f"document.querySelector('{sec} [data-slot=\"3\"] input').value"), "L3", "the 4th number is back")
+            self.assertEqual([f["label"] for f in self.stored(ref)["figures"]], ["L0", "L1", "L2", "L3"])
+            p.js("document.querySelector('[data-undo]').click()")      # one Undo takes back the 3 to 4 only
+            self.assertTrue(wait(lambda: self.stored(ref).get("count") == 3, 10), self.stored(ref))
+            self.assertEqual(len(self.stored(ref)["figures"]), 4)
+            p.until(f"document.querySelectorAll('{sec} [data-slot]').length === 3", "three drawn again")
+            p.clear_toast()
+            p.js(f"document.querySelector('{sec} [data-count] button:first-child').click()")      # already 3: nothing changes
+            p.js(f"document.querySelector('{sec} [data-count] button:last-child').click()")
+            p.saved()
+            p.js("document.querySelector('[data-undo]').click()")
+            self.assertTrue(wait(lambda: self.stored(ref).get("count") == 3 and len(self.stored(ref)["figures"]) == 4, 10), self.stored(ref))
 
     def test_each_number_has_a_typed_live_switch_then_its_fields(self):
         self.demo.plant_builtin_sections()
@@ -141,7 +177,7 @@ class Page(Section):
         three = self.add("figures3", {"v": 1, "figures": [typed(label=f"L{i}", value=str(i)) for i in range(3)]})
         four = self.add("figures4", {"v": 1, "figures": [typed(label=f"L{i}", value=str(i)) for i in range(4)]})
         before = [self.store.read("report_sections", ref=r)["body"] for r in (three, four)]
-        for width, want in ((1400, (3, 4)), (900, (3, 4))):      # 900: what main draws today, so an old section looks as before (AP5)
+        for width, want in ((1400, (3, 4)), (900, (1, 1))):      # AP5: as before at 1400; at 900 the one-column rule applies to old sections too
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp)
                 _shell(p, width)
