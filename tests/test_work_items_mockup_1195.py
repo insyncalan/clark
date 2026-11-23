@@ -625,7 +625,9 @@ class Classic(Look):
             key("due", "ArrowRight", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
             self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
-            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.cwHead"), "due", "the heading keeps the focus")
+            focus_js = "document.activeElement && document.activeElement.dataset.cwHead"
+            kept = wait(lambda: p.js(focus_js) == "due", 10)
+            self.assertEqual(p.js(focus_js), "due", "the heading keeps the focus" + ("" if kept else " | " + json.dumps(p.js("({active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.id] : null, hasFocus: document.hasFocus(), heads: [...document.querySelectorAll('.wil-table thead th[data-cw-head]')].map(h => h.dataset.cwHead)})"))))
             key("due", "ArrowLeft", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "due", "id"]), "Alt+Left moved it back")
             key("owner", "ArrowRight", ctrlKey=True)

@@ -5,7 +5,7 @@ import unittest
 
 import test_tpl_workitems as base
 from test_report_editor import tearDownModule  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 
 class ColumnsMenu(base.InThePage):
@@ -20,7 +20,8 @@ class ColumnsMenu(base.InThePage):
             head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
             p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
             p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
-            p.until("!!document.querySelector('.cols-menu')", "the menu opened")
+            opened = wait(lambda: p.js("!!document.querySelector('.cols-menu')"), 10)
+            self.assertTrue(opened, "the menu opened" + ("" if opened else " | " + json.dumps(p.js("({hasFocus: document.hasFocus(), active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.id] : null, headExists: !!document.querySelector(%s), heads: [...document.querySelectorAll('.wil-table th')].map(h => h.className)})" % json.dumps(head)))))
             got = self.checked(p)
             self.assertEqual(got["ID"], "true")
             self.assertEqual(got["Owner"], "true")

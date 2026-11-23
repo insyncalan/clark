@@ -37,7 +37,8 @@ class EditKillers(base.InThePage):
             p.edit()
             self.drawn(p, ref)
             p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ContextMenu', bubbles: true, cancelable: true}}))")
-            p.until("!!document.querySelector('.cols-menu')", "the menu key opened the menu")
+            opened = wait(lambda: p.js("!!document.querySelector('.cols-menu')"), 10)
+            self.assertTrue(opened, "the menu key opened the menu" + ("" if opened else " | " + json.dumps(p.js("({hasFocus: document.hasFocus(), active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.id] : null, headExists: !!document.querySelector(%s), heads: [...document.querySelectorAll('.wil-table th')].map(h => h.className)})" % json.dumps(self.head(ref))))))
 
     def test_a_right_click_on_a_heading_keeps_the_browsers_own_menu_away(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
