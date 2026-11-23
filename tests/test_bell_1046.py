@@ -154,6 +154,26 @@ class Bell(Base):
             p.until("!document.querySelector('.toast.refresh')", "Close takes it away")
 
 
+    def test_a_critical_notice_also_shows_a_banner_until_it_is_read(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("window.clarkPage.pushNotices([{id:'c1', severity:'critical', title:'Upgrade required', body:'Install 2.0.4 to carry on.', date:'2026-11-18'},"
+                 "{id:'w1', severity:'warning', title:'A new version', body:'', date:'2026-11-18'}])")
+            p.until("!!document.querySelector('#crit-banner')", "the banner is drawn")
+            got = p.js("(function(){var b=document.querySelector('#crit-banner');return [b.getAttribute('role'), b.textContent.indexOf('Upgrade required.') === 0, document.querySelectorAll('#crit-banner').length];})()")
+            self.assertEqual(got, ["alert", True, 1])
+            p.js("document.querySelector('#crit-read').click()")
+            p.until("!document.querySelector('#crit-banner')", "reading it takes the banner away")
+            self.assertTrue(p.js("!!document.querySelector('#bell-btn')"), "the warning is still unread")
+
+    def test_a_warning_alone_shows_no_banner(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("window.clarkPage.pushNotices([{id:'w1', severity:'warning', title:'A new version', body:'', date:'2026-11-18'}])")
+            p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+            self.assertFalse(p.js("!!document.querySelector('#crit-banner')"))
+
+
 class CardsDrawsNoBell(Base):
     def test_cards_draws_no_bell_and_no_wrapper_even_with_notices_pushed(self):
         for width in (1400, 900):

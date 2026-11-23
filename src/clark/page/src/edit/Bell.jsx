@@ -12,7 +12,7 @@ const ICONS = {
 };
 const niceDate = (iso) => iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4);      // DD-MM-YYYY
 
-function go(to) {      // an action only names a place inside clark (logic/notices.js insidePlace): "/settings" opens that tab
+export function go(to) {      // an action only names a place inside clark (logic/notices.js insidePlace): "/settings" opens that tab
   const view = to.replace(/^\//, "").split(/[/?#]/)[0];
   if (view) show(view);
 }
