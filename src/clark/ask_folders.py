@@ -68,7 +68,7 @@ def shared_folders(data_dir):
     file can't be read (it never fails open: a folder not listed is not read)."""
     try:
         got = json.loads((Path(data_dir) / SHARED_FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, RecursionError):
         return []
     return [p for p in got if isinstance(p, str) and p.startswith("/")] if isinstance(got, list) else []
 
