@@ -7,7 +7,6 @@ import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
-import { classicTheme } from "./Contents.jsx";
 
 // The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, always still (no shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
@@ -213,6 +212,9 @@ function SettingsHead({ groups, page, searching, setSearching }) {
 // Row 1299 (project tabs, Classic only): across the top of the project pages, one tab for each project, pinned while the page scrolls. The tab is the project
 // open in the app (the address's `p`); a click on another sets the Settings-only project (stores/report.js settingsProject): no page read, the address and the top bar stay. Pages that hold one project's settings only; All projects and You pages have none.
 export const PROJECT_PAGES = ["reports", "brand", "people", "claude", "data"];
+// Off until the project cards (client folder, review days, brand, people, ask clark, data) read settingsProjectNow() and not the open project: a click on another tab
+// would say "Affects: HAR" while the controls still edit the open project. With it off the other tabs are drawn but cannot be chosen.
+const SWITCH_TABS = false;
 
 function ProjectTabs({ current }) {
   const [list, setList] = useState([]);
@@ -228,7 +230,7 @@ function ProjectTabs({ current }) {
   return (
     <nav class="set-tabs" aria-label="Projects">
       <ul>{list.map((p) => (
-        <li key={p.code}><button type="button" class="set-tab" aria-current={p.code === current ? "page" : undefined} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
+        <li key={p.code}><button type="button" class="set-tab" aria-current={p.code === current ? "page" : undefined} disabled={p.code !== current && !SWITCH_TABS} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
       ))}</ul>
     </nav>
   );

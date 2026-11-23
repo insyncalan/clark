@@ -83,25 +83,20 @@ class Tabs(Base):
                     self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), f"{slug} has no tabs")
 
     def test_T_a_click_on_another_tab_changes_the_settings_project_and_nothing_else(self):
+        """The tab switch is off (Views.jsx SWITCH_TABS) until the project cards follow the chosen tab: the other tab cannot be chosen, nothing moves."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400, slug="people")
             p.until(f"{TABS}.length === 2", "the tabs drew")
-            before = p.js("[location.href, document.querySelector('#project-name').textContent, performance.getEntriesByType('navigation').length, window.__marker = 1]")
+            self.assertEqual(p.js(f"[{TABS}[0].disabled, {TABS}[1].disabled]"), [False, True], "the other tab cannot be chosen")
+            before = p.js("[location.href, document.querySelector('#project-name').textContent]")
             p.js(f"{TABS}[1].click()")
-            p.until(f"{TABS}[1].getAttribute('aria-current') === 'page'", "the other tab is marked")
-            self.assertEqual(p.js(f"{TABS}[0].getAttribute('aria-current')"), None, "only one tab is marked")
-            after = p.js("[location.href, document.querySelector('#project-name').textContent, performance.getEntriesByType('navigation').length, window.__marker]")
-            self.assertEqual(after[0], before[0], "the address did not move (no navigation, no new entry)")
-            self.assertEqual(after[1], before[1], "the top bar still names the open project")
-            self.assertEqual(after[3], 1, "the page was not loaded again")
-            self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: " + TWO[1]["code"], "the Affects line follows the chosen tab, not the open project")
-            p.js(f"{TABS}[0].click()")
-            p.until(f"{TABS}[0].getAttribute('aria-current') === 'page'", "the first tab is marked again")
+            self.assertEqual(p.js(f"{TABS}[0].getAttribute('aria-current')"), "page", "the open project's tab stays marked")
+            self.assertEqual(p.js("[location.href, document.querySelector('#project-name').textContent]"), before)
             self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: " + TWO[0]["code"])
 
     def test_T_the_affects_line_follows_the_tab_on_every_project_page(self):
-        """Row 1299: "Affects: <code>" names the project of the CHOSEN tab (the Settings page's project), not the open project the top bar names."""
+        """Row 1299: "Affects: <code>" names the open project's tab on every project page (the switch is off, see the test above)."""
         with chrome() as cdp:
             p = self.page(cdp)
             for slug in PROJECT_PAGES:
@@ -109,12 +104,6 @@ class Tabs(Base):
                     self.open_settings(p, 1400, slug=slug)
                     p.until(f"{TABS}.length === 2", "the tabs drew")
                     self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: " + TWO[0]["code"], "the open project's tab is chosen")
-                    bar = p.js("document.querySelector('#project-name').textContent")
-                    p.js(f"{TABS}[1].click()")
-                    p.until(f"document.querySelector('.set-affects').textContent.trim() === 'Affects: ' + {TWO[1]['code']!r}", "Affects names the other tab's project")
-                    self.assertEqual(p.js("document.querySelector('#project-name').textContent"), bar, "the top bar still names the open project")
-                    p.js(f"{TABS}[0].click()")      # the chosen tab stays chosen across pages: choose the open project again for the next page
-                    p.until(f"{TABS}[0].getAttribute('aria-current') === 'page'", "the first tab is chosen again")
 
 
 class TabsCards(Tabs):
