@@ -142,7 +142,7 @@ class Edit(PageBase):
             self.assertEqual(len(self.stored(sec)["cards"]), 6, "all six cards kept")
             self.set_select(p, f"{q} select[aria-label='Cards across']", "4")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 4))
-            self.assertEqual(self.across(p, q), "4")
+            self.assertTrue(self.wait_for(lambda: self.across(p, q) == "4"), "the select shows four again")
 
     def test_a_body_of_version_one_with_four_cards(self):
         sec, made = self.make(lambda m: json.dumps({"v": 1, "cards": self.cards(m, 4)}))
