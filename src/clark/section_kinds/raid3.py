@@ -16,9 +16,10 @@ from clark.section_kinds.base import Bad
 
 READY = True
 SIZE = 3                                   # cards across; raid4.py sets four
+MANY = 8                                   # cards a body of version 2 holds (raid4.py)
 OWN_MAX = 400                              # characters of a card's own words
 CARD_BYTES = 6 * OWN_MAX + 100             # worst case: every character escaped to six bytes, plus the id and the keys
-LIMIT = 4 * CARD_BYTES + 64                # raid4 holds four cards; one limit for both, well inside the route's
+LIMIT = 8 * CARD_BYTES + 64                # raid4 holds up to eight cards (version 2); one limit for both, well inside the route's
 EMPTY = ""
 
 UPPER, DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
@@ -30,6 +31,8 @@ TOO_MANY = "A card row holds {n} cards at most."
 BAD_CARD = "A card needs the number of a risk, issue, action or decision."
 BAD_SOURCE = "Choose Client wording, Own words or Latest update for a card."
 NO_LATEST = "Only an action has a latest update. Choose Client wording or Own words for this card."
+BAD_SHOW = "Choose what a card shows with Latest update, Owner, status and date, and Impact and likelihood."
+SHOW = {"latest", "meta", "rating"}
 TWICE = "The same item is on two cards."
 OWN_LONG = "A card's own words can be {n} characters at most."
 OWN_BAD = "A card's own words can only be plain text on one line."
@@ -48,14 +51,29 @@ def _id(item):
     return (True, letter) if ok else (False, None)
 
 
-def _check(value, rules, size):
-    if type(value) is not dict or set(value) - {"v", "cards"} or value.get("v") != 1 or type(value.get("cards")) is not list:
+def _show(value):
+    """Row 1270: what a card shows besides the description: {"latest": bool, "meta": bool, "rating": bool}, each key optional (absent reads as on)."""
+    if type(value) is not dict or set(value) - SHOW or any(type(v) is not bool for v in value.values()):
+        raise Bad(BAD_SHOW)
+    return {k: value[k] for k in ("latest", "meta", "rating") if k in value}
+
+
+def _check(value, rules, size, across=()):
+    """`across` is the choices a body of version 2 may carry (raid4: 3 or 4, up to eight cards); empty, only version 1 is accepted."""
+    if type(value) is not dict or type(value.get("cards")) is not list:
+        raise Bad(NOT_AN_OBJECT)
+    two = bool(across) and value.get("v") == 2
+    if two:
+        if set(value) != {"v", "across", "cards"} or type(value["across"]) is not int or value["across"] not in across:
+            raise Bad(NOT_AN_OBJECT)
+        size = MANY
+    elif set(value) - {"v", "cards"} or value.get("v") != 1:
         raise Bad(NOT_AN_OBJECT)
     if len(value["cards"]) > size:
         raise Bad(TOO_MANY.format(n=size))
     out, seen = [], set()
     for card in value["cards"]:
-        if type(card) is not dict or set(card) - {"id", "source", "own"}:
+        if type(card) is not dict or set(card) - {"id", "source", "own"} - ({"show"} if two else set()):
             raise Bad(BAD_CARD)
         item = card.get("id")
         found, letter = _id(item)
@@ -80,8 +98,10 @@ def _check(value, rules, size):
         built = {"id": item, "source": source}
         if own:
             built["own"] = own
+        if "show" in card:
+            built["show"] = _show(card["show"])
         out.append(built)
-    return {"v": 1, "cards": out}
+    return {"v": 2, "across": value["across"], "cards": out} if two else {"v": 1, "cards": out}
 
 
 def _words(card, row):
@@ -99,6 +119,8 @@ def _words(card, row):
 
 
 def _published(value, ctx, size):
+    if (value or {}).get("v") == 2:
+        size = MANY
     out = []
     for card in (value or {}).get("cards") or ():
         found, letter = _id(card.get("id"))
@@ -106,8 +128,13 @@ def _published(value, ctx, size):
         row = next((r for r in ctx.rows.get(kind, ()) if r.get("id") == card.get("id")), None)
         if row is None:
             continue                       # not kept by publish: hidden, archived, not client visible, sensitive, or a hidden section
-        out.append({"id": card["id"], "text": _words(card, row)})
-    return {"cards": out[:size]} if out else None
+        one = {"id": card["id"], "text": _words(card, row)}
+        if card.get("show"):
+            one["show"] = card["show"]
+        out.append(one)
+    if not out:
+        return None
+    return {"cards": out[:size], "across": value["across"]} if (value or {}).get("v") == 2 else {"cards": out[:size]}
 
 
 def check(value, rules):
