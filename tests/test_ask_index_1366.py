@@ -302,6 +302,97 @@ class StartupAndRecovery(Base):
         self.assertEqual(code, 0)
         self.assertEqual(calls, [("ABC", [str(self.box)])], "the project with a saved folder and no index starts; the project with no folder does not")
 
+    def _launch_with(self, refresh_fn, serve_body, start_wrap=None, name="launch", patches=()):
+        """Real launcher.main with a stub serve; serve_body(made, state) runs when serve begins. Returns (exit code, state)."""
+        import contextlib
+        import io
+        from clark import __main__ as launcher, ask_folders, ask_index, store as st
+        made, state = [], {"starts": 0, "started_at_serve": None, "served": False}
+        real = ask_index.Indexer
+        data = self.d / name
+        data.mkdir()
+        store = st.open_store(data / "clark.db", onedrive_roots=[])
+        with store.step("dashboard", "tester", place="menu") as step:
+            step.create("projects", {"code": "ABC", "name": "Example Programme"})
+        store.close()
+        seed = ask_folders.AskFolders(data / "clark.db", [], data_dir=data, home=self.d, by_user=lambda: "tester")
+        self.assertEqual(seed.change({"project": "ABC", "action": "add", "path": str(self.box)})[0], 200)
+
+        def spy(*a, **kw):
+            made.append(real(*a, refresh_fn=refresh_fn, **kw))
+            real_start = made[-1].start
+
+            def start(*sa, **skw):
+                state["starts"] += 1
+                if start_wrap:
+                    start_wrap()
+                return real_start(*sa, **skw)
+            made[-1].start = start
+            return made[-1]
+
+        def serve(**kw):
+            print("Open http://127.0.0.1:%d/ to use the report editor." % kw["port"], file=kw["out"], flush=True)
+            state["started_at_serve"] = state["starts"]
+            state["served"] = True
+            serve_body(made, state)
+            return 0
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(launcher.ask_index, "Indexer", spy))
+            stack.enter_context(mock.patch.object(launcher.platform, "container_on_host_network", lambda: False))
+            stack.enter_context(mock.patch.object(st.Store, "ask_enabled", lambda self: True))
+            for make in patches:
+                stack.enter_context(make(ask_folders))
+            code = launcher.main(["--data", str(data), "--port", "8123"], out=io.StringIO(), err=io.StringIO(), serve=serve,
+                                 home=self.d, onedrive_roots=[], environ={}, is_free=lambda port: True)
+        return code, state
+
+    def test_launcher_starts_indexer_before_serve_begins(self):
+        """Order pin: the start is already made when serve begins (a start moved after serve would count 0 here)."""
+        code, state = self._launch_with(lambda d, c, f, *r, **k: True, lambda made, state: made[-1].wait_idle(10))
+        self.assertEqual(code, 0)
+        self.assertEqual(state["started_at_serve"], 1, "Indexer.start was already called for the saved folder when serve began")
+
+    def test_launcher_survives_start_missing_raising(self):
+        def boom():
+            raise RuntimeError("zq start failed")
+        code, state = self._launch_with(lambda d, c, f, *r, **k: True, lambda made, state: None, start_wrap=boom, name="boom_start")
+        self.assertEqual(code, 0, "Indexer.start raising does not stop the launch")
+        self.assertTrue(state["served"], "serve is still reached after Indexer.start raised")
+        self.assertEqual(state["starts"], 1)
+
+        def open_boom(af):
+            return mock.patch.object(af.AskFolders, "store", side_effect=RuntimeError("zq store open failed"))
+        code, state = self._launch_with(lambda d, c, f, *r, **k: True, lambda made, state: None, name="boom_store", patches=[open_boom])
+        self.assertEqual(code, 0, "the store failing to open does not stop the launch")
+        self.assertTrue(state["served"], "serve is still reached after the store open raised")
+
+    def test_launcher_reaches_serve_while_refresh_is_blocked(self):
+        import threading
+        gate, entered = threading.Event(), threading.Event()
+
+        def refresh(d, code, folders, *r, **k):
+            entered.set()
+            gate.wait(10)
+            return True
+
+        seen = {}
+
+        def body(made, state):
+            seen["entered"] = entered.wait(5)
+            seen["blocked_at_serve"] = not gate.is_set()
+            gate.set()
+            made[-1].wait_idle(10)
+
+        try:
+            code, state = self._launch_with(refresh, body, name="slow")
+        finally:
+            gate.set()
+        self.assertEqual(code, 0)
+        self.assertTrue(state["served"], "serve is reached")
+        self.assertTrue(seen["entered"], "the read had started")
+        self.assertTrue(seen["blocked_at_serve"], "serve began while the read was still blocked")
+
     def test_oserror_on_file_3_does_not_reread_files_1_2(self):
         for i in (1, 2, 3):
             self.put(f"f{i}.txt", f"zqfile{i} words")
