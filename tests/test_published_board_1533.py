@@ -21,6 +21,7 @@ from test_server import chrome, wait
 from test_work_filters import need_chrome
 
 TYPES = ["action", "risk", "decision"]
+SIZE_BEFORE = 845696       # page-view.html on origin/main f6c43ff6f, bytes, built by dev/tools/build_page.py
 WRITE_WORDS = ["changeItem", "stores/changes", "/api/", "fetch("]
 MOVE_CODE = ["Move to", "data-move", "onDragStart"]      # strings only the editor board ships (edit/Board.jsx: the Move to menu, its button and the drag start); the CSS keeps its class names
 
@@ -178,6 +179,43 @@ class PublishedBoard(unittest.TestCase):
             cdp.js("""(() => { const q = document.getElementById('q'); q.value = 'zzzz-no-such'; q.dispatchEvent(new Event('input', {bubbles: true})); })()""", sid)
             self.assertTrue(wait(lambda: "No items match these filters" in cdp.js("document.getElementById('work-list').textContent", sid)), "the empty words")
             self.assertEqual(cdp.js("document.querySelectorAll('#work-board').length", sid), 0)
+
+    def test_published_board_group_by_fields_in_file(self):
+        with chrome() as cdp:
+            sid = self.page(cdp, self.on)
+            self.to_board(cdp, sid)
+            cdp.js("document.querySelector('#group-by').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
+            names = cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitem]')].map(x => x.textContent.trim())", sid)
+            self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type"], "the table's choices, no Nothing on a board")
+            cdp.js("[...document.querySelectorAll('[role=menuitem]')].find(x => x.textContent.trim() === 'Owner').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#work-board .col[data-col]') && [...document.querySelectorAll('#work-board .col')].some(c => /Ana Lopez/.test(c.getAttribute('aria-label')))", sid)), "columns follow Group by")
+            cdp.js("document.querySelector('#swimlanes').click()", sid)
+            cdp.js("[...document.querySelectorAll('[role=menuitem]')].find(x => x.textContent.trim() === 'Type').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-board .lane-h').length", sid) > 0), "swimlanes draw")
+
+
+    def test_published_board_print_follows_table(self):
+        with chrome() as cdp:
+            sid = self.page(cdp, self.on)
+            self.to_board(cdp, sid)
+            cdp.js("window.dispatchEvent(new Event('beforeprint'))", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.print-tab #work-board').length === 0 && document.querySelectorAll('.print-tab #work-list tr[data-id]').length > 0", sid)), "printing draws the list")
+            cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work-board')", sid)), "the board is back after printing")
+
+
+    def test_published_file_stays_self_contained(self):
+        text = self.on.read_text(encoding="utf-8")
+        self.assertNotRegex(text, r"(src|href)=[\"']https?://")
+        self.assertNotIn("XMLHttpRequest", text)
+        view = (ROOT / "src" / "clark" / "page" / "page-view.html").stat().st_size
+        print(f"\npage-view.html bytes: before {SIZE_BEFORE}, after {view}")
+        self.assertGreater(view, SIZE_BEFORE)
+        with chrome() as cdp:
+            sid = self.page(cdp, self.on)
+            self.to_board(cdp, sid)
+            self.assertEqual(cdp.js("performance.getEntriesByType('resource').filter(r => !r.name.startsWith('file:') && !r.name.startsWith('data:')).length", sid), 0, "no network request")
 
 
 if __name__ == "__main__":

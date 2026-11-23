@@ -344,7 +344,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
   const cs = chips(st);
   const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
   const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
-  const board = !!Board && work.value.view === "board";
+  const board = !!Board && work.value.view === "board" && !printing.value;      // row 1533: a printed or saved page is the table's print, the list
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
