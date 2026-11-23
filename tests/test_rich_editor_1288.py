@@ -97,7 +97,7 @@ class Editor(unittest.TestCase):
                 h.select_all()
                 self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
                 names = h.ev("[...document.querySelectorAll('.rt-bubble > *')].map(b => b.querySelector('.rt-style') ? 'STYLE' : (b.getAttribute('aria-label') || b.textContent))")
-                self.assertEqual(names, ["STYLE", "Bold", "Italic", "Strikethrough", "Link", "Ask AI…"], f"{w}: {names}")
+                self.assertEqual(names, ["STYLE", "Bold", "Italic", "Strikethrough", "A", "Link", "Ask AI…"], f"{w}: {names}")
                 ask = box(h, ".rt-bubble [data-rt-bubble-ai]")
                 self.assertEqual((ask["col"], ask["p"], ask["f"], ask["h"]), ("rgb(70, 53, 184)", "0px 10px 0px 10px", "13px", 34), f"{w}: {ask}")
                 self.assertEqual(box(h, ".rt-bubble .rt-btn[aria-label='Bold']")["w"], 34, w)
