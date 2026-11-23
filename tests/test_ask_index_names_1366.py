@@ -458,7 +458,7 @@ class ExcelLimits(Base):
     def test_the_row_limit_and_the_cell_limit_each_refuse_a_sheet_alone(self):
         from test_ask_index_types_1366 import xlsx
         raw = xlsx({"S": [[f"w{i}", f"v{i}"] for i in range(6)]})
-        for name, cap in (("MAX_EXCEL_ROWS", 5), ("MAX_EXCEL_CELLS", 11)):
+        for name, cap in (("MAX_EXCEL_ROWS", 5), ("MAX_EXCEL_CELLS", 10)):
             with mock.patch.object(ask_index, name, cap):
                 with self.assertRaises(ask_index.TooLong, msg=name):
                     ask_index._excel_groups(raw, False)
