@@ -418,6 +418,69 @@ class Labels(unittest.TestCase):
         self.assertGreater(second(g.TOP + 7 * g.TEXT_SCALE + 6, tall), 20)   # ink on the name's second line
         self.assertEqual(h, tall + g.LANE + 2)
 
+    def test_a_two_line_name_has_its_rows_where_the_rule_puts_them(self):
+        """Row 1322 AP1: exact rows of a two-line name (one lane, 4 pixels spare, 2 pixels between lines) and the Gantt lane line under it."""
+        self.assertEqual(g.lines("x" * 19), ["X" * 19])
+        png = g.plan([ms(1, name="Customer onboarding review")], "2026-11-08", TOKENS)[0][0]
+        _, _, palette, rows = read_png(png)
+        want = tok()["text"]
+        ink = lambda y: any(palette[rows[y][x]] == want for x in range(g.PAD, g.LABEL_W))
+        self.assertFalse(ink(g.TOP))
+        self.assertTrue(ink(g.TOP + 1))
+        self.assertFalse(ink(g.TOP + 15) or ink(g.TOP + 16))
+        self.assertTrue(ink(g.TOP + 17))
+        import test_docx_gantt as tg
+        png = g.gantt([tg.line(1, "Customer onboarding review"), tg.line(2, "Go")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        _, _, palette, rows = read_png(png)
+        y = g.G_TOP + 2 * 7 * g.TEXT_SCALE + 4 - 1
+        self.assertEqual(palette[rows[y][g.WIDTH - 1]], tok()["grey-100"])
+
+    def test_the_last_lane_band_and_the_bar_under_a_two_line_name_sit_in_their_lanes(self):
+        """Row 1322 AP1: the grey band of a two-line lane ends on the lane's last pixel row, and the bar of the lane below is centred in that lane."""
+        t = tok()
+        two = 2 * 7 * g.TEXT_SCALE + 4
+        png = g.plan([ms(1, name="Customer onboarding review")], "2026-11-08", TOKENS)[0][0]
+        _, _, palette, rows = read_png(png)
+        band = lambda y: palette[rows[y][1]]
+        self.assertEqual(band(g.TOP + two - 1), t["grey-100"])
+        self.assertEqual(band(g.TOP + two), t["surface"])
+        import test_docx_gantt as tg
+        png = g.gantt([tg.line(1, "Customer onboarding review"), tg.line(2, "Go")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        _, _, palette, rows = read_png(png)
+        plain = {t["surface"], t["grey-100"], t["grey-300"], t["status-red"]}
+        drawn = [y for y in range(g.G_TOP + two, g.G_TOP + two + g.G_LANE)
+                 if any(palette[rows[y][x]] not in plain for x in range(g.X0, g.X1))]
+        cy = (2 * g.G_TOP + two + two + g.G_LANE) // 2
+        self.assertEqual((min(drawn), max(drawn)), (cy - 6, cy + 5))
+
+    def test_a_long_word_after_a_short_one_keeps_the_short_one_and_the_cut_is_made_on_the_whole_name(self):
+        """Row 1322 AP1 mutation sweep: a word longer than a line does not drop the words before it; the dots come from the whole name, not its first 100 characters."""
+        self.assertEqual(g.lines("AB CDEFGHIJ", 5, 3), ["AB", "CDEFG", "HIJ"])
+        self.assertEqual(g.lines("x" * 150, 60, 2), ["X" * 60, "X" * 58 + ".."])
+
+    def test_the_bar_and_the_phase_band_of_a_two_line_lane_fill_that_lane(self):
+        """Row 1322 AP1 mutation sweep: in a two-line lane the plan's mark is centred in the tall lane and the Gantt phase band fills it."""
+        t = tok()
+        two = 2 * 7 * g.TEXT_SCALE + 4
+        png = g.plan([ms(1, name="Customer onboarding review")], "2026-11-08", TOKENS)[0][0]
+        _, _, palette, rows = read_png(png)
+        plain = {t["surface"], t["grey-100"], t["grey-200"], t["grey-300"], t["brand-navy"]}
+        drawn = [y for y in range(g.TOP + 2, g.TOP + two)
+                 if any(palette[rows[y][x]] not in plain for x in range(g.X0, g.X1))]
+        self.assertEqual((min(drawn) + max(drawn)) // 2, (2 * g.TOP + two) // 2)
+        import test_docx_gantt as tg
+        phase = tg.line(1, "Customer onboarding review", type="phase")
+        png = g.gantt([phase, tg.line(2, "Go")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        _, _, palette, rows = read_png(png)
+        self.assertEqual(palette[rows[g.G_TOP + g.G_LANE + 2][1]], t["grey-50"])
+        self.assertEqual(palette[rows[g.G_TOP + two - 2][1]], t["grey-50"])
+        png = g.gantt([tg.line(1, "Customer onboarding review"), tg.line(2, "Go")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        _, _, palette, rows = read_png(png)
+        plain = {t["surface"], t["grey-100"], t["grey-300"], t["status-red"]}
+        drawn = [y for y in range(g.G_TOP + 2, g.G_TOP + two)
+                 if any(palette[rows[y][x]] not in plain for x in range(g.X0, g.X1))]
+        self.assertEqual((min(drawn), max(drawn)), ((2 * g.G_TOP + two) // 2 - 6, (2 * g.G_TOP + two) // 2 + 5))
+
     def test_gantt_uses_the_same_font_and_name_rule_as_the_plan(self):
         import test_docx_gantt as tg
         out = g.gantt([tg.line(1, "Customer onboarding review"), tg.line(2, "Go")], "2026-11-08", TOKENS)
