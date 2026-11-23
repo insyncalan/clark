@@ -5,6 +5,7 @@ import unittest
 from _paths import ROOT
 
 HELP = ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
+WORK_ITEMS_NAME = "Work items"       # row 1262 named the template by what it does: its Help reference row was "Work items list"
 WORK_ITEMS_LINE = "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."
 ENTRY_ID = "the-three-starting-lists"
 
@@ -19,7 +20,7 @@ def _entry_index(tasks):
 
 def _rows(node):
     if isinstance(node, list):
-        if len(node) >= 2 and node[0] == "Work items list" and isinstance(node[1], str):
+        if len(node) >= 2 and node[0] == WORK_ITEMS_NAME and isinstance(node[1], str):
             yield node
         for item in node:
             yield from _rows(item)

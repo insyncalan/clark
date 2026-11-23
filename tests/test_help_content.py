@@ -287,7 +287,7 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("Profile circle › Import from Word", self.ALL)        # 1.0.8: the Data card in Settings is the way in, and Help says so
         self.assertNotIn("profile menu entry Import from Word", self.ALL)
         self.assertNotIn("bring items in from a Word file", self.ALL)
-        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        self.assertIn("**Export to Word…**", self.ALL, "Export to Word stays in Help")       # row 1281: the Data card button, by its label
         raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
         self.assertNotRegex(raw, r"(?i)profile (circle|menu)[^\n]{0,40}(choose|press) \*\*Import from Word", "no help line names the removed menu entry")
 
@@ -513,7 +513,8 @@ class PeekSourceWords(unittest.TestCase):
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("**Source** (in Edit, in View and in a published file)", text)
         self.assertNotIn("**Source** (in Edit)", text)
-        self.assertIn("a published file shows only the name", text)
+        self.assertIn("It names the source and nothing else: no person.", text)      # row 1258: no \" by <name>\"
+        self.assertNotIn("ends with by and the name", text)
 
 
 class ProfileCircleWords(unittest.TestCase):
@@ -548,7 +549,7 @@ class SideBySideHelp(unittest.TestCase):
                 for c in x.values():
                     walk(c)
         walk(SRC)
-        self.assertIn(["Text and Image Side by Side", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertIn(["Text with image", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
         self.assertNotIn("Text and image", [r[0] for r in rows])
         self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
 

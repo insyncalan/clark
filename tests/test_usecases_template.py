@@ -40,7 +40,7 @@ class UseCasesTemplate(unittest.TestCase):
     def test_the_card_has_its_words_parts_and_fit(self):
         card = self.card()
         self.assertIsNotNone(card, "the box offers Use case summary when the report has none")
-        self.assertEqual((card["name"], card["title"], card["type"], card["kind"]), ("Use cases", "Use cases", "usecases", "work"))
+        self.assertEqual((card["name"], card["title"], card["type"], card["kind"]), ("Use cases", "Use case summary", "usecases", "work"))
         self.assertTrue(card["description"].endswith("."))
         self.assertEqual(card["holds"], ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"])
         self.assertEqual(card["fit"], ["full"])
@@ -74,7 +74,7 @@ class UseCasesTemplate(unittest.TestCase):
     def test_placing_it_sends_the_one_request_the_store_takes(self):
         got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-usecases", "a")')
         self.assertTrue(got["ok"], got)
-        self.assertEqual(got["requests"], [{"op": "new", "values": {"type": "usecases", "title": "Use cases"}, "after": "a", "place": "report"}])
+        self.assertEqual(got["requests"], [{"op": "new", "values": {"type": "usecases", "title": "Use case summary"}, "after": "a", "place": "report"}])
         self.assertEqual(got["words"], "Use cases added.")
         self.assertIn("usecases", changes.NEW_SECTION_TYPES)
         self.assertIn("usecases", store_module.SECTION_TYPES)

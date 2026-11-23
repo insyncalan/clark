@@ -116,6 +116,40 @@ class TitleBlock(Dash):
         self.check(900, lambda vw: [20, vw - 66])      # the page less 20, 24 and the section's 22 right padding
 
 
+class Literal(Dash):
+    """Ruling 1260-B2 in the ruling's own numbers: the page scrollbar is switched off so the page is the window (1400 and 900), then the
+    computed padding of main and the column edges are the literal values (right edge 1316, section 1054 wide; 900: x=20, 856 wide)."""
+
+    def edges(self, width):
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            p.js("document.documentElement.dataset.density = 'compact'; document.documentElement.style.overflow = 'hidden'")
+            p.until("document.documentElement.clientWidth === %d" % width, "the page is the window wide")
+            return p.js("(function(){var m=document.querySelector('main'), c=getComputedStyle(m), b=document.querySelector('.secs').getBoundingClientRect(), n=document.querySelector('.cnt');"
+                        "return {pad: [c.paddingLeft, c.paddingRight, c.maxWidth, c.marginLeft], secs: [Math.round(b.left), Math.round(b.right), Math.round(b.width)], cnt: n ? Math.round(n.getBoundingClientRect().left) : null};})()")
+
+    def test_at_1400_main_pads_66_and_84_and_the_column_runs_262_to_1316_1054_wide(self):
+        got = self.edges(1400)
+        self.assertEqual(got["pad"], ["66px", "84px", "none", "0px"])
+        self.assertEqual(got["secs"], [262, 1316, 1054])
+        self.assertEqual(got["cnt"], 66)
+
+    def test_at_900_main_pads_20_and_24_and_the_column_is_one_column_at_20_856_wide(self):
+        got = self.edges(900)
+        self.assertEqual(got["pad"][:2], ["20px", "24px"])
+        self.assertEqual(got["secs"], [20, 876, 856])
+
+    def test_at_1400_the_other_pages_keep_their_frame_in_classic(self):
+        """Ruling 1260-B2 scope: only the Dashboard breaks the frame; Milestones, Use cases, Work items and Settings keep max-width and the centred margin."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            for tab in ("milestones", "usecases", "work", "settings"):
+                p.js("location.hash = '#%s&p=ABC'" % tab)
+                p.until("!document.querySelector('.cnt-grid') && !!document.querySelector('main section.frame:not(.skel-frame)')", "the %s page replaced the Dashboard" % tab)
+                got = p.js("(function(){var c=getComputedStyle(document.querySelector('main')); return [c.maxWidth !== 'none', c.marginLeft === c.marginRight && c.marginLeft !== '0px'];})()")
+                self.assertEqual(got, [True, True], tab)
+
+
 class Killers(Dash):
     def test_the_health_word_keeps_no_tracking_and_has_its_own_colour_for_each_state(self):
         with chrome() as cdp:
