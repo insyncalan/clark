@@ -14,7 +14,7 @@ from test_report_editor import Base, IDS
 from test_server import chrome
 
 FIRST, NEEDS = "ABC-S-001", "ABC-S-500"
-DEFAULT_IDS = IDS + ["ABC-S-011"]      # row 1266: the default report has eleven sections (Headline first, Documents last); IDS names ten
+DEFAULT_IDS = IDS      # row 1266: the default report has eleven sections (Headline first, Documents last)
 OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %r, opener: document.activeElement}, cancelable: true, bubbles: true}))"
 GONE = "That section isn't in the report any more. Reload the page."      # the words of logic/templates.js for a section that is not in the list
 

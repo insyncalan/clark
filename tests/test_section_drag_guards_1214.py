@@ -44,7 +44,7 @@ def json_list(kinds):
 class Fingers(Watching, Base):
     def at(self, cdp, width):
         p = self.visit(cdp)
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 3600, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until(f"window.innerWidth === {width}", "resized")
         p.edit()
         p.js(LOG)
@@ -79,7 +79,7 @@ class Fingers(Watching, Base):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                one = self.aim(p, "ABC-S-004", "bottom")
+                one = self.aim(p, "ABC-S-006", "bottom")
                 self.hold(p, "ABC-S-001", one)
                 gx, gy = self.free_grip(p)
                 self.touch(p, "touchStart", {1: one, 2: (gx, gy)})
@@ -91,7 +91,7 @@ class Fingers(Watching, Base):
                 self.assertEqual(p.js(GHOSTS), 1, f"{width} px: still one ghost, the second finger drew none (measured count)")
                 self.assertEqual(p.js("document.querySelectorAll('.drag-slot').length"), 1, f"{width} px: one slot")
                 self.touch(p, "touchEnd", {})
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5), f"{width} px: finger 1 dropped where it was")
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:6] + ["ABC-S-001"] + IDS[6:], 5), f"{width} px: finger 1 dropped where it was")
                 p.saved()
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")
@@ -100,7 +100,7 @@ class Fingers(Watching, Base):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                one = self.aim(p, "ABC-S-004", "bottom")
+                one = self.aim(p, "ABC-S-006", "bottom")
                 self.hold(p, "ABC-S-001", one)
                 top = self.free_grip(p)
                 self.touch(p, "touchStart", {1: one, 2: top})
@@ -115,7 +115,7 @@ class Fingers(Watching, Base):
                 self.assertEqual(p.js(GHOSTS), 1, f"{width} px: finger 2 lifting did not end the drag")
                 self.assertEqual(self.ids_in_store(), IDS, f"{width} px: and dropped nothing")
                 self.touch(p, "touchEnd", {})            # finger 1 lifts
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5),
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:6] + ["ABC-S-001"] + IDS[6:], 5),
                                 f"{width} px: the drop is where finger 1 was, not where finger 2 went")
                 self.assertIsNone(p.js(MARKS), f"{width} px: nothing is left on the page")
                 p.saved()
@@ -145,7 +145,7 @@ class Gated(Watching, Base):
 
     def at(self, cdp, width):
         p = self.visit(cdp)
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 3600, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until(f"window.innerWidth === {width}", "resized")
         p.edit()
         p.js(LOG)
@@ -159,7 +159,7 @@ class Saving(Gated):
                 p = self.at(cdp, width)
                 self.gate.clear()
                 self.arrived.clear()
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 x, y = (r["left"] + r["right"]) / 2, r["bottom"] - 2
                 p.drag("ABC-S-001", x, y, release=False)
                 p.until(p.SHOWN, f"{width} px: the drop target is shown before the release")
@@ -181,7 +181,7 @@ class Saving(Gated):
                 self.quiet(p, f"{width} px: whatever the release sets going has come")
                 self.assertEqual(len(self.arrived), 1, f"{width} px: no second request")
                 self.gate.set()
-                want = IDS[1:4] + ["ABC-S-001"] + IDS[4:]
+                want = IDS[1:6] + ["ABC-S-001"] + IDS[6:]
                 self.assertTrue(wait(lambda: self.ids_in_store() == want, 5), f"{width} px: the first drop was stored, and only it")
                 p.order_is(want, f"{width} px: the page shows what was stored")
                 self.assertEqual(len(self.arrived), 1, f"{width} px: one request in all")
@@ -192,10 +192,10 @@ class Saving(Gated):
         with chrome() as cdp:
             for width in WIDTHS:
                 p = self.at(cdp, width)
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 p.drag("ABC-S-001", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
                 p.saved()
-                p.order_is(IDS[1:4] + ["ABC-S-001"] + IDS[4:], f"{width} px: stored")
+                p.order_is(IDS[1:6] + ["ABC-S-001"] + IDS[6:], f"{width} px: stored")
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")
                 hx, hy, _ = p.box('[data-id="ABC-S-002"] [data-drag]')
@@ -216,7 +216,7 @@ class Failed(Gated):
             for width in WIDTHS:
                 p = self.at(cdp, width)
                 self.failure = self.broken
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 x, y = (r["left"] + r["right"]) / 2, r["bottom"] - 2
                 p.drag("ABC-S-001", x, y)
                 p.until("!!document.querySelector('.toast.problem')", f"{width} px: a problem toast")
@@ -227,9 +227,9 @@ class Failed(Gated):
                 self.failure = None
                 p.clear_toast()
                 p.until(p.IDLE, f"{width} px: the sections have glided back, so the rectangle below is where they are")
-                r = p.rect("ABC-S-004")
+                r = p.rect("ABC-S-006")
                 p.drag("ABC-S-001", (r["left"] + r["right"]) / 2, r["bottom"] - 2)
-                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:4] + ["ABC-S-001"] + IDS[4:], 5), f"{width} px: the next drag works")
+                self.assertTrue(wait(lambda: self.ids_in_store() == IDS[1:6] + ["ABC-S-001"] + IDS[6:], 5), f"{width} px: the next drag works")
                 p.saved()
                 p.js("document.querySelector('[data-undo]').click()")
                 p.order_is(IDS, f"{width} px: Undo")

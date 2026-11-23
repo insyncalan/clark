@@ -294,13 +294,23 @@ class Dashboard(Base):
                 self.assertGreaterEqual(grips, 3, "the At a glance tiles are drawn (a hidden tile is not drawn in Edit, row 1303)")
                 for n in range(grips):
                     d.check("outline", f"document.querySelectorAll('.tgrip')[{n}].dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))", ".tilemenu", 3)
-                d.button("#health-pill", "health pill")
-                d.check("health", "document.querySelector('#health-pill').click()", "#health-menu", 3)
                 d.button("[id^=ucst-]", "use case status")
                 d.check("uc-status", "document.querySelector('[id^=ucst-]').click()", "[role=menu]", 3)
                 d.button("[id^=uccm-]", "commitment")
                 d.check("commitment", "document.querySelector('[id^=uccm-]').click()", "[role=menu]", 2)
-            d.expect(["profile", "project-switch", "section", "outline", "health", "uc-status", "commitment"])
+            d.expect(["profile", "project-switch", "section", "outline", "uc-status", "commitment"])
+
+    def test_glance_health_tile_menu(self):      # the At a glance Health tile's own pill menu (row 1266: a new project starts with that tile off, the pill is in the Headline, so the tile is switched on through the real change route)
+        status, body = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-002",
+                                         "changes": {"body": '{"health":{"shown":true},"v":1}'}})
+        self.assertEqual(status, 200, body)
+        with chrome() as cdp:
+            p, d = self.drive(cdp)
+            for w, th in LOOKS:
+                d.look(w, th)
+                d.button("#health-pill", "health pill")
+                d.check("health", "document.querySelector('#health-pill').click()", "#health-menu", 3)
+            d.expect(["health"])
 
     def test_report_headline_health_menu(self):      # row 1261: the Report headline's health pill menu
         with self.store.step("dashboard", USER) as st:

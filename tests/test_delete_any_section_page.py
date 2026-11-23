@@ -46,7 +46,7 @@ class DeleteAnySection(Base):
             p.edit()
             for w in WIDTHS:
                 self.at(cdp, p, w)
-                for ref in ("ABC-S-004", "ABC-S-007"):                      # Milestones, Risks and issues
+                for ref in ("ABC-S-006", "ABC-S-008"):                      # Milestones, Risks and issues
                     p.menu(ref, "delete")
                     p.order_is([i for i in IDS if i != ref], f"{ref} deleted at {w}")
                     self.assertNotIn(ref, self.ids_in_store())
@@ -58,11 +58,11 @@ class DeleteAnySection(Base):
                     p.js("document.body.focus()")
                     p.key("z", CTRL, "KeyZ", 90)                                # Cmd/Ctrl+Z
                     p.order_is(IDS, f"Ctrl+Z at {w}")
-            p.menu("ABC-S-004", "delete")
-            p.order_is([i for i in IDS if i != "ABC-S-004"], "deleted")
+            p.menu("ABC-S-006", "delete")
+            p.order_is([i for i in IDS if i != "ABC-S-006"], "deleted")
             p.reload()
             p.edit()
-            p.order_is([i for i in IDS if i != "ABC-S-004"], "a reload keeps it gone")
+            p.order_is([i for i in IDS if i != "ABC-S-006"], "a reload keeps it gone")
             self.assertNotIn("Milestones", p.titles())
             for w in WIDTHS:
                 self.at(cdp, p, w)
@@ -73,10 +73,10 @@ class DeleteAnySection(Base):
                     self.assertIsNone(p.js(f"document.querySelector('[data-template=built-in-{kind}]')"), f"row 1407: no card for {kind}, the Work items list covers it")
                 p.js("document.querySelector('[data-template=built-in-milestones] input').click()")
                 p.js("document.querySelector('button[data-place]').click()")
-                p.until("document.querySelectorAll('.secs > .sec').length === 10", "added")
+                p.until("document.querySelectorAll('.secs > .sec').length === 11", "added")
                 self.assertEqual(p.titles().count("Milestones"), 1)
                 p.menu(p.ids()[3], "delete")                                    # ready for the next width
-                p.until("document.querySelectorAll('.secs > .sec').length === 9", "deleted again")
+                p.until("document.querySelectorAll('.secs > .sec').length === 10", "deleted again")
 
 
 if __name__ == "__main__":

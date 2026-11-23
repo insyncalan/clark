@@ -129,10 +129,10 @@ class AltSideKeys(Base):
         from test_server import chrome
         with chrome() as cdp:
             p = self.at(cdp, width)
-            p.js(GRIP % "ABC-S-004" + ".focus()")
+            p.js(GRIP % "ABC-S-003" + ".focus()")
             n = len(self.sent)
             p.key("ArrowUp", ALT | 8, code="ArrowUp", vk=38)
-            p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "Shift+Alt+Up")
+            p.order_is(["ABC-S-001", "ABC-S-003", "ABC-S-002"] + IDS[3:], "Shift+Alt+Up")
             p.saved()
             self.assertEqual(len(self.sent) - n, 1, "one change")
             n = len(self.sent)

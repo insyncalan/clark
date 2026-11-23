@@ -36,7 +36,7 @@ def open_list(p, width):
     p.js(f"(function(){{if (!document.querySelector('.toc').classList.contains('open')) document.querySelector('.toc-lines').{act};}})()")
 
 
-EDIT_IDS = IDS + ["ABC-S-011", "ABC-S-012"]      # row 1266: ten new default sections (Headline first, the Files and links one last = S-011) and the Supporting documents section the setUp adds (S-012)
+EDIT_IDS = IDS + ["ABC-S-012"]      # row 1266: the eleven default sections (Headline first, the Files and links one last = S-011) and the Supporting documents section the setUp adds (S-012)
 VIEW_IDS = [i for i in EDIT_IDS if i not in ("ABC-S-001", "ABC-S-011")]      # View draws neither the empty Headline nor the empty Files and links section, so neither is listed
 
 
