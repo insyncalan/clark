@@ -293,3 +293,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
+.fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
+.fopt .c + .ftick { margin-left: var(--space-2); }
+.fchips[data-gchips] { flex: 0 0 auto; }
