@@ -4,7 +4,7 @@
 // needs nothing else. What a client reads is the client's own wording, or the item's own title when it has none; the rows
 // listed are the ones marked for the client (the eye). An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
-import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
+import { data, rows as allRows, fromFile, asAt, openPeek, openPeekEdit } from "../stores/report.js";
 import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
 import { classicTheme } from "./Contents.jsx";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
@@ -100,33 +100,34 @@ export function Head({ type, id }) {
 
 export const listClass = (type, mode) => `wl irows is-${mode}${type === "decisions" ? " is-dec" : ""}`;
 
-function Row({ row, today, words, inFile, type }) {
+function Row({ row, today, words, inFile, type, pick: Pick, scope }) {
   const pill = clientPill(row, today), who = ownerOf(row.owner), date = dueField(row);
   const title = words[row.id];
   const risk = row.kind === "risk" || row.kind === "issue";
   const late = inFile ? "" : lateWord(row, today);
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
+  const P = (field, said, children, extra) => (Pick ? <Pick row={row} field={field} said={said} scope={scope} {...(extra || {})}>{children}</Pick> : children);      // row 1287: in View the Edit cell picker round the four values (status, owner, date, priority), never round the title
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
-      <span class="wl-title c-title" title={title}>{title}</span>
+      <span class="c-ico">{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} />, { keep: true })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
+      <span class="wl-title c-title" title={title} onClick={Pick ? (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) openPeekEdit(row.id); } : undefined}>{title}</span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
-        {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
+        {P("owner", who.initials ? who.text : "none", who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>)}
       </span>
-      <span class="c-date num">{date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date"}</span>
-      <span class="c-prio">{(risk || (inFile && isUrgent(row))) && row.priority ? <span class="prio">{row.priority}</span> : late ? <span class="late">{late}</span> : null}</span>
+      <span class="c-date num">{P("due", date ? showDate(date) : "none", date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date")}</span>
+      <span class="c-prio">{(risk || (inFile && isUrgent(row))) && row.priority ? P("priority", row.priority, <span class="prio">{row.priority}</span>) : late ? <span class="late">{late}</span> : null}</span>
       {inFile ? null : <span class="c-id wl-id num"><button type="button" class="idl" aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button></span>}
     </li>
   );
 }
 
-export function ItemRows({ type }) {
+export function ItemRows({ type, pick, scope }) {
   const inFile = fromFile.value, list = rowsFor(type), today = todayOf(), words = (inFile ? wordings : viewWords)(data.value || {});
   if (!list.length) return <p class="quiet" data-nothing>{NOTHING}</p>;
   return (
     <ul class={listClass(type, inFile ? "file" : "view")}>
       <Head type={type} id={!inFile} />
-      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} />)}
+      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} pick={inFile ? null : pick} scope={scope} />)}
     </ul>
   );
 }

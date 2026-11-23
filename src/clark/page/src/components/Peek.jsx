@@ -7,7 +7,7 @@
 // another row or card moves the peek with it, and Esc puts the focus on the row of the item shown. Nothing else takes an arrow.
 import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
+import { data, rows, peek, peekEdit, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
 import { width, wide, setWidth, resetWidth, MIN, DEFAULT } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
@@ -217,7 +217,7 @@ export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), pending = useRef(""), pendingKind = useRef("item"), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
-  const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
+  const editing = !!tools && !fromFile.value && (isEditing() || (!!p && p.kind === "item" && peekEdit.value === p.id));      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
