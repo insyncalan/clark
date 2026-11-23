@@ -43,6 +43,16 @@ export async function loadNotices() {
   if (r && r.status === 200 && b && b.ok === true && Array.isArray(b.notices) && b.why !== "away") pushNotices(b.notices);
   return r && r.status;
 }
+// The installed version, for a notice's version test (installedBelow): read once from this server's own /health answer (server.health_answer; no outbound call).
+// An answer that is not a plain x.y.z leaves it unknown, and an unknown version keeps the notice.
+export async function loadInstalled() {
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    const b = r && r.status === 200 ? await r.json() : null;
+    if (b && typeof b.version === "string" && /^\d+\.\d+\.\d+$/.test(b.version)) installed.value = b.version;
+  } catch (e) { /* stays unknown */ }
+  return installed.value;
+}
 let timer = null;
 export function startNotices() {
   if (timer) return;

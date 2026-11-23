@@ -62,6 +62,17 @@ const note = (id) => ({ id, title: "T " + id, body: "One sentence.", date: new D
 """
 
 
+PROBE_INSTALLED = r"""
+const answers = %s;
+globalThis.fetch = async (url) => { const a = answers.shift(); if (a === "throw") throw new Error("offline"); return { status: a.status, json: async () => a.body, url }; };
+(async () => {
+  const out = { start: NS.installed.value, got: [] };
+  for (const _ of answers.slice()) out.got.push(await NS.loadInstalled());
+  console.log(JSON.stringify(out));
+})();
+"""
+
+
 def bundle():
     if "code" not in _BUNDLE:
         with tempfile.TemporaryDirectory() as tmp:
@@ -89,6 +100,22 @@ def run(answers):
 def ok(*ids, **extra):
     notes = [{"id": i, "title": "T " + i, "body": "One sentence.", "date": "2999-01-01"} for i in ids]
     return {"status": 200, "body": {"ok": True, "notices": notes, **extra}}
+
+
+class LoadInstalled(unittest.TestCase):
+    def test_the_installed_version_comes_from_health_and_a_bad_answer_leaves_it_unknown(self):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        answers = [{"status": 500, "body": None}, "throw", {"status": 200, "body": {"ok": True}}, {"status": 200, "body": {"ok": True, "version": "1.3.x"}},
+                   {"status": 200, "body": {"ok": True, "version": "1.3.7"}}]
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "probe.js"
+            script.write_text(SHIM + bundle() + ";\n" + PROBE_INSTALLED % json.dumps(answers), encoding="utf-8")
+            done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
+            assert done.returncode == 0, done.stderr
+            got = json.loads(done.stdout.strip().splitlines()[-1])
+        self.assertEqual((got.get("start"), got["got"]), (None, [None, None, None, None, "1.3.7"]))
 
 
 class LoadNotices(unittest.TestCase):

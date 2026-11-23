@@ -2,7 +2,7 @@
 // so it never vanishes under the person's hands). The popup is a non-modal dialog: it never opens by itself, focus goes in and comes back to the bell on Esc or Close.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { WORDS, LABELS, badgeText, bellName, bellShown } from "../logic/notices.js";
-import { shown, unread, readIds, announced, noticesOpen, readOne, readAll, startNotices, stopNotices } from "./noticesState.js";
+import { shown, unread, readIds, announced, noticesOpen, readOne, readAll, startNotices, stopNotices, loadInstalled } from "./noticesState.js";
 import { show } from "../stores/report.js";
 
 const ICONS = {
@@ -20,7 +20,7 @@ function go(to) {      // an action only names a place inside clark (logic/notic
 export function Bell() {
   const btn = useRef(null), box = useRef(null), back = useRef(false), [kept, setKept] = useState(false);      // kept: the bell stays drawn until focus is back on it (after Mark all as read the count is 0 and a bell with nothing unread is not drawn: it stays until focus leaves it)
   const count = unread.value.length, open = noticesOpen.value;
-  useEffect(() => { startNotices(); return stopNotices; }, []);
+  useEffect(() => { loadInstalled(); startNotices(); return stopNotices; }, []);
   const close = () => { back.current = true; setKept(true); noticesOpen.value = false; };      // focus goes back in the effect below, after the popup is gone: a focus call here can be undone by the pending focus-in effect (a quick Close under load)
   useEffect(() => {
     if (open && box.current) box.current.focus();
