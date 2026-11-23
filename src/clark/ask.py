@@ -32,17 +32,25 @@ REQUEST_OVERHEAD = 30000       # characters kept free beside the passages: the q
 MAX_REQUEST = BUDGET + REQUEST_OVERHEAD   # 1,230,000: the whole text: question, earlier turns and passages
 
 
-def budget_for(limit):
+def size_chars(tokens=None):
+    """The characters of passages one question may carry: the Settings size in tokens at 4 characters each (None: the fixed BUDGET)."""
+    return BUDGET if tokens is None else tokens * 4
+
+
+def budget_for(limit, size=None):
     """Row 1293: the characters of passages one request may carry for a model that takes `limit` characters in all (None: not known, the
-    fixed BUDGET). A full question is cut to this and said, never refused for the model's window."""
+    size in Settings, else the fixed BUDGET). `size` is size_chars(): the lower of it and the model's room applies. A full question is cut
+    to this and said, never refused for the model's window."""
+    size = BUDGET if size is None else size
     if limit is None:
-        return BUDGET
-    return max(0, min(BUDGET, limit - REQUEST_OVERHEAD))
+        return size
+    return max(0, min(size, limit - REQUEST_OVERHEAD))
 
 
-def request_cap(limit):
-    """The longest whole request text for a model that takes `limit` characters (None: MAX_REQUEST)."""
-    return MAX_REQUEST if limit is None else min(MAX_REQUEST, limit)
+def request_cap(limit, size=None):
+    """The longest whole request text for a model that takes `limit` characters (None: the size in Settings and the overhead)."""
+    most = MAX_REQUEST if size is None else size + REQUEST_OVERHEAD
+    return most if limit is None else min(most, limit)
 
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
@@ -256,11 +264,12 @@ def _standing(instructions):
     return out
 
 
-def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None, files=0):
+def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None, files=0, budget=None):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given. `files` is how many of the last `passages` are files added to the question: when the text is too long they go last (item 1292)."""
+    budget = BUDGET if budget is None else budget      # Row 1293 AP2: the size set in Settings (ask.size_chars)
     max_request = MAX_REQUEST if max_request is None else max_request      # Row 1293: a model with a smaller window gives a smaller cap
     turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out, left_out = [], [], 0, 0
@@ -276,8 +285,8 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
             continue
         chosen.append((label, text))
         kept.append(n)
-    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:      # leave out the least relevant and say so; never send over the limit
-        keep, more = choose(chosen, question, BUDGET, MAX_PASSAGES)
+    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > budget:      # leave out the least relevant and say so; never send over the limit
+        keep, more = choose(chosen, question, budget, MAX_PASSAGES)
         left_out += more
         kept = [kept[i] for i in keep]
         chosen = [chosen[i] for i in keep]

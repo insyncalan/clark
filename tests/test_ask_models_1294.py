@@ -91,7 +91,7 @@ class Models(unittest.TestCase):
 
     def test_the_size_of_one_question_is_stated_with_the_lower_limit_rule(self):
         line = self.connect.get()[1]["size"]
-        self.assertEqual(line, "Size of one question: about 300,000 tokens (1,200,000 characters of passages). Each model has its own limit and the lower one applies.")
+        self.assertEqual(line, "Size of one question: about 300,000 tokens (1,200,000 characters of passages).")
 
 
 class TestTheConnection(unittest.TestCase):
@@ -220,12 +220,12 @@ class OnThePage(unittest.TestCase):
     def test_test_the_connection_shows_the_seconds_for_each_model_on_and_the_size_line(self):
         with chrome() as cdp:
             js = self.show(cdp, 900)
-            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: about 300,000 tokens (1,200,000 characters of passages). Each model has its own limit and the lower one applies.")
+            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: about 300,000 tokens (1,200,000 characters of passages).")
             self.assertEqual(js("document.querySelector('[data-ai-test]').innerText"), "Test the connection")
             js("document.querySelector('[data-ai-test]').click()")
             self.assertTrue(wait(lambda: re.fullmatch(r"Claude answered in \d+(\.\d)? seconds\.", js("document.querySelector('[data-ai-test-out]').innerText") or ""), 15))
             self.assertNotIn("ChatGPT", js("document.querySelector('[data-ai-test-out]').innerText"), "a model that is off is not tested")
-            self.assertIsNone(MONEY.search(js("document.querySelector('#ai-settings').innerText")))
+            self.assertIsNone(MONEY.search(js("document.querySelector('#ai-settings').innerText").replace(ac.SIZE_HELP, "")))      # row 1293: the size box's own help line (the ticket's words) says "costs more"
 
     def test_test_the_connection_waits_says_testing_and_with_nothing_on_stays_disabled_and_does_nothing(self):
         with chrome() as cdp:

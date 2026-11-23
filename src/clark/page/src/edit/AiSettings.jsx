@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
 import { askProvider } from "./askState.js";
-import { aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, aiTestSend, words } from "./publishApi.js";
+import { aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, aiSizeSend, aiTestSend, words } from "./publishApi.js";
 
 export const AI_CHECKING_LINE = "Checking whether AI suggestions are on…";
 export const AI_LATER_LINE = "AI suggestions come in a later version.";      // the status route answered 404: no AI service in this version
@@ -29,6 +29,7 @@ function ConnectCard() {
   const [pending, setPending] = useState("");            // the tile whose switch was just pressed: "Connecting…" shows while the server checks the sign-in
   const [test, setTest] = useState(null);                // null: not run; "running"; or {kind: "error" | "note", lines: [string]}
   const [weaker, setWeaker] = useState(null);            // {model, text}: a smaller model asks first
+  const [sizeText, setSizeText] = useState(null);     // row 1293 AP2: what is typed in the Size of one question box (null: the saved value shows)
   const back = useRef("");                                // selector of the control to refocus once the card has redrawn
   const busyNow = useRef(false);
   const readable = (b) => b && b.ok === true && b.claude && b.chatgpt && Array.isArray(b.models);
@@ -65,6 +66,16 @@ function ConnectCard() {
     setConn({ ...conn });                                // the drop-down goes back to the model in use
     setMsg({ kind: "error", text: r.status >= 400 && r.status < 500 && b && typeof b.message === "string" ? b.message : words(r, what) });
     return null;
+  }
+  // Row 1293 AP2: saves when the box is left or Enter is pressed. A refusal says the server's sentence and the saved value stays.
+  async function saveSize(text) {
+    const typed = String(text).replace(/,/g, "").trim();
+    setSizeText(null);
+    if (/^[0-9]+$/.test(typed) && Number(typed) === conn.size_box.value) return;
+    const r = await aiSizeSend(/^[0-9]+$/.test(typed) ? Number(typed) : typed);
+    const b = r.body;
+    if (r.status === 200 && readable(b)) { setConn(b); setMsg({ kind: "note", text: b.message }); return; }
+    setMsg({ kind: "error", text: r.status >= 400 && r.status < 500 && b && typeof b.message === "string" ? b.message : words(r, "save the size") });
   }
   async function choose(model) {
     const text = await send(() => aiModelSend(model), "save that choice", "#ai-model");
@@ -117,6 +128,16 @@ function ConnectCard() {
         {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
     </div>
+    {conn.size_box ? (
+      <div class="ai-size">
+        <label for="ai-size-box">Size of one question</label>{" "}
+        <input id="ai-size-box" data-ai-size-box type="text" inputMode="numeric" value={sizeText === null ? conn.size_box.value.toLocaleString("en-US") : sizeText}
+          onInput={(e) => setSizeText(e.currentTarget.value)} onBlur={(e) => saveSize(e.currentTarget.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveSize(e.currentTarget.value); } }} /> tokens{" "}
+        {conn.size_box.value !== conn.size_box.default ? <button type="button" class="btn sm" data-ai-size-default onClick={() => saveSize(String(conn.size_box.default))}>Use {conn.size_box.default.toLocaleString("en-US")}</button> : null}
+        <p class="muted" data-ai-size-help>{conn.size_box.help}</p>
+      </div>
+    ) : null}
     <p class="muted" data-ai-size>{conn.size}</p>
     {weaker ? (
       <div class="ai-msg" role="alert" data-ai-weaker>

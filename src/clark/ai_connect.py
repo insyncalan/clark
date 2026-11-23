@@ -32,8 +32,11 @@ PROFILE_LINE = "Your profile name is sent to the model with each question."     
 CONNECTED = "Connected. Asking can use its models."          # row 1294 (A8): turning a model on connects it; the words are the approved ones
 CONNECTED_OTHER = CONNECTED
 NOT_SIGNED_IN = {CHATGPT: "ChatGPT is not signed in on this computer. Sign in to the Codex command, then turn it on again."}     # row 1294: the switch goes back off and says this; Claude says what its own check found
-SIZE_LINE = ("Size of one question: about {tokens:,} tokens ({chars:,} characters of passages). Each model has its own limit and the lower one applies.")
+SIZE_LINE = ("Size of one question: about {tokens:,} tokens ({chars:,} characters of passages).")
 CHARS_PER_TOKEN = 4                       # the usual rough figure for English; the page says "about"
+SIZE_HELP = ("The most that one question sends to the model, counted in tokens (about 4 characters each). A higher number reads more of a big project "
+             "and costs more. Each model has its own limit and the lower one applies.")     # the ticket's help line
+SIZE_SAVED = "Saved."
 QUESTION_CHARS = ask.BUDGET               # row 1294: the page states the size that really cuts a question (ask.BUDGET), so page and code cannot differ; 1,200,000 characters is 300,000 tokens at 4 characters each (the A8 cut), and ask.MAX_REQUEST = BUDGET + 30000 caps the whole request
 TEST_QUESTION = "Reply with the one word ready."
 TEST_SYSTEM = "You answer in one word."
@@ -142,7 +145,25 @@ class AiConnect:
         offered = [m["id"] for m in models]
         picked = self.pick()
         model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
-        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "profile_line": PROFILE_LINE if settings.profile(self.data_dir)["name"] else "", "size": SIZE_LINE.format(tokens=QUESTION_CHARS // CHARS_PER_TOKEN, chars=QUESTION_CHARS), "message": message}
+        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "profile_line": PROFILE_LINE if settings.profile(self.data_dir)["name"] else "", "size": SIZE_LINE.format(tokens=self.size(), chars=self.size() * CHARS_PER_TOKEN), "size_box": {"value": self.size(), "default": settings.ASK_SIZE_DEFAULT, "min": settings.ASK_SIZE_RANGE[0], "max": settings.ASK_SIZE_RANGE[1], "step": settings.ASK_SIZE_STEP, "help": SIZE_HELP}, "message": message}
+
+    def size(self):
+        """Size of one question in tokens, as saved (the one reader, settings.ask_size)."""
+        return settings.ask_size(self.data_dir)
+
+    def set_size(self, body):
+        """POST /api/providers/size {tokens}: the size of one question, a whole number from 10,000 to 500,000 (row 1293 AP2). Anything else
+        is refused with the ticket's sentence and the saved value stays; it is never clamped."""
+        tokens = body.get("tokens") if isinstance(body, dict) and set(body) == {"tokens"} else None
+        if not isinstance(tokens, int) or isinstance(tokens, bool) or not settings.ASK_SIZE_RANGE[0] <= tokens <= settings.ASK_SIZE_RANGE[1]:
+            return fail(400, "bad_size", settings.ASK_SIZE_REFUSAL)
+        with self.lock:
+            try:
+                settings.ai_write(self.data_dir, {"ask_size": tokens})
+            except (ValueError, OSError):
+                return fail(409, "unreadable", settings.AI_UNREADABLE)
+        LOG.info("ai: size of one question set")
+        return 200, self.view(SIZE_SAVED)
 
     def get(self, *_ignored):
         return 200, self.view()
