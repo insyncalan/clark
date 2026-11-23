@@ -115,7 +115,7 @@ def wall(home, program, scratch, prefix=PREFIX):
         f'(allow file-write* (subpath {quote(codex)}) (regex #"^{own}") (literal "/dev/null") (literal "/dev/dtracehelper"))'))
 
 
-def arguments(path, canary="", system=None, model=None, home=None, scratch=None):
+def arguments(path, canary="", system=None, model=None, home=None, scratch=None, person=""):
     """The command line for one run: the wall, then Codex with every tool off and clark's rules as its instructions. Nothing the person typed.
     The question goes on standard input. `model` is None or one of MODELS; anything else raises ValueError."""
     if model is not None and (not isinstance(model, str) or model not in MODELS):
@@ -126,7 +126,7 @@ def arguments(path, canary="", system=None, model=None, home=None, scratch=None)
     pick = ["--model", model] if model else []
     return [SANDBOX, "-p", wall(home, str(path), scratch), str(path), "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
             "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--config", 'web_search="disabled"',
-            "--config", "base_instructions=" + json.dumps(ask.system_prompt(canary, system)), *off, *pick, "-"]
+            "--config", "base_instructions=" + json.dumps(ask.system_prompt(canary, system, person)), *off, *pick, "-"]
 
 
 def read_events(out):
@@ -235,8 +235,8 @@ class CodexCommand(ask_claude.ClaudeCommand):
         self.passed = (path, ask_claude.time.monotonic()) if path is not None else None
         return {"connected": path is not None, "why": READY if path is not None else why}
 
-    def answer(self, path, text, canary="", system=None, model=None, connectors=()):    # connectors: accepted and ignored (row 1306: only the Claude provider reads account connectors)
-        args = arguments(path, canary, system, model)
+    def answer(self, path, text, canary="", system=None, model=None, connectors=(), person=""):    # connectors: accepted and ignored (row 1306: only the Claude provider reads account connectors)
+        args = arguments(path, canary, system, model, person=person)
         if not self.walled:
             args = args[args.index(str(path)):]
         status, out, _code = run(args, text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)

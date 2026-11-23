@@ -1503,7 +1503,7 @@ class WaitToast(unittest.TestCase):
             wait_toast(lambda: "", 1)
 
 
-PAUSED_900 = "paused until Bifrost online (21-11)"      # ONE switch: set to None (or revert this commit) and every 900 px case runs again
+PAUSED_900 = None      # ONE switch: set to a reason text and every 900 px case is skipped with it; None lets 900 px run (tests/test_paused_900.py tests it by mock)
 
 
 _HIT_900 = [False]       # set when the running test reached a 900 px window

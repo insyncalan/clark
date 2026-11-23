@@ -28,6 +28,7 @@ LABELS = {**{m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS
 OFF_WORDS = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this."
 CARD_INTRO = ("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. "
               "No password or key is kept.")
+PROFILE_LINE = "Your profile name is sent to the model with each question."     # row 1331: shown only while a profile name is saved (no name, nothing sent)
 CONNECTED = "Connected. Asking can use its models."          # row 1294 (A8): turning a model on connects it; the words are the approved ones
 CONNECTED_OTHER = CONNECTED
 NOT_SIGNED_IN = {CHATGPT: "ChatGPT is not signed in on this computer. Sign in to the Codex command, then turn it on again."}     # row 1294: the switch goes back off and says this; Claude says what its own check found
@@ -166,7 +167,7 @@ class AiConnect:
         offered = [m["id"] for m in models]
         picked = self.pick()
         model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
-        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "size": SIZE_LINE.format(tokens=QUESTION_CHARS // CHARS_PER_TOKEN, chars=QUESTION_CHARS), "message": message, "docker": platform.container_mode()}
+        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "profile_line": PROFILE_LINE if settings.profile(self.data_dir)["name"] else "", "size": SIZE_LINE.format(tokens=QUESTION_CHARS // CHARS_PER_TOKEN, chars=QUESTION_CHARS), "message": message, "docker": platform.container_mode()}
 
     def get(self, *_ignored):
         return 200, self.view()
