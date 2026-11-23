@@ -152,6 +152,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1273 (Classic only; Cards keeps its menu rules): the two prototype menus, the View menu's Group by (#viewMenuList) and Move to, and no other (the Add menu is row 1462; the use case Group by menus keep theirs). Main's Row 1286 rules give them 15px and 224px. The prototype line: 7px 10px padding, then the icon at x10 and 10px (a space-2 and 2px) from icon to words: words at x36. The tick of the item in use is on the right of the word, as in every menu (ruling 9A: no tick slot in front of the icon); main's tick rule places it. Only two heads are drawn in capitals, Group by and the card's Move to head; the words stay as they are. */
+#viewMenuList.ddmenu [role="menuitemradio"], .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) [role="menuitem"] { gap: 0; padding-left: calc(var(--space-2) + 2px); }   /* :not(#none) only lifts Move to above the Row 1286 rule that names the three menus in one :is() list */
+#viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
+.ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
+#viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
