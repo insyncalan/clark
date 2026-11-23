@@ -299,7 +299,7 @@
     "go": "settings#data",
     "s": [
      "In **Settings**, on the **Data** card, press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
-     "The **Report** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. **History** lists the changes made to the items; it is hidden: right-click any sheet tab and choose Unhide."
+     "The **Report** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. The History sheet is hidden: right-click any sheet tab and choose Unhide."
     ],
     "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
     "page": [

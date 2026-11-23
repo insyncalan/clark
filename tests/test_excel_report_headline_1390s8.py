@@ -129,7 +129,7 @@ class InTheWorkbook(unittest.TestCase):
 class HelpSentence(unittest.TestCase):
     """The B-2 Help sentence about the hidden History sheet is pinned word for word (read 23-11: no test held it)."""
 
-    SENTENCE = ("**History** lists the changes made to the items; it is hidden: right-click any sheet tab and choose Unhide.")
+    SENTENCE = "The History sheet is hidden: right-click any sheet tab and choose Unhide."      # NEW-WORDS.md:1697, approved 21-11
 
     def test_the_report_and_history_sentence_is_in_the_help(self):
         raw = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
