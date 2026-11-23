@@ -23,6 +23,7 @@ NEAREST = """(() => {
   const line = document.querySelector('.top').getBoundingClientRect().bottom;
   let best = null, most = 0, below = null;
   for (const e of document.querySelectorAll('.secs > .sec:not(.is-hidden)')) {
+    if (['ABC-S-001', 'ABC-S-011'].includes(e.dataset.id)) continue;   // row 1266: the Headline and the empty Documents are drawn in Edit only, so they are not the section to follow across the switch
     const r = e.getBoundingClientRect(); const seen = Math.min(r.bottom, innerHeight) - Math.max(r.top, line);
     if (seen >= 64) return [e.dataset.id, r.top];
     if (seen > most) { most = seen; best = [e.dataset.id, r.top]; }
@@ -77,6 +78,12 @@ class NoShift(Setup):
             for frac in (0, 0.5, 1):
                 with self.subTest(page=label, at=frac):
                     for step, near, moved, before, after in self.one(1400, False, frac, via_key=True, tall=tall):
+                        if tall == 4000 and near:
+                            # row 1266: the Headline (and the empty Documents) are drawn in Edit only; on a page with no room to scroll, the section
+                            # read can only move by the height of what appears or goes away above it, nothing more.
+                            was, now = {x[0]: x for x in before["secs"]}, {x[0]: x for x in after["secs"]}
+                            first = next(i for i in was if i in now)                      # the first section drawn in both modes moves by the edit-only ones above it; the section read moves with it
+                            moved = abs((now[near[0]][1] - near[1]) - (now[first][1] - was[first][1]))
                         self.assertLessEqual(moved, 1, f"{step} by key: {near} moved {moved}px")
 
     def test_a_hidden_section_nearest_the_top_does_not_move_the_one_after_it(self):
