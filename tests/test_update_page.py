@@ -368,6 +368,41 @@ class Card(InBrowser):
             self.click("[data-undo-confirm]")
             self.assertEqual(self.focused(), "button[data-undo]")
 
+    def test_two_clicks_in_one_task_arm_once_and_undo_once(self):
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}),
+                     undo=OK({"ok": True, "restart": True, "message": "Putting back."}))
+        self.mount()
+        self.js("(() => { const b = document.querySelector('[data-undo]'); b.click(); b.click(); })()")
+        self.settle()
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'arm').length"), 1)
+        self.js("(() => { const b = document.querySelector('[data-undo-confirm]'); b.click(); b.click(); })()")
+        self.settle()
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'undo').length"), 1)
+
+    def test_a_failed_undo_says_why_in_the_notice(self):
+        refused = OK({"ok": False, "code": "space", "message": ui.MESSAGES["space"]}, 409)
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}), undo=refused)
+        self.mount()
+        self.click("[data-undo]")
+        self.click("[data-undo-confirm]")
+        self.assertTrue(wait(lambda: self.val(f"(document.querySelector('.pub-msg') || {{}}).textContent === {lit(ui.MESSAGES['space'])}")), "the refusal is drawn as the notice")
+        self.assertFalse(self.present("[data-undo-confirm]"), "the question is closed")
+
+    def test_the_armed_undo_question_fits_at_1400_and_900_in_light_and_dark(self):
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Put back version 0.3.0. " * 8}))
+                    self.mount()
+                    self.click("[data-undo]")
+                    self.assertTrue(self.present("[data-undo-confirm]"), "the question is drawn")
+                    self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+                    self.assertTrue(self.val("[...document.querySelectorAll('#update button')].every(b => b.getBoundingClientRect().left >= 0 && b.getBoundingClientRect().right <= innerWidth)"))
+
     def test_the_arm_runs_out(self):
         last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}))

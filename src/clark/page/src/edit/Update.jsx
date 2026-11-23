@@ -25,6 +25,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const [msg, setMsg] = useState(null);
   const heading = useRef(null);
   const disarm = useRef(null);
+  const going = useRef(false);      // set at once by the first Undo click or confirm, cleared when its request settles: busy is a closure value and a second click in the same task still reads false
 
   async function load() {
     setState((s) => ({ ...s, phase: "loading" }));
@@ -117,9 +118,12 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   async function arm() {
+    if (going.current) return;
+    going.current = true;
     setBusy(true);
     setMsg(null);
-    const r = await api.arm();
+    let r;
+    try { r = await api.arm(); } finally { going.current = false; }
     setBusy(false);
     if (r.status === 200 && r.body && r.body.ok === true) {
       setArmed({ id: r.body.arm_id, choice: r.body.choice === "full" ? "full" : "app_only", line: String(r.body.line || "").slice(0, 400) });
@@ -131,11 +135,13 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   async function confirmUndo() {
+    if (going.current) return;
+    going.current = true;
     clearTimeout(disarm.current);
     const a = armed;
     setArmed(null);
     setBusy(true);
-    await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]");
+    try { await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]"); } finally { going.current = false; }
   }
 
   async function copyNotes() {
