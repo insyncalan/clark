@@ -3,7 +3,7 @@
 // table stays one tab stop with the arrows moving inside it); a double-click on the edge puts that column back. The widths are kept for each table on this computer
 // (logic/remember.js), never in the data, and a published page does not have this file: it keeps its default widths.
 // A table calls useColWidths(name) once, puts `style` on each column (or a heading) and `grip(id, label)` inside each heading.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
 
 export const MIN_COL = 48;      // a column cannot be made narrower than this, so it cannot vanish
@@ -93,7 +93,7 @@ export function useColOrder(table) {
   const [saved, setSaved] = useState(() => { const v = recall(key, []); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; });
   const [drag, setDrag] = useState(null), [over, setOver] = useState(null);
   const focus = useRef(null), from = useRef(null), onGrip = useRef(false);
-  useEffect(() => {      // after a move the heading keeps the focus, so the next arrow press moves it again
+  useLayoutEffect(() => {      // after a move the heading keeps the focus, so the next arrow press moves it again
     if (!focus.current) return;
     const h = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`);
     focus.current = null;
