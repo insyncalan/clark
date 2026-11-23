@@ -72,5 +72,11 @@ class ShareOfTheRequest(unittest.TestCase):
         self.assertTrue(ask_data.left_out_lines([("actions", actions[1], actions[2])])[0].startswith(f"Sent {actions[1]} of {actions[2]} actions"))
 
 
+    def test_the_project_share_is_a_whole_number_of_characters_half_the_budget(self):
+        """Hostile round (23-11): `ask.BUDGET / 2` makes a float 600000.0 that still equals 600000; the share is a count of characters and stays an int."""
+        self.assertIs(type(ask_service.PROJECT_SHARE), int)
+        self.assertEqual(ask_service.PROJECT_SHARE * 2, ask.BUDGET)
+
+
 if __name__ == "__main__":
     unittest.main()
