@@ -51,6 +51,7 @@ class Read(unittest.TestCase):
         change = changes.make_change(self.s.path, [], USER)
         status, body = change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "doclinks", "title": "Fictional papers"}, "after": None})
         self.assertEqual(status, 200, body)
+        self.ref = body["ref"]
         status, body = self.pub.section_file({"project": "ABC", "section": body["ref"]})
         self.assertEqual((status, body["file"]["name"]), (200, "Plan v2.pdf"), body)       # listed, and in the folder
         (self.client / "Report files" / "Unlisted.pdf").write_bytes(b"in the folder, on no list")
@@ -82,6 +83,15 @@ class Read(unittest.TestCase):
         status, headers, data = self.get("Plan v2.pdf", extra="&download=1")
         self.assertEqual((status, data), (200, PDF))
         self.assertEqual({k.lower(): v for k, v in headers.items()}.get("content-disposition"), 'attachment; filename="Plan v2.pdf"')
+
+    def test_a_listed_name_is_served_though_the_section_also_holds_an_old_entry(self):
+        """Mutation sweep (1194): a link stored with no words (before the rule) does not make the section's file names unreadable."""
+        body = json.loads(self.s.read("report_sections", ref=self.ref)["body"])
+        body["items"].append({"kind": "link", "href": "https://example.org/old", "label": ""})
+        self.s.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (json.dumps(body), self.ref))
+        self.s.con.commit()
+        status, _, data = self.get("Plan v2.pdf")
+        self.assertEqual((status, data), (200, PDF))
 
     def test_a_dot_dot_path_is_refused(self):
         for name in ("../secret.pdf", "..", "Report files/../secret.pdf", "..%2Fsecret.pdf", "../outside.pdf", "../../outside.pdf"):
