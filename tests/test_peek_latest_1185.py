@@ -200,17 +200,6 @@ class DashPeek(unittest.TestCase):
 
 
 class MilestonePublished(unittest.TestCase):
-    def test_a_published_file_peek_has_no_editable_box_and_the_dashboard_view_box_never_reaches_it_1470(self):
-        """AP7: the file's page carries no box, no editor field and no new stamp wording, and the View box is gated on a live (not file) peek."""
-        sys.path.insert(0, str(ROOT / "dev" / "tools"))
-        import build_page
-        page = build_page.build(build_page.ENTRY_VIEW)
-        for needle in ("data-pk-latest", "contenteditable", "Last updated", "Created by"):
-            self.assertNotIn(needle, page, needle)
-        peek = (PAGE / "components/Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("const dashView = !!tools && !fromFile.value && classicTheme();", peek, "the View box needs live tools and no file")
-        self.assertIn("(editing || dashView) && forItem && tools.PeekLatest", peek)
-
     """The milestone Latest update in the published (client) file, through the real change route and the real build."""
     def setUp(self):
         self.demo = DemoStore()
@@ -224,6 +213,17 @@ class MilestonePublished(unittest.TestCase):
     def set(self, ref, **fields):
         status, body = self.change({"project": "ABC", "kind": "milestones", "op": "update", "id": ref, "changes": fields, "place": "peek"})
         self.assertEqual(status, 200, body)
+
+    def test_a_published_file_peek_has_no_editable_box_and_the_dashboard_view_box_never_reaches_it_1470(self):
+        """AP7: the file's page carries no box, no editor field and no new stamp wording, and the View box is gated on a live (not file) peek."""
+        sys.path.insert(0, str(ROOT / "dev" / "tools"))
+        import build_page
+        page = build_page.build(build_page.ENTRY_VIEW)
+        for needle in ("data-pk-latest", "contenteditable", "Last updated", "Created by"):
+            self.assertNotIn(needle, page, needle)
+        peek = (PAGE / "components/Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("const dashView = !!tools && !fromFile.value && classicTheme();", peek, "the View box needs live tools and no file")
+        self.assertIn("(editing || dashView) && forItem && tools.PeekLatest", peek)
 
     def test_it_is_in_the_client_file_with_client_wording_and_gone_without(self):
         ref = self.demo.milestone
