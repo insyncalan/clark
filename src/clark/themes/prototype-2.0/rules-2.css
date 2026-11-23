@@ -43,6 +43,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 
 /* Row 1479: how a milestone is reached, under its name, as the editor draws it (Classic only; the Cards page stays as it was) */
 .ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
+/* Row 1390: the Urgent priority icon in the peek and the pickers is maroon in Classic (the High icon is red; the table chip colours are row 1409). */
+.ic-m { color: var(--tone-urgent); }
+/* Row 1390 (AP3, Classic only; Cards keeps its look): the High priority chip is the sheet's red pair, F4DEDB with B3392F (Urgent is already maroon 6B1D2A with white, row 1409). The chip and the rating matrix cell read the same two variables, so they stay one colour; dark keeps the status tokens. */
+:root { --pri-high-bg: var(--pri-high-sheet-bg); --pri-high-fg: var(--pri-high-sheet-fg); }
+:root[data-theme=dark] { --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] { --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); } }
 /* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
 .ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
 .cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
@@ -176,6 +182,17 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1543 part 1: the published header's pages group sits where the editor's does, above 900px. The editor's bar has 28px at the sides, 22px between its parts, the tabs stretch to 10px above the bottom and end 22px before the right-hand buttons (search, ask clark, profile). The published bar reserves their width (228.94px, and 94.94px less at 1100px and below where ask clark is only an icon: the widths the editor draws, measured) and puts the switcher and the profile circle at its far end. The date (until it goes) sits in the reserved room above 1100px, and left of the pages below it, so it never moves them. */
+@media (min-width: 901px) {
+  .top-file { gap: 22px; padding: 10px 28px; }
+  .top-file .tabs { order: 2; margin-left: auto; flex: none; align-self: stretch; align-items: flex-end; }
+  .top-file .tab { padding-block: 8px 12px; }
+  .top-file .tab:not([aria-selected="true"]) { color: color-mix(in srgb, var(--white) 92%, transparent); }
+  .top-file .top-slot, .top-file .cm-wrap { order: 3; }
+  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2)); }
+}
+@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
+@media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

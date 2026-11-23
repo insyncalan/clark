@@ -16,7 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
-THEME_ONLY = {"--sec-band-bg", "--ms-amber-shape", "--tile-on-bg", "--tile-on-fg", "--pill-track", "--pill-on-fg", "--pill-on-bg", "--pill-muted"}      # rows 1311, 1396, 1395 and 1281: set and read by this Theme alone; declaring them in the committed file would change the Cards page bytes
+THEME_ONLY = {"--sec-band-bg", "--ms-amber-shape", "--tile-on-bg", "--tile-on-fg", "--pill-track", "--pill-on-fg", "--pill-on-bg", "--pill-muted", "--pri-high-sheet-bg", "--pri-high-sheet-fg"}      # rows 1311, 1396, 1395 and 1281: set and read by this Theme alone; declaring them in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
