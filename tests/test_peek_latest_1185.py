@@ -180,7 +180,7 @@ class DashPeek(unittest.TestCase):
                 self.assertGreaterEqual(int(cdp.js(f"getComputedStyle(document.querySelector({sel} + ' b')).fontWeight", sid)), 600)
 
     def test_old_item_history_carries_user_and_source_1470(self):
-        """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; the creator is NOT credited as the updater when there is Latest update text but no update row (Romanoff ruling 23-11 10:25), so there is no "by" in either case; the creator stays recorded (by_user is not blanked)."""
+        """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; the creator is NOT credited as the updater when there is Latest update text but no update row (ruling 23-11 10:25), so there is no "by" in either case; the creator stays recorded (by_user is not blanked)."""
         import sqlite3
 
         def old(store):
