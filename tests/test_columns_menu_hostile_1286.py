@@ -45,7 +45,7 @@ class ColsPanelHostile(base.InThePage):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until(f"innerHeight === {h}", f"window {w}x{h}")
 
-    def open(self, p, block="start"):
+    def show_menu(self, p, block="start"):
         p.js(f"document.querySelector({json.dumps(self.head)}).scrollIntoView({{block:{json.dumps(block)}}})")
         time.sleep(0.25)
         p.js(f"document.querySelector({json.dumps(self.head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
@@ -62,7 +62,7 @@ class ColsPanelHostile(base.InThePage):
             p = self.ready(cdp)
             for h in (1, 8, 20, 50, 96, 5000):
                 self.size(cdp, p, 1400, h)
-                got = self.open(p)
+                got = self.show_menu(p)
                 self.assertEqual(p.js("window.__errs"), [], f"h={h}")
                 self.assertIsNotNone(got, f"h={h}")
                 self.assertNotIn("NaN", json.dumps(got), f"h={h}: {got}")
@@ -72,10 +72,10 @@ class ColsPanelHostile(base.InThePage):
         with chrome() as cdp:
             p = self.ready(cdp)
             self.size(cdp, p, 1400, 900)
-            ref = self.open(p)
+            ref = self.show_menu(p)
             self.shut(p)
             self.size(cdp, p, 1400, 5000)
-            got = self.open(p)
+            got = self.show_menu(p)
             self.assertEqual(got["mh"], "", f"nothing cut: {got}")
             self.assertEqual(got["bottom"] - got["top"], ref["bottom"] - ref["top"], f"same height: {got} vs {ref}")
             self.assertLessEqual(got["bottom"], got["h"])
@@ -84,17 +84,17 @@ class ColsPanelHostile(base.InThePage):
         with chrome() as cdp:
             p = self.ready(cdp)
             self.size(cdp, p, 1400, 900)
-            tall = self.open(p)
+            tall = self.show_menu(p)
             self.shut(p)
             for gap in (1, 4, 7):
                 h = tall["bottom"] + gap
                 self.size(cdp, p, 1400, h)
-                got = self.open(p)
+                got = self.show_menu(p)
                 self.assertLessEqual(got["bottom"], h - 8 + 1, f"gap {gap}: {got}")
                 self.assertGreaterEqual(got["top"], got["floor"], f"gap {gap}: {got}")
                 self.shut(p)
             self.size(cdp, p, 1400, tall["bottom"] + 8)      # exactly the margin: no move
-            got = self.open(p)
+            got = self.show_menu(p)
             self.assertEqual(got["bottom"], tall["bottom"], f"foot exactly 8 above the bottom stays: {got}")
             self.shut(p)
 
@@ -103,7 +103,7 @@ class ColsPanelHostile(base.InThePage):
             p = self.ready(cdp)
             for h in (260, 420, 700):
                 self.size(cdp, p, 1400, h)
-                got = self.open(p, block="end")
+                got = self.show_menu(p, block="end")
                 self.assertGreaterEqual(got["top"], got["floor"], f"h={h}: {got}")
                 self.assertLessEqual(got["bottom"], got["h"], f"h={h}: {got}")
                 self.shut(p)
@@ -112,10 +112,10 @@ class ColsPanelHostile(base.InThePage):
         with chrome() as cdp:
             p = self.ready(cdp)
             self.size(cdp, p, 1400, 300)
-            first = self.open(p)
+            first = self.show_menu(p)
             self.shut(p)
             for i in range(10):
-                got = self.open(p)
+                got = self.show_menu(p)
                 self.assertEqual((got["top"], got["bottom"]), (first["top"], first["bottom"]), f"round {i}: {got} vs {first}")
                 self.assertEqual(p.js("document.querySelectorAll('.cols-menu').length"), 1)
                 self.shut(p)
@@ -135,7 +135,7 @@ class ColsPanelHostile(base.InThePage):
         with chrome() as cdp:
             p = self.ready(cdp)
             self.size(cdp, p, 1400, 164)
-            got = self.open(p)
+            got = self.show_menu(p)
             self.assertGreater(got["scroll"], got["client"], "the menu is cut, as this test needs")
             p.key("End", vk=35)
             vis = p.js("(function(){var a=document.activeElement,b=a.getBoundingClientRect(),m=document.querySelector('.cols-menu').getBoundingClientRect();"
