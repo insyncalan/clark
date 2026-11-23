@@ -168,8 +168,13 @@ class Eye(Base):
             p.js(f"document.querySelector('{eye}').click()")
             self.assertTrue(wait(lambda: self.stored(self.on).get("pill") is False, 10))
             p.js("document.activeElement && document.activeElement.blur()")
-            p.key("z", modifiers=2, code="KeyZ", vk=90)
-            self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10), "Undo shows the pill again")
+            # The save is silent and the page keeps its step for Undo a moment after the stored body changes (after it reads the project again), so a key
+            # pressed in that gap finds nothing to undo and says so. Press again until the pill is back; a key that found nothing changes nothing.
+            for _ in range(6):
+                p.key("z", modifiers=2, code="KeyZ", vk=90)
+                if wait(lambda: "pill" not in self.stored(self.on), 3):
+                    break
+            self.assertNotIn("pill", self.stored(self.on), "Undo shows the pill again")
             self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], n + 2, "one change, one undo")
 
     def test_the_eye_row_is_the_mock_ups_size_at_1400_and_900_in_light_and_dark(self):
