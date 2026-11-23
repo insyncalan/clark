@@ -30,7 +30,7 @@ TITLE = {"milestones": "name", "actions": "description", "raid": "description", 
          "workstreams": "name"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
 DATES = ("baseline_date", "forecast_date", "actual_date", "due_date", "raised", "closed", "date", "needed_by", "revisit",
-         "week_ending", "created")
+         "week_ending", "created", "start", "end")
 SHOWN = {
     "milestones": ("status", "owner", "baseline_date", "forecast_date", "actual_date", "percent_complete", "state_word",
                    "state_reason", "description", "client_message", "workstream"),
@@ -40,7 +40,7 @@ SHOWN = {
              "workstream", "milestone", "use_case"),
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
-    "workstreams": ("status", "created"),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
+    "workstreams": ("status", "created", "lead", "start", "end", "latest_update", "links"),      # row 1417: the lead is read here only (ruled yes); keywords and aliases are not read, and none of these is published (store.NEVER_PUBLISH keeps the lead)
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
@@ -234,14 +234,26 @@ def own_rows(inputs):
                 c.update(state=state, state_word=milestones.client_word(state))
             rows.append(c)
         out[kind] = rows
+    _workstream_links(out, inputs.get("ask_links") or ())
     return out
+
+
+def _workstream_links(out, links):
+    """Row 1417: each workstream's links (rows of the links table) as the IDs of the milestones and use cases it is linked to, either way round.
+    Only a row that is read here counts, so an archived row or one a label excludes is never named."""
+    mine = {r["id"] for kind in ("milestones", "use_cases") for r in out.get(kind, ()) if r.get("id")}
+    for w in out.get("workstreams", ()):
+        ends = {x for link in links for x in (link.get("from_item"), link.get("to_item"))
+                if w.get("id") in (link.get("from_item"), link.get("to_item")) and x in mine}
+        if ends:
+            w["links"] = ", ".join(sorted(ends))
 
 
 def project_data(store, code, question="", budget=BUDGET, as_at=None, limit=None):
     """The open project's own data for one question (row 1367), hidden rows included, archived left out, secret lines screened.
     Raises publish.PublishError (plain words) for a code that isn't a project. `limit` is the most passages kept (none: ask.MAX_PASSAGES; the
     service passes what a file added to the question leaves)."""
-    inputs = publish.read_inputs(store, code, as_at)
+    inputs = publish.read_inputs(store, code, as_at, ask=True)
     selected = own_rows(inputs)
     project = dict(publish.select(inputs)["data"].get("project") or {})
     project["current_state"] = publish.clean_html((inputs["data"].get("project") or {}).get("current_state") or "") or project.get("current_state")    # a hidden Current state section does not change what is read
