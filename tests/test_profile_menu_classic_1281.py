@@ -84,6 +84,8 @@ class Classic(Base):
                            "return {lab:q('.ap .lab').fontSize,r:q('.ptrack').borderRadius,pad:q('.ptrack').padding,gap:q('.ptrack').columnGap,cell:q('.pr').padding,fs:q('.pr').fontSize,"
                            "rad:q('.pr').borderRadius,on:q('.pr[aria-checked=true]').fontWeight,eq:Math.max.apply(null,w)-Math.min.apply(null,w)<=1?1:w.join()}})()")
                 self.assertEqual(got, {"lab": "13px", "r": "999px", "pad": "3px", "gap": "2px", "cell": "6px 4px", "fs": "14px", "rad": "999px", "on": "600", "eq": 1})
+                # AP5 gap: the mock-up (profile-menu.html:16, `.ap .t{margin-bottom:6px}`) uses a margin; ours (rules-2.css:56, `.ddmenu .ap .lab { padding: 0 0 6px }`) uses padding-bottom 6px, the same visual gap
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.ddmenu .ap .lab')).paddingBottom"), "6px", "AP5: gap under the Appearance label is padding-bottom 6px")
 
     def look_chosen_cell_and_colours(self):
         for w in WIDTHS:
