@@ -38,7 +38,7 @@ export const GANTT_TABLE_NAME = "Table";
 export const TEMPLATES = [
   { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "", ready: true,
     description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
-  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
+  { id: "text-image", name: "Text and Image Side by Side", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and Image Side by Side", body: "", start: '{"v":2}', ready: true,
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
   { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },

@@ -512,7 +512,7 @@ def _section_body(section, body):
     try:
         if _picture_kind(section["type"]) is not None:
             return _keep_pictures(section, body)
-        return clark_store.check_section_body(section["type"], body)
+        return clark_store.check_section_body(section["type"], body, section.get("body"))
     except Invalid as e:
         raise Refused(str(e)) from None
 
@@ -3425,8 +3425,8 @@ class _Dry(Exception):
 class _AskStore:
     """The store as _do_change sees it for ask clark: every read is the store's own; a step is ask clark's (see above)."""
 
-    def __init__(self, store, dry, expect, table, ref):
-        self._store, self.dry, self.expect, self.table, self.ref = store, dry, expect, table, ref
+    def __init__(self, store, dry, expect, table, ref, project):
+        self._store, self.dry, self.expect, self.table, self.ref, self.project = store, dry, expect, table, ref, project
         self.before = self.after = None
         self.committed = []                      # a mark for each step of this call that was committed
 
@@ -3445,7 +3445,7 @@ class _AskStore:
         try:
             with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
                 seen.append(st)
-                if self._store.ask_enabled() is not True:
+                if self._store.ask_allowed(self.project) is not True:      # row 1294: the computer-wide switch and the project's own asking, read again inside the step
                     raise Refused(ASK_OFF, 409, "asking_off")
                 self.before = self.shown(self.ref) if self.ref is not None else None
                 if self.expect is not None and self.before != self.expect:
@@ -3470,14 +3470,14 @@ def _do_ask(store, by_user, req, dry, expect, committed=None):
     part = req.get(ASK_PART[op])
     if not ASK_FIELDS[kind][op] or not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
         raise Refused(ASK_NOT_YET, code="not_yet")
-    if store.ask_enabled() is not True:
+    if store.ask_allowed(project) is not True:      # row 1294: the computer-wide switch and the project's own asking (an unknown project reads as off)
         raise Refused(ASK_OFF, 409, "asking_off")
     ref = req.get("id") if op == UPDATE else None
     if op == UPDATE and not _belongs(kind, ref, project):
         raise Refused(NO_MILESTONE if kind == "milestones" else NO_USE_CASE if kind == "use_cases" else ITEM_NOT_MINE)
     if expect is not None and not isinstance(expect, dict):
         raise Refused(STALE)
-    ask = _AskStore(store, dry, expect, kind, ref)
+    ask = _AskStore(store, dry, expect, kind, ref, project)
     if committed is not None:
         ask.committed = committed
     try:

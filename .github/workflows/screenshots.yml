@@ -6,15 +6,17 @@ name: Screenshots
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]      # the baseline: a push to main uploads the screenshots Argos compares each pull request with
 permissions:
   contents: read
 concurrency:
-  group: screenshots-${{ github.event.pull_request.number }}
+  group: screenshots-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 jobs:
   argos:
     name: Screenshots (Argos, advisory)
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     continue-on-error: true

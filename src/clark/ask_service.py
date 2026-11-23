@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen, settings
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -94,7 +94,7 @@ class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, used_hook=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, indexer=None, used_hook=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -104,6 +104,7 @@ class AskService:
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
+        self.indexer = indexer                       # ask_index.Indexer or None (Row 1366): a finished index answers a question without opening a file
         self.used_hook = used_hook                   # Row 1306: called with each connector name read in an answer (the launcher writes the log line; an ask module never logs)
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.usage = ask_usage.AskUsage(self.data_dir)      # row 1294: questions and tokens this month, per project, kept on this computer
@@ -112,6 +113,8 @@ class AskService:
         self.replies_lock = threading.Lock()
         self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
         self.using_lock = threading.Lock()
+        self.cancels = set()                         # one threading.Event per question being prepared or asked; Stop sets them all
+        self.cancels_lock = threading.Lock()
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -139,6 +142,20 @@ class AskService:
             return store.ask_enabled() is True
         except Exception:  # noqa: BLE001  a switch that can't be read is off
             return False
+        finally:
+            store.close()
+
+    def project_off(self, code):
+        """Row 1294: True when project `code` has asking turned off for itself, or the store can't be opened or can't say (never fails open). A project
+        that does not exist is not "off" here: the routes answer it as not found, and nothing is sent for it. The computer-wide switch is enabled()."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return True
+        try:
+            return store.read("projects", ref=code) is not None and store.ask_off_here(code)
+        except Exception:  # noqa: BLE001  a value that can't be read is off
+            return True
         finally:
             store.close()
 
@@ -223,7 +240,14 @@ class AskService:
         if body not in (None, {}):
             return 400, self.fail("bad_request")
         stop = getattr(self.provider, "stop", None)
-        running = bool(stop(owner=self.owner)) if callable(stop) else False
+        with self.cancels_lock:
+            pending = list(self.cancels)
+            for event in pending:
+                event.set()                          # a question still reading its data is told too: its request goes out cancelled, so the provider never starts
+        with self.using_lock:
+            for run in self.runs:
+                run.cancel.set()                     # one on its way to the provider (its record is in): its request carries this event, so the provider never starts it
+        running = (bool(stop(owner=self.owner)) if callable(stop) else False) or bool(pending)
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ask -----
@@ -242,6 +266,16 @@ class AskService:
         return code, question, turns
 
     def ask(self, body):
+        cancel = threading.Event()
+        with self.cancels_lock:
+            self.cancels.add(cancel)
+        try:
+            return self.ask_one(body, cancel)
+        finally:
+            with self.cancels_lock:
+                self.cancels.discard(cancel)
+
+    def ask_one(self, body, cancel):
         got = self.read_body(body)
         if got is None:
             return 400, self.fail("bad_request")
@@ -250,7 +284,7 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if platform.container_mode():                # Row 1293: refused before anything is read or sent
             return 409, self.fail("docker", ask_words.DOCKER)
-        if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
+        if not self.enabled() or self.project_off(code):                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
         try:
             ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
@@ -263,6 +297,7 @@ class AskService:
             return 400, self.fail("refused", str(e))
         window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
         budget = ask.budget_for(window)
+        budget_left = max(0, budget - sum(len(p.text) for p in added))      # Row 1367 (#2045 CHANGES): a file added to the question keeps its room, in characters and in passages, before the project and the folders take theirs
         with self.lock:
             try:
                 store = self.reader()
@@ -275,7 +310,8 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget))
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget_left),
+                                                  limit=max(0, ask.MAX_PASSAGES - len(added)))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
@@ -285,8 +321,11 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
-            found = ask_passages.folder_data(folders, self.data_dir, question, budget - used, self.home,
-                                             ask.MAX_PASSAGES - len(data.passages))
+            room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
+            if folders and self.indexer is not None and self.indexer.current(code, folders):
+                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
+            else:
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
@@ -296,15 +335,19 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
-        if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
+        if cancel.is_set():                          # a Stop that came while the data was read: nothing is sent
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
+        if not self.enabled() or self.project_off(code):                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
         run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
         with self.using_lock:
             self.runs.append(run)
         on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
         run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
+        if cancel.is_set():                          # a Stop that came before the record went in: the request goes out cancelled, so the provider never starts it
+            run.cancel.set()
         try:
-            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, person=settings.profile(self.data_dir)["name"], cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
         finally:
             with self.using_lock:
@@ -312,10 +355,19 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
+        if cancel.is_set():                          # row 1293 line 7: a Stop that came while the provider was finishing: the answer is not given and nothing is held (the tokens were spent, so they stay counted)
+            return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
+        index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
+        if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
+            n = self.indexer.not_yet(code)
+            note = ask_index.answer_note({"not_yet": n}) if isinstance(n, int) else ""
+            if note:
+                index_note = {"index_note": note, "index_note_at": len(notes)}      # its own field, so a page that draws only some notes (Cards) never gets it
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -335,7 +387,7 @@ class AskService:
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
                      "read": ask_data.read_counts(data),
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": draft_via(reply.draft, conn),
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
@@ -350,7 +402,7 @@ class AskService:
         code, name, page = body["project"], body["file"], body["page"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if not self.enabled():                       # fails closed, like the other ask routes: asking off, nothing is looked at
+        if not self.enabled() or self.project_off(code):                       # fails closed, like the other ask routes: asking off, nothing is looked at
             return 409, self.fail("asking_off", MESSAGES["open_asking_off"])   # same code, its own sentence (MESSAGES["asking_off"] is for the other routes)
         if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
             return 400, self.fail("bad_request")
@@ -421,7 +473,7 @@ class AskService:
         code = body["project"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # fails closed: nothing is read for a change while asking is off
+        if not self.enabled() or self.project_off(code):                       # fails closed: nothing is read for a change while asking is off
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         with self.replies_lock:
             held = self.replies.get(body["reply"])
@@ -448,7 +500,7 @@ class AskService:
             return 400, self.fail("change_bad_request")
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code", ask_apply.NO_PROJECT)
-        if not self.enabled():                       # and the save path reads the switch again inside its step
+        if not self.enabled() or self.project_off(code):                       # and the save path reads the switch again inside its step
             return 409, self.fail("asking_off", ask_apply.ASKING_OFF)
         return self.applier.apply(offer, code, confirm=confirm)
 
@@ -490,6 +542,17 @@ def draft_via(draft, conn):
     if not isinstance(draft, dict) or not conn or not conn.get("used"):
         return draft
     return {**draft, "via": [str(p) for p in conn["used"]]}
+
+
+def hidden_notes(hidden, passages):
+    """Row 1293: one plain line for each passage sent that holds hidden characters (the counts of Request.hidden, which the passage
+    keeps: it is sent unchanged). The question's own count is not a passage and gets none."""
+    out = []
+    for pid, label in passages:
+        n = hidden.get(pid) if isinstance(hidden, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool) and n >= 1:
+            out.append(f"{label}: this passage has {n} hidden {'character' if n == 1 else 'characters'}.")
+    return out
 
 
 def connector_used(line):
