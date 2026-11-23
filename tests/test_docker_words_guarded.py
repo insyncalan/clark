@@ -4,7 +4,9 @@
 Run: python3 dev/run_tests.py test_docker_words_guarded
 Real server and real BrandLibrary; the only thing faked is that this is a Docker container on Linux. Nothing is opened or run.
 """
+import http.client
 import sys
+import traceback
 import unittest
 from unittest import mock
 
@@ -24,6 +26,17 @@ class Base(unittest.TestCase):
         self.root, self.data, self.scratch = make_dirs(self)
         self.rig = Rig(self, library=False)
         self.rig.httpd.brands = sv.BrandLibrary(self.root, self.data)         # the real dialog and Downloads calls, as shipped
+        ran = mock.patch.object(pl, "_run", side_effect=AssertionError("item 1520: no program may run here, the Open dialog included"))
+        ran.start()                                                            # on any system, a dialog that is reached fails the case instead of opening
+        self.addCleanup(ran.stop)
+        self.raised = []                                                       # item 1520: what the handler thread raised, shown if the connection drops
+        self.rig.httpd.handle_error = lambda request, client: self.raised.append(traceback.format_exc())
+
+    def ask(self, source):
+        try:
+            return self.rig.call("POST", "/api/brands/review", {"from": source})
+        except (OSError, http.client.HTTPException) as e:
+            self.fail("item 1520: no answer (%r); the handler thread raised: %s" % (e, "".join(self.raised) or "nothing"))
 
     def said(self, status_got):
         status, got = status_got
@@ -34,10 +47,10 @@ class Base(unittest.TestCase):
 
 class Brand(Base):
     def test_review_the_brand_in_downloads(self):
-        self.said(self.rig.call("POST", "/api/brands/review", {"from": "downloads"}))
+        self.said(self.ask("downloads"))
 
     def test_choose_a_brand_zip(self):
-        self.said(self.rig.call("POST", "/api/brands/review", {"from": "file"}))
+        self.said(self.ask("file"))
 
 
 class Listing(unittest.TestCase):
