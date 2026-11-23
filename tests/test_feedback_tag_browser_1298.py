@@ -144,6 +144,9 @@ class FeedbackTagBrowser(unittest.TestCase):
     def test_close_button_returns_focus_to_tag(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
+            # The tag is drawn by the feedback component before Help's own mount effect has put the focus in its search box (Help.jsx, the effect with an empty dependency list).
+            # Click only after that effect has run, or on a slow Mac it takes the focus back from the tag after the close.
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "hpQ"), where + ": Help has put the focus in its search box")
             cdp.js(f"{BAR}.click()", sid)
             cdp.js("document.querySelector('[data-fbt-close]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js(f"!{DLG}", sid)), where)
