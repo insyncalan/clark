@@ -139,6 +139,31 @@ class Help(AiBase):
             self.click(js, "#slash-ai-undo")
             self.until(js, "document.querySelector('#sl-text').value.startsWith('Please list')", "Undo restores it")
 
+    def test_one_undo_per_ai_result(self):
+        """Row 1541 AP3, AI result: one #slash-ai-undo at a time, holding only the fields the latest result replaced; a typed edit clears it."""
+        with chrome() as cdp:
+            js = self.new_form(cdp)
+            self.type_into(js, "#sl-text", "Please list everything that is overdue, grouped by owner, oldest first")
+            self.click(js, "#slash-ai-shorter")
+            self.until(js, "document.querySelector('#sl-text').value === 'Overdue by owner'", "shorter")
+            self.done(js)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 1)
+            self.assertEqual(js("document.querySelectorAll('#slash-undo').length"), 0)
+            self.click(js, "#slash-ai-write")
+            self.until(js, f"document.querySelector('#sl-menu').value === {MENU!r}", "the second result")
+            self.done(js)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 1)       # still one, not two
+            self.click(js, "#slash-ai-undo")
+            self.until(js, "document.querySelector('#sl-menu').value === ''", "Undo takes back the latest result")
+            self.assertEqual(self.val(js, "#sl-text"), "Overdue by owner")                     # the earlier result stays: one Undo steps back one change
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 0)
+            self.click(js, "#slash-ai-clearer")
+            self.until(js, f"document.querySelector('#sl-text').value.includes({CLEARER_ADD!r})", "a result again")
+            self.done(js)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 1)
+            self.type_into(js, "#sl-text", "Typed by hand")
+            self.until(js, "document.querySelectorAll('#slash-ai-undo').length === 0", "a typed edit clears the Undo")
+
     def test_an_empty_box_says_so_and_the_provider_is_not_asked(self):
         with chrome() as cdp:
             js = self.new_form(cdp)
@@ -248,6 +273,30 @@ class Help(AiBase):
             self.click(js, "#slash-ai-describe")
             self.until(js, "document.querySelector('#sl-menu').value === 'Who owns an item'", "written")
             self.assertEqual(self.val(js, "#sl-name"), "check")
+
+
+    def test_no_project_data_is_sent_while_the_ai_writes(self):
+        """Row 1541 AP2: all five requests (Describe, Write it, Make it clearer, Shorter, the AI check) carry the typed words and one fixed instruction, and no project data."""
+        project = ("Example Programme", "Agree the cut-over plan", "Pilot live", "ABC-A-001", "ABC-M-001")
+        with chrome() as cdp:
+            js = self.new_form(cdp)
+            self.type_into(js, "#slash-ai-describe-in", "Sentence about owners")
+            self.click(js, "#slash-ai-describe")
+            self.until(js, "document.querySelector('#sl-name').value === 'who-owns'", "describe wrote")
+            self.done(js)
+            for typed, button in (("Typed A for {item}", "#slash-ai-write"), ("Typed B for {item}", "#slash-ai-clearer"), ("Typed C for {item}", "#slash-ai-shorter"), ("Typed D for {item}", "#slash-check-run")):
+                before = len(self.provider.requests)
+                self.type_into(js, "#sl-text", typed)
+                self.click(js, button)
+                self.assertTrue(wait(lambda: len(self.provider.requests) == before + 1, 10), button)
+                self.done(js)
+        self.assertEqual(len(self.provider.requests), 5)
+        for request, typed in zip(self.provider.requests, ("Sentence about owners", "Typed A", "Typed B", "Typed C", "Typed D")):
+            self.assertIn(typed, request.text)
+            self.assertEqual(request.passages, ())
+            for word in project:
+                self.assertNotIn(word, request.text)
+                self.assertNotIn(word, request.question)
 
 
 class Check(AiBase):

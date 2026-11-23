@@ -335,6 +335,23 @@ class Editor(Base):
             self.until(js, "!!document.querySelector('.slash-side [data-pick=monday]')", "Undo brings it back")
             self.assertEqual(self.files("ABC"), ["monday.json"])
 
+    def test_one_undo_per_change(self):
+        """Row 1541 AP3, Remove: one Undo button (#slash-undo), never an AI Undo, and once it is used no Undo is left."""
+        self.s.httpd.ask_commands.change({"scope": "project", "project": "ABC", "action": "save", "record": {"menu": "Own line", "text": "Overdue by owner", "scope": "anywhere", "result": "answer", "name": "monday"}})
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&name=monday")
+            self.until(js, "!!document.querySelector('#sl-name')", "the command opens")
+            self.assertEqual(js("document.querySelectorAll('#slash-undo, #slash-ai-undo').length"), 0)       # no change yet, no Undo
+            self.click(js, "#slash-remove")
+            self.until(js, "!!document.querySelector('#slash-undo')", "Undo is offered")
+            self.assertEqual(js("document.querySelectorAll('#slash-undo').length"), 1)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 0)
+            self.click(js, "#slash-undo")
+            self.until(js, "!!document.querySelector('.slash-side [data-pick=monday]')", "the command is back")
+            self.assertEqual(self.files("ABC"), ["monday.json"])
+            self.until(js, "document.querySelectorAll('#slash-undo').length === 0", "the one Undo is used up")
+            self.assertEqual(js("document.querySelectorAll('#slash-undo, #slash-ai-undo').length"), 0)
+
     def test_a_built_in_is_saved_as_your_version_reset_and_copied(self):
         with chrome() as cdp:
             js = self.editor(cdp, EDITOR + "&name=check")
