@@ -24,6 +24,8 @@ class AsAtPage(Base):
         super().setUp()
         s = self.store
         self.a = self.demo.action(description=OLD, due_date="2020-01-25", owner="Pat Demo")
+        status, body = self.real_change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "glance", "title": "At a glance"}, "place": "report"})
+        self.assertEqual(status, 200, msg=f"adding the At a glance (figures) section should give status 200; it gave {status} {body}")      # row 1266: the default At a glance is a template with no Health or Overdue tile; this test reads those figures
         self.move("2020-01-10 10:00:00")
         with s.step("dashboard", USER) as st:
             st.update("actions", self.a, {"description": NEW})

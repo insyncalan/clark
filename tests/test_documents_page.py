@@ -21,6 +21,11 @@ WIDTHS = ((1400, False), (900, True), (900, False), (1400, True))
 
 
 class Page(PageBase):
+    def setUp(self):
+        super().setUp()
+        status, body = self.real_change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "docs", "title": "Supporting documents"}, "place": "report"})
+        self.assertEqual(status, 200, msg=f"adding the Supporting documents section should give status 200; it gave {status} {body}")      # row 1266: the default report has none now; this file is about that section
+
     def docs_section(self):
         return next(r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "docs")
 

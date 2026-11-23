@@ -14,6 +14,7 @@ from test_report_editor import Base, IDS
 from test_server import chrome
 
 FIRST, NEEDS = "ABC-S-001", "ABC-S-500"
+DEFAULT_IDS = IDS + ["ABC-S-011"]      # row 1266: the default report has eleven sections (Headline first, Documents last); IDS names ten
 OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %r, opener: document.activeElement}, cancelable: true, bubbles: true}))"
 GONE = "That section isn't in the report any more. Reload the page."      # the words of logic/templates.js for a section that is not in the list
 
@@ -45,7 +46,7 @@ class AddAfterWithStoredNeeds(StoredNeeds):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.assertEqual(p.ids(), IDS, "the page draws the ten sections and not the Needs one")
+            self.assertEqual(p.ids(), DEFAULT_IDS, "the page draws the eleven sections and not the Needs one")
 
     def add_after_the_first(self, width):
         with chrome() as cdp:
@@ -54,8 +55,8 @@ class AddAfterWithStoredNeeds(StoredNeeds):
             p.edit()
             self.open_box(p, FIRST)
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 11", "added")
-            new = [i for i in p.ids() if i not in IDS][0]
+            p.until("document.querySelectorAll('.secs > .sec').length === 12", "added")
+            new = [i for i in p.ids() if i not in DEFAULT_IDS][0]
             self.assertEqual(p.ids()[:3], [FIRST, new, "ABC-S-002"], "directly after the first section, before the second")
             self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
             self.assertEqual(self.sent[-1][1]["after"], FIRST)
@@ -99,7 +100,7 @@ class AddAfterWithStoredNeedsPaired(StoredNeeds):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.assertEqual(p.ids(), IDS)
+            self.assertEqual(p.ids(), DEFAULT_IDS)
             self.open_box(p, self.SECOND)
             self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"), "Beside the second section is offered")
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "", "no reason given: nothing is in the way")

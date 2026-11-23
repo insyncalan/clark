@@ -46,6 +46,8 @@ class Published(unittest.TestCase):
         self.s = self.demo.store
         self.change = changes.make_change(self.s.path, [], USER)
         self.n = 0
+        status, body = self.change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "docs", "title": "Supporting documents"}, "place": "report"})
+        self.assertEqual(status, 200, msg=f"adding the Supporting documents section should give status 200; it gave {status} {body}")      # row 1266: the default report has none now; this test file is about that section
 
     def plant(self, title, url, kind="Report", date="2030-01-02", archived=0, project="ABC"):
         """A document written past the writer: none of the store's rules are asked."""
