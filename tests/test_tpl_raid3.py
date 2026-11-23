@@ -101,6 +101,13 @@ class CheckerBase:
         self.bad(body({"id": "ABC-001\n"}))
         self.bad(body({"id": "ABC-001", "source": "own", "own": "a​b"}))
 
+    def test_a_line_or_paragraph_separator_in_own_words_is_refused_as_hidden_text(self):
+        """Row 1288: the Full editor turns U+2028 and U+2029 into spaces before it sends; the store still refuses one that arrives (the backstop)."""
+        for ch in ("\u2028", "\u2029"):
+            with self.subTest(ch=hex(ord(ch))):
+                self.bad(body(card("ABC-001", "own", "a" + ch + "b")), section_bodies.BAD_TEXT)
+                self.bad(body(card("ABC-001", "own", "<p>a" + ch + "b</p>")), section_bodies.BAD_TEXT)
+
     def test_markup_in_own_words_is_only_text(self):
         text = self.check(body(card("ABC-001", "own", "<script>alert(1)</script> & <b>bold</b>")))
         self.assertEqual(json.loads(text)["cards"][0]["own"], "<script>alert(1)</script> & <b>bold</b>")

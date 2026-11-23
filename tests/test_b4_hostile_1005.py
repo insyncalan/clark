@@ -131,15 +131,16 @@ class Raid(PageBase):
             self.assertEqual(self.stored(), "Old words")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
 
-    def test_line_separators_and_next_line_never_reach_the_store(self):
+    def test_line_separators_and_next_line_are_stored_as_spaces_never_refused(self):
         for p, view, box in self.each():
             self.edit_open(p, view, box)
             self.typed(p, box, "a%sb%sc%sd" % (LS, NEL, PS))
             p.key("Enter", modifiers=2, code="Enter", vk=13)
-            # row 1288: the Full editor sends its HTML as typed, and the store refuses a line or paragraph separator in it (hidden text), as it does a joined emoji
-            p.until(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')", "the editor says the hidden text cannot be saved")
+            # row 1288: the Full editor turns U+2028 and U+2029 into spaces before it sends (as it does U+0085), so nothing is refused or hidden
+            self.assertTrue(self.wait_for(lambda: self.stored().startswith("a")))
             got = self.stored()
-            self.assertEqual(got, "Old words", "nothing with a separator reaches the store")
+            self.assertEqual(got, "a b c d", "the three separators are spaces in the store")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')"), "nothing was refused")
             for ch in (LS, NEL, PS, "\n"):
                 self.assertNotIn(ch, got, repr(got))
 

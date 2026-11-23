@@ -83,8 +83,9 @@ const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["h
   link: ["link"] };
 
 // Item 1005: the cleaner drops the next-line character (U+0085) as a control, which glued the words either side of it. It is a space.
+// Row 1288: so are the line and paragraph separators (U+2028, U+2029), as in the old one-line field; the store still refuses them if one arrives.
 function nelToSpace(node) {
-  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/\u0085/g, " ") };
+  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/[\u0085\u2028\u2029]/g, " ") };
   return node && node.content ? { ...node, content: node.content.map(nelToSpace) } : node;
 }
 
