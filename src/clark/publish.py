@@ -172,7 +172,7 @@ DROP_WITH_TEXT = {"script", "style", "iframe", "object", "embed", "form", "templ
                   "select"}                                   # these and everything inside them; link, meta... just go
 VOID = {"br", "hr", "img"}
 ALLOWED_TAGS = {"p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "code", "pre", "blockquote", "span", "div",
-                "ul", "ol", "li", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
+                "ul", "ol", "li", "h1", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
 ALLOWED_ATTRS = {"a": ("href", "title"), "img": ("src", "alt", "title"), "td": ("colspan", "rowspan"),
                  "th": ("colspan", "rowspan"), "span": ("class",)}
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]*", re.I)
