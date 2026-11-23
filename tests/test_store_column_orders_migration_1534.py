@@ -29,7 +29,7 @@ class Migrating(unittest.TestCase):
     def test_the_numbers_have_no_gap_and_34_then_35(self):
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
         self.assertIn((STEP, store_module.migrate_column_orders), store_module.MIGRATIONS)
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS][-2:], [34, 35])
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS][-2:], [35, 36])
         self.assertEqual(store_module.COLUMN_ORDERS_STEP, 35)
         self.assertFalse(hasattr(store_module, "migrate_reserved"))
 

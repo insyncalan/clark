@@ -46,7 +46,7 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "install_defaults" not in l and "connector_switches" not in l and "project_connectors" not in l and "ask_instructions" not in l and "ask_files" not in l and "ask_off" not in l and "source_folders" not in l and not l.startswith(("CREATE TABLE projects", 'INSERT INTO "projects"')) and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "install_defaults" not in l and "connector_switches" not in l and "project_connectors" not in l and "ask_instructions" not in l and "ask_files" not in l and "ask_off" not in l and "source_folders" not in l and not l.startswith(("CREATE TABLE projects", 'INSERT INTO "projects"')) and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and "workstreams" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
     finally:
         con.close()
 
@@ -57,8 +57,8 @@ def grown(path):
     con = sqlite3.connect(str(path))
     try:
         out = {}
-        for table in ("raid", "milestones", "decisions", "projects"):      # projects: row 1294 (steps 31 and 33) adds ask_instructions, ask_files_off and ask_off, compared by every other column
-            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] not in ("latest_update", "ask_instructions", "ask_files_off", "ask_off", "column_orders") and not (table == "decisions" and r[1] == "priority")]      # fixed table names
+        for table in ("raid", "milestones", "decisions", "projects", "workstreams"):      # projects: row 1294 (steps 31 and 33) adds ask_instructions, ask_files_off and ask_off, compared by every other column
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] not in ("latest_update", "ask_instructions", "ask_files_off", "ask_off", "column_orders") and not (table == "decisions" and r[1] == "priority") and not (table == "workstreams" and r[1] in ("start", "end"))]      # fixed table names
             out[table] = (cols, con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY rowid").fetchall())
         return out
     finally:
