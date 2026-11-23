@@ -45,6 +45,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ucf-ms .ucf-mshow { flex-basis: 100%; font-size: var(--size-small); }
 /* Row 1390: the Urgent priority icon in the peek and the pickers is maroon in Classic (the High icon is red; the table chip colours are row 1409). */
 .ic-m { color: var(--tone-urgent); }
+/* Row 1390 (AP3, Classic only; Cards keeps its look): the High priority chip is the sheet's red pair, F4DEDB with B3392F (Urgent is already maroon 6B1D2A with white, row 1409). The chip and the rating matrix cell read the same two variables, so they stay one colour; dark keeps the status tokens. */
+:root { --pri-high-bg: #F4DEDB; --pri-high-fg: #B3392F; }
+:root[data-theme=dark] { --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] { --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); } }
 /* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
 .ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
 .cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
