@@ -495,7 +495,7 @@ class HelpWordsMatchScreen(unittest.TestCase):
         self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
 
     def test_move_to_lists(self):
-        self.assertIn("head: `Move to ${groupLabel(g)}`", BOARD)
+        self.assertIn("head: classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)      # Cards keeps the help words; Classic holds the card id (row 1273)
         self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
         self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
         self.assertFalse(any("**Move to…**" in s for s in ALL))
