@@ -1,7 +1,7 @@
 """Row 1115, S3: the Essentials card, first on the Settings Profile page, in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
-Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder,
+Essentials holds nine settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Notices (row 1046),
 Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
@@ -11,7 +11,7 @@ from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking on or off"]
+NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Notices", "Publishing folder", "Asking on or off"]
 ROWS = """[...document.querySelectorAll('#essentials .set-row')].map(r => r.querySelector('.set-row-text label').textContent)"""
 
 
@@ -47,8 +47,8 @@ class Essentials(test_settings_head.Head):
         return p
 
     def drawn(self, p):
-        p.until("!!document.querySelector('#essentials') && document.querySelectorAll('#essentials .set-row').length === 8 && !!document.querySelector('#ess-safety-copy-box')",
-                "Essentials drew its eight rows")
+        p.until("!!document.querySelector('#essentials') && document.querySelectorAll('#essentials .set-row').length === 9 && !!document.querySelector('#ess-safety-copy-box')",
+                "Essentials drew its nine rows")
 
     def test_S3_essentials_is_the_first_card_of_the_profile_page(self):
         for w in WIDTHS:
@@ -61,7 +61,7 @@ class Essentials(test_settings_head.Head):
                     self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').getAttribute('aria-current')"), "page")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
-    def test_S3_the_eight_rows_are_there_on_the_shared_row_with_working_controls(self):
+    def test_S3_the_nine_rows_are_there_on_the_shared_row_with_working_controls(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -118,6 +118,8 @@ class Essentials(test_settings_head.Head):
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-copy-save]') && !!document.querySelector('#essentials #ess-safety-copy-box')"))
                     p.js("""(() => { const b = document.getElementById('ess-safety-copy-box'); b.focus(); b.value = '/tmp/essentials-copy'; b.dispatchEvent(new Event('input', {bubbles: true})); document.querySelector('[data-ess-copy-save]').click(); })()""")
                     p.until("!!document.querySelector('#ess-safety-copy-said p.success')", "the copy folder saved from Essentials")
+                    # Notices (row 1046 part C): the box and its Save are there
+                    p.until("!!document.querySelector('#essentials [data-ess-notices-box]') && !!document.querySelector('#essentials [data-ess-notices-save]')", "the Notices row drew")
                     # Publishing folder: Choose folder is there (the project is open)
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-choose-local]')"))
                     # Asking: the switch is the same one as in Asking

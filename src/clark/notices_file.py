@@ -102,3 +102,20 @@ class Notices:
             return 200, {"ok": True, "why": "off", "notices": []}
         found, why = read_within(place, self.timeout)
         return 200, {"ok": True, "why": why, "notices": found}
+
+    def path(self):
+        """(200, {"ok": True, "path": the saved path, "" when none}): what the Settings box shows."""
+        place = settings.notices_path(self.data_dir)
+        return 200, {"ok": True, "path": str(place) if place else ""}
+
+    def set_path(self, req):
+        """Save the path typed in Settings ("" turns notices off): (200, {"ok", "path", "message"}) or (400, a refusal in plain words ending "Nothing was changed."). The place itself is never touched."""
+        text = req.get("path") if isinstance(req, dict) and set(req) == {"path"} else None
+        if not isinstance(text, str):
+            return 400, {"ok": False, "error": "bad_request", "message": settings.NOTICES_PATH_BAD}
+        try:
+            saved = settings.set_notices_path(self.data_dir, text)
+        except ValueError as e:
+            return 400, {"ok": False, "error": "refused", "message": str(e)}
+        return 200, {"ok": True, "path": str(saved) if saved else "", "message": "Notices are read from this place." if saved else "Notices are off."}
+
