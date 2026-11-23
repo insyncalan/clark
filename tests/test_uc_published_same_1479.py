@@ -1,7 +1,7 @@
 """Row 1479 (the 20-11 decision: the use case page a client sees is the editor's page, read only; Owner shown, Last change not, no History).
 
 Run: python3 dev/run_tests.py test_uc_published_same_1479
-Test names are the ticket's (AP1 to AP8). At 1400 and 900: 900 is its own subTest; test_server.PAUSED_900 (the one switch) skips it while the 900 run is paused until Bifrost is online.
+Test names are the ticket's (AP1 to AP8). At 1400 and 900: 900 is its own subTest; test_server.PAUSED_900 (the one switch) is None, so it runs.
 Part 1 (source): the layout is ONE component, UseCaseLayout.jsx; the editor's page and the published file's page both draw it and neither writes
 its own cards, so the two cannot drift apart again (rule 1 of the ticket). A reference that already starts with UC is not given a second UC.
 Part 2 (a real page): the editor's component read only and the file's component, both mounted on the same use case, have the same cards in the
