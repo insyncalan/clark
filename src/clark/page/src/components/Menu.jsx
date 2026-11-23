@@ -36,6 +36,7 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   const own = useRef(null), box = boxRef || own;
   useFadeOut(box, !!fade && !leaving, typeof fade === "string" ? fade : "");
   const closeRef = useRef(onClose); closeRef.current = onClose;
+  const dbg1549 = (via, e) => { if (window.__dbg1549) window.__dbg1549.push({ t: Math.round(performance.now()), reason: via, via: e && e.type, target: e && e.target && (e.target.tagName || String(e.target)) }); };  // Row 1549 debug: no-op unless a test recorder set window.__dbg1549
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
   // there is no room below), its right edge on the button's (`fixed="start"`: its left edge). It is placed once, so any scroll (the row's own included) or a resize closes it.
   useLayoutEffect(() => {
@@ -49,7 +50,9 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
-    const shut = () => closeRef.current("away");
+    // Row 1549 (debug, throwaway): only when a test recorder has set window.__dbg1549, note who closed the menu; a no-op for every real page.
+    const note = (via, e) => { if (window.__dbg1549) window.__dbg1549.push({ t: Math.round(performance.now()), reason: "away", via, target: e && e.target && (e.target.tagName || String(e.target)), scrollY: window.scrollY }); };
+    const shut = (e) => { note(e && e.type, e); closeRef.current("away"); };
     window.addEventListener("scroll", shut, true);
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
@@ -71,15 +74,15 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     ((focusChecked && its.find((b) => b.getAttribute("aria-checked") === "true")) || its[0] || box.current).focus({ preventScroll: true });
   }, []);
   useLayoutEffect(() => {                        // not after the next frame: a click away that quick still closes it
-    const away = (e) => { if (!box.current.contains(e.target) && !(anchor && anchor.contains(e.target))) closeRef.current("away"); };
+    const away = (e) => { if (!box.current.contains(e.target) && !(anchor && anchor.contains(e.target))) { dbg1549("away-click", e); closeRef.current("away"); } };
     document.addEventListener("pointerdown", away, true);
     return () => document.removeEventListener("pointerdown", away, true);
   }, [anchor]);
   const keys = (e) => {
     delete box.current.dataset.pointer;
     if (menuMove(e, menuItemsIn(box.current))) return;
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose("esc"); }
-    else if (e.key === "Tab") onClose("tab");
+    if (e.key === "Escape") { dbg1549("esc", e); e.preventDefault(); e.stopPropagation(); onClose("esc"); }
+    else if (e.key === "Tab") { dbg1549("tab", e); onClose("tab"); }
   };
   // Row 922: while it fades out it has no id and is no role=menu (it is not "the menu" any more: code that looks for an open menu by id or role, such as the Help peek's Esc, must not find the fading one), it is out of the tab order and the reading order (inert, aria-hidden) and takes no pointer.
   return <div class={`ddmenu on${cls ? " " + cls : ""}${leaving ? " leaving" : ""}`} id={leaving ? undefined : id} role={leaving ? "presentation" : "menu"} aria-label={label} ref={box} tabIndex={-1} onKeyDown={keys}

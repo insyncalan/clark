@@ -14,6 +14,7 @@ from test_bulk_bar import Base  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 from test_work_board_page import tearDownModule, setUpModule  # noqa: E402,F401
 from test_work_filters import set_line  # noqa: E402
+import _dbg1549  # noqa: E402
 
 GAP = 20          # how far above the header's bottom edge the button's bottom edge is put
 HEIGHT = 520      # a window short enough for the page to scroll that far
@@ -68,6 +69,7 @@ class MenuPinHeader(Base):
             self.assertLessEqual(put["btnBottom"], put["headerBottom"] - 8, f"{where}: the button is well under the header ({put})")
             self.assertEqual(put["btnBottom"], put["headerBottom"] - GAP, f"{where}: the button is under the header ({put})")
             opened = "!!document.querySelector('#viewTabMenuList[role=menu]')"
+            dbg = _dbg1549.arm(lambda e: cdp.js(e, sid), f"test_menu_pin_header_1286 {where}", '#viewTabMenuList')
             for _ in range(6):                      # a late scroll closes a menu: open again until it stays
                 if cdp.js(opened, sid):
                     break
@@ -76,7 +78,10 @@ class MenuPinHeader(Base):
                 self.press(cdp, sid, "Enter", "Enter", 13)
                 if wait(lambda: cdp.js(opened, sid), 5) and not wait(lambda: not cdp.js(opened, sid), 0.5):
                     break
-            self.until(cdp, sid, "!!document.querySelector('#viewTabMenuList') && document.querySelector('#viewTabMenuList').getBoundingClientRect().height > 0", f"{where}: the menu opened")
+            try:
+                self.until(cdp, sid, "!!document.querySelector('#viewTabMenuList') && document.querySelector('#viewTabMenuList').getBoundingClientRect().height > 0", f"{where}: the menu opened")
+            finally:
+                dbg.dump()
             got = cdp.js(MEASURE, sid)
             print(f"MEASURE {where}: {json.dumps(got)}")
             self.assertEqual(got["btnBottom"], got["headerBottom"] - GAP, (where, "the button is still under the header when measured", got))

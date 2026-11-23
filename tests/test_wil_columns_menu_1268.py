@@ -6,6 +6,7 @@ import unittest
 import test_tpl_workitems as base
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
+import _dbg1549
 
 
 class ColumnsMenu(base.InThePage):
@@ -19,6 +20,7 @@ class ColumnsMenu(base.InThePage):
             p.edit()
             head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
             p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
             p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
             p.until("!!document.querySelector('.cols-menu')", "the menu opened")
             got = self.checked(p)
@@ -28,6 +30,7 @@ class ColumnsMenu(base.InThePage):
                 self.assertEqual(got[off], "false", off)
             p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
             p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
             p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             self.assertEqual(self.checked(p)["Due"], "true", "a column the press added is ticked")
@@ -56,6 +59,7 @@ class ColumnsMenu(base.InThePage):
             p = self.show(cdp)
             p.edit()
             head = self.open_menu(p, ref)
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
             p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
             p.until("!!document.querySelector('.cols-menu')", "the menu opened")
             got = p.js("Object.fromEntries([...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => [b.dataset.colName, [...b.querySelectorAll(':scope > svg.mi')].map(i => i.getAttribute('data-icn'))]))")

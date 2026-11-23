@@ -4,6 +4,7 @@ import unittest
 import test_tpl_workitems as base
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome, wait
+import _dbg1549
 
 
 class EditKillers(base.InThePage):
@@ -22,7 +23,8 @@ class EditKillers(base.InThePage):
             p = self.show(cdp)
             p.edit()
             self.drawn(p, ref)
-            p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
+            p.js(f"(() => {{ const ev = new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}); const r = document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(ev); window.__dbg.dispatch = {{ret: r, defaultPrevented: ev.defaultPrevented, type: ev.type, key: ev.key}}; return r; }})()")
             p.until("!!document.querySelector('.cols-menu')", "the menu opened")
             before = self.applies()
             p.js("document.querySelector('.cols-menu [data-col-name=Owner]').click()")
@@ -36,7 +38,8 @@ class EditKillers(base.InThePage):
             p = self.show(cdp)
             p.edit()
             self.drawn(p, ref)
-            p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ContextMenu', bubbles: true, cancelable: true}}))")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
+            p.js(f"(() => {{ const ev = new KeyboardEvent('keydown', {{key: 'ContextMenu', bubbles: true, cancelable: true}}); const r = document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(ev); window.__dbg.dispatch = {{ret: r, defaultPrevented: ev.defaultPrevented, type: ev.type, key: ev.key}}; return r; }})()")
             p.until("!!document.querySelector('.cols-menu')", "the menu key opened the menu")
 
     def test_a_right_click_on_a_heading_keeps_the_browsers_own_menu_away(self):
@@ -45,7 +48,9 @@ class EditKillers(base.InThePage):
             p = self.show(cdp)
             p.edit()
             self.drawn(p, ref)
-            sent = p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
+            sent = p.js(f"(() => {{ const ev = new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}); const r = document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(ev); window.__dbg.dispatch = {{ret: r, defaultPrevented: ev.defaultPrevented, type: ev.type, key: ev.key}}; return r; }})()")
+            _dbg1549.last.dump()
             self.assertEqual(sent, False, "the right click was cancelled")
 
     def test_each_list_keeps_its_own_column_widths(self):
@@ -76,7 +81,8 @@ class EditKillers(base.InThePage):
             p = self.show(cdp)
             p.edit()
             self.drawn(p, ref)
-            p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            _dbg1549.arm(p.js, self.id().split('.')[-1], '.cols-menu', p)
+            p.js(f"(() => {{ const ev = new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}); const r = document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(ev); window.__dbg.dispatch = {{ret: r, defaultPrevented: ev.defaultPrevented, type: ev.type, key: ev.key}}; return r; }})()")
             p.until("!!document.querySelector('.cols-menu')", "the menu opened")
             got = p.js("Object.fromEntries([...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => [b.dataset.colName, b.querySelector('.ck').textContent]))")
             self.assertEqual(got["Owner"], "✓")

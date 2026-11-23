@@ -16,6 +16,7 @@ from _paths import ROOT
 import test_inline_edits as ie  # noqa: E402
 from test_inline_edits import click, key  # noqa: E402
 from test_server import chrome  # noqa: E402  (the browser tier: this file drives Chrome through chrome())
+import _dbg1549  # noqa: E402
 import test_bulk_bar as bb  # noqa: E402
 import test_milestone_peek_828 as mp  # noqa: E402
 from test_movement_page import GO_LIVE, Base as MoveBase  # noqa: E402
@@ -178,6 +179,7 @@ class Milestone(Shown, MoveBase):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
+                _dbg1549.arm(p.js, self.id().split('.')[-1], '[data-pop][role=menu]', p)
                 self.click(p, "#peek [data-ms-field=workstream]")
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the workstream menu opened")
                 got = p.js(self.ICONS)
@@ -227,12 +229,14 @@ class MilestoneButton(Shown, MoveBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
                 self.assertEqual(p.js(f"document.querySelector('{button}').getAttribute('aria-expanded')"), "false")
+                _dbg1549.arm(p.js, self.id().split('.')[-1], '[data-pop][role=menu]', p)
                 self.click(p, button)
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
                 self.assertEqual(p.js(f"document.querySelector('{button}').getAttribute('aria-expanded')"), "true")
                 self.click(p, button)
                 p.until("document.querySelectorAll('[data-pop]').length === 0", "the button closes the menu again")
                 self.assertEqual(p.js(f"document.querySelector('{button}').getAttribute('aria-expanded')"), "false")
+                _dbg1549.arm(p.js, self.id().split('.')[-1], '[data-pop][role=menu]', p)
                 self.click(p, button)
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
                 p.until("!!document.activeElement.closest('[data-pop]')", "the focus went into the menu")
@@ -246,6 +250,7 @@ class MilestoneButton(Shown, MoveBase):
                 p.until(f"document.querySelector('{button}').textContent === 'Build'", "the button says the choice")
                 self.assertIn("Build", p.js(f"document.querySelector('{button}').getAttribute('aria-label')"))
                 self.assertTrue(p.js(f"document.activeElement === document.querySelector('{button}')"), "the focus is back on the button")
+                _dbg1549.arm(p.js, self.id().split('.')[-1], '[data-pop][role=menu]', p)
                 self.click(p, button)
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened once more")
                 self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio][aria-checked=true]')].map(b => b.dataset.value)"), ["Build"],
