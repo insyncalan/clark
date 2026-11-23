@@ -68,9 +68,9 @@ export const TEMPLATES = [
   { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
     holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // item 1272 G: `more` is the extra line under the description
-  // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
-  // imagecap section; section_kinds/imagecap.py START). Full width only. Its name is unruled (logic/fullImageWords.js).
-  { id: "full-image", name: WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
+  // Row 1223: the same store type the removed Image with caption used (imagecap; sections made with it keep opening), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
+  // imagecap section; section_kinds/imagecap.py START). Full or half width. Its name is Image (the ticket; logic/fullImageWords.js).
+  { id: "full-image", name: WORDS.name, kind: "text", fit: ["full", "half"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
     description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },

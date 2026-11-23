@@ -131,7 +131,7 @@ class ClassicOnly(unittest.TestCase):
     def test_every_placeholder_keeps_its_old_words_for_Cards(self):
         t = self.EDIT / "templates"
         for name, old in (("WorkItemsList.jsx", 'startOr("Shown above the list"'), ("Callout.jsx", "startOr(PROMPTS.words"), ("TextImage.jsx", 'startOr("Click to write."'),
-                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined'), ("ImageCap.jsx", 'startOr(undefined')):
+                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined')):
             self.assertIn(old, (t / name).read_text(encoding="utf-8"), name)
             self.assertNotIn("startText(", (t / name).read_text(encoding="utf-8"), name)
 

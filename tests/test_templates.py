@@ -47,7 +47,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
     {"id": "gallery", "description": "Pictures in a grid, each with a caption."},
-    {"id": "full-image", "description": "One image across the full width, framed as you choose, with an optional caption."},
+    {"id": "full-image", "description": "One image, framed as you choose, with an optional caption."},
     {"id": "quote", "description": "A voice from the business."},
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
@@ -143,7 +143,7 @@ class Logic(unittest.TestCase):
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
-            "full-image": ("One image across the full width, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full"]),      # row 1223
+            "full-image": ("One image, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full", "half"]),      # row 1223: Image, full or half
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
@@ -251,7 +251,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(p["requests"][0]["values"]["body"], '{"pill":false,"v":1}', "beside, the same")
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 24)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance
+        self.assertEqual(len(self.t("list()")), 24)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance      # row 1223: - the Image with caption card
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3", "glance-template"])      # the kind's name is searched too: Project at a glance is in Figures
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -338,6 +338,22 @@ class Logic(unittest.TestCase):
         hits = [f.name for f in (SRC / "clark" / "page" / "src" / "edit").glob("*.js*") if literal.search(f.read_text(encoding="utf-8"))]
         self.assertEqual(hits, ["addSection.js"])
         self.assertIn("ADD_SECTION_EVENT = ADD_EVENT", (SRC / "clark" / "page" / "src" / "edit" / "addDialog.js").read_text(encoding="utf-8"))
+
+    def test_the_picker_lists_image_not_image_with_caption_at_full_and_half(self):
+        """Row 1223 (tests 12 and 13, the card side): one card named Image, offered full and half, and no Image with caption; Help says the same."""
+        cat = self.t("TEMPLATES")
+        names = [x["name"] for x in cat]
+        self.assertIn("Image", names)
+        self.assertNotIn("Image with caption", names)
+        self.assertNotIn("Full width image", names)
+        by = {x["id"]: x for x in cat}
+        self.assertEqual(set(by["full-image"]["fit"]), {"full", "half"})
+        self.assertEqual(by["full-image"]["type"], "imagecap")      # the old sections keep their stored type, so they open as they were
+        self.assertNotIn("image-caption", by)
+        help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("Image with caption", help_)
+        self.assertNotIn("Full width image", help_)
+        self.assertIn('"Image",\n        "One image, framed as you choose, with an optional caption.",\n        "Full or half"', help_)
 
     def test_the_box_code_escapes_the_selector_and_does_not_touch_state_after_closing(self):
         src = (SRC / "clark" / "page" / "src" / "edit" / "AddDialog.jsx").read_text(encoding="utf-8")
