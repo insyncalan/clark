@@ -76,6 +76,18 @@ class Library(unittest.TestCase):
         src = (SRC / "clark" / "docx_build.py").read_text(encoding="utf-8")
         self.assertNotIn('"count"', src, "Word reads no count")
 
+    def test_a_count_that_is_not_a_whole_three_or_four_is_refused_and_a_publisher_trusts_only_the_numbers_card(self):
+        for v in (3.0, 5):
+            with self.subTest(count=v), self.assertRaises(base.Bad):
+                section_bodies.check("figures4", '{"v": 1, "count": %s, "figures": []}' % v, store_module.BODY_RULES)
+        ctx = base.Context({}, "2030-01-15")
+        rows = [typed(label=f"L{i}", value=str(i)) for i in range(4)]
+        three = section_bodies.published("figures3", {"v": 1, "count": 3, "figures": rows}, ctx)
+        self.assertNotIn("count", three, "the three-number type never publishes a count")
+        wild = section_bodies.published("figures4", {"v": 1, "count": 5, "figures": rows}, ctx)
+        self.assertNotIn("count", wild, "a count that is not 3 or 4 is not published")
+        self.assertEqual(len(wild["figures"]), 4)
+
 
 class Page(Section):
     def test_the_count_and_source_switches_are_the_mock_ups_size_in_light_and_dark_at_1400_and_900(self):
@@ -197,6 +209,50 @@ class Page(Section):
         with chrome() as cdp:
             p = self.open_edit(cdp, ref, 900)
             self.assertEqual(p.js("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
+
+    def test_a_count_of_three_with_four_stored_draws_three_in_the_view_and_keeps_the_count_when_a_number_is_typed(self):
+        rows = [typed(label=f"L{i}", value=str(i)) for i in range(4)]
+        ref = self.add("figures4", {"v": 1, "count": 3, "figures": rows})
+        sec = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sec} .tpl-figs')", "View")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [data-fig=figure]').length"), 3, "the view draws the count, not every stored number")
+        with chrome() as cdp:
+            p = self.open_edit(cdp, ref, 1400)
+            p.js(f"(() => {{ const i = document.querySelector('{sec} [data-slot=\"0\"] input[aria-label$=\"label\"]'); i.value = 'Changed'; i.dispatchEvent(new Event('change', {{ bubbles: true }})); }})()")
+            self.assertTrue(wait(lambda: self.stored(ref)["figures"][0]["label"] == "Changed", 10), self.stored(ref))
+            self.assertEqual(self.stored(ref)["count"], 3, "typing a number keeps the count")
+            self.assertEqual(len(self.stored(ref)["figures"]), 4)
+
+    def test_choosing_the_count_already_chosen_changes_nothing_and_a_blank_section_keeps_its_count(self):
+        ref = self.add("figures4", {"v": 1, "count": 3, "figures": [typed(label="A", value="1")]})
+        blank = self.add("figures4", "")
+        sec, bsec = (f"[data-id={json.dumps(r)}]" for r in (ref, blank))
+        with chrome() as cdp:
+            p = self.open_edit(cdp, ref, 1400)
+            step = self.demo.last_step()
+            p.js(f"document.querySelector('{sec} [data-count] button:first-child').click()")
+            self.assertFalse(wait(lambda: self.demo.last_step() != step, 3), "3 when it is already 3 is not a change")
+            p.js(f"document.querySelector('{bsec} [data-count] button:first-child').click()")
+            self.assertTrue(wait(lambda: self.store.read("report_sections", ref=blank)["body"] != "", 10), "a count alone is saved")
+            self.assertEqual(self.stored(blank), {"v": 1, "count": 3, "figures": []})
+
+    def test_at_900_the_numbers_card_is_one_column_in_view_and_edit_even_beside_another_section(self):
+        ref = self.add("figures4", {"v": 1, "figures": [typed(label=f"L{i}", value=str(i)) for i in range(4)]})
+        three = self.add("figures4", {"v": 1, "count": 3, "figures": [typed(label=f"L{i}", value=str(i)) for i in range(3)]})
+        cols = lambda sel: f"getComputedStyle(document.querySelector('{sel}')).gridTemplateColumns.split(' ').length"
+        for r, n in ((ref, 4), (three, 3)):
+            sec = f"[data-id={json.dumps(r)}]"
+            with self.subTest(n=n, mode="edit"), chrome() as cdp:
+                p = self.open_edit(cdp, r, 900)
+                self.assertEqual(p.js(cols(f"{sec} .tpl-slots")), 1, "the places of an edit are one column")
+                self.assertEqual(p.js(cols(f"{sec} .tpl-figs")), 1)
+                for side in ("slot-left", "slot-right"):      # beside another section: shell.css gives two columns for four; at 900 it is one
+                    p.js(f"document.querySelector('{sec}').classList.add('{side}')")
+                    self.assertEqual(p.js(cols(f"{sec} .tpl-slots")), 1, side)
+                    self.assertEqual(p.js(cols(f"{sec} .tpl-figs")), 1, side)
+                    p.js(f"document.querySelector('{sec}').classList.remove('{side}')")
 
 
 if __name__ == "__main__":
