@@ -110,7 +110,7 @@ export const LATER = [
 // Row 1411: the built-in At a glance card is gone too (the glance template is its own card).
 // Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
 // so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
-const USECASES_CARD = { name: "Use cases", fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+const USECASES_CARD = { fit: ["full"], name: "Use cases", description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
                         holds: ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"] };
 // Item 1192: the Milestones card is a library card like the others; the section it makes is the built-in's own (type milestones, MsBlock),
 // so the timeline or calendar, the list, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only.

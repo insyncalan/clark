@@ -57,7 +57,7 @@ class TemplateNames(unittest.TestCase):
 
     def test_the_built_in_cards_are_named_use_cases_and_documents_and_start_with_the_old_titles(self):      # ticket To do line "Do not change other section titles": the card name changes, the starting title stays
         from clark import changes
-        self.assertRegex(TEMPLATES, r'name: "Use cases", fit:')
+        self.assertRegex(TEMPLATES, r'fit: \["full"\], name: "Use cases",')
         self.assertIn('builtIn("usecases", "Use case summary"', TEMPLATES)
         self.assertIn('builtIn("docs", "Supporting documents", "files", { name: "Documents" })', TEMPLATES)
         self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use case summary", "Supporting documents"))
