@@ -84,8 +84,8 @@ export const TEMPLATES = [
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
   { id: "link-preview", name: "Web page card", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
-  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Header", body: "", ready: true,
-    description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"], keywords: "current state" },
+  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
+    description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Where we are, what’s next", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: PLAN_SUMMARY_BODY,
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
@@ -120,7 +120,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
                                  holds: ["Heading", "Timeline or Calendar · live", "Milestone list · live"] };
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Header", "text", { keywords: "current state" }), builtIn("usecases", "Use cases", "work", USECASES_CARD),
+  builtIn("current", "Current state", "text"), builtIn("usecases", "Use cases", "work", USECASES_CARD),
   builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
@@ -186,7 +186,7 @@ export const kindName = (id) => (KINDS.find((k) => k.id === id) || { name: "" })
 
 const words = (s) => String(s || "").toLowerCase().split(/\s+/).filter(Boolean);
 const matches = (t, q) => {
-  const hay = `${t.name} ${t.description} ${kindName(t.kind)} ${t.holds.join(" ")} ${t.keywords || ""}`.toLowerCase();
+  const hay = `${t.name} ${t.description} ${kindName(t.kind)} ${t.holds.join(" ")}`.toLowerCase();
   return words(q).every((w) => hay.includes(w));
 };
 

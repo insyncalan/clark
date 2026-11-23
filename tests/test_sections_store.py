@@ -15,7 +15,7 @@ from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 TEN = (
-    ("text", "Header", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
+    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 8, 9 and 10 of item 1193
     ("docs", "Supporting documents", 0))
@@ -84,9 +84,9 @@ class Seed(Base):
         self.assertEqual(len(self.sections("XYZ")), 10)
 
     def test_the_re_addable_current_section_is_named_current_state(self):
-        """Add a section offers the older "current" type again, under the title Header (the first default is text now)."""
+        """Add a section offers the older "current" type again, under the title Current state (the first default is text now)."""
         from clark import changes
-        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Header")
+        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
@@ -97,7 +97,7 @@ class Seed(Base):
 
     def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Header", ""))
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
         want = [""] * 10
         want[6] = default_sections.RISKS_AND_ISSUES_LIST                             # row 1193-8
         want[7] = default_sections.OPEN_ACTIONS_BODY                                 # row 1193-9

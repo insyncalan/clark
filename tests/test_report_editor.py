@@ -36,7 +36,7 @@ from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
-TITLES = ["Header", "At a glance", "Use case summary", "Milestones", "This week", "Next week",
+TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "This week", "Next week",
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 11)]
 SECRET = "Server text that a person must never read"
@@ -307,7 +307,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
-            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Header", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
+            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -482,22 +482,22 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"title": "Where we are"})
             self.assertEqual(p.toast(), "Title changed.")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"{first} === 'Header' && document.querySelector('.toast-text').textContent === 'Undone.'", "Undo put the title back")
-            self.assertEqual(self.titles_in_store()[0], "Header")
+            p.until(f"{first} === 'Current state' && document.querySelector('.toast-text').textContent === 'Undone.'", "Undo put the title back")
+            self.assertEqual(self.titles_in_store()[0], "Current state")
             n = len(self.sent)
             p.replace_title("ABC-S-001", "Never saved", ending="Escape")           # Esc puts it back and sends nothing
-            self.assertEqual(p.js(first), "Header")
+            self.assertEqual(p.js(first), "Current state")
             self.assertEqual(len(self.sent), n)
             p.replace_title("ABC-S-001", "")                                       # blank: refused in plain words
             p.until("!!document.querySelector('.toast.problem')", "a message")
             self.assertEqual(p.toast(), "A title can't be blank. The old title was kept. Type a new title to change it.")
-            self.assertEqual(p.js(first), "Header")
+            self.assertEqual(p.js(first), "Current state")
             self.assertEqual(len(self.sent), n)
             p.replace_title("ABC-S-001", "x" * 121)                                # 121 characters: refused
             p.until("document.querySelector('.toast-text').textContent.indexOf('121') > 0", "a message")
             self.assertEqual(p.toast(), "A title can be 120 characters at most, and this one has 121. "
                                         "The old title was kept. Shorten it and try again.")
-            self.assertEqual(p.js(first), "Header")
+            self.assertEqual(p.js(first), "Current state")
             self.assertEqual(len(self.sent), n, "refused on the page, nothing sent")
             p.clear_toast()
             p.replace_title("ABC-S-001", "y" * 120)                                # 120 is allowed

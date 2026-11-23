@@ -247,7 +247,7 @@ class Refusals(Api):
                         self.req("delete", id=theirs), self.req("delete", id="ABC-S-999")):
             with self.subTest(request=request):
                 self.refused(request, words)            # another project's and a missing one: the same words
-        self.assertEqual(self.s.read(KIND, ref=theirs)["title"], "Header")
+        self.assertEqual(self.s.read(KIND, ref=theirs)["title"], "Current state")
         for op, key in (("move", "before"), ("new", "after")):
             for ref in (theirs, "ABC-S-999", "nonsense"):
                 with self.subTest(op=op, ref=ref):

@@ -69,10 +69,10 @@ class Reads(Base):
         self.assertEqual(self.state(), "<p>Build is half done.</p>")
 
     def test_a_new_report_titled_header_publishes_its_headline_and_ask_reads_it(self):
-        """Row 1262: the Dashboard default is titled Header; its body is the headline all the same."""
+        """Row 1262: a section titled Header (the Classic template's starting title) is read as the headline too; the Dashboard default stays Current state."""
         first = self.sections()[0]
-        self.assertEqual(first["title"], "Header")
-        self.change(first["id"], body="<p>Build is half done.</p>")
+        self.assertEqual(first["title"], "Current state")
+        self.change(first["id"], title="Header", body="<p>Build is half done.</p>")
         self.assertEqual(self.state(), "<p>Build is half done.</p>")
         text = repr(ask_data.project_data(self.s, "ABC", "build half", budget=40000).passages)
         self.assertIn("Build is half done.", text)

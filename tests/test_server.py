@@ -603,7 +603,7 @@ class RealSaving(unittest.TestCase):
         status, body = self.post("/api/undo", {"project": "OLD", "apply_id": made[0]})
         self.assertEqual((status, body["skipped"]), (200, []))
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Header"], ["y", "Hello"], False))
+        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Current state"], ["y", "Hello"], False))
 
     def test_a_second_undo_of_an_old_projects_first_change_over_http_is_409_undone_already(self):
         self.old_project("OLD")
@@ -640,7 +640,7 @@ class RealSaving(unittest.TestCase):
         self.assertEqual(sorted(r[0] for r in results), [200, 200], results)
         titles = self.sections("OLD")
         self.assertEqual((len(titles), sorted(titles[-2:])), (12, ["One", "Two"]))
-        self.assertEqual(titles.count("Header"), 1, "one seed")
+        self.assertEqual(titles.count("Current state"), 1, "one seed")
         steps = {r[0] for r in self.demo.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE item_id LIKE 'OLD-S-%'")}
         self.assertEqual(len(steps), 2, "one step each")
         self.assertEqual(len({r[1]["apply_id"] for r in results}), 2)

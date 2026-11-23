@@ -75,8 +75,8 @@ class TheList(unittest.TestCase):
     def test_header_and_text_is_added_as_Header_in_Classic_and_as_Current_state_in_Cards(self):
         lib = LIB.read_text(encoding="utf-8")
         m = re.search(r'\{ id: "current-state", name: "([^"]+)", kind: "text", fit: \[[^\]]*\], type: "text", title: "([^"]+)"', lib)
-        self.assertEqual(m.groups(), ("Header and Text", "Header"))      # row 1262: the template's starting title is Header in both looks
-        for theme_on, want in ((True, "Header"), (False, "Header")):        # the page the card is added in decides; plan() is what Add runs
+        self.assertEqual(m.groups(), ("Header and Text", "Current state"))
+        for theme_on, want in ((True, "Header"), (False, "Current state")):        # the page the card is added in decides; plan() is what Add runs
             doc = 'globalThis.document = { getElementById: (i) => (i === "theme" ? {} : null) };' if theme_on else 'globalThis.document = { getElementById: () => null };'
             for beside in ("false", "true"):
                 script = f'{doc} import("{LIB.as_uri()}").then((T) => console.log(JSON.stringify(T.plan([{{ id: "S1", type: "text", title: "x", beside: 0 }}], "current-state", "S1", {beside}))));'

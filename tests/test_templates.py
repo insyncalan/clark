@@ -627,7 +627,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-001")                                  # Current state is alone
             self.assertEqual(p.js("document.querySelector('button[data-place]').textContent"), "Add section", "the prototype's word")
             self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Where it goes", "one name for the step: the heading is Where it goes, the button is Add section")
-            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Header” (half width)")
+            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Current state” (half width)")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
             p.js("document.querySelector('[data-cancel]').click()")

@@ -8,8 +8,7 @@ tests/test_sections_store.py pins this list.
 """
 CURRENT_STATE_PREFILL = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."   # item 1188: the editor's hint for the first section, never its body (a client must not read instruction text); the page gets it from the build (dev/tools/build_page.py)
 SECTION_HINTS = {          # item 1193: the guiding sentence of each text section that has one; the editor's hint only, never a body
-    "Header": CURRENT_STATE_PREFILL,
-    "Current state": CURRENT_STATE_PREFILL,      # row 1262: a report that already has this title keeps its hint
+    "Current state": CURRENT_STATE_PREFILL,
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }
@@ -22,7 +21,7 @@ DECISIONS_LIST = ('{"v":1,"kinds":["decision"],"mode":"all","status":[],"due":[]
 # row 1193-9: Open actions starts as a Work items list, filled with that list's own saved filter (open actions, soonest due first, at most 50 so it holds every row the built-in did); new projects only, an existing report keeps its own section
 OPEN_ACTIONS_BODY = '{"caption":"","columns":["type","id","owner","due","priority"],"due":[],"has":[],"kinds":["action"],"max":50,"milestone":[],"mode":"open","no":[],"not":{"due":[],"kinds":[],"milestone":[],"owner":[],"priority":[],"status":[],"use_case":[],"workstream":[]},"owner":[],"priority":[],"sort":"due","status":[],"text":[],"use_case":[],"v":1,"workstream":[]}'   # stored the way the store writes it (keys sorted)
 DEFAULT_SECTIONS = (
-    {"type": "text", "title": "Header", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
+    {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
     {"type": "usecases", "title": "Use case summary"},
     {"type": "milestones", "title": "Milestones"},

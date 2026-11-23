@@ -229,7 +229,8 @@ class ReAdd(Base):
     def test_every_built_in_is_added_again_once_with_its_own_title_and_settings(self):
         for t in BUILT_INS:
             with self.subTest(type=t):
-                title = {"usecases": "Use cases", "docs": "Documents"}.get(t) or self.of_type(t)[0]["title"]      # row 1262: the two cards renamed; the default report's own titles are not
+                self.of_type(t)[0]["title"]
+                title = changes.BUILT_IN_TITLES[t]      # row 1262: the re-added title is the one Add a section names (Use cases, Documents), not the seeded one
                 self.ok("delete", id=self.of_type(t)[0]["id"])
                 got = self.ok("new", values={"type": t, "title": "Something else"})
                 row = self.s.read(KIND, ref=got["ref"])
@@ -242,7 +243,7 @@ class ReAdd(Base):
         self.ok("delete", id=self.of_type("current")[0]["id"])
         got = self.ok("new", values={"type": "current", "title": "Something else"})
         row = self.s.read(KIND, ref=got["ref"])
-        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Header", "", 0, 0))
+        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Current state", "", 0, 0))
         self.refused(self.req("new", values={"type": "current"}), changes.NEW_TYPE_WORDS)
 
     def test_a_built_in_already_in_the_report_is_refused_a_second_time_and_nothing_is_written(self):

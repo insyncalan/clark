@@ -21,7 +21,7 @@ from test_server import Running, chrome, wait
 
 LINE = default_sections.CURRENT_STATE_PREFILL
 HINTS = default_sections.SECTION_HINTS
-TITLES = ("Header", "This week", "Next week")                # items 1188, 1193: the three default text sections that start empty
+TITLES = ("Current state", "This week", "Next week")                # items 1188, 1193: the three default text sections that start empty
 IDS = dict(zip(TITLES, ("ABC-S-001", "ABC-S-005", "ABC-S-006")))
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 FIRST = "ABC-S-001"
@@ -41,7 +41,7 @@ class Data(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
 
-    def say(self, body, title="Header"):
+    def say(self, body, title="Current state"):
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", IDS[title], {"body": body})
 
@@ -52,7 +52,7 @@ class Data(unittest.TestCase):
 
     def test_the_store_seeds_an_empty_body_and_the_line_is_kept_once_as_a_constant(self):
         first = next(s for s in self.store.data_for("ABC")["report_sections"] if s["id"] == FIRST)
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Header", ""))
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
         self.assertTrue(LINE.startswith("Say where the project stands today"))
 
     def test_item_1193_new_project_seed_gives_all_four_text_sections_an_empty_body(self):
@@ -76,7 +76,7 @@ class Data(unittest.TestCase):
         with self.store.step("dashboard", USER) as st:
             st.seed_sections("OLD")
         rows = self.store.read("report_sections", "OLD")
-        first = next(s for s in rows if s["type"] == "text" and s["title"] == "Header")
+        first = next(s for s in rows if s["type"] == "text" and s["title"] == "Current state")
         self.assertEqual(first.get("body") or "", "")
         self.assertFalse([s for s in rows if LINE in (s.get("body") or "")])
         texts = {s["title"]: s.get("body") or "" for s in rows if s["type"] == "text"}
@@ -167,7 +167,7 @@ class Browser(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec')", sid), 15), "the file drew")
             self.assertEqual(cdp.js(f"document.querySelectorAll('[data-id=\"{FIRST}\"]').length", sid), 0, "the file does not draw the empty section")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.sec-h')].some(e => e.textContent === 'Header')", sid), False)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.sec-h')].some(e => e.textContent === 'Current state')", sid), False)
 
 
 if __name__ == "__main__":

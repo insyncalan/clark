@@ -35,8 +35,8 @@ class CurrentStateTemplate(unittest.TestCase):
         name, fit, typ, title, body = tpl.groups()
         d = default_sections.DEFAULT_SECTIONS[0] if hasattr(default_sections, "DEFAULT_SECTIONS") else self.first()
         self.assertEqual((typ, body), (d["type"], d.get("body", "")))
+        self.assertEqual((d["title"], title), ("Current state", "Current state"), "row 1251: Cards keeps Current state; Classic adds it as Header (see test_starting_text_1251)")
         self.assertEqual(name, "Header and Text")
-        self.assertEqual((title, d["title"]), ("Header", "Header"), "row 1262: the starting title of the template and the Dashboard default is Header")
         self.assertIn('"half"', fit)
 
     def test_the_template_words_reach_the_published_file(self):

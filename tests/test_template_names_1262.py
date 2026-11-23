@@ -67,17 +67,15 @@ class TemplateNames(unittest.TestCase):
         self.assertIn('builtIn("docs", "Documents"', block)
         self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use cases", "Documents"))
 
-    def test_the_current_card_is_named_header_and_still_found_by_current_state(self):      # ruling 20-11: the type and every stored title stay
-        import subprocess
-        from clark import changes
-        self.assertIn('builtIn("current", "Header", "text"', TEMPLATES)
-        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Header")
-        script = ("import(%s).then(m => console.log(JSON.stringify({ built: m.BUILT_INS.find((b) => b.type === 'current'),"
-                  " found: m.list({ query: 'current state' }).map((t) => [t.name, t.type, t.title]), none: m.list({ query: 'zzzz' }).length })))") % json.dumps((PAGE / "logic" / "templates.js").as_uri())
-        got = json.loads(subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=True).stdout)
-        self.assertEqual((got["built"]["name"], got["built"]["type"], got["built"]["title"]), ("Header", "current", "Header"))
-        self.assertEqual(got["found"], [["Header and Text", "text", "Header"]], "searching current state finds the Header card")
-        self.assertEqual(got["none"], 0)
+    def test_the_current_card_keeps_current_state_because_cards_is_frozen(self):      # Romanoff 23-11: Cards keeps Current state; the Dashboard default is not changed
+        from clark import changes, default_sections
+        self.assertIn('builtIn("current", "Current state", "text"', TEMPLATES)
+        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
+        self.assertEqual(default_sections.DEFAULT_SECTIONS[0]["title"], "Current state")
+        self.assertRegex(TEMPLATES, r'\{ id: "current-state", name: "Header and Text", kind: "text", fit: \[[^\]]*\], type: "text", title: "Current state"')
+
+    def test_the_numbers_group_is_in_the_picker(self):      # Romanoff 23-11 ruling point 3: the picker group Figures is named Numbers
+        self.assertRegex(TEMPLATES, r'\{ id: "figures", name: "Numbers" \}')
 
     def test_the_gantt_table_card_is_called_gantt_table(self):
         self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', TEMPLATES)
