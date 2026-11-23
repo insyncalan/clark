@@ -17,6 +17,19 @@ export function shownSlots(v, pics) {
 }
 export const freeSlots = (pics) => SLOTS.filter((s) => !(typeof pics[s] === "string" && pics[s]));
 
+// Where the next images go: the free slots, those after the last image shown first, so an added image APPENDS at the end of the displayed
+// order (ruled 21-11 02:40). `misplaced`: some of the first n would show before the last image (only a version 2 body can say otherwise,
+// by its `order`; a version 1 body shows in slot order and keeps it). `order` is then the order that puts them last.
+export function nextSlots(v, pics, n) {
+  const said = v && v.v === 2 && Array.isArray(v.order) ? v.order.filter((s) => SLOTS.includes(s)) : [];
+  const seq = [...new Set([...said, ...SLOTS])], shown = seq.filter((s) => !freeSlots(pics).includes(s));
+  const last = shown.length ? seq.indexOf(shown[shown.length - 1]) : -1;
+  const free = seq.filter((s) => freeSlots(pics).includes(s));
+  const after = free.filter((s) => seq.indexOf(s) > last), want = [...after, ...free.filter((s) => !after.includes(s))];
+  const misplaced = want.slice(0, n).some((s) => !after.includes(s));
+  return { slots: want, misplaced, order: [...shown, ...want] };
+}
+
 export const WORDS = {
   empty: "Choose images, or drop them here (up to six)",
   addTile: "Add an image",
@@ -31,6 +44,9 @@ export const WORDS = {
   caption: "Caption",
   optional: "optional",
   added: "Image added.",
+  removed: "Image removed.",
+  removeName: (n) => `Remove image ${n}`,
+  removeTitle: "Remove this image",
   making: "Making the image ready…",
   altSaved: "Description saved.",
   captionSaved: "Caption saved.",

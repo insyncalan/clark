@@ -160,6 +160,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-gal-empty { display: grid; place-items: center; gap: 4px; box-sizing: border-box; width: 100%; min-height: 200px; border: 2px dashed var(--grey-300); border-radius: 12px; background: none; color: var(--text-muted); font: inherit; cursor: pointer; }
 .tpl-gal-empty b { font-size: 28px; }
 .tpl-gal-add:hover:not([disabled]), .tpl-gal-empty:hover:not([disabled]), .tpl-gal-empty.over, .tpl-gal-tiles.over .tpl-gal-add { border-color: var(--brand-blue); color: var(--brand-blue); }
+.tpl-gal-del { position: absolute; top: 6px; right: 6px; z-index: 4; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: rgba(6, 47, 58, .78); color: var(--white); cursor: pointer; opacity: 0; }
+.tpl-gal-tile:hover .tpl-gal-del, .tpl-gal-tile.sel .tpl-gal-del, .tpl-gal-del:focus-visible { opacity: 1; }
+.tpl-gal-del:hover:not([disabled]) { background: var(--tone-red-text); }
+.tpl-gal-del svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tpl-gal-warn { margin: 3px 0 0; color: var(--tone-red-text); font-size: 13px; }
 .tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */

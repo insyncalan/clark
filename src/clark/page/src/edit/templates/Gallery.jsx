@@ -13,7 +13,7 @@ import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf
 import { shrink, TYPES } from "./shrink.js";
 import { say } from "../../stores/changes.js";
 import { safeImage } from "../../templates/safe.js";
-import { SLOTS as ALL, WORDS as W, SHAPES, PICTURE_MAX, ORIGINAL_MAX, WIDTH_MAX, V1_LONGEST, V1_MOST, shownSlots, freeSlots } from "../../logic/galleryWords.js";
+import { SLOTS as ALL, WORDS as W, SHAPES, PICTURE_MAX, ORIGINAL_MAX, WIDTH_MAX, V1_LONGEST, V1_MOST, shownSlots, freeSlots, nextSlots } from "../../logic/galleryWords.js";
 import { samplePicture } from "../samplePicture.js";
 import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
@@ -65,29 +65,50 @@ function Tiles({ section }) {
   const [pick, setPick] = useState("");
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
-  const input = useRef(null);
+  const input = useRef(null), rootRef = useRef(null);
   const now = shown.includes(pick) ? pick : shown[0];
   const two = v.v === 2;
 
   async function take(list) {
     const files = Array.from(list || []);
     if (!files.length || busy) return;
-    const free = freeSlots(pics);
-    if (!free.length) { say("problem", W.full); return; }
+    if (!freeSlots(pics).length) { say("problem", W.full); return; }
+    const next = nextSlots(v, pics, files.length), free = next.slots;
     setBusy(true);
-    let added = 0, last = null;
+    let added = 0, last = null, ordered = !(next.misplaced && two);
     try {
       for (const f of files) {
         if (added >= free.length) break;
         if (f.size > PICTURE_MAX) { say("problem", W.tooBig()); continue; }
         const made = await (two ? shrink(f, { longest: 8000, widest: WIDTH_MAX, most: ORIGINAL_MAX }) : shrink(f, { longest: V1_LONGEST, most: V1_MOST }));
         if (!made.ok) { say("problem", made.message); continue; }
+        if (!ordered) {         // a version 2 body whose free slot shows before the last image: say the new order first (words only), then add
+          ordered = true;
+          if (!(await saveWords(section, { order: next.order }, ""))) break;
+        }
         const r = await sendPicture(section, free[added], made.data, W.added);
         if (!r) break;
         last = r; added++;
         if (added === 1 && !shown.length) setPick(free[0]);
       }
       if (added && files.length > added) say("done", W.partial(added, files.length), last && last.apply_id);
+    } finally { setBusy(false); }
+  }
+  // The bin: the image goes with its caption and description (the server takes them out of the body), one step with Undo. Focus goes to
+  // the next image (the one before when it was the last), else the add tile, else the empty area.
+  async function remove(slot) {
+    if (busy) return;
+    const at = shown.indexOf(slot), near = shown[at + 1] || shown[at - 1] || "";
+    setBusy(true);
+    try {
+      const r = await sendPicture(section, slot, null, W.removed);
+      if (!r) return;
+      if (pick === slot || !shown.includes(pick)) setPick(near);
+      setTimeout(() => {
+        const root = rootRef.current;
+        const to = root && (near && root.querySelector(`.tpl-gal-tile[data-slot="${near}"]`) || root.querySelector("[data-act=add], [data-act=pick]"));
+        if (to) to.focus({ preventScroll: true });
+      }, 0);
     } finally { setBusy(false); }
   }
   const choose = () => input.current && input.current.click();
@@ -102,7 +123,7 @@ function Tiles({ section }) {
   const grid = `tpl-gal-tiles c${v.v === 2 && v.columns === 2 ? 2 : 3} ${SHAPES[v.v === 2 && SHAPES[v.shape] ? v.shape : "4:3"]}`;
   if (!shown.length) {
     return (
-      <div class="tpl-edit tpl-gal-edit">
+      <div class="tpl-edit tpl-gal-edit" ref={rootRef}>
         <button type="button" class={`tpl-gal-empty${over ? " over" : ""}`} data-act="pick" disabled={busy} onClick={choose} {...drop}>
           <b aria-hidden="true">+</b><span>{busy ? W.making : W.empty}</span>
         </button>
@@ -111,14 +132,18 @@ function Tiles({ section }) {
     );
   }
   return (
-    <div class="tpl-edit tpl-gal-edit">
+    <div class="tpl-edit tpl-gal-edit" ref={rootRef}>
       <div class={`${grid}${over ? " over" : ""}`} {...drop}>
         {shown.map((s, i) => {
           const on = s === now, cap = (items[s] || {}).caption;
           return (
             <div class={`tpl-gal-tile${on ? " sel" : ""}`} key={s} data-slot={s} role="button" tabIndex={0} aria-pressed={on} aria-label={W.tile(i + 1)}
-              onClick={() => setPick(s)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(s); } }}>
+              onClick={() => setPick(s)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setPick(s); } }}>
               <div class="tpl-gal-frame"><img src={safeImage(pics[s])} alt="" draggable={false} /></div>
+              <button type="button" class="tpl-gal-del" data-act="remove" aria-label={W.removeName(i + 1)} title={W.removeTitle} disabled={busy}
+                onClick={(e) => { e.stopPropagation(); remove(s); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" /></svg>
+              </button>
               {cap ? <div class="tpl-gal-tcap">{cap}</div> : null}
             </div>
           );
