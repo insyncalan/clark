@@ -7,6 +7,7 @@ Run: python3 dev/run_tests.py test_ai_connect_verify_1492
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -539,6 +540,67 @@ class Tile(Base):
             self.assertEqual((status, body["message"]), (409, f"its own words for {failed}"), failed)
         self.svc(chatgpt=Probe("chatgpt", failed="no_login", why="x"))
         self.assertEqual(self.connect.connect({"provider": "chatgpt"})[1]["message"], ac.NOT_SIGNED_IN["chatgpt"])
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed")
+class PageCalls(unittest.TestCase):
+    """publishApi.js and askCheck.js, bundled by the pinned esbuild and run in node with a fetch of their own: no browser."""
+
+    @classmethod
+    def setUpClass(cls):
+        import build_page
+        import esbuild
+        cls.tmp = tempfile.mkdtemp(prefix="clark-test-")
+        edit = Path(SRC) / "clark" / "page" / "src" / "edit"
+        entry = Path(cls.tmp) / "entry.js"
+        entry.write_text(f'import * as P from "{edit / "publishApi.js"}"; import * as K from "{edit / "askCheck.js"}"; globalThis.P = P; globalThis.K = K;', encoding="utf-8")
+        out = Path(cls.tmp) / "bundle.js"
+        done = esbuild.run(["--bundle", "--format=iife", "--platform=node", *build_page.preact_flags(), str(entry), f"--outfile={out}"], capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        cls.bundle = out.read_text(encoding="utf-8")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, True)
+
+    def run_node(self, body):
+        script = Path(self.tmp) / "probe.js"
+        script.write_text("globalThis.window = globalThis; globalThis.addEventListener = () => {}; globalThis.removeEventListener = () => {}; globalThis.document = {cookie: '', addEventListener() {}, querySelector: () => null, documentElement: {dataset: {}}}; globalThis.location = {href: 'http://x/', hash: '', search: ''};\n" + self.bundle + ";\n(async () => {\n" + body + "\n})().catch((e) => { console.error(e); process.exit(1); });", encoding="utf-8")
+        got = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(got.returncode, 0, got.stderr)
+        return json.loads(got.stdout)
+
+    def test_a_check_drops_the_kept_answer_of_the_ask_panel_and_a_cancel_asks_for_no_wait(self):
+        got = self.run_node("""
+          const ok = (b) => Promise.resolve({status: 200, json: () => Promise.resolve(b)});
+          globalThis.fetch = (u) => ok(String(u).includes("/api/ask/status") ? {ok: true, ask_enabled: true, connected: true} : {ok: true});
+          await K.runCheck();
+          const kept = !!K.keptCheck();
+          await P.aiVerifySend("claude");
+          const afterVerify = !!K.keptCheck();
+          console.log(JSON.stringify([kept, afterVerify]));""")
+        self.assertEqual(got, [True, False], "a check changes what the ask panel's connection check would answer")
+
+    def test_the_wait_is_35_seconds_and_a_late_server_ends_in_no_answer_and_an_answer_clears_it(self):
+        got = self.run_node("""
+          const delays = [], cleared = [], ids = [];
+          const st = globalThis.setTimeout, ct = globalThis.clearTimeout;
+          globalThis.setTimeout = (fn, ms) => { const id = st(fn, ms > 1000 ? 100 : ms); delays.push(ms); ids.push(id); return id; };
+          globalThis.clearTimeout = (id) => { cleared.push(id); return ct(id); };
+          let signal = null;
+          globalThis.fetch = (u, i) => { signal = i.signal || null; return new Promise((res, rej) => { if (i.signal) i.signal.addEventListener("abort", () => rej(new Error("aborted"))); }); };
+          const late = await P.aiVerifySend("claude");
+          const hung = {delays: delays.slice(), signal: !!signal, late};
+          globalThis.fetch = (u, i) => Promise.resolve({status: 200, json: () => Promise.resolve({ok: true})});
+          delays.length = 0; ids.length = 0; cleared.length = 0;
+          const quick = await P.aiVerifySend("claude");
+          const none = await P.aiCancelSend("claude");
+          console.log(JSON.stringify([hung, quick.status, delays, cleared.includes(ids[0]), none.status, ids.length]));""")
+        hung, quick, delays, cleared, cancel, timers = got
+        self.assertEqual(hung["delays"], [35000])
+        self.assertTrue(hung["signal"], "the wait is an abort signal on the request")
+        self.assertEqual(hung["late"], {"status": 0, "body": None})
+        self.assertEqual((quick, delays, cleared, cancel, timers), (200, [35000], True, 200, 1), "the wait is cleared when the answer comes; Cancel has no wait of its own")
 
 
 if __name__ == "__main__":
