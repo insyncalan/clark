@@ -276,7 +276,7 @@ def settle_motion(cdp, sid, selector, seconds=5):
     running = ("(() => { const e = document.querySelector(" + json.dumps(selector) + "); if (!e) return 0;"
                " return document.getAnimations().filter(a => a.playState === 'running' && a.effect && a.effect.target && a.effect.target.contains && a.effect.target.contains(e)"
                " && isFinite(a.effect.getComputedTiming().endTime)).length; })()")
-    wait(lambda: cdp.js(running, sid) == 0, seconds)
+    assert wait(lambda: cdp.js(running, sid) == 0, seconds), f"a slide around {selector} was still running after {seconds} s"
 
 
 def click(cdp, sid, selector, mods=0):

@@ -308,15 +308,20 @@ class Delete(unittest.TestCase):
             self.assertTrue(self.gone("milestones", self.ms))
 
     def test_the_press_on_more_actions_lands_after_the_peek_slide_has_ended(self):
-        """Issue 1552: the peek slides in for half a second (pk-in); a press on its More button while that runs lands on a moving target (macOS shard 6/6 never saw the menu)."""
+        """Issue 1552: the peek slides in for half a second (pk-in); a press on its More button while that runs lands on a moving target (macOS shard 6/6 never saw the menu). Here a finite 1.5 s slide is started on the peek itself and click() is called at once: the press (mousedown) must come after that slide ended, which only click() calling settle_motion gives."""
         row = f"li.msl-row[data-ms={json.dumps(self.ms)}]"
         with chrome() as cdp:
             sid = self.visit(cdp, "#milestones&p=TUL", f"!!document.querySelector({json.dumps(row)})", 1400)
             click(cdp, sid, f"{row} .msl-cells")
             self.until(cdp, sid, "!!document.querySelector('#peek #pk-more')", "the peek has More actions")
-            cdp.js("window.__sliding = null; document.addEventListener('mousedown', () => { window.__sliding = document.getAnimations().filter(a => a.animationName && a.playState === 'running' && a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('#peek')).length; }, true)", sid)
+            cdp.js("window.__slide = document.querySelector('#peek').animate([{opacity: 1}, {opacity: .99}], 1500); window.__press = null;"
+                   " document.addEventListener('mousedown', () => { window.__press = {running: window.__slide.playState === 'running', at: window.__slide.currentTime}; }, true)", sid)
+            self.assertEqual(cdp.js("window.__slide.playState", sid), "running", "the slide runs when the press starts")
             click(cdp, sid, "#peek #pk-more")
-            self.assertEqual(cdp.js("window.__sliding", sid), 0, "no animation was still running on the peek when the press landed")
+            press = cdp.js("window.__press", sid)
+            self.assertIsNotNone(press, "the press landed")
+            self.assertFalse(press["running"], f"the press landed while the slide still ran (at {press['at']} ms of 1500)")
+            self.until(cdp, sid, "!!document.querySelector('.ddmenu [data-kind=delete]')", "the More actions menu opened")
 
     def test_settle_motion_waits_for_a_slide_that_is_still_running(self):
         """Issue 1552: a press waits for a finite animation on the control or around it, and does not wait for one that never ends."""
