@@ -197,5 +197,137 @@ class Files(Base):
         self.assertGreaterEqual(ix.status(self.data, "P1", [self.box])["safety"], 2)
 
 
+class Followups(Base):
+    """Row 1537 (the rest of row 1366): AP1, AP2, AP4, AP5, AP8."""
+
+    def test_excel_over_row_cell_cap_counted_too_long_not_indexed(self):
+        from test_ask_index_types_1366 import xlsx
+        from clark import ask_index
+        rows = [["item", "owner"]] + [[f"t{i}", f"zqcap{i}"] for i in range(10)]
+        for cap, value in (("MAX_EXCEL_ROWS", 3), ("MAX_EXCEL_CELLS", 6)):
+            with self.subTest(cap=cap):
+                shutil.rmtree(self.box)
+                self.box.mkdir()
+                self.put("big.xlsx", xlsx({"S": rows}), binary=True)
+                self.put("ok.txt", "zqcapfine")
+                with mock.patch.object(ask_index, cap, value):
+                    self.build()
+                s = ix.status(self.data, "P1", [self.box])
+                self.assertEqual((s["indexed"], s["too_long"]), (1, 1))
+                for n in (0, 1, 9):
+                    self.assertFalse(self.found(f"zqcap{n}"), "a workbook over the cap is not cut: none of it is indexed")
+                self.assertTrue(self.found("zqcapfine"))
+                self.assertEqual(dict(ask_index.files_left_out(self.data, "P1", 10)["files"]), {"saved/big.xlsx": ask_index.REASON_TOO_LONG})
+        with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 11):             # exactly at the cap is read whole
+            shutil.rmtree(self.box)
+            self.box.mkdir()
+            self.put("big.xlsx", xlsx({"S": rows}), binary=True)
+            self.build()
+        self.assertTrue(self.found("zqcap9"))
+
+    def test_followup_terms_find_item_file_passage(self):
+        from clark import ask_index
+        self.put("risks.txt", "RISK-12 the supplier may slip zqidpassage\nRISK-99 unrelated zqother")
+        self.put("noise.txt", "the 12 chairs and the RISK register zqnoise")
+        self.build()
+        got = ask_index.search(self.data, "P1", "and who owns it", extra=["RISK-12"])
+        self.assertTrue(any("zqidpassage" in p.text for p in got))
+        seen = []
+        real = ask_index.sqlite3.connect
+        class Spy:
+            def __init__(self, c):
+                self.c = c
+
+            def execute(self, sql, args=()):
+                if "MATCH" in sql:
+                    seen.append(args[0])
+                return self.c.execute(sql, args)
+
+            def __getattr__(self, n):
+                return getattr(self.c, n)
+        with mock.patch.object(ask_index, "_open_read", lambda d, c: Spy(real(str(ask_index.path_for(d, c))))):
+            ask_index.search(self.data, "P1", "who owns it", extra=["RISK-12"])
+        self.assertIn('"RISK-12"', seen[0])
+        self.assertNotIn(' RISK-12 ', " " + seen[0].replace('"RISK-12"', "") + " ")
+        long_q = " ".join(f"w{i}" for i in range(45))
+        got = ask_index.search(self.data, "P1", long_q, extra=["RISK-12"])
+        self.assertTrue(any("zqidpassage" in p.text for p in got), "ids sit outside the first 40 words")
+        self.assertEqual(ask_index.search(self.data, "P1", long_q), [])
+        data = ask_index.folder_data(self.data, "P1", long_q, extra=["RISK-12"])
+        self.assertTrue(any("zqidpassage" in p.text for p in data.passages))
+
+    def test_online_only_not_opened_and_line_says_not_searched(self):
+        from clark import ask_index
+        self.put("here.txt", "zqhere text")
+        self.put("cloud.txt", "x" * 37)
+        opened = []
+        real, real_online = reach.read_bytes, reach.online_only_stat
+        def spy(p, *a, **k):
+            opened.append(os.path.basename(str(p)))
+            return real(p, *a, **k)
+        with mock.patch.object(reach, "online_only_stat", side_effect=lambda st: st.st_size == 37 or real_online(st)), \
+                mock.patch.object(reach, "read_bytes", side_effect=spy):
+            self.build()
+        self.assertEqual(opened, ["here.txt"], "an online-only file is never opened")
+        c = ix.status(self.data, "P1", [self.box])
+        self.assertEqual(c["online_only"], 1)
+        self.assertEqual(ask_index.line_for(c), "Indexed 1 of 2 files. Online-only files not searched.")
+        self.assertEqual(ask_index.line_for({"indexed": 1, "online_only": 5}), "Indexed 1 of 6 files. Online-only files not searched.")
+        folder = ask_index.folder_status(self.data, "P1", [self.box])[str(self.box)]
+        self.assertEqual(folder["left"]["files"][0][0], "Online-only files not searched")
+
+    def test_oserror_on_file_3_does_not_reread_files_1_2(self):
+        for n in "abc":
+            self.put(f"{n}.txt", f"zq{n}file text")
+        self.build()
+        for n in "abc":
+            (self.box / f"{n}.txt").write_bytes(f"zq{n}file changed".encode())
+        real, reads = reach.read_bytes, []
+        def spy(p, *a, **k):
+            name = os.path.basename(str(p))
+            reads.append(name)
+            if name == "c.txt":
+                raise OSError("disk went away")
+            return real(p, *a, **k)
+        with mock.patch.object(reach, "read_bytes", side_effect=spy):
+            ix.refresh(self.data, "P1", [self.box])
+        self.assertEqual(reads.count("a.txt"), 1)
+        self.assertEqual(reads.count("b.txt"), 1)
+        self.assertEqual(reads.count("c.txt"), 1)
+
+    def test_fixture_library_has_no_client_names(self):
+        import sys
+        from _paths import TOOLS
+        sys.path.insert(0, str(TOOLS))
+        import publish_public
+        from test_ask_index_types_1366 import xlsx, pptx
+        from test_ask_pdf_passages import pdf
+        files = {
+            "text.pdf": pdf(["zqpdf one", "zqpdf two"]), "long.pdf": pdf([f"zqlong page {i}" for i in range(30)]), "scan.pdf": pdf([None, None]),
+            "letter.docx": tdx.docx(tdx.P("zqdocx text")), "table.xlsx": xlsx({"Plan": [["item", "owner"], ["t1", "zqowner"]]}),
+            "deck.pptx": pptx({1: ["zqslide text"]}, {1: ["zqnote text"]}), "page.html": b"<html><body><p>zqhtml text</p></body></html>",
+            "picture.png": b"\x89PNG\r\n\x1a\nzqpicture", "cloud.txt": b"x" * 37, "keys.txt": FAKE_KEY.encode(),
+        }
+        self.assertEqual(len(files), 10)
+        for name, raw in files.items():
+            self.assertEqual(publish_public.guard_kinds("tests/" + name, raw), set(), name)
+
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        import json
+        from _paths import ROOT
+        page = ROOT / "src" / "clark" / "page" / "src"
+        six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+        words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn(f'export const FOLDERS_GO = "{six}";', words)
+        self.assertIn(f'export const PICTURES_LOCAL = "{ten}";', words)
+        panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertEqual(panel.count("W.FOLDERS_GO"), 2, "the Classic card and the Cards card")
+        self.assertEqual(panel.count("W.PICTURES_LOCAL"), 2)
+        text = json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        self.assertIn(six, text)
+        self.assertIn(ten, text)
+
+
 if __name__ == "__main__":
     unittest.main()

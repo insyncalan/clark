@@ -55,25 +55,22 @@ class Screens(Base):
 
 
 class Caps(Base):
-    def test_m16_an_excel_sheet_is_read_only_up_to_the_row_cap(self):
+    def test_m16_an_excel_sheet_over_the_row_cap_is_left_out_whole(self):
         rows = [["item", "owner"]] + [[f"t{i}", f"zqrow{i}"] for i in range(10)]
         self.put("s.xlsx", xlsx({"Plan": rows}), binary=True)
         with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 3):
             self.build()
-        self.assertTrue(self.found("zqrow0"))
-        self.assertTrue(self.found("zqrow1"))
-        self.assertFalse(self.found("zqrow2"))
+        self.assertEqual(state_of(self, "s.xlsx"), "too_long")
+        self.assertFalse(self.found("zqrow0"))
         self.assertFalse(self.found("zqrow9"))
 
-    def test_m16_an_excel_file_is_read_only_up_to_the_cell_cap_across_its_sheets(self):
+    def test_m16_an_excel_file_over_the_cell_cap_is_left_out_whole(self):
         rows = [[f"zqa{i}", f"b{i}", f"c{i}"] for i in range(10)]
         self.put("c.xlsx", xlsx({"One": rows, "Two": [["zqsecondsheet", "x", "y"]]}), binary=True)
         with mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 5):
             self.build()
-        self.assertTrue(self.found("zqa0"))
-        self.assertTrue(self.found("zqa1"))
-        self.assertFalse(self.found("zqa2"))
-        self.assertFalse(self.found("zqa9"))
+        self.assertEqual(state_of(self, "c.xlsx"), "too_long")
+        self.assertFalse(self.found("zqa0"))
         self.assertFalse(self.found("zqsecondsheet"))
 
     def test_m19_a_file_keeps_at_most_the_part_cap_of_passages(self):
@@ -113,7 +110,7 @@ class Counts(Base):
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["online_only"], c["safety"]), (1, 1, 0))
         self.assertEqual(sum(c[k] for k in ask_index.NAMES), 2)
-        self.assertIn("online only", ask_index.line_for(c))
+        self.assertIn("Online-only files not searched", ask_index.line_for(c))
         folder = ask_index._open_read(self.data, "P1").execute("SELECT v FROM meta WHERE k='folders'").fetchone()[0]
         self.assertEqual(json.loads(folder)[str(self.box)]["online_only"], 1)
         self.assertEqual(json.loads(folder)[str(self.box)]["safety"], 0)
