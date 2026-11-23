@@ -343,6 +343,40 @@ class DataFolder1535(Folder1535):
         self.assertEqual(r["later"][0], {"set": {"clark.x": "1"}, "remove": ["clark.y"]})
         self.assertEqual(r["later"][1], {"set": {"clark.x": "1", "clark.z": "3"}, "remove": ["clark.y"]})      # the refused send is kept and sent again with the newer change
 
+    def test_a_second_storage_object_is_never_synced(self):
+        """AP8 (edges): a set or remove on another Storage object (the tab's session store) is not sent to the folder; the real store still is."""
+        prelude = """
+        const __m = {}; const __calls = []; const __timers = [];
+        class Storage { getItem(k) { return k in __m ? __m[k] : null; } setItem(k, v) { __m[k] = String(v); } removeItem(k) { delete __m[k]; }
+          get length() { return Object.keys(__m).length; } key(i) { return Object.keys(__m)[i] ?? null; } }
+        const __ls = new Storage(); const __ss = new Storage();
+        const __blocks = { "clark-prefs": JSON.stringify({ imported: true, values: {} }), "clark-boot": JSON.stringify({ token: "test-run-value" }) };
+        globalThis.document = { readyState: "complete", getElementById: (id) => (id in __blocks ? { textContent: __blocks[id] } : null), addEventListener() {} };
+        globalThis.window = { document, Storage, localStorage: __ls, setTimeout: (f) => { __timers.push(f); return 1; }, addEventListener() {},
+          fetch: async (u, o) => { __calls.push(JSON.parse(o.body)); return { ok: true }; } };
+        """
+        probe = """(async () => {
+          await new Promise((r) => setTimeout(r, 20));
+          __ss.setItem("clark.s", "1"); __ss.removeItem("clark.t");
+          const queued = __timers.length; __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));
+          const afterSession = JSON.parse(JSON.stringify(__calls));
+          __ls.setItem("clark.x", "1"); __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));
+          return { queued, afterSession, later: __calls.slice(afterSession.length) };
+        })()"""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        with tempfile.TemporaryDirectory() as tmp:
+            run_node({}, "0")      # builds the bundle
+            script = Path(tmp) / "probe.js"
+            script.write_text(prelude + _BUNDLE["code"] + ";\n(" + probe + ").then((r) => console.log(JSON.stringify(r)));", encoding="utf-8")
+            done = subprocess.run([node, str(script)], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+        r = json.loads(done.stdout)
+        self.assertEqual(r["queued"], 0)                                    # nothing is waiting to be sent for the other store
+        self.assertEqual(r["afterSession"], [])                             # and nothing was sent
+        self.assertEqual(r["later"], [{"set": {"clark.x": "1"}}])           # the real store still sends
+
     def test_import_never_overwrites_a_kept_value_and_a_huge_value_stays_in_the_browser(self):
         """AP9 (edges): a value already in the folder wins over the browser's on the one-time import; one over the limit is not taken."""
         self.prefs.save({"set": {"clark.peekWidth": "300"}})
@@ -412,7 +446,7 @@ class DataFolder1535(Folder1535):
         users = sorted(p.name for p in src.glob("*.py") if re.search(r"\bpreferences\.(?:Preferences|FILE|read|kept)|import preferences|, preferences,", p.read_text(encoding="utf-8")))
         self.assertEqual(sorted(set(users) - {"__main__.py", "backup.py", "preferences.py", "server.py"}), [])      # not the publishers, the exports or the log
         imports = sorted(p.name for p in PAGE.rglob("*.js*") if "prefsSync" in p.read_text(encoding="utf-8") and p.name != "prefsSync.js")
-        self.assertEqual(imports, ["Preferences.jsx", "main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
+        self.assertEqual(imports, ["main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
         _, doc, html = self.page_values()
         self.assertIn(sentinel, json.dumps(doc))             # the live page is given its own values
         reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Reader One'); return sent; })()"
