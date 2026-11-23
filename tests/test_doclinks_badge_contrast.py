@@ -13,7 +13,7 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
 THEMES = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0"
 RULES_2 = THEMES / "rules-2.css"      # Row 1194's rules sit in rules-2.css (rules.css is at its size limit); the colours there are rgb()
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
-# Row 1546 (Alan 23-11): the five fills the mock-up drew below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08) are darkened, same hue, to the lightest value
+# Row 1546 (ruled 23-11): the five fills the mock-up drew below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08) are darkened, same hue, to the lightest value
 # that reaches 4.5:1; the named exemption (MOCK_BELOW_4_5) is gone, all ten kinds assert 4.5:1.
 FIVE = {"pdf": "#DA3D0B", "xls": "#1A8842", "ppt": "#C95014", "png": "#DD2582", "txt": "#A06C00"}
 
