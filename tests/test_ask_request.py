@@ -46,7 +46,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "left_out", "system", "canary", "owner", "connectors", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions, left_out is how many passages were cut to keep under BUDGET; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "left_out", "system", "canary", "owner", "connectors", "cancel", "person"})   # dropped_turns and left_out_secret are counts, kept is positions, left_out is how many passages were cut to keep under BUDGET; person (row 1331) is the profile name; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
