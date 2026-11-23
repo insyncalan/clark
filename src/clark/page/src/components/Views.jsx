@@ -230,7 +230,7 @@ function ProjectTabs({ current }) {
   return (
     <nav class="set-tabs" aria-label="Projects">
       <ul>{list.map((p) => (
-        <li key={p.code}><button type="button" class="set-tab" aria-current={p.code === current ? "page" : undefined} disabled={p.code !== current && !SWITCH_TABS} onClick={() => chooseSettingsProject(p.code)}>{p.name || p.code}</button></li>
+        <li key={p.code}><button type="button" class="set-tab" aria-current={p.code === current ? "page" : undefined} aria-disabled={p.code !== current && !SWITCH_TABS ? "true" : undefined} onClick={() => { if (p.code === current || SWITCH_TABS) chooseSettingsProject(p.code); }}>{p.name || p.code}</button></li>
       ))}</ul>
     </nav>
   );
