@@ -296,7 +296,10 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
-        budget = ask.budget_for(window)
+        saved = settings.ask_size_saved(self.data_dir)      # row 1293 AP2: the size of one question set in Settings; none saved keeps the fixed budget
+        size = ask.size_chars(saved)
+        share = PROJECT_SHARE if saved is None else size // 2
+        budget = ask.budget_for(window, size)
         budget_left = max(0, budget - sum(len(p.text) for p in added))      # Row 1367 (#2045 CHANGES): a file added to the question keeps its room, in characters and in passages, before the project and the folders take theirs
         with self.lock:
             try:
@@ -310,7 +313,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget_left),
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(share, budget_left),
                                                   limit=max(0, ask.MAX_PASSAGES - len(added)))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
@@ -331,7 +334,7 @@ class AskService:
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
                                         today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
-                                        max_request=ask.request_cap(window), files=len(added))
+                                        max_request=ask.request_cap(window, size), files=len(added), budget=size)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts

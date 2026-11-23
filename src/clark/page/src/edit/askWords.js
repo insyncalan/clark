@@ -386,8 +386,9 @@ export function READ_LINE(read) {
     .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
   if (!parts.length) return "";
   const said = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
-  return `${said} read${typeof read.as_at === "string" && read.as_at ? " · as at " + read.as_at : ""}`;
+  return `${said} read${typeof read.as_at === "string" && read.as_at ? " · as at " + read.as_at : ""}${Number.isInteger(read.left_out) && read.left_out > 0 ? ". " + READ_MORE : ""}`;
 }
+export const READ_MORE = "A higher size of one question in Settings reads more.";    // row 1293 AP9: said only when some rows were left out (the ticket's words)
 // row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
 export const SLASH_HINT_CLASSIC = {
   summary: "Summarise this week into a draft",

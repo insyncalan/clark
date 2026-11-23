@@ -56,6 +56,25 @@ def _whole_number_in(value, low, high):
     return isinstance(value, int) and not isinstance(value, bool) and low <= value <= high
 
 
+ASK_SIZE = "ask_size"
+ASK_SIZE_DEFAULT = 300_000              # tokens: the size of one question (row 1293 AP2), 1,200,000 characters at 4 to a token
+ASK_SIZE_RANGE = (10_000, 500_000)
+ASK_SIZE_STEP = 10_000                  # the number box steps by this; the server takes any whole number in the range
+ASK_SIZE_REFUSAL = "Size of one question must be a whole number from 10,000 to 500,000 tokens."     # the ticket's words (1293 AP2)
+
+
+def ask_size_saved(data_dir):
+    """The size saved in the file, in tokens, or None when there is none (or it is out of range): the caller keeps its own default then."""
+    value = read(data_dir).get(ASK_SIZE)
+    return value if _whole_number_in(value, *ASK_SIZE_RANGE) else None
+
+
+def ask_size(data_dir):
+    """Size of one question in tokens: the file's whole number from 10,000 to 500,000, else the default (300,000). The one reader of it."""
+    value = read(data_dir).get(ASK_SIZE)
+    return value if _whole_number_in(value, *ASK_SIZE_RANGE) else ASK_SIZE_DEFAULT
+
+
 def backups_kept(data_dir):
     """How many backups of each kind are kept: the file's whole number from 1 to 365, else the default (14)."""
     value = read(data_dir).get(BACKUPS_KEPT)
@@ -289,6 +308,6 @@ def ai_write(data_dir, changes):
             readable = False
         if not readable:
             raise ValueError(AI_UNREADABLE)
-    keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED, "chatgpt_on": AI_CHATGPT_ON}
+    keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED, "chatgpt_on": AI_CHATGPT_ON, "ask_size": ASK_SIZE}
     current.update({keys[k]: v for k, v in changes.items()})
     platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")

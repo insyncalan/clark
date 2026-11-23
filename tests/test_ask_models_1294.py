@@ -225,7 +225,7 @@ class OnThePage(unittest.TestCase):
             js("document.querySelector('[data-ai-test]').click()")
             self.assertTrue(wait(lambda: re.fullmatch(r"Claude answered in \d+(\.\d)? seconds\.", js("document.querySelector('[data-ai-test-out]').innerText") or ""), 15))
             self.assertNotIn("ChatGPT", js("document.querySelector('[data-ai-test-out]').innerText"), "a model that is off is not tested")
-            self.assertIsNone(MONEY.search(js("document.querySelector('#ai-settings').innerText")))
+            self.assertIsNone(MONEY.search(js("document.querySelector('#ai-settings').innerText").replace(ac.SIZE_HELP, "")))      # row 1293: the size box's own help line (the ticket's words) says "costs more"
 
     def test_test_the_connection_waits_says_testing_and_with_nothing_on_stays_disabled_and_does_nothing(self):
         with chrome() as cdp:

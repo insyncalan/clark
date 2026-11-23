@@ -184,7 +184,8 @@ def read_counts(data):
     issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
     sent = {k: n for k, n, _total in data.counts}
     return {"work_items": sum(sent.get(k, 0) for k in ("actions", "raid", "decisions")), "milestones": sent.get("milestones", 0),
-            "use_cases": sent.get("use_cases", 0), "as_at": data.today}
+            "use_cases": sent.get("use_cases", 0), "as_at": data.today,
+            "left_out": sum(max(0, total - n) for _k, n, total in data.counts)}      # row 1293 AP9: the rows cut to keep under the size of one question
 
 
 def left_out_lines(counts):

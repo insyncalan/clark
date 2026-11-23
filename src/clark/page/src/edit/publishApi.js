@@ -94,6 +94,7 @@ export const aiConnectSend = (provider) => changing("POST", "/api/providers/conn
 export const aiDisconnectSend = (provider) => changing("POST", "/api/providers/disconnect", { provider });
 export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
+export const aiSizeSend = (tokens) => changing("POST", "/api/providers/size", { tokens });      // row 1293 AP2: the size of one question, in tokens
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
