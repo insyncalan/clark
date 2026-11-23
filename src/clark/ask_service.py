@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen, settings
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -347,7 +347,7 @@ class AskService:
         if cancel.is_set():                          # a Stop that came before the record went in: the request goes out cancelled, so the provider never starts it
             run.cancel.set()
         try:
-            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, person=settings.profile(self.data_dir)["name"], cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
         finally:
             with self.using_lock:
