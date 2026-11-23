@@ -1030,17 +1030,17 @@
         "Full or half"
        ],
        [
-        "Text and Image Side by Side",
+        "Text with image",
         "A story with a picture: a site visit, a design, a screenshot of the new system.",
         "Full or half"
        ],
        [
-        "Key figures, four",
+        "Numbers",
         "Three or four numbers with labels and a change since last week.",
         "Full or half"
        ],
        [
-        "Key figures, three",
+        "Numbers",
         "Three numbers with labels, in wider cards, so a short note fits under the change.",
         "Full or half"
        ],
@@ -1050,7 +1050,7 @@
         "Full or half"
        ],
        [
-        "Image gallery",
+        "Picture grid",
         "Pictures in a grid, each with a caption.",
         "Full"
        ],
@@ -1060,22 +1060,22 @@
         "Full"
        ],
        [
-        "RAID cards, three",
+        "Item cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
        ],
        [
-        "RAID cards, four",
+        "Item cards, four",
         "Four shorter cards: good for “this week’s actions” or “decisions needed”.",
         "Full"
        ],
        [
-        "Work items list",
+        "Work items",
         "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.",
         "Full or half"
        ],
        [
-        "Documents and links",
+        "Files and links",
         "The papers that go with this week’s report.",
         "Full or half"
        ],
@@ -1085,7 +1085,7 @@
         "Full or half"
        ],
        [
-        "Callout",
+        "Must-see note",
         "One thing the reader must see.",
         "Half or full"
        ],
@@ -1100,27 +1100,27 @@
         "Half or full"
        ],
        [
-        "Contacts",
+        "Who to ask",
         "Who to ask.",
         "Half or full"
        ],
        [
-        "Checklist",
+        "Next steps",
         "Next steps or readiness, ticked off.",
         "Half or full"
        ],
        [
-        "Key dates",
+        "Coming dates",
         "What’s coming, from the milestones.",
         "Half or full"
        ],
        [
-        "Link preview",
+        "Web page card",
         "A web page shown as a card you write: a dashboard, a news item, a recording.",
         "Full"
        ],
        [
-        "One document",
+        "One file",
         "A single file to read.",
         "Half or full"
        ],
@@ -1130,7 +1130,7 @@
         "Full or half"
        ],
        [
-        "Plan summary",
+        "Where we are, what’s next",
         "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
         "Full or half"
        ],
@@ -1140,12 +1140,12 @@
         "Full"
        ],
        [
-        "Table",
+        "Gantt table",
         "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
         "Full or half"
        ],
        [
-        "Use case summary",
+        "Use cases",
         "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
         "Full"
        ],
@@ -2643,11 +2643,11 @@
      "pic": "templates-add-box"
     },
     {
-     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Project information**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Project information**, **Text and pictures**, **Numbers**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
      "pic": "templates-dialog"
     },
     {
-     "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
+     "d": "Choose a template in the list, such as **Numbers** or **Must-see note**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
     },
     {
      "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.",

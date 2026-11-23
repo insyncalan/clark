@@ -549,7 +549,7 @@ class SideBySideHelp(unittest.TestCase):
                 for c in x.values():
                     walk(c)
         walk(SRC)
-        self.assertIn(["Text and Image Side by Side", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertIn(["Text with image", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
         self.assertNotIn("Text and image", [r[0] for r in rows])
         self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
 
