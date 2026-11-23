@@ -337,7 +337,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
           </span>
         ))}
-        {words ? <span class="fchip word" data-chip="search">{`Search: ${query.value.trim()}`}
+        {words ? <span class={classicTheme() ? "fchip word" : "fchip"} data-chip="search">{`Search: ${query.value.trim()}`}
           <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
         </span> : null}
         {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
