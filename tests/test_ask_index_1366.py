@@ -294,6 +294,11 @@ class Followups(Base):
         self.assertEqual(reads.count("a.txt"), 1)
         self.assertEqual(reads.count("b.txt"), 1)
         self.assertEqual(reads.count("c.txt"), 1)
+        c = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((c["indexed"], c["type"], c["safety"]), (2, 1, 0), "the unreadable file is counted as one clark could not read")
+        from clark import ask_index
+        self.assertEqual(dict(ask_index.files_left_out(self.data, "P1", 10)["files"]), {"saved/c.txt": ask_index.REASON_TYPE})
+        self.assertIn("1 file could not be read", ask_index.done_line(c))
 
     def test_fixture_library_has_no_client_names(self):
         import sys
@@ -327,6 +332,37 @@ class Followups(Base):
         text = json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
         self.assertIn(six, text)
         self.assertIn(ten, text)
+
+
+class IndexAnswerPage(unittest.TestCase):
+    """AP7 (was AP28): the Used line (row 1292) of an answer that names items and cites files from the index, at 1400 and 900, in Chrome.
+    The server's answer is the stub of test_ask_about_1292 with sources named like the index labels them. The people and contract warning
+    of row 1365 is not drawn by the page on this main (sensitive_names.py has no caller), so it is not asserted here."""
+
+    def test_people_contract_warning_and_used_line_with_index_passages(self):
+        import test_ask_about_1292 as about
+        from test_server import chrome
+
+        class Run(about.Classic):
+            def runTest(self):
+                for width in (1400, 900):
+                    with self.subTest(width=width), chrome() as cdp:
+                        p = self.edit_ready(cdp, width)
+                        ident = p.js("document.querySelector('.wil-table tr[data-id]').dataset.id")
+                        self.stub.answer = f"{ident} is late. The contract file says why."
+                        self.stub.items = [ident]
+                        self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026"}
+                        self.stub.sources = [{"id": "F1", "label": "saved/plan.xlsx"}, {"id": "F2", "label": "saved/notes.docx"}]
+                        p.key("/", code="Slash", vk=191)
+                        p.until("!document.querySelector('#ask-send') || !document.querySelector('#ask-send').disabled", "ready")
+                        self.ask(p, "What is late?")
+                        p.until("!!document.querySelector('[data-ask-used]') && !!document.querySelector('.ask-sources')", "answered")
+                        self.assertEqual(p.js("document.querySelector('[data-ask-used]').textContent.replace(/\\s+/g, ' ').trim()"), f"Used: 1 {ident}")
+                        self.assertEqual(p.js("[...document.querySelectorAll('.ask-sources li')].map((l) => l.textContent)"), ["saved/plan.xlsx", "saved/notes.docx"])
+                        self.assertTrue(p.js("(() => { const u = document.querySelector('[data-ask-used]').getBoundingClientRect(), a = document.querySelector('#ask-panel').getBoundingClientRect(); return u.width > 0 && u.left >= a.left - 1 && u.right <= a.right + 1; })()"), "the Used line sits inside the panel")
+
+        res = unittest.TextTestRunner(stream=open(os.devnull, "w")).run(Run())
+        self.assertTrue(res.wasSuccessful(), [str(f[1]) for f in res.failures + res.errors])
 
 
 if __name__ == "__main__":

@@ -355,7 +355,9 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                         try:
                             state = _read_one(db, path, label, low, st, usable, data_dir, home)
                         except OSError:
-                            state = "safety"               # a read error on one file: it is left out (no row, so the next refresh tries it again); the pass goes on and the files before it are not read again
+                            state = "type"                 # a read error on one file: it is counted as one clark could not read and named in the left-out list (no row, so the next refresh tries it again); the pass goes on and the files before it are not read again
+                            type_n += 1
+                            type_labels.add(label)
                     now_state[label] = state
                     c[state if state in COUNTED else "safety"] += 1
                     c["pictures_read"] += _is_read_picture(label, state)
