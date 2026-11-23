@@ -353,7 +353,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)      # #273
         self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 14 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1233: one gallery picture (10 MiB, 14 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                                                  "/api/word-export": 1024,     # #111, #180; #48
