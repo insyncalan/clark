@@ -1,4 +1,4 @@
-# The code audit (#1382, Alan 19-11-2026): pip-audit on the vendored packages, bandit, ruff and mypy on src/clark. REPORT ONLY: no step can fail
+# The code audit (#1382, 19-11-2026): pip-audit on the vendored packages, bandit, ruff and mypy on src/clark. REPORT ONLY: no step can fail
 # the run, it is not a required check, and it never blocks a pull request. The output is kept as a build artifact for 30 days.
 # Runs by hand and every Sunday 03:00 Dubai (no push trigger). Baseline 19-11: pip-audit clean; bandit 3 high,
 # 45 medium, 23 low; mypy 45 errors in 18 files. Once the baseline is cleared (the v1.4 Tech Debt items), the job can start failing on NEW high findings.
