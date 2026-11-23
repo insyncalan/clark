@@ -845,5 +845,16 @@ class LabelsExact(unittest.TestCase):
         self.assertTrue(seen and all(n <= g.MAX_TICKS for n in seen), seen)
 
 
+class LinesDegenerateLimits(unittest.TestCase):
+    """Row 1322 hostile round: a limit or a line count below 1 ends (it never loops or indexes an empty list); nothing in the app passes one."""
+
+    def test_a_limit_or_a_line_count_below_one_still_returns_lines(self):
+        for limit, most in ((0, 2), (-3, 2), (5, 0), (5, -1), (0, 0)):
+            with self.subTest(limit=limit, most=most):
+                out = g.lines("hello big world", limit, most)
+                self.assertTrue(1 <= len(out) <= max(1, most), out)
+                self.assertTrue(all(len(x) <= max(1, limit) for x in out), out)
+
+
 if __name__ == "__main__":
     unittest.main()

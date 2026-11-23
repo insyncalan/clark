@@ -128,6 +128,7 @@ def label(text, limit=LABEL_MAX):
 def lines(text, limit=LABEL_MAX, most=2):
     """A lane name as at most `most` lines of at most `limit` characters: it breaks at spaces, a word longer than a line is split, and
     only a name too long for `most` lines ends in two dots (never a cut at the first line)."""
+    limit, most = max(1, limit), max(1, most)             # a limit or a line count below 1 never loops or indexes an empty list
     text = label(text, 10 ** 6)
     out, line = [], ""
     for word in text.split(" "):
