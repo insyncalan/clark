@@ -140,11 +140,13 @@ class SignatureCheckTest(SignedBase):
         self.with_sig(path, ed25519_sign.sign(sg.TEST_SEED, updates.SIGN_DOMAIN + data))
         self.assertEqual("0.3.1", self.read(path).version)
 
-    def test_no_signature_file_is_refused_in_plain_words(self):
+    def test_no_signature_file_is_accepted_for_an_in_clark_upgrade_but_check_signature_alone_still_says_unsigned(self):
+        """Alan's ruling (row 1328): the upgrade works when the release has no .sig. The pinned key stays; a .sig that is there is still checked."""
         path = make_zip(self.tmp, sign=False)
-        err = self.refuses(path, "unsigned", detail="no .sig file")
-        self.assertEqual(APPROVED_WORDS, err.message)
-        self.assertNotRegex(err.message, r"(?i)\b(zip|manifest|sha)\b")
+        self.assertEqual("0.3.1", self.read(path).version)
+        with self.assertRaises(UpdateError) as said:
+            updates.check_signature(b"x", None, sg.TEST_PUBLIC)
+        self.assertEqual(("unsigned", APPROVED_WORDS), (said.exception.key, said.exception.message))
 
     def test_a_signature_of_the_wrong_length_is_refused(self):
         path = make_zip(self.tmp)
@@ -186,11 +188,10 @@ class SignatureCheckTest(SignedBase):
     def test_the_signature_is_checked_before_the_zip_is_opened(self):
         junk = Path(self.tmp) / "clark-0.3.1-mac.zip"
         junk.write_bytes(b"not a zip at all")
-        self.refuses(junk, "unsigned")                                              # not "damaged"
+        self.with_sig(junk, b"x" * 63)
+        self.refuses(junk, "badsig")                                                # a present, wrong .sig is refused before the zip is opened
         self.with_sig(junk, sg.signature_for(junk.read_bytes()))
         self.refuses(junk, "damaged")                                               # signed junk gets past the signature only
-        wrong = make_zip(self.fresh(), system="linux", name="clark-0.3.1-mac.zip", sign=False)
-        self.refuses(wrong, "unsigned")                                             # the system rule comes after
 
     def test_a_link_in_place_of_the_signature_is_refused(self):
         path = make_zip(self.tmp)
@@ -324,9 +325,7 @@ class OneSetOfBytesTest(SignedBase):
         unsigned = make_zip(self.fresh(), sign=False)
         kept, digest = ui.take_in(unsigned, data_dir, "mac")
         self.assertFalse(Path(str(kept) + ".sig").exists())
-        with self.assertRaises(UpdateError) as said:
-            ui.read_taken(kept, digest, "mac", "0.3.0", 2)
-        self.assertEqual("unsigned", said.exception.key)
+        self.assertEqual("0.3.1", ui.read_taken(kept, digest, "mac", "0.3.0", 2).version)      # row 1328 ruling: no .sig is accepted
 
 
 
@@ -381,11 +380,10 @@ class FirstSignedTest(SignedBase):
             with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", key):
                 self.assertEqual("1.3.3", self.read(self.zip_of("1.3.3"), installed="1.3.2").version)
 
-    def test_an_unsigned_or_wrongly_signed_1_3_4_is_refused_with_the_approved_words(self):
+    def test_an_unsigned_1_3_4_is_accepted_and_a_wrongly_signed_one_is_refused_with_the_approved_words(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
         path = self.zip_of("1.3.4")
-        err = self.refuses(path, "unsigned", APPROVED_WORDS, installed="1.3.3")
-        self.assertEqual(APPROVED_WORDS, err.message)
+        self.assertEqual("1.3.4", self.read(path, installed="1.3.3").version)      # row 1328 ruling: no .sig, still installs
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
         self.refuses(path, "badsig", APPROVED_WORDS, installed="1.3.3")
         Path(str(path) + ".sig").write_bytes(b"x" * 63)
@@ -397,14 +395,14 @@ class FirstSignedTest(SignedBase):
 
     def test_1_3_4_is_never_accepted_unsigned_while_the_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
-        self.refuses(self.zip_of("1.3.4"), "nokey", installed="1.3.3")
-        self.refuses(self.zip_of("1.3.4", sign=True), "nokey", installed="1.3.3")
+        self.refuses(self.zip_of("1.3.4", sign=True), "nokey", installed="1.3.3")      # a .sig that is there cannot be checked with the placeholder
 
     def test_the_signature_is_checked_before_the_zip_is_opened(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
         junk = Path(self.fresh()) / "clark-1.3.4-mac.zip"
         junk.write_bytes(b"not a zip at all")
-        self.refuses(junk, "unsigned", installed="1.3.3")
+        Path(str(junk) + ".sig").write_bytes(b"x" * 63)
+        self.refuses(junk, "badsig", installed="1.3.3")
 
     def test_a_1_3_4_zip_renamed_1_3_3_is_not_taken_for_an_old_release(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
@@ -480,7 +478,7 @@ class PlaceholderKeyTest(Base):
         self.assertEqual("damaged", caught.exception.key)
         self.assertIn("size of", caught.exception.detail)
 
-    def test_a_real_key_passed_in_still_refuses_unsigned_and_wrongly_signed(self):
+    def test_a_real_key_passed_in_by_a_test_still_refuses_unsigned_and_wrongly_signed(self):
         path = make_zip(self.tmp, sign=False)
         self.refuses(path, "unsigned", public_key=sg.TEST_PUBLIC)
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
@@ -488,11 +486,11 @@ class PlaceholderKeyTest(Base):
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes()))
         self.assertEqual("0.3.1", self.read(path, public_key=sg.TEST_PUBLIC).version)
 
-    def test_a_real_release_key_in_force_refuses_unsigned_and_wrongly_signed(self):
+    def test_a_real_release_key_in_force_accepts_unsigned_and_refuses_wrongly_signed(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
         mock.patch.object(updates, "FIRST_SIGNED", (0, 0, 0)).start()          # these fake downloads are 0.3.1
         path = make_zip(self.tmp, sign=False)
-        self.refuses(path, "unsigned")
+        self.assertEqual("0.3.1", self.read(path).version)      # row 1328 ruling: no .sig is accepted
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
         self.refuses(path, "badsig")
         self.assertTrue(updates.signature_required())

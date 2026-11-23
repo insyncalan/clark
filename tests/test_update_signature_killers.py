@@ -162,7 +162,7 @@ class CancelDuringReviewTest(Killers):
 class MessageTest(Killers):
     def test_unsigned_and_badsig_reviews_both_say_the_check_words_not_the_general_ones(self):      # the unsigned/badsig mapping
         self.assertNotEqual(self.WORDS, up.FETCH_BAD)
-        for name, kw in (("unsigned", {"sig_asset": False}), ("badsig", {})):
+        for name, kw in (("badsig", {}),):      # row 1328 ruling: a release with no .sig installs; only a bad .sig is the check words
             with self.subTest(name):
                 self.release(**kw)
                 if name == "badsig":

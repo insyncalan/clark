@@ -673,11 +673,10 @@ class SignedFromFirstSignedTest(Served2):
         self.assertEqual("ready", self.fetch_state()["state"])
         self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
 
-    def test_1_3_4_with_no_signature_on_the_release_says_the_approved_words(self):
+    def test_1_3_4_with_no_signature_on_the_release_still_upgrades(self):
+        """Alan's ruling (row 1328): the in-clark upgrade works when the release has no signature."""
         self.release("1.3.4", sig_asset=False)
-        fetch = self.fetch_state()
-        self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
-        self.assertIsNone(self.up.fetched)
+        self.assertEqual("ready", self.fetch_state()["state"])
 
     def test_1_3_4_with_a_wrong_signature_says_the_approved_words(self):
         for bad in (sg.signature_for(b"other bytes"), b"x" * 64, b"short", b"x" * 200):
