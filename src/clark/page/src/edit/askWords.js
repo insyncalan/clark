@@ -402,3 +402,7 @@ export const PEOPLE_CONTRACT_REST = ". When you ask a question, passages from ma
 export const PEOPLE_CONTRACT_CHOOSE = "Choose other folders";
 export const PEOPLE_CONTRACT_KEEP = "Keep it";
 export const PEOPLE_CONTRACT_LEAVE = "Leave these subfolders out";
+// row 1542: the list of left-out subfolders (NEW-WORDS.md "1365 left-out list", approved)
+export const LEFT_FOLDERS_HEAD = "Left out of questions";
+export const LEFT_FOLDERS_AGAIN = "Include again";
+export const leftFoldersAgainName = (rel) => `Include again: ${rel}`;

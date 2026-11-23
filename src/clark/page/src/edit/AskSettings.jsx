@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP, PEOPLE_CONTRACT_LEAVE, LEFT_FOLDERS_HEAD, LEFT_FOLDERS_AGAIN, leftFoldersAgainName } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { FilesAll, FilesProject } from "./FilesSettings.jsx";
@@ -17,7 +17,7 @@ import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { announce, LINKS } from "./indexNote.js";
-import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
+import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersInclude, askFoldersUndo, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
@@ -136,6 +136,7 @@ function AskProject() {
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
   const [warns, setWarns] = useState([]);                // row 1365: [{folder, items, fresh}] from the server's name-only scan
+  const [leftOut, setLeftOut] = useState([]);           // row 1542: [{folder, paths}] the subfolders left out of each saved folder
   const [kept, setKept] = useState([]);                  // folders whose notice was answered with Keep it, for this window
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
@@ -163,6 +164,7 @@ function AskProject() {
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
       setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
       setWarns(r.status === 200 && b && Array.isArray(b.warnings) ? b.warnings : []);
+      setLeftOut(r.status === 200 && b && Array.isArray(b.left_out) ? b.left_out : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -218,6 +220,30 @@ function AskProject() {
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      if (Array.isArray(b.left_out)) setLeftOut(b.left_out);
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1542: Include again puts one left-out subfolder back. The toast carries the existing Undo, which takes the step back (the same undo as every folder change).
+  async function includeAgain(p, rel) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersInclude(code, p, rel);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setLeftOut(Array.isArray(b.left_out) ? b.left_out : []);
+      setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      again();
+      if (b.apply_id) announceSwitch(b.message || "Included again.", async () => {
+        const u = await askFoldersUndo(code, b.apply_id);
+        const ub = u.body;
+        if (u.status === 200 && ub && ub.ok === true) { if (Array.isArray(ub.left_out)) setLeftOut(ub.left_out); again(); return { ok: true }; }
+        return { ok: false, message: failure(u) };
+      }, "Undone.");
+      setTimeout(() => { const el = document.querySelector("[data-ask-include]") || document.querySelector("[data-ask-choose]"); if (el) el.focus(); }, 0);
       return;
     }
     setFmsg({ kind: "error", text: failure(r) });
@@ -308,6 +334,16 @@ function AskProject() {
             )];
           })}
         </ul>
+      ) : null}
+      {classic && leftOut.length ? (
+        <div class="ask-left-folders" id="ask-left-folders">
+          <h3 class="ask-left-head">{LEFT_FOLDERS_HEAD}</h3>
+          <ul class="ask-left-list">
+            {leftOut.flatMap((x) => x.paths.map((rel) => (
+              <li key={x.folder + "|" + rel}><span class="ask-left-name">{rel}</span> <button type="button" class="ask-left-btn" data-ask-include aria-label={leftFoldersAgainName(rel)} disabled={busy} onClick={() => includeAgain(x.folder, rel)}>{LEFT_FOLDERS_AGAIN}</button></li>
+            )))}
+          </ul>
+        </div>
       ) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (

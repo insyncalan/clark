@@ -140,3 +140,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+.ask-left-folders { margin-top: 8px; }   /* row 1542: the left-out subfolders, Classic only; the list and button values are rules.css 620-625's */
+.ask-left-head { margin: 0; font-size: var(--size-caption); font-weight: 500; color: var(--text); }
+.ask-left-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }

@@ -97,6 +97,8 @@ export const aiModelSend = (model, accept) => changing("POST", "/api/providers/m
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
+export const askFoldersInclude = (project, path, rel) => call("POST", "/api/ask-folders", { project, action: "include", path, rel });   // row 1542: Include again
+export const askFoldersUndo = (project, applyId) => call("POST", "/api/ask-folders", { project, action: "undo", apply_id: applyId });
 // Row 1294: the folders for all projects (the All projects tab): the same, with scope "all" in place of a project.
 export const askFoldersAllRead = (project) => call("GET", "/api/ask-folders?scope=all" + (project ? `&project=${encodeURIComponent(project)}` : ""));
 export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });
