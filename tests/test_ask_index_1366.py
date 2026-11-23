@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _paths import SRC  # noqa: F401
+from _paths import SRC
 
 import test_docx_read as tdx
 from clark import reach
@@ -283,6 +283,59 @@ class Row1537(Base):
         self.assertTrue(ask_index.current(self.data, "P1", [self.box]))
         for n in (1, 2, 3, 4):
             self.assertTrue(self.found(f"zqfile{n}"), n)
+
+    def test_online_only_not_opened_and_line_says_not_searched(self):
+        from clark import ask_index
+        self.put("here.txt", "zqhere text")
+        self.put("cloud.txt", "zqcloud " + "x" * 29)
+        reads = []
+        real, real_read = reach.online_only_stat, reach.read_bytes
+
+        def counting(path, *a, **k):
+            reads.append(Path(path).name)
+            return real_read(path, *a, **k)
+        with mock.patch.object(reach, "online_only_stat", side_effect=lambda st: st.st_size == 37 or real(st)), mock.patch.object(reach, "read_bytes", counting):
+            self.build()
+        self.assertIn("here.txt", reads)
+        self.assertNotIn("cloud.txt", reads, "an online-only file is never opened")
+        self.assertFalse(self.found("zqcloud"))
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["online_only"], 1)
+        line = ask_index.line_for(ix.status(self.data, "P1", [self.box]))
+        self.assertEqual(line, "Indexed 1 of 2 files. Online-only files not searched")
+        self.assertEqual(ask_index.line_for({"indexed": 1, "online_only": 8}), "Indexed 1 of 9 files. Online-only files not searched", "no count in front")
+        self.assertEqual(ask_index.left_out_line("online_only", 8), "Online-only files not searched")
+        self.assertEqual(ask_index.left_out_line("online_only", 1), "Online-only files not searched")
+        left = ask_index.folder_status(self.data, "P1", [str(self.box)])[str(self.box)]["left"]
+        self.assertEqual(left["online_only"], "Online-only files not searched")
+        none = {"indexed": 1}
+        self.assertNotIn("Online-only", ask_index.line_for(none))
+
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        import json
+        page = SRC / "clark" / "page" / "src"
+        words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
+        panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+        self.assertIn(f'export const CARD_PASSAGES = "{six} {ten}";', words)
+        classic = panel.split("{classic ? (<>")[1].split(") : (<>")[0]
+        self.assertIn("W.named(W.CARD_PASSAGES, askProvider.value)", classic)       # Classic only: the Cards branch keeps its three lines
+        self.assertNotIn("CARD_PASSAGES", panel.split(") : (<>")[1])
+        help_text = json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        self.assertIn(six, help_text)
+        self.assertIn(ten, help_text)
+
+    def test_fixture_library_has_no_client_names(self):
+        """The fixture library is made in the test files of row 1366 (the file names, the words in the files, the comments). None holds a name on the
+        repo's banned list (tests/test_no_real_names.py, hashes only)."""
+        import test_no_real_names as names
+        here = Path(__file__).resolve().parent
+        sources = sorted(here.glob("test_ask_index_*1366.py")) + sorted(here.glob("test_ask_vision_*1366.py")) + [here / "test_docx_read.py"]
+        self.assertGreaterEqual(len(sources), 10)
+        hits = []
+        for f in sources:
+            hits += names.text_hits(f.name, f.read_text(encoding="utf-8"), names.BANNED)
+        self.assertEqual(hits, [])
 
 
 if __name__ == "__main__":

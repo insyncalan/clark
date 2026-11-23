@@ -1417,6 +1417,10 @@
       "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. The Asking switch in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
+      "p",
+      "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question. On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+     ],
+     [
       "ul",
       [
        "The suggestions sit in one row above the box (scroll it sideways for the rest). They change with the page that is open (Dashboard, work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about. On Settings they are the general six: **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",

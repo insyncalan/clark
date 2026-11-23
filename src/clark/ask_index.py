@@ -67,6 +67,7 @@ REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
 REASON_TOO_LONG_PDF = "is a PDF that is too long"          # a PDF over its page, size or time limit (the words main already had)
 REASON_TOO_LONG = "is too long"                           # any other file over its limits (approved words, 22-11)
+ONLINE_ONLY_LINE = "Online-only files not searched"      # the approved words; an online-only file is never opened, changed or deleted
 REASON_PICTURE = "is a picture and this computer cannot read pictures"
 COUNTED = ("indexed", "type", "too_long", "picture")          # the states that have their own count; any other state is a safety one
 
@@ -541,9 +542,11 @@ def more_line(n):
 
 
 def left_out_line(reason, n):
-    """The approved sentence for `n` files left out for one reason (only "safety" so far)."""
+    """The approved sentence for `n` files left out for one reason ("picture", "safety", "online_only")."""
     if reason == "picture":
         return f"{n} {_plural(n, 'is a picture', 'are pictures')} and this computer cannot read {_plural(n, 'pictures', 'them')}."
+    if reason == "online_only":
+        return ONLINE_ONLY_LINE                         # the same words for any count: no count in front (ruled 23-11)
     if reason == "safety":
         return f"{n} look like a password or a key and were left out." if n != 1 else "1 looks like a password or a key and was left out."
     raise ValueError(reason)
@@ -577,12 +580,12 @@ def line_for(counts, reading=None):
         out.append(f"{t} {_plural(t, 'is', 'are')} of a type clark can't read yet.")
     if pic:
         out.append(left_out_line("picture", pic))
-    if o:
-        out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
     if long_:
         out.append(f"{long_} {_plural(long_, 'file is', 'files are')} too long.")
     if s:
         out.append(f"{s} {_plural(s, 'looks', 'look')} like a password or a key and {_plural(s, 'was', 'were')} left out.")
+    if o:
+        out.append(left_out_line("online_only", o))    # last: the exact words carry no full stop
     return " ".join(out)
 
 
@@ -642,6 +645,8 @@ def folder_status(data_dir, code, folders, live=None):
             out[f] = {"state": "done", "line": done_line(saved[f])}
             if left.get(f):
                 out[f]["left"] = left[f]
+            if saved[f].get("online_only"):
+                out[f].setdefault("left", {"files": [], "more": 0})["online_only"] = left_out_line("online_only", saved[f]["online_only"])
     return out
 
 
