@@ -86,6 +86,16 @@ class FollowUp(unittest.TestCase):
         self.assertEqual(left, 1)
 
 
+class ChooseLimit(unittest.TestCase):
+    def test_every_passage_that_fits_the_budget_is_kept_whatever_their_number(self):
+        for n in (1, 2, 3, 7):
+            ps = [ask.Passage("l%d" % i, "text %d" % i) for i in range(n)]
+            chosen, left = ask_data.choose(ps, "text", budget=1000)
+            self.assertEqual((len(chosen), left), (n, 0), n)
+        ps = [ask.Passage("l%d" % i, "text") for i in range(3)]
+        self.assertEqual(ask_data.choose(ps, "text", budget=8)[1], 1)
+
+
 class LongChat(unittest.TestCase):
     def test_more_than_ten_turns_keep_the_newest_ten_and_say_how_many_went(self):
         turns = [("user" if i % 2 == 0 else "assistant", f"turn{i:02d}") for i in range(14)]
