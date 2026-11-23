@@ -29,6 +29,8 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
   const col = (v) => { probe.style.color = 'var(' + v + ')'; return g(probe, 'color'); };
   const box = q('#t'), cols = q('.ucl-cols'), row = q('.ucl-row'), chip = q('.cchip.cc-committed'), plan = q('.cchip.cc-planned-2026'), pill = q('.pill');
   const r = (e) => e.getBoundingClientRect();
+  /* macOS Chrome 157.0.8103.79 prints the computed align-items: flex-start as 'flow-start' (Ubuntu .78 prints flex-start); this maps that ONE engine spelling and nothing else, so the expected value in the test stays 'flex column flex-start 3px' */
+  const engineSpelling = (v) => (v === 'flow-start' ? 'flex-start' : v);
   return { boxBorder: g(box, 'borderTopWidth'), boxBorderColor: g(box, 'borderTopColor'), line: col('--line-soft'), boxRadius: g(box, 'borderTopLeftRadius'), boxOverflow: g(box, 'overflow'),
     colsBg: g(cols, 'backgroundColor'), grey50: col('--grey-50'), colsCase: g(cols, 'textTransform'), colsSize: g(cols, 'fontSize'), colsColor: g(cols, 'color'), muted: col('--text-muted'),
     colsPadL: g(cols, 'paddingLeft'), rowPadL: g(row, 'paddingLeft'),
@@ -36,7 +38,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     chipBelow: r(chip).top >= r(pill).bottom - 0.5, chipLeft: Math.abs(r(chip).left - r(pill).left) < 1,
     boxBg: g(box, 'backgroundColor'), surface: col('--surface'), colsBorderB: g(cols, 'borderBottomWidth') + ' ' + g(cols, 'borderBottomColor'), lineB: '1px ' + col('--line-soft'),
     colsWeight: g(cols, 'fontWeight'), colsTrack: g(cols, 'letterSpacing'), colsPadT: g(cols, 'paddingTop'), rowPadR: g(row, 'paddingRight'),
-    st: [g(q('.ucl-st'), 'display'), g(q('.ucl-st'), 'flexDirection'), g(q('.ucl-st'), 'alignItems'), g(q('.ucl-st'), 'rowGap')].join(' '),
+    st: [g(q('.ucl-st'), 'display'), g(q('.ucl-st'), 'flexDirection'), engineSpelling(g(q('.ucl-st'), 'alignItems')), g(q('.ucl-st'), 'rowGap')].join(' '),
     chipPad: g(chip, 'paddingTop') + ' ' + g(chip, 'paddingLeft'), chipBorderW: g(chip, 'borderTopWidth'), chipBorderC: g(chip, 'borderTopColor'), grey300: col('--grey-300'), chipSize: g(chip, 'fontSize'), chipWeight: g(chip, 'fontWeight'),
     fits: document.documentElement.scrollWidth <= window.innerWidth }; })()"""
 
@@ -95,8 +97,7 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c["colsBorderB"], c["lineB"], tag)
                     self.assertEqual((c["colsWeight"], c["colsSize"], c["colsPadT"], c["rowPadR"]), ("700", "13px", "10px", "16px"), tag)
                     self.assertNotIn(c["colsTrack"], ("normal", "0px"), tag)
-                    # macOS Chrome reports the computed value of align-items: flex-start as 'flow-start' (same top alignment, other keyword); the CSS value is flex-start
-                    self.assertEqual(c["st"].replace("flow-start", "flex-start"), "flex column flex-start 3px", tag)
+                    self.assertEqual(c["st"], "flex column flex-start 3px", tag)
                     self.assertEqual((c["chipPad"], c["chipBorderW"], c["chipSize"], c["chipWeight"]), ("2px 9px", "1px", "14px", "400"), tag)
                     self.assertEqual(c["chipBorderC"], c["grey300"], tag)
                     self.assertTrue(c["fits"], tag)
