@@ -139,3 +139,5 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1289: the Classic peek side padding is 20 px as in the final mock-up (the shared frame in shell.css keeps 24 for Cards). */
+.peek { padding: var(--space-3) 20px var(--space-5); }
