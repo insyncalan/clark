@@ -1,4 +1,4 @@
-"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and a short list has no grip.
+"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and the grip shows only when the line overflows its box.
 
 Run: python3 dev/run_tests.py test_ms_timeline_grip_1267
 Chrome launches at 1400 and 900 px.
@@ -285,57 +285,80 @@ class DarkAndSideways(Classic, BrowserBase, unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stayed on it")
 
 
-class ShortList(Classic, BrowserBase, unittest.TestCase):
-    """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
+OVER = "(() => { const w = document.querySelector('.mv-wrap'); return [w.scrollWidth, w.clientWidth, document.querySelectorAll('[data-grip]').length, document.querySelectorAll('.mv-mk').length]; })()"
 
-    def serve(self, theme=CLASSIC):
-        def short(code, archived="hide"):
+
+class Overflow(Classic, BrowserBase, unittest.TestCase):
+    """Row 1267 (AP5): the grip shows only when the timeline overflows its box (scrollWidth > clientWidth), whatever the number of milestones."""
+
+    DATES = ["2026-11-10"]
+
+    def serve(self, theme=CLASSIC, dates=None):
+        want = dates or self.DATES
+
+        def shaped(code, archived="hide"):
             d = copy.deepcopy(self.store.data_for(code, archived))
-            d["milestones"] = d["milestones"][:self.COUNT]
+            ms = []
+            for i, at in enumerate(want):
+                m = copy.deepcopy(d["milestones"][i % len(d["milestones"])])
+                m.update({"id": f"{code}-M-9{i}", "name": f"Step {i + 1}", "baseline_date": at, "forecast_date": None, "actual_date": None, "status": "Planned", "state": None, "state_set": 0, "movement": None})
+                ms.append(m)
+            d["milestones"] = ms
             return d
-        s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        s = Running(data_for=shaped, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
         self.addCleanup(s.close)
         return s.port
 
-    COUNT = 2
-
-    def test_two_milestones_draw_the_line_and_no_grip(self):
-        port = self.serve()
+    def check(self, dates, grip, count=None):
+        port = self.serve(dates=dates)
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: no useless grip")
+                sw, cw, grips, marks = cdp.js(OVER, sid)
+                self.assertEqual(marks, count or len(dates), f"{width}: the line is drawn")
+                self.assertEqual(sw > cw, grip, f"{width}: the line {'overflows' if grip else 'fits'} its box ({sw} in {cw})")
+                self.assertEqual(grips, 1 if grip else 0, f"{width}: the grip shows exactly when the line overflows ({sw} in {cw})")
 
-    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
-        port = self.serve()
+    def test_one_milestone_that_fits_has_no_grip(self):
+        self.check(["2026-11-10"], False)
+
+    def test_six_milestones_close_together_fit_and_have_no_grip(self):
+        self.check(["2026-11-02", "2026-11-05", "2026-11-09", "2026-11-12", "2026-11-16", "2026-11-20"], False)
+
+    def test_six_milestones_spread_over_years_overflow_and_have_the_grip(self):
+        self.check(["2026-06-01", "2026-12-01", "2027-06-01", "2027-12-01", "2028-06-01", "2028-12-01"], True)
+
+    def test_one_milestone_far_from_today_overflows_and_has_the_grip(self):
+        self.check(["2029-06-01"], True)
+
+    def test_two_milestones_far_apart_overflow_though_few(self):
+        self.check(["2026-06-01", "2028-06-01"], True)
+
+    def test_a_stored_zoom_keeps_the_grip_on_a_line_that_fits_so_it_can_be_put_back(self):
+        port = self.serve(dates=["2026-11-10"])
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: at 100% a short line has no grip")
-                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); true", sid)
+                cdp.js("localStorage.setItem('clark.tlZoom.page', '0.7'); true", sid)
                 reload_to_new_page_cdp(cdp, sid, what=f"{width}: the page reloaded")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
-                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 1), f"{width}: drawn")
+                sw, cw, grips, _ = cdp.js(OVER, sid)
+                self.assertLessEqual(sw, cw, f"{width}: fits")
+                self.assertEqual(grips, 1, f"{width}: a zoom other than 100% is stored: the grip stays though it fits")
 
-
-class ThreeMilestones(ShortList):
-    COUNT = 3
-
-    def test_three_milestones_are_enough_for_the_grip(self):
-        port = self.serve()
-        for width in (1400, 900):
-            with chrome() as cdp:
-                sid = self.visit(cdp, width, HASH, port)
-                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 3, f"{width}: the line is drawn")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 1, f"{width}: exactly three milestones keep the grip")
-
-    def test_two_milestones_draw_the_line_and_no_grip(self):
-        pass
-
-    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
-        pass
+    def test_the_grip_comes_when_the_window_narrows_and_goes_when_it_widens(self):
+        port = self.serve(dates=["2026-09-01", "2027-01-01"])
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, HASH, port)
+            def metrics(width):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            sw, cw, grips, _ = cdp.js(OVER, sid)
+            self.assertLessEqual(sw, cw, "wide window: the line fits")
+            self.assertEqual(grips, 0, "wide window: no grip")
+            metrics(900)
+            self.assertTrue(wait(lambda: cdp.js(OVER, sid)[2] == 1), "the window narrowed, the line overflows: the grip comes")
+            metrics(1400)
+            self.assertTrue(wait(lambda: cdp.js(OVER, sid)[2] == 0), "the window widened, the line fits: the grip goes")
 
 
 class KeyGuards(Classic, BrowserBase, unittest.TestCase):
@@ -351,18 +374,20 @@ class KeyGuards(Classic, BrowserBase, unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: one bare Up moved it, the modified ones did not")
 
 
-class CardsKeepsItsGrip(ShortList):
+class CardsKeepsItsGrip(Overflow):
     """Cards is frozen: it has none of the Classic grip rule (the grip stays on a short line, Up lowers and Down raises as on main, End is not a key), and Classic has all of it."""
-    COUNT = 2
+    DATES = ["2026-11-10", "2026-11-12"]
 
     def serve(self, theme=None):
         return super().serve(theme)
 
-    def test_two_milestones_draw_the_line_and_no_grip(self):
-        pass
-
-    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
-        pass
+    def test_one_milestone_that_fits_has_no_grip(self): pass
+    def test_six_milestones_close_together_fit_and_have_no_grip(self): pass
+    def test_six_milestones_spread_over_years_overflow_and_have_the_grip(self): pass
+    def test_one_milestone_far_from_today_overflows_and_has_the_grip(self): pass
+    def test_two_milestones_far_apart_overflow_though_few(self): pass
+    def test_a_stored_zoom_keeps_the_grip_on_a_line_that_fits_so_it_can_be_put_back(self): pass
+    def test_the_grip_comes_when_the_window_narrows_and_goes_when_it_widens(self): pass
 
     def test_cards_keeps_the_grip_on_a_line_of_two_and_its_old_keys(self):
         port = self.serve()
@@ -382,7 +407,7 @@ class CardsKeepsItsGrip(ShortList):
                 self.assertEqual(cdp.js("(() => { const g = document.querySelector('[data-grip]'); const e = new KeyboardEvent('keydown', {key: 'End', bubbles: true, cancelable: true}); g.dispatchEvent(e); return e.defaultPrevented; })()", sid), False, f"{width}: End is left to the browser")
 
     def test_classic_gets_the_rule_on_the_same_data(self):
-        port = ShortList.serve(self, CLASSIC)
+        port = Overflow.serve(self, CLASSIC)
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
