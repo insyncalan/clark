@@ -115,7 +115,7 @@ class Formatting(unittest.TestCase):
 
     def test_header_row_only_is_frozen_on_every_sheet(self):
         wb = load_workbook(self.build(self.everything()))
-        titles = {"Milestones": "Milestone", "Actions": "Description", "Risks & Issues": "Description", "Decisions": "Decision",
+        titles = {"Milestones": "Milestone", "Actions": "Title", "Risks & Issues": "Title", "Decisions": "Decision",
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
@@ -187,8 +187,8 @@ class Formatting(unittest.TestCase):
                 if field in excel.WIDE:
                     self.assertEqual(width, 48)
         ws = wb["Actions"]
-        for label, field in (("Description", True), ("Latest update", True), ("Client wording", True), ("ID", False),
-                             ("Owner", False), ("Due", False), ("Priority", False), ("Client-visible", False)):
+        for label, field in (("Title", True), ("Latest update", True), ("Client wording", True), ("ID", False),
+                             ("Owner", False), ("Due", False), ("Priority", False), ("Client visible", False)):
             c = self.cell(ws, "DEMO-A-001", label)
             self.assertEqual(bool(c.alignment.wrap_text), field, label)
             self.assertEqual(c.alignment.vertical, "top", label)
@@ -318,7 +318,7 @@ class Formatting(unittest.TestCase):
             d.export()
             ws = load_workbook(d.path)["Milestones"]
             for state, ref in d.milestones.items():
-                c = self.cell(ws, ref, "Shown state")
+                c = self.cell(ws, ref, "State")
                 with self.subTest(state=state):
                     self.assertEqual(c.value, state)
                     self.assertEqual(look_of(ws, c.column_letter, state), colours.hexes(colours.MILESTONE_STATE[state]))
@@ -387,7 +387,7 @@ class Formatting(unittest.TestCase):
     def test_updated_is_left_as_the_stored_text(self):
         """Updated is the importer's clash check: it stays the stored UTC text, not a local time."""
         ws = self.sheet({"actions": [action(1)]}, "Actions")
-        c = self.cell(ws, "DEMO-A-001", "Updated")
+        c = self.cell(ws, "DEMO-A-001", "Last updated")
         self.assertEqual((c.value, c.data_type), ("2030-01-01 09:30:00.123", "s"))
 
     def test_the_import_reads_the_same_values_as_before(self):

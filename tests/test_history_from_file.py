@@ -79,7 +79,7 @@ class CreatedByExcel(ter.Base):
         ws = book["Actions"]
         head = {c.value: c.column for c in ws[1]}
         ws.append([None] * ws.max_column)
-        ws.cell(ws.max_row, head["Description"]).value = "Order the new laptops"
+        ws.cell(ws.max_row, head["Title"]).value = "Order the new laptops"
         book.save(str(self.path))
         status, done = self.apply(self.check()[1]["plan"])
         self.assertEqual((status, done["ok"], done["counts"]["new"]), (200, True, 1), done)
