@@ -118,6 +118,36 @@ class LoadInstalled(unittest.TestCase):
         self.assertEqual((got.get("start"), got["got"]), (None, [None, None, None, None, "1.3.7"]))
 
 
+PROBE_HEALTH_CALL = r"""
+const seen = [];
+globalThis.fetch = async (url, opts) => { seen.push([url, opts && opts.cache]); return { status: 200, json: async () => ({ version: "1.3.7" }) }; };
+(async () => { await NS.loadInstalled(); console.log(JSON.stringify({ seen, installed: NS.installed.value })); })();
+"""
+
+
+class LoadInstalledStrict(unittest.TestCase):
+    def probe(self, body):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "probe.js"
+            script.write_text(SHIM + bundle() + ";\n" + body, encoding="utf-8")
+            done = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=60)
+            assert done.returncode == 0, done.stderr
+            return json.loads(done.stdout.strip().splitlines()[-1])
+
+    def test_it_asks_health_uncached_and_takes_only_a_good_answer_with_a_plain_string_version(self):
+        self.assertEqual(self.probe(PROBE_HEALTH_CALL)["seen"], [["/health", "no-store"]])
+        answers = [{"status": 500, "body": {"version": "1.3.7"}}, {"status": 200, "body": {"version": ["1.3.7"]}}, {"status": 200, "body": {"version": "1.3.7-beta"}}]
+        got = self.probe(PROBE_INSTALLED % json.dumps(answers))
+        self.assertEqual(got["got"], [None, None, None], "a 500 with a version, an array version and a suffixed version leave it unknown")
+
+    def test_a_notices_answer_must_say_ok_true_exactly(self):
+        got = run([ok("keep"), {"status": 200, "body": {"ok": "yes", "notices": []}}])
+        self.assertEqual([s["pushed"] for s in got["steps"]], [["keep"], ["keep"]])
+
+
 class LoadNotices(unittest.TestCase):
     def test_away_and_bad_answers_change_nothing_and_off_clears(self):
         got = run([
