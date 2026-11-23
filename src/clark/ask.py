@@ -50,6 +50,9 @@ EMPTY = "Type a question first."
 LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks like a password" note uses (ai_menu and secret_screen too)
 SECRET = f"That {LOOKS_LIKE}, so it wasn't sent. Take it out and try again."      # the typed question and the selected text (ai_menu.SECRET_MESSAGE is this same note)
 SECRET_EARLIER = f"An earlier message {LOOKS_LIKE}, so this chat can't be sent. Start a new chat and try again."
+LEFT_OUT = "Left out to keep this question under the size limit: {n} {passages}."   # the ruled words (row 1294); the page shows it as it comes
+WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)      # the plain words of a question, for ranking passages (ask_data uses this one too)
+ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")      # an item ID a question names
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 INSTRUCTIONS_SECRET = f"The standing instructions {LOOKS_LIKE}, so nothing was sent. Take it out in Settings and ask again."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
@@ -95,6 +98,7 @@ class Request:
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
     left_out_secret: int = 0      # how many passages were left out because they looked like a key or a password (a count only; never shown as a number)
     kept: tuple = ()              # the position (in the passages as given) of each passage sent, in order, so a caller can match them
+    left_out: int = 0             # how many passages were left out to keep the question under BUDGET (the panel says so, with this number)
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     person: str = field(default="", repr=False, compare=False)    # row 1331: the profile name, set by the service; prompt data only (see person_line)
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
@@ -252,27 +256,31 @@ def _standing(instructions):
     return out
 
 
-def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None):
+def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None, files=0):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
-    text than the budget. Text is carried exactly as given."""
+    text than the budget. Text is carried exactly as given. `files` is how many of the last `passages` are files added to the question: when the text is too long they go last (item 1292)."""
     max_request = MAX_REQUEST if max_request is None else max_request      # Row 1293: a model with a smaller window gives a smaller cap
     turns, gone = _trim(check_question(question, earlier))
-    chosen, kept, secret_out = [], [], 0
+    chosen, kept, secret_out, left_out = [], [], 0, 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
         if not _label_ok(label) or not isinstance(text, str):
             raise AskRefused(BAD_INPUT)
-        if len(text) > MAX_PASSAGE:
-            raise AskRefused(TOO_MUCH)
+        if len(text) > MAX_PASSAGE:                  # one passage over the ceiling is left out and counted; the question goes on without it
+            left_out += 1
+            continue
         if _secret(text) or _secret(label):          # the last point before the provider: a passage that looks like a key is dropped, not sent
             secret_out += 1
             continue
         chosen.append((label, text))
         kept.append(n)
-    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
-        raise AskRefused(TOO_MUCH)
+    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:      # leave out the least relevant and say so; never send over the limit
+        keep, more = choose(chosen, question, BUDGET, MAX_PASSAGES)
+        left_out += more
+        kept = [kept[i] for i in keep]
+        chosen = [chosen[i] for i in keep]
 
     head = _head(today, partial)
     standing = _standing(instructions)
@@ -281,10 +289,17 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
         body, ids, hidden = _assemble(question, turns[dropped:], chosen, head, standing)
         if len(body) <= max_request:
             break
-        if dropped >= len(turns):
+        if dropped < len(turns):
+            dropped += 1
+        elif len(chosen) > 1:        # no turn is left to drop: leave out the least relevant passage (and say so) while another can still be kept; refused only when nothing can (Row 1292 ruling)
+            ranked = _ranked(chosen, question)
+            file_from = len(passages or ()) - files        # item 1292: the question's own files are cut only when no other passage can go
+            gone_at = next((i for i in reversed(ranked) if i and kept[i] < file_from), ranked[-1])
+            del chosen[gone_at], kept[gone_at]
+            left_out += 1
+        else:
             raise AskRefused(TOO_MUCH)
-        dropped += 1
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept))
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept), left_out=left_out)
 
 
 def _head(today, partial):
@@ -296,6 +311,30 @@ def _head(today, partial):
     if any(_PARTIAL_LINE.fullmatch(x) for x in partial or () if isinstance(x, str)):
         lines.append("Only some rows were sent, so give no totals or counts of the whole; say how many you read.")
     return lines
+
+
+def _ranked(chosen, question):
+    """The positions in `chosen`, best first: plain keyword overlap with the question (an item ID it names counts most), the first always first."""
+    words = {w.casefold() for w in WORDS.findall(question or "")}
+    ids = set(ID_PATTERN.findall(question or ""))
+
+    def score(i):
+        text = chosen[i][1].casefold()
+        return sum(5 for x in ids if x.casefold() in text) + sum(1 for w in words if w in text)
+    return sorted(range(len(chosen)), key=lambda i: (i != 0, -score(i), i))
+
+
+def choose(chosen, question, budget=BUDGET, limit=MAX_PASSAGES):
+    """Which of `chosen` ((label, text) pairs) fit `budget` characters and `limit` passages: the most relevant first (plain keyword
+    overlap with the question; an item ID it names counts most), the first always first. Returns (positions kept, in their original
+    order, how many were left out)."""
+    keep, used = set(), 0
+    for i in _ranked(chosen, question):
+        size = len(chosen[i][1])
+        if used + size <= budget and len(keep) < limit:
+            keep.add(i)
+            used += size
+    return sorted(keep), len(chosen) - len(keep)
 
 
 def _assemble(question, turns, chosen, head=(), standing=()):
@@ -678,6 +717,13 @@ def secret_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ask_words.SECRET_LEFT_OUT      # Row 1293: one plain line; what matched is never shown
+
+
+def left_out_text(count):
+    """The ruled line for passages left out to keep a question under the size limit. "" for none."""
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return ""
+    return LEFT_OUT.format(n=count, passages="passage" if count == 1 else "passages")
 
 
 def dropped_note(count):
