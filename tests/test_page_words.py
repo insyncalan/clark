@@ -274,7 +274,8 @@ class Words(unittest.TestCase):
                 ('backups', 'Backups', [
                     "Backups",            # #111: the backups card; this server has no backups to list
                     "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                    "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
+                    "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                    "Preferences", "Your preferences are kept with your data", "Reset all preferences"      # row 1535 step 5 (words pending Jarvis's approval)
                 ]),
                 ('data', 'Export and import', [
                     "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
