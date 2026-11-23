@@ -518,6 +518,17 @@ class Route(Base):
             self.assertEqual((status, body["code"]), (409, "not_in_list"), path)
         self.assertEqual(self.stored(), "[]")
 
+    def test_a_relative_path_that_would_resolve_to_a_saved_folder_from_the_working_folder_is_still_refused(self):
+        """Killer (row 1365 part C): only an absolute path is resolved to the saved folder; a relative one is never taken from where the server runs."""
+        self.add()
+        here = os.getcwd()
+        self.addCleanup(os.chdir, here)
+        os.chdir(self.root)
+        for path in (".", "./", "../" + self.root.name):
+            status, body = self.svc.change({"project": "ABC", "action": "exclude", "path": path})
+            self.assertEqual((status, body["code"]), (409, "not_in_list"), path)
+        self.assertEqual(self.stored(), "[]")
+
     def test_exactly_the_limit_is_saved_and_a_nested_flagged_folder_is_kept_by_its_path(self):
         shutil.rmtree(self.root / "Contract")
         for i in range(ex.MAX_LEFT_OUT - 1):
