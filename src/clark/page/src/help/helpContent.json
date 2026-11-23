@@ -1823,7 +1823,7 @@
      [
       "ul",
       [
-       "**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.",
+       "**The top bar**: the logo, the project name, then Weekly report and the week.",
        "**The tabs**: Dashboard always, then Work items and Milestones unless you hid them, then Use cases when the client can see any, and Gantt when its switch is on with at least one line shown.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",

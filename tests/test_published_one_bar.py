@@ -67,7 +67,7 @@ class InTheFile(Published):
                 b = p.js(BAR)
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
-                self.assertRegex(b["date"], r"28-10-2026", "issue 1178 ruling: the date is a button in the bar (and also in the profile menu)")
+                self.assertEqual(b["date"], "", "row 1543: no date button in the bar")
                 self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")
@@ -255,11 +255,11 @@ class TheEditor(Setup):
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.", help_)
+        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week.", help_)
         self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
 
-    def test_the_published_page_help_says_only_the_date_is_a_button(self):
+    def test_the_published_page_help_names_no_date_button(self):
         import json
         topics = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
@@ -277,10 +277,9 @@ class TheHelpLine(unittest.TestCase):
         topic = find(topics)
         self.assertIsNotNone(topic, "the published client page topic is in the Help")
         bullet = next(x for kind, body in topic["b"] if kind == "ul" for x in body if x.startswith("**The top bar**"))
-        self.assertIn("The date is a button: it opens a calendar", bullet, "the date is the one button (TopBar.jsx AsAtDate)")
+        self.assertNotIn("as at", bullet.lower(), "row 1543: the bar has no As at date, so the Help bullet names none")
         for word in ("project list", "the name is a button", "the week is a button"):
             self.assertNotIn(word, bullet.lower(), f"the name and the week open nothing in a published file, so the Help bullet must not say {word!r}: {bullet}")
-        self.assertIn("nothing else in it is a button", bullet.lower())
 
 
 if __name__ == "__main__":
