@@ -92,6 +92,18 @@ class Bar(unittest.TestCase):
                 h.mount("<p>Some words here</p>", ai="current")
                 self.assertTrue(h.ev("!!document.querySelector('.rt-bar .rt-more')"), "normal " + where)
 
+    def test_undo_in_a_one_line_editor_does_not_bring_the_old_paragraphs_back(self):
+        """Row 1288 (review): an old several-paragraph text shows joined on one line; that join is not an edit, so Undo before any edit has nothing to undo."""
+        with rp.Harness(chrome) as h:
+            h.mount("<p>First part</p><p>Second part</p>", ai="current", one_line=True)
+            self.assertEqual(h.ev("[...document.querySelectorAll('.rt-host .ProseMirror p')].map(p => p.textContent)"), ["First part Second part"])
+            h.key("z", h.mod, "KeyZ", 90)
+            h.ev("new Promise(r => setTimeout(r, 300))")
+            self.assertEqual(h.ev("[...document.querySelectorAll('.rt-host .ProseMirror p')].map(p => p.textContent)"), ["First part Second part"], "Undo leaves the joined line")
+            h.type("!")
+            h.key("z", h.mod, "KeyZ", 90)
+            self.assertTrue(h.until("document.querySelector('.rt-host .ProseMirror').textContent === 'First part Second part'"), "a later edit is still undone")
+
     def test_the_drop_down_lists_quote_and_divider_and_quote_works(self):
         with rp.Harness(chrome) as h:
             self.open(h, True, 1400, "light")

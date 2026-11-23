@@ -125,7 +125,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
   if (plain) editor.commands.setContent(`<p>${stored.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`, { emitUpdate: false });
   if (oneLine && editor.state.doc.childCount > 1) {        // row 1288: One line shows an old several-paragraph text joined with one space; the stored text stays as it was until the box is edited (dirty() is measured from this joined line)
     const joined = editor.state.doc.textBetween(0, editor.state.doc.content.size, " ", " ").replace(/\s+/g, " ").trim();
-    editor.commands.setContent(`<p>${joined.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`, { emitUpdate: false });
+    editor.chain().setMeta("addToHistory", false).setContent(`<p>${joined.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`, { emitUpdate: false }).run();      // not an edit: Undo must not bring the paragraphs back
   }
   initial = editor.state.doc;
   ready = true;
