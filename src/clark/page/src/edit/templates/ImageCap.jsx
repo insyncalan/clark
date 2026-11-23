@@ -1,4 +1,3 @@
-// Item 1225: the Image with caption card left the picker; a stored one keeps the Gallery starting text (the same two lines), by its id.
 // Image with caption (#96), store type "imagecap": its Edit part, filled in place. The picture, its caption and its description,
 // each saved on its own (one change, one step, one Undo, place "report"); the picture through POST /api/section-image
 // (pictureEdit.jsx). Given { section, tools }. Limits are imagecap.py's. A body of version 2 is the Full width image (row 1223): its Edit
