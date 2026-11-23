@@ -7,11 +7,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./updateApi.js";
 import * as L from "../logic/update.js";
 import { classicTheme } from "../components/Contents.jsx";
+import { nowMs } from "../workItems.js";   // the one place that reads the clock
 import { FormattedAnswer } from "./AskFormat.jsx";   // row 1278: release notes are markdown; drawn by the safe renderer ask clark uses (text nodes only), Copy still gives the original
 
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers,
   check: A.checkUpdate, download: A.downloadUpdate, cancel: A.cancelUpdate };
-const FETCH_ACTIVE = ["avail", "downloading", "checking", "ready", "failed"];
 const realCopy = (t) => navigator.clipboard.writeText(t);
 
 Update.chip = L.TITLE;                                              // the Settings chip says the card's heading (components/Views.jsx)
@@ -25,6 +25,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const [msg, setMsg] = useState(null);
   const heading = useRef(null);
   const disarm = useRef(null);
+  const going = useRef(false);      // set at once by the first Undo click or confirm, cleared when its request settles: busy is a closure value and a second click in the same task still reads false
 
   async function load() {
     setState((s) => ({ ...s, phase: "loading" }));
@@ -117,9 +118,12 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   async function arm() {
+    if (going.current) return;
+    going.current = true;
     setBusy(true);
     setMsg(null);
-    const r = await api.arm();
+    let r;
+    try { r = await api.arm(); } finally { going.current = false; }
     setBusy(false);
     if (r.status === 200 && r.body && r.body.ok === true) {
       setArmed({ id: r.body.arm_id, choice: r.body.choice === "full" ? "full" : "app_only", line: String(r.body.line || "").slice(0, 400) });
@@ -131,11 +135,13 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   async function confirmUndo() {
+    if (going.current) return;
+    going.current = true;
     clearTimeout(disarm.current);
     const a = armed;
     setArmed(null);
     setBusy(true);
-    await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]");
+    try { await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]"); } finally { going.current = false; }
   }
 
   async function copyNotes() {
@@ -143,22 +149,22 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   }
 
   const st = state.st;
-  const reviewButton = st && st.review ? <div class="row"><button type="button" class="btn pri" data-review aria-describedby="update-hint" disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button></div> : null;
   // The newest version on the releases page, drawn by its kind (logic/update.js fetchView): the words are L.FETCH and L.FETCH_LABELS.
   function fetchBlock(f) {
     const F = L.FETCH, B = L.FETCH_LABELS;
     const btn = (cls, attr, label, fn) => <button type="button" class={"btn " + cls} {...{ [attr]: true }} disabled={busy} onClick={fn}>{label}</button>;
     if (f.kind === "looking") return <p id="update-line">{F.looking}</p>;
-    if (f.kind === "latest") return <><p id="update-line">{F.latest(f.version, f.when)}</p><div class="row">{btn("", "data-check", B.checkNow, checkNow)}</div></>;
+    if (f.kind === "latest") return <><p id="update-line">{F.latest(f.version, f.when, L.dayText(new Date(nowMs())))}</p></>;
     if (f.kind === "offline") return <><p id="update-line" class="upd-state">{f.message}</p><div class="row">{btn("", "data-check", B.tryAgain, checkNow)}</div></>;
     if (f.kind === "avail") {
       return (
         <div class="upd-up" id="update-avail">
           <p id="update-line"><b>{F.ready(f.version)}</b></p>
+          {L.releasedText(f) ? <p class="muted" id="update-released">{L.releasedText(f)}</p> : null}
           {f.notes ? <details class="update-files"><summary>{F.notesLabel}</summary>{classicTheme() ? <div class="update-notes" id="update-notes"><FormattedAnswer text={f.notes} /></div> : <pre class="update-notes" id="update-notes">{f.notes}</pre>}</details> : null}
           {f.note ? <p class="muted">{f.note}</p> : null}
-          <div class="row">{btn("pri", "data-download", B.download, download)} {btn("", "data-check", B.checkNow, checkNow)}</div>
-          <p class="muted upd-hint" id="update-hint">{F.quiet}</p>
+          <p class="muted" id="update-kept">{L.KEPT}</p>
+          <div class="row">{btn("pri", "data-download", B.download, download)}</div>
         </div>
       );
     }
@@ -185,7 +191,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     return (
       <div class="upd-up" id="update-failed">
         <p id="update-line" class="error" role="alert">{f.message || F.didNotFinish}</p>
-        <div class="row">{btn("pri", "data-download", B.downloadAgain, download)} {btn("", "data-check", B.checkNow, checkNow)}</div>
+        <div class="row">{btn("pri", "data-download", B.downloadAgain, download)}</div>
       </div>
     );
   }
@@ -199,42 +205,51 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
         <div class="upd-rows">
           <p class="upd-l" id="update-installed-l">{L.ROWS.installed}</p>
           <div class="upd-c" role="group" aria-labelledby="update-installed-l"><p id="update-installed"><b>{st.installed}</b></p></div>
-          <p class="upd-l" id="update-row-l">{L.ROWS.update}</p>
+          <p class="upd-l" id="update-row-l">{st.fetch.kind === "failed" && st.fetch.message === L.FAILED_TEXT ? L.FAILED_TITLE : L.ROWS.update}</p>
           <div class="upd-c" role="group" aria-labelledby="update-row-l" id="update-row">
             {st.blocked ? <p id="update-blocked">{st.blocked}</p> : (
               <>
                 {st.fetch.kind !== "none" ? fetchBlock(st.fetch) : null}
-                {st.fetch.kind === "none" || !st.review || FETCH_ACTIVE.includes(st.fetch.kind) ? null : reviewButton}
-                {st.fetch.kind !== "none" ? null : st.review ? reviewButton : <p id="update-line">{st.line}</p>}
+                {st.fetch.kind !== "none" || st.review ? null : <p id="update-line">{st.line}</p>}
                 {st.fetch.kind !== "none" || (st.review && !st.version) ? null
                   : <p class="muted upd-hint" id="update-hint">{st.review ? L.HINTS.ready(st.version) : L.HINTS.upToDate}</p>}
               </>
             )}
           </div>
+          {st.blocked || !["looking", "avail", "latest"].includes(st.fetch.kind) ? null : (
+            <>
+              <p class="upd-l" id="update-checked-l">{L.ROWS.checked}</p>
+              <div class="upd-c" role="group" aria-labelledby="update-checked-l" id="update-checked">
+                <p>{L.checkedText(st.fetch.when, L.dayText(new Date(nowMs())))}</p>
+                <div class="row">{<button type="button" class="btn" data-check disabled={busy} onClick={checkNow}>{L.FETCH_LABELS.checkNow}</button>}</div>
+              </div>
+            </>
+          )}
           {st.blocked ? null : (
             <>
               <p class="upd-l" id="update-file-l">{L.ROWS.file}</p>
               <div class="upd-c" role="group" aria-labelledby="update-file-l" id="update-file">
                 <div class="row">
+                  {st.review ? <button type="button" class="btn" data-review aria-label={st.review} aria-describedby="update-file-hint" disabled={busy} onClick={() => review("downloads", false)}>{L.REVIEW_LABEL}</button> : null}
                   <button type="button" class="btn" data-choose aria-describedby="update-file-hint" disabled={busy} onClick={() => review("file", false)}>{L.LABELS.choose}</button>
                   {again ? <button type="button" class="btn" data-install-again disabled={busy} onClick={() => review(again, true)}>{L.LABELS.installAgain}</button> : null}
                 </div>
-                <p class="muted upd-hint" id="update-file-hint">{L.HINTS.file}</p>
+                <p class="muted upd-hint" id="update-file-hint">{L.FILE_TEXT}</p>
               </div>
             </>
           )}
           {st.last ? (
             <>
-              <p class="upd-l" id="update-last-l">{L.ROWS.last}</p>
+              <p class="upd-l" id="update-last-l">{st.lastTo ? L.updatedTo(st.lastTo) : L.ROWS.last}</p>
               <div class="upd-c" role="group" aria-labelledby="update-last-l" id="update-last">
-                <p>{st.last}</p>
+                {st.lastTo && st.lastFrom ? <><p>{L.installedText(st.lastFrom)}</p><p class="muted">{st.last}</p></> : <p>{st.last}</p>}
                 {armed ? (
                   <div onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); dropAsk(); } }}>
                     <p id="update-armed">{armed.line}</p>
                     <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-describedby="update-armed" aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
                       {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
                   </div>
-                ) : <div class="row"><button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undo}</button></div>}
+                ) : <div class="row"><button type="button" class="btn" data-undo aria-label={L.LABELS.undo} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undoShown}</button></div>}
               </div>
             </>
           ) : null}
