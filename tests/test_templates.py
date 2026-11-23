@@ -407,7 +407,7 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 25)      # row 1266: the new first section is Header, not Current state, so the Current state card is offered; row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 25)      # row 1266: the new defaults end with a Files and links section (doclinks), not a Supporting documents (docs) one, so the built-in Documents card is offered; row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
                              ["All templates25", "Project information2", "Text and pictures7", "Numbers3", "Work items3", "Files and links4", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
