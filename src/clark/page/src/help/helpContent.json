@@ -906,7 +906,7 @@
      ],
      [
       "p",
-      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Preview the page in a new tab, Export to Excel, Publish, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -933,7 +933,7 @@
      ],
      [
       "p",
-      "Publish, Preview and Export appear once the report has loaded."
+      "Preview, Export and Publish appear once the report has loaded."
      ]
     ]
    },
