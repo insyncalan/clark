@@ -412,7 +412,7 @@ class DataFolder1535(Folder1535):
         users = sorted(p.name for p in src.glob("*.py") if re.search(r"\bpreferences\.(?:Preferences|FILE|read|kept)|import preferences|, preferences,", p.read_text(encoding="utf-8")))
         self.assertEqual(sorted(set(users) - {"__main__.py", "backup.py", "preferences.py", "server.py"}), [])      # not the publishers, the exports or the log
         imports = sorted(p.name for p in PAGE.rglob("*.js*") if "prefsSync" in p.read_text(encoding="utf-8") and p.name != "prefsSync.js")
-        self.assertEqual(imports, ["Preferences.jsx", "main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
+        self.assertEqual(imports, ["main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
         _, doc, html = self.page_values()
         self.assertIn(sentinel, json.dumps(doc))             # the live page is given its own values
         reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Reader One'); return sent; })()"
