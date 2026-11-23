@@ -14,12 +14,13 @@ import tempfile
 import unicodedata
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
 import test_ask_route as tr
-from clark import ask_exclude as ex, ask_folders, ask_passages, ask_service, platform as pl, reach, sensitive_names as sn, store as st
+from clark import ask, ask_exclude as ex, ask_folders, ask_passages, ask_service, platform as pl, reach, sensitive_names as sn, store as st
 from clark.store import Invalid
 
 
@@ -124,6 +125,40 @@ class Schema(Base):
         self.assertEqual(st.SCHEMA_VERSION, 34)
         self.assertIn((34, st.migrate_source_exclusions), st.MIGRATIONS)
         self.assertEqual(st.EXCLUDED_STEP, 34)
+
+    def build_at_33(self):
+        """A file as main's step 33 leaves it: ask_new_projects and ask_off carrying data, no excluded column, version 33."""
+        s = self.store()
+        with s.step("dashboard", "tester", place="menu") as step:
+            step.create("projects", {"code": "ABC", "name": "Example Programme"})
+            step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 4})
+        s.close()
+        con = sqlite3.connect(str(self.db))
+        con.execute("UPDATE app_settings SET ask_new_projects = 0")
+        con.execute("UPDATE projects SET ask_off = 1, ask_files_off = 1 WHERE code = 'ABC'")
+        con.execute("ALTER TABLE source_folders DROP COLUMN excluded")
+        con.execute("UPDATE meta SET v = '33' WHERE k = 'schema_version'")
+        con.commit()
+        self.assertNotIn("excluded", [r[1] for r in con.execute("PRAGMA table_info(source_folders)")])
+        con.close()
+
+    def test_a_file_at_main_step_33_with_ask_new_projects_and_ask_off_data_migrates_to_34_and_keeps_that_data(self):
+        self.build_at_33()
+        s = st.open_store(self.db, onedrive_roots=[])
+        self.addCleanup(s.close)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        self.assertEqual(tuple(s.con.execute("SELECT ask_new_projects FROM app_settings").fetchone()), (0,), "step 33's app setting is kept")
+        self.assertEqual(tuple(s.con.execute("SELECT ask_off, ask_files_off FROM projects WHERE code = 'ABC'").fetchone()), (1, 1), "step 33's project columns are kept")
+        self.assertEqual(tuple(s.con.execute("SELECT path, sort_order, excluded FROM source_folders").fetchone()), (str(self.root), 4, "[]"))
+
+    def test_a_fresh_file_reaches_34_with_every_step_33_and_34_column(self):
+        s = self.store()
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        have = lambda t: {r[1] for r in s.con.execute(f"PRAGMA table_info({t})")}
+        self.assertLessEqual({"ask_files", "ask_new_projects"}, have("app_settings"))
+        self.assertLessEqual({"ask_off", "ask_files_off"}, have("projects"))
+        self.assertIn("excluded", have("source_folders"))
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-2:], [33, 34])
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")
@@ -418,6 +453,67 @@ class Reader(Base):
         self.assertEqual(svc.left_out_for(s, "ABC"), {str(self.root): '["Contract"]'})
         self.assertEqual(svc.left_out_for(s, "OTH"), {str(self.home): '["Z"]'})
         self.assertEqual(svc.left_out_for(s, "NONE"), {})
+
+
+class ServiceChoice(unittest.TestCase):
+    """The merge of main (row 1367: a file added to the question keeps its room) into this row: the folder reader gets main's `room` and `budget_left`
+    AND this row's choice, the index only when no subfolder is left out, and the left-out lists handed to the direct reader. Dropping either half fails."""
+    ADDED, ADDED_CHARS, OWN, OWN_CHARS = 3, 100, 2, 50
+
+    def setUp(self):
+        import _publish_fixture as plant
+        from clark import ask_claude as ac, ask_data
+        self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.db = plant.build_db(self.d / "clark.db")
+        self.provider = ac.ClaudeCommand(places=(), env={}, limit=5)
+        self.index_calls, self.direct_calls = [], []
+        self.indexer = SimpleNamespace(current=lambda code, folders: self.current, not_yet=lambda code: 0)
+        self.service = ask_service.AskService(self.db, self.provider, [], data_dir=self.d, indexer=self.indexer)
+        added = [SimpleNamespace(text="x" * self.ADDED_CHARS)] * self.ADDED
+        own = SimpleNamespace(passages=[SimpleNamespace(text="y" * self.OWN_CHARS)] * self.OWN, facts=[], counts={}, today="2026-11-23")
+
+        def stop(calls):
+            def f(*a, **k):
+                calls.append((a, k))
+                raise RuntimeError("stop here: the arguments are what is pinned")
+            return f
+        for p in (mock.patch.object(ask_service.ask_files, "passages", return_value=added),
+                  mock.patch.object(ask_data, "project_data", return_value=own),
+                  mock.patch.object(self.service, "folders_for", return_value=["/made/up"]),
+                  mock.patch.object(self.service, "left_out_for", side_effect=lambda store, code: self.cut),
+                  mock.patch.object(ask_service.ask_index, "folder_data", side_effect=stop(self.index_calls)),
+                  mock.patch.object(ask_service.ask_passages, "folder_data", side_effect=stop(self.direct_calls))):
+            p.start()
+            self.addCleanup(p.stop)
+        window = getattr(self.provider, "most_chars", lambda: None)()
+        self.left = ask.budget_for(window) - self.ADDED * self.ADDED_CHARS - self.OWN * self.OWN_CHARS      # main's budget_left, less what the project's own data used
+        self.room = ask.MAX_PASSAGES - self.ADDED - self.OWN
+
+    def ask(self, current, cut):
+        self.current, self.cut = current, cut
+        status, body = self.service.ask({"project": "PUB", "question": "What is the state of the plan?", "files": [{"name": "a.txt"}]})
+        self.assertEqual((status, body.get("code")), (200, "folders_unreadable"), body)
+
+    def test_the_index_is_read_with_the_room_and_budget_left_of_main_when_nothing_is_left_out(self):
+        self.ask(True, {"/made/up": "[]"})
+        self.assertEqual(self.direct_calls, [])
+        (a, k), = self.index_calls
+        self.assertEqual(a[3:], (self.left, self.room))
+
+    def test_a_left_out_subfolder_sends_the_question_to_the_direct_reader_with_the_list_room_and_budget_left(self):
+        self.ask(True, {"/made/up": '["Contract"]'})
+        self.assertEqual(self.index_calls, [], "the index knows no left-out subfolder")
+        (a, k), = self.direct_calls
+        self.assertEqual(a[3], self.left)
+        self.assertEqual(a[5], self.room)
+        self.assertEqual(a[6], {"/made/up": '["Contract"]'}, "the lists are handed on")
+
+    def test_with_no_index_the_direct_reader_takes_the_room_budget_left_and_the_lists(self):
+        self.ask(False, {"/made/up": '["Contract"]'})
+        self.assertEqual(self.index_calls, [])
+        (a, k), = self.direct_calls
+        self.assertEqual((a[3], a[5], a[6]), (self.left, self.room, {"/made/up": '["Contract"]'}))
 
 
 class Scan(Base):

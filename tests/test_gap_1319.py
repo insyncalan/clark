@@ -25,7 +25,7 @@ ICON_SEG = ["2px 8px", "32px"]
 
 class Source(unittest.TestCase):
     def test_the_rules_sit_before_the_1314_block_and_1314_stays_last(self):
-        text = RULES.read_text(encoding="utf-8")
+        text = RULES.read_text(encoding="utf-8") + RULES.with_name("rules-2.css").read_text(encoding="utf-8")
         rows = [ln for ln in text.splitlines() if ln.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
         self.assertLess(text.index("/* Row 1319, spec 19-11"), text.index("/* Row 1314"))
@@ -53,7 +53,7 @@ class Computed(Base):
     def test_head_h1_keeps_zero_margin_and_milestones_segments(self):
         m = self.read("#milestones&p=ABC", ".frame.milestones")
         self.assertEqual(m["h1"], [H1_HEAD])
-        self.assertEqual(len(m["seg"]), 5)
+        self.assertEqual(len(m["seg"]), 3)      # Row 1329: the Plan | Movement switch is gone in Classic, so two fewer segmented buttons (5 before, 3 now)
         for row in m["seg"]:
             self.assertEqual(row[1:], TEXT_SEG, row)
 

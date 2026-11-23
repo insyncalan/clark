@@ -8,12 +8,12 @@ import json
 import sys
 
 
-def _limits():
+def _limits(cpu=15):
     try:
         import resource
     except ImportError:
         return
-    for name, value in (("RLIMIT_CPU", 15), ("RLIMIT_AS", 1024 * 1024 * 1024), ("RLIMIT_CORE", 0)):
+    for name, value in (("RLIMIT_CPU", cpu), ("RLIMIT_AS", 1024 * 1024 * 1024), ("RLIMIT_CORE", 0)):
         try:
             res = getattr(resource, name)
             resource.setrlimit(res, (value, value))
@@ -35,7 +35,7 @@ def _say(status, pages=(), left=0):
 def main(argv):
     vendor, max_pages, max_chars = argv[1], int(argv[2]), int(argv[3])
     budget = int(argv[4]) if len(argv) > 4 else DEFAULT_BUDGET
-    _limits()
+    _limits(int(argv[5]) if len(argv) > 5 else 15)
     data = sys.stdin.buffer.read()
     sys.path.insert(0, vendor)
     try:

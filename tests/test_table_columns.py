@@ -85,6 +85,16 @@ class Columns(unittest.TestCase):
         for t in ("mousePressed", "mouseReleased"):
             cdp.call("Input.dispatchMouseEvent", {"type": t, "x": x, "y": y, "button": "right", "buttons": 2 if t == "mousePressed" else 0, "clickCount": 1}, sid)
 
+    def open_menu(self, cdp, sid, js, selector, seconds=20):
+        """Right-clicks the heading and waits for the menu; asks again while it is not there. The menu is placed once and closes on any scroll or
+        resize of the window (Menu.jsx), so on a slow computer (macOS CI) a late scroll can shut the one the first click opened."""
+        def asked():
+            if self.menu(js):
+                return True
+            self.right_click(cdp, sid, selector)
+            return wait(lambda: self.menu(js), 1.5)
+        return wait(asked, seconds)
+
     def press(self, cdp, sid, name, shift=False):
         common = {"key": name, "code": name, "windowsVirtualKeyCode": KEYS[name], **({"modifiers": 8} if shift else {})}
         cdp.call("Input.dispatchKeyEvent", {"type": "keyDown" if name == "Enter" else "rawKeyDown", **({"text": "\r"} if name == "Enter" else {}), **common}, sid)
@@ -111,8 +121,7 @@ class Columns(unittest.TestCase):
                     with self.subTest(table=table, width=width, scheme=scheme), chrome() as cdp:
                         sid, js = self.open_table(cdp, width, scheme, table)
                         self.assertIsNone(self.menu(js), "no menu until it is asked for")
-                        self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
-                        self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+                        self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")), "the menu opens")
                         # The menu slides in by a few pixels, so its box is read only once it has stopped (twice the same, 100 ms apart).
                         seen = []
                         def still():
@@ -140,8 +149,7 @@ class Columns(unittest.TestCase):
             for width in (1400, 900):
                 with self.subTest(table=table, width=width), chrome() as cdp:
                     sid, js = self.open_table(cdp, width, "light", table)
-                    self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
-                    self.assertTrue(wait(lambda: self.menu(js), 5))
+                    self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")))
                     self.pick(js, "Workstream")
                     self.assertTrue(wait(lambda: "workstream" in self.heads(js, table), 5), "the column appears")
                     self.assertTrue(js(f"document.querySelectorAll({json.dumps(cell % 'workstream')}).length > 0"), "and so do its cells")
@@ -157,8 +165,7 @@ class Columns(unittest.TestCase):
             with self.subTest(table=table), chrome() as cdp:
                 sid, js = self.open_table(cdp, 1400, "light", table)
                 before = self.heads(js, table)
-                self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
-                self.assertTrue(wait(lambda: self.menu(js), 5))
+                self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")))
                 for name in locked:
                     self.pick(js, name)
                 self.assertEqual(self.heads(js, table), before, "pressing a greyed item changes nothing")
@@ -169,8 +176,7 @@ class Columns(unittest.TestCase):
             with self.subTest(table=table), chrome() as cdp:
                 sid, js = self.open_table(cdp, 1400, "light", table)
                 was = self.heads(js, table)
-                self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
-                self.assertTrue(wait(lambda: self.menu(js), 5))
+                self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")))
                 self.pick(js, "Type" if table == "work" else "Id")
                 self.pick(js, "Workstream")
                 self.assertTrue(wait(lambda: len(self.heads(js, table)) == len(was) + 2, 5))
@@ -182,8 +188,7 @@ class Columns(unittest.TestCase):
         for table, (_, _, head, _, _, _, _, _) in TABLES.items():
             with self.subTest(table=table), chrome() as cdp:
                 sid, js = self.open_table(cdp, 1400, "light", table)
-                self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
-                self.assertTrue(wait(lambda: self.menu(js), 5))
+                self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")))
                 self.pick(js, "Workstream")
                 self.assertTrue(wait(lambda: "workstream" in self.heads(js, table), 5))
                 stored = js(f"localStorage.getItem('clark.cols.show.{table}.TUL')")
@@ -198,8 +203,7 @@ class Columns(unittest.TestCase):
         early = "try { localStorage.setItem('clark.cols.work', JSON.stringify({workstream: 222})); } catch (e) {}"
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work", early)
-            self.right_click(cdp, sid, "#work th[data-col='owner']")
-            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.assertTrue(self.open_menu(cdp, sid, js, "#work th[data-col='owner']"))
             self.pick(js, "Workstream")
             self.assertTrue(wait(lambda: "workstream" in self.heads(js, "work"), 5))
             width = lambda: js("Math.round(document.querySelector(\"#work th[data-col='workstream']\").getBoundingClientRect().width)")  # noqa: E731
@@ -225,8 +229,7 @@ class Columns(unittest.TestCase):
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(head)})"), 10), "Edit draws the heading row")
             js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block: 'center'}})")
             self.assertTrue(wait(lambda: js(quiet), 20), "the page has settled after the scroll")
-            self.right_click(cdp, sid, head)
-            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens on the Dashboard heading row")
+            self.assertTrue(self.open_menu(cdp, sid, js, head), "the menu opens on the Dashboard heading row")
             self.pick(js, "Workstream")
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(box + ' .msl-hd [data-col=workstream]')})"), 5), "the column appears on the Dashboard")
             chosen = js("localStorage.getItem('clark.cols.show.msDash.TUL')")
@@ -260,10 +263,27 @@ class Columns(unittest.TestCase):
         """Row 1276: the settle waits of the other tests exist because a scroll closes the menu; so a scroll must close it (MenuPanel listens to the window)."""
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work")
-            self.right_click(cdp, sid, "#work th[data-col='owner']")
-            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+            self.assertTrue(self.open_menu(cdp, sid, js, "#work th[data-col='owner']"), "the menu opens")
             js("window.dispatchEvent(new Event('scroll'))")
             self.assertTrue(wait(lambda: not self.menu(js), 5), "a scroll of the page closes it")
+
+    def test_the_menu_is_asked_for_again_when_a_late_scroll_closes_the_one_the_first_click_opened(self):
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            clicks = []
+            first = self.right_click
+
+            def click_then_scroll_once(cdp, sid, selector):
+                first(cdp, sid, selector)
+                clicks.append(1)
+                if len(clicks) == 1:
+                    self.assertTrue(wait(lambda: self.menu(js), 5), "the first click opens it")
+                    js("window.dispatchEvent(new Event('scroll'))")
+                    self.assertTrue(wait(lambda: not self.menu(js), 5), "and a scroll closes it")
+            self.right_click = click_then_scroll_once
+            self.assertTrue(self.open_menu(cdp, sid, js, "#work th[data-col='owner']"), "the menu is open in the end")
+            self.assertEqual(len(clicks), 2, "after one more right click")
+            self.assertIsNotNone(self.menu(js))
 
     def test_a_right_click_inside_a_text_field_of_the_heading_row_leaves_the_browsers_own_menu_alone(self):
         """Row 1276: typing in a field (copy, paste) keeps the browser's menu; the Columns menu is for the heading itself."""
@@ -278,8 +298,7 @@ class Columns(unittest.TestCase):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work", early=block)
-            self.right_click(cdp, sid, "#work th[data-col='owner']")
-            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.assertTrue(self.open_menu(cdp, sid, js, "#work th[data-col='owner']"))
             self.pick(js, "Type")
             self.assertTrue(wait(lambda: "type" in self.heads(js, "work"), 5), "the table redraws although nothing can be kept")
 
@@ -355,7 +374,9 @@ class Columns(unittest.TestCase):
         self.assertTrue((SRC / "logic" / "columnsWords.js").is_file(), "every new word is listed for a ruling")
         words = (SRC / "logic" / "columnsWords.js").read_text(encoding="utf-8")
         self.assertIn("UNRULED_STANDARD", words)
-        self.assertNotIn("export const ", words.replace("export const UNRULED_", ""), "every constant is marked UNRULED")
+        self.assertNotIn("export const ", words.replace("export const UNRULED_", "").replace("export const PANEL_HEADING = \"Columns to show\"", ""), "every constant is marked UNRULED, except the one ruled panel heading (row 1499)")
+        self.assertIn('export const UNRULED_BUTTON = "Columns"', words, "the button label is unchanged")
+        self.assertIn('export const UNRULED_BUTTON_TIP = "Choose the columns"', words, "and so is its tip")
 
 
 if __name__ == "__main__":

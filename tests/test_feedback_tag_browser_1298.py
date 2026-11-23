@@ -3,6 +3,7 @@ Where the tag shows (Help, Settings but not Version and updates), the dialog, th
 (no phone width). Real page over the fictional demo data. Required: fails, never skips, without Chrome. The names of the Settings and Help addresses (#settings&p=TUL&s=...)
 and of the Help peek are read from the code, not yet run; selectors marked ASSUMED must be checked on the first run."""
 import json
+import time
 import unittest
 
 import test_filter_line_keys as K
@@ -334,20 +335,32 @@ class FeedbackTagBrowser(unittest.TestCase):
     # ---- row 1298: the mail button uses the open-mail route (row 1297), as Settings, Feedback does
     def test_mail_click_goes_through_mailClick(self):
         note = "No mail app opened. Use Copy as text and paste it into your mail."
-        stub = ("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); "
+        # Only the route is answered by the stub; every other fetch (heartbeat, diagnostics, health) goes to the real fetch and is not recorded as a route call.
+        stub = ("window.__real = window.__real || window.fetch.bind(window); window.__posts = []; "
+                "window.fetch = (u, i) => { if (String(u) !== '/api/open-mail') return window.__real(u, i); window.__posts.push([String(u), i && i.body]); "
                 "return Promise.resolve(new Response(JSON.stringify(%s), {status: %d})); }")
         notes = "document.querySelectorAll('[data-mail-note]').length"
+        # The stub keeps EVERY fetch the page makes; the page's own heartbeat (every 10 s) is one too, and on a slow runner it lands between the
+        # stub and the click, so the count is of calls to the route only, and the failure text lists what was recorded.
+        route = "window.__posts.filter((p) => p[0] === '/api/open-mail')"
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
             cdp.js(f"{BAR}.click()", sid)
             cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'The page is slow'); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fbt-mail]').hasAttribute('href')", sid)), where)
-            href = cdp.js("document.querySelector('[data-fbt-mail]').getAttribute('href')", sid)
+            read = "document.querySelector('[data-fbt-mail]').getAttribute('href')"
+            href = cdp.js(read, sid)
+            for _ in range(2):   # settle: late diagnostics/health replies change the link, so read again after 100 ms until it holds
+                time.sleep(0.1)
+                href = cdp.js(read, sid)
+            time.sleep(0.1)
+            self.assertEqual(cdp.js(read, sid), href, where + ": the mail link settled")
             hash_ = cdp.js("location.hash", sid)
             cdp.js(stub % ('{"ok": true}', 200), sid)
             cdp.js("document.querySelector('[data-fbt-mail]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("window.__posts.length", sid) == 1), where + ": one call to the route")
-            url, body = json.loads(cdp.js("JSON.stringify(window.__posts[0])", sid))
+            self.assertTrue(wait(lambda: cdp.js(route + ".length", sid) == 1),
+                            where + ": one call to the route; recorded " + str(cdp.js("JSON.stringify(window.__posts.map((p) => p[0]))", sid)))
+            url, body = json.loads(cdp.js("JSON.stringify(" + route + "[0])", sid))
             self.assertEqual(url, "/api/open-mail", where)
             self.assertEqual(json.loads(body), {"link": href}, where)
             self.assertEqual(cdp.js(notes, sid), 0, where + ": no note on success")

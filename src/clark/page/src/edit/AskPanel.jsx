@@ -4,11 +4,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, showSettings, token, view, rows, filterCtx, openPeek } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
-import { words } from "./publishApi.js";
+import { words, askFilesRead, askFoldersRead } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { copyAnswer, hasActions, questionBefore, recallStep } from "./askActions.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
@@ -89,7 +90,29 @@ export function AskPanel() {
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
   const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
+  // Item 1352: whether this project has folders to read (its own or those for all projects), so the first card says so only when it is true.
+  const [hasFolders, setHasFolders] = useState(false);
+  useEffect(() => { setHasFolders(false); }, [project.value]);      // a project switch starts from the plain line until the new project's folders answer
+  useEffect(() => {
+    if (!open || !classicTheme()) { setHasFolders(false); return undefined; }
+    let live = true;
+    askFoldersRead(project.value).then((r) => {
+      const b = r.body;
+      if (live) setHasFolders(r.status === 200 && !!b && b.ok === true && ((Array.isArray(b.folders) && b.folders.length > 0) || (Array.isArray(b.shared) && b.shared.length > 0)));
+    });
+    return () => { live = false; };
+  }, [open, project.value]);
   useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
+  const recallLast = useRef("");
+  const copiedTimer = useRef(0);               // row 1292: "Copied" stays 2 s, then the line is empty again
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
+  const copyIt = (t) => async () => {
+    const ok = await copyAnswer(t.text);
+    clearTimeout(copiedTimer.current);
+    setNote(ok ? W.ANSWER_COPIED : W.ANSWER_COPY_FAILED);
+    if (ok) copiedTimer.current = setTimeout(() => setNote((n) => (n === W.ANSWER_COPIED ? "" : n)), W.ANSWER_COPIED_MS);
+  };
+  const recalled = useRef(0);                  // row 1292: how many earlier questions Up-arrow has brought back since the box was last typed in
   const [secs, setSecs] = useState(0);
   const [quip, setQuip] = useState("");
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
@@ -98,6 +121,7 @@ export function AskPanel() {
   const saved = showHist ? (histTick.value, chats()) : [];
   const [files, setFiles] = useState([]);       // #1292 S14: the files and pictures waiting for the next question (used for that question only)
   const [dropOver, setDropOver] = useState(false);
+  const [filesOk, setFilesOk] = useState(true);     // row 1294: the Files switch (all projects) and this project's own turn-off, read each time the panel opens; until the server says "not allowed" the paperclip stays, as it does on main (the server checks again for every question)
   const box = useRef(null), log = useRef(null), stopped = useRef(false), picker = useRef(null);
   // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
   useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
@@ -108,6 +132,17 @@ export function AskPanel() {
   const leaving = phase.current === "leaving";
   const finish = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
   useEffect(() => { if (!leaving) return undefined; const t = setTimeout(finish, 400); return () => clearTimeout(t); }, [leaving]);
+  useEffect(() => {
+    if (!open) return undefined;
+    let live = true;
+    askFilesRead(project.value).then((r) => {
+      if (!live) return;
+      const b = r.body, off = r.status === 200 && !!b && b.ok === true && b.allowed === false;
+      setFilesOk(!off);
+      if (off) setFiles([]);
+    });
+    return () => { live = false; };
+  }, [open, project.value]);
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
@@ -150,7 +185,7 @@ export function AskPanel() {
 
   // #1292 S14: files come from the paperclip, a drop on the panel or a paste; what cannot be taken says why in plain words.
   function addFiles(list) {
-    if (!list.length || state !== "ready") return;
+    if (!list.length || state !== "ready" || !filesOk) return;
     const r = F.addFiles(files, list);
     setFiles(r.files); setNote(r.notes.join(" "));
     if (box.current) box.current.focus();
@@ -159,7 +194,8 @@ export function AskPanel() {
     setFiles(F.removeFile(files, f.id)); setNote("");
     setTimeout(() => { const left = document.querySelectorAll("#ask-files .ask-file-del"); const to = left[Math.min(files.findIndex((x) => x.id === f.id), left.length - 1)] || box.current; if (to) to.focus(); }, 0);
   }
-  const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const dragHasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const hasFiles = (e) => filesOk && dragHasFiles(e);
 
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
@@ -198,7 +234,7 @@ export function AskPanel() {
   // Asks one question and, when it is answered, sends the next queued one. `from` is the queued message this question came from. It reads the
   // signals, never this render's values, because a queued question is sent from the end of the one before.
   async function run(q, preset, from, att) {
-    setNote(""); stopped.current = false;
+    setNote(""); stopped.current = false; recalled.current = 0;
     if (att && att.length) setFiles([]);          // the chips go with the send; they come back if nothing was answered
     histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = turns.value.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
@@ -216,7 +252,9 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
-    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const came = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    const late = came && stopped.current;      // row 1293 line 7: Stop was pressed and an answer still came back: it is not shown, the stopped line is
+    const answered = came && !late;
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
       if (att && att.length) setFiles((now) => (now.length ? now : att));
@@ -244,7 +282,7 @@ export function AskPanel() {
     } else if (r.status === 0) {
       turns.value = [...turns.value, { role: "assistant", text: W.NOT_REACHED_LINE, kind: "problem" }];
     } else {
-      const m = r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
+      const m = late ? W.STOPPED_LINE : r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
       turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
     }
     if (epoch !== chatEpoch.value || !queue.value.length) return;
@@ -360,7 +398,7 @@ export function AskPanel() {
     <>
     <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}
       data-drop={dropOver ? "true" : undefined}
-      onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
+      onDragOver={(e) => { if (dragHasFiles(e)) { e.preventDefault(); if (hasFiles(e)) setDropOver(true); } }}      /* item 1506: with Files off the drag is still taken (so the browser does not open the file) but nothing lights up */
       onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
       onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} onDblClick={classicTheme() ? resetWidth : undefined} />
@@ -373,7 +411,7 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? (classic ? W.WORKING_CLASSIC : W.WORKING) : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
         {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{classic ? W.CLASSIC_STANDING : W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
@@ -403,7 +441,7 @@ export function AskPanel() {
           {classic ? (<>
             <h3>{W.CARD_HEAD}</h3>
             <ul>
-              <li>{W.CARD_READS}</li>
+              <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
             </ul>
@@ -433,6 +471,12 @@ export function AskPanel() {
                 <Icon name="doc" />
                 <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
                 <button type="button" class={classicTheme() ? "btn sm pri ask-draftcard-open" : "btn primary"} onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
+              </div>
+            ) : null}
+            {classic && hasActions(t) ? (
+              <div class="ask-turn-acts" data-ask-acts>
+                <button type="button" class="ask-act" data-ask-copy aria-label={W.ANSWER_COPY_LABEL} onClick={copyIt(t)}>{W.ANSWER_COPY}</button>
+                <button type="button" class="ask-act" data-ask-again aria-label={W.ANSWER_AGAIN_LABEL} disabled={busy || state !== "ready"} onClick={() => { const q = questionBefore(list, list.indexOf(t)); if (q) send(null, q); }}>{W.ANSWER_AGAIN}</button>
               </div>
             ) : null}
             {t.sources && t.sources.length ? (
@@ -511,7 +555,7 @@ export function AskPanel() {
         <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={hold} aria-label={hold} disabled={state !== "ready" && state !== "checking"}
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
-          onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
+          onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); recalled.current = 0; }}
           onPaste={(e) => { const got = Array.from((e.clipboardData && e.clipboardData.files) || []); if (got.length) { e.preventDefault(); addFiles(got); } }}
           onKeyDown={(e) => {
             if (menu && !e.isComposing) {
@@ -519,11 +563,16 @@ export function AskPanel() {
               if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key) && menu.length) { e.preventDefault(); setPick(stepSlash(pick, e.key, menu.length)); return; }
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (menu.length) runSlash(menu[pick]); return; }
             }
+            if (classic && e.key === "ArrowUp" && !e.isComposing && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && (!text.trim() || recalled.current > 0 && text === recallLast.current)) {     // row 1292: Up-arrow in an empty box brings back the last question; again, the one before
+              const got = recallStep(list, recalled.current);
+              if (got) { e.preventDefault(); recalled.current = got.at; recallLast.current = got.text; setText(got.text); return; }
+            }
             if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
           }} />
         <div class="ask-actions">
-          <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv,.pdf,.docx,.xlsx,.png,.jpg,.jpeg" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} />
-          <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button>
+          {filesOk ? <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} /> : null}
+          {filesOk ?
+          <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button> : null}
           {busy ? (
             <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" /></svg>
