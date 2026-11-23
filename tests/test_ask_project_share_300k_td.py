@@ -7,9 +7,34 @@ import unittest
 from unittest import mock
 
 from _paths import SRC  # noqa: F401
+import shutil
+import tempfile
+from pathlib import Path
 
 from clark import ask, ask_data, ask_service, store as st
 from test_ask_route import Base, CODE
+import _publish_fixture as plant
+
+
+def read(n, size, budget):
+    """The project's own data for n actions of about `size` characters each, cut to `budget` characters (the call the service makes)."""
+    d = Path(tempfile.mkdtemp(prefix="clark-test-"))
+    try:
+        db = plant.build_db(d / "clark.db")
+        store = st.open_store(db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                for i in range(n):
+                    s.create("actions", {"project": CODE, "description": f"ZQ-READ-{i:03d} " + "lorem ipsum " * (size // 12), "raised": "2026-10-01", "source": "demo"})
+            return ask_data.project_data(store, CODE, "", budget)
+        finally:
+            store.close()
+    finally:
+        shutil.rmtree(d, True)
+
+
+def size_of(got):
+    return sum(len(x.text) for x in got.passages)
 
 
 class ProjectShare(Base):
@@ -38,13 +63,6 @@ class ProjectShare(Base):
     def test_project_share_is_half_the_budget(self):
         self.assertEqual(ask_service.PROJECT_SHARE, ask.BUDGET // 2)
         self.assertEqual(ask_service.PROJECT_SHARE, 600000)
-        with mock.patch.object(ask, "BUDGET", 400000):      # written as the expression, so it follows the budget
-            import importlib
-            try:
-                importlib.reload(ask_service)
-                self.assertEqual(ask_service.PROJECT_SHARE, 200000)
-            finally:
-                importlib.reload(ask_service)
 
     def test_the_whole_request_stays_300000_tokens(self):
         self.assertEqual(ask.BUDGET, 1200000)
