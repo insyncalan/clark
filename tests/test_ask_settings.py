@@ -448,6 +448,41 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: "Nothing was changed" in js("document.querySelector('#ask-folders-card').innerText"), 10))
             self.assertTrue(js("!!document.querySelector('[data-ask-warn]')"))
 
+    def two_warns(self, js):
+        """Two saved folders, each flagged with a subfolder, on the open Settings page."""
+        one = {"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}
+        two = {"folder": "/Example/Other files", "items": [{"name": "Payroll", "readable_files": 1, "dir": True}]}
+        js(f"window.__ask.folders = ['/Example/Programme files', '/Example/Other files']; window.__ask.open = {json.dumps([one, two])}; window.__ask.excludeKeep = {json.dumps([two])}")
+        js("location.hash = '#dashboard&p=ABC'")
+        wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
+        js("location.hash = '#settings&p=ABC&s=claude'")
+        self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-ask-warn]').length") == 2, 10))
+
+    def test_after_leave_out_the_notice_that_stays_is_an_opened_saved_folder_region_and_not_a_new_alert(self):
+        """Row 1365 killers (part D, AskSettings.jsx leaveOut): the answer's warnings are not fresh, so the other folder's notice is a labelled region that
+        starts with 'Saved folder: ...'; the same on a page that was opened with it (its label is the heading and the folder)."""
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+            self.two_warns(js)
+            other = "document.querySelector('[data-ask-warn=\"/Example/Other files\"]')"
+            self.assertEqual(js(f"{other}.getAttribute('aria-label')"), "This folder holds people or contract material. /Example/Other files")
+            js("document.querySelector('[data-ask-warn=\"/Example/Programme files\"] [data-ask-warn-leave]').click()")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-ask-warn]').length") == 1, 10), "the left-out folder's notice goes")
+            self.assertEqual(js(f"{other}.getAttribute('role')"), "region")
+            self.assertEqual(js(f"{other}.getAttribute('aria-label')"), "This folder holds people or contract material. /Example/Other files")
+            self.assertTrue(js(f"{other}.innerText.startsWith('Saved folder: /Example/Other files.')"))
+
+    def test_while_a_leave_out_is_being_saved_the_choose_and_leave_buttons_are_disabled(self):
+        """Row 1365 killers (part D): a second press cannot start while the first request runs."""
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+            js("window.__held = null; const f = window.fetch; window.fetch = (u, o) => (o && o.body && String(o.body).indexOf('exclude') >= 0) ? new Promise((go) => { window.__held = () => go(f(u, o)); }) : f(u, o)")
+            js("document.querySelector('[data-ask-warn-leave]').click()")
+            self.assertTrue(wait(lambda: js("typeof window.__held === 'function'"), 10), "the request is pending")
+            self.assertEqual(js("[document.querySelector('[data-ask-warn-choose]').disabled, document.querySelector('[data-ask-warn-leave]').disabled]"), [True, True])
+            js("window.__held()")
+            self.assertTrue(wait(lambda: js("!document.querySelector('[data-ask-warn]')"), 10), "the notice goes when it is saved")
+
     def test_the_warning_names_the_provider_in_use_and_choose_other_folders_opens_the_chooser(self):
         """Row 1365 test 5: ChatGPT is named when it is the provider; on open the notice is a labelled region, not an alert, and starts with the saved folder."""
         with chrome() as cdp:
