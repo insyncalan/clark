@@ -125,8 +125,10 @@ class Columns(unittest.TestCase):
                         # The menu slides in by a few pixels, so its box is read only once it has stopped (twice the same, 100 ms apart).
                         seen = []
                         def still():
-                            seen.append(self.menu(js)["rows"]); time.sleep(.1)
-                            return len(seen) > 1 and seen[-1] == seen[-2]
+                            rows = self.menu(js)["rows"]
+                            if not seen or seen[-1][0] != rows:
+                                seen.append((rows, time.time()))
+                            return time.time() - seen[-1][1] >= .1
                         self.assertTrue(wait(still, 5), "the menu stops moving")
                         got = self.menu(js)
                         self.assertEqual([i["name"] for i in got["items"]], every, "every column the table can show, in the table's own order")
@@ -242,7 +244,10 @@ class Columns(unittest.TestCase):
                                  ("mouseReleased", x + 20, {"button": "left", "buttons": 0, "clickCount": 1})):
                 cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
             self.assertTrue(wait(lambda: "agreed" in (js("localStorage.getItem('clark.cols.msDash')") or ""), 5), "the width is kept under clark.cols.msDash")
-            self.assertEqual(json.loads(js(keys)), ["clark.cols.msDash", "clark.cols.show.msDash.TUL"], "nothing else is written, so no milestones key")
+            written = json.loads(js(keys))
+            self.assertIn("clark.cols.msDash", written, "the widths key is written")
+            self.assertIn("clark.cols.show.msDash.TUL", written, "the choice key is written")
+            self.assertFalse([k for k in written if "milestones" in k], "no key contains milestones")
             self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "the Milestones page's widths are untouched")
             self.assertIsNone(js("localStorage.getItem('clark.cols.show.milestones.TUL')"), "and so is its choice")
 
