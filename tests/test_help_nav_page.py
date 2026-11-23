@@ -252,6 +252,26 @@ class Nav(Base):
             p = self.in_help(cdp)
             self.assertEqual(p.js("document.activeElement.id"), "hpQ", "the search box has the focus")
 
+    def test_click_a_help_link_close_reopen_and_the_search_box_has_the_focus(self):
+        """Row 1561: a link click inside Help lands the focus on its entry; closing and opening Help again puts it back on the search box (the landing is for the click, not for the next open)."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for w in SIZES:
+                set_size(cdp, p, w)
+                p.js("window.clarkPage.help.open('start')")
+                p.until("!!document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]')", f"{w}: Start here")
+                p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
+                p.until("document.activeElement.dataset.k === 'guide-add-a-section-from-a-template'", f"{w}: the link landed the focus on its entry")
+                p.js("window.clarkPage.help.close()")
+                p.until("!document.querySelector('#help')", f"{w}: Help closed")
+                p.js("window.clarkPage.help.open()")
+                p.until("!!document.querySelector('#help')", f"{w}: Help opened again")
+                p.until("!!document.querySelector('#hpPane [data-k]')", f"{w}: the entries are drawn")
+                p.js("window.__f = null; setTimeout(() => { window.__f = document.activeElement.id || document.activeElement.dataset.k; }, 300)")      # after Help's deferred effects have run
+                p.until("window.__f !== null", f"{w}: the focus read")
+                self.assertEqual(p.js("window.__f"), "hpQ", f"{w}: the search box has the focus after reopening")
+
     def test_down_from_the_search_box_goes_to_the_contents_list(self):
         from test_server import chrome
         with chrome() as cdp:

@@ -299,8 +299,10 @@ export function Help() {
     window.addEventListener("scroll", on, { passive: true });
     return () => { window.removeEventListener("scroll", on); if (raf > 0) cancelAnimationFrame(raf); };
   }, [tab, asked]);
+  const landed = useRef(helpLand.value);      // helpLand outlives a close: a reopen must not land on the entry of an earlier click
   useEffect(() => {
-    if (!helpLand.value) return;
+    if (!helpLand.value || helpLand.value === landed.current) return;
+    landed.current = helpLand.value;
     const here = helpHere.value, el = here && document.querySelector(`#hpPane [data-k="${here}"]`);
     if (el) el.focus({ preventScroll: true });
   }, [helpLand.value]);
