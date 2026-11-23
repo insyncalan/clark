@@ -53,8 +53,8 @@ BAD_SIDE = "A picture sits on the left or the right. Choose one and try again."
 BAD_SLOT = "That picture's place isn't in this section. Reload the page and try again."
 NOT_A_PICTURE = "That picture can't be used. Add a PNG, JPEG or WebP picture."
 BIG_PICTURE = "That picture is too large. Add a smaller one."
-CAMERA_DETAILS = ("That picture still carries details from the camera, such as where it was taken. Add it again with Add a "
-                  "picture, which removes them.")
+ADD_PICTURE_BUTTON = "Add a picture"        # the words on the page's picture button (pictureEdit.jsx); a test pins them to it
+CAMERA_DETAILS = f"That image still carries details from the camera, such as where it was taken. Add it again with {ADD_PICTURE_BUTTON}, which removes them."
 PICTURES_OWN_WAY = "Pictures are added with Add a picture, not with the text. Reload the page and try again."
 
 _DATA = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})\Z")
