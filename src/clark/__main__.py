@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_index, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, preferences, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_index, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, preferences, profile_settings, project_route, projects_overview, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -621,6 +621,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent, indexer=indexer),
                      ask_instructions=standing_instructions.StandingInstructions(store.path, roots),
                      ask_commands=ask_commands_service.AskCommandsService(store.path.parent),
+                     projects_overview=projects_overview.ProjectsOverview(store.path, roots),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, asker, roots, indexer=indexer, used_hook=log_connector_used), ai_connect=connect,      # #54: Settings › AI applies to every question
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system

@@ -1119,7 +1119,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 1, "row 1178: the bar has the one date button (the old chip is gone)")
+            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 0, "row 1253 (the 20-11 ruling): the bar has no As at date button")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
             self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
