@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, showSettings, token, view, rows, filterCtx, openPeek } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
-import { words, askFilesRead } from "./publishApi.js";
+import { words, askFilesRead, askFoldersRead } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDocker, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, subject, setQueue, closePanel, newChat, setWidth, resetWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
@@ -90,6 +90,18 @@ export function AskPanel() {
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
   const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
+  // Item 1352: whether this project has folders to read (its own or those for all projects), so the first card says so only when it is true.
+  const [hasFolders, setHasFolders] = useState(false);
+  useEffect(() => { setHasFolders(false); }, [project.value]);      // a project switch starts from the plain line until the new project's folders answer
+  useEffect(() => {
+    if (!open || !classicTheme()) { setHasFolders(false); return undefined; }
+    let live = true;
+    askFoldersRead(project.value).then((r) => {
+      const b = r.body;
+      if (live) setHasFolders(r.status === 200 && !!b && b.ok === true && ((Array.isArray(b.folders) && b.folders.length > 0) || (Array.isArray(b.shared) && b.shared.length > 0)));
+    });
+    return () => { live = false; };
+  }, [open, project.value]);
   useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
   const recallLast = useRef("");
   const copiedTimer = useRef(0);               // row 1292: "Copied" stays 2 s, then the line is empty again
@@ -399,7 +411,7 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? (classic ? W.WORKING_CLASSIC : W.WORKING) : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
         {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{classic ? W.CLASSIC_STANDING : W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
@@ -429,7 +441,7 @@ export function AskPanel() {
           {classic ? (<>
             <h3>{W.CARD_HEAD}</h3>
             <ul>
-              <li>{W.CARD_READS}</li>
+              <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
             </ul>
