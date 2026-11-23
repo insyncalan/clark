@@ -23,7 +23,7 @@ from test_work_filters import need_chrome
 
 TYPES = ["action", "risk", "decision"]
 WRITE_WORDS = ["changeItem", "stores/changes", "/api/", "fetch("]
-SIZE_BEFORE = 845587       # page-view.html on origin/main (8f6472198), bytes, built by dev/tools/build_page.py
+SIZE_BEFORE = 845696       # page-view.html on origin/main (f3c44df6c plus later, built by dev/tools/build_page.py), bytes
 
 
 def publish_with(store, out, switch):
