@@ -7,7 +7,7 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
 THEMES = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0"
 RULES_2 = THEMES / "rules-2.css"      # Row 1194's rules sit in rules-2.css (rules.css is at its size limit); the colours there are rgb()
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
-# Row 1194 round 3 (approved mock-up 18-11; ruling 19-11: no exemption for accessibility, the mock's colours win): these page-icon fills are the
+# Row 1194 round 3 (approved mock-up 18-11; the product manager's ruling of 23-11 about 20:50): these page-icon fills are the
 # mock's own and white text on them measures below 4.5:1 (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08). The narrowest named exemption: exactly these five, so a
 # sixth kind that falls under 4.5:1 still fails here.
 MOCK_BELOW_4_5 = {"PDF", "XLS", "PPT", "PNG", "TXT"}

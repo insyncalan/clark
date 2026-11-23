@@ -225,6 +225,7 @@ Then, the same day: "for team sharing clark should check on open to se if there 
 
 ### 5.11 Supporting documents
 - **FR-100:** Supporting documents is a list of links with a type and a date. Each can be shown, hidden or edited.
+- **FR-100a:** A new report starts with a Documents and links section instead of Supporting documents. A saved report keeps its Supporting documents section unchanged.
 
 ### 5.12 Design system and brand
 - **FR-110:** The look comes from design tokens. The repo carries a fictional demo brand. A user's real brand is a local override in `branding/`, which is never committed.

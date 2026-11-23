@@ -2,7 +2,7 @@
 // drawn here, not Microsoft's logos) and the icons of Open and Download. The colours and drawings are the approved mockup's.
 import { fromFile } from "../stores/report.js";
 
-// A published file's cards carry no picture, so there the page icon is a plain box of words and the action icons are CSS-drawn characters (css .tpl-plain).
+// A published file's cards carry no picture, so there the page icon is a plain box of words (MAIL is the one drawn badge, the same envelope in both) and the action icons are CSS-drawn characters (css .tpl-plain).
 const COLOURS = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
 // The coloured label band and its text, at least 4.5:1 on every kind; the same pairs as the published file's badge (css .tpl-ic-*).
 export const BAND = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
@@ -21,7 +21,6 @@ const INK = "var(--badge-ink)";
 
 // The icon for a label (PDF DOC XLS PPT JPG PNG TXT URL MAIL, else FILE): 41px tall, the height of a row's two text lines.
 export function PageIcon({ label }) {
-  if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] || label === "MAIL" ? label : "FILE"}`}>{label}</span>;
   if (label === "MAIL") return (            // The approved pick D (18-11): an envelope with an @ badge, no page behind it (the mock's Email link icon, 41 x 41)
     <span class="tpl-badge tpl-page tpl-mail">
       <svg viewBox="0 0 41 41" width="41" height="41" role="img" aria-label="Email link" focusable="false">
@@ -31,6 +30,7 @@ export function PageIcon({ label }) {
       </svg>
     </span>
   );
+  if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] ? label : "FILE"}`}>{label}</span>;
   const key = GLYPHS[label] ? label : "FILE";
   return (
     <span class="tpl-badge tpl-page">

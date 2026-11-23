@@ -57,6 +57,8 @@ def texts(o, path=""):
 # The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
 DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
+# Row 1582: two sentences of the Documents and links entry are exempt from the jargon and path word rules, and ONLY those two: one says what a link starts with (https:// and mailto:), one says which files are refused. They are the words approved on 21-11 04:05 (Alan's words, NEW-WORDS row 1194 slice D, line 2024); every other word rule stays as it was.
+DOCLINKS_SAID = {s for t in SRC["howto"]["tasks"] if t["id"] == "add-documents-and-links" for s in t["s"][1:3]}
 
 
 def words():
@@ -104,7 +106,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 35))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (39, 35))   # Row 1582 added the Add documents and links task (38 to 39); row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -203,7 +205,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
+        found = [(p, s) for p, s in words() if s not in DOCKER | DOCLINKS_SAID and (self.JARGON.search(s) or self.PATH.search(s))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
@@ -219,7 +221,7 @@ class Words(unittest.TestCase):
         self.assertEqual(shown, [])
 
     def test_no_real_looking_email_or_address(self):
-        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
+        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER | DOCLINKS_SAID and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
 
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""
@@ -327,6 +329,19 @@ class UseCaseStatuses(unittest.TestCase):
     def test_the_colours_help_names_are_the_pages(self):
         (line,) = [t for _, t in texts(SRC) if t.startswith("Use case statuses:")]
         self.assertEqual(re.findall(r"\*\*[^*]+\*\* \(([a-z]+)\)", line), ["green", "amber", "red", "grey"])
+
+
+class DocumentsAndLinksEntry(unittest.TestCase):
+    """Row 1582 AP14 (Row 1194 slice D, words approved 21-11): Help has the Documents and links entry, shown, beside the old one."""
+    def test_the_add_documents_and_links_entry_exists(self):
+        task = next((t for t in SRC["howto"]["tasks"] if t["id"] == "add-documents-and-links"), None)
+        self.assertIsNotNone(task, "the entry is in the source")
+        self.assertEqual((task["t"], task["w"]), ("Add documents and links", "Dashboard \u203a Edit \u203a Documents and links"))
+        self.assertEqual(task["s"][0], "Choose the file icon to add a file, or drop files on the box.")
+        self.assertEqual(task["s"][-1], "Each row has Open; a file also has Download.")
+        self.assertEqual(len(task["s"]), 5)
+        self.assertNotIn("add-documents-and-links", json.loads((HELP / "helpLater.json").read_text(encoding="utf-8")).get("howto", {}), "it is not held back")
+        self.assertTrue(any(t["id"] == "add-supporting-documents" for t in SRC["howto"]["tasks"]), "the old entry stays for saved reports")
 
 
 class PublishFileName(unittest.TestCase):
