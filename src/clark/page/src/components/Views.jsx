@@ -77,18 +77,20 @@ function Empty({ title, children, action }) {
 // in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
 function MsHead({ Add }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
-  const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows);
+  const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows), classic = classicTheme();      // row 1329: Classic has no forecast sentence (only the empty / cancelled words); Cards keeps its own
   return (
     <>
       <p class="crumbs">{data.value.project.name}</p>
       <div class="head">
         <div>
           <h1>Milestones</h1>
-          <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
-            {line
-              ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
-              : emptyHead(rows)}
-          </p>
+          {classic
+            ? (line ? null : <p class="head-sub">{emptyHead(rows)}</p>)
+            : <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
+              {line
+                ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
+                : emptyHead(rows)}
+            </p>}
         </div>
         {Add ? <Add /> : null}
       </div>
@@ -97,7 +99,7 @@ function MsHead({ Add }) {
 }
 
 export function Milestones({ tools }) {
-  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): the served page only, so a published page has none
+  const Wrap = !classicTheme() && tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): the served page only, so a published page has none
   const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
   const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
   const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
