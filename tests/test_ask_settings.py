@@ -107,7 +107,7 @@ class Settings(unittest.TestCase):
     def theme(self):
         """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules-2.css), so its test layers the Classic theme; the rest stay as they were."""
         name = self._testMethodName
-        return "prototype-2.0" if any(k in name for k in ("amber", "choose_other_folders", "provider", "singular", "saved_notice", "leave_")) else None
+        return "prototype-2.0" if any(k in name for k in ("amber", "choose_other_folders", "provider", "singular", "saved_notice", "leave_these", "leave_out")) else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
