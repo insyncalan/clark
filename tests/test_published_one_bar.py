@@ -255,7 +255,7 @@ class TheEditor(Setup):
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week. They open nothing.", help_)
+        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.", help_)
         self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
 
@@ -279,7 +279,7 @@ class TheHelpLine(unittest.TestCase):
         bullet = next(x for kind, body in topic["b"] if kind == "ul" for x in body if x.startswith("**The top bar**"))
         for word in ("as at", "calendar", "project list", "the name is a button", "the week is a button"):
             self.assertNotIn(word, bullet.lower(), f"row 1253: the bar has no As at date button, so the Help bullet must not say {word!r}: {bullet}")
-        self.assertIn("They open nothing", bullet)
+        self.assertIn("Nothing in it is a button", bullet)
 
     def test_the_bar_source_has_no_as_at_button_row_1253(self):
         top = (SRC / "clark" / "page" / "src" / "components" / "TopBar.jsx").read_text(encoding="utf-8")
