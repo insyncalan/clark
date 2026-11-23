@@ -253,6 +253,44 @@ class QuestionNeedsNoPassages(RouteBase):
         self.assertNotIn("zebrafish", unneeded)
         self.assertNotIn("tank.txt", unneeded)
 
+    def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
+        self.service.indexer = None                       # no current index: the folders are read at question time
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        for question in ("milestones", "?? !!"):          # no shared word; no words at all
+            unneeded = self.ask(question)
+            self.assertNotIn("zebrafish", unneeded, question)
+            self.assertNotIn("tank.txt", unneeded, question)
+
+    def test_the_fallback_runs_when_the_index_is_not_current(self):
+        self.ix.current = lambda *a, **k: False
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed)
+        self.assertNotIn("zebrafish", self.ask("milestones"))
+
+
+class ChooseNeedMatch(unittest.TestCase):
+    def passages(self):
+        from clark import ask
+        return [ask.Passage("a", "alpha tank here"), ask.Passage("b", "beta nothing"), ask.Passage("c", "gamma ABC-R-12 row")]
+
+    def test_need_match_keeps_only_passages_sharing_a_word_or_an_id(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "the tank and ABC-R-12", need_match=True)
+        self.assertEqual([p.label for p in got], ["a", "c"])
+        self.assertEqual(left, 1)
+
+    def test_need_match_with_no_words_keeps_none(self):
+        from clark import ask_data
+        for q in ("", None, "?? ab"):
+            got, left = ask_data.choose(self.passages(), q, need_match=True)
+            self.assertEqual((got, left), ((), 3), q)
+
+    def test_default_still_keeps_every_passage_that_fits(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "milestones")
+        self.assertEqual(([p.label for p in got], left), (["a", "b", "c"], 0))
+
 
 if __name__ == "__main__":
     unittest.main()

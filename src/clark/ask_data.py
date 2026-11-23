@@ -132,13 +132,16 @@ def _score(words, ids, passage):
     return sum(5 for i in ids if i.casefold() in text) + sum(1 for w in words if w in text)
 
 
-def choose(passages, question, budget=BUDGET, limit=None):
+def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
-    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
+    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit.
+    `need_match` (row 1366 AP27): keep only a passage that shares a word or an item ID with the question; a question with no words keeps none."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
     ids = set(ID_PATTERN.findall(question or ""))
     ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
+    if need_match:
+        ranked = [i for i in ranked if _score(words, ids, passages[i]) > 0]
     keep, used = set(), 0
     for i in ranked:
         size = len(passages[i].text)

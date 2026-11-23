@@ -171,7 +171,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
         if len(parts) > 1:
             parts = [ask.Passage(f"{label} (part {i})", p.text, file=label) for i, p in enumerate(parts, 1)]
         passages += parts
-    chosen, left = ask_data.choose(passages, question, budget)
+    chosen, left = ask_data.choose(passages, question, budget, need_match=True)
     left += cut
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
