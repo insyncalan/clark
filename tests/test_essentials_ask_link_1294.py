@@ -43,7 +43,7 @@ class DefaultsLink(unittest.TestCase):
 
 
 class CardsKeepsTheSwitch(DefaultsLink):
-    """Cards is frozen (Jarvis 16:39): the old Asking switch row stays, with its words, and there is no link row."""
+    """Cards is frozen (PM ruling): the old Asking switch row stays, with its words, and there is no link row."""
     THEME = None
 
     def test_no_asking_row_and_the_link_opens_the_all_projects_tab(self):
