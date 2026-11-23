@@ -249,6 +249,25 @@ class Help(AiBase):
             self.until(js, "document.querySelector('#sl-menu').value === 'Who owns an item'", "written")
             self.assertEqual(self.val(js, "#sl-name"), "check")
 
+    def test_no_project_data_is_sent_while_the_ai_writes(self):
+        """Row 1541 AP2: all five requests hold the instruction text and the fixed instruction only, never the project's name, items or files."""
+        project_words = ("Example Programme", "On track", "Pilot live", "Agree the cut-over plan", "ABC-M-001", "ABC-A-001")
+        with chrome() as cdp:
+            js = self.new_form(cdp)
+            self.type_into(js, "#sl-text", "Overdue by owner")
+            self.type_into(js, "#slash-ai-describe-in", "Overdue by owner sentence")
+            for button in ("#slash-ai-describe", "#slash-ai-write", "#slash-ai-clearer", "#slash-ai-shorter", "#slash-check-run"):
+                before = len(self.provider.requests)
+                self.type_into(js, "#sl-text", "Overdue by owner")
+                self.click(js, button)
+                self.assertTrue(wait(lambda: len(self.provider.requests) > before, 20), button)
+                self.done(js)
+            self.assertEqual(len(self.provider.prompts), 5)
+            for sent in self.provider.prompts:
+                self.assertIn("Overdue by owner", sent)
+                for word in project_words:
+                    self.assertNotIn(word, sent)
+
 
 class Check(AiBase):
     def test_size_and_warnings_are_live_and_nothing_is_asked(self):
