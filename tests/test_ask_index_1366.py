@@ -202,7 +202,7 @@ class Files(Base):
 class FirstRunAndHelpWords(unittest.TestCase):
     """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (item 6). The picture sentence
     (item 10) is held: the build has no picture reader, so it would not be true."""
-    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when your question needs them."
+    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
 
     def test_first_run_card_and_help_state_passages_go_to_claude(self):
         import json
@@ -220,7 +220,7 @@ class FirstRunAndHelpWords(unittest.TestCase):
 
 
 class QuestionNeedsNoPassages(RouteBase):
-    """AP27 'only when your question needs them': a question that matches nothing in the listed folders sends no folder passage."""
+    """AP27 'only when they contain words from your question': a question that matches nothing in the listed folders sends no folder passage."""
 
     def setUp(self):
         super().setUp()
