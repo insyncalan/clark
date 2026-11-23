@@ -53,7 +53,7 @@ class Computed(Base):
     def test_head_h1_keeps_zero_margin_and_milestones_segments(self):
         m = self.read("#milestones&p=ABC", ".frame.milestones")
         self.assertEqual(m["h1"], [H1_HEAD])
-        self.assertEqual(len(m["seg"]), 5)
+        self.assertEqual(len(m["seg"]), 3)      # Row 1329: the Plan | Movement switch is gone in Classic, so two fewer segmented buttons (5 before, 3 now)
         for row in m["seg"]:
             self.assertEqual(row[1:], TEXT_SEG, row)
 
