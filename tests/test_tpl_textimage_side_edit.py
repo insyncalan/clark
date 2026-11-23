@@ -256,7 +256,7 @@ class Page(unittest.TestCase):
         self.assertEqual(self.val(cols), 2)
         self.with_image(page=1400, slot="left")
         self.assertEqual(self.val(cols), 1)
-        # Not proved at 900 px while PAUSED_900 is set: the test is skipped at the next line and the 1400 checks above have run.
+        # The 900 px checks follow: the 1400 checks above have run, and 900 runs too now that PAUSED_900 is None.
         self.with_image(page=900)
         self.assertEqual(self.val(cols), 1)
         self.assertFalse(self.val("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll at 900")

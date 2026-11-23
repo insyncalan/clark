@@ -519,7 +519,7 @@ def _section_body(section, body):
     try:
         if _picture_kind(section["type"]) is not None:
             return _keep_pictures(section, body)
-        return clark_store.check_section_body(section["type"], body)
+        return clark_store.check_section_body(section["type"], body, section.get("body"))
     except Invalid as e:
         raise Refused(str(e)) from None
 

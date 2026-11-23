@@ -531,16 +531,25 @@ CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked
 EMPTY = {NEEDS: "", TRACKER: "", USECASES: "", MILESTONES: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
 
 
-def check(kind, body, rules):
+def check(kind, body, rules, stored=None):
     """The content of a `kind` section as it is stored: the canonical text, or Bad. An empty text is no content (stored as
-    ''). A kind with no checker has no content, so any body is refused."""
+    ''). A kind with no checker has no content, so any body is refused. `stored` (the section's stored text, a save and Add a
+    file only, never publish) lets a Documents and links entry that is sent back unchanged stay as it is, though it no longer
+    meets the rules of item 1194; a changed or new entry meets every rule."""
     checker = CHECKERS.get(kind)
     if checker is None:
         raise Bad(NOT_SAVED_YET)
     if body is None or body == "":
         return ""
     flat, kept = _flat_lines(kind, _clean_rich(kind, _generic(body, kind, rules)), True)
-    value = _put_lines(checker(flat, rules), kept)
+    kept_entries = ()
+    if kind == "doclinks" and isinstance(stored, str) and stored:
+        try:
+            kept_entries = TEMPLATES[kind].kept_entries(_generic(stored, kind, rules), rules)
+        except Bad:
+            kept_entries = ()
+    value = checker(flat, rules, kept_entries) if kept_entries else checker(flat, rules)
+    value = _put_lines(value, kept)
     if type(value) not in (dict, list):
         raise Bad(NOT_READABLE)          # a checker that hands back something else is a fault, never stored
     text = canonical(value)
