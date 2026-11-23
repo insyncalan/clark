@@ -287,7 +287,7 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("Profile circle › Import from Word", self.ALL)        # 1.0.8: the Data card in Settings is the way in, and Help says so
         self.assertNotIn("profile menu entry Import from Word", self.ALL)
         self.assertNotIn("bring items in from a Word file", self.ALL)
-        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        self.assertIn("**Export to Word…**", self.ALL, "Export to Word stays in Help")       # row 1281: the Data card button, by its label
         raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
         self.assertNotRegex(raw, r"(?i)profile (circle|menu)[^\n]{0,40}(choose|press) \*\*Import from Word", "no help line names the removed menu entry")
 

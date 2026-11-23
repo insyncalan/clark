@@ -46,6 +46,10 @@ LIGHT = {
         # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
         '--tile-on-bg': '#ECE9FB',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--pill-track': '#ECEFF6',
+        '--pill-on-fg': '#4F35C9',
+        '--pill-on-bg': '#FFFFFF',
+        '--pill-muted': '#4A5578',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
         '--pri-high-sheet-bg': '#F4DEDB',
         '--pri-high-sheet-fg': '#B3392F',
@@ -85,6 +89,10 @@ DARK = {
         '--sec-number-size': '20px',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--pill-track': '#1C3040',
+        '--pill-on-fg': '#A99BFF',
+        '--pill-on-bg': '#13232E',
+        '--pill-muted': '#9FB0BD',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
         '--ms-amber-shape': '#E0A620',
     }
