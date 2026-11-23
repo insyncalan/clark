@@ -422,6 +422,30 @@ class SmallImage(unittest.TestCase):
         self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
         self.assertEqual(self.js("getComputedStyle(document.querySelector('dialog.tpl-gal-large'), '::backdrop').backgroundColor"), "rgba(6, 20, 30, 0.82)")
 
+    def key(self, name, code):
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": name, "windowsVirtualKeyCode": code}, self.sid)
+
+    def test_the_close_button_reads_close_esc_and_is_the_white_pill(self):
+        """AP14 close (Jarvis WO-M16403; mock-up gallery-source.html:58 .lb button): visible text 'Close (Esc)', title and aria-label the same, white pill, padding 6px 14px, top 16 right 20."""
+        for width in (1400, 900):
+            self.draw(pictures(1, size=(1600, 900)), width)
+            self.js("document.querySelector('.tpl-gal-open').click()")
+            self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")), width)
+            v = self.js("""(function(){var b=document.querySelector('dialog.tpl-gal-large .tpl-gal-x'),s=getComputedStyle(b);
+              return [b.textContent.trim(), b.title, b.getAttribute('aria-label'), s.backgroundColor, s.paddingTop+' '+s.paddingRight+' '+s.paddingBottom+' '+s.paddingLeft, parseFloat(s.borderTopLeftRadius)>=b.getBoundingClientRect().height/2, s.top, s.right]})()""")
+            self.assertEqual(v, ["Close (Esc)", "Close (Esc)", "Close (Esc)", "rgb(255, 255, 255)", "6px 14px 6px 14px", True, "16px", "20px"], width)
+            self.js("document.querySelector('.tpl-gal-x').click()")
+            self.assertTrue(wait(lambda: not self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+
+    def test_pressing_escape_closes_the_large_view_and_focus_returns_to_the_opener(self):
+        self.draw(pictures(1, size=(1600, 900)), 1400)
+        self.js("document.querySelector('.tpl-gal-open').click()")
+        self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+        self.key("Escape", 27)
+        self.assertTrue(wait(lambda: not self.js("!!document.querySelector('dialog.tpl-gal-large')")), "Esc removes the large view")
+        self.assertTrue(wait(lambda: self.js("document.activeElement.className") == "tpl-gal-open"), "focus is back on the opener")
+
     def test_a_tile_caption_is_13px_slate_with_the_mock_up_margin(self):
         """AP11 View .tcap: 13px, #475577, margin 6px 2px 0, left aligned (mock-up gallery-source.html:55; the spec's 8px is .fcap)."""
         self.draw(pictures(1, caps=(0,), size=(1200, 900)), 1400)
