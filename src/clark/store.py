@@ -3225,7 +3225,7 @@ BOARD_CLIENT_COLUMN = "show_board_client INTEGER NOT NULL DEFAULT 0 CHECK (show_
 
 def migrate_board_client(con):
     """Schema version 36 to 37 (row 1533): projects.show_board_client, the author's switch for the client's Work items board, 0 (off) for
-    every project (Alan 23-11-2026: "board view as a switch, default off"). Added at the end of the table, so no table is made again and no
+    every project (ruled 23-11-2026: "board view as a switch, default off"). Added at the end of the table, so no table is made again and no
     value changes; a column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the
     caller's transaction and does not touch the version (the runner does). It is step 37 in MIGRATIONS."""
     have = columns(con, "projects")

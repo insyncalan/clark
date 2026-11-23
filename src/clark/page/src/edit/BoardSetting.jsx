@@ -1,5 +1,5 @@
 // Settings › Reports (row 1533): whether a published report offers the client the Work items board (read only). One tick, saved at once as one
-// change with Undo (project-update, like the Gantt ticks). Default off (Alan 23-11-2026: "board view as a switch, default off"). Edit part only.
+// change with Undo (project-update, like the Gantt ticks). Default off (ruled 23-11-2026: "board view as a switch, default off"). Edit part only.
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { SettingRow, focusControl } from "./SettingRow.jsx";
