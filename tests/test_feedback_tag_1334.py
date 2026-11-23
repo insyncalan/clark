@@ -142,11 +142,11 @@ class FeedbackTag1334(unittest.TestCase):
                 red = cdp.js("(() => { const p = document.createElement('span'); p.style.color = 'var(--status-red-text)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()", sid)
                 self.assertEqual((e["fontSize"], e["marginTop"], e["color"]), ("13px", "4px", red), where + " b) empty-send line")
                 body = cdp.js("getComputedStyle(document.body).fontSize", sid)
-                # Classic body is 14px; mock-up says 15px, accepted by PM
-                self.assertEqual(body, "14px", where + " b) Classic body is 14px; mock-up says 15px, accepted by PM")
-                self.assertEqual(d["fontSize"], body, where + " b) the dialog sets no text size of its own: it is the page body size (mock-up: font inherit)")
+                # the mock-up's body is 15px (feedback-tag.html); the dialog carries it, the Classic page body stays 14px
+                self.assertEqual(body, "14px", where + " b) the Classic page body is still 14px")
+                self.assertEqual(d["fontSize"], "15px", where + " b) the dialog text is the mock-up's 15px")
                 for btn in ("[data-fbt-copy]", "[data-fbt-mail]"):
-                    self.assertEqual(self.probe(cdp, sid, btn, "fontSize")["fontSize"], body, where + " d) button text is font: inherit, the page body size: " + btn)
+                    self.assertEqual(self.probe(cdp, sid, btn, "fontSize")["fontSize"], "14px", where + " d) the buttons keep the app's .btn text size, not the mock-up's inherited 15px: " + btn)
                 ta = self.probe(cdp, sid, "#fbt-message", "fontSize", "display", "overflowY", "boxSizing")
                 self.assertEqual((ta["fontSize"], ta["display"], ta["overflowY"], ta["boxSizing"]), (d["fontSize"], "block", "auto", "border-box"), where + " b) box text size (font: inherit as in the mock-up, so the dialog's and the page body's), block, scrolls when full")
                 # c)
