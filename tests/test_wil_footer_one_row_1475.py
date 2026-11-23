@@ -118,6 +118,40 @@ class FooterOneRow(Look):
                     p.key("Tab", code="Tab", vk=9)
                     self.assertTrue(p.js("document.activeElement.hasAttribute('data-wil-review')"), "Tab goes from Show all items to Review all N items")
 
+    def test_no_show_all_when_the_list_has_exactly_most_rows_1400(self):
+        probe = self.add({"mode": "all", "columns": COLS, "kinds": ["action"], "max": 50}, title="Probe list", after=self.text)
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.drawn(p, probe)
+            n = geo(p, probe)["rows"]
+        self.assertGreater(n, 2)
+        exact = self.add({"mode": "all", "columns": COLS, "kinds": ["action"], "max": n}, title="Exact list", after=probe)
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.drawn(p, exact)
+            g = geo(p, exact)
+            self.assertEqual(g["rows"], n, g)
+            self.assertIsNone(g["all"], f"a list of exactly Most rows has no Show all items: {g}")
+            self.assertIsNotNone(g["rev"], g)
+
+    def test_footer_padding_gap_and_link_box_1400_and_900(self):
+        a, b = self.pair(2, 3)
+        for width in self.widths():
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                self.drawn(p, a)
+                r = p.js("""(() => { const sec = document.querySelector('[data-id="%s"]'), f = sec.querySelector('[data-wil-foot]'), fs = getComputedStyle(f);
+                  const out = {pad: parseFloat(fs.paddingTop), gap: parseFloat(fs.columnGap), links: []};
+                  for (const e of f.querySelectorAll('[data-wil-all], [data-wil-review]')) { const c = getComputedStyle(e); out.links.push({d: c.display, ai: c.alignItems, pt: parseFloat(c.paddingTop), pb: parseFloat(c.paddingBottom), bs: c.boxSizing, mh: parseFloat(c.minHeight), h: e.getBoundingClientRect().height}); }
+                  return out; })()""" % a)
+                self.assertEqual(r["pad"], 8, r)      # var(--space-2)
+                self.assertEqual(r["gap"], 12, r)      # var(--space-3)
+                self.assertEqual(len(r["links"]), 2, r)
+                for k in r["links"]:
+                    self.assertEqual((k["d"], k["ai"], k["pt"], k["pb"], k["bs"]), ("flex", "center", 0, 0, "border-box"), r)
+                    self.assertEqual(k["mh"], 32, r)      # var(--space-6)
+                    self.assertGreaterEqual(k["h"], 32, r)
+
     def test_a_published_file_has_no_footer_links_1400_and_900(self):
         ref = self.add({"mode": "all", "columns": COLS, "kinds": ["action"], "max": 2}, title="File list", after=self.text)
         out = tempfile.mkdtemp(prefix="clark-1475-")
