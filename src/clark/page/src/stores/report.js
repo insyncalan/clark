@@ -209,6 +209,8 @@ export function showSettings(page) {
 
 // Row 1299 (project tabs): the project the Settings tabs have chosen. It lives only on the Settings page: choosing a tab reads nothing again and never changes the address,
 // the top bar or the open project. "" means the open project. A different open project (the top bar, Back) puts the tabs back on it.
+// Off until the project cards read settingsProjectNow() and not the open project (Views.jsx project tabs; the overview's click follows it).
+export const SWITCH_TABS = false;
 export const settingsProjectNow = () => settingsProject.value || project.value;
 export function chooseSettingsProject(code) {
   if (route.isProject(code)) settingsProject.value = code === project.value ? "" : code;

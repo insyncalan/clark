@@ -3,7 +3,7 @@
 // Grey is the default, amber is an override or something to fix. Bulk change, copy and Undo are a later slice (S5). The words are the ticket's ruling.
 import { useEffect, useState } from "preact/hooks";
 import { zoneFetch } from "../api.js";
-import { token, showSettings, chooseSettingsProject } from "../stores/report.js";
+import { token, showSettings, chooseSettingsProject, SWITCH_TABS } from "../stores/report.js";
 
 export const INTRO = "Every project at a glance. Click a value to open that setting for the project. Grey is the default, amber is an override or something to fix.";
 export const COLUMNS = ["Project", "Asking", "Brand", "Read folders", "Review days", "Client folder", "Last backup"];
@@ -35,7 +35,7 @@ export function ProjectsOverview({ read = () => zoneFetch("/api/projects-overvie
   if (!body || !body.projects.length) return null;      // no read, or no project: the table below stands alone
   const rows = body.projects, shown = only ? rows.filter((r) => r.attention.length) : rows;
   const issues = rows.flatMap((r) => r.attention.map((a) => issueWords(r, a))).filter(Boolean);
-  const open = (code, key) => { showSettings(OPENS[key]); chooseSettingsProject(code); };
+  const open = (code, key) => { showSettings(OPENS[key]); if (SWITCH_TABS) chooseSettingsProject(code); };      // with the switch off the cards edit the open project, so the page opens and no other project is chosen
   const val = (r, key, text, flag) => <td><button type="button" class={`ov-val${flag ? " ov-amber" : ""}`} data-ov={key} title={openTitle(WHAT[key], r.code)} onClick={() => open(r.code, key)}>{text}</button></td>;
   return (
     <section class="frame setting ov" id="projects-overview" aria-label="Projects overview">

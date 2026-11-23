@@ -3,7 +3,7 @@ Run: python3 dev/run_tests.py test_projects_overview_ui_1299
 
 Asserted: the page draws the ticket's intro, the issue line ("<n> to look at: ..." with the ruled words, singulars), the two filters with their counts, the seven columns, a row for
 each project with Not set / Today / n days ago words; Needs attention keeps only the projects with something to look at; a click on a value opens that setting
-for that project (the page, the Affects line, the chosen tab). Cards draws none of it. Chrome is required: these tests fail, never skip, without it."""
+for that project (the page; with the project switch off the Affects line and chosen tab stay the open project). Cards draws none of it. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 from clark import page, theme
@@ -93,7 +93,8 @@ class Overview(Base):
                 p.js(f"document.querySelector('tr[data-ov-project=ABC] [data-ov={key}]').click()")
                 p.until(f"document.querySelector('.set-chip[aria-current]').textContent.trim() === {slug!r}", "the page opened")
                 if key != "backup":
-                    self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: ABC")
+                    self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: PUB", "the switch is off: the cards edit the open project, so no other project is chosen")
+                    self.assertEqual(p.js("document.querySelector('.set-tab[aria-current]').textContent.trim()"), TWO[0]["name"])
 
 
 class OverviewClean(Overview):

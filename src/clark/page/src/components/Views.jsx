@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings, token, settingsProject, chooseSettingsProject, SWITCH_TABS } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
@@ -214,7 +214,6 @@ function SettingsHead({ groups, page, searching, setSearching }) {
 export const PROJECT_PAGES = ["reports", "brand", "people", "claude", "data"];
 // Off until the project cards (client folder, review days, brand, people, ask clark, data) read settingsProjectNow() and not the open project: a click on another tab
 // would say "Affects: HAR" while the controls still edit the open project. With it off the other tabs are drawn but cannot be chosen.
-const SWITCH_TABS = false;
 
 function ProjectTabs({ current }) {
   const [list, setList] = useState([]);
