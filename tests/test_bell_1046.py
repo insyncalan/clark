@@ -102,7 +102,7 @@ class Bell(Base):
             p.until("!document.querySelector('#bell-pop')", "the action closed the popup")
 
     def test_close_after_mark_all_as_read_keeps_focus_on_the_bell_until_it_leaves(self):
-        """Romanoff 23-11: Mark all as read makes the count 0; Close or Esc must still put focus on the bell (it stays drawn until focus leaves)."""
+        """Row 1046: Mark all as read makes the count 0; Close or Esc must still put focus on the bell (it stays drawn until focus leaves)."""
         for how in ("close", "esc"):
             with self.subTest(how):
                 with chrome() as cdp:
