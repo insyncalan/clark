@@ -121,7 +121,7 @@ def publisher(places):
     def published(value, ctx):
         live = None
         out = []
-        count = value.get("count") if isinstance(value, dict) and places == 4 and value.get("count") in COUNTS else None
+        count = value.get("count") if isinstance(value, dict) and places == 4 and type(value.get("count")) is int and value.get("count") in COUNTS else None
         for slot in ((value.get("figures") if isinstance(value, dict) else None) or [])[:count or places]:
             if slot.get("mode") == "live":
                 live = _live(ctx) if live is None else live
