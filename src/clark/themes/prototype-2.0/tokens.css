@@ -11,8 +11,9 @@
   --band-bg: #F3F5FB; --line-soft: #E9EDF6; --gutter-rule: #EEEBFB;
   --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
   --ms-amber-shape: #C58A00;      /* row 1396: the amber milestone dot, as the prototype's --amber-shape draws it */
-  --tile-on-bg: #ECE9FB; --tile-on-fg: var(--brand-blue);      /* row 1395: the chosen layout tile of the Work items toolbar */
+  --tile-on-bg: #ECE9FB; --tile-on-fg: var(--brand-blue); --pill-track: #ECEFF6; --pill-on-fg: #4F35C9; --pill-on-bg: #FFFFFF; --pill-muted: #4A5578;      /* row 1281: the profile menu's Appearance pill, the track and the chosen cell's text as the ticket gives them. Row 1395: the chosen layout tile of the Work items toolbar */
   --ai-fg: #4635b8;
+  --pri-high-sheet-bg: #F4DEDB; --pri-high-sheet-fg: #B3392F;      /* row 1390 AP3: the sheet's High priority pair (light only); rules-2.css points --pri-high-bg and --pri-high-fg at it */
   --sec-band-bg: rgba(255, 255, 255, .72);      /* row 1311: the white panel of every other section, over the Whisper page gradient */
 }
 :root[data-theme=dark] {
@@ -26,7 +27,7 @@
   --band-bg: #1A2638; --line-soft: #222E42; --gutter-rule: #2A2650;
   --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
   --ms-amber-shape: #E0A620;
-  --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
+  --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue); --pill-track: #1C3040; --pill-on-fg: #A99BFF; --pill-on-bg: #13232E; --pill-muted: #9FB0BD;
   --ai-fg: #9E7BFF;
   --sec-band-bg: rgba(255, 255, 255, .04);
 }
@@ -42,7 +43,7 @@
     --band-bg: #1A2638; --line-soft: #222E42; --gutter-rule: #2A2650;
     --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
     --ms-amber-shape: #E0A620;
-    --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
+    --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue); --pill-track: #1C3040; --pill-on-fg: #A99BFF; --pill-on-bg: #13232E; --pill-muted: #9FB0BD;
     --ai-fg: #9E7BFF;
     --sec-band-bg: rgba(255, 255, 255, .04);
   }

@@ -85,7 +85,9 @@ class Source(unittest.TestCase):
             self.assertIn("<textarea", text, rel)
             self.assertNotIn("RichField", text, rel)
         note = (PAGE_SRC / "edit" / "templates" / "noteEdit.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("<textarea", note, "the typed notes' shared field is one line now; the words are RichField")
+        # row 1271: the Quote words are plain text in the store, the one-editor rule covers the rich template words
+        self.assertEqual(note.count("<textarea"), 1, "noteEdit.jsx may hold only the Field area textarea (the Quote words)")
+        self.assertIn("area ? <textarea", note, "the one textarea is the Field area branch")
 
     def test_the_built_pages_are_current(self):
         self.assertEqual(build_page.main(["--check"]), 0)

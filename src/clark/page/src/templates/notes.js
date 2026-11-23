@@ -14,7 +14,7 @@ export const ICONS = { none: "No icon", info: "Information", question: "Question
   link: "Link", people: "People", money: "Money", chart: "Chart", shield: "Shield",
   flash: "Lightning", eye: "Eye", table: "Table", gear: "Gear", sparkle: "Sparkle", fork: "Two ways" };
 export const TONE_LOOK = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
-export const LIMITS = { category: 30, title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
+export const LIMITS = { quotes: 6, category: 30, title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
 
 const text = (v) => (typeof v === "string" ? v.trim() : "");
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -56,11 +56,22 @@ export function calloutLook(c) {
 }
 export const calloutEmpty = (c) => !c.title && c.paras.length === 0 && !c.html;
 
+// Row 1271: a quote section holds up to six quotes ({quotes: [{quote, by, role}]}); the older one-quote shape is its one quote. `quote`, `by` and `role` stay the first quote's, as older code reads them.
+// align and perRow are what is stored (undefined when not stored, so a save does not rewrite an older quote); quoteLook gives what is drawn.
+const oneQuote = (o) => ({ quote: text((o || {}).quote).slice(0, LIMITS.quote), by: text((o || {}).by).slice(0, LIMITS.name), role: text((o || {}).role).slice(0, LIMITS.name) });
 export function tidyQuote(v) {
   const o = v || {};
-  return { quote: text(o.quote), by: text(o.by), role: text(o.role) };
+  const quotes = (Array.isArray(o.quotes) ? o.quotes.slice(0, LIMITS.quotes) : [o]).map(oneQuote);
+  const out = { quotes, ...quotes[0] || oneQuote({}) };
+  if (o.align === "left" || o.align === "centre") out.align = o.align;
+  if (o.perRow === 2 || o.perRow === 3) out.perRow = o.perRow;
+  if (typeof o.tile === "boolean") out.tile = o.tile;
+  if (typeof o.heading === "boolean") out.heading = o.heading;
+  return out;
 }
-export const quoteEmpty = (q) => !q.quote;
+export const quoteEmpty = (q) => !q.quotes.some((x) => x.quote);
+// What is drawn: the quotes that have words, left unless centre is stored, two to a row unless three is stored. Half width is always one to a row (CSS, from the section's slot).
+export const quoteLook = (q) => ({ quotes: q.quotes.filter((x) => x.quote), align: q.align || "left", perRow: q.perRow || 2, tile: q.tile !== false, heading: q.heading !== false });
 
 export const PERSON_FIELDS = ["name", "role", "email", "phone"];
 export function tidyContacts(v) {
@@ -93,6 +104,6 @@ export function notShownTag(shows) {
 }
 
 export function sectionShows(section) {
-  const c = section.type === "callout" ? tidyCallout(source(section)) : section;
+  const c = section.type === "callout" ? tidyCallout(source(section)) : section.type === "quote" ? tidyQuote(source(section)) : section;
   return { tile: c.tile !== false, heading: c.heading !== false };
 }
