@@ -180,19 +180,18 @@ class DashPeek(unittest.TestCase):
                 self.assertGreaterEqual(int(cdp.js(f"getComputedStyle(document.querySelector({sel} + ' b')).fontWeight", sid)), 600)
 
     def test_old_item_history_carries_user_and_source_1470(self):
-        """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; one with both shows them."""
+        """An item with no recorded user and no Source (an older clark's row) shows "Last updated <date> <time>" alone: no migration, no invented name; the creator is NOT credited as the updater when there is Latest update text but no update row (Romanoff ruling 23-11 10:25), so there is no "by" in either case; the creator stays recorded (by_user is not blanked)."""
         import sqlite3
 
         def old(store):
             con = sqlite3.connect(str(store.path))
-            con.execute("UPDATE applies SET by_user = ''")
             con.execute("UPDATE actions SET source = '' WHERE id = 'TUL-A-001'")
             con.commit()
             con.close()
         for width in (1400, 900):
             if width == 900 and test_server.PAUSED_900:
                 raise unittest.SkipTest(test_server.PAUSED_900)       # the 1400 half ran
-            for prep, want in ((old, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}$"), (None, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2} by Demo Author · Source: Demo data \(fictional\)$")):
+            for prep, want in ((old, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}$"), (None, r"^Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2} · Source: Demo data \(fictional\)$")):
                 with self.subTest(width=width, old=prep is not None), chrome() as cdp:
                     sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash="view", classic=True, prep=prep)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)))

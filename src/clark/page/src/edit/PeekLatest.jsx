@@ -106,7 +106,7 @@ export function stampParts(view) {
   const createdBy = made && made.who ? String(made.who).trim() : "";
   let source = view && typeof view.source === "string" ? view.source.trim() : "";
   if (createdBy && source.endsWith(" by " + createdBy)) source = source.slice(0, -(createdBy.length + 4)).trim();       // the Source line is "<words> by <who made it>": the stamp has the words alone
-  return { who: up ? String(up.who || "").trim() : createdBy,       // no update row: the text came with the item, so the one who made it wrote it
+  return { who: up ? String(up.who || "").trim() : "",       // no update row: clark never recorded who wrote the text, so the creator is not credited as the updater (Romanoff ruling 23-11 10:25)
      source, made: made ? { who: createdBy, when: String(made.when_text || "").split(" - ")[0] } : null };
 }
 /** "Last updated 18-11-2026 16:40 by Name · Source: words": the name and the Source only when known. */
