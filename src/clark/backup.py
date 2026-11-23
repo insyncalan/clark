@@ -42,7 +42,7 @@ try:
 except ImportError:
     fcntl = None
 
-from clark import platform, published_copies, settings, store as clark_store, timefmt, typed
+from clark import platform, preferences, published_copies, settings, store as clark_store, timefmt, typed
 from clark.store import Invalid
 
 # The default number of each kind of copy kept (whole number, 1 to 365). The number used is the data folder's settings.json
@@ -368,6 +368,7 @@ def make(path, folder, onedrive_roots, tag=None, protect=(), family=None):
     prune(folder, newest_has_rows=summary["rows"]["projects"] > 0, protect=(final, *protect))     # after a good copy only, and never an error
     if not os.path.lexists(final):
         raise Invalid(refusal(tag, folder, Invalid(SAVED)))         # removed straight after it was made
+    copy_preferences(Path(path).parent, folder)       # row 1535: the person's kept choices sit beside the backups (never raises)
     copy_out(Path(path).parent, final, summary["rows"]["projects"] > 0)     # #622: never raises
     return final
 
@@ -469,12 +470,46 @@ def _copy_worker(data_dir, folder, final, keep, has_rows):
                 raise Invalid(COPY_REFUSED)
             _copy_into(folder, final, keep, has_rows)
             _copy_kept(data_dir, folder)
+            copy_preferences(data_dir, folder)
         except Exception as e:
             warning = copy_warning_text(folder, e)
             LOG.warning("%s", warning)
             set_copy_warning(warning)
         else:
             set_copy_warning(None)
+
+
+def copy_preferences(data_dir, folder):
+    """Row 1535: the data folder's preferences.json is copied beside a backup (into `folder`, the backups folder or the copy folder), whole and
+    checked, replacing the one there: a backup carries the person's choices as they are now. Never raises; no file, nothing to copy."""
+    try:
+        source = Path(data_dir) / preferences.FILE
+        if source.is_symlink() or not source.is_file() or source.stat().st_size > preferences.FILE_MAX:
+            return False
+        part = Path(folder) / f".{preferences.FILE}.{os.getpid()}.{secrets.token_hex(4)}.part"
+        platform.private_file(part)
+        try:
+            _copy_checked(source, part)
+            platform.replace_file(part, Path(folder) / preferences.FILE)
+        finally:
+            _clear(part)
+        return True
+    except Exception as e:
+        LOG.warning("preferences: the copy beside a backup could not be made (%s)", plain_reason(e))
+        return False
+
+
+def bring_back_preferences(data_dir, folder):
+    """Row 1535: after a restore, the preferences.json kept beside the backups comes back into the data folder, but only when the data folder has
+    none (a file there is the person's newer choices and is never replaced). Never raises. True when it was put back."""
+    try:
+        source, dest = Path(folder) / preferences.FILE, Path(data_dir) / preferences.FILE
+        if os.path.lexists(dest) or source.is_symlink() or not source.is_file() or source.stat().st_size > preferences.FILE_MAX:
+            return False
+        return platform.write_file_unless_exists(dest, source.read_bytes())
+    except Exception as e:
+        LOG.warning("preferences: the file could not be put back (%s)", plain_reason(e))
+        return False
 
 
 KEPT_NAME = re.compile(r"[A-Z][A-Z0-9]{2,6}-[1-9][0-9]{0,5}\.(?:html|json|archived)")      # a kept publication's files, and nothing else (no temporary file, no link)
@@ -559,6 +594,7 @@ def bring_in(copy_folder, name, backups_dir, onedrive_roots=None):
     platform.private_file(part)
     try:
         _copy_checked(chosen, part)
+        bring_back_preferences(backups_dir, Path(copy_folder))     # row 1535: the copy folder's preferences.json, when the backups folder has none
         if os.path.lexists(dest):
             if dest.is_file() and not dest.is_symlink() and dest.read_bytes() == part.read_bytes():
                 return dest
@@ -784,6 +820,7 @@ def _restore_path(path, name, folder, onedrive_roots, store):
     finally:
         if probe is not None:
             probe.close()
+    bring_back_preferences(path.parent, folder)        # row 1535: only when the data folder has none
     moved = any(aside.iterdir())
     if not moved:
         aside.rmdir()                     # there was no database to move aside

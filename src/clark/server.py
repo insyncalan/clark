@@ -601,13 +601,20 @@ def placeholder_html():
     return PLACEHOLDER
 
 
-def with_boot(html):
+def with_boot(html, prefs=None):
     """`html` with this run's token in a JSON data block before </body>. A data block is never run, so it needs no hash,
-    and "<" is escaped so the block can't be closed early."""
+    and "<" is escaped so the block can't be closed early. Row 1535: `prefs` (the data folder's kept preferences, a dict) go in a second
+    data block of their own at the top of the body, so the page can read them before any of its code runs; None leaves the page as it was."""
     boot = json.dumps({"token": TOKEN}).replace("<", "\\u003c")
     block = f'<script type="application/json" id="clark-boot">{boot}</script>'
     i = html.rfind("</body>")
     html = html[:i] + block + html[i:] if i >= 0 else html + block
+    if prefs is not None:
+        kept = json.dumps(prefs, sort_keys=True).replace("<", "\\u003c")
+        j = html.find("<body")
+        j = html.find(">", j) + 1 if j >= 0 else -1
+        if j > 0:
+            html = html[:j] + f'<script type="application/json" id="clark-prefs">{kept}</script>' + html[j:]
     return dev_marked(html) if os.environ.get("CLARK_DEV") == "1" else html
 
 
@@ -957,7 +964,7 @@ BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Pu
 PUBLISH_PATHS = ("/api/publish",)
 SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
               "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
-              "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
+              "/api/profile", "/api/preferences", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
               "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
 BUSY_LOCK = threading.Lock()
@@ -1074,7 +1081,7 @@ def page_route(handler):
         mark_here()
     given = parse_qs(urlsplit(handler.path).query).get("project") or [None]      # #944: GET /?project=<code> is the page in that project's brand
     code = given[0] if len(given) == 1 and given[0] and PROJECT_CODE.fullmatch(given[0]) else None
-    return handler.send(200, with_boot(page_for(handler.server.page_html, code)), "text/html")
+    return handler.send(200, with_boot(page_for(handler.server.page_html, code), kept_preferences(handler)), "text/html")
 
 
 def preview_page_route(handler):
@@ -1379,6 +1386,30 @@ def project_save_route(handler, req):
     return seam_route(handler, handler.server.project_save, req)
 
 
+def kept_preferences(handler):
+    """Row 1535: the preferences kept in the data folder, for the page to read as it opens; None when this server keeps none."""
+    seam = handler.server.preferences
+    if seam is None:
+        return None
+    try:
+        return seam.values()
+    except Exception:
+        return {}              # a file that can't be read never stops the page; it opens with the browser's own values
+
+
+def preferences_route(method):
+    """GET and POST /api/preferences (row 1535): hand the request to the server's `preferences` (preferences.Preferences), which answers
+    (status, body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the body limit). Nothing
+    the body holds is logged here."""
+    def route(handler, *req):
+        seam = handler.server.preferences
+        if seam is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(seam, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -1543,7 +1574,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
-              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
+              "/api/profile": profile_route("get"), "/api/preferences": preferences_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
@@ -1555,7 +1586,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/ask/open-source": ask_route("open_source"),     # #943
-                "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
+                "/api/profile": profile_route("save"), "/api/preferences": preferences_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
                 "/api/open-mail": mail_route,     # row 1297
                 "/api/update/review": update_route("review"),
@@ -1881,7 +1912,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, preferences=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
                  people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
         self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
@@ -1904,6 +1935,7 @@ class LocalServer(ThreadingHTTPServer):
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name, brand_id=None: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
+        self.preferences = preferences        # preferences.Preferences (row 1535): the browser preferences kept in the data folder; None: that route answers not found, the page is given none
         self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
         self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
@@ -1952,7 +1984,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, preferences=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
           people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
@@ -1962,7 +1994,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), SetupHandler if setup is not None else Handler, data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, preferences=preferences, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
                             people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)

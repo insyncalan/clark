@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_index, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_commands_service, ask_folders, ask_index, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, preferences, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -611,7 +611,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
-                     profile=who,
+                     profile=who, preferences=preferences.Preferences(store.path.parent),
                      draft_email=draft_seam,
                      draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who, subject_for=draft_email_feed.subject_of(draft_seam)),
                      milestones=milestone_feed.make_feed(store.data_for),

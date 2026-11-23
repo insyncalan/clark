@@ -3,3 +3,4 @@ export * as remember from "@src/logic/remember.js";
 export * as board from "@src/logic/board.js";
 export * as cols from "@src/logic/tableColumns.js";
 export * as client from "@src/clientView.js";
+export * as sync from "@src/stores/prefsSync.js";

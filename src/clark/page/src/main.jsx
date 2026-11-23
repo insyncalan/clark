@@ -1,3 +1,4 @@
+import "./stores/prefsSync.js";   // row 1535: first, so the preferences kept in the data folder are in the browser's store before anything reads it
 import { boot } from "./boot.jsx";
 import { EDIT } from "./edit/index.js";
 import { startApp } from "./app.js";

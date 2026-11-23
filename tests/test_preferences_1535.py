@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -28,7 +30,7 @@ CALL = re.compile(r"\b(?:recall|remember|forget)\(\s*(" + Q + r")([^\"'`]+)\1")
 DEFN = re.compile(r"\bconst\s+(?:\w*KEY|STORE|key|keyOf|keyFor)\b\s*=\s*(?:\([^)]*\)\s*=>\s*)?" + r"""(["'`])([^"'`]+)\1""")
 DEFN_CONCAT = re.compile(r"""const key = \(\) => "(askChats\.)" \+""")
 # Not preferences, or not a key: a prefix helper, and the one-time sentences in sessionStorage.
-SKIP_FILES = {"remember.js"}
+SKIP_FILES = {"remember.js", "prefsSync.js"}
 
 
 def norm(text):
@@ -122,7 +124,7 @@ const __m = %s; globalThis.window = { localStorage: { getItem: (k) => (k in __m 
 """
 
 
-def run_node(store, probe):
+def run_node(store, probe, prelude=None):
     """Run `probe` (JS using Q.board, Q.cols, Q.client, Q.remember) against a store; gives (result, store afterwards)."""
     node = shutil.which("node")
     if not node:
@@ -136,7 +138,7 @@ def run_node(store, probe):
             assert done.returncode == 0, done.stderr
             _BUNDLE["code"] = out.read_text(encoding="utf-8")
         script = Path(tmp) / "probe.js"
-        script.write_text(PRELUDE % json.dumps(store) + _BUNDLE["code"] + ";\nconst __r = (" + probe + ");\nconsole.log(JSON.stringify([__r, __m]));", encoding="utf-8")
+        script.write_text((prelude or PRELUDE % json.dumps(store)) + _BUNDLE["code"] + ";\nconst __r = (" + probe + ");\nconsole.log(JSON.stringify([__r, __m]));", encoding="utf-8")
         done = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
         result, after = json.loads(done.stdout)
@@ -220,6 +222,287 @@ class Migration1535(unittest.TestCase):
         self.assertEqual((r["st"]["view"], r["st"]["group"]), ("board", "owner"))
         self.assertIn("labels", r["other"])                 # a person who never set it gets the new default
         self.assertEqual(after, stored)                     # reading changes nothing
+
+
+# ===== Step 3 and step 6: the choices kept in the data folder (src/clark/preferences.py, stores/prefsSync.js) =====
+STORE_JS = """
+const mk = (init) => { const m = { ...init }; return { m, get length() { return Object.keys(m).length; }, key: (i) => Object.keys(m)[i] ?? null,
+  getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } }; };
+const blocked = () => { const f = () => { throw new Error("blocked"); }; return { get length() { f(); }, key: f, getItem: f, setItem: f, removeItem: f }; };
+"""
+CHOICES = {"clark.peekWidth": "512", "clark.askWidth": "640", "clark.work.v1": json.dumps({"P1": {"view": "board"}, "P2": {"view": "table"}}),
+           "clark.cols.show.work.P1": json.dumps(["item", "owner"]), "clark.cols.show.work.P2": json.dumps(["item", "due"]),
+           "clark.fviews": json.dumps({"P1": [{"id": "v1", "name": "Mine"}]}), "clark.askChats.P1": json.dumps([{"id": 1, "q": "Hello"}])}
+
+
+def iife(body):
+    """A probe: `body` (statements, ending in `return ...`) after the store helpers, as one expression."""
+    return "(() => {" + STORE_JS + body + "})()"
+
+
+class Folder1535(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        self.prefs = preferences.Preferences(self.dir)
+
+    def disk(self):
+        f = self.dir / preferences.FILE
+        return f.read_bytes() if f.exists() else None
+
+    def page_values(self, httpd=None):
+        """The values a page is given, read from the real page route of a server on a port of its own."""
+        import http.client
+        from clark import server as sv
+        own = httpd is None
+        httpd = httpd or sv.LocalServer((sv.HOST, 0), preferences=self.prefs)
+        if own:
+            threading.Thread(target=httpd.serve_forever, daemon=True).start()
+            self.addCleanup(lambda: (httpd.shutdown(), httpd.server_close()))
+        conn = http.client.HTTPConnection(sv.HOST, httpd.server_port, timeout=10)
+        try:
+            conn.request("GET", "/", headers={"Host": f"127.0.0.1:{httpd.server_port}"})
+            html = conn.getresponse().read().decode("utf-8")
+        finally:
+            conn.close()
+        m = re.search(r'<script type="application/json" id="clark-prefs">(.*?)</script>', html)
+        return httpd.server_port, (json.loads(m.group(1)) if m else None), html
+
+
+class DataFolder1535(Folder1535):
+    def test_new_port_browser_profile_keeps_choices(self):
+        """AP8: the choices of each project are in the data folder; a new port, a new browser and a new profile each start with an empty store and are given all of them."""
+        status, body = self.prefs.save({"set": CHOICES})
+        self.assertEqual(status, 200)
+        seen = []
+        for change in ("port", "browser", "profile"):
+            port, doc, _ = self.page_values()                        # a server on a port of its own, the same data folder
+            probe = iife("const s = mk({}); Q.sync.hydrate(s, %s); return s.m;" % json.dumps(doc["values"]))      # an empty store: the new browser or profile
+            got, _ = run_node({}, probe)
+            seen.append((port, got))
+            self.assertEqual(got, CHOICES, change)
+        self.assertEqual(len({p for p, _ in seen}), 3)
+        self.assertEqual(json.loads(seen[0][1]["clark.work.v1"])["P2"], {"view": "table"})       # each project keeps its own
+
+    def test_import_once_is_idempotent(self):
+        """AP9: the browser's old values go into the folder once; a second run (2 runs) changes 1 thing, then nothing."""
+        old = {"clark.peekWidth": "480", "clark.fviews": "[1]"}
+        probe = iife("const s = mk(%s); return [Q.sync.importBodies(s, {imported: false, values: {}}), Q.sync.importBodies(s, {imported: true, values: {}})];" % json.dumps(old))
+        (before, after), _ = run_node({}, probe)
+        self.assertEqual(before, [{"import": old}])
+        self.assertEqual(after, [])                        # the folder has taken them: the page offers nothing
+        self.assertEqual(self.prefs.save(before[0])[1]["values"], old)
+        first = self.disk()
+        self.assertEqual(self.prefs.save({"import": {"clark.peekWidth": "999"}})[1]["values"], old)      # a second offer changes nothing
+        self.assertEqual(self.disk(), first)
+        self.assertEqual(self.prefs.get()[1]["imported"], True)
+
+    def test_a_big_import_is_cut_into_requests_the_first_is_the_import_and_the_rest_are_sets(self):
+        """AP9 (edges): the browser's values are sent in requests under the server's limit; only the first is the one-time import."""
+        probe = iife("const s = mk({'clark.a': 'x'.repeat(600000), 'clark.b': 'y'.repeat(600000), 'clark.c': 'z'.repeat(2000000)}); "
+                     "return Q.sync.importBodies(s, {imported: false}).map((b) => [Object.keys(b)[0], Object.keys(Object.values(b)[0])]);")
+        r, _ = run_node({}, probe)
+        self.assertEqual(r, [["import", ["clark.a"]], ["set", ["clark.b"]]])      # the 2 MB value is left in the browser
+
+    def test_the_page_installs_the_sync_reads_the_folder_offers_the_browser_and_sends_each_later_change(self):
+        """AP8/AP9 (the page's own start): with the page's data blocks present, the folder's value is written into the store, the browser's other value is offered once,
+        and a later set and remove of a `clark.` key are sent (a key outside `clark.` and a reader's key are not); a refused send is tried again."""
+        prelude = """
+        const __m = {"clark.askWidth": "640", "other": "o"}; const __calls = []; const __timers = []; let __fail = true;
+        class Storage { getItem(k) { return k in __m ? __m[k] : null; } setItem(k, v) { __m[k] = String(v); } removeItem(k) { delete __m[k]; }
+          get length() { return Object.keys(__m).length; } key(i) { return Object.keys(__m)[i] ?? null; } }
+        const __ls = new Storage();
+        const __blocks = { "clark-prefs": JSON.stringify({ imported: false, values: { "clark.peekWidth": "300" } }), "clark-boot": JSON.stringify({ token: "T" }) };
+        globalThis.document = { readyState: "complete", getElementById: (id) => (id in __blocks ? { textContent: __blocks[id] } : null), addEventListener() {} };
+        globalThis.window = { document, Storage, localStorage: __ls, setTimeout: (f) => { __timers.push(f); return 1; }, addEventListener() {},
+          fetch: async (u, o) => { __calls.push(JSON.parse(o.body)); return { ok: !(__fail && "set" in JSON.parse(o.body)) }; } };
+        """
+        probe = """(async () => {
+          await new Promise((r) => setTimeout(r, 20));
+          const first = JSON.parse(JSON.stringify(__calls)); const peek = __m["clark.peekWidth"];
+          __ls.setItem("clark.x", "1"); __ls.setItem("other", "2"); __ls.setItem("clark.reader.name", "Pat"); __ls.setItem("clark.y", "2"); __ls.removeItem("clark.y");
+          __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));      // the send is refused
+          __fail = false; __ls.setItem("clark.z", "3");
+          __timers.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 20));
+          return { first, peek, later: __calls.slice(first.length) };
+        })()"""
+        import tempfile as _t
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        with _t.TemporaryDirectory() as tmp:
+            run_node({}, "0")      # builds the bundle
+            script = Path(tmp) / "probe.js"
+            script.write_text(prelude + _BUNDLE["code"] + ";\n(" + probe + ").then((r) => console.log(JSON.stringify(r)));", encoding="utf-8")
+            done = subprocess.run([node, str(script)], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+        r = json.loads(done.stdout)
+        self.assertEqual(r["peek"], "300")                                  # the folder's value is in the store
+        self.assertEqual(r["first"], [{"import": {"clark.askWidth": "640", "clark.peekWidth": "300"}}])      # the store is offered once (the server keeps the folder's own value for a key it has)
+        self.assertEqual(r["later"][0], {"set": {"clark.x": "1"}, "remove": ["clark.y"]})
+        self.assertEqual(r["later"][1], {"set": {"clark.x": "1", "clark.z": "3"}, "remove": ["clark.y"]})      # the refused send is kept and sent again with the newer change
+
+    def test_import_never_overwrites_a_kept_value_and_a_huge_value_stays_in_the_browser(self):
+        """AP9 (edges): a value already in the folder wins over the browser's on the one-time import; one over the limit is not taken."""
+        self.prefs.save({"set": {"clark.peekWidth": "300"}})
+        got = self.prefs.save({"import": {"clark.peekWidth": "999", "clark.askWidth": "640", "clark.big": "x" * (preferences.VALUE_MAX + 1)}})[1]["values"]
+        self.assertEqual(got, {"clark.peekWidth": "300", "clark.askWidth": "640"})
+
+    def test_backup_and_restore_keep_preferences(self):
+        """AP10: a backup puts preferences.json in the backups folder and the copy folder; a restore brings it back, never over a newer one."""
+        from test_store_migration import make_v1
+        from clark import backup, settings
+        db = make_v1(self.dir)
+        copy_to = Path(tempfile.mkdtemp(prefix="clark-test-copy-"))
+        self.addCleanup(shutil.rmtree, copy_to, True)
+        (self.dir / settings.FILE).write_text(json.dumps({"backup_copy_folder": str(copy_to)}), encoding="utf-8")
+        self.prefs.save({"set": CHOICES})
+        made = backup.make(db, self.dir / "backups", [], tag="daily")
+        for _ in range(100):
+            if (copy_to / preferences.FILE).exists():
+                break
+            time.sleep(0.05)
+        for place in (self.dir / "backups", copy_to):
+            self.assertEqual(json.loads((place / preferences.FILE).read_text(encoding="utf-8"))["values"], CHOICES, place)
+        kept = self.disk()
+        (self.dir / preferences.FILE).unlink()               # the data folder lost it
+        backup.restore_path(db, Path(made).name, self.dir / "backups", [])
+        self.assertEqual(self.disk(), (self.dir / "backups" / preferences.FILE).read_bytes())
+        self.assertEqual(json.loads(self.disk())["values"], CHOICES)
+        self.prefs.save({"set": {"clark.peekWidth": "700"}})  # a newer choice is never replaced by a restore
+        newer = self.disk()
+        backup.restore_path(db, Path(made).name, self.dir / "backups", [])
+        self.assertEqual(self.disk(), newer)
+        self.assertNotEqual(kept, newer)
+
+    def test_blocked_store_draws_defaults(self):
+        """AP11: with a blocked store nothing throws: nothing is hydrated, held or offered, and a change is simply not kept."""
+        probe = iife("""const s = blocked();
+          return [Q.sync.hydrate(s, {"clark.peekWidth": "9"}), Q.sync.held(s), Q.sync.importBodies(s, {imported: false})];""")
+        r, _ = run_node({}, probe)
+        self.assertEqual(r, [0, {}, []])
+        # the page's own reads and writes (remember.js) with a store that throws: the fallback comes back, no error
+        blocked_window = "globalThis.window.localStorage = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); }, removeItem() { throw new Error('x'); } };"
+        r2, _ = run_node({}, "(() => {" + blocked_window + "return [Q.remember.recall('peekWidth', 5), Q.remember.remember('peekWidth', 1), Q.board.readState('P1').view];})()")
+        self.assertEqual(r2[:2], [5, False])
+
+    def test_no_preference_content_leaves(self):
+        """AP12: no value is logged, sent to a server other than this one, put in a published file; only the live page is given them, and reader keys never go."""
+        import logging
+        secret = "SECRET-WIDTH-7731"
+        records = []
+        handler = logging.Handler()
+        handler.emit = lambda r: records.append(r.getMessage())
+        root = logging.getLogger()
+        old = root.level
+        root.addHandler(handler); root.setLevel(1)
+        try:
+            self.prefs.save({"set": {"clark.askWidth": secret}})
+            self.prefs.get()
+            self.prefs.save({"reset": True})
+            self.prefs.save({"set": {"clark.askWidth": secret}})
+            from test_store_migration import make_v1
+            from clark import backup
+            backup.make(make_v1(self.dir), self.dir / "backups", [], tag="daily")
+        finally:
+            root.removeHandler(handler); root.setLevel(old)
+        self.assertEqual([m for m in records if secret in m], [])
+        src = ROOT / "src" / "clark"
+        users = sorted(p.name for p in src.glob("*.py") if re.search(r"\bpreferences\.(?:Preferences|FILE|read|kept)|import preferences|, preferences,", p.read_text(encoding="utf-8")))
+        self.assertEqual(sorted(set(users) - {"__main__.py", "backup.py", "preferences.py", "server.py"}), [])      # not the publishers, the exports or the log
+        imports = sorted(p.name for p in PAGE.rglob("*.js*") if "prefsSync" in p.read_text(encoding="utf-8") and p.name != "prefsSync.js")
+        self.assertEqual(imports, ["Preferences.jsx", "main.jsx"])      # the live page only (Settings, and the first thing it loads); a published page (view.jsx) never loads it
+        _, doc, html = self.page_values()
+        self.assertIn(secret, json.dumps(doc))             # the live page is given its own values
+        reader = "(() => { const sent = []; const s = Q.sync.makeSender(async (b) => { sent.push(JSON.stringify(b)); return true; }, (f) => f()); s.note('clark.reader.name', 'Pat'); return sent; })()"
+        got, _ = run_node({}, reader)
+        self.assertEqual(got, [])                          # a reader key is never queued
+        self.assertEqual(self.prefs.save({"set": {"clark.reader.name": "Pat", "clark.x y": "no"}})[1]["values"], {"clark.askWidth": secret})
+        self.assertNotIn("clark.reader.name", json.dumps(got))
+
+    def test_reset_all_preferences_only(self):
+        """AP17 (the folder's half): a reset empties preferences.json and nothing else: the database and settings.json are the same bytes, and the old browser values are not taken back."""
+        import sqlite3
+        from test_store_migration import make_v1
+        db = make_v1(self.dir)
+        (self.dir / "settings.json").write_text('{"backups_kept": 21}\n', encoding="utf-8")
+        self.prefs.save({"set": CHOICES})
+
+        def rows():
+            con = sqlite3.connect(str(db))
+            try:
+                return {t: con.execute(f"SELECT * FROM {t}").fetchall() for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")}
+            finally:
+                con.close()
+        before, kept = rows(), (self.dir / "settings.json").read_bytes()
+        self.assertEqual(self.prefs.save({"reset": True}), (200, {"ok": True, "imported": True, "values": {}}))
+        self.assertEqual(rows(), before)
+        self.assertEqual((self.dir / "settings.json").read_bytes(), kept)
+        self.assertEqual(self.prefs.save({"import": CHOICES})[1]["values"], {})          # an old browser's values do not come back
+        self.assertEqual(self.prefs.save({"set": {"clark.peekWidth": "5"}})[1]["values"], {"clark.peekWidth": "5"})      # and a new choice is kept again
+
+    def test_tauri_new_port_keeps_preferences(self):
+        """AP19: 3 starts on 3 different ports of the same data folder each give the page the same preferences."""
+        self.prefs.save({"set": CHOICES})
+        ports, docs = set(), []
+        for _ in range(3):
+            port, doc, _ = self.page_values()
+            ports.add(port)
+            docs.append(doc)
+        self.assertEqual(len(ports), 3)
+        self.assertTrue(all(d == docs[0] and d["values"] == CHOICES for d in docs))
+
+    def test_new_container_keeps_preferences(self):
+        """AP20: a new container is a new process on the same data folder (/data, a bind mount): the folder, not the process, holds them."""
+        compose = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
+        self.assertIn("target: /data", compose)
+        self.assertIn("--data /data", compose)
+        self.prefs.save({"set": CHOICES})
+        self.assertEqual(preferences.Preferences(self.dir).get()[1]["values"], CHOICES)      # a second process reading the same folder
+
+
+class Route1535(Folder1535):
+    def setUp(self):
+        super().setUp()
+        import http.client
+        from clark import server as sv
+        self.sv, self.http = sv, http.client
+        self.httpd = sv.LocalServer((sv.HOST, 0), preferences=self.prefs)
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (self.httpd.shutdown(), self.httpd.server_close()))
+
+    def ask(self, method, body=None, token=True):
+        conn = self.http.HTTPConnection(self.sv.HOST, self.httpd.server_port, timeout=10)
+        try:
+            conn.putrequest(method, "/api/preferences", skip_host=True, skip_accept_encoding=True)
+            conn.putheader("Host", f"127.0.0.1:{self.httpd.server_port}")
+            if token:
+                conn.putheader(self.sv.TOKEN_HEADER, self.sv.TOKEN)
+            raw = json.dumps(body).encode() if body is not None else None
+            if raw is not None:
+                conn.putheader("Content-Type", "application/json")
+                conn.putheader("Content-Length", str(len(raw)))
+            conn.endheaders(raw)
+            r = conn.getresponse()
+            data = r.read()
+            return r.status, json.loads(data)
+        finally:
+            conn.close()
+
+    def test_get_and_post_need_the_token_and_keep_unknown_keys(self):
+        self.assertEqual(self.ask("GET", token=False)[0], 403)
+        self.assertEqual(self.ask("POST", {"set": {"clark.future.thing": "x"}}, token=False)[0], 403)
+        self.assertEqual(self.ask("POST", {"set": {"clark.future.thing": "x", "clark.peekWidth": "9"}})[0], 200)
+        self.assertEqual(self.ask("POST", {"remove": ["clark.peekWidth"]})[1]["values"], {"clark.future.thing": "x"})
+        self.assertEqual(self.ask("GET")[1]["values"], {"clark.future.thing": "x"})
+        self.assertEqual(self.ask("POST", {"set": [1]})[0], 400)
+        self.assertEqual(self.ask("POST", {})[0], 400)
+
+    def test_a_file_that_cannot_be_read_is_never_replaced(self):
+        (self.dir / preferences.FILE).write_text("{not json", encoding="utf-8")
+        self.assertEqual(self.ask("POST", {"set": {"clark.peekWidth": "9"}})[0], 400)
+        self.assertEqual(self.disk(), b"{not json")
 
 
 if __name__ == "__main__":
