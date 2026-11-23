@@ -79,6 +79,11 @@ console.log(JSON.stringify([err, typeof v, v.length > 100 ? "long:" + v.length :
                 self.assertIsNone(got[0], "never throws out of loadVersion")
                 self.assertEqual(got[2], want)
 
+    def test_a_failed_http_status_with_a_version_body_is_not_shown(self):
+        """/health answered 500 or 404 with a JSON body that carries a version string (a proxy or error page): r.ok is checked."""
+        got = self.one({"kind": "ok", "ok": False, "body": {"version": "evil-proxy-9.9"}})
+        self.assertEqual(got[2], "", "a non-2xx answer must not show a version")
+
     def test_health_is_read_without_a_cache_and_a_bad_body_is_asked_again(self):
         got = node_run(version_src() + """
 const seen = [], out = [];
@@ -293,6 +298,17 @@ class Hostile(Base):
             p.js("new Promise(r => setTimeout(r, 300))")
             self.assertEqual(p.js("window.__errs"), [])
             self.assertEqual(p.js("document.querySelectorAll('#word-export-dialog').length"), 1, "the box is open, once")
+
+    def test_modified_arrows_are_not_taken_by_the_pill(self):
+        """Alt+Left is the browser's Back, Ctrl+Home the page's top: a pill that chooses on them takes keys that are not its own."""
+        for name, key, vk, mod in (("alt-left", "ArrowLeft", 37, 1), ("ctrl-right", "ArrowRight", 39, 2), ("meta-left", "ArrowLeft", 37, 4), ("ctrl-home", "Home", 36, 2), ("ctrl-end", "End", 35, 2)):
+            with self.subTest(key=name), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_menu(p)
+                self.to_pill(p)
+                for kind in ("keyDown", "keyUp"):
+                    cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk, "modifiers": mod}, p.sid)
+                self.assertIsNone(p.js("localStorage.getItem('clark.appearance')"), name + " chose a radio")
 
 
 class CardsHostile(Base):

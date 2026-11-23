@@ -139,6 +139,7 @@ function groupedItems(items, menuId) {
 // previous radio, wrapping, and choose it (the menu stays open); Home and End choose the first or the last radio of the pill (ticket AP6); a click chooses it and closes the menu, as the three rows did.
 function pillRadio(it, stop, close, onPick) {
   const move = (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;   // Alt+Left is the browser's Back, Ctrl+Home the page's top: not the pill's keys, so no choice and no preventDefault
     const k = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, edge = e.key === "Home" ? 0 : e.key === "End" ? -1 : null;
     if (!k && edge === null) return;
     const all = [...e.currentTarget.parentNode.querySelectorAll(".pr")], to = edge !== null ? all.at(edge) : all[(all.indexOf(e.currentTarget) + k + all.length) % all.length];

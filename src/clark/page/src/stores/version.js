@@ -10,6 +10,7 @@ export async function loadVersion() {
   asked = true;
   try {
     const r = await fetch("/health", { cache: "no-store" });
+    if (r.ok === false) { asked = false; return; }   // a 404 or 500 (a proxy or error page) may carry a JSON body with a version: show none
     const b = await r.json();
     if (b && typeof b.version === "string") version.value = b.version;
     else asked = false;
