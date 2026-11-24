@@ -175,6 +175,7 @@ class Fix(AiBase):
     def damage(self, content=OLD):
         (self.d / "ask-commands").mkdir(exist_ok=True)
         (self.d / "ask-commands" / "monday.json").write_bytes(content)
+        (self.d / "ask-commands" / "monday.old").unlink(missing_ok=True)      # a second pass in one test starts with no kept copy
         self.s.httpd.ask_commands.change({"scope": "all", "action": "save", "record": {**GOOD, "name": "other"}})
 
     def test_an_unreadable_file_shows_needs_a_fix_and_the_button_at_1400_and_900(self):
@@ -207,16 +208,17 @@ class Fix(AiBase):
                 (self.d / "ask-commands" / "monday.old").unlink()
 
     def test_undo_restores_the_old_file_byte_for_byte(self):
-        with chrome() as cdp:
-            self.damage()
-            js = self.settings_at(cdp, 1400)
-            self.until(js, "!!document.querySelector('[data-slash-fix]')", "the button")
-            js("document.querySelector('[data-slash-fix]').click()")
-            self.until(js, "!!document.querySelector('.toasts [data-undo]')", "Undo")
-            self.assertNotEqual((self.d / "ask-commands" / "monday.json").read_bytes(), OLD)
-            js("document.querySelector('.toasts [data-undo]').click()")
-            self.until(js, "!!document.querySelector('[data-slash-damaged]')", "the pill is back")
-            self.assertEqual((self.d / "ask-commands" / "monday.json").read_bytes(), OLD)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.damage()
+                js = self.settings_at(cdp, width)
+                self.until(js, "!!document.querySelector('[data-slash-fix]')", "the button")
+                js("document.querySelector('[data-slash-fix]').click()")
+                self.until(js, "!!document.querySelector('.toasts [data-undo]')", "Undo")
+                self.assertNotEqual((self.d / "ask-commands" / "monday.json").read_bytes(), OLD)
+                js("document.querySelector('.toasts [data-undo]').click()")
+                self.until(js, "!!document.querySelector('[data-slash-damaged]')", "the pill is back")
+                self.assertEqual((self.d / "ask-commands" / "monday.json").read_bytes(), OLD)
 
     def test_a_failed_fix_has_its_line_and_changes_nothing(self):
         self.damage(GARBAGE)
@@ -233,14 +235,15 @@ class Fix(AiBase):
 
     def test_the_button_works_with_the_ai_switch_off(self):
         self.s.httpd.app_settings.change_ask({"enabled": False})
-        with chrome() as cdp:
-            self.damage()
-            js = self.settings_at(cdp, 1400)
-            self.until(js, "!!document.querySelector('[data-slash-fix]')", "the button")
-            self.assertEqual(js("document.querySelector('[data-slash-fix]').disabled"), False)
-            js("document.querySelector('[data-slash-fix]').click()")
-            self.until(js, "!document.querySelector('[data-slash-damaged]')", "fixed")
-            self.assertEqual(len(self.provider.requests), 0)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.damage()
+                js = self.settings_at(cdp, width)
+                self.until(js, "!!document.querySelector('[data-slash-fix]')", "the button")
+                self.assertEqual(js("document.querySelector('[data-slash-fix]').disabled"), False)
+                js("document.querySelector('[data-slash-fix]').click()")
+                self.until(js, "!document.querySelector('[data-slash-damaged]')", "fixed")
+                self.assertEqual(len(self.provider.requests), 0)
 
 
 if __name__ == "__main__":
