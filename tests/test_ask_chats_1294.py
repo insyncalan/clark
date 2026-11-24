@@ -172,6 +172,43 @@ class Drop(Base):
             self.assertEqual(ids[0], "When is go-live?")
             self.assertEqual(ids[1:], [f"q{i}" for i in range(15, 6, -1)], "the oldest went")
 
+    def test_thirty_chats_are_kept_per_project_and_a_move_keeps_the_open_chat(self):
+        """Row 1578 AP1 (parent 1292 AP5): 30 chats kept for each project (the 31st oldest goes), another project's chats are not touched, and a move to it and back keeps the chat that was open."""
+        from _demo import USER
+        with self.store.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.opened(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                seed = lambda code, n: p.js(f"localStorage.setItem('clark.askChats.{code}', {json.dumps(json.dumps([CHAT(i) for i in range(n, 0, -1)]))})")  # noqa: E731
+                seed("ABC", 30)
+                seed("XYZ", 2)
+                self.ask(p, "When is go-live?")
+                p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+                p.until("JSON.parse(localStorage.getItem('clark.askChats.ABC')).length === 30 && JSON.parse(localStorage.getItem('clark.askChats.ABC'))[0].title === 'When is go-live?'", "the new chat is first and 30 are kept")
+                titles = json.loads(p.js("JSON.stringify(JSON.parse(localStorage.getItem('clark.askChats.ABC')).map(c => c.title))"))
+                self.assertEqual(len(titles), 30)
+                self.assertNotIn("q1", titles, "the oldest of the 31 went")
+                self.assertIn("q2", titles, "the second oldest stays")
+                self.assertEqual(len(json.loads(p.js("localStorage.getItem('clark.askChats.XYZ')"))), 2, "another project's chats stay")
+                p.js("location.hash = '#dashboard&p=XYZ'")
+                p.until("location.hash.indexOf('p=XYZ') >= 0", "on XYZ")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until("location.hash.indexOf('p=ABC') >= 0", "back on ABC")
+                p.until("!!document.querySelector('[data-id]')", "the page is drawn")
+                if not p.js("!!document.querySelector('#ask-panel')"):
+                    p.key("/", code="Slash", vk=191)
+                    p.until("!!document.querySelector('#ask-panel')", "the panel opened again")
+                p.until("!document.querySelector('#ask-send').disabled", "ready")
+                p.js("document.querySelector('#ask-history').click()")
+                p.until("document.querySelectorAll('#ask-hist .ask-hist-open').length === 30", "the list shows the 30 chats of this project")
+                self.assertEqual(p.js("document.querySelector('#ask-hist .ask-hist-title').textContent"), "When is go-live?", "the chat that was open is kept, newest first")
+                p.js("document.querySelector('#ask-hist .ask-hist-open').click()")
+                p.until("document.querySelectorAll('.ask-turn').length === 2", "the kept chat opens with its 2 turns")
+                self.assertEqual(len(json.loads(p.js("localStorage.getItem('clark.askChats.ABC')"))), 30)
+                self.assertEqual(len(json.loads(p.js("localStorage.getItem('clark.askChats.XYZ')"))), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

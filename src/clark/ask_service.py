@@ -63,7 +63,7 @@ APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
 MAX_REPLIES = 20
 PASSAGE_SHOWN = 600        # characters of a source passage shown beside a change that came from it
-PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
+PROJECT_SHARE = ask.BUDGET // 2      # characters of the budget the project's own data may take (row 1508: half of it, 600,000 on main); the folders get the rest
 
 
 class Started(threading.Event):
@@ -328,7 +328,7 @@ class AskService:
         try:
             room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders) and not any(v not in (None, "", "[]", []) for v in cut_subs.values()):
-                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)      # the index knows no left-out subfolder: with one set, the folders are read directly
+                found = ask_index.folder_data(self.data_dir, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), budget_left - used, room)      # the index knows no left-out subfolder: with one set, the folders are read directly; a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
                 found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
@@ -336,7 +336,7 @@ class AskService:
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
                                         today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
-                                        max_request=ask.request_cap(window))
+                                        max_request=ask.request_cap(window), files=len(added))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -364,7 +364,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
                              *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened

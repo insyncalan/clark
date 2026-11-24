@@ -250,6 +250,29 @@ class EditInThePage(Base):
                 for ref in (self.full, self.empty):
                     self.assertTrue(p.js(f"[...document.querySelectorAll('{self.sel(ref, 'textarea')}')].every(t => t.getBoundingClientRect().right <= document.querySelector('{self.sel(ref)}').getBoundingClientRect().right + 1)"), "fields inside the section")
 
+    def test_the_half_card_is_half_of_the_full_width_at_1400_and_equals_full_at_900(self):
+        """Row 1261 AP5 (PM ruling 23-11): the half card is half of the full width at 1400 (604 of 1232 as built) and equals full at 900; the ticket's 493 px was the prototype's measure."""
+        def width(cdp, w, ref):
+            p = self.page(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"]')", "drew")
+            return p, p.js(f"document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect().width")
+        got = {}
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p, got[w, "full"] = width(cdp, w, self.full)
+                self.assertTrue(p.js(f"document.querySelector('[data-id=\"{self.full}\"]').classList.contains('slot-full')"), "full: in slot-full")
+        with self.store.step("dashboard", USER) as st:
+            st.update("report_sections", self.full, {"beside": 1})
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p, got[w, "half"] = width(cdp, w, self.full)
+                self.assertTrue(p.js(f"document.querySelector('[data-id=\"{self.full}\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{self.empty}\"]').classList.contains('slot-right')"), "half: slot-left beside slot-right")
+        self.assertAlmostEqual(got[1400, "half"], 604, delta=1)
+        self.assertAlmostEqual(got[1400, "full"], 1232, delta=1)
+        self.assertLess(got[1400, "half"], 0.55 * got[1400, "full"])
+        self.assertAlmostEqual(got[900, "half"], got[900, "full"], delta=1)
+
 
 if __name__ == "__main__":
     unittest.main()

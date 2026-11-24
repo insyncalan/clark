@@ -8,6 +8,7 @@ import { AiCard } from "./AiCard.jsx";
 import { aiClient } from "./aiShared.js";
 import { menu, OPTIONS } from "../logic/aiMenu.js";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const DRAFT_WITH_AI = "Draft with AI";
 
@@ -18,7 +19,13 @@ export function AiMenuList({ place, text, onPick, onClose, boxRef = null, floati
   const m = menu(place), own = useRef(null), box = boxRef || own;
   useEffect(() => { const b = box.current && box.current.querySelector("button"); if (b) b.focus(); }, []);
   if (!m) return null;
-  const item = (o) => (
+  // Row 1288 (Classic, "5B"): one line per item, its description as the browser's own tooltip (title), a small icon in the group's colour (Improve purple, Structure green, Ask amber).
+  const classic = classicTheme();
+  const item = (o, kind = "structure") => classic ? (
+    <button key={o.id} type="button" role="menuitem" class="aim-opt" data-ai-option={o.id} title={o.line} onClick={() => onPick(o.id)}>
+      <Icon name={kind === "ask" ? "pencil" : kind === "improve" ? "sparkle" : "bars"} cls={`aim-ic aim-ic-${kind}`} /><span class="aim-nm">{o.name}</span>
+    </button>
+  ) : (
     <button key={o.id} type="button" role="menuitem" class="aim-opt" data-ai-option={o.id} onClick={() => onPick(o.id)}>
       <span class="aim-nm">{o.name}</span><span class="aim-ds">{o.line}</span>
     </button>
@@ -33,9 +40,9 @@ export function AiMenuList({ place, text, onPick, onClose, boxRef = null, floati
   };
   return (
     <div class={`aim${floating ? " aim-float" : ""}`} role="menu" aria-label={DRAFT_WITH_AI} data-ai-menu ref={box} onKeyDown={key}>
-      {m.format_notes && lines(text) >= 2 ? <>{item(m.format_notes)}<hr /></> : null}
-      {m.groups.map((g, i) => <div key={g.label} role="group" aria-label={g.label}>{i ? <hr /> : null}<div class="aim-gl" aria-hidden="true">{g.label}</div>{g.items.map(item)}</div>)}
-      <hr />{item(m.ask)}
+      {m.format_notes && lines(text) >= 2 ? <>{item(m.format_notes, "structure")}<hr /></> : null}
+      {m.groups.map((g, i) => <div key={g.label} role="group" aria-label={g.label}>{i ? <hr /> : null}<div class="aim-gl" aria-hidden="true">{g.label}</div>{g.items.map((o) => item(o, g.label === "Improve" ? "improve" : "structure"))}</div>)}
+      <hr />{item(m.ask, "ask")}
     </div>
   );
 }

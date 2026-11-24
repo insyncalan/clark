@@ -401,7 +401,7 @@ class Words(unittest.TestCase):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
         self.assertTrue(files)
         for f in files:
-            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "")     # the header's name is the server's, not text
+            text = re.sub(r"X-Clark-(Token|Project|Section|File-Name)", "", f.read_text(encoding="utf-8"))     # the headers' names are the server's, not text
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
@@ -411,7 +411,7 @@ class Words(unittest.TestCase):
         words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #225 and
         #318, after a colon or semicolon."""
         starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
-        headings = ("Version and updates", "clark version and updates")                                   # a heading in Help's list of Settings entries, not a sentence
+        headings = ("Version and updates", "clark version and updates", "clark ver. ")                  # headings in Help's list of Settings entries, not sentences; and the Help line's version label, in the words the ticket gives for it (row 1281), not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
         self.assertTrue(files)
