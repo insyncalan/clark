@@ -280,13 +280,13 @@ class ChooseNeedMatch(unittest.TestCase):
         from clark import ask_data
         got, left = ask_data.choose(self.passages(), "the tank and ABC-R-12", need_match=True)
         self.assertEqual([p.label for p in got], ["a", "c"])
-        self.assertEqual(left, 1)
+        self.assertEqual(left, 0, "b shares no word with the question: that is not a passage left out for size")
 
     def test_need_match_with_no_words_keeps_none(self):
         from clark import ask_data
         for q in ("", None, "?? ab"):
             got, left = ask_data.choose(self.passages(), q, need_match=True)
-            self.assertEqual((got, left), ((), 3), q)
+            self.assertEqual((got, left), ((), 0), q)
 
     def test_default_still_keeps_every_passage_that_fits(self):
         from clark import ask_data

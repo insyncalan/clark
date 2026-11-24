@@ -138,7 +138,8 @@ def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     else:
         pos = list(range(len(pairs)))
     keep, _left = ask.choose([pairs[i] for i in pos], question, budget, len(passages) if limit is None else limit)
-    return tuple(passages[pos[i]] for i in keep), len(passages) - len(keep)
+    # left out = only what was dropped for size or the limit: a passage that merely shares no word with the question is not "left out" (the person would be told the report was too long)
+    return tuple(passages[pos[i]] for i in keep), len(pos) - len(keep)
 
 
 def state_of(kind, row, today):

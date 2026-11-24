@@ -70,7 +70,9 @@ class WhatIsRead(Folders):
         self.assertIn("ZQ-TANK", self.text_of(self.run_it("when is the zebrafish tank cleaned")), "control: a matching question sends it")
         for question in ("milestones", "?? !!", ""):
             got = self.run_it(question)
-            self.assertEqual((got.passages, got.left_out), ((), 1), question)
+            self.assertEqual((got.passages, got.left_out), ((), 0), question)
+            from clark import ask_service
+            self.assertEqual(ask_service.left_out_note(got.left_out), "", "nothing was too long, so the person is told nothing of the kind: " + repr(question))
 
     def test_a_file_outside_the_saved_folder_is_never_read(self):
         self.put(self.other, "outside.txt", "ZQ-OUTSIDE")
@@ -232,8 +234,8 @@ class ASecretAcrossAChunk(Folders):
 class TheBudget(Folders):
     def test_the_budget_holds_and_the_rest_is_counted(self):
         for i in range(30):
-            self.put(self.box, f"f{i:02d}.txt", ("word%d " % i) * 600)         # about 3,500 characters each
-        got = self.run_it("word5")
+            self.put(self.box, f"f{i:02d}.txt", ("word%d shared " % i) * 600)         # about 3,500 characters each; every one shares a word with the question, so what is left out is left out for size (row 1366: a passage that merely does not match is not counted)
+        got = self.run_it("shared word5")
         self.assertLessEqual(sum(len(p.text) for p in got.passages), ask.BUDGET)
         self.assertGreater(got.left_out, 0)
         self.assertIn("word5", self.text_of(got))
