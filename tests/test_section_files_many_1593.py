@@ -15,6 +15,7 @@ import unittest
 from urllib.parse import quote
 
 import test_section_file_route as base
+from test_server import chrome  # noqa: F401  (this file builds on a browser test module, so the tier test files it as a browser-tier file by this import)
 from clark import publish_flow, section_files, to_client
 from clark.section_kinds import doclinks
 from _demo import USER

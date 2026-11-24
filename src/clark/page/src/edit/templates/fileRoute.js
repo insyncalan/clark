@@ -58,7 +58,7 @@ const lineFor = (name, text) => (text.startsWith(`${name}: `) ? text : `${name}:
 // Row 1275 and 1593: files dropped on the Documents and links area. `drop` is the browser's DataTransfer. A folder in the drop refuses
 // the whole drop with nothing sent. One file: one POST of its raw bytes (the same token header as every write; the project, the section
 // and the URL-encoded name in headers), the same toast and Undo as the file window's. Several files: each is checked on its own and sent
-// in its own request (25 MB stays per file) with X-Clark-Hold, which copies it and adds nothing; then ONE commit request adds every held
+// in its own request (25 MB stays per file) with x-clark-hold, which copies it and adds nothing; then ONE commit request adds every held
 // file in one step, so there is one toast and one Undo. A refused file has its own problem line. Resolves to "added" or "refused".
 export async function dropFile(id, drop) {
   const list = Array.from((drop && drop.files) || []);
@@ -81,7 +81,7 @@ async function sendBytes(id, file, hold) {
     const r = await zoneFetch("/api/section-file-drop", {
       method: "POST", cache: "no-store",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/octet-stream", "X-Clark-Project": code, "X-Clark-Section": id,
-                 "X-Clark-File-Name": encodeURIComponent(file.name), ...(hold ? { "X-Clark-Hold": "1" } : {}) },
+                 "X-Clark-File-Name": encodeURIComponent(file.name), ...(hold ? { "x-clark-hold": "1" } : {}) },
       body: bytes,
     });
     status = r.status;
@@ -120,7 +120,7 @@ async function dropMany(id, list) {
       const r = await zoneFetch("/api/section-file-drop", {
         method: "POST", cache: "no-store",
         headers: { "X-Clark-Token": token(), "Content-Type": "application/octet-stream", "X-Clark-Project": code, "X-Clark-Section": id,
-                   "X-Clark-Commit": encodeURIComponent(JSON.stringify(held)) },
+                   "x-clark-commit": encodeURIComponent(JSON.stringify(held)) },
         body: new ArrayBuffer(0),
       });
       status = r.status;
