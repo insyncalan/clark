@@ -44,6 +44,7 @@ from clark import people as people_rules
 from clark import store as clark_store
 from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
+from clark.section_kinds import doclinks as section_kind_doclinks
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
@@ -453,6 +454,11 @@ def _checked_item_changes(fields, blank_clears=()):
         if isinstance(latest, str) and "\r" in latest:             # as before: a carriage return is a hidden character in a latest update (a milestone's description folds it into a line break)
             raise Refused(LATEST_HIDDEN_WORDS)
         latest = _rich_field(latest, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
+    wording = fields.get("client_message")                          # row 1288: the Full editor's HTML, stored cleaned as the latest update is; plain text from any other caller is checked below as it always was
+    sent_wording = isinstance(wording, str) and bool(sanitise.HTML_START.match(wording))
+    if sent_wording:
+        del fields["client_message"]
+        wording = _rich_field(wording, ITEM_TITLE_MAX, ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
@@ -464,6 +470,8 @@ def _checked_item_changes(fields, blank_clears=()):
     out.update(cleared)
     if sent_latest:
         out["latest_update"] = latest
+    if sent_wording:
+        out["client_message"] = wording or ""                       # no words in it: cleared, as a blank is
     return {**out, **flag}
 
 
@@ -2521,7 +2529,7 @@ DOC_FIELD_NAMES = {"title": "title", "kind": "kind", "url": "link", "date": "dat
 MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a milestone is called by its id in an Undo's words
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
-MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "client wording",
+MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "Client Message",
                          "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
@@ -2599,7 +2607,7 @@ def _field_words(entry, name):
     if f == "client_action" and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the Needed from the client of {name} is back as it was"     # row 811: the switch's own label; no value said
     if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
-        return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
+        return f"the Client Message of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the {ITEM_FIELD_NAMES[f]} of {name} is back to {to}" if to else f"the {ITEM_FIELD_NAMES[f]} of {name} is cleared again"
     if f == "client_visible":                                       # #67: the picker's Add also showed the row to the client
@@ -3102,6 +3110,12 @@ def _do_section_file(store, by_user, req):
     stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
     the type's checker like any other body write, so the store's rules are the same as a save from the page."""
     project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    entries = req.get("entries")                    # row 1593: several files in ONE step (one apply_id, so one Undo); `entry` is the one-file form
+    if entries is not None:
+        if not isinstance(entries, list) or not entries:
+            raise Refused(NO_FILE_HERE)
+    else:
+        entries = [entry]
     if not isinstance(project, str) or store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     if clark_store.is_archived(store.con, project):
@@ -3114,13 +3128,25 @@ def _do_section_file(store, by_user, req):
         if kind is None:
             raise Refused(NO_FILE_HERE)
         text = _section_body(row, row.get("body") or "")
-        try:
-            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
-        except section_bodies.Bad as e:
-            raise Refused(str(e)) from None
+        value = json.loads(text) if text else None
+        added, left_out = [], []
+        for e in entries:
+            try:
+                value = section_bodies.TEMPLATES[kind].add_file(value, e)
+                added.append(e)
+            except section_bodies.Bad as err:
+                if len(entries) > 1 and str(err) == section_kind_doclinks.TOO_MANY:        # the files that fit are added in order, the rest are named
+                    left_out.append(e)
+                    continue
+                raise Refused(str(err)) from None
+        if not added:
+            raise Refused(section_kind_doclinks.TOO_MANY)
         st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    reply = {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    if req.get("entries") is not None:
+        reply.update({"added": added, "left_out": [e["name"] for e in left_out]})
+    return 200, reply
 
 
 def make_section_file(path, onedrive_roots=None, by_user=None):

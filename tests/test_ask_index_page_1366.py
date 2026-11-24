@@ -98,6 +98,29 @@ class Page(Fixture):
                     self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, q, look))
                     self.assertEqual(look["color"], muted, (w, q))
 
+    def test_status_line_tokens_light_and_dark(self):
+        """Row 1366 AP10: the line is 13px (--size-caption), weight 400, --text-muted, margin-top 2px, in light and dark, at both widths, with no bar, spinner or graphic."""
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        probe = ("(() => { const p = document.createElement('p'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); "
+                 "const c = getComputedStyle(p).color; p.remove(); return c; })()")
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, "!!document.querySelector('#ask-folders .ask-folder-line') && document.querySelector('#ask-folders .ask-folder-line').innerText.startsWith('100% indexed')", "indexed")
+            seen = set()
+            for mode in ("light", "dark"):
+                js(f"document.documentElement.dataset.theme = {mode!r}")
+                muted = js(probe)
+                seen.add(muted)
+                for w in WIDTHS:
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {mode} {w}")
+                    look = js(self.LOOK % "#ask-folders .ask-folder-line")
+                    self.assertEqual((look["size"], look["weight"], look["mt"], look["below"]), ("13px", "400", "2px", True), (mode, w, look))
+                    self.assertEqual(look["color"], muted, (mode, w))
+                    self.assertFalse(js("!!document.querySelector('#ask-folders li progress, #ask-folders li [role=progressbar], #ask-folders li svg, #ask-folders li canvas')"), (mode, w))
+            self.assertEqual(len(seen), 2, "light and dark muted colours differ, so the pin is not vacuous")
+
     def test_a_picture_the_computer_cannot_read_has_its_line_and_reason_at_both_widths(self):
         (self.own / "p.png").write_bytes(b"x")
         (self.own / "q.jpg").write_bytes(b"x")
@@ -127,7 +150,7 @@ class Page(Fixture):
             self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexing… 0%'", "reading")
             self.until(js, LIVE + " === 'Indexing started'", "said at the start")
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 1 of 1 projects'", "indexed (row 1371: the All projects tab counts projects)")
             self.until(js, LIVE + " === '100% indexed'", "said when done")
 
     def test_the_line_in_the_all_projects_card_reads_reading_then_indexed_and_goes_with_its_folder(self):
@@ -144,11 +167,99 @@ class Page(Fixture):
                 look = js(self.LOOK % "#ask-all-folder-list .ask-folder-line")
                 self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", None, None, True), (w, look))
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === '100% indexed'", "indexed (asked again within 2 s polls)")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 1 of 1 projects'", "indexed (asked again within 2 s polls)")
             self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-live').textContent === '100% indexed'", "said at 100%")
             js("document.querySelector('[data-ask-all-remove]').click()")
             self.until(js, "!!document.querySelector('#ask-all-folders-none')", "removed with its line")
             self.assertFalse(js("!!document.querySelector('#ask-all-folders .ask-folder-line')"))
+
+
+class FiveStates(Fixture):
+    """Row 1371 AP10 to AP15: the five states the server reports, drawn under a folder in the project card and the All projects card,
+    at 1400 and 900, light and dark. The server's answer is set here; the page reads it and does not invent it."""
+
+    def serve(self, state, **more):
+        path = str(self.own)
+        self.svc.change({"project": "ABC", "action": "add", "path": path})
+        self.assertTrue(self.ix.wait_idle(10))
+        self.ix.status_for = lambda code, folders: {path: {"state": state, "line": "server text, not shown", **more}}
+        self.svc.reindex = mock.Mock()
+        return path
+
+    def check(self, cdp, js, sel, text, link=None, again=None):
+        for mode in ("light", "dark"):
+            js(f"document.documentElement.dataset.theme = {mode!r}")
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.until(js, f"document.querySelector({sel!r}).innerText === {text!r}", f"{mode} {w}")
+                self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll {mode} {w}")
+        names = js(f"[...document.querySelectorAll({sel!r} + ' button')].map(b => b.innerText)")
+        self.assertEqual(names, [link] if link else [])
+        if link:
+            js(f"document.querySelector({sel!r} + ' button').click()")
+            self.assertTrue(wait(lambda: self.svc.reindex.call_count == 1, 10), "one press calls reindex")
+            self.assertEqual(self.svc.reindex.call_count, 1)
+
+    def run_state(self, state, text, link=None, tab="project", **more):
+        self.serve(state, **more)
+        with chrome() as cdp:
+            js = self.show(cdp, tab)
+            self.check(cdp, js, "#ask-folders .ask-folder-line", text, link)
+
+    def test_a_folder_not_started_says_waiting_to_index(self):
+        self.run_state("waiting", "Waiting to index")
+
+    def test_a_change_found_says_updating_n_files_changed(self):
+        self.run_state("updating", "Updating\u2026 1 file changed", changed=1)
+
+    def test_a_paused_folder_says_it_carries_on_when_clark_is_open(self):
+        self.run_state("paused", "Indexing paused. It carries on when clark is open")
+
+    def test_failed_says_could_not_index_and_try_again_starts_the_read(self):
+        self.run_state("failed", "Could not index this folder. Try again", "Try again")
+
+    def test_cleared_says_not_indexed_and_index_again_starts_the_read(self):
+        self.run_state("cleared", "Not indexed. Index again", "Index again")
+
+    def test_three_files_changed_is_plural(self):
+        self.run_state("updating", "Updating\u2026 3 files changed", changed=3)
+
+    def test_the_all_projects_tab_says_indexed_for_n_of_n_projects(self):
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.assertTrue(self.ix.wait_idle(10))
+        path = str(self.shared)
+        self.svc.indexed_counts = lambda folders: {path: [3, 3]}
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            self.check(cdp, js, "#ask-all-folder-list .ask-folder-line", "Indexed for 3 of 3 projects")
+            self.assertEqual(js("document.querySelector('#ask-all-folder-list .ask-folder-live').textContent"), "100% indexed")
+            self.assertNotIn("100% indexed", js("document.querySelector('#ask-all-folder-list .ask-folder-line').innerText"))
+        self.svc.indexed_counts = lambda folders: {path: [2, 3]}
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 2 of 3 projects'", "2 of 3")
+            self.assertNotIn("100% indexed", js("document.querySelector('#ask-all-folder-list .ask-folder-line').innerText"))
+
+    def test_a_project_tab_keeps_100_percent_indexed_for_its_own_and_an_all_projects_folder(self):
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        self.svc.indexed_counts = lambda folders: {str(self.shared): [3, 3]}
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, "document.querySelectorAll('.ask-folder-line').length === 2", "two lines")
+            self.until(js, "[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('100% indexed'))", "100% indexed")
+            self.assertFalse(js("[...document.querySelectorAll('.ask-folder-line')].some(e => e.innerText.includes('Indexed for'))"))
+
+    def test_the_all_projects_tab_failed_link_asks_for_the_read_again(self):
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.assertTrue(self.ix.wait_idle(10))
+        path = str(self.shared)
+        self.ix.status_for = lambda code, folders: {path: {"state": "failed", "line": "x"}}
+        self.svc.reindex = mock.Mock()
+        with chrome() as cdp:
+            js = self.show(cdp, "all")
+            self.check(cdp, js, "#ask-all-folder-list .ask-folder-line", "Could not index this folder. Try again", "Try again")
 
 
 class Wired(unittest.TestCase):
@@ -156,10 +267,10 @@ class Wired(unittest.TestCase):
     SRC = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/AskSettings.jsx").read_text(encoding="utf-8")
 
     def test_the_card_uses_the_note_words_and_a_quiet_line(self):
-        self.assertIn('import { announce, LINKS } from "./indexNote.js";', self.SRC)
+        self.assertIn('import { announce, LINKS, note, projectsNote } from "./indexNote.js";', self.SRC)
         self.assertIn(">{LINKS.why}</button>", self.SRC)
         self.assertIn('<div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div>', self.SRC)
-        self.assertIn('<div class="ask-folder-line">{line ? line.line : ""}', self.SRC)
+        self.assertIn('<div class="ask-folder-line">{n.text}', self.SRC)
         self.assertNotIn("Show the files left out", self.SRC)
 
 

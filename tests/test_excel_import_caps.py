@@ -369,7 +369,7 @@ class RealRoute(unittest.TestCase):
         ws = wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
         row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.a1)
-        ws.cell(row, head["Description"]).value = "Draft the cut-over plan, version two"
+        ws.cell(row, head["Title"]).value = "Draft the cut-over plan, version two"
         wb.save(str(self.path))
         declare_shared_strings(self.path, "a short text")
 

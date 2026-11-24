@@ -2,7 +2,7 @@
 // unless the section says left. Its Edit part is edit/templates/TextImage.jsx; its rules and what it publishes are
 // src/clark/section_kinds/textimage.py. View: the old lines as text nodes, the rich words as cleaned html only (never the stored string); the picture through safe.js.
 // isEmpty(section, data): true (no words and no picture) leaves the section out of the served View and the published file.
-import { contentOf, Figure, lineOf, linesOf, picturesOf } from "./pictures.jsx";
+import { contentOf, Figure, lineOf, captionOf, linesOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
 import { CleanProse } from "../components/CleanProse.jsx";
 import { classicTheme } from "../components/Contents.jsx";
@@ -32,7 +32,7 @@ export function shown(v, clean) {
   if (!image && !words.length && !html) return null;
   const c = { words, side: v.side === "left" ? "left" : "right" };
   if (html) c.html = html;
-  if (image) Object.assign(c, { image, caption: lineOf(v.caption), alt: lineOf(v.alt) });
+  if (image) Object.assign(c, { image, caption: captionOf(v.caption), alt: lineOf(v.alt) });
   if (v.v === 2) {
     c.sbs = 1;
     if (v.half === "bottom") c.half = "bottom";   // the server stores and publishes `half` (textimage.py), so the View reads `half`
