@@ -234,7 +234,9 @@ class Workflow(unittest.TestCase):
         mac = self.jobs["macos"]
         self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "6") for i in range(1, 7)})
         self.assertRegex(mac, r"runs-on: macos-latest")
-        self.assertIn('python-version: "3.x"', mac)
+        self.assertIn('python-version: "3.14.10"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
+        self.assertNotIn('python-version: "3.x"', mac)
+        self.assertNotIn('python-version: "3.x"', self.jobs["macos-smoke"])
         self.assertNotIn("--quick", mac)
         self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the Sunday run
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
@@ -242,6 +244,11 @@ class Workflow(unittest.TestCase):
         self.assertIn("fail-fast: false", mac)
         self.assertIn("SHARD: ${{ matrix.shard }}", mac)
         self.assertIn("SHARDS: ${{ matrix.shards }}", mac)
+        # T2: the classes are summarised even when the job is cancelled at the cap, and kept as an artifact
+        self.assertIn("--summarize", mac)
+        self.assertIn("--job-status", mac)
+        self.assertIn("if: ${{ always() }}", mac)
+        self.assertIn("actions/upload-artifact@", mac)
 
     def test_chrome_is_found_as_creaite_finds_it(self):
         for job in ("tests", "tests-py39", "macos"):

@@ -74,7 +74,7 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
     def test_every_file_in_exactly_one_shard_for_1_to_6(self):
         files = everything()
         self.assertGreater(len(files), 5)
-        for n in (1, 2, 3, 4, 5, 6):   # 6 = Ubuntu 3.x, 3 = macOS (tests.yml)
+        for n in (1, 2, 3, 4, 5, 6, 9):   # 6 = Ubuntu 3.x wide, 9 = macOS (tests.yml)
             self.check(files, n)
 
     def test_the_quick_tier_too(self):
@@ -164,6 +164,72 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         weights = run_tests.shard_weights()
         self.assertEqual(len(lines), len(weights), "a line of shard_times.txt does not read as 'name seconds'")
         self.assertTrue(all(w > 0 for w in weights.values()), "a listed file has no time")
+
+
+class FakeRunner:
+    """A runner that answers from a script: {file name: [exit code of the first run, of the run alone]}."""
+    def __init__(self, script):
+        self.script, self.calls = script, []
+
+    def run(self, f):
+        name = Path(f).name
+        self.calls.append(name)
+        code = self.script[name].pop(0)
+        return f, code, 0.1, "" if code == 0 else "AssertionError: boom\n"
+
+
+class Classes(unittest.TestCase):
+    """T2: retry a failed file once and classify it FLAKE (passed alone), DEFECT (failed twice) or SIZING (cancelled at the cap)."""
+
+    def test_classify(self):
+        self.assertEqual(run_tests.classify(0), "PASS")
+        self.assertEqual(run_tests.classify(1, 0), "FLAKE")
+        self.assertEqual(run_tests.classify(1, 1), "DEFECT")
+        self.assertEqual(run_tests.classify(run_tests.TIMED_OUT, 1), "DEFECT")
+        self.assertEqual(run_tests.classify(1), "DEFECT")          # not re-run (more than --rerun-max failed): red
+
+    def rerun(self, script):
+        runner = FakeRunner(script)
+        failed = [(n, "x") for n in script]
+        with mock.patch.object(run_tests, "log_flaky"), redirect_stdout(io.StringIO()):
+            still, alone = run_tests.rerun_alone(failed, runner, 15)
+        return still, alone, runner
+
+    def test_flaky_file_passes_on_the_retry_and_is_not_red(self):
+        still, alone, runner = self.rerun({"test_a.py": [0]})
+        self.assertEqual((still, [n for n, _, _ in alone]), ([], ["test_a.py"]))
+        self.assertEqual(runner.calls, ["test_a.py"])             # re-run once, alone
+
+    def test_defect_fails_twice_and_stays_red(self):
+        still, alone, runner = self.rerun({"test_b.py": [1]})
+        self.assertEqual(([n for n, _ in still], alone), (["test_b.py"], []))
+        self.assertEqual(runner.calls, ["test_b.py"])             # once, not more
+
+    def test_results_file_and_summary(self):
+        doc = run_tests.results_doc(10, ["test_b.py"], {"test_a.py": 2}, True)
+        self.assertEqual(doc["counts"], {"DEFECT": 1, "FLAKE": 1, "SIZING": 0})
+        text = run_tests.summarize(doc, "failure")
+        self.assertIn("DEFECT 1 | FLAKE 1 | SIZING 0", text)
+        self.assertIn("test_a.py", text)
+        self.assertIn("x2", text)
+
+    def test_cancelled_before_the_end_is_sizing_never_failed(self):
+        doc = run_tests.results_doc(300, [], {}, False)
+        text = run_tests.summarize(doc, "cancelled")
+        self.assertIn("SIZING 1", text)
+        self.assertIn("not a failed test", text)
+        self.assertIn("SIZING 0", run_tests.summarize(run_tests.results_doc(300, [], {}, True), "cancelled"))   # ended: not sizing
+        self.assertIn("DEFECT 0 | FLAKE 0 | SIZING 0", run_tests.summarize(doc, "failure"))     # failed, not cancelled
+
+    def test_run_all_writes_the_results_json(self):
+        d = folder({"test_ok_x.py": PASSES, "test_bad_x.py": FAILS})
+        out = BASE / "res.json"
+        with mock.patch.object(run_tests, "TESTS", d), mock.patch.object(run_tests, "FLAKY", d / "f.jsonl"), \
+                mock.patch.object(run_tests, "TIMES", d / "t.txt"), mock.patch.object(run_tests, "LAST", d / "l.txt", create=True), \
+                redirect_stdout(io.StringIO()):
+            code = run_tests.run_all([d / "test_ok_x.py", d / "test_bad_x.py"], 2, results=str(out))
+        doc = json.loads(out.read_text())
+        self.assertEqual((code, doc["complete"], doc["defects"], doc["counts"]["FLAKE"]), (1, True, ["test_bad_x.py"], 0))
 
 
 class ShardArgument(unittest.TestCase):
