@@ -2,7 +2,7 @@
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
 Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder,
-Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
+ask clark (a link that opens the All projects tab). The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 import test_settings_head
@@ -11,7 +11,7 @@ from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "Asking on or off"]
+NAMES = ["Your name", "Appearance", "Spacing", "Motion", "Single-key slash commands", "Backups", "Publishing folder", "ask clark"]
 ROWS = """[...document.querySelectorAll('#essentials .set-row')].map(r => r.querySelector('.set-row-text label').textContent)"""
 
 
@@ -120,24 +120,29 @@ class Essentials(test_settings_head.Head):
                     p.until("!!document.querySelector('#ess-safety-copy-said p.success')", "the copy folder saved from Essentials")
                     # Publishing folder: Choose folder is there (the project is open)
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-choose-local]')"))
-                    # Asking: the switch is the same one as in Asking
-                    p.until("!document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready")
-                    was = p.js("document.querySelector('[data-ess-ask]').getAttribute('aria-pressed')")
-                    self.to_page(p, "claude")
-                    p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
-                    self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
-                    reads = p.js("window.__askReads || 0")
+                    # ask clark: no switch here any more (row 1294); the one row opens the All projects tab of the ask clark page
+                    self.assertFalse(p.js("!!document.querySelector('[data-ess-ask]') || /Asking on or off/.test(document.getElementById('essentials').textContent)"), "no asking switch on Essentials")
+                    p.js("document.querySelector('[data-ess-ask-open]').click()")
+                    p.until("!!document.querySelector('[data-ask-tab=all][aria-current=true]') && !!document.querySelector('#ai-settings')", "the link opened the All projects tab of ask clark")
                     self.to_page(p, "profile")
-                    # the row first draws with the answer the Asking card left, enabled, and only then asks again (an effect after the paint): wait for that read to be made and answered,
-                    # or the click lands on the old state and a newer read can overtake it
-                    p.until(f"(window.__askReads || 0) > {reads} && !!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled && !/Checking/.test(document.getElementById('ess-ask-line').textContent)", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
-                    p.js("document.querySelector('[data-ess-ask]').click()")
-                    p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
-                    self.to_page(p, "claude")
-                    p.until(f"document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials shows in Asking")
                     self.to_page(p, "profile")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('[id]')].map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i)"), [], "no id is on the page twice")
+
+    def test_1294_the_ask_clark_row_is_a_link_to_the_all_projects_tab_in_the_approved_words(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.settings(cdp, w, "light")
+                self.assertEqual(p.js("document.querySelector('#ess-ask').closest('.set-row').querySelector('.set-row-text label').textContent"), "ask clark")
+                self.assertEqual(p.js("document.getElementById('ess-ask-line').textContent"), "Connections, model, folders, instructions and slash commands for every project")
+                self.assertEqual(p.js("document.querySelector('[data-ess-ask-open]').textContent"), "Open All projects")
+                self.assertEqual(p.js("document.querySelectorAll('#essentials [aria-pressed]').length"), 0, "no on/off switch for asking here")
+                self.assertTrue(p.js("(() => { const r = document.querySelector('[data-ess-ask-open]').getBoundingClientRect(); return r.width > 0 && r.right <= window.innerWidth; })()"), f"the link is inside the page at {w}")
+                self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), f"no sideways scroll at {w}")
+                p.js("document.querySelector('[data-ess-ask-open]').click()")
+                p.until("(document.querySelector('.set-chip[aria-current]') || {}).textContent === 'Claude and AI' && !!document.querySelector('[data-ask-tab=all][aria-current=true]') && !!document.querySelector('#ai-settings')",
+                        "the link opens the ask clark page on its All projects tab")
+                self.assertFalse(p.js("!!document.querySelector('[data-ask-switch]')"), "the project's own parts are not shown: it is the All projects tab")
 
     def test_S3_motion_follows_the_computers_reduced_motion_setting_until_it_is_chosen(self):
         # (system asks to reduce?, remembered value, switch shown on?, page reduced?)
