@@ -62,6 +62,32 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); }
 :root[data-theme=dark] .pk-last { color: rgb(154, 169, 189); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); } :root[data-theme=auto] .pk-last { color: rgb(154, 169, 189); } }
+/* Row 1288, "/" menu 4C: panel radius 12, padding 4, min 180; filter box 1px 3px 4px, 5px 9px, radius 8, 13px; rows 4px 10px, gap 10, 13.5px; rule margin 3px 0. */
+.rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
+.rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
+.rt-slash .rt-slash-filter { margin: 1px 3px 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); min-height: 1lh; }
+.rt-slash .rt-slash-filter:empty::before { content: attr(data-ph); }
+.rt-slash .rt-slash-rule { margin: 3px 0; border: 0; border-top: 1px solid var(--line-soft); }
+/* Row 1288, tight menus (Classic only): buttons 34 high; float panels radius 12, padding 4, rows 4px 10px at 13.5px. */
+.rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
+.rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
+.rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
+/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
+.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
+.rt-bar .rt-more { min-width: 40px; gap: 2px; }
+/* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
+.rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+.rt-bubble { gap: 6px; }
+:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
+:is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
+.rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
+.rt-bubble .rt-bubble-ai { font-size: 13px; }
 /* Row 1046 (Classic only; Cards draws no bell): the notices bell, left of search; the popup is a non-modal dialog under it. The bell is drawn only when the Classic theme layer is on (TopBar.jsx), so these rules are in the theme and not in the shell. */
 .bell-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
 .tb-bell { position: relative; }
@@ -181,6 +207,9 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .pp-flat h1 { margin: var(--space-4) 0 var(--space-2); }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
+/* Row 1275 (Classic only): the drop area on a Documents and links section in Edit, as docs-approved.html lines 18 and 99 draw .drop and .drop.over: a 1.5px dashed box, 12px radius, 14px padding, text centred, 10px above it; while a file is over it the border and text are the blue token and the fill the tint token. */
+.tpl-drop { border: 1.5px dashed var(--grey-200); border-radius: 12px; padding: 14px; text-align: center; color: var(--text-muted); margin-top: 10px; }
+.tpl-drop.over { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--brand-blue); }
 /* Row 1271 (Quote template, look F as the approved mock-up draws it, Classic only; the Cards look keeps shell.css and draws each quote as its own grey panel, one name, role line). Measured from the mock-up's own rules (quote-approved.html, the F rules): panel padding --space-5, the display mark 64px bold in --font-head (line height .8, a 30px box), the words in --font-head at --size-h3, line height 1.45, weight 400, at most 62ch wide, the 32 x 2 rule above the name, the name in small capitals (uppercase, .07em apart), the role in --size-caption. Bare lengths with no token: 64px, 30px, 62ch, 32px, 2px, 1px, .07em, 1.45, .8, 2 x 1.4em + 12px, the 6px and 10px box padding, the 200px field minimum. */
 .tpl-quotes { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--space-2) 0; }
 .tpl-quotes[data-per-row="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }

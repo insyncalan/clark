@@ -56,7 +56,25 @@ WRAP = """import sys, resource
 sys.path.insert(0, sys.argv[1])
 import pdf_reader_child as c
 limit = int(sys.argv[2])
-c._limits = lambda cpu=15: resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+def _limits(cpu=15):
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ValueError, OSError):
+        # macOS refuses RLIMIT_AS (the child's own comment says so): stand in for the OS by failing an inflate that outgrows `limit`, as an exhausted address space does
+        import zlib
+        real = zlib.decompressobj
+        class Capped:
+            def __init__(self, *a):
+                self.d = real(*a)
+            def decompress(self, data, *a, **k):
+                out = self.d.decompress(data, *a, **k)
+                if len(out) > limit // 20:
+                    raise MemoryError
+                return out
+            def __getattr__(self, name):
+                return getattr(self.d, name)
+        zlib.decompressobj = Capped
+c._limits = _limits
 c.main([sys.argv[0]] + sys.argv[3:])
 """
 
