@@ -35,6 +35,16 @@ def set_theme(cdp, p, scheme):
 
 
 class Nav(Base):
+    def settled(self, p, what):
+        """Wait for the page to be at rest by a condition, not a pause: no entry still flashing (hp-found), and the scroll position and the page height unchanged
+        over several animation frames. Help's own scroll to a place and to the top run from effects that can land a frame or more late on a slow machine
+        (Help.jsx:266-276); a test that scrolls away before they ran is scrolled back by them."""
+        p.js("(function(){ if (window.__rest) window.__rest.stop = true; var s = window.__rest = {y: -1, h: -1, n: 0, stop: false};"
+             " function f(){ if (s.stop) return; var y = window.scrollY, h = document.documentElement.scrollHeight;"
+             " if (y === s.y && h === s.h) s.n++; else { s.y = y; s.h = h; s.n = 0; } requestAnimationFrame(f); } requestAnimationFrame(f); })()")
+        p.until("window.__rest.n >= 5 && !document.querySelector('.hp-found')", what)
+        p.js("window.__rest.stop = true")
+
     def in_help(self, cdp, tab=None):
         p = self.visit(cdp)
         p.js("try { localStorage.removeItem('clark.helpTab'); } catch (e) {}")
@@ -102,6 +112,7 @@ class Nav(Base):
                 set_theme(cdp, p, scheme)
                 for w in SIZES:
                     set_size(cdp, p, w)
+                    self.settled(p, f"{scheme} {w}: the page is at rest")
                     p.js("window.scrollTo(0, 0)")
                     p.until("window.scrollY === 0", "at the top")
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
@@ -134,6 +145,7 @@ class Nav(Base):
             p.js(f"document.querySelector('.hp-idx a[data-hlink={target}]').click()")
             p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink === {json.dumps(target)}", "a click marks its link")
             p.until(f"!!document.querySelector('#hp-{target}.hp-found')", "and opens its entry")
+            self.settled(p, "the page is at rest after the click: its scroll to the entry is done and the flash is over")
             # scroll down first, so the page is surely away from the top and the next scroll to the top is a real scroll event
             p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
             p.until("window.scrollY > 0", "scrolled away from the top")
