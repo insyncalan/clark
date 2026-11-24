@@ -183,7 +183,7 @@ class Logic(unittest.TestCase):
 
     def test_columns_menu_order_matches_table(self):
         menu = source("edit", "ColumnsMenu.jsx")
-        self.assertIn("const ordered = ordering ? inOrder(drawn, savedOrder(co, type)) : drawn;", menu)
+        self.assertIn("const ordered = shownOrder(ordering, drawn, co, type);", menu)
         self.assertIn("return { shown: ordered,", menu)                                                    # the table draws `ordered` ...
         self.assertIn("ordered.map((id) => defsOf(table).find", menu)                                      # ... and the menu lists the same list, the hidden columns after
         self.assertEqual(menu.count("{listed."), 2, "both menus (Classic and Cards) list the columns in the table's order")

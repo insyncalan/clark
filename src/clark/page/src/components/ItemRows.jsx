@@ -93,8 +93,8 @@ export function ItemIcon({ row, pill, plain, today }) {
 
 // Row 1534 (AP5): the columns in the order saved for this type on the Work items page, or the standard order. `ord` is true when the order is not the standard one: the list then
 // carries data-ord and --cols-ord (the widths in that order), and each cell its standard place (--s), which the narrow layouts use to keep the standard look (shell.css).
-export function columnsFor(type, id) {
-  const d = data.value, list = dashboardOrder(d && d.project ? d.project.column_orders : null, type, id), std = DASH_STD.filter((c) => id || c !== "id");
+export function columnsFor(type, id, classic = classicTheme()) {      // Classic only: Cards (no Theme layer) always draws the standard order
+  const d = data.value, list = dashboardOrder(d && d.project ? d.project.column_orders : null, type, id, classic), std = DASH_STD.filter((c) => id || c !== "id");
   const ord = !list.every((c, i) => c === std[i]);
   return { list, ord, attrs: ord ? { "data-ord": "", style: `--cols-ord:${list.map((c) => (c === "title" ? "minmax(0, 1fr)" : `var(--w-${c})`)).join(" ")}` } : {} };
 }

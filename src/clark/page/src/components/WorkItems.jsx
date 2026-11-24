@@ -26,7 +26,7 @@ import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
 import { sortRows, liveWindow, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS, labelsText } from "../workItems.js";
-import { defsOf, standardIds, inOrder, savedOrder } from "../logic/tableColumns.js";
+import { defsOf, standardIds, shownOrder } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
@@ -143,8 +143,8 @@ function useRowMotion(lay) {
 
 // Row 1222: the columns beyond the five a table always had. Each is plain text from the row; a column with nothing to say is a muted dash.
 const STD = standardIds("work").filter((id) => id !== "id"), isStd = (id) => STD.includes(id);   // #1195: the Id is on by default in the page clark serves (the column menu) and drawn as an extra cell, its own blue column; a published file keeps its columns without it
-// Row 1534: a published file (and the page when no menu is drawn) takes the order saved with the project for the type switch; "All" keeps the standard order.
-const publishedOrder = (type) => { const d = data.value; return inOrder(STD, savedOrder(d && d.project ? d.project.column_orders : null, type)); };
+// Row 1534: a published file (and the page when no menu is drawn) takes the order saved with the project for the type switch (Classic only; Cards keeps the standard order); "All" keeps the standard order.
+const publishedOrder = (type) => { const d = data.value; return shownOrder(classicTheme(), STD, d && d.project ? d.project.column_orders : null, type); };
 const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label || id;
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,

@@ -100,6 +100,8 @@ export function inOrder(shown, saved) {
   const named = (saved || []).filter((id, i, a) => rest.includes(id) && a.indexOf(id) === i);
   return lead.concat(named, rest.filter((id) => !named.includes(id)));
 }
+/** `shown` in the order saved for `type`: only in the Classic look (`classic`); Cards (false) gets `shown` back as it is. */
+export const shownOrder = (classic, shown, columnOrders, type) => (classic ? inOrder(shown, savedOrder(columnOrders, type)) : shown);
 /** The ids after moving `id` one place (delta -1 or +1) or in front of `beforeId` (delta null; beforeId null = the end). The Status and the Item do not move and nothing goes in front of them; null when nothing changes. */
 export function moveColumn(ids, id, delta, beforeId = null) {
   const fixed = (x) => x === "status" || x === "item", first = ids.filter(fixed).length, at = ids.indexOf(id);
@@ -125,8 +127,8 @@ export function withOrder(columnOrders, type, ids) {
 // so a saved order that names the id loses it there; a column the saved order does not name keeps its standard place after the named ones.
 export const DASH_STD = ["ico", "title", "owner", "date", "prio", "id"];
 const DASH_TYPE = { raid: "risk", actions: "action", decisions: "decision" }, DASH_OF = { owner: "owner", due: "date", prio: "prio", id: "id" };
-export function dashboardOrder(columnOrders, sectionType, withId) {
+export function dashboardOrder(columnOrders, sectionType, withId, classic = true) {      // `classic`: the saved order is a Classic look feature; Cards (false) always draws the standard order
   const tail = DASH_STD.slice(2).filter((x) => withId || x !== "id");
-  const named = savedOrder(columnOrders, DASH_TYPE[sectionType]).map((x) => DASH_OF[x]).filter((x, i, a) => x && tail.includes(x) && a.indexOf(x) === i);
+  const named = (classic ? savedOrder(columnOrders, DASH_TYPE[sectionType]) : []).map((x) => DASH_OF[x]).filter((x, i, a) => x && tail.includes(x) && a.indexOf(x) === i);
   return DASH_STD.slice(0, 2).concat(named, tail.filter((x) => !named.includes(x)));
 }
