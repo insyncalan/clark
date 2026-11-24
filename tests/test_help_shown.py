@@ -268,7 +268,6 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
@@ -488,7 +487,7 @@ class HelpWordsMatchScreen(unittest.TestCase):
     def test_move_to_lists(self):
         self.assertIn("head: classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)      # Cards keeps the help words; Classic holds the card id (row 1273)
         self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
-        self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
+        self.assertTrue(any("choose from the **Move to** lists: first the columns, then the lanes." in s for s in ALL))
         self.assertFalse(any("**Move to…**" in s for s in ALL))
 
     def test_add_menu_words(self):

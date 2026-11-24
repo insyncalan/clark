@@ -4,7 +4,7 @@ import { workSelection } from "./stores/selection.js";
 import { data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
 import { markChanged, changed, useClock } from "./stores/changed.js";
 import { welcomeHeld } from "./stores/profile.js";
-import { openImport } from "./edit/wordState.js";
+import { openImport, openExport } from "./edit/wordState.js";
 import { closeAfter, CLOSE_MS } from "./edit/publishState.js";
 import { openContext, toggleContext, closeContext, contextOpen, useContextText } from "./help/helpStore.js";
 
@@ -19,7 +19,10 @@ export function install(tools) {
   const peekHelp = Object.freeze({ open: openContext, toggle: toggleContext, close: closeContext, isOpen: () => contextOpen.value, useText: useContextText });
   const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
   window.clarkPage = Object.freeze({ show, setQuery, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
+    refreshed: () => tools.notices.refreshed(),            // row 1046: the tests raise the "Database refreshed" toast as clark will
+    pushNotices: (list) => tools.notices.push(list),      // row 1046: the tests push notices as clark will
     markChanged, changed: () => changed.value.slice(), useClock,
+    openWordExport: () => openExport(),      // row 1281: the profile menu has no Export to Word; Settings › Data and the Publish box are the ways in
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },
     withoutBoard: () => { tools.Board = undefined; data.value = { ...data.value }; },      // row 1084: the filter line drawn as it is where there is no board

@@ -9,9 +9,9 @@ import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { classicTheme } from "../components/Contents.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { aiClient } from "./aiShared.js";
 
 const BAR = [
@@ -19,6 +19,11 @@ const BAR = [
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
+// Row 1288 (Classic only, Cards keeps its own toolbar and words): Quote and Divider share one drop-down ("1C"), the bubble ends with Ask AI..., the "/" menu ends with Ask AI... and its filter box says Filter blocks...
+const MORE = [["quote", "Quote"], ["rule", "Divider"]];
+export const ASK_AI = "Ask AI\u2026";
+const MORE_WORDS = "More blocks: Quote, Divider";
+const FILTER_WORDS = "Filter blocks\u2026";
 const BUBBLE_ALL = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", "Font colour"], ["link", "Link", "Link"]];
 // Row 1364: font colour. Words are exactly these (logged in NEW-WORDS.md); the names are also the tooltip and the aria-label of each swatch.
 const COLOUR_WORDS = [["grey", "Grey"], ["brand", "Brand"], ["red", "Red"], ["amber", "Amber"], ["green", "Green"], ["blue", "Blue"]];
@@ -106,6 +111,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const [aiAt, setAiAt] = useState(null);                   // the AI menu over a selection: { x, y, text, from, to } or null
   const aiBox = useRef(null), aiOpen = useRef(false);
   const slashRef = useRef(null); slashRef.current = slash;
+  const askRef = useRef(null); askRef.current = () => askFromSlash();
+  const classic = classicTheme();
+  const askLine = () => !!ai && classicTheme();               // the "/" menu's foot line (Classic only, and only where the field has an AI place)
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
   const props = useRef({}); props.current = { onSave, onClose };
 
@@ -144,6 +152,21 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     setSlash(null);
   };
 
+  // Row 1288 (Classic, "4C"): the "Ask AI..." line at the foot of the "/" menu opens the same AI menu as the right-click. It takes the field's own text
+  // (the "/" words left out) and, on Accept, the suggestion replaces the "/" words.
+  const askFromSlash = async () => {
+    const s = slashRef.current;
+    if (!s || !ai || !ed.current) return;
+    const made = ed.current, doc = made.editor.state.doc;
+    const text = `${doc.textBetween(0, s.from, "\n", "\n")}\n${doc.textBetween(s.to, doc.content.size, "\n", "\n")}`.trim();
+    const r = slashBox.current.getBoundingClientRect();
+    aiOpen.current = true;
+    await aiClient().refresh();
+    setSlash(null);
+    if (ed.current !== made || made.editor.state.doc !== doc) { aiOpen.current = false; return; }       // the field or its words changed while the status was asked: s.from and s.to no longer mean this "/"
+    setAiAt({ x: r.left + r.width / 2, y: r.bottom + 4, text, from: s.from, to: s.to });
+  };
+
   useLayoutEffect(() => {
     const keyHook = (e) => {
       const s = slashRef.current;
@@ -153,10 +176,11 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : s.items.length - 1)) % s.items.length });
+        const n = s.items.length + (askLine() ? 1 : 0);
+        setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : n - 1)) % n });
         return true;
       }
-      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); chooseSlash(s.items[s.at][0]); return true; }
+      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); if (s.at >= s.items.length) askRef.current(); else chooseSlash(s.items[s.at][0]); return true; }
       if (e.key === "Escape") { e.preventDefault(); setSlash(null); return true; }
       return false;
     };
@@ -269,15 +293,21 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   };
   const noColour = !classicTheme();
   const BUBBLE = BUBBLE_ALL.filter((b) => !(noColour && b[0] === "colour"));      // row 1364: the font colour is Classic only; Cards has no palette CSS and keeps its bar as it was
-  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b) => !(noColour && b[0] === "colour")).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
-  const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
+  const more = ["quote", "rule"].filter((n) => !oneLine && classic && n);
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR.filter((b) => !(classic && (b[0] === "quote" || b[0] === "rule")))).filter((b) => !(noColour && b[0] === "colour")).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
+  const moreIdx = bar.findIndex((b) => b !== "|" && b[0] === "checklist") + 1;
+ const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
+  // Row 1288: the style menu is the toolbar's first button and, in Classic, the bubble's first button (the mock-up's 3D): one menu, drawn twice.
+  const styleMenu = (btnCls) => <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls={btnCls} left
+    items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />;
 
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away} onContextMenu={onContext} onKeyDown={onKeyAi}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
-        {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {!oneLine && styleMenu("rt-btn rt-style")}
+        {bar.map((b, i) => [b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b),
+          more.length && i + 1 === moreIdx ? <Menu key="more" label="❝" ariaLabel={MORE_WORDS} tip={MORE_WORDS} btnCls="rt-btn rt-more"
+            items={MORE.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} /> : null])}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -290,15 +320,18 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
-        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{classic ? styleMenu("rt-btn rt-style rt-bubble-style") : null}{BUBBLE.map(button)}
+        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{classic ? ASK_AI : DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
+          {classic ? <div class="rt-slash-filter" data-rt-slash-filter data-ph={FILTER_WORDS}>{slash.query}</div> : null}
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
               onMouseDown={hold} onClick={() => chooseSlash(n)}><Icon name={SLASH_ICON[n] || "tline"} cls="mi" />{w}</button>
           ))}
+          {askLine() ? <><hr class="rt-slash-rule" /><button type="button" role="option" aria-selected={slash.at >= slash.items.length ? "true" : "false"} class={`rt-opt rt-ask${slash.at >= slash.items.length ? " on" : ""}`}
+            onMouseDown={hold} onClick={askFromSlash}>{ASK_AI}</button></> : null}
         </Fade>
       ) : null}
     </div>
