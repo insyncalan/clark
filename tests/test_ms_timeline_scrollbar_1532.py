@@ -6,6 +6,7 @@ Chrome at 1400 and 900 px. The rule is in rules-2.css before the Row 1314 block;
 import re
 import unittest
 
+import test_server  # noqa: F401  (marks this file as a browser test for the tiers)
 from _paths import SRC
 import test_ms_timeline_classic_1315 as B
 from test_ms_timeline_classic_1315 import Base

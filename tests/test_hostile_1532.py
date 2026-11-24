@@ -1,6 +1,8 @@
 """Hostile tests, Row 1532: the Classic Milestones timeline hides its bar but must still scroll by real keys, wheel and Earlier/Later; Cards keeps its bar."""
 import unittest
 
+import test_server  # noqa: F401  (marks this file as a browser test for the tiers)
+
 from test_ms_timeline_classic_1315 import Base
 
 LEFT = "document.querySelector('.mv-wrap').scrollLeft"
