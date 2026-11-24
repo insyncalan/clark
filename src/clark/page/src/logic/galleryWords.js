@@ -23,7 +23,7 @@ export const WORDS = {
   addTile: "Add an image",
   full: "A gallery holds up to six images. Remove one to add another.",
   tooBig: (mb = FILE_MB) => `That file is too big. Choose one under ${mb} MB.`,
-  partial: (added, files) => `Added ${added} of the ${files} files.${added > 1 ? " A gallery holds up to six images." : ""}`,
+  partial: (added, files, full) => `Added ${added} of the ${files} files.${full ? " A gallery holds up to six images." : ""}`,   // the second sentence only when the gallery is now full
   count: (n) => `${n} of ${MOST_IMAGES} images. Each is made smaller to keep the file light (up to ${WIDTH_MAX.toLocaleString("en-GB")} px wide). The published page carries only the part you see in each tile.`,
   tile: (n) => `Image ${n}`,
   describe: (n) => `Selected image ${n}: describe it`,

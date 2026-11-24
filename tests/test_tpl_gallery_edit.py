@@ -35,6 +35,7 @@ window.png = (w, h, name) => new Promise(r => { const c = document.createElement
 window.give = async (files) => { const dt = new DataTransfer(); files.forEach(f => dt.items.add(f));
   const i = document.querySelector('input[type=file]'); i.files = dt.files; i.dispatchEvent(new Event('change', { bubbles: true })); return true; };
 window.add = async (n, w, h) => { const files = []; for (let k = 0; k < n; k++) files.push(await window.png(w || 200, h || 150, 'f' + k + '.png')); return window.give(files); };
+window.mixed = async () => window.give([new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' }), await window.png(200, 150, 'ok.png')]);
 window.big = () => window.give([new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' })]);
 window.cs = (sel, props) => { const e = document.querySelector(sel); const k = getComputedStyle(e); return props.map(p => k[p]); };
 """
@@ -242,7 +243,11 @@ class Adding(Page):        # the file picker, the drop, the refusals
         self.mount(many(5))
         self.val("add(3)", True)
         self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
-        self.assertEqual(self.toast_text(), "Added 1 of the 3 files.")
+        self.assertEqual(self.toast_text(), "Added 1 of the 3 files. A gallery holds up to six images.", "the gallery is now full")
+        self.mount(many(2))
+        self.val("mixed()", True)
+        self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
+        self.assertEqual(self.toast_text(), "Added 1 of the 2 files.", "not full: no second sentence")
 
     def test_a_file_over_10_mb_is_refused_with_the_ruled_words(self):
         self.mount("")
@@ -308,7 +313,7 @@ class ApprovedWords(Page):     # every approved string of the Edit page, charact
         self.mount(many(5))
         self.val("add(5)", True)
         self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
-        self.assertEqual(self.toast_text(), "Added 1 of the 5 files.", "one added: no second sentence")
+        self.assertEqual(self.toast_text(), "Added 1 of the 5 files. A gallery holds up to six images.", "full after one: the second sentence")
 
     def test_the_field_words_name_the_selected_image_by_its_number(self):
         self.mount(many(3))

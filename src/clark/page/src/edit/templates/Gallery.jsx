@@ -87,7 +87,7 @@ function Tiles({ section }) {
         last = r; added++;
         if (added === 1 && !shown.length) setPick(free[0]);
       }
-      if (added && files.length > added) say("done", W.partial(added, files.length), last && last.apply_id);
+      if (added && files.length > added) say("done", W.partial(added, files.length, added === free.length), last && last.apply_id);
     } finally { setBusy(false); }
   }
   const choose = () => input.current && input.current.click();
