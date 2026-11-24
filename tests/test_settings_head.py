@@ -32,6 +32,14 @@ OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
+# Row 1299 1a: the Classic theme's four groups (Views.jsx GROUPS_CLASSIC), the menu the Classic tests (window, tabs, overview) walk; (slug, menu name, cards)
+CLASSIC_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Look", [("Personal", "personal-h"), ("Theme", "theme-settings-h")])]),
+                  ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
+                  ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]),
+                                        ("brand", "Brand and publishing", [("Publishing", "client-folder-h"), ("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]),
+                                        ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+                  ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
+CLASSIC_PAGES = [page for _, pages in CLASSIC_GROUPS for page in pages]
 GROUPS = OLD_GROUPS      # row 1299 1a: the four groups are the Classic theme's only; these tests run with the Cards look, which keeps the five groups
 PAGES = [page for _, pages in GROUPS for page in pages]      # (slug, menu name, cards)
 PAGE_OF = {head: slug for slug, _, cards in PAGES for _, head in cards}      # which page a card's heading is on
