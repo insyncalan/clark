@@ -127,13 +127,13 @@ class InTheFile(Published):
                 tabs = p.js("[...document.querySelectorAll('header.top .tab')].map(t => t.textContent.trim().replace(/\\s+/g, ' ')).length")
                 self.assertGreaterEqual(tabs, 3, "the pages are still there")
 
-    def test_the_switcher_is_38_px_and_the_profile_circle_32_px_row_1543(self):
+    def test_the_switcher_is_32_px_and_the_profile_circle_32_px_row_1543(self):
         for width, dark in ((1400, False), (1400, True)):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 got = p.js("""(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; };
                   return {theme: r('.cm-theme'), badge: r('.cm-badge')}; })()""")
-                self.assertEqual(got["theme"], [38, 38], "the light and dark button is 38 px")
+                self.assertEqual(got["theme"], [32, 32], "the light and dark button is 32 px (ticket AP5)")
                 self.assertEqual(got["badge"], [32, 32], "the profile circle is 32 px")
 
     def test_no_published_chip_or_weeks_list_in_the_header(self):

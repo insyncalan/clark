@@ -88,7 +88,7 @@ class Header1543(glance.Published):
         for width, dark in ((1400, False), (1400, True)):
             with self.subTest(width=width, dark=dark):
                 got = self.probe_file(js, width, dark)
-                self.assertEqual(got["theme"][:2], [38, 38], "the light and dark button is 38 px")
+                self.assertEqual(got["theme"][:2], [32, 32], "the light and dark button is 32 px (ticket AP5; 38 px is the editor's search button width)")
                 self.assertEqual(got["badge"][:2], [32, 32], "the profile circle is 32 px")
                 self.assertEqual(got["badge"][2], 28, "the circle ends 28 px from the bar's right edge, as the editor's")
 

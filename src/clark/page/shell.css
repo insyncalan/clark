@@ -37,7 +37,6 @@ a { color: var(--status-blue-text); }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; }
   .top .asat { flex: none; white-space: nowrap; }
-  .top .asat-wrap { flex: none; }
 }
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
@@ -48,13 +47,6 @@ a { color: var(--status-blue-text); }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: color-mix(in srgb, var(--white) 75%, transparent); }
-button.asat { all: unset; box-sizing: border-box; margin-left: auto; min-height: 24px; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: var(--radius); font-size: var(--size-caption); color: var(--white); cursor: pointer; }
-button.asat:hover { background: color-mix(in srgb, var(--white) 15%, transparent); text-decoration: underline dotted; }
-button.asat:focus-visible { outline: 2px solid var(--white); outline-offset: 1px; }
-.asat-wrap { position: relative; display: inline-flex; align-items: center; margin-left: auto; gap: var(--space-2); }
-.asat-wrap > button.asat { margin-left: 0; }
-.asat-box { position: absolute; top: 100%; right: 0; font: inherit; font-size: var(--size-caption); }
-.asat-note { font-size: var(--size-caption); color: var(--white); white-space: nowrap; }
 .tab { all: unset; position: relative; display: flex; align-items: center; padding: 0 14px; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 75%, transparent); cursor: pointer; transition: color var(--dur-instant) var(--ease-out); }
 .tab:hover { color: var(--white); }
 .tab:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: -8px; border-radius: 6px; }
@@ -2397,7 +2389,6 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
-.asat + .cm-wrap, .asat-wrap + .cm-wrap { margin-left: 0; }
 .cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
 .cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
 .cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
