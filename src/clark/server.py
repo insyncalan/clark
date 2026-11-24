@@ -607,14 +607,22 @@ def placeholder_html():
     return PLACEHOLDER
 
 
+BODY_OPEN = re.compile(r"<body(?=[\s>/])[^>]*>", re.IGNORECASE)
+
+
 def with_boot(html):
-    """`html` with this run's token in a JSON data block before </body>. A data block is never run, so it needs no hash,
-    and "<" is escaped so the block can't be closed early."""
+    """`html` with this run's token in a JSON data block straight after the opening <body> tag, so it is in the document before the
+    page's inline script runs (row 1604: put after the script, a slow start read an empty token and the first calls were refused).
+    A data block is never run, so it needs no hash, and "<" is escaped so the block can't be closed early."""
     boot = json.dumps({"token": TOKEN}).replace("<", "\\u003c")
     block = f'<script type="application/json" id="clark-boot">{boot}</script>'
-    i = html.rfind("</body>")
-    html = html[:i] + block + html[i:] if i >= 0 else html + block
-    return dev_marked(html) if os.environ.get("CLARK_DEV") == "1" else html
+    if os.environ.get("CLARK_DEV") == "1":
+        html = dev_marked(html)         # the ribbon first, so the block lands after it and still ahead of every script
+    m = BODY_OPEN.search(html)
+    at = m.end() if m else len(html)
+    if html.startswith(DEV_RIBBON, at):
+        at += len(DEV_RIBBON)
+    return html[:at] + block + html[at:]
 
 
 DEV_RIBBON = ('<div id="clark-dev-ribbon" style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;'
