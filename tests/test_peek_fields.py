@@ -15,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
-RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client wording; those tests use a risk (Use case) or a decision (Client wording)
+RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client Message; those tests use a risk (Use case) or a decision (Client Message)
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -135,7 +135,7 @@ class Title(Fields):
 
 
 class Wording(Fields):
-    # row 1256: an action, a risk and an issue no longer draw Client wording in the peek (their Details are one body); a decision still does,
+    # row 1256: an action, a risk and an issue no longer draw Client Message in the peek (their Details are one body); a decision still does,
     # and the report rows edit it for the others (test_inline_edits)
     def decision(self):
         return self.data["decisions"][0]
@@ -144,6 +144,9 @@ class Wording(Fields):
 
     def words(self, cdp, sid):
         return cdp.js(f"(t => t ? t.textContent.trim() : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
+
+    def save_words(self, cdp, sid):       # row 1288: the wording is the Full editor, Enter makes a new line; Ctrl+Enter saves
+        cdp.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
 
     def type_words(self, cdp, sid, text):
         cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
@@ -155,14 +158,14 @@ class Wording(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client Message")
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
-                key(cdp, sid, "Enter")
+                self.save_words(cdp, sid)
                 self.assertTrue(wait(lambda: len(sent) == 1))
-                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
-                self.assertTrue(wait(lambda: f"Wording of {self.decision()['id']} changed." in self.toast(cdp, sid)))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "<p>Plain words a client can read</p>"}))
+                self.assertTrue(wait(lambda: f"Client Message of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")
@@ -176,7 +179,7 @@ class Wording(Fields):
             self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_words(cdp, sid, "x" * 201)
-            key(cdp, sid, "Enter")
+            self.save_words(cdp, sid)
             self.assertTrue(wait(lambda: "200 characters at most" in cdp.js("(document.querySelector('#peek .rt-problem') || {textContent: ''}).textContent", sid)), "the field says why")
             self.assertEqual(sent, [])
             key(cdp, sid, "Escape")

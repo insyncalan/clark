@@ -8,12 +8,13 @@ by scrolling, the link reading Hide history while open, only that one field's ch
 import json
 import shutil
 import unittest
+from unittest import mock
 
 from _editor_checks import for_url
 from _paths import ROOT
 import _testpage as testpage
 
-from clark import activity_read, changes, sneak  # noqa: E402
+from clark import activity_read, changes, page, sneak, theme as themes  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -93,6 +94,23 @@ class Browser(unittest.TestCase):
                     self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh-panel]')", sid)))
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Show history")
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "false")
+
+    def test_show_history_is_a_row_in_classic_word_left_chevron_right(self):
+        """Row 1258: under Classic the button is drawn as the mock-up's rows are; Cards keeps the word alone (the tests above)."""
+        real = testpage.html
+        patch = mock.patch.object(testpage, "html", lambda branding=None: page.layer_theme(real(), themes.css("prototype-2.0")))
+        patch.start()
+        self.addCleanup(patch.stop)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, width)
+                g = cdp.js("(() => { const b = document.querySelector('#peek [data-pk-lh-btn]'), r = b.getBoundingClientRect(), w = b.querySelector('span').getBoundingClientRect(), c = b.querySelector('.pk-lh-car').getBoundingClientRect();"
+                           " return {word: b.textContent.trim(), h: Math.round(r.height), wordLeft: w.left - r.left, chevRight: r.right - c.right, full: Math.round(r.width)}; })()", sid)
+                self.assertEqual(g["word"], "Show history")
+                self.assertGreaterEqual(g["h"], 36, g)
+                self.assertLess(g["wordLeft"], 4, g)
+                self.assertLess(g["chevRight"], 4, g)
+                self.assertGreater(g["full"], 200, "a full-width row, not a link at the right")
 
     def stub(self, cdp, sid, answer):
         cdp.js("(a => { const f = window.fetch; window.fetch = (u, o) => String(u).includes('/api/activity') ? a() : f(u, o); })(" + answer + ")", sid)

@@ -320,7 +320,9 @@ class Menu(board.Base):
 
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
-        self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
+        # row 1554: a macOS-only timeout here said nothing of which call or why; the wait now reports what was under the click and what the page held
+        self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu",
+                   why=lambda: cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(selector)}); if (!r) return 'no row for {selector}'; const b = r.getBoundingClientRect(), e = document.elementFromPoint(b.x + Math.min(b.width / 2, 120), b.y + b.height / 2); return JSON.stringify({{selector: {json.dumps(selector)}, hash: location.hash, row: [b.x, b.y, b.width, b.height], under_click: e ? e.tagName + '.' + e.className + (e.isContentEditable ? ' [editable]' : '') : null, in_a_row: !!(e && e.closest && e.closest('tr[data-id], article.bcard, li.wl-row[data-id], ul.wil-lines li[data-id]')), rowmenu: !!document.querySelector('.rowmenu'), active: document.activeElement && document.activeElement.tagName + '.' + document.activeElement.className, window: [innerWidth, innerHeight, scrollY]}}); }})()", sid))
         self.settled(cdp, sid)
 
     def entries(self, cdp, sid):
@@ -610,6 +612,11 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('[data-mode=edit]')", "the Dashboard")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-type=actions] .wl-row')", "a Dashboard row")
+            # row 1554: on macOS the right-click found the row 1508 px down with the page at the top (the scroll had been lost), so the page is let finish
+            # switching to Edit and the row's place on the page must read the same twice, one poll apart, before it is scrolled to and clicked
+            self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
+            cdp.js("window.__rowTop = null", sid)
+            self.until(cdp, sid, "(() => { const r = document.querySelector('[data-type=actions] .wl-row'); if (!r) return false; const t = r.getBoundingClientRect().top + scrollY, same = window.__rowTop === t; window.__rowTop = t; return same; })()", "the Dashboard row to hold its place")
             self.calm(cdp, sid)
             self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
             dash = [e[1] for e in self.entries(cdp, sid)]

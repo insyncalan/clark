@@ -130,7 +130,7 @@ SHEET_TABLES["risks and issues"] = "raid"          # the earlier name of the she
 SHEET_TABLES["raid"] = "raid"                      # the oldest name, written out so workbooks exported before the rename still import (#143)
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
-HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
+HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message", "client message": "client_message",
                   "baseline": "baseline_date", "agreed": "baseline_date",
                   "updated": "updated_at", "order": "sort_order", "% complete": "percent_complete",   # row 1390 B: the headings renamed to Last updated, Sort order, Progress %
                   "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
@@ -203,7 +203,7 @@ def milestone_ids(text, refs=None):
 
 
 def _label(table, f):
-    """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
+    """A column as the person sees it: the export's header label (Due, Agreed, Client Message ...)."""
     for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
         if field_ == f:
             return label
