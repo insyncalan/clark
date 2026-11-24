@@ -290,30 +290,29 @@ class InThePage(base.InThePage):
             for w in WIDTHS:
                 with self.subTest(width=w):
                     self.size(cdp, p, w)
-                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop files here to add them.")
                     self.assertEqual(p.js("document.querySelector('[data-drop-line]').textContent"), "Dropped files are kept in the client folder, in Report files.")
                     self.assertTrue(p.js("document.querySelector('[data-drop]').compareDocumentPosition(document.querySelector('[data-drop-line]')) & Node.DOCUMENT_POSITION_FOLLOWING"))
                     self.drag(p, ["a.pdf"], over=True)
                     p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
-                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop files here to add them.")
 
-    def test_several_files_or_a_folder_are_refused_whole(self):
+    def test_a_folder_in_the_drop_is_refused_whole(self):
+        """Row 1593 (replaces the several-files-or-a-folder test): several files are added now, a folder still refuses the whole drop."""
         self.classic()
         ref = self.add("doclinks")
         sel = f"[data-id={json.dumps(ref)}]"
+        sentence = "Folders can't be added. Drop files, not folders."
         with chrome() as cdp:
             p = self.open_edit(cdp, ref)
             for w in WIDTHS:
                 with self.subTest(width=w):
                     self.size(cdp, p, w)
                     p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
-                    self.drag(p, ["one.pdf", "two.pdf"])
-                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal")
                     folder = ("(function(){const area=document.querySelector('[data-drop]');const ev=new DragEvent('drop',{bubbles:true,cancelable:true});"
-                              "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
-                    p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
+                              "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'one.pdf'),new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:false})},{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
                     p.js(folder)
-                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal for a folder")
+                    p.until(f"!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes({json.dumps(sentence)})", "the refusal for a folder")
                     self.assertEqual(p.js(f"document.querySelectorAll('{sel} .tpl-dl-i').length"), 0)
                     self.assertFalse((self.client / "Report files").exists(), "nothing was copied")
 

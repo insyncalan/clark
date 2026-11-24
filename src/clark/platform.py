@@ -772,6 +772,23 @@ OPEN_TYPES_SCRIPT = """on run argv
   end repeat
   return POSIX path of (choose file with prompt (item 1 of argv) of type kinds)
 end run"""
+OPEN_MANY_SCRIPT = """on run argv
+  set kinds to {}
+  repeat with i from 2 to (count of argv)
+    set end of kinds to (item i of argv)
+  end repeat
+  if (count of kinds) > 0 then
+    set picked to (choose file with prompt (item 1 of argv) of type kinds with multiple selections allowed)
+  else
+    set picked to (choose file with prompt (item 1 of argv) with multiple selections allowed)
+  end if
+  set out to {}
+  repeat with f in picked
+    set end of out to POSIX path of f
+  end repeat
+  set AppleScript's text item delimiters to linefeed
+  return out as text
+end run"""
 
 
 def choose_folder(prompt, start=None, run=None, on=None):
@@ -800,6 +817,19 @@ def choose_open_file(prompt, start=None, run=None, on=None, types=None):
     if types:
         return _dialog(OPEN_TYPES_SCRIPT, [prompt, *types], run, "file")
     return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "file")
+
+
+def choose_open_files(prompt, run=None, on=None, types=None):
+    """Row 1593: the system's own Open dialog with several files allowed. The chosen files as a list, in the order the dialog gives
+    them, or None if the person cancelled. `types` as in choose_open_file. clark only learns the paths; nothing is read here."""
+    _only_mac("The Open dialog", on)
+    done = _run(["osascript", "-e", OPEN_MANY_SCRIPT, prompt, *(types or ())], run)
+    if done.returncode != 0:
+        if CANCELLED in (done.stderr or ""):
+            return None
+        raise PlatformError(f"The file window could not be opened. {TRY_AGAIN}")
+    picked = [Path(line) for line in (done.stdout or "").split("\n") if line.strip()]
+    return picked or None
 
 
 def _dialog(script, args, run, which):
