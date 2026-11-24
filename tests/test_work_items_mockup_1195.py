@@ -625,7 +625,12 @@ class Classic(Look):
             key("due", "ArrowRight", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
             self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
-            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.cwHead"), "due", "the heading keeps the focus")
+            # Wait, then assert the same thing: on macOS the useEffect in src/clark/edit/colWidths.jsx re-focuses the heading after the render, and the old
+            # test read the focus at once and saw None != due (macOS full runs 45081476463, 45139907189, 45203372794).
+            focus_js = "document.activeElement && document.activeElement.dataset.cwHead"
+            kept = wait(lambda: p.js(focus_js) == "due", 10)
+            state = "" if kept else " | " + json.dumps(p.js(f"({{active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.id] : null, hasFocus: document.hasFocus(), heads: {h('due')}.closest('table') ? [...{h('due')}.closest('table').querySelectorAll('thead th[data-cw-head]')].map(c => c.dataset.cwHead) : null}})"))
+            self.assertEqual(p.js(focus_js), "due", "the heading keeps the focus" + state)
             key("due", "ArrowLeft", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "due", "id"]), "Alt+Left moved it back")
             key("owner", "ArrowRight", ctrlKey=True)
