@@ -94,16 +94,16 @@ class Migration(unittest.TestCase):
         st.migrate_workstream_columns(con)      # a second run skips what is there
         self.assertTrue({"start", "end", "latest_update"} <= set(st.columns(con, "workstreams")))
         self.assertEqual(tuple(con.execute('SELECT start, "end", latest_update FROM workstreams').fetchone()), (None, None, None))
-        self.assertEqual(st.SCHEMA_VERSION, 34)
-        self.assertEqual(st.WORKSTREAM_COLUMNS_STEP, 34)
-        self.assertIn((34, st.migrate_workstream_columns), st.MIGRATIONS)
+        self.assertEqual(st.SCHEMA_VERSION, 36)
+        self.assertEqual(st.WORKSTREAM_COLUMNS_STEP, 36)
+        self.assertIn((36, st.migrate_workstream_columns), st.MIGRATIONS)
         for name in ("start", "end"):
             self.assertIn(name, st.DATE_FIELDS)
 
 
 class Before(unittest.TestCase):
     def test_workstream_line_has_only_the_four_fields_before_the_columns(self):
-        def bare(given):      # a file before step 34: no new column, and no lead a person has typed
+        def bare(given):      # a file before step 36: no new column, and no lead a person has typed
             given["data"]["workstreams"] = [{k: v for k, v in w.items() if k not in ("lead", "start", "end", "latest_update")}
                                             for w in given["data"]["workstreams"]]
         got, _ = base.read("workstreams?", edit=bare)
@@ -121,7 +121,7 @@ class Before(unittest.TestCase):
         self.assertEqual([r[1] for r in con.execute("PRAGMA table_info(workstreams)") if r[1] in ("start", "end", "latest_update")], [])
         con.execute("INSERT INTO workstreams (project, id, name, source, created) VALUES ('ABC', 'ABC-W-001', 'Delivery', 'demo', '2026-11-01')")
         con.close()
-        s = st.open_store(path, onedrive_roots=[])      # the open brings it to 34
+        s = st.open_store(path, onedrive_roots=[])      # the open brings it to 36
         try:
             text = "\n".join(p.text for p in ask_data.project_data(s, "ABC", "workstreams?").passages)
         finally:
