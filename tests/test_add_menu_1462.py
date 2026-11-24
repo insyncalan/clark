@@ -11,7 +11,7 @@ import unittest
 from _paths import ROOT
 
 import test_work_items_mockup_1195 as W  # noqa: E402
-import test_tpl_workitems as T  # noqa: E402
+from test_server import chrome  # noqa: E402
 from clark import theme  # noqa: E402
 
 NAME = "prototype-2.0"
@@ -45,7 +45,7 @@ class AddMenu(W.Look):
 
     def read(self, width, dark):
         ref = self.add(self.LIST)
-        with T.chrome() as cdp:
+        with chrome() as cdp:
             p = self.show(cdp, width, dark=dark)
             sec = f'[data-id="{ref}"]'
             p.edit()

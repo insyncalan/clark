@@ -10,7 +10,7 @@ import unittest
 
 from _paths import ROOT
 
-import test_tpl_workitems as T
+from test_server import chrome
 import test_work_items_mockup_1195 as W
 
 EDIT = ROOT / "src" / "clark" / "page" / "src" / "edit"
@@ -53,7 +53,7 @@ class WorkItemsOpenerInDark(W.Look):
                 " return {style: s.borderTopStyle, bw: s.borderTopWidth, rad: s.borderTopLeftRadius, w: r.width, h: r.height, bd: s.borderTopColor, fg: s.color,"
                 " bdWant: col('var(--grey-500)'), fgWant: col('var(--status-blue-text)'), theme: document.documentElement.dataset.theme}; })())")
         for width in (1400, 900):
-            with T.chrome() as cdp:
+            with chrome() as cdp:
                 p = self.show(cdp, width, dark=True)
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-add .newb')", "the Add opener drew")
