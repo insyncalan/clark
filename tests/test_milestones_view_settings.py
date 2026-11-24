@@ -64,6 +64,11 @@ class Checker(unittest.TestCase):
             with self.assertRaises(sb.Bad, msg=repr(bad)):
                 check(json.dumps({"scroll": bad}))
 
+    def test_a_body_that_is_not_an_object_is_refused(self):
+        for bad in ("[]", "[1]", "3", '"x"', "true", "null"):
+            with self.assertRaises(sb.Bad, msg=bad):
+                check(bad)
+
     def test_an_unknown_key_is_refused(self):
         with self.assertRaises(sb.Bad):
             check(json.dumps({"n": 5, "colour": "red"}))
