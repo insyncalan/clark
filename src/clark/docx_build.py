@@ -375,7 +375,7 @@ def _open(rows):
 
 def _words(row, field, own):
     """The client's wording when the row has some, else the row's own text (data-model.md: client_message is optional)."""
-    return (row.get("client_message") or "").strip() or row.get(own) or ""
+    return sanitise.rich_plain_text(row.get("client_message")).strip() or row.get(own) or ""      # row 1288: the wording is the Full editor's HTML, or the plain text an older clark stored
 
 
 def _date(iso):

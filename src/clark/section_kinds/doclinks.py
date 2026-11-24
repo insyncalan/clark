@@ -149,7 +149,7 @@ _ZIP = (b"PK\x03\x04", b"PK\x05\x06")                                     # Word
 _STARTS = {"pdf": (b"%PDF-",), "doc": (_OLE,), "xls": (_OLE,), "ppt": (_OLE,), "docx": _ZIP, "xlsx": _ZIP, "pptx": _ZIP,
            "jpg": (b"\xff\xd8\xff",), "jpeg": (b"\xff\xd8\xff",), "png": (b"\x89PNG\r\n\x1a\n",)}
 _TEXT_BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff")
-HEAD_BYTES = 512
+HEAD_BYTES = 8192                                 # 8 KB (row 1275 AP5); was 512
 
 
 def matches_ending(name, head):

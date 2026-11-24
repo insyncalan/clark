@@ -12,7 +12,8 @@ import unittest
 
 import _testpage as testpage
 from clark import page, theme as themes
-from test_ask_panel import Panel, Stub
+import test_ask_panel as panel
+from test_ask_panel import Stub
 from test_server import chrome
 
 DRAFT = {"html": "<p>The pilot is on track.</p><p>Two actions are overdue.</p>", "title": "This week's summary", "sec": ""}
@@ -27,7 +28,7 @@ class DraftStub(Stub):
         return status, out
 
 
-class Draft(Panel):
+class Draft(panel.Panel):
     def setUp(self):
         super().setUp()
         self.stub = DraftStub()
@@ -299,6 +300,29 @@ def _motion_test(self):
 
 Draft.test_the_draft_slides_in_and_closes_with_an_arrow = _motion_test
 
+def _reduced_motion_test(self):
+    """Row 1347 (Classic): under data-motion="reduce" on the page, and under the browser's prefers-reduced-motion: reduce, the open Draft has no animation, at 1400 and 900. The control: with neither set it is the ask-draft-in slide."""
+    self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css("prototype-2.0"))
+    name = "(() => getComputedStyle(document.querySelector('#ask-draft')).animationName)()"
+    with chrome() as cdp:
+        p = self.drafted(cdp)
+        for width in (1400, 900):
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            self.assertEqual(p.js(name), "ask-draft-in", ("control: no reduce", width))
+            p.js("document.documentElement.setAttribute('data-motion', 'reduce')")
+            self.assertEqual(p.js(name), "none", ("data-motion=reduce", width))
+            p.js("document.documentElement.removeAttribute('data-motion')")
+            self.assertEqual(p.js(name), "ask-draft-in", ("control again: data-motion removed", width))
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            self.assertEqual(p.js(name), "none", ("prefers-reduced-motion: reduce", width))
+            p.js("document.documentElement.setAttribute('data-motion', 'reduce')")
+            self.assertEqual(p.js(name), "none", ("both", width))
+            p.js("document.documentElement.removeAttribute('data-motion')")
+
+
+Draft.test_the_draft_has_no_animation_under_reduced_motion = _reduced_motion_test
+
 def _button_test(self):
     """Row 1347: in Classic the card's Open the draft button is the prototype's blue rectangle and the card is the prototype's card, at 1400 and 900. Cards (no Theme layer) keeps its old button."""
     for theme in ("prototype-2.0", None):
@@ -355,7 +379,7 @@ def _empty_test(self):
 
 Draft.test_the_add_menu_says_empty_in_classic_only = _empty_test
 
-for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
+for _n in dir(panel.Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:
         setattr(Draft, _n, None)
 

@@ -17,7 +17,7 @@ from _new_page import reload_to_new_page_cdp
 from _real_server import real_server
 from clark import __main__ as launcher, page, server as sv, use_cases_read
 from clark.store import open_store
-from test_inline_edits import EMPTY_BRANDING, click, need_chrome, tearDownModule  # noqa: F401
+from test_inline_edits import EMPTY_BRANDING, click, need_chrome, settle_motion, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
@@ -306,6 +306,33 @@ class Delete(unittest.TestCase):
             self.toast(cdp, sid, f"{self.ms} deleted.")
             self.until(cdp, sid, "!document.querySelector('#peek')", "the peek closed with it")
             self.assertTrue(self.gone("milestones", self.ms))
+
+    def test_the_press_on_more_actions_lands_after_the_peek_slide_has_ended(self):
+        """Issue 1552: the peek slides in for half a second (pk-in); a press on its More button while that runs lands on a moving target (macOS shard 6/6 never saw the menu). Here a finite 1.5 s slide is started on the peek itself and click() is called at once: the press (mousedown) must come after that slide ended, which only click() calling settle_motion gives."""
+        row = f"li.msl-row[data-ms={json.dumps(self.ms)}]"
+        with chrome() as cdp:
+            sid = self.visit(cdp, "#milestones&p=TUL", f"!!document.querySelector({json.dumps(row)})", 1400)
+            click(cdp, sid, f"{row} .msl-cells")
+            self.until(cdp, sid, "!!document.querySelector('#peek #pk-more')", "the peek has More actions")
+            cdp.js("window.__slide = document.querySelector('#peek').animate([{opacity: 1}, {opacity: .99}], 1500); window.__press = null;"
+                   " document.addEventListener('mousedown', () => { window.__press = {running: window.__slide.playState === 'running', at: window.__slide.currentTime}; }, true)", sid)
+            self.assertEqual(cdp.js("window.__slide.playState", sid), "running", "the slide runs when the press starts")
+            click(cdp, sid, "#peek #pk-more")
+            press = cdp.js("window.__press", sid)
+            self.assertIsNotNone(press, "the press landed")
+            self.assertFalse(press["running"], f"the press landed while the slide still ran (at {press['at']} ms of 1500)")
+            self.until(cdp, sid, "!!document.querySelector('.ddmenu [data-kind=delete]')", "the More actions menu opened")
+
+    def test_settle_motion_waits_for_a_slide_that_is_still_running(self):
+        """Issue 1552: a press waits for a finite animation on the control or around it, and does not wait for one that never ends."""
+        row = f"li.msl-row[data-ms={json.dumps(self.ms)}]"
+        slide = "document.getAnimations().filter(a => a.effect.target.id === 'd1552' && a.playState === 'running').length"
+        with chrome() as cdp:
+            sid = self.visit(cdp, "#milestones&p=TUL", f"!!document.querySelector({json.dumps(row)})", 1400)
+            cdp.js("document.body.insertAdjacentHTML('beforeend', '<div id=d1552><b id=b1552>x</b></div>'); document.getElementById('d1552').animate([{transform: 'translateX(300px)'}, {transform: 'none'}], 1200); document.getElementById('b1552').animate([{opacity: 1}, {opacity: .5}], {duration: 1000, iterations: Infinity})", sid)
+            self.assertEqual(cdp.js(slide, sid), 1, "the slide runs")
+            settle_motion(cdp, sid, "#b1552")
+            self.assertEqual(cdp.js(slide, sid), 0, "the slide around the control had ended")
 
     def test_a_milestone_a_work_item_sits_on_is_refused_by_name_and_stays(self):
         row = f"li.msl-row[data-ms={json.dumps(USED_MS)}]"

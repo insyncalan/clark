@@ -26,8 +26,8 @@ ITEMS = MENU + " [role=menuitemcheckbox]"
 LISTED = [n for n in WORK_ALL if n != "Item"]        # the title is not in the menu: it is always drawn
 # Cards: the md5 of the rendered #work block closed and of the whole body (less script and style text) with the menu open, taken on origin/main before this row.
 CARDS_MD5 = {
-    1400: {"closed": "aec653bd1c121a8d5039e9e00e1f43b3", "menu": "4573640e6093dc76630ca099d433a316"},
-    900: {"closed": "aec653bd1c121a8d5039e9e00e1f43b3", "menu": "4573640e6093dc76630ca099d433a316"},
+    1400: {"closed": "aec653bd1c121a8d5039e9e00e1f43b3", "menu": "32b4dcdcc70d2b6ae63f593b500bf27a"},
+    900: {"closed": "aec653bd1c121a8d5039e9e00e1f43b3", "menu": "32b4dcdcc70d2b6ae63f593b500bf27a"},
 }
 
 
@@ -217,7 +217,7 @@ class CardsMenu(Base):
                 self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [data-cols-standard]')}).length"), 1, "the standard foot is still there")
                 self.assertEqual(js(f"document.querySelector({json.dumps(MENU + ' [data-col-name=Status]')}).getAttribute('aria-disabled')"), "true", "Status still greyed")
                 self.assertEqual(js(f"[...document.querySelectorAll({json.dumps(ITEMS)})].map((b) => b.dataset.colName).join()"), ",".join(WORK_ALL))
-        self.assertEqual(got, CARDS_MD5, "the rendered Cards DOM is the one origin/main renders")
+        self.assertEqual(got, CARDS_MD5, "the rendered Cards DOM (Client Message label, row 1466)")
 
 
 if __name__ == "__main__":

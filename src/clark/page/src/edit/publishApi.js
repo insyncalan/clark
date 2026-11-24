@@ -7,14 +7,19 @@ import { density, sectionWord } from "../stores/density.js";
 import { forgetCheck } from "./askCheck.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
-export async function call(method, path, body) {
+// `within` (row 1492): milliseconds after which the call is given up, so a hung server or a lost network ends in words (status 0) and not in a wait without end.
+export async function call(method, path, body, within) {
+  const stop = within ? new AbortController() : null;
+  const timer = stop ? setTimeout(() => stop.abort(), within) : 0;
   try {
     const headers = { "X-Clark-Token": token() };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await zoneFetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store", signal: stop ? stop.signal : undefined });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -89,9 +94,13 @@ export function saveBlob(blob, name) {
 // Settings › AI (#54): whether Claude is connected and the model asking uses. Words and true or false only: clark holds no key or password.
 export const aiConnectRead = () => call("GET", "/api/providers");
 // Row 858: each of these changes what the ask panel's connection check would answer, so the kept answer is dropped (before and after).
-const changing = async (method, path, body) => { forgetCheck(); try { return await call(method, path, body); } finally { forgetCheck(); } };
+const changing = async (method, path, body, within) => { forgetCheck(); try { return await call(method, path, body, within); } finally { forgetCheck(); } };
 export const aiConnectSend = (provider) => changing("POST", "/api/providers/connect", { provider });
 export const aiDisconnectSend = (provider) => changing("POST", "/api/providers/disconnect", { provider });
+export const VERIFY_WAIT_MS = 35000;      // row 1492: the server's own deadline is 30 seconds; the page gives up 5 seconds after it
+export const aiVerifySend = (provider) => changing("POST", "/api/providers/verify", { provider }, VERIFY_WAIT_MS);
+export const aiCancelSend = (provider) => call("POST", "/api/providers/cancel", { provider });
+export const aiProgressRead = () => call("GET", "/api/providers/progress");
 export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
@@ -126,6 +135,8 @@ export const askNewChange = (body) => call("POST", "/api/ask-new-projects", body
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
 
+// Row 1046: the notices in the file or folder set in Settings. GET /api/notices answers {ok, why, notices}; read only.
+export const noticesRead = () => call("GET", "/api/notices");
 // The theme for this computer (row 1269): GET /api/theme answers {ok, theme: "classic" | "cards", saved}; POST takes {theme}.
 export const themeRead = () => call("GET", "/api/theme");
 export const themeChange = (theme) => call("POST", "/api/theme", { theme });

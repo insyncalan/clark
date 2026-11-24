@@ -420,6 +420,8 @@ class Runner:
                "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp),   # BL-246: everything it makes lands here
                "PATH": str(self.stub) + os.pathsep + os.environ.get("PATH", ""),      # RULE 14: a test never opens a real dialog
                "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log)}
+        if os.name == "posix":
+            env["PYTHONFAULTHANDLER"] = "1"      # row 1566: SIGABRT on a hang prints every thread's Python traceback
         t, p, out, timed_out, reader = time.time(), None, [], False, None
         try:
             p = support.spawn([sys.executable, "-m", "unittest", *self.ids.get(f.name, [f.stem])], cwd=f.parent,
@@ -433,6 +435,7 @@ class Runner:
                 p.wait(timeout=self.timeout)  # the test itself, not its output: a leaked child may hold the pipe open
             except subprocess.TimeoutExpired:
                 timed_out = True          # a hung file fails here instead of holding the run to its time limit
+                self.evidence(p, out, reader)
                 support.stop(p, grace=10)
             support.stop(p, grace=2)      # whatever it started and left in its group ends now
             reader.join(5)
@@ -449,6 +452,28 @@ class Runner:
             support.RunDir.finish(tmp)
         code = TIMED_OUT if timed_out else p.returncode
         return f, code, time.time() - t, "".join(out)
+
+    @staticmethod
+    def evidence(p, out, reader):
+        """Row 1566, diagnostic only (posix): before a hung file is stopped, add the listing of its process group to `out`,
+        then send SIGABRT so faulthandler (PYTHONFAULTHANDLER=1) prints where every thread is stuck. Waits 3 s at most."""
+        if os.name != "posix" or not hasattr(signal, "SIGABRT"):
+            return
+        try:
+            ps = subprocess.run(["ps", "-axo", "pgid=,pid=,ppid=,etime=,stat=,command="], capture_output=True, text=True,
+                                errors="replace", timeout=10).stdout.splitlines()
+            rows = [ln.split(None, 1)[1][:200] for ln in ps if ln.split(None, 1)[:1] == [str(p.pid)]]
+            out.append("\nPROCESSES in the group of the hung file (pid ppid etime stat command):\n"
+                       + "\n".join(rows[:60]) + ("\n(more lines not shown)" if len(rows) > 60 else "") + "\n")
+        except Exception as e:  # noqa: BLE001  (a diagnostic never changes the result)
+            out.append(f"\nPROCESSES: not listed ({type(e).__name__})\n")
+        try:
+            os.kill(p.pid, signal.SIGABRT)
+            p.wait(timeout=3)
+        except Exception:  # noqa: BLE001  (gone, or it ignores SIGABRT: the stop below ends it)
+            pass
+        if reader is not None:
+            reader.join(0.5)
 
     def stop(self):
         """Kill every test still running, with what it started."""
