@@ -247,6 +247,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-quotes[data-align="left"] .tpl-quote-by { align-items: flex-start; }
 /* Row 1271, Tile off (the ticket: with Tile and Heading both off the quote sits directly on the page): the panel around each quote follows the Tile switch, so with Tile off it has no grey fill and no inset. */
 .sec.no-tile .tpl-quotes .tpl-quote { background: transparent; padding: 0; }
+/* Row 1579, Tile off on Classic: the banded section fill (item 1311, .secs > .sec.band) out-ranked .sec.no-tile, so Tile off still drew a panel; one more class makes the section transparent again. */
+.secs > .sec.band.no-tile { background: transparent; }
 /* Row 1271, Edit in place (Classic only): the quote is typed in the box where View shows it, wraps and grows with its words, the name and role under it. */
 .tpl-quote-pe .tq-head { display: flex; align-items: baseline; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--size-caption); color: var(--text-muted); text-align: left; }
 .tpl-quote-pe .tq-count { margin-left: auto; white-space: nowrap; }
@@ -338,6 +340,9 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .tpl-gal-add:hover:not([disabled]), .tpl-gal-empty:hover:not([disabled]), .tpl-gal-empty.over, .tpl-gal-tiles.over .tpl-gal-add { border-color: var(--brand-blue); color: var(--brand-blue); }
 .tpl-gal-warn { margin: 3px 0 0; color: var(--tone-red-text); font-size: 13px; }
 .tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
+
+/* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
+html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

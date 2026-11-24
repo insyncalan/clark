@@ -111,7 +111,7 @@ class Export(RoundTrip):
         for name in ("Milestones", "Use cases"):
             ws = load_workbook(str(self.path))[name]
             heads = [c.value for c in ws[1]]
-            self.assertEqual(heads[-3:], ["Open work items", "Source", "Updated"], name)
+            self.assertEqual(heads[-3:], ["Open work items", "Added from", "Last updated"], name)
             self.assertEqual(heads.count("Open work items"), 1)
             self.assertTrue(ws.auto_filter.ref.startswith("A1:" + ws.cell(1, ws.max_column).column_letter), ws.auto_filter.ref)
 

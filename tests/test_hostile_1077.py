@@ -194,7 +194,7 @@ class Imports(Hostile):
         ws = wb["Actions"]
         head = [c.value for c in ws[1]]
         row = [None] * len(head)
-        for key, value in {"Description": "Imported hostile action", "Raised": datetime.date(2026, 10, 20), "Owner": "Sam", "Client-visible": "Yes"}.items():
+        for key, value in {"Title": "Imported hostile action", "Raised": datetime.date(2026, 10, 20), "Owner": "Sam", "Client visible": "Yes"}.items():
             row[head.index(key)] = value
         ws.append(row)
         wb.save(str(path))

@@ -1,5 +1,5 @@
 """Row 1298 (DRAFT, NOT RUN): the Feedback tag as drawn, in headless Chrome. Run: python3 dev/run_tests.py test_feedback_tag_browser_1298
-Where the tag shows (Help, Settings but not Version and updates), the dialog, the keyboard, the slide, the offset beside a peek, light and dark, at 1400 and 900 px only
+Where the tag shows (Help, every Settings page), the dialog, the keyboard, the slide, the offset beside a peek, light and dark, at 1400 and 900 px only
 (no phone width). Real page over the fictional demo data. Required: fails, never skips, without Chrome. The names of the Settings and Help addresses (#settings&p=TUL&s=...)
 and of the Help peek are read from the code, not yet run; selectors marked ASSUMED must be checked on the first run."""
 import json
@@ -14,7 +14,7 @@ from test_work_items import page_target
 
 WIDTHS = (1400, 900)
 THEMES = ("light", "dark")
-SETTINGS_PAGES = ("projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "data", "claude", "logs")
+SETTINGS_PAGES = ("projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "data", "claude", "logs", "version")
 BAR = "document.querySelector('#feedback-tag')"
 DLG = "document.querySelector('#feedback-tag-dialog')"
 CLIP = "window.__clip"
@@ -68,13 +68,11 @@ class FeedbackTagBrowser(unittest.TestCase):
             self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-label')", sid), "Give feedback", where)
             self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-expanded')", sid), "false", where)
 
-    def test_tag_in_each_settings_page_but_version(self):
+    def test_tag_in_each_settings_page_including_version(self):
         for cdp, sid, where in self.each():
             for page in SETTINGS_PAGES:
                 self.go(cdp, sid, f"#settings&p=TUL&s={page}")
                 self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), f"{where}: tag on Settings {page}")
-            self.go(cdp, sid, "#settings&p=TUL&s=version")
-            self.assertTrue(wait(lambda: not self.has_tag(cdp, sid)), f"{where}: no tag on Version and updates")
 
     def test_no_tag_on_work_milestones_dashboard_usecases(self):
         for cdp, sid, where in self.each():
@@ -306,23 +304,6 @@ class FeedbackTagBrowser(unittest.TestCase):
             self.press(cdp, sid, "Tab", shift=True)
             cdp.js(f"{BAR}.focus()", sid)
             self.assertTrue(cdp.js(f"{BAR}.matches(':focus-visible') && parseFloat(getComputedStyle({BAR}).outlineWidth) >= 2", sid), where)
-
-    def test_no_tag_while_the_search_shows_the_feedback_card(self):
-        """Row 1298 point 4: Settings search shows every matching card; with the Feedback card among them the tag stands aside, and returns when it is gone."""
-        def type_q(cdp, sid, q):
-            cdp.js("var b = document.getElementById('set-search-box'); b.focus(); b.value = %s; b.dispatchEvent(new Event('input', { bubbles: true }))" % json.dumps(q), sid)
-        card = "(function(){var h = document.getElementById('feedback-h'); var c = h && h.closest('section, .setting'); return !!c && !c.hidden && c.getClientRects().length > 0;})()"
-        for cdp, sid, where in self.each():
-            self.go(cdp, sid, "#settings&p=TUL&s=profile")
-            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where)
-            type_q(cdp, sid, "feedback")
-            self.assertTrue(wait(lambda: cdp.js(card, sid)), where + ": search shows the Feedback card")
-            self.assertTrue(wait(lambda: not self.has_tag(cdp, sid)), where + ": so no tag")
-            type_q(cdp, sid, "name")
-            self.assertTrue(wait(lambda: not cdp.js(card, sid)), where + ": a search without the card")
-            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where + ": the tag is back")
-            type_q(cdp, sid, "")
-            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where + ": cleared")
 
     # ---- leaving
     def test_the_dialog_closes_on_leaving_help_or_settings(self):
