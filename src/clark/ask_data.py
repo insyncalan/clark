@@ -191,7 +191,7 @@ def read_counts(data):
 
 # Row 1294 (rule 4): a question that asks for a count, a total or an overview. Said in plain words, whatever the case; a question that
 # only names one item is not one of these.
-_WHOLE = re.compile(r"\b(?:how\s+many|how\s+much|how\s+often|counts?|totals?|number\s+of|overviews?|summary|summaries|summari[sz]e|averages?|percents?|percentages?|per\s+cent|altogether|in\s+all|all\s+of\s+the|breakdowns?|list\s+all|list\s+every|tall(?:y|ies)|sums?|how\s+large)\b", re.I)
+_WHOLE = re.compile(r"\b(?:how\s+many|how\s+much|how\s+often|counts?|totals?|number\s+of|overviews?|summary|summaries|summari[sz]e|averages?|percents?|percentages?|per\s+cent|altogether|in\s+all|all\s+of\s+the|breakdowns?|list\s+all|list\s+every|tall(?:y|ies)|sums?|how\s+large|figures?|stat(?:istic)?s|all\s+(?:the\s+|of\s+the\s+|open\s+|closed\s+|late\s+)?(?:risks?|issues?|actions?|decisions?|items?|milestones?|use\s+cases?))\b", re.I)
 
 
 def partial_answer(question, counts):

@@ -51,6 +51,10 @@ class Words(unittest.TestCase):
         ("tally", "What is the tally of open risks?", "Is a tallyman asked?"),
         ("sum", "What is the sum of the budgets?", "Did he assume it was consumed?"),
         ("how large", "How large is the backlog?", "How largely is it late?"),
+        ("figures", "Give me the figures for all risks", "Is it a configured page?"),
+        ("stats", "Any stats on the issues?", "Is it a statsman?"),
+        ("all risks", "What is the owner of all the risks?", "Who is the allrisks person?"),
+        ("all items", "Is anything late in all open items?", "Is it small items?"),
     )
 
     def test_each_word_and_phrase_has_one_hit_and_one_miss(self):
