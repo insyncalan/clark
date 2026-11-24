@@ -77,7 +77,7 @@ class TemplateList(unittest.TestCase):
 
 # Measured on the 24 templates as built (the same at 1400 and 900, light and dark): template id -> {control: count}
 # Each entry is a View control as measured. The audit lists 18 of them as reader tools (gallery 1, work-items 2 rows and Review, gantt, gantt-table 3); the 6 work-items cell-pick pickers (row 1287) are not among them.
-# A pin here is a finding, not an approval.
+# AP3's pin is 0 AUTHORING controls in View (asserted above for every template); what is listed here are reader tools (open, review, zoom, pick), a finding and not an approval.
 FINDINGS = {
     "gallery": {"button.tpl-gal-open": 1},
     "work-items": {"tr.wil-k-action": 1, "tr.wil-k-risk": 1, "button.wil-review": 1, "button.cell-pick": 6},      # 2 rows (tabindex 0, role button) + the Review button + 6 in-place pickers (row 1287 puts pickers in View on the Dashboard lists); the 5 column heads are plain th (AP3)
@@ -108,7 +108,9 @@ class ViewIsEditWithoutControls(F.Family):
                         self.assertEqual(view["type"], edit["type"], f"{tid}: View and Edit draw the same kind of section")
                         self.assertTrue(view["words"], f"{tid}: View shows words")
                         self.assertTrue(any(c.startswith("div.sec-ctl") or c.startswith("button.handle") for c in edit["controls"]), f"{tid}: Edit has its controls")
-                        self.assertEqual(counts(view["controls"]), FINDINGS.get(tid, {}), f"{tid}: controls in View (a finding when listed in FINDINGS)")
+                        authoring = [c for c in view["controls"] if c.startswith("div.sec-ctl") or c.startswith("button.handle")]
+                        self.assertEqual(len(authoring), 0, f"{tid}: AP3: 0 authoring controls (section controls, drag handles) in View")
+                        self.assertEqual(counts(view["controls"]), FINDINGS.get(tid, {}), f"{tid}: the only controls in View are the reader tools listed in FINDINGS")
 
     def test_every_template_view_is_edit_without_controls(self):
         for width in (1400, 900):
