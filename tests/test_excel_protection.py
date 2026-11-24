@@ -119,7 +119,7 @@ class Protected(Base):
         self.assertIsNone(ws.cell(blank, 1).value)
         self.assertTrue(ws.cell(blank, 1).protection.locked)
         labels = [c.value for c in ws[1]]
-        for label in ("Description", "Owner", "Priority", "Due", "Status", "Client wording", "Milestone", "Use case", "Labels"):
+        for label in ("Description", "Owner", "Priority", "Due", "Status", "Client Message", "Milestone", "Use case", "Labels"):
             self.assertFalse(ws.cell(blank, labels.index(label) + 1).protection.locked, label)
 
     def test_the_commitment_column_is_editable_and_keeps_its_drop_down_on_a_protected_sheet(self):
