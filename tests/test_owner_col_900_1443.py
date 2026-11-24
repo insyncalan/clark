@@ -8,7 +8,8 @@ Ruling (PM word 22-11 02:52): 130 px stays at 900 px; 170 px applies at full wid
 import json
 import unittest
 
-from test_edit_cells_layout import Cells, chrome  # noqa: E402
+from test_edit_cells_layout import Cells  # noqa: E402
+from test_server import chrome  # noqa: E402,F401  (the runner tells a browser file by this import)
 from test_work_items import page_target  # noqa: E402
 
 OWNER_PX_AT_900 = 130      # ruled: stays at 900 px
