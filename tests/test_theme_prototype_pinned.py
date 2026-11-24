@@ -107,6 +107,16 @@ RULE_LINES = [
         '.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }',
         '.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }',
         '.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }',
+        '/* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: built from the issue table. The list sits down the left from 900 px; narrower, the pills are left alone. */',
+        '@media (min-width: 900px) {',
+        '  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }',
+        '  .set-group-name { text-transform: none; letter-spacing: normal; }',
+        '  .set-chip:hover { background: color-mix(in srgb, var(--grey-500) 15%, var(--grey-100)); }',
+        '  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }',
+        '}',
+        "/* Row 1317 (Projects card): Add project is a filled button with its plus, and the table headers are bold in the words' own case. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. The word still grows in on hover as before. */",
+        '.projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }',
+        '.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: var(--weight-semibold); }',
     ]
 
 
