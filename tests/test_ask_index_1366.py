@@ -16,7 +16,7 @@ from unittest import mock
 from _paths import SRC  # noqa: F401
 
 import test_docx_read as tdx
-from clark import reach
+from clark import ask_data, reach
 
 FAKE_KEY = "password = " + "hunter2" * 3
 
@@ -475,6 +475,27 @@ class FollowUp(Base):
         self.assertEqual(names(ix.mod().search(self.data, "PUB", question)), [], "the question alone finds nothing")
         self.assertEqual(names(ix.mod().search(self.data, "PUB", question, extra=["RISK-12"])), ["saved/a.txt"], "the phrase matches RISK-12 only, not RISK 99")
         self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-12"])), ["saved/a.txt"], "an empty question with an ID still searches")
+        self.put("c.txt", "Item RISK-13 is owned by zqthird.")
+        ix.build(self.data, "PUB", [self.box])
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-12", "RISK-13"])), ["saved/a.txt", "saved/c.txt"], "every ID is a phrase, not only the first")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-13", "RISK-12"])), ["saved/a.txt", "saved/c.txt"])
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["", "  ", '""', "RISK-13"])), ["saved/c.txt"], "a blank ID is no phrase and breaks nothing")
+        self.assertEqual(ix.mod().search(self.data, "PUB", "", extra=["", '""']), [], "only blank IDs and no words: nothing to search")
+        with mock.patch.object(ix.mod(), "_open_read", side_effect=AssertionError("the index was opened for nothing")):
+            self.assertEqual(ix.mod().search(self.data, "PUB", "", extra=["", '""']), [], "no word and no usable ID: the index is not even opened")
+
+    def test_followup_ids_rank_the_passages_and_only_the_last_four_turns_name_them(self):
+        """Row 1537 AP2: the IDs rank the passages as well as find them; the service gives the IDs of the last four turns."""
+        self.put("a.txt", "Item RISK-12 is owned by zqpriya.")
+        ix.build(self.data, "PUB", [self.box])
+        seen = []
+        real = ask_data.choose
+        with mock.patch.object(ask_data, "choose", side_effect=lambda found, q, *a, **k: seen.append(q) or real(found, q, *a, **k)):
+            got = ix.mod().folder_data(self.data, "PUB", "who owns it", extra=["RISK-12"])
+        self.assertTrue(got.passages)
+        self.assertEqual(seen, ["who owns it RISK-12"], "the ranking sees the ID too")
+        turns = [("user", f"About ABC-{i}.") for i in range(1, 7)]
+        self.assertEqual(ask_data.ids_in_turns(turns), ["ABC-3", "ABC-4", "ABC-5", "ABC-6"], "four turns, not three or five")
 
 
 class Library(Base):
@@ -545,6 +566,17 @@ class OnlineOnly(Base):
         self.assertEqual(ix.mod().left_out_line("online", 8), "Online-only files not searched", "no count in front, whatever the number")
         got = ix.mod().folder_status(self.data, "P1", [str(self.box)])[str(self.box)]
         self.assertEqual(got["left"]["files"][0], ["Online-only files not searched", ""])
+
+    def test_online_line_comes_first_and_keeps_the_other_left_out_files(self):
+        """Row 1537 AP4: the online line leads the folder's list, the files and the "more" count after it stay, and only a folder with online-only files gets it."""
+        f, g = "/f", "/g"
+        left = {f: {"files": [["a.xyz", "why"]], "more": 3}, g: {"files": [["b.xyz", "why"]], "more": 0}}
+        got = ix.mod()._with_online(left, {f: {"online_only": 2}, g: {"online_only": 0}, "/h": {"online_only": 1}, "/i": 5})
+        self.assertEqual(got[f], {"files": [[ix.mod().ONLINE_LINE, ""], ["a.xyz", "why"]], "more": 3})
+        self.assertEqual(got[g], left[g])
+        self.assertEqual(got["/h"], {"files": [[ix.mod().ONLINE_LINE, ""]], "more": 0})
+        self.assertNotIn("/i", got)
+        self.assertEqual(left[f]["files"], [["a.xyz", "why"]], "the input is not changed")
 
 
 class FirstRunWords(unittest.TestCase):
