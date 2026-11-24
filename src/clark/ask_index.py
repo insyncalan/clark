@@ -714,7 +714,7 @@ def stale(data_dir, code, folders, home=None, leave_out=None):
     return bool(set(kept) - seen)
 
 
-def changed_by_folder(data_dir, code, folders, home=None):
+def changed_by_folder(data_dir, code, folders, home=None, leave_out=None):
     """{folder: n} for the saved folders whose files differ from the ones the index holds (a file new, gone, or with another size or modified time).
     The same listing as `stale`, which only says whether there is a change; this counts them, for the "Updating… N files changed" line. Reads no file."""
     db = _open_read(data_dir, code)
@@ -727,11 +727,12 @@ def changed_by_folder(data_dir, code, folders, home=None):
     finally:
         db.close()
     usable, _bad = _unusable(folders, data_dir, home)
+    usable, _broken, cuts = _cuts(usable, leave_out)           # row 1542: what the person left out is not counted as changed
     names = _prefixes(_all_roots(usable, home))
     out, seen = {}, set()
     try:
         for folder in usable:
-            listing = reach.readable_files([folder], data_dir, None, home)
+            listing = reach.readable_files([folder], data_dir, None, home, {folder: cuts[folder]} if folder in cuts else None)
             roots = reach.roots([folder], home)
             for path in listing.files:
                 if not str(path).lower().endswith(TRACKED_TYPES):
@@ -853,11 +854,20 @@ class Indexer:
             return {}
         return {f: raw for f, raw in self.leave_out(code).items() if raw not in (None, "", "[]", [])}
 
-    def _cut_or_none(self, code):
+    def _changed(self, code, folders):
         try:
-            return self._cut(code)
-        except Exception:                    # noqa: BLE001 a left-out list that cannot be read: treated as changed, so the run starts and stops there
+            cut = self._cut(code)
+        except Exception:                    # noqa: BLE001 a list that cannot be read: no count is shown
             return None
+        return changed_by_folder(self.data_dir, code, folders, self.home, **({"leave_out": cut} if cut else {}))
+
+    def _stale(self, code, folders):
+        """`stale` with the left-out lists given only when there are any (a plain call otherwise); a list that cannot be read counts as changed, so the run starts and stops there."""
+        try:
+            cut = self._cut(code)
+        except Exception:                    # noqa: BLE001 a left-out list that cannot be read
+            return True
+        return stale(self.data_dir, code, folders, self.home, **({"leave_out": cut} if cut else {}))
 
     def _note(self, code, folder, done, total):
         with self.wake:
@@ -889,7 +899,7 @@ class Indexer:
             self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
-        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home, self._cut_or_none(code)):
+        elif due and current(self.data_dir, code, folders) and self._stale(code, folders):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
@@ -897,7 +907,7 @@ class Indexer:
             busy = code in self.queue or code in self.live
             failed = not busy and code in self.failed
             cleared = not busy and code in self.cleared
-        changed = changed_by_folder(self.data_dir, code, folders, self.home) if busy and folders else None
+        changed = self._changed(code, folders) if busy and folders else None
         out = folder_status(self.data_dir, code, folders, live, busy=busy, failed=failed, cleared=cleared, changed=changed)
         if any(v["state"] == "done" for v in out.values()):
             self.seen.add(code)
@@ -942,7 +952,7 @@ class Indexer:
             if folders:
                 self.resume(code, folders)          # the first pass was stopped or failed: carry on in the background; this question reads the folders
             return False
-        if stale(self.data_dir, code, folders, self.home, self._cut_or_none(code)):
+        if self._stale(code, folders):
             self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
             return False
         return True

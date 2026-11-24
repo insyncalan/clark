@@ -112,6 +112,26 @@ class Data(unittest.TestCase):
         self.assertEqual(self.indexed("archive terms"), ["lib/Archive/terms.txt"], "back in on the next run")
         self.assertEqual(self.indexed("draft"), [], "the one still left out stays out")
 
+    def test_the_files_changed_count_ignores_a_left_out_folder(self):
+        """Row 1542 (Hawkeye CHANGES): a new file under a left-out subfolder is not a change: the Updating line counts only what a run would read."""
+        folders = [str(self.root)]
+        left = self.svc.left_map("ABC")
+        ask_index.refresh(self.data, "ABC", folders, self.home, leave_out=left)
+        (self.root / "Archive" / "new.txt").write_text("new archive words", encoding="utf-8")
+        (self.root / "Notes" / "b.txt").write_text("beta notes", encoding="utf-8")
+        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", folders, self.home, leave_out=left), {str(self.root): 1})
+        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", folders, self.home), {str(self.root): 2}, "control: without the list both count")
+
+    def test_a_four_argument_stale_stand_in_is_still_called_with_four_arguments_when_nothing_is_left_out(self):
+        """Row 1542 (Hawkeye CHANGES): the Indexer gives `stale` the left-out lists only when there are some."""
+        calls = []
+        ix = ask_index.Indexer(self.data, home=self.home)
+        self.addCleanup(ix.shutdown)
+        ix.leave_out = lambda code: {}
+        with mock.patch.object(ask_index, "stale", lambda d, c, f, h: calls.append((d, c, f, h)) or False):
+            self.assertFalse(ix._stale("ABC", [str(self.root)]))
+        self.assertEqual(len(calls), 1)
+
     def test_the_background_reader_asks_for_the_left_out_list_itself(self):
         """Row 1542: an Indexer given to AskFolders reads what the person left out from the saved data on every run, so no start path can index it."""
         ix = ask_index.Indexer(self.data, home=self.home)
