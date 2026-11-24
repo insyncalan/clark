@@ -261,12 +261,16 @@ class QuestionNeedsNoPassages(RouteBase):
         (self.box / "whole.txt").write_text("Item ABC-R-012 is the open one.", encoding="utf-8")
         (self.box / "piece.txt").write_text("The abc plan runs 012 times.", encoding="utf-8")
         (self.box / "longer.txt").write_text("Item ABC-R-0125 is another one.", encoding="utf-8")
+        (self.box / "before.txt").write_text("Item XABC-R-012 is a different one.", encoding="utf-8")
+        (self.box / "small.txt").write_text("Item abc-r-012 is written in small letters.", encoding="utf-8")
         self.ix.start("ABC", [str(self.box)])
         self.assertTrue(self.ix.wait_idle(20))
         for index_path in (True, False):
             if not index_path:
                 self.service.indexer = None
             sent = self.ask("ABC-R-012")
+            self.assertNotIn("before.txt", sent, f"{index_path}: letters before the ID make it another word")
+            self.assertIn("small.txt", sent, f"{index_path}: the match ignores case")
             self.assertIn("whole.txt", sent, index_path)
             self.assertNotIn("piece.txt", sent, index_path)
             self.assertNotIn("longer.txt", sent, "ABC-R-012 is not inside ABC-R-0125")
