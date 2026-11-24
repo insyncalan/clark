@@ -11,9 +11,12 @@ import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";      // row 1290: the grey word chip is Classic only; Cards (frozen) keeps class "fchip"
+import { actionIcon, groupIcon } from "../menuIcons.js";
 import { work, setWork, announce } from "../stores/work.js";
 import { say, sayLocalUndo } from "../stores/changes.js";
-import { groupLabel, boardGroup } from "../logic/board.js";
+import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
+import * as GW from "../logic/groupWord.js";
 import { layoutItems, pickLayoutGroup, pickLayoutLane } from "./layoutItems.js";
 export { layoutItems };
 
@@ -328,7 +331,7 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
 // does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items view icons). The Work items line (FilterLine, below) is this box with its stores.
-export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, placeholder = FL.PLACEHOLDER, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, placeholder = FL.PLACEHOLDER, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null, group = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
@@ -339,6 +342,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice that ends the word and Esc close it
+  const [groupNote, setGroupNote] = useState("");        // row 1304: the sentence for a typed group:nothing on the board
   const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
   const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
@@ -353,14 +357,19 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   const later = (text) => { clearTimeout(timer.current); timer.current = setTimeout(() => { if (text !== now()) apply(text); }, PAUSE); };
   // A change of the text: filters the caret has moved past become chips, the rest stays in the box.
   const edit = (text, at) => {
+    if (group) {          // row 1304: a complete group:<choice> word is the Group by pick, never part of the line
+      const t = GW.takeGroup(text, at === undefined ? text.length : at, group.onBoard);
+      setGroupNote(t && t.board ? GW.BOARD_NOTHING : "");
+      if (t) { if (!t.board) group.pick(t.id); text = t.text; at = t.caret; want.current = t.caret; }
+    }
     const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx, extra), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
     if (c.chips.length) { setChips(next); want.current = c.caret; }
-    setDraft(c.text); later(Q.joinLine(next, c.text));
+    setDraft(c.text); later(Q.joinLine(next, group ? GW.strip(c.text, group.onBoard) : c.text));
   };
   const dropChip = (i) => {
     clearTimeout(timer.current);
     const next = live.current.chips.filter((_, j) => j !== i);
-    setChips(next); apply(Q.joinLine(next, live.current.draft));
+    setChips(next); apply(Q.joinLine(next, group ? GW.strip(live.current.draft, group.onBoard) : live.current.draft));
     if (input.current) input.current.focus();
   };
   const readCaret = () => { if (input.current) setCaret(input.current.selectionStart || 0); };
@@ -369,14 +378,22 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
     if (want.current !== null && input.current) { const at = want.current; want.current = null; input.current.setSelectionRange(at, at); setCaret(at); }
     if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft;
   });
-  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused && inBox ? caret : undefined, extra);
+  const masked = group ? GW.mask(draft, group.onBoard) : draft;
+  const parsed = Q.parseFor(masked, rows, ctx, extra), shown = group ? GW.unmask(Q.pieces(masked, parsed, focused && inBox ? caret : undefined, extra), draft) : Q.pieces(draft, parsed, focused && inBox ? caret : undefined, extra);
+  const chip = group ? GW.groupChip(group.value, group.onBoard) : null;
   const matches = Q.rowsFor(rows, line, ctx, extra).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
-  const notes = [...words, ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
-  const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx, extra), chips, rows, ctx, extra) : [];
+  const notes = [...words, ...(groupNote ? [groupNote] : []), ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
   const wordNow = Q.wordAt(draft, caret).word;
+  const options = focused ? [...Q.withCounts(Q.suggestions(draft, caret, rows, ctx, extra), chips, rows, ctx, extra), ...(group ? GW.groupRows(wordNow, group.current, group.onBoard) : [])] : [];
   const listed = focused && armed && options.length > 0;
   const pick = (o) => {
+    if (o.group) {           // row 1304: the choice sets the grouping and takes its word out of the box
+      const at = Q.wordAt(draft, caret).start, rest = draft.slice(0, at) + draft.slice(caret).replace(/^\s+/, "");
+      want.current = at; edit(rest, at); setActive(-1); setArmed(false); group.pick(o.group);
+      if (input.current) input.current.focus();
+      return;
+    }
     const r = Q.accept(draft, caret, o);
     want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(!o.close);   // item 1058: a key (no close) keeps the list open, now on its values
     if (input.current) input.current.focus();
@@ -462,6 +479,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
           <span class="fl1">{o.label}</span>
           {o.note ? <span class="fl2">{o.note}</span> : null}
           {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
+          {o.checked ? <span class="ftick" data-checked="true">{"\u2713"}</span> : null}
         </li>
       ))}
     </Fade>
@@ -472,13 +490,20 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { leave(); if (onLeave) onLeave(); } }}>
       {head}
       <div class="fline-row">
-      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
+      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, group ? GW.strip(draft, group.onBoard) : draft)}>
+        {chip ? (
+          <span class="fchips" data-gchips>
+            <span class="fchip word" data-group-chip={chip.text}>{chip.text}
+              {chip.cross ? <button type="button" data-gx aria-label="Remove the Group by filter" onMouseDown={(e) => e.preventDefault()} onClick={() => { group.pick(GW.START_GROUP); if (input.current) input.current.focus(); }}>{"\u00d7"}</button> : null}
+            </span>
+          </span>
+        ) : null}
         {chips.length ? (
           <span class="fchips" data-fchips>
             {chips.map((c, i) => {
               const name = Q.chipName(c, rows, ctx, extra), g = glossOf(c);
               return (
-                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
+                <span class={classicTheme() ? Q.chipClass(c, rows, ctx, extra) : "fchip"} key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
                   onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{c}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
@@ -530,9 +555,11 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
 // The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, each chip's plain words and the owner:me note.
 export function FilterLine({ board, tools, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
+  const w = work.value, onBoard = !!board && w.view === "board", cur = GW.currentGroup(w.group, onBoard);
+  const group = { onBoard, current: cur, value: w.group, pick: (id) => pickLayout(`group:${id}`) };
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
-    <LineBox head={<SavedViews board={board} add={add} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
+    <LineBox head={<SavedViews board={board} add={add} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items" group={fromFile.value ? null : group}
       tail={<ViewIcons board={board} />} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }

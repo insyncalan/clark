@@ -132,8 +132,23 @@ class Brands(unittest.TestCase):
         w = []
         p = ep.palette(css=":root { --brand-ink: #CCCCCC; --grey-50: #F4F4FA; }", warnings=w)
         self.assertEqual((p.tokens["brand-ink"], p.tokens["grey-50"]), (base.TOKENS["brand-ink"], base.TOKENS["grey-50"]))
-        self.assertEqual(len(w), 1)
-        self.assertIn("tiles", w[0])
+        self.assertEqual(len(w), 2)      # item 1390: the ink is also the text on the locked cells' grey, so that pair reverts too
+        self.assertTrue(any("tiles" in x for x in w))
+        self.assertTrue(any("locked cell" in x for x in w))
+
+    def test_the_locked_fill_is_the_covers_grey_a_brand_may_set_it_and_a_weak_pair_reverts(self):
+        """Item 1390: --locked-fill is a workbook-only token (not in the page's tokens.css): E7E7E7, ink on it at 4.5:1 or better."""
+        self.assertEqual(base.TOKENS["locked-fill"], "E7E7E7")
+        self.assertGreaterEqual(ep.contrast_ratio(base.TOKENS["locked-fill"], base.TOKENS["brand-ink"]), 12.9)
+        self.assertEqual(ep.committed().tokens["locked-fill"], "E7E7E7")
+        w = []
+        self.assertEqual(ep.palette(css=":root { --locked-fill: #DDEEDD; }", warnings=w).tokens["locked-fill"], "DDEEDD")
+        self.assertEqual(w, [])
+        self.assertEqual(ep.palette(css=":root { --brand-navy: #0B2545; }", warnings=w).tokens["locked-fill"], "E7E7E7")
+        w = []
+        p = ep.palette(css=":root { --locked-fill: #111111; }", warnings=w)       # the ink would not read on a dark fill
+        self.assertEqual(p.tokens["locked-fill"], "E7E7E7")
+        self.assertTrue(any("locked cell" in x for x in w))
 
     def test_passing_cover_pairs_keep_the_brand_values(self):
         w = []

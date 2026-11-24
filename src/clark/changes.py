@@ -44,6 +44,7 @@ from clark import people as people_rules
 from clark import store as clark_store
 from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
+from clark.section_kinds import doclinks as section_kind_doclinks
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
@@ -3110,6 +3111,12 @@ def _do_section_file(store, by_user, req):
     stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
     the type's checker like any other body write, so the store's rules are the same as a save from the page."""
     project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    entries = req.get("entries")                    # row 1593: several files in ONE step (one apply_id, so one Undo); `entry` is the one-file form
+    if entries is not None:
+        if not isinstance(entries, list) or not entries:
+            raise Refused(NO_FILE_HERE)
+    else:
+        entries = [entry]
     if not isinstance(project, str) or store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     if clark_store.is_archived(store.con, project):
@@ -3122,13 +3129,25 @@ def _do_section_file(store, by_user, req):
         if kind is None:
             raise Refused(NO_FILE_HERE)
         text = _section_body(row, row.get("body") or "")
-        try:
-            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
-        except section_bodies.Bad as e:
-            raise Refused(str(e)) from None
+        value = json.loads(text) if text else None
+        added, left_out = [], []
+        for e in entries:
+            try:
+                value = section_bodies.TEMPLATES[kind].add_file(value, e)
+                added.append(e)
+            except section_bodies.Bad as err:
+                if len(entries) > 1 and str(err) == section_kind_doclinks.TOO_MANY:        # the files that fit are added in order, the rest are named
+                    left_out.append(e)
+                    continue
+                raise Refused(str(err)) from None
+        if not added:
+            raise Refused(section_kind_doclinks.TOO_MANY)
         st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    reply = {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    if req.get("entries") is not None:
+        reply.update({"added": added, "left_out": [e["name"] for e in left_out]})
+    return 200, reply
 
 
 def make_section_file(path, onedrive_roots=None, by_user=None):

@@ -20,7 +20,7 @@ WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
 # Row 1024: Settings shows one page at a time. The pages by group, as the menu names them, with the cards (name, heading id) each draws.
@@ -30,14 +30,14 @@ OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")
           ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")])]),
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
-                        ("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")])])]
+                        ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
 NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Appearance", [("Personal", "personal-h")]),
                        ("theme", "Theme", [("Theme", "theme-settings-h")])]),      # row 1299 1a: the mock-up's four groups, in its order
               ("All projects", [("projects", "Projects", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
               ("Project settings", [("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")]), ("folder", "Folder", [("Publishing", "client-folder-h")]),
                                     ("brand", "Brand", [("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]), ("claude", "ask clark", [("Asking", "ask-settings-h")]),
                                     ("data", "Export and import", [("Data", "data-card-h")])]),
-              ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]),
+              ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]),
                                   ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
 GROUPS = NEW_GROUPS if '["You", [[' in VIEWS.read_text(encoding="utf-8") else OLD_GROUPS      # the menu is in four groups when Views.jsx has them
@@ -135,7 +135,19 @@ class Head(Base):
             p.settled("the scroll to the menu item finished")
             if os.environ.get("CLARK_TEST_LATE_SCROLL") == "1":      # tests only: the wheel's scroll arrives after the page looked still (macOS headless), once per chip
                 p.js("window.__late = window.__late || 0; if (window.__late++ % 6 === 0) window.scrollTo(0, 99999)")
-            at = p.js(f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()")
+            measure = f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()"
+            at = p.js(measure)
+            if not (0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]):
+                # macOS run 45203372794, job 137792514843: the chip was read at y=1044 in a 900 px window with scrollY=0 after all 6 tries, so the scroll was
+                # not applied (or was put back to 0) when it was measured. A GUESS, not measured: this try waits up to 3 s for the scroll to land, bringing the chip to the middle on each look; no run shows yet that it helps.
+                seen = [at]
+
+                def looked():
+                    p.js(f"{find}.scrollIntoView({{block: 'center', behavior: 'instant'}})")
+                    seen[0] = p.js(measure)
+                    return 0 <= seen[0][0] <= seen[0][2] and 0 <= seen[0][1] <= seen[0][3]
+                wait(looked, 3)
+                at = seen[0]
             if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
                 break
         self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")
