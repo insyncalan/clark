@@ -22,6 +22,7 @@ from test_server import Running, chrome
 PDF = base.PDF
 OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"fictional legacy file"
 PNG = b"\x89PNG\r\n\x1a\n" + b"fictional picture"
+WIDTHS = (1400, 900)
 SENTENCE = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
 
 
@@ -192,7 +193,7 @@ class Drop(base.Route):
 
 class InThePage(base.InThePage):
     """The drop area in Edit, through the real page and route: Classic only, the box and its over state, the words, one file at a
-    time, and the file added like the file window's with one Undo. Checked at 1400 (900 is paused)."""
+    time, and the file added like the file window's with one Undo. The box, the words and the refusal are checked at 1400 and 900 px."""
 
     def swap_page(self, with_theme):
         self.s.close()
@@ -218,6 +219,11 @@ class InThePage(base.InThePage):
       for (const n of names) dt.items.add(new File([%s], n, {type: ''}));
       area.dispatchEvent(new DragEvent(over ? 'dragenter' : 'drop', {dataTransfer: dt, bubbles: true, cancelable: true}));
     })"""
+
+    def size(self, cdp, p, w):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        p.until(f"innerWidth === {w}", f"the window is {w} px wide")
+        p.until("(function(){const r=document.querySelector('[data-drop]').getBoundingClientRect();return r.width>0&&r.right<=innerWidth&&r.left>=0&&document.documentElement.scrollWidth<=innerWidth;})()", f"the drop area fits the window at {w} px with no sideways scroll")
 
     def drag(self, p, names, over=False):
         p.js((self.SEND % json.dumps(PDF.decode("latin-1"))) + f"({json.dumps(names)}, {json.dumps(over)})")
@@ -246,32 +252,40 @@ class InThePage(base.InThePage):
             p = self.open_edit(cdp, ref)
             probe = lambda prop, tok: p.js(f"(function(){{const e=document.createElement('i');e.style.{prop}='var({tok})';document.body.appendChild(e);const v=getComputedStyle(e).{prop};e.remove();return v;}})()")
             box = "(function(){const s=getComputedStyle(document.querySelector('[data-drop]'));return [s.borderTopWidth,s.borderTopStyle,s.borderTopLeftRadius,s.paddingTop,s.paddingLeft,s.textAlign,s.marginTop,s.borderTopColor,s.color,s.backgroundColor];})()"
-            rest = p.js(box)
-            self.assertEqual(rest[1:7], ["dashed", "12px", "14px", "14px", "center", "10px"])
-            rule = p.js("(function(){for(const sh of document.styleSheets){let rs;try{rs=sh.cssRules}catch(e){continue}for(const r of rs){if(r.selectorText===\".tpl-drop\")return r.style.getPropertyValue(\"border\")}}return null})()")
-            self.assertTrue(str(rule).startswith("1.5px dashed"), "the stylesheet says 1.5px (a screen at one pixel per pixel draws it as 1px)")
-            self.drag(p, ["a.pdf"], over=True)
-            p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
-            over = p.js(box)
-            self.assertEqual(over[7], probe("color", "--brand-blue"), "the border is the blue token")
-            self.assertEqual(over[8], probe("color", "--brand-blue"), "and so is the text")
-            self.assertEqual(over[9], probe("color", "--brand-blue-tint"), "the fill is the tint token")
-            self.assertNotEqual(rest[7], over[7])
-            for dark in ("dark", "light"):
-                p.js(f"document.documentElement.dataset.theme = {json.dumps(dark)}")
-                self.assertEqual(p.js(box)[7], probe("color", "--brand-blue"), dark)
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
+                    p.js("document.querySelector('[data-drop]').dispatchEvent(new DragEvent('dragleave', {bubbles: true}))")
+                    p.until("!document.querySelector('[data-drop]').classList.contains('over')", "the over state ends when the drag leaves")
+                    rest = p.js(box)
+                    self.assertEqual(rest[1:7], ["dashed", "12px", "14px", "14px", "center", "10px"])
+                    rule = p.js("(function(){for(const sh of document.styleSheets){let rs;try{rs=sh.cssRules}catch(e){continue}for(const r of rs){if(r.selectorText===\".tpl-drop\")return r.style.getPropertyValue(\"border\")}}return null})()")
+                    self.assertTrue(str(rule).startswith("1.5px dashed"), "the stylesheet says 1.5px (a screen at one pixel per pixel draws it as 1px)")
+                    self.drag(p, ["a.pdf"], over=True)
+                    p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
+                    over = p.js(box)
+                    self.assertEqual(over[7], probe("color", "--brand-blue"), "the border is the blue token")
+                    self.assertEqual(over[8], probe("color", "--brand-blue"), "and so is the text")
+                    self.assertEqual(over[9], probe("color", "--brand-blue-tint"), "the fill is the tint token")
+                    self.assertNotEqual(rest[7], over[7])
+                    for dark in ("dark", "light"):
+                        p.js(f"document.documentElement.dataset.theme = {json.dumps(dark)}")
+                        self.assertEqual(p.js(box)[7], probe("color", "--brand-blue"), dark)
 
     def test_the_area_words_at_both_widths(self):
         self.classic()
         ref = self.add("doclinks")
         with chrome() as cdp:
             p = self.open_edit(cdp, ref)
-            self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
-            self.assertEqual(p.js("document.querySelector('[data-drop-line]').textContent"), "Dropped files are kept in the client folder, in Report files.")
-            self.assertTrue(p.js("document.querySelector('[data-drop]').compareDocumentPosition(document.querySelector('[data-drop-line]')) & Node.DOCUMENT_POSITION_FOLLOWING"))
-            self.drag(p, ["a.pdf"], over=True)
-            p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
-            self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+                    self.assertEqual(p.js("document.querySelector('[data-drop-line]').textContent"), "Dropped files are kept in the client folder, in Report files.")
+                    self.assertTrue(p.js("document.querySelector('[data-drop]').compareDocumentPosition(document.querySelector('[data-drop-line]')) & Node.DOCUMENT_POSITION_FOLLOWING"))
+                    self.drag(p, ["a.pdf"], over=True)
+                    p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
 
     def test_several_files_or_a_folder_are_refused_whole(self):
         self.classic()
@@ -279,15 +293,19 @@ class InThePage(base.InThePage):
         sel = f"[data-id={json.dumps(ref)}]"
         with chrome() as cdp:
             p = self.open_edit(cdp, ref)
-            self.drag(p, ["one.pdf", "two.pdf"])
-            p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal")
-            folder = ("(function(){const area=document.querySelector('[data-drop]');const ev=new DragEvent('drop',{bubbles:true,cancelable:true});"
-                      "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
-            p.js("document.querySelector('.toast') && document.querySelector('.toast').remove()")
-            p.js(folder)
-            p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal for a folder")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sel} .tpl-dl-i').length"), 0)
-            self.assertFalse((self.client / "Report files").exists(), "nothing was copied")
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
+                    p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
+                    self.drag(p, ["one.pdf", "two.pdf"])
+                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal")
+                    folder = ("(function(){const area=document.querySelector('[data-drop]');const ev=new DragEvent('drop',{bubbles:true,cancelable:true});"
+                              "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
+                    p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
+                    p.js(folder)
+                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal for a folder")
+                    self.assertEqual(p.js(f"document.querySelectorAll('{sel} .tpl-dl-i').length"), 0)
+                    self.assertFalse((self.client / "Report files").exists(), "nothing was copied")
 
     def test_cards_has_no_drop_area(self):
         self.cards()
