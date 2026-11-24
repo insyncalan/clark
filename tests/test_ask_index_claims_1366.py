@@ -367,7 +367,7 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         self.assertEqual(none, "No files to index")
         self.assertEqual(note, "Still reading 120 files, so this answer may miss some.")
         reasons = [ask_index.REASON_TYPE, ask_index.REASON_TOO_LONG_PDF, ask_index.REASON_TOO_LONG, ask_index.REASON_PICTURE, ask_index.REASON_SAFETY]
-        self.assertEqual(quoted, [reading, done, unread, none, *reasons, note])
+        self.assertEqual(quoted, [reading, done, unread, none, *reasons, ask_index.ONLINE_LINE, note])
         self.assertIn("**(why)**", t)
 
     def test_the_status_paragraph_lists_the_reasons_the_app_gives(self):
@@ -379,7 +379,7 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         # the list holds exactly these reasons: a file that is online only is counted as not read but is not listed
         self.assertEqual(reasons, set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
         self.assertIn(ask_index.ONLINE_LINE, ask_index.line_for({"indexed": 1, "online_only": 1}))
-        self.assertIn("is counted in the number that could not be read, but is not in that list", t)
+        self.assertIn("A file that is online only is not opened; the line and the list say \u201c" + ask_index.ONLINE_LINE + "\u201d.", t)
         self.assertEqual(ask_index.MAX_LEFT_OUT_SHOWN, 200)
         self.assertIn("up to 200 names", t)
 
