@@ -305,7 +305,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
-/* Row 1534 (Classic only: the Cards page keeps its bytes, Alan 19-11; here, not in shell.css or edit.css, which Cards shares). */
+/* Row 1534 (Classic only: the Cards page keeps its bytes (frozen 19-11); here, not in shell.css or edit.css, which Cards shares). */
 /* Row 1534 (AP5): the column widths by name, for a list drawn in the order saved on the Work items page (data-ord, --cols-ord from ItemRows.jsx). The standard order never uses them. */
 .irows { --w-ico: 28px; --w-owner: 160px; --w-date: 112px; --w-prio: 84px; --w-id: 88px; }
 .irows.is-edit { --w-id: 124px; }
