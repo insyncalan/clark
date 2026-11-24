@@ -176,7 +176,9 @@ class Pane(unittest.TestCase):
                     self.assertTrue(self.right_click(cdp, sid), "the browser's own menu is held back")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-rt-ai] [data-ai-menu]')", sid)), "the AI menu opens over the selection")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-rt-ai] [data-ai-option]')].map(e => e.dataset.aiOption)", sid), OPTIONS)
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek [data-rt-ai]').contains(document.activeElement)", sid)), "the focus is in the menu")
+                    in_menu = wait(lambda: cdp.js("document.querySelector('#peek [data-rt-ai]').contains(document.activeElement)", sid))
+                    seen = "" if in_menu else cdp.js("(a => JSON.stringify({tag: a && a.tagName, cls: a && a.className, data: a && {...a.dataset}, hasFocus: document.hasFocus(), menuButton: !!document.querySelector('#peek [data-rt-ai] button')}))(document.activeElement)", sid)
+                    self.assertTrue(in_menu, "the focus is in the menu; seen: " + str(seen))
                     for t in ("keyDown", "keyUp"):
                         cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
                     self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek [data-rt-ai]')", sid)), "Esc closes the menu")
