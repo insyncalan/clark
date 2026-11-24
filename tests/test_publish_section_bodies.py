@@ -126,6 +126,19 @@ class Kept(Published):
         self.write(tracker, json.dumps({"groups": [{"name": "Empty", "lines": []}]}))
         self.assertNotIn(tracker, self.sections(), "nothing the page would draw: left out")
 
+    def test_a_just_the_bar_tracker_with_only_a_health_or_only_a_note_is_published_1420(self):
+        only_health = sb.published("tracker", {"overall": {"health": "atrisk"}, "groups": []})
+        self.assertEqual(only_health["overall"], {"actual": None, "planned": None, "health": "atrisk", "note": ""})
+        only_note = sb.published("tracker", {"overall": {"note": "Late"}, "groups": []})
+        self.assertEqual(only_note["overall"], {"actual": None, "planned": None, "health": "", "note": "Late"})
+        self.assertIsNone(sb.published("tracker", {"overall": {"planned": 500}, "groups": []}), "a planned figure alone is not drawn by the page")
+
+    def test_the_published_overall_picks_by_name_and_skips_a_figure_that_is_not_a_number_1420(self):
+        value = {"overall": {"actual": 1, "health": "bogus", "note": 5},
+                 "groups": [{"name": "G", "lines": [{"text": "A", "status": "planned", "achieved": 250, "planned": 400}, {"text": "B", "status": "planned", "achieved": "x", "planned": None}]}]}
+        got = sb.published("tracker", value)
+        self.assertEqual(got["overall"], {"actual": 250, "planned": 400, "health": "", "note": ""}, "a health word not in the list is dropped, a figure that is not a number counts for nothing")
+
     def test_a_tracker_with_no_line_is_left_out_and_a_hidden_one_too(self):
         tracker = self.section("tracker")
         self.write(tracker, json.dumps({"groups": [{"name": "Empty", "lines": []}]}))
