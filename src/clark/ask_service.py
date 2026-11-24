@@ -330,7 +330,7 @@ class AskService:
             if folders and self.indexer is not None and self.indexer.current(code, folders) and not any(v not in (None, "", "[]", []) for v in cut_subs.values()):
                 found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room, ask_data.ids_in_turns(earlier))      # the index knows no left-out subfolder: with one set, the folders are read directly; a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
-                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs)
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs, ask_data.ids_in_turns(earlier))
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:

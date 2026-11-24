@@ -240,10 +240,10 @@ class QuestionNeedsNoPassages(RouteBase):
         self.ix.start("ABC", [str(self.box)])
         self.assertTrue(self.ix.wait_idle(20))
 
-    def ask(self, question):
+    def ask(self, question, earlier=None):
         self.provider.reply = "ok"
         before = len(self.provider.sent)
-        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": question})
+        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": question, **({"earlier": earlier} if earlier else {})})
         self.assertEqual((status, got.get("ok")), (200, True), got)
         self.assertEqual(len(self.provider.sent), before + 1)
         return self.provider.sent[-1]
@@ -270,6 +270,22 @@ class QuestionNeedsNoPassages(RouteBase):
             self.assertIn("whole.txt", sent, index_path)
             self.assertNotIn("piece.txt", sent, index_path)
             self.assertNotIn("longer.txt", sent, "ABC-R-012 is not inside ABC-R-0125")
+
+    def test_an_id_named_in_an_earlier_turn_finds_its_file_on_both_read_paths(self):
+        """Row 1537 AP2/AP6 and row 1616 AP1: a follow-up ("and who owns it?") that names no ID still finds the file of the ID the chat named, on the index path
+        and on the direct folder-read path; ABC-R-012 is not found inside ABC-R-0125."""
+        (self.box / "whole.txt").write_text("Item ABC-R-012 is the open one.", encoding="utf-8")
+        (self.box / "longer.txt").write_text("Item ABC-R-0125 is another one.", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        earlier = [{"role": "user", "text": "What is ABC-R-012?"}, {"role": "assistant", "text": "ABC-R-012 is the open one."}]
+        for index_path in (True, False):
+            if not index_path:
+                self.service.indexer = None
+            sent = self.ask("and who owns it?", earlier)
+            self.assertIn("whole.txt", sent, index_path)
+            self.assertNotIn("longer.txt", sent, index_path)
+            self.assertNotIn("longer.txt", self.ask("and who owns it?"), "control: with no earlier turn the ID is not known")
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
         self.service.indexer = None                       # no current index: the folders are read at question time
