@@ -135,7 +135,7 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
         names = re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
-        self.assertEqual(names, ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
+        self.assertEqual(names, ["Projects overview", "Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
         self.assertEqual(re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))

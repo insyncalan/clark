@@ -111,15 +111,16 @@ export function Milestones({ tools }) {
 // A page holds one or more cards, drawn as before; a card that is not on the page (a published file, or no project open) leaves its page out, and a page with no card is not in the menu.
 // Search settings looks at every page at once: while the box holds words the menu is hidden and all the cards that match are shown.
 const GROUPS = [
-  ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
+  ["Everyday", [["overview", "Projects overview", ["Overview"]], ["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
 ];
+const SLUG_OF = { pages: "reports", ask: "claude" };      // row 1299 slice 2: the mock-up's names for two pages that keep their old slugs (an address with either opens the same page)
 const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Overview: "overview-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {
@@ -202,7 +203,7 @@ export function Settings({ tools }) {
   const [searching, setSearching] = useState(false);
   const groups = pagesOf(tools, open);
   const all = groups.flatMap(([, pages]) => pages);
-  const page = all.find(([slug]) => slug === (settingsPage.value || "projects")) || all[0] || ["", "", []];
+  const page = all.find(([slug]) => slug === (SLUG_OF[settingsPage.value] || settingsPage.value || "projects")) || all[0] || ["", "", []];
   const shown = searching ? all.flatMap(([, , list]) => list) : page[2];
   return (
     <div class="set-layout">

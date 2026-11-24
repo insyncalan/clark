@@ -23,7 +23,7 @@
 // change of only `mv` replaces the entry and never pushes one.
 export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
 // Settings shows one page at a time (row 1024): "#settings&s=people". Plain "#settings" is the first page, Projects, so that one is never written.
-export const SETTINGS_PAGES = ["projects", "people", "profile", "folder", "brand", "theme", "appearance", "reports", "backups", "data", "claude", "logs", "version", "pages", "ask"];     // row 1299 slice 2: "pages" and "ask" are the mock-up's names for Reports and ask clark (Views.jsx reads them as those pages)
+export const SETTINGS_PAGES = ["projects", "people", "profile", "folder", "brand", "theme", "appearance", "reports", "backups", "data", "claude", "logs", "version", "overview", "pages", "ask"];     // row 1299 slice 2: "overview" is Projects overview; "pages" and "ask" are the mock-up's names for Reports and ask clark (Views.jsx reads them as those pages)
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
