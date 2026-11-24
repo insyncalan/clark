@@ -273,5 +273,114 @@ class AskPath(RouteBase):
         self.assertEqual((seen, used), ([["/shared/one"]], 0))
 
 
+class FiveStates(Base):
+    """Row 1371 (AP7): the server reports waiting, updating, paused, failed and cleared besides reading and done."""
+
+    def held(self, gate, entered):
+        real = ask_index.refresh
+
+        def slow(data, code, folders, home=None, stop=None, progress=None):
+            def hold(f, d, t):
+                progress(f, d, t)
+                entered.set()
+                gate.wait(5)
+            return real(data, code, folders, home, stop=stop, progress=hold)
+        return slow
+
+    def test_folder_status_reports_the_five_new_states(self):
+        self.put(self.a, "one.txt", "alpha river")
+        self.put(self.b, "two.txt", "beta ocean")
+        a, b = str(self.a), str(self.b)
+        # waiting: a run is going and has not reached a folder that has no index yet
+        gate, entered = threading.Event(), threading.Event()
+        ix = ask_index.Indexer(self.data, self.home, refresh_fn=self.held(gate, entered))
+        self.addCleanup(ix.shutdown)
+        ix.start("ABC", [a, b])
+        self.assertTrue(entered.wait(5))
+        got = ix.status_for("ABC", [a, b])
+        self.assertEqual(got[a]["state"], "reading")
+        self.assertEqual(got[b], {"state": "waiting", "line": "Waiting to index"})
+        gate.set()
+        self.assertTrue(ix.wait_idle(5))
+        self.assertEqual({v["state"] for v in ix.status_for("ABC", [a, b]).values()}, {"done"})
+        # updating: a file of the folder not yet reached has changed since its last read
+        self.put(self.b, "three.txt", "beta lake")
+        self.put(self.b, "four.txt", "beta sea")
+        gate.clear()
+        entered.clear()
+        ix.start("ABC", [a, b])
+        self.assertTrue(entered.wait(5))
+        got = ix.status_for("ABC", [a, b])
+        self.assertEqual(got[b], {"state": "updating", "line": "Updating\u2026 2 files changed", "changed": 2})
+        self.assertEqual(got[a]["state"], "reading")
+        gate.set()
+        self.assertTrue(ix.wait_idle(5))
+        # cleared: the index file was deleted after the line had shown it; nothing starts by itself
+        ask_index.remove(self.data, "ABC")
+        got = ix.status_for("ABC", [a, b])
+        self.assertEqual({v["state"] for v in got.values()}, {"cleared"})
+        self.assertEqual(got[a]["line"], "Not indexed.")
+        self.assertFalse(ask_index.path_for(self.data, "ABC").exists())
+        self.assertEqual(ix.busy, 0)
+
+    def test_one_changed_file_says_1_file(self):
+        self.put(self.a, "one.txt", "alpha river")
+        self.put(self.b, "two.txt", "beta ocean")
+        a, b = str(self.a), str(self.b)
+        self.assertTrue(ask_index.refresh(self.data, "ABC", [a, b], self.home))
+        self.put(self.b, "three.txt", "beta lake")
+        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", [a, b], self.home), {b: 1})
+        got = ask_index.folder_status(self.data, "ABC", [a, b], {a: (0, 1)}, busy=True, changed={b: 1})
+        self.assertEqual(got[b]["line"], "Updating\u2026 1 file changed")
+
+    def test_a_stopped_first_pass_says_paused_and_a_failed_run_says_failed_until_started_again(self):
+        self.put(self.a, "one.txt", "alpha river")
+        a = str(self.a)
+        stop = threading.Event()
+        stop.set()
+        ask_index.refresh(self.data, "ABC", [a], self.home, stop=stop)
+        ix = ask_index.Indexer(self.data, self.home)
+        self.addCleanup(ix.shutdown)
+        ix.stop.set()                                   # clark is closing: the read cannot carry on now
+        self.assertEqual(ix.status_for("ABC", [a])[a], {"state": "paused", "line": "Indexing paused. It carries on when clark is open"})
+        calls = []
+
+        def boom(data, code, folders, home=None, stop=None, progress=None):
+            calls.append(code)
+            raise RuntimeError("x")
+        bad = ask_index.Indexer(self.data, self.home, refresh_fn=boom)
+        self.addCleanup(bad.shutdown)
+        bad.start("ABC", [a])
+        self.assertTrue(bad.wait_idle(5))
+        self.assertEqual(bad.status_for("ABC", [a])[a], {"state": "failed", "line": "Could not index this folder."})
+        self.assertEqual(bad.status_for("ABC", [a])[a]["state"], "failed")
+        self.assertEqual(calls, ["ABC"])                # the poll does not start it again
+        bad.start("ABC", [a])                           # the link: Try again
+        self.assertTrue(bad.wait_idle(5))
+        self.assertEqual(calls, ["ABC", "ABC"])
+
+
+class IndexAgain(Route):
+    """Row 1371: the Try again and Index again links ask the server to read the folders again (action "reindex", nothing saved)."""
+
+    def test_reindex_starts_the_read_once_and_takes_no_path(self):
+        self.put(self.a, "one.txt", "alpha river")
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.a)})
+        self.assertTrue(self.ix.wait_idle(10))
+        with mock.patch.object(self.svc, "reindex") as re:
+            status, body = self.svc.change({"project": "ABC", "action": "reindex"})
+        self.assertEqual((status, body["ok"], re.call_count), (200, True, 1))
+        self.assertEqual(self.svc.change({"project": "ABC", "action": "reindex", "path": str(self.a)})[0], 400)
+        with mock.patch.object(self.svc, "reindex") as re:
+            status, body = self.svc.change_all({"scope": "all", "action": "reindex"})
+        self.assertEqual((status, body["ok"], re.call_count), (200, True, 1))
+
+    def test_the_all_projects_read_counts_the_projects_indexed(self):
+        self.put(self.a, "one.txt", "alpha river")
+        self.svc.change_all({"scope": "all", "action": "add", "path": str(self.a)})
+        self.assertTrue(self.ix.wait_idle(10))
+        self.assertEqual(self.svc.read_all("ABC")[1]["projects"], {str(self.a): [1, 1]})
+
+
 if __name__ == "__main__":
     unittest.main()
