@@ -1,0 +1,20 @@
+# Mergify merge queue test (ticket 1581, 24-11). One queue rule: a PR joins the queue when it carries the label `queue`
+# and the required checks are green. Every PR without the label merges as before.
+queue_rules:
+  - name: default
+    queue_conditions:
+      - label = queue
+      - base = main
+      - -draft
+      - check-success = Tests passed
+      - check-success = bifrost-closes-guard
+      - check-success = bifrost-point-map
+      - check-success = bifrost-test-exists
+    merge_conditions:
+      - check-success = Tests passed
+      - check-success = bifrost-closes-guard
+      - check-success = bifrost-point-map
+      - check-success = bifrost-test-exists
+    merge_method: squash
+    batch_size: 3
+    batch_max_wait_time: 1 minute
