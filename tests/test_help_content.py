@@ -35,7 +35,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'More actions' is the menu of a use case or milestone row and of the milestone peek (edit/RecordMore.jsx, item 1148); the prototype has no such menu.
 # row 1466: "Client Message" (owner ruling, 20-11-2026) is on the page and in Help; the prototype under system/prototype still says Client wording (test content: left as it is).
 # 'Check now' and 'Install and restart' are the Update row's own buttons (logic/update.js FETCH_LABELS checkNow, install; row 1327); the prototype has neither (it does have Download).
-CHECKED_BY_HAND = set(['Client Message', 'Check now', 'Install and restart', 'More actions', 'Expected or achieved', 'Add issue', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one', 'Updated to clark', 'Use a file instead'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)   # 'Updated to clark', 'Use a file instead': the Update card's row titles (edit/Update.jsx, logic/update.js ROWS), named by the Help lines on updating (row 1327)
+CHECKED_BY_HAND = set(['Client Message', 'Check now', 'Install and restart', 'More actions', 'Expected or achieved', 'Add issue', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one', 'Updated to clark', 'Use a file instead'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)   # 'Updated to clark', 'Use a file instead': the Update card's row titles (edit/Update.jsx, logic/update.js ROWS), named by the Help lines on updating (row 1327)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -57,6 +57,16 @@ def texts(o, path=""):
 
 # The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
+# One approved sentence names the company that runs the service ("Claude"): approved wording (NEW-WORDS, row 1366 AP27 item 6), exempt as this exact text only.
+APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",)
+
+
+def without_approved(s):
+    for a in APPROVED_WORDS:
+        s = s.replace(a, "")
+    return s
+
+
 DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
 
 
@@ -105,7 +115,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 35))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 34))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -204,7 +214,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
+        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(without_approved(s)) or self.PATH.search(without_approved(s)))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
