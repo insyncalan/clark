@@ -75,19 +75,19 @@ function Tiles({ section }) {
     const free = freeSlots(pics);
     if (!free.length) { say("problem", W.full); return; }
     setBusy(true);
-    let added = 0, last = null;
+    let added = 0, last = null, why = "";
     try {
       for (const f of files) {
         if (added >= free.length) break;
-        if (f.size > PICTURE_MAX) { say("problem", W.tooBig()); continue; }
+        if (f.size > PICTURE_MAX) { why = why || W.tooBig(); say("problem", W.tooBig()); continue; }
         const made = await (two ? shrink(f, { longest: 8000, widest: WIDTH_MAX, most: ORIGINAL_MAX }) : shrink(f, { longest: V1_LONGEST, most: V1_MOST }));
-        if (!made.ok) { say("problem", made.message); continue; }
+        if (!made.ok) { why = why || made.message; say("problem", made.message); continue; }
         const r = await sendPicture(section, free[added], made.data, W.added);
         if (!r) break;
         last = r; added++;
         if (added === 1 && !shown.length) setPick(free[0]);
       }
-      if (added && files.length > added) say("done", W.partial(added, files.length, added === free.length), last && last.apply_id);
+      if (added && files.length > added) say("done", (why ? why + " " : "") + W.partial(added, files.length, added === free.length), last && last.apply_id);      // the first file's refusal reason stays in the one toast (a later say() replaces the earlier one)
     } finally { setBusy(false); }
   }
   const choose = () => input.current && input.current.click();

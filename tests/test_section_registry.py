@@ -338,9 +338,9 @@ class PageSide(unittest.TestCase):
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST and not x.get("start")]
         # row 1268: the Work items list has no entry without a start (its start is the saved filter it begins from), so it counts here by that one entry
-        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] in ("workitems", "imagecap", "textimage")]      # row 1232: Text and Image Side by Side is the type textimage started with a version 2 body; row 1223: the Image card (imagecap) also has a start
+        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] in ("workitems", "imagecap", "textimage", "gallery")]      # row 1232: Text and Image Side by Side is the type textimage started with a version 2 body; row 1223: the Image card (imagecap) also has a start
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("text-image", "textimage", '{"v":2}'), ("full-image", "imagecap", '{"v":2}')],
+        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("text-image", "textimage", '{"v":2}'), ("full-image", "imagecap", '{"v":2}'), ("gallery", "gallery", '{"v":2}')],
                          "row 1223 and 1232: Full width image (imagecap) and Text and Image Side by Side (textimage) start a version 2 body; no type of their own")
         self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))

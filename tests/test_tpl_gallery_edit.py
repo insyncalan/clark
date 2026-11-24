@@ -247,7 +247,7 @@ class Adding(Page):        # the file picker, the drop, the refusals
         self.mount(many(2))
         self.val("mixed()", True)
         self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
-        self.assertEqual(self.toast_text(), "Added 1 of the 2 files.", "not full: no second sentence")
+        self.assertEqual(self.toast_text(), BIG + " Added 1 of the 2 files.", "not full: no second sentence; the refused file's reason stays in the one toast")
 
     def test_a_file_over_10_mb_is_refused_with_the_ruled_words(self):
         self.mount("")
