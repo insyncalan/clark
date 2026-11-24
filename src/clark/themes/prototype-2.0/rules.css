@@ -399,7 +399,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1286 (impeccable audit B-M2 and B-M3, menus; Classic only, Cards keeps every menu rule it has). One grid for every menu: the pick menu's, an icon 17px in from the panel edge, 8px from its words. */
 .ddmenu { min-width: 200px; }
 .cpop.cmenu:not(.bmenu) { min-width: 200px; }
-.ddmenu[aria-label="Group by"] { min-width: 240px; }
 .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp), .cols-menu [role="menuitemcheckbox"] { padding-left: 16px; padding-right: 16px; }
 .ddmenu .mi { margin-right: var(--space-2); }
 .rowmenu .mi { margin-right: 0; }

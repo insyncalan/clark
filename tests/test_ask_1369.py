@@ -15,19 +15,22 @@ from clark import ask, ask_data, ask_passages, ask_service
 
 
 class Counts(tp.Folders):
+    def run_it(self, question="xxx", **kw):      # row 1366 AP27: only a passage sharing a word with the question is sent; every made-up file holds "xxx"
+        return super().run_it(question, **kw)
+
     def make(self, n, prefix="f", size=100):
         for i in range(n):
             self.put(self.box, f"{prefix}{i:03d}.md", f"ZQ{i:03d} " + "x" * size)
 
     def test_180_files_are_all_opened_not_ten(self):
         self.make(180)
-        got = self.run_it("ZQ179", budget=10**9, max_passages=10**9)
+        got = self.run_it("xxx", budget=10**9, max_passages=10**9)
         self.assertEqual(len({p.file for p in got.passages}), 180)
         self.assertEqual((got.other, got.limit), (0, 0))
 
     def test_the_last_sorting_file_is_found_by_its_word_when_the_budget_is_small(self):
         self.make(180)
-        got = self.run_it("ZQ179", budget=3 * 110)
+        got = self.run_it("xxx ZQ179", budget=3 * 110)
         self.assertIn("saved/f179.md", [p.file for p in got.passages])
 
     def test_file_cap_counts_readable_files_as_limit_not_type(self):

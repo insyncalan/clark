@@ -265,6 +265,12 @@ class InAsk(Fake):
         v = mock.patch.object(pdf_reader, "VENDOR", self.vendor)
         v.start()
         self.addCleanup(v.stop)
+        # These tests are about what is READ and counted, not about which passages match the question (row 1366 AP27 pins that in
+        # test_ask_passages): the real choose with need_match off, so the made-up "ZQ ..." pages are not dropped for sharing no word.
+        real_choose = ask_passages.ask_data.choose
+        c = mock.patch.object(ask_passages.ask_data, "choose", lambda *a, **k: real_choose(*a, **{**k, "need_match": False}))
+        c.start()
+        self.addCleanup(c.stop)
         self.data = self.d / "data"
         self.box = self.d / "saved"
         self.data.mkdir()

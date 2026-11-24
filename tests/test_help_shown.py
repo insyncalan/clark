@@ -268,6 +268,15 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "Indexing\u2026 42%": "the folder status line while it reads, built from the counts (ask_index.line_for, #1366, #1371)",
+    "100% indexed. 242 files could not be read": "the folder status line when it is done, built from the counts (ask_index.done_line, #1366, #1371)",
+    "No files to index": "the folder status line when no file can be read (ask_index.done_line, #1371)",
+    "of a type clark can\u2019t read yet": "a reason in the list the (why) link opens (ask_index.REASON_TYPE, #1366)",
+    "is a PDF that is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG_PDF, #1366)",
+    "is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG, #1366)",
+    "is a picture and this computer cannot read pictures": "a reason in the list the (why) link opens (ask_index.REASON_PICTURE, #1366)",
+    "looks like a password or a key": "a reason in the list the (why) link opens (ask_index.REASON_SAFETY, #1366)",
+    "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
