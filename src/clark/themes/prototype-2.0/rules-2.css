@@ -23,7 +23,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1315 AP9 (Classic Milestones): the off half of the five switch buttons has --grey-700 text (7.41 to 1 in light), not --text; frames and dividers stay --grey-500. */
 #milestones .msv-sw .msv-b:not([aria-current="true"]), #milestones .cal-sc button:not([aria-current="true"]) { color: var(--grey-700); }
 /* Row 1334 (Classic only; the Cards page keeps edit.css as it was): the Feedback tag dialog values as the mock-up draws them, same selectors as edit.css so they win by order. */
-.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: 16px 18px 14px 17px; line-height: 1.45; background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+.fbt-dlg { font-size: 15px; position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: 16px 18px 14px 17px; line-height: 1.45; background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
 .fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
 .fbt-x { all: unset; cursor: pointer; font-size: 20px; font-weight: 600; line-height: 1; padding: 0 4px; color: var(--grey-700); }
 .fbt-kinds { display: flex; gap: 6px; margin: 6px 0 10px; }
@@ -161,6 +161,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; }
 .tpl-files-edit .tpl-rename:hover { border-color: var(--grey-300); }
 .tpl-files-edit .tpl-dl-i { align-items: center; }
+/* Row 1253 (Classic only, under .pp-flat; the Cards page keeps its bordered cards): the Published reports sections are flat and divided by a line, as under the Dashboard header. */
+.pp-flat .pp-block { margin: 0; padding: var(--space-4) 0; border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; background: transparent; }
+.pp-flat .pp-earlier { overflow-x: auto; }      /* 900: the table scrolls inside its own box */
+.pp-flat .pubs-intro { margin: 0; padding-bottom: var(--space-4); color: var(--text-muted); border-bottom: 1px solid var(--grey-200); }      /* row 1253: the intro was white on the cover band; with no band it is muted text on the page */
+.pp-flat h1 { margin: var(--space-4) 0 var(--space-2); }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
 /* Row 1271 (Quote template, look F as the approved mock-up draws it, Classic only; the Cards look keeps shell.css and draws each quote as its own grey panel, one name, role line). Measured from the mock-up's own rules (quote-approved.html, the F rules): panel padding --space-5, the display mark 64px bold in --font-head (line height .8, a 30px box), the words in --font-head at --size-h3, line height 1.45, weight 400, at most 62ch wide, the 32 x 2 rule above the name, the name in small capitals (uppercase, .07em apart), the role in --size-caption. Bare lengths with no token: 64px, 30px, 62ch, 32px, 2px, 1px, .07em, 1.45, .8, 2 x 1.4em + 12px, the 6px and 10px box padding, the 200px field minimum. */

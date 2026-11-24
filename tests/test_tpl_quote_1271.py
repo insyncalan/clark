@@ -316,10 +316,12 @@ class Look:
             p.edit()
             sec = f"[data-id={json.dumps(ref)}]"
             q = lambda css: f"document.querySelector('{sec} {css}')"
-            p.until(f"!!{q('[aria-label=\"Show the heading\"]')}", "the toolbar")
-            p.js(f"{q('[aria-label=\"Show the tile (the card around the quote)\"]')}.click()")
+            heading_btn = q('[aria-label="Show the heading"]')   # built outside the f-string: Python 3.9 has no backslash inside {}
+            tile_btn = q('[aria-label="Show the tile (the card around the quote)"]')
+            p.until(f"!!{heading_btn}", "the toolbar")
+            p.js(f"{tile_btn}.click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("tile") is False, 10), self.body_of(ref))
-            p.js(f"{q('[aria-label=\"Show the heading\"]')}.click()")
+            p.js(f"{heading_btn}.click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is False, 10), self.body_of(ref))
             p.js(f"[...document.querySelectorAll('{sec} [aria-label=Align] button')].find(b => b.textContent === 'Centre').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("align") == "centre", 10), self.body_of(ref))

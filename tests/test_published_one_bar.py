@@ -67,7 +67,8 @@ class InTheFile(Published):
                 b = p.js(BAR)
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
-                self.assertRegex(b["date"], r"28-10-2026", "issue 1178 ruling: the date is a button in the bar (and also in the profile menu)")
+                self.assertEqual(b["date"], "", "row 1253 (the 20-11 ruling): the separate As at date button is gone from the bar")
+                self.assertNotIn("As at", b["lineText"], "row 1253: no second date in the line (the Week ending, when the file has one, is the only date)")
                 self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")
@@ -255,11 +256,11 @@ class TheEditor(Setup):
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.", help_)
+        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week. In the Classic look nothing in it is a button; the Cards look keeps its date button.", help_)
         self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
 
-    def test_the_published_page_help_says_only_the_date_is_a_button(self):
+    def test_the_published_page_help_says_no_date_button_row_1253(self):
         import json
         topics = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
@@ -277,10 +278,16 @@ class TheHelpLine(unittest.TestCase):
         topic = find(topics)
         self.assertIsNotNone(topic, "the published client page topic is in the Help")
         bullet = next(x for kind, body in topic["b"] if kind == "ul" for x in body if x.startswith("**The top bar**"))
-        self.assertIn("The date is a button: it opens a calendar", bullet, "the date is the one button (TopBar.jsx AsAtDate)")
-        for word in ("project list", "the name is a button", "the week is a button"):
-            self.assertNotIn(word, bullet.lower(), f"the name and the week open nothing in a published file, so the Help bullet must not say {word!r}: {bullet}")
-        self.assertIn("nothing else in it is a button", bullet.lower())
+        for word in ("as at", "calendar", "project list", "the name is a button", "the week is a button"):
+            self.assertNotIn(word, bullet.lower(), f"row 1253: the bar has no As at date button, so the Help bullet must not say {word!r}: {bullet}")
+        self.assertIn("In the Classic look nothing in it is a button", bullet)
+        self.assertIn("the Cards look keeps its date button", bullet)
+
+    def test_the_bar_source_has_no_as_at_button_row_1253(self):
+        top = (SRC / "clark" / "page" / "src" / "components" / "TopBar.jsx").read_text(encoding="utf-8")
+        for word in ("AsAtDate", "asat", "As at"):
+            self.assertNotIn(word, top, f"row 1253: {word!r} is gone from the bar (TopBar.jsx)")
+        self.assertIn("Week ending {shownDate(weekEnding)}", top, "the editor's report line keeps its one date")
 
 
 if __name__ == "__main__":
