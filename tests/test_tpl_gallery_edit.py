@@ -215,7 +215,7 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.count(".tpl-gal-tcap"), 1, "only an image with a caption has one")
             self.assertEqual(self.text(".tpl-gal-tcap"), "Fictional site visit")
             self.assertEqual(self.style(".tpl-gal-tcap", "fontSize", "color", "marginTop", "marginRight", "marginBottom", "marginLeft", "textAlign"),
-                             ["13px", "rgb(71, 85, 119)", "6px", "2px", "0px", "2px", "start"])
+                             ["13px", "rgb(71, 85, 119)", "8px", "2px", "0px", "2px", "start"])
 
 
 class Adding(Page):        # the file picker, the drop, the refusals
@@ -246,7 +246,7 @@ class Adding(Page):        # the file picker, the drop, the refusals
         self.assertEqual(self.toast_text(), "Added 1 of the 3 files. A gallery holds up to six images.", "the gallery is now full")
         self.mount(many(2))
         self.val("mixed()", True)
-        self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
+        self.until("(F.toast() || {}).text && F.toast().text.indexOf('Added') >= 0", "said")
         self.assertEqual(self.toast_text(), BIG + " Added 1 of the 2 files.", "not full: no second sentence; the refused file's reason stays in the one toast")
 
     def test_a_file_over_10_mb_is_refused_with_the_ruled_words(self):

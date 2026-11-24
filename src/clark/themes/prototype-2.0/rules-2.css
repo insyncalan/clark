@@ -328,7 +328,7 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .tpl-gal-tiles.swhole .tpl-gal-frame { aspect-ratio: auto; }
 .tpl-gal-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tpl-gal-tiles.swhole .tpl-gal-frame img { height: auto; }
-.tpl-gal-tcap { margin: 6px 2px 0; font-size: 13px; color: var(--text-muted); }
+.tpl-gal-tcap { margin: 8px 2px 0; font-size: 13px; color: var(--text-muted); }
 .tpl-gal-add { display: grid; place-items: center; box-sizing: border-box; min-height: 120px; border: 2px dashed var(--grey-300); border-radius: 12px; background: none; color: var(--text-muted); font: inherit; cursor: pointer; aspect-ratio: 4 / 3; }
 .tpl-gal-tiles.s11 .tpl-gal-add { aspect-ratio: 1; }
 .tpl-gal-tiles.s169 .tpl-gal-add { aspect-ratio: 16 / 9; }
