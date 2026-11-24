@@ -73,7 +73,7 @@ class Crowded(unittest.TestCase):
         "default": "",
         "wide": ".mv-lab, .mv-month, .mv-today { font-family: 'Courier New', 'DejaVu Sans Mono', monospace !important; letter-spacing: 0.08em !important; }",
         "narrow": ".mv-lab, .mv-month, .mv-today { font-family: 'Arial Narrow', 'DejaVu Sans Condensed', sans-serif !important; letter-spacing: -0.06em !important; }",
-        "scrollbar": ".mv-wrap::-webkit-scrollbar { height: 15px; background: #ddd; } .mv-wrap::-webkit-scrollbar-thumb { background: #999; }",
+        "scrollbar": ".mv .mv-wrap { scrollbar-width: auto !important; } .mv .mv-wrap::-webkit-scrollbar { display: block !important; height: 15px; background: #ddd; } .mv .mv-wrap::-webkit-scrollbar-thumb { background: #999; }",   # row 1532: Classic hides the bar, so this variant forces it back
     }
     VARIANTS = [("default", 1400), ("default", 900), ("wide", 1400), ("wide", 900), ("narrow", 1400), ("scrollbar", 1400)]
 
