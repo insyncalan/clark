@@ -137,6 +137,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .sec > .wil > * { flex: none; }
 .sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
 .wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
+/* Row 1272 (Callout half card, Classic only): the ruled width of a half Callout card at 1400 px is 493 px, border-box. A half card is 507.5 px by the shared half column (shell.css, .secs), 14.5 px over, so only a section holding a Callout is held to 493; other templates keep the shared half column. */
+@media (min-width: 901px) { .sec.slot-left:has(.tpl-callout), .sec.slot-right:has(.tpl-callout) { box-sizing: border-box; width: 493px; } }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
