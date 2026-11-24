@@ -16,6 +16,7 @@ from _editor_checks import for_project
 from _paths import SRC  # noqa: F401
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
+import test_ask_route as tr
 
 from clark import ask_exclude, ask_folders, ask_index, page, platform as pl, reach, store as st
 
@@ -253,6 +254,57 @@ class Cards(Page):
         for name in ("shell.css",):
             self.assertNotIn("ask-left-folders", (Path(page.PAGE).parent / name).read_text(encoding="utf-8"), name)
         self.assertIn("ask-left-folders", (Path(page.PAGE).parent.parent / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8"))
+
+
+class OnTheRoute(tr.Base):
+    """Row 1542 AP5 on the question route: a left-out subfolder whose name is on the 1365 list comes back, the saved folder goes back to Declined, the warning
+    names it and NOTHING from the folder is sent to the provider until the person presses Accept again; a name that does not match changes nothing."""
+
+    def setUp(self):
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+        super().setUp()
+        parent = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, parent, True)
+        self.mine = parent / "lib"      # a fixed folder name: a random one can look like a key to the secret screen and skip a file
+        self.mine.mkdir()
+        (self.mine / "plan.txt").write_text("FOLDERKEEP alphaterm is booked", encoding="utf-8")
+        for rel, text in (("Contract/c.txt", "CONTRACTKEEP charlieterm is signed"), ("Notes/n.txt", "NOTESKEEP bravoterm is written")):
+            (self.mine / rel).parent.mkdir()
+            (self.mine / rel).write_text(text, encoding="utf-8")
+        self.folders = ask_folders.AskFolders(self.db, [], data_dir=self.service.data_dir, home=self.d, by_user=lambda: "tester")
+        self.store = st.open_store(self.db, onedrive_roots=[])
+        self.addCleanup(self.store.close)
+        with self.store.step("dashboard", "tester", place="menu") as step:
+            step.create("source_folders", {"project": tr.CODE, "path": str(self.mine), "sort_order": 1, "excluded": ask_exclude.dump(["Contract", "Notes"]), "accepted": 1})
+
+    def sent(self, term):
+        """What the provider got for a question that names one file's own word, so each file is asked for alone (the passage room is small)."""
+        status, got = self.question("What is " + term + "?")
+        self.assertEqual(status, 200, got)
+        return self.provider.sent[-1]
+
+    def include(self, rel):
+        status, body = self.folders.change({"project": tr.CODE, "action": "include", "path": str(self.mine), "rel": rel})
+        self.assertEqual((status, body.get("ok")), (200, True), body)
+        return body
+
+    def test_a_returned_flagged_name_warns_and_nothing_is_sent_until_accept_and_a_no_match_name_is_read(self):
+        self.assertIn("FOLDERKEEP", self.sent("alphaterm"))
+        self.assertNotIn("CONTRACTKEEP", self.sent("charlieterm"), "left out: not read")
+        self.include("Notes")                                                   # no match: still Accepted, and the file is read now
+        self.assertIn("NOTESKEEP", self.sent("bravoterm"), "a no-match name is read again")
+        self.assertIn("FOLDERKEEP", self.sent("alphaterm"), "the folder stays Accepted")
+        self.include("Contract")                                                # a match: Declined again
+        status, body = self.folders.read(tr.CODE)
+        self.assertEqual([(w["folder"], w["accepted"], [i["name"] for i in w["items"]]) for w in body["warnings"]], [(str(self.mine), False, ["Contract"])], "the warning names it")
+        for word, term in (("FOLDERKEEP", "alphaterm"), ("CONTRACTKEEP", "charlieterm"), ("NOTESKEEP", "bravoterm")):
+            self.assertNotIn(word, self.sent(term), f"{word}: nothing from the folder is sent until Accept")
+        with self.store.step("dashboard", "tester", place="menu") as step:
+            step.update("source_folders", f"{tr.CODE}|{self.mine}", {"accepted": 1})
+        self.assertIn("CONTRACTKEEP", self.sent("charlieterm"), "after Accept it is read")
+        self.assertIn("FOLDERKEEP", self.sent("alphaterm"))
 
 
 if __name__ == "__main__":
