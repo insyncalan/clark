@@ -308,7 +308,7 @@ COMMON = {
 FIELD_NAMES = {
     "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
                  "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
-                 "review_after_days": "Not reviewed after (days)", "show_gantt_editor": "Show the Gantt to the editor", "show_gantt_client": "Show the Gantt to the client",
+                 "review_after_days": "Not reviewed after (days)", "show_gantt_editor": "Show the Gantt to the editor", "show_gantt_client": "Show the Gantt to the client", "show_board_client": "Show the board to clients",
                  "gantt_tab_name": "Gantt tab name", "gantt_title": "Gantt title", "gantt_hidden_columns": "Gantt columns hidden from the client", "gantt_default_rows": "Gantt rows shown", "brand": "Brand", "ask_instructions": "Standing instructions", "ask_files_off": "Files turned off for asking in this project", "ask_off": "Asking turned off in this project", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
     "app_settings": {"ask_files": "Files are used for asking", "ask_new_projects": "Asking for new projects"},
     "milestones": {"name": "Name", "status": "Status"},

@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS projects (
   brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60),   -- clark: #944: the project's brand id, as the migration's ADD COLUMN puts it
   ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the project's own standing instructions for asking; last, as the migration's ADD COLUMN puts it
   ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1)),   -- clark: row 1294: 1 when this project keeps files off for asking; as the migration's ADD COLUMN puts it
-  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); last, as the migration's ADD COLUMN puts it
+  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1)),   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); as the migration's ADD COLUMN puts it
+  show_board_client INTEGER NOT NULL DEFAULT 0 CHECK (show_board_client IN (0,1))   -- clark: row 1533: 1 when a published report offers the client the Work items board (read only); 0 is the list only; last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
