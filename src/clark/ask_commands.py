@@ -21,6 +21,13 @@ FILE_LIMIT = 8 * 1024          # a valid file is at most about 1,200 characters;
 NAME_RE = re.compile(r"[a-z][a-z0-9-]*")
 
 
+def readable_lines(path):
+    """THE SEAM of row 1435 (Fix it with AI; the design is not decided): what a "line" of a damaged slash-command file is and which of them can be read.
+    Returns (kept, left_out): `kept` the lines that can be read, as text in their order, `left_out` how many it could not read; or None when the file
+    cannot be read this way, which makes the fix say it could not fix the file and change nothing. Until the design is decided it returns None."""
+    return None
+
+
 class Refused(Exception):
     """A change that breaks a rule; str() is the sentence to show. Nothing was written."""
 
@@ -108,6 +115,47 @@ class AskCommands:
             except (OSError, ValueError, KeyError):         # json.JSONDecodeError and UnicodeDecodeError are ValueErrors
                 damaged.append(f.name)
         return good, damaged
+
+    def fix(self, fname):
+        """Row 1435: the local fix of a file that does not read (no AI, nothing sent). The file's bytes are saved first as `<fname>.old`, then the file is
+        rewritten with the lines `readable_lines` keeps. Returns (kept, left_out). Any failure raises Refused and leaves the file as it was."""
+        if fname not in self.read()[1]:
+            raise Refused("fix")
+        target = self.folder / fname
+        try:
+            if target.is_symlink():
+                raise Refused("fix")
+            got = readable_lines(target)
+            if got is None:
+                raise Refused("fix")
+            kept, left_out = got
+            old = target.read_bytes()
+            self._swap(target.with_name(fname + ".old"), old)
+            self._swap(target, ("\n".join(kept) + "\n" if kept else "").encode("utf-8"))
+        except OSError:
+            raise Refused("fix")
+        return len(kept), left_out
+
+    def unfix(self, fname):
+        """Undo of fix(): the `.old` copy comes back as the file, byte for byte, and the copy is removed."""
+        copy = self.folder / (fname + ".old")
+        try:
+            if fname.endswith(".old") or not copy.is_file() or copy.is_symlink():
+                raise Refused("fix")
+            self._swap(self.folder / fname, copy.read_bytes())
+            copy.unlink()
+        except OSError:
+            raise Refused("fix")
+
+    def _swap(self, target, data):
+        """Writes `data` to a side file and renames it over `target`, so a stop half way leaves the old file whole."""
+        side = target.with_name(target.name + ".part")
+        try:
+            side.write_bytes(data)
+            os.replace(side, target)
+        except OSError:
+            side.unlink(missing_ok=True)
+            raise
 
     def write(self, rec, was=None):
         """Saves one slash command. `was` is the name it had when opened (a rename removes the old file after the new one is whole).

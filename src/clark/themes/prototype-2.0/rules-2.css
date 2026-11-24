@@ -314,6 +314,11 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
 .fopt .c + .ftick { margin-left: var(--space-2); }
 .fchips[data-gchips] { flex: 0 0 auto; }
+/* Row 1435: a slash-command file that does not read has its own row in the Settings list: the file name, the pill "Needs a fix" and the button "Fix it with AI". */
+.slash-list .slash-rows.slash-damaged li { grid-template-columns: minmax(90px, 1fr) max-content max-content; align-items: center; }
+.slash-list .slash-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: 999px; background: var(--tone-amber-tint); color: var(--status-amber-text); font-size: var(--size-caption); }
+.slash-list .slash-pill-icon { font-weight: 700; }
+@media (max-width: 900px) { .slash-list .slash-rows.slash-damaged li { grid-template-columns: 1fr max-content; } .slash-list .slash-rows.slash-damaged .slash-name { grid-column: 1 / -1; } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

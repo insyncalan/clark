@@ -2,8 +2,9 @@
 // Open the editor, New slash command and each Edit open the editor page in a new browser tab (SlashEditor.jsx); this card changes nothing itself.
 // Classic only (the caller checks); the server keeps the files (ask_commands_service.py).
 import { useEffect, useState } from "preact/hooks";
+import { say, sayLocalUndo } from "../stores/changes.js";
 import { BUILTINS, LOCKED, listAll } from "../logic/askShortcuts.js";
-import { askCommandsRead } from "./publishApi.js";
+import { askCommandsRead, askCommandsChange } from "./publishApi.js";
 import { askOn, askStatus, loadAsk, ASK_OFF_LINE } from "./askState.js";
 
 export const SLASH_ALL_HEAD = "Slash commands for all projects";
@@ -12,7 +13,8 @@ export const SLASH_OPEN = "Open the editor ↗";
 export const SLASH_NEW = "New slash command ↗";
 export const SLASH_EDIT = "Edit ↗";
 export const SLASH_UNAVAILABLE = "Slash commands aren't ready on this computer yet.";
-export const SLASH_DAMAGED = "A file could not be read:";
+// Row 1435 (the words are approved: NEW-WORDS.md:2343; the toast and the failed line come from the server, ask_commands_service.py MESSAGES). The "!" is an icon, not text.
+export const SLASH_NEEDS_FIX = "Needs a fix", SLASH_FIX = "Fix it with AI";
 export const TAG_BUILT = "Built in", TAG_YOURS = "Yours", TAG_ACTION = "Action", TAG_EDITED = "edited";
 export const TAG_PROJECT = (code) => `${code} only`;
 // Words from the approved mock-up A8 (FINAL-settings-A8.html:145,158), row 1294.
@@ -81,7 +83,16 @@ export function SlashList({ scope, code, goAll }) {
     return () => { live = false; };
   }, [scope, code]);
   const list = data && data !== "unavailable" ? listRows(data, scope, code) : [];
-  const bad = data && data !== "unavailable" ? [...(data.damaged.all || []), ...(scope === "all" ? [] : data.damaged.project || [])] : [];
+  const bad = data && data !== "unavailable" ? [...(data.damaged.all || []).map((file) => ({ file, from: "all" })), ...(scope === "all" ? [] : data.damaged.project || []).map((file) => ({ file, from: "project" }))] : [];
+  const reread = () => askCommandsRead(scope === "all" ? "" : code).then((r) => { if (r.status === 200 && r.body && r.body.ok === true && Array.isArray(r.body.all)) setData(r.body); });
+  const send = (b, action, file) => askCommandsChange({ scope: b.from, ...(b.from === "project" ? { project: code } : {}), action, name: file });
+  const fix = async (b) => {                          // local, no AI call: the server keeps `<file>.old`, rewrites the file, and answers the counts
+    const r = await send(b, "fix", b.file);
+    if (r.status === 200 && r.body && r.body.ok === true) {
+      setData(r.body);
+      sayLocalUndo("done", r.body.message, async () => { await send(b, "unfix", b.file); reread(); }, code);
+    } else say("problem", (r.body && r.body.message) || "Could not fix the file. The old file is kept.", null, code);
+  };
   const t = data && data !== "unavailable" ? tally(data) : null;
   const link = (name, isNew) => editorUrl(scope === "all" ? "" : code, scope, name, isNew);
   return (
@@ -115,7 +126,17 @@ export function SlashList({ scope, code, goAll }) {
         </div>
       ) : null}
       {scope !== "all" ? <p class="muted" id="slash-project-foot">{SLASH_NEW_TAB_PROJECT}</p> : null}
-      {bad.length ? <p class="muted" id="slash-damaged">{SLASH_DAMAGED} {bad.join(", ")}</p> : null}
+      {bad.length ? (
+        <ul class="slash-rows slash-damaged" id="slash-damaged">
+          {bad.map((b) => (
+            <li key={b.from + b.file} data-slash-damaged={b.file}>
+              <b class="slash-name">{b.file}</b>
+              <span class="slash-pill"><span class="slash-pill-icon" aria-hidden="true">!</span><span class="slash-pill-text">{SLASH_NEEDS_FIX}</span></span>
+              <button type="button" class="btn sm quiet" data-slash-fix onClick={() => fix(b)}>{SLASH_FIX}</button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }
