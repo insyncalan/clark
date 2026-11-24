@@ -5,7 +5,7 @@ The PDFs are made in the test. The reader is checked twice: against a small stan
 folder (so the process, limits and outcomes are tested on every machine, even before the real library is vendored), and, when the
 real vendored pypdf is present in vendor/, against it. What is asserted: a text PDF gives passages that keep their page number;
 encrypted, scanned, corrupt, oversize, over-the-page-cap and slow PDFs are each reported (own code), never raise, and never give
-a passage; the reading is done by another process (not the test's own) that is gone afterwards; no new words are shown."""
+a passage; the reading is done by another process (not the test's own) that is gone afterwards; the words about PDFs (notes, Help) say they are read."""
 import os
 import shutil
 import subprocess
@@ -18,7 +18,7 @@ from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
-from clark import ask_passages, pdf_reader, platform, reach
+from clark import ask_passages, ask_service, pdf_reader, platform, reach
 
 FAKE_PYPDF = r'''
 import os, re, sys, time
@@ -218,12 +218,47 @@ class InAsk(Fake):
         self.assertEqual((got.passages, got.safety), ((), 1))
 
 
-class NoNewWords(unittest.TestCase):
-    def test_new_sentences_are_constants_only(self):
-        self.assertTrue(pdf_reader.NEW_WORDS)
-        src = Path(pdf_reader.__file__).parent
-        for name in ("ask_service.py", "ask.py", "ask_data.py"):
-            self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text(encoding="utf-8"))
+class WordsAboutPdfs(unittest.TestCase):
+    """#891: the sentences that say what happened to a PDF (ask_service.folder_notes) and the Help line about PDFs."""
+    NOTE = ("{n} PDF {was} not read: ", )
+
+    def notes(self, *reasons):
+        found = ask_passages.FolderData(pdf=len(reasons), pdf_reasons=tuple((f"saved/{i}.pdf", r) for i, r in enumerate(reasons)))
+        return [n for n in ask_service.folder_notes(found)]
+
+    def test_a_scanned_pdf_is_said_to_have_no_text_to_read(self):
+        self.assertEqual(self.notes("scanned"), ["1 PDF file was not read: it has no text to read."])
+
+    def test_an_encrypted_pdf_is_said_to_be_protected(self):
+        self.assertEqual(self.notes("encrypted"), ["1 PDF file was not read: it is protected with a password."])
+
+    def test_any_other_pdf_is_said_to_be_unreadable_safely(self):
+        for reason in ("too_big", "too_many_pages", "timeout", "crash", "corrupt", "unavailable"):
+            self.assertEqual(self.notes(reason), ["1 PDF file was not read: it could not be read safely."], reason)
+
+    def test_counts_are_given_per_reason_and_in_the_plural(self):
+        self.assertEqual(self.notes("scanned", "scanned", "encrypted", "corrupt"),
+                         ["2 PDF files were not read: they have no text to read.",
+                          "1 PDF file was not read: it is protected with a password.",
+                          "1 PDF file was not read: it could not be read safely."])
+
+    def test_nothing_is_said_when_every_pdf_was_read(self):
+        self.assertEqual(self.notes(), [])
+
+    def test_no_sentence_says_pdf_is_not_supported(self):
+        text = (Path(ask_service.__file__)).read_text(encoding="utf-8")
+        self.assertNotIn("not supported yet", text)
+
+    def test_the_draft_word_table_is_gone(self):
+        self.assertFalse(hasattr(pdf_reader, "NEW_WORDS"))
+
+    def test_help_says_pdfs_are_read_on_this_computer(self):
+        import json
+        raw = json.loads((Path(ask_service.__file__).parent / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        flat = json.dumps(raw, ensure_ascii=False)
+        self.assertNotIn("PDF files are not read yet", flat)
+        self.assertIn("It reads Word, PDF, text, Markdown and CSV files. A PDF is read on this computer and nothing leaves it.", flat)
+        self.assertIn("A PDF that is only pictures of pages has no text to read, because clark does not read pictures of text, and a PDF protected with a password is not read.", flat)
 
 
 def real_pdf(pages):

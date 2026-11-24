@@ -16,7 +16,7 @@ stale tab or anything else that can reach the route.
 
 WHAT IS SENT. The question, the chat's earlier turns as the page holds them (they are kept nowhere else), and passages built only
 from what the published file would carry (ask_data.py, through publish.select), and passages from the project's own saved
-folders (ask_passages.py, every file opened again through reach.read_bytes; PDF is not supported yet and is counted). The
+folders (ask_passages.py, every file opened again through reach.read_bytes; a PDF is read in another process, and one that could not be read is counted with its reason). The
 folders are read for the open project only. The reply carries how many files were left out for safety.
 
 READ ONLY. The database is only ever opened read-only here (`connect(path, readonly=True)`), so nothing in this module can write
@@ -307,7 +307,7 @@ class Held:
 
 
 def page_of(passage):
-    """#943: the page a passage starts on, as a whole number, or None (page numbers come with #891)."""
+    """#943: the page a passage starts on, as a whole number, or None."""
     page = getattr(passage, "page", None)
     return page if isinstance(page, int) and not isinstance(page, bool) else None
 
@@ -325,6 +325,23 @@ def left_out_note(count):
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
 
 
+PDF_WHY = (("scanned", "it has no text to read", "they have no text to read"),         # #891: only pictures of pages (clark does no OCR)
+           ("encrypted", "it is protected with a password", "they are protected with a password"),
+           ("not_read", "it could not be read safely", "they could not be read safely"))      # too big, too slow, damaged, no reader
+
+
+def pdf_notes(found):
+    """#891: one plain line for each reason a PDF was not read, with how many. A PDF that was read has no line."""
+    left = {}
+    for _label, code in getattr(found, "pdf_reasons", ()):
+        key = code if code in ("scanned", "encrypted") else "not_read"
+        left[key] = left.get(key, 0) + 1
+    if found.pdf > sum(left.values()):                                  # counted without a reason: the safe line
+        left["not_read"] = left.get("not_read", 0) + found.pdf - sum(left.values())
+    return [f"{left[key]} PDF {'file was' if left[key] == 1 else 'files were'} not read: {one if left[key] == 1 else many}."
+            for key, one, many in PDF_WHY if left.get(key)]
+
+
 def folder_notes(found):
     """Plain lines about the saved folders: what was left out for safety, and the types not read."""
     out = []
@@ -332,8 +349,7 @@ def folder_notes(found):
         out.append(f"{found.safety} {'file was' if found.safety == 1 else 'files were'} left out for safety.")
     for label in getattr(found, "secret_labels", ()):         # #215: the file's label only, never what matched
         out.append(f"{label} {secret_screen.REASON}, so it was left out and the answer may be missing something. {secret_screen.NEXT_STEP}")
-    if found.pdf:
-        out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
+    out.extend(pdf_notes(found))
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
     if found.stopped:

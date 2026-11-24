@@ -1837,7 +1837,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, PDF, text, Markdown and CSV files. A PDF is read on this computer and nothing leaves it. A PDF that is only pictures of pages has no text to read, because clark does not read pictures of text, and a PDF protected with a password is not read. The answer says how many files were skipped."
        ],
        [
         "AI (under Asking)",
