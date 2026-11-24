@@ -204,6 +204,22 @@ class View(unittest.TestCase):
         finally:
             self.cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
 
+    def test_a_500_px_image_is_centred_and_a_700_px_image_keeps_its_own_width_at_1400_and_900(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.draw({"image": uri(png(500, 250)), "alt": "x", "fill": "plain"}, width, theme)
+                    m = self.measure()
+                    self.assertEqual(round(m["img"][2]), 500, "under 600 px: its own size, not stretched")
+                    self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
+                    self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
+                    self.draw({"image": uri(png(700, 350)), "alt": "x", "fill": "plain"}, width, theme)
+                    m = self.measure()
+                    self.assertLessEqual(abs(m["img"][2] - min(m["fig"][2], 700)), 1, "700 px: its own width, never wider than the section (row 1580 ruling: it does not fill)")
+                    self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
+                    self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
+
+
 
 def published(content, title="", full=True):
     return {"as_at": "2026-11-15", "data": {"project": {"code": "FIC", "name": "Fictional project"}, "actions": [], "raid": [], "decisions": [],
