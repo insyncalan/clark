@@ -40,6 +40,20 @@ class Rows(g.Focus):
                     self.assertEqual(got["bg"], self.token(cdp, sid, "--brand-blue" if on else "--grey-300"), got)
                     self.assertTrue(got["eye"] and got["label"], "the eye and the label sit left of the switch")
 
+    def test_the_knob_sits_at_the_end_of_the_track_that_matches_the_state(self):
+        knob = ("(() => { const b = document.querySelector('#peek [data-pk-client-row] .pk-client'); const t = b.querySelector('.pk-sw').getBoundingClientRect(),"
+                " k = b.querySelector('.pk-sw-knob').getBoundingClientRect(); return {pressed: b.getAttribute('aria-pressed'), left: k.left - t.left, right: t.right - k.right}; })()")
+        for width in (1400, 900):
+            for ref, kind in ITEMS:
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    self.assertTrue(wait(lambda: cdp.js(SWITCH, sid) is not None))
+                    for _ in range(2):
+                        got = cdp.js(knob, sid)
+                        self.assertTrue(wait(lambda: (lambda g: (g["right"] if g["pressed"] == "true" else g["left"]) == 2)(cdp.js(knob, sid))), f"the knob rests 2 px from the {'right' if got['pressed'] == 'true' else 'left'} end: {got}")
+                        cdp.js("document.querySelector('#peek [data-pk-client-row] .pk-client').click()", sid)
+                        wait(lambda: cdp.js(knob, sid)["pressed"] != got["pressed"])
+
     def test_one_click_flips_the_switch_and_the_colour(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, "TUL-007", edit=True)
