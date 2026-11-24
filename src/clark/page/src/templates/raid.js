@@ -11,7 +11,7 @@ import { richWords } from "../logic/richWords.js";
 export const SIZES = { raid3: 3, raid4: 4 };
 export const MANY = 8;          // row 1270: a raid4 body of version 2 (the one library card RAID cards) holds up to eight cards, three or four across
 export const OWN_MAX = 400;
-export const SOURCES = [["client", "Client wording"], ["own", "Own words"], ["latest", "Latest update"]];
+export const SOURCES = [["client", "Client Message"], ["own", "Own words"], ["latest", "Latest update"]];
 const ID = /^[A-Z][A-Z0-9]{2,6}-(?:([AD])-)?[0-9]{3}$/;
 const KIND_OF = { A: "actions", D: "decisions" };
 
@@ -65,9 +65,9 @@ export function bodyOf(cards, across = 0) {
 
 // The words under a card, as the published file chooses them (raid3.py _words).
 export function wordsOf(card, row) {
-  if (card.source === "own") return card.own || "";
+  if (card.source === "own") return richWords(card.own).split(/\s+/).filter(Boolean).join(" ");      // row 1288: the editor's HTML (or an older plain line), as one line of words
   if (card.source === "latest") return kindOfId(card.id) === "actions" ? richWords(row && row.latest_update).trim() : "";
-  return String((row && row.client_message) || "").trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
+  return richWords(row && row.client_message).trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
 }
 
 export const titleOf = (row, kind) => String((kind === "decisions" ? row.decision : row.description) || "").trim();

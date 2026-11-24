@@ -38,21 +38,29 @@ FAKE = """
 window.__ask = {folders: [], calls: []};
 const real = window.fetch;
 window.fetch = function (url, opts) {
+  if (window.__ask.provider && String(url).indexOf('/api/providers') >= 0 && String(url).indexOf('connect') < 0) { window.__ask.providerRead = true; return Promise.resolve(new Response(JSON.stringify({ok: true, claude: {}, chatgpt: {}, models: [], active: window.__ask.provider}), {status: 200, headers: {'Content-Type': 'application/json'}})); }
   if (String(url).indexOf('/api/ask-folders') < 0) return real.apply(this, arguments);
   const body = opts && opts.body ? JSON.parse(opts.body) : null;
   window.__ask.calls.push(body);
   const f = window.__ask.folders;
-  let status = 200, out = {ok: true, folders: f};
+  let status = 200, out = {ok: true, folders: f, warnings: window.__ask.open || []};
   if (body && body.action === 'choose') {
     window.__ask.choices = window.__ask.choices || ['/Example/Programme files'];
     const next = window.__ask.choices.shift();
     if (next === '/bad') { status = 409; out = {ok: false, code: 'closed_place', message: 'Asking can not read that folder, because it holds your passwords.'}; }
     else if (next === '/nowin') { status = 409; out = {ok: false, code: 'no_window', message: 'The folder window needs the Mac. Type the folder location below.'}; }
+    else if (next === '/cancel') { out = {ok: true, folders: f}; }
     else if (next === '/gone') { status = 500; out = null; }
-    else { if (f.indexOf(next) < 0) f.push(next); out = {ok: true, folders: f, message: 'Added.'}; }
+    else { if (f.indexOf(next) < 0) f.push(next); out = {ok: true, folders: f, message: 'Added.', warnings: window.__ask.warn || []}; }
   } else if (body && body.action === 'add') {
     if (body.path === '/bad') { status = 409; out = {ok: false, code: 'client_folder_refused', message: 'That folder holds your passwords, so asking cannot read it.'}; }
-    else { f.push(body.path); out = {ok: true, folders: f, message: 'Folder added.'}; }
+    else { f.push(body.path); out = {ok: true, folders: f, message: 'Folder added.', warnings: window.__ask.warn || []}; }
+  } else if (body && (body.action === 'accept' || body.action === 'decline')) {
+    const list = (window.__ask.open || []).length ? window.__ask.open : (window.__ask.warn || []);
+    list.forEach(w => { if (w.folder === body.path) w.accepted = body.action === 'accept'; });
+    out = {ok: true, folders: f, apply_id: 8, warnings: list};
+  } else if (body && body.action === 'exclude') { window.__ask.open = []; window.__ask.warn = []; out = {ok: true, folders: f, apply_id: 7, warnings: window.__ask.excludeKeep || []};
+  } else if (body && body.action === 'remove' && window.__ask.removeFail) { status = 500; out = null;
   } else if (body && body.action === 'remove') { window.__ask.folders = f.filter(x => x !== body.path); out = {ok: true, folders: window.__ask.folders}; }
   return Promise.resolve(new Response(JSON.stringify(out), {status: status, headers: {'Content-Type': 'application/json'}}));
 };
@@ -95,10 +103,15 @@ class Settings(unittest.TestCase):
     ready = True
 
     def setUp(self):
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=self.theme()))
         self.addCleanup(self.s.close)
         self.db = make_db(self.folder(), ready=self.ready, cleanup=self.addCleanup)
         self.s.httpd.app_settings = service(self.db)
+
+    def theme(self):
+        """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules-2.css), so its test layers the Classic theme; the rest stay as they were."""
+        name = self._testMethodName
+        return "prototype-2.0" if any(k in name for k in ("amber", "accept", "decline", "provider", "saved_notice", "leave_these", "leave_out")) else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
@@ -314,6 +327,183 @@ class Settings(unittest.TestCase):
             js("document.querySelector('[data-ask-remove]').click()")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertEqual(js("window.__ask.calls.map(c => c && c.action).filter(Boolean)"), ["choose", "choose", "choose", "remove"])
+
+    def warn_page(self, cdp, width, scheme, provider=None, open_warn=None):
+        """The fake route in a window of `width` with the colour scheme; `provider` is answered by the fake providers route and read once
+        from the All projects tab; `open_warn` is a warning already on the list when the tab opens."""
+        js = self.show_page(cdp, fake=True)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+        js("window.__ask.warn = [{folder: '/Example/Programme files', accepted: false, items: [{name: 'Contract 2026', readable_files: 12}, {name: 'Salary bands', readable_files: 3}]}]")
+        if provider:
+            js(f"window.__ask.provider = {json.dumps(provider)}")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-all')"), 10))
+            self.assertTrue(wait(lambda: js("window.__ask.providerRead === true"), 10), "the providers route was read")
+            js("new Promise(r => setTimeout(r, 1500))")
+            js("document.querySelector('[data-ask-tab=project]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 10))
+            self.assertTrue(wait(lambda: provider in (js("(document.querySelector('#ask-notice') || {}).innerText") or ""), 10), "the page reads the provider before the notice is drawn")
+        if open_warn:
+            js(f"window.__ask.folders = ['/Example/Programme files']; window.__ask.open = {json.dumps(open_warn)}")
+            js("location.hash = '#dashboard&p=ABC'")
+            wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
+            js("location.hash = '#settings&p=ABC&s=claude'")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 10))
+        return js
+
+    def test_a_saved_folder_with_people_or_contract_names_shows_one_amber_notice_under_its_line(self):
+        """Row 1365: the notice sits directly under the flagged folder's line, full width in the same list, alert on save; the
+        approved words; amber computed style (tint, text, radius 6, padding 6px 12px, 13px, names weight 500, margin-top 6, no icon, no border);
+        buttons in the Settings button class (Accept and Decline, neither primary), gap 8. 1400 then 900, light and dark."""
+        amber = {"light": ("rgb(251, 241, 218)", "rgb(138, 90, 0)"), "dark": ("rgb(53, 42, 16)", "rgb(240, 190, 90)")}
+        for width in WIDTHS:
+            for scheme in ("light", "dark"):
+                with chrome() as cdp:
+                    js = self.warn_page(cdp, width, scheme)
+                    js("document.querySelector('[data-ask-choose]').click()")
+                    self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10), f"{width} {scheme}")
+                    self.assertEqual(js("document.querySelectorAll('[data-ask-warn]').length"), 1)
+                    box = "document.querySelector('[data-ask-warn]')"
+                    self.assertEqual(js(f"{box}.getAttribute('role')"), "alert")
+                    self.assertTrue(js(f"{box}.previousElementSibling && {box}.previousElementSibling.innerText.startsWith('/Example/Programme files')"), "directly under the folder's line")
+                    self.assertEqual(js(f"{box}.parentElement.id"), "ask-folders", "in the same group")
+                    self.assertTrue(js(f"Math.abs({box}.getBoundingClientRect().width - {box}.parentElement.getBoundingClientRect().width) < 2"), "full width")
+                    text = js(f"{box}.innerText")
+                    flat = text.replace("\n", " ")
+                    self.assertIn("This folder holds Contract 2026 and Salary bands. Passages from it may go to Claude, which Anthropic runs, and they can contain personal information.", flat)
+                    self.assertIn("Send passages from this folder to Claude?", flat)
+                    self.assertIn("Left out of ask clark.", flat, "no choice is Declined")
+                    self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"])
+                    self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+                    bg, fg = amber[scheme]
+                    cs = f"getComputedStyle({box})"
+                    self.assertEqual(js(f"{cs}.backgroundColor"), bg, f"{width} {scheme}")
+                    self.assertEqual(js(f"{cs}.color"), fg, f"{width} {scheme}")
+                    self.assertEqual(js(f"[{cs}.borderTopLeftRadius, {cs}.paddingTop, {cs}.paddingRight, {cs}.fontSize, {cs}.marginTop, {cs}.borderTopWidth]"),
+                                     ["6px", "6px", "12px", "13px", "6px", "0px"])
+                    self.assertFalse(js(f"!!{box}.querySelector('svg, img, .i')"), "no icon")
+                    self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-name]')].map(n => getComputedStyle(n).fontWeight)"), ["500", "500"])
+                    ch, kp = f"{box}.querySelector('[data-ask-warn-accept]')", f"{box}.querySelector('[data-ask-warn-decline]')"
+                    self.assertTrue(js(f"{ch}.classList.contains('btn') && !{ch}.classList.contains('pri')"), "Accept is a plain Settings button")
+                    self.assertTrue(js(f"{kp}.classList.contains('btn') && !{kp}.classList.contains('pri')"), "Decline is a plain Settings button")
+                    self.assertEqual(js(f"getComputedStyle({ch}).borderTopLeftRadius"), js(f"getComputedStyle({kp}).borderTopLeftRadius"), "both buttons share one radius")
+                    self.assertEqual(js(f"getComputedStyle({kp}).borderTopLeftRadius"), js("getComputedStyle(document.querySelector('[data-ask-choose]')).borderTopLeftRadius"), "the existing Settings button class, not a new radius")
+                    self.assertEqual(js(f"getComputedStyle({ch}.parentElement).columnGap"), "8px")
+
+    def test_accept_then_decline_send_only_the_folder_and_say_which_is_so_and_the_folder_stays_listed(self):
+        """Row 1365: Accept sends {action: accept, path: the saved folder} and the notice then says 'Passages may go to Claude.'; Decline sends decline and the
+        notice says 'Left out of ask clark.'; the folder stays listed and the buttons stay (a choice can always be changed). 1400 and 900."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+                state = "document.querySelector('[data-ask-warn-state]').innerText"
+                self.assertEqual(js(state), "Left out of ask clark.")
+                js("document.querySelector('[data-ask-warn-accept]').click()")
+                self.assertTrue(wait(lambda: js(state) == "Passages may go to Claude.", 10), width)
+                self.assertEqual(js("document.querySelector('[data-ask-warn-accept]').getAttribute('aria-pressed')"), "true")
+                js("document.querySelector('[data-ask-warn-decline]').click()")
+                self.assertTrue(wait(lambda: js(state) == "Left out of ask clark.", 10), width)
+                self.assertEqual(js("document.querySelector('[data-ask-warn-decline]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(js("window.__ask.calls.filter(c => c && (c.action === 'accept' || c.action === 'decline'))"),
+                                 [{"project": "ABC", "action": "accept", "path": "/Example/Programme files"}, {"project": "ABC", "action": "decline", "path": "/Example/Programme files"}])
+                self.assertEqual(js("window.__ask.folders"), ["/Example/Programme files"])
+                self.assertEqual(js("[...document.querySelectorAll('#ask-folders .folder-now')].map(e => e.innerText)"), ["/Example/Programme files"])
+                self.assertTrue(js("document.querySelector('[data-ask-warn]').getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+
+    def test_an_accepted_folder_reads_passages_may_go_on_open_and_the_old_buttons_are_gone(self):
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "accepted": True, "items": [{"name": "Contract", "readable_files": 2, "dir": False}]}])
+            box = "document.querySelector('[data-ask-warn]')"
+            self.assertEqual(js(f"{box}.querySelector('[data-ask-warn-state]').innerText"), "Passages may go to Claude.")
+            self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"])
+            text = js(f"{box}.innerText")
+            self.assertNotIn("Keep it", text)
+            self.assertNotIn("Choose other folders", text)
+
+    def test_leave_these_subfolders_out_is_a_third_button_that_sends_only_the_folder_and_the_notice_goes(self):
+        """Row 1365 line 14: the button shows only when a flagged hit is a folder, sends {action: exclude, path: the saved folder} and nothing else, and
+        the notice goes with the answer. 1400 and 900, Classic."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline", "Leave these subfolders out"], width)
+                self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+                js(f"{box}.querySelector('[data-ask-warn-leave]').click()")
+                self.assertTrue(wait(lambda: js("!document.querySelector('[data-ask-warn]')"), 10), "the notice goes")
+                self.assertEqual(js("window.__ask.calls.filter(c => c && c.action === 'exclude')"), [{"project": "ABC", "action": "exclude", "path": "/Example/Programme files"}])
+                self.assertEqual(js("[...document.querySelectorAll('#ask-folders .folder-now')].map(e => e.innerText)"), ["/Example/Programme files"], "the folder stays listed")
+
+    def test_leave_out_button_is_not_offered_for_a_hit_that_is_only_a_file(self):
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Payroll.csv", "readable_files": 1, "dir": False}]}])
+            self.assertEqual(js("document.querySelectorAll('[data-ask-warn-leave]').length"), 0)
+
+    def test_a_failed_leave_out_says_so_and_keeps_the_notice(self):
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+            js("window.__ask.excludeFail = true; const f = window.fetch; window.fetch = (u, o) => (o && o.body && String(o.body).indexOf('exclude') >= 0) ? Promise.resolve(new Response(JSON.stringify({ok: false, code: 'cant_save', message: 'That folder could not be saved. Nothing was changed.'}), {status: 409, headers: {'Content-Type': 'application/json'}})) : f(u, o)")
+            js("document.querySelector('[data-ask-warn-leave]').click()")
+            self.assertTrue(wait(lambda: "Nothing was changed" in js("document.querySelector('#ask-folders-card').innerText"), 10))
+            self.assertTrue(js("!!document.querySelector('[data-ask-warn]')"))
+
+    def test_warning_names_connected_provider(self):
+        """Row 1365 test 5: ChatGPT is named when it is the provider (and 'which Anthropic runs' is dropped); on open the notice is a labelled region, not an alert."""
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light", provider="ChatGPT", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Payroll", "readable_files": 1}]}])
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+            box = "document.querySelector('[data-ask-warn]')"
+            self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
+            flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
+            self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), "the provider in use is named")
+            self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
+            self.assertNotIn("Claude", flat())
+            self.assertNotIn("Anthropic", flat())
+            js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
+            self.assertTrue(wait(lambda: "Passages may go to ChatGPT." in flat(), 10))
+
+    def test_a_folder_without_such_names_shows_no_warning(self):
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 10))
+            self.assertFalse(js("!!document.querySelector('[data-ask-warn]')"))
+
+    def test_cards_shows_the_same_notice_so_a_left_out_folder_has_its_two_buttons(self):
+        """Row 1365: a folder with such names is left out by default in every theme, so Cards shows the notice (its words and buttons; the amber is Classic's) and
+        the person can always press Accept."""
+        with chrome() as cdp:
+            js = self.warn_page(cdp, 1400, "light")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+            self.assertEqual(js("[...document.querySelectorAll('[data-ask-warn] button')].map(b => b.innerText)"), ["Accept", "Decline"])
+            self.assertIn("Left out of ask clark.", js("document.querySelector('[data-ask-warn]').innerText"))
+
+    def test_saved_notice_goes_from_alert_to_region_after_cancel_and_after_remove(self):
+        """Row 1365 survivors: once another request has come back, a notice is no longer fresh: role region labelled with the folder, after a
+        cancelled Choose folder and after Remove of another folder."""
+        for step in ("cancel", "remove"):
+            with chrome() as cdp:
+                js = self.warn_page(cdp, 1400, "light")
+                js("window.__ask.folders = ['/Example/Plain']")
+                js("location.hash = '#dashboard&p=ABC'")
+                wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
+                js("location.hash = '#settings&p=ABC&s=claude'")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 10))
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+                self.assertEqual(js("document.querySelector('[data-ask-warn]').getAttribute('role')"), "alert", step)
+                if step == "cancel":
+                    js("window.__ask.choices = ['/cancel']; document.querySelector('[data-ask-choose]').click()")
+                    self.assertTrue(wait(lambda: js("window.__ask.calls.filter(c => c && c.action === 'choose').length") == 2, 10))
+                else:
+                    js("document.querySelector('[data-ask-remove=\"/Example/Plain\"]').click()")
+                    self.assertTrue(wait(lambda: js("window.__ask.folders.length") == 1, 10))
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ask-warn]').getAttribute('role')") == "region", 10), step)
+                self.assertEqual(js("document.querySelector('[data-ask-warn]').getAttribute('aria-label')"), "/Example/Programme files", step)
 
     def test_choose_and_remove_keep_the_focus_in_the_folders_part(self):
         """Choose folder and Remove are disabled while the request runs: the focus comes back to Choose folder, or after a Remove to

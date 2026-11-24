@@ -96,6 +96,13 @@ class ClaudeChecks(Base):
         self.connect()
         self.one("version or options are not supported")
 
+    def test_a_check_that_ran_out_of_time_is_logged_as_that(self):
+        with mock.patch.object(ask_claude, "run", return_value=("slow", b"", None)):
+            self.connect()
+        line = self.one("a check took too long")
+        self.assertTrue(line.endswith("ai: connect failed, a check took too long"), line)
+        self.assertNotIn("version or options", line)
+
     def test_not_signed_in_with_claude_ai(self):
         self.put("auth", json.dumps({"loggedIn": False, "authMethod": "none"}))
         self.connect()
@@ -239,6 +246,31 @@ class CodexChecks(Base):
         with mock.patch.object(platform, "system", return_value="linux"), mock.patch.object(platform, "container_mode", return_value=True):
             self.connect(provider, "chatgpt")
         self.one("running in a container")
+
+
+class CheckAgain(Base):
+    """Row 1492 (AP13): Check again keeps and logs nothing of the question or the answer, and no key, token or password."""
+
+    HOSTILE = "ZEBRA-MARKER-4471 password hunter2 Bearer abcdef0123456789 /Users/someone/.claude/secret.json"
+
+    def test_log_names_provider_and_result_only(self):
+        svc = ac.AiConnect(self.data, ai_providers.ClaudeSubscription(self.provider), ai_providers.ChatGPTSubscription(
+            ai_codex.CodexCommand(places=("/nowhere/codex",), walled=False, roots=(str(self.d),))))
+        self.assertEqual(svc.verify({"provider": "claude"})[0], 200)
+        self.put("reply", tac.result("ready " + self.HOSTILE))                 # an answer that holds secrets: never shown, kept or logged
+        self.assertEqual(svc.verify({"provider": "claude"})[0], 200)
+        self.put("reply", json.dumps({"type": "result", "subtype": "success", "is_error": True, "result": "OAuth token has expired " + self.HOSTILE}))
+        self.assertEqual(svc.verify({"provider": "claude"})[1]["code"], "expired")
+        lines = [x for x in self.cap.lines() if "ai:" in x]
+        said = [x.split("ai: ", 1)[1] for x in lines]
+        self.assertEqual(len(said), 5, said)             # the log bridge shows a provider's name as a count of characters: the line is the provider and the result, nothing else
+        self.assertEqual(len([x for x in said if x.endswith("checked, answered")]), 2)
+        for line in said:
+            self.assertRegex(line, r"^<text, \d+ characters>( checked, (answered|<text, \d+ characters>))?$")
+        self.assertEqual(said[-1], "<text, 6 characters> checked, <text, 7 characters>", "the result is the code 'expired' (7 characters), never the sentence")
+        everything = "\n".join(self.cap.lines()) + (self.data / settings.FILE).read_text(encoding="utf-8")
+        for never in ("ZEBRA", "hunter2", "Bearer", "abcdef0123", "/Users", "secret.json", ac.TEST_QUESTION, "Reply with", "password", "sk-", "token"):
+            self.assertNotIn(never, everything)
 
 
 if __name__ == "__main__":

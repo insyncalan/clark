@@ -7,7 +7,8 @@ The content: {"v": 1, "cards": [{"id": "ABC-001", "source": "client" | "own" | "
 - source: "client" is the item's client wording, "own" is the card's own words, "latest" is an action's latest update. A risk,
   issue or decision has no latest update (the record keeps one for actions only), so "latest" is refused on those and the page
   does not offer it there.
-- own: the card's own words, plain text on one line, at most OWN_MAX characters; only the "own" source reads it.
+- own: the card's own words, at most OWN_MAX characters of words on one line (section_bodies hands this module the words of the
+  rich editor's HTML and puts the HTML back; an older plain text reads the same); only the "own" source reads it.
 The published file carries, for each card whose item the file already holds, the id and the words chosen, and nothing else (the
 item's own fields are in the file's data, which publish has already cleaned). A card whose item is hidden, archived, not client
 visible or sensitive is left out, never shown blank; a section with no card left stays out of the file.
@@ -18,8 +19,9 @@ READY = True
 SIZE = 3                                   # cards across; raid4.py sets four
 MANY = 8                                   # cards a body of version 2 holds (raid4.py)
 OWN_MAX = 400                              # characters of a card's own words
-CARD_BYTES = 6 * OWN_MAX + 100             # worst case: every character escaped to six bytes, plus the id and the keys
-LIMIT = 8 * CARD_BYTES + 64                # raid4 holds up to eight cards (version 2); one limit for both, well inside the route's
+OWN_HTML_MAX = 2000                        # row 1288: a card's own words are the rich editor's HTML now: characters of it once cleaned (section_bodies.LINE_HTML_MAX)
+CARD_BYTES = 6 * OWN_HTML_MAX + 100        # worst case: every character escaped to six bytes, plus the id and the keys
+LIMIT = MANY * CARD_BYTES + 64             # raid4 holds up to eight cards (version 2); one limit for both, well inside the route's
 EMPTY = ""
 
 UPPER, DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
@@ -29,8 +31,8 @@ KIND_OF = {None: "raid", "A": "actions", "D": "decisions"}
 NOT_AN_OBJECT = "That content isn't a set of cards."
 TOO_MANY = "A card row holds {n} cards at most."
 BAD_CARD = "A card needs the number of a risk, issue, action or decision."
-BAD_SOURCE = "Choose Client wording, Own words or Latest update for a card."
-NO_LATEST = "Only an action has a latest update. Choose Client wording or Own words for this card."
+BAD_SOURCE = "Choose Client Message, Own words or Latest update for a card."
+NO_LATEST = "Only an action has a latest update. Choose Client Message or Own words for this card."
 BAD_SHOW = "Choose what a card shows with Latest update, Owner, status and date, and Impact and likelihood."
 SHOW = {"latest", "meta", "rating"}
 TWICE = "The same item is on two cards."

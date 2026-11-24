@@ -21,7 +21,6 @@ WANT = {
     "text": {"empty": ["Write here."]},
     "text-image": {"caption": "Say what the picture shows.", "empty": ["Write here.", "Add a picture."]},
     "gallery": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
-    "image-caption": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
     "quote": {"empty": ["Write what they said.", "Say who said it."]},
     "callout": {"empty": ["Write the one thing the reader must see."]},
     "contacts": {"empty": ["Add a person."]},
@@ -133,7 +132,7 @@ class ClassicOnly(unittest.TestCase):
     def test_every_placeholder_keeps_its_old_words_for_Cards(self):
         t = self.EDIT / "templates"
         for name, old in (("WorkItemsList.jsx", 'startOr("Shown above the list"'), ("Callout.jsx", "startOr(PROMPTS.words"), ("TextImage.jsx", 'startOr("Click to write."'),
-                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined'), ("ImageCap.jsx", 'startOr(undefined')):
+                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined')):
             self.assertIn(old, (t / name).read_text(encoding="utf-8"), name)
             self.assertNotIn("startText(", (t / name).read_text(encoding="utf-8"), name)
 

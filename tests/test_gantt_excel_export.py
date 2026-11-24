@@ -18,7 +18,7 @@ from openpyxl import load_workbook
 
 ON = "2026-11-07"
 LABELS = ["ID", "Line", "Type", "Parent", "Start", "End", "Days", "Done %", "Status", "Health", "Depends on", "Owner", "Workstream", "Priority",
-          "Baseline start", "Baseline end", "Effort (days)", "Budget", "Deliverable", "On dashboard", "Notes"]
+          "Baseline start", "Baseline end", "Effort (days)", "Budget", "Deliverable", "On the dashboard", "Notes"]
 DEFAULT_SHOWN = ["ID", "Line", "Type", "Parent", "Start", "End", "Days", "Done %", "Status", "Health", "Depends on", "Owner", "Workstream",
                  "Priority", "Deliverable"]
 
@@ -109,11 +109,11 @@ class TheEditorsWorkbook(unittest.TestCase):
         _, rows = table(self.book()["Plan"], 1)
         by = {r[0]: dict(zip(LABELS, r)) for r in rows}
         one = by[gid(2)]
-        self.assertEqual((one["Type"], one["Parent"], one["Depends on"], one["On dashboard"]), ("Task", gid(1), gid(3), "Yes"))
+        self.assertEqual((one["Type"], one["Parent"], one["Depends on"], one["On the dashboard"]), ("Task", gid(1), gid(3), "Yes"))
         self.assertEqual((one["Start"], one["End"]), (date(2026, 11, 3), date(2026, 11, 8)))
         self.assertEqual((one["Days"], one["Owner"], one["Budget"], one["Effort (days)"], one["Notes"]), (6, "ZQ-OWNER-2", 424244.5, 7779.0, "ZQ-NOTE-2"))
         self.assertEqual((one["Baseline start"], one["Baseline end"]), (date(2026, 10, 1), date(2026, 10, 9)))
-        self.assertEqual(by[gid(5)]["On dashboard"], "No")
+        self.assertEqual(by[gid(5)]["On the dashboard"], "No")
         self.assertEqual(by[gid(6)]["Depends on"], f"{gid(7)}, {gid(3)}")
         self.assertIsNone(by[gid(4)]["Days"])                                       # a milestone has no span, as on the page
         ws = self.book()["Plan"]
@@ -208,7 +208,7 @@ class TheClientsWorkbook(unittest.TestCase):
             for text in (OFF[n], gid(n), f"ZQ-OWNER-{n}", f"ZQ-NOTE-{n}"):
                 self.assertNotIn(text.encode(), everything, text)
         for n in range(1, 13):                                                # the hidden columns, for every line
-            for text in (f"ZQ-NOTE-{n}", str(424242.5 + n), str(7777 + n), "Baseline", "Budget", "Notes", "Effort", "On dashboard"):
+            for text in (f"ZQ-NOTE-{n}", str(424242.5 + n), str(7777 + n), "Baseline", "Budget", "Notes", "Effort", "On the dashboard"):
                 self.assertNotIn(text.encode(), everything, text)
 
     def test_no_leak_after_the_hidden_columns_change(self):
