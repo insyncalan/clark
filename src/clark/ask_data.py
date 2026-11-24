@@ -125,12 +125,21 @@ def long_rows(lines):
     return sum(1 for x in lines if len(x) > MAX_PASSAGE and not ask._secret(x))
 
 
-def choose(passages, question, budget=BUDGET, limit=None):
+def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
-    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
-    keep, left = ask.choose([(p.label, p.text) for p in passages], question, budget, len(passages) if limit is None else limit)
-    return tuple(passages[i] for i in keep), left
+    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit.
+    `need_match` (row 1366 AP27): keep only a passage that shares a word or an item ID with the question; a question with no words keeps none."""
+    pairs = [(p.label, p.text) for p in passages]
+    if need_match:
+        words = {w.casefold() for w in ask.WORDS.findall(question or "")}
+        ids = set(ask.ID_PATTERN.findall(question or ""))
+        pos = [i for i, (_l, t) in enumerate(pairs) if any(x.casefold() in t.casefold() for x in ids) or any(w in t.casefold() for w in words)]
+    else:
+        pos = list(range(len(pairs)))
+    keep, _left = ask.choose([pairs[i] for i in pos], question, budget, len(passages) if limit is None else limit)
+    # left out = only what was dropped for size or the limit: a passage that merely shares no word with the question is not "left out" (the person would be told the report was too long)
+    return tuple(passages[pos[i]] for i in keep), len(pos) - len(keep)
 
 
 def state_of(kind, row, today):
@@ -181,10 +190,27 @@ def partial_lines(counts):
 
 def read_counts(data):
     """Row 1292: what a question read, for the line under its answer: the rows sent of each kind (work items are actions, risks and
-    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Counts only; no row, title or text."""
+    issues, and decisions) and the report's as-at day as DD-MM-YYYY ("" when it was not a day). Row 1294: `items` is every row sent and
+    `left_out` every row of the project that was cut (0 when nothing was), for the line "N items read, M left out". Counts only; no row, title or text."""
     sent = {k: n for k, n, _total in data.counts}
     return {"work_items": sum(sent.get(k, 0) for k in ("actions", "raid", "decisions")), "milestones": sent.get("milestones", 0),
-            "use_cases": sent.get("use_cases", 0), "as_at": data.today}
+            "use_cases": sent.get("use_cases", 0), "as_at": data.today,
+            "items": sum(n for _k, n, _total in data.counts), "left_out": sum(max(0, total - n) for _k, n, total in data.counts)}
+
+
+# Row 1294 (rule 4): a question that asks for a count, a total or an overview. Said in plain words, whatever the case; a question that
+# only names one item is not one of these.
+_WHOLE = re.compile(r"\b(?:how\s+many|how\s+much|how\s+often|counts?|totals?|number\s+of|overviews?|summary|summaries|summari[sz]e|averages?|percents?|percentages?|per\s+cent|altogether|in\s+all|all\s+of\s+the|breakdowns?|list\s+all|list\s+every|tall(?:y|ies)|sums?|how\s+large|figures?|stat(?:istic)?s|(?:more|fewer|less)\s+than\s+\d+|at\s+(?:least|most)\s+\d+|every\s+(?:risk|issue|action|decision|item|milestone|use\s+case)|all\s+(?:the\s+|of\s+the\s+|open\s+|closed\s+|late\s+)?(?:risks?|issues?|actions?|decisions?|items?|milestones?|use\s+cases?))\b", re.I)
+
+
+def partial_answer(question, counts):
+    """The ruled sentence for an answer that covers only part of the project: "" unless something was cut (some kind sent in part) and the
+    question asks for a count, a total or an overview. The numbers are the rows read and the rows left out, as read_counts gives them."""
+    got = read_counts(ProjectData((), {}, 0, 0, "", tuple(counts or ())))
+    if got["left_out"] < 1 or not isinstance(question, str) or not _WHOLE.search(question):
+        return ""
+    n = got["items"]
+    return f"This answer is partial: it covers only the {n} {'item that was' if n == 1 else 'items that were'} read, not the {got['left_out']} that {'was' if got['left_out'] == 1 else 'were'} left out."
 
 
 def left_out_lines(counts):

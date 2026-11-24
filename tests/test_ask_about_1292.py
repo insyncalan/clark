@@ -26,6 +26,7 @@ class Counting(AP.Stub):
         super().__init__()
         self.items = []
         self.read = None
+        self.partial_notes = None
 
     def ask(self, body):
         status, got = super().ask(body)
@@ -33,6 +34,8 @@ class Counting(AP.Stub):
             got["items"] = [{"id": i, "state": []} for i in self.items]
             if self.read:
                 got["read"] = self.read
+            if self.partial_notes:
+                got["notes"] = list(self.partial_notes)
         return status, got
 
 
@@ -244,6 +247,42 @@ class Sources(Classic):
             self.assertEqual(p.js("document.querySelector('.ask-cite').getAttribute('aria-label')"), f"Source 1: open {ident}")
             self.assertEqual(p.js("document.querySelector('[data-ask-used]').textContent.replace(/\\s+/g, ' ').trim()"), f"Used: 1 {ident}")
             self.assertEqual(p.js("document.querySelector('[data-ask-read]').textContent.trim()"), "17 work items, 6 milestones and 8 use cases read · as at 17-11-2026")
+
+    def test_a_cut_project_shows_n_items_read_m_left_out_at_1400_and_900(self):      # row 1294
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                ident = self.item_id(p)
+                self.stub.answer = f"{ident} is late."
+                self.stub.items = [ident]
+                self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026", "items": 31, "left_out": 12}
+                p.key("/", code="Slash", vk=191)
+                p.until("!document.querySelector('#ask-send') || !document.querySelector('#ask-send').disabled", "ready")
+                self.ask(p, "What is late?")
+                p.until("!!document.querySelector('[data-ask-read]')", "the read line drew")
+                self.assertEqual(p.js("document.querySelector('[data-ask-read]').textContent.trim()"), "31 items read, 12 left out.")
+                self.assertTrue(p.js("(() => { const r = document.querySelector('[data-ask-read]').getBoundingClientRect(); return r.width > 0 && r.right <= document.querySelector('#ask-panel').getBoundingClientRect().right + 1; })()"), f"the line sits inside the panel at {width}")
+
+    def test_the_partial_answer_sentence_is_drawn_with_the_answer_at_1400_and_900(self):      # row 1294 rule 4
+        said = "This answer is partial: it covers only the 31 items that were read, not the 12 that were left out."
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                self.stub.answer = "There are 31 open."
+                self.stub.items = []
+                self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026", "items": 31, "left_out": 12}
+                self.stub.partial_notes = [said]
+                p.key("/", code="Slash", vk=191)
+                p.until("!document.querySelector('#ask-send') || !document.querySelector('#ask-send').disabled", "ready")
+                self.ask(p, "How many are open?")
+                p.until("!!document.querySelector('[data-ask-notes]')", "the notes drew")
+                self.assertEqual(p.js("document.querySelector('[data-ask-notes]').textContent.trim()"), said)
+                self.assertTrue(p.js("(() => { const r = document.querySelector('[data-ask-notes]').getBoundingClientRect(); return r.width > 0 && r.right <= document.querySelector('#ask-panel').getBoundingClientRect().right + 1; })()"), f"the sentence sits inside the panel at {width}")
+                self.assertGreater(p.js("document.querySelector('[data-ask-notes]').getBoundingClientRect().top"), p.js("document.querySelector('.ask-turn.assistant:not(.ask-notes)').getBoundingClientRect().top"), "under the answer")
 
     def test_an_id_the_answer_does_not_name_gets_no_chip_and_no_used_line(self):
         with chrome() as cdp:

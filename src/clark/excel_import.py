@@ -130,13 +130,15 @@ SHEET_TABLES["risks and issues"] = "raid"          # the earlier name of the she
 SHEET_TABLES["raid"] = "raid"                      # the oldest name, written out so workbooks exported before the rename still import (#143)
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
-HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
+HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message", "client message": "client_message",
                   "baseline": "baseline_date", "agreed": "baseline_date",
+                  "updated": "updated_at", "order": "sort_order", "% complete": "percent_complete",   # row 1390 B: the headings renamed to Last updated, Sort order, Progress %
                   "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
 GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
 WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
 GANTT_HEADERS = {label.lower(): f for label, f in excel.GANTT_SHEET_COLUMNS}      # the export's own labels (Days and Status are worked out: never read)
+GANTT_HEADERS["on dashboard"] = "show"           # row 1390 B: the Gantt sheet's old heading for "On the dashboard" still imports
 GANTT_TEXT = {"name": 200, "owner": 200, "workstream": 200, "deliverable": 500, "note": 2000}     # the data layer's limits (store.GANTT_TEXT_LIMITS)
 WORDS = {"actions": "action", "raid": "RAID item", "decisions": "decision", "milestones": "milestone",
          "use_cases": "use case", GANTT: "line"}
@@ -201,7 +203,7 @@ def milestone_ids(text, refs=None):
 
 
 def _label(table, f):
-    """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
+    """A column as the person sees it: the export's header label (Due, Agreed, Client Message ...)."""
     for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
         if field_ == f:
             return label

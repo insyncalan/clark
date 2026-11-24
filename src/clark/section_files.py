@@ -256,9 +256,30 @@ def _save(pub, folder, wanted, data, judged=None):
     raise Refused("names_taken")
 
 
+def _judged_source(pub, kind, chosen):
+    """Step 4 for one chosen file: its real path and bytes, the ending and first bytes judged before anything is copied."""
+    real, data = _source(pub, chosen)
+    if kind == "doclinks":
+        try:
+            doclinks.allowed_content(real.name, data[:doclinks.HEAD_BYTES])      # and its first bytes must match that ending
+        except section_bodies.Bad:
+            raise Refused("bad_type", name=real.name) from None
+    return real, data
+
+
+BAD_TYPE_REASON = MESSAGES["bad_type"].partition(": ")[2]
+
+
+def _problem(name, refused):
+    """Row 1593: one refused file's own problem line, "{file name}: {reason}". The type refusal carries the name already."""
+    reason = BAD_TYPE_REASON if refused.code == "bad_type" else refused.message
+    return f"{name}: {reason}"
+
+
 def attach(pub, body):
     """POST /api/section-file for the publisher `pub` (publish_flow.Publisher: its store, fs, dialogs, folders and the step that
-    adds the entry). (status, body)."""
+    adds the entry). (status, body). Row 1593: a Documents and links section takes several chosen files, each judged on its own,
+    added in ONE step (one Undo)."""
     try:
         code, ref = _checked_request(body)
     except Refused as r:
@@ -269,24 +290,33 @@ def attach(pub, body):
         try:
             client, kind = _before_the_dialog(pub, code, ref)
             try:
-                chosen = pub.choose_open_file(PROMPT, types=doclinks.ALLOWED_ENDINGS) if kind == "doclinks" else pub.choose_open_file(PROMPT)
+                if kind == "doclinks":
+                    picked = pub.choose_open_files(PROMPT, types=doclinks.ALLOWED_ENDINGS)
+                else:
+                    one = pub.choose_open_file(PROMPT)
+                    picked = [one] if one else None
             except platform.PlatformError as e:
                 raise Refused("dialog_failed", reason=str(e).rstrip()) from None
-            if chosen is None:
+            if not picked:
                 return 200, {"ok": True, "cancelled": True}
-            real, data = _source(pub, chosen)
-            if kind == "doclinks":                          # the ending and the first bytes are judged before anything is copied (and again on the saved name)
-                try:
-                    doclinks.allowed_content(real.name, data[:doclinks.HEAD_BYTES])      # and its first bytes must match that ending
-                except section_bodies.Bad:
-                    raise Refused("bad_type", name=real.name) from None
+            if len(picked) == 1 or kind != "doclinks":      # one file: as before
+                real, data = _judged_source(pub, kind, picked[0])
+                folder = _files_folder(pub, client)
+                name, copied, made = _copy(pub, folder, real, data, kind == "doclinks")
+                return _added(pub, code, ref, folder, name, copied, made, data)
             folder = _files_folder(pub, client)
-            name, copied, made = _copy(pub, folder, real, data, kind == "doclinks")
+            items, problems = [], []
+            for i, chosen in enumerate(picked):
+                try:
+                    real, data = _judged_source(pub, kind, chosen)
+                    items.append((i, *_copy(pub, folder, real, data, True), len(data)))
+                except Refused as r:
+                    problems.append((i, _problem(Path(str(chosen)).name, r)))
         except Refused as r:
             return fail(r)
         except Invalid:
             return fail(Refused("copy_failed", 503))
-        return _added(pub, code, ref, folder, name, copied, made, data)
+        return _added_many(pub, code, ref, folder, items, problems)
     finally:
         pub.lock.release()
 
@@ -306,11 +336,52 @@ def _added(pub, code, ref, folder, name, copied, made, data):
     return 200, {**reply, "file": entry, "message": (ADDED if copied else USED).format(name=name)}
 
 
-def drop(pub, code, ref, raw_name, data):
+def _added_many(pub, code, ref, folder, items, problems):
+    """Row 1593, step 6 for several files: `items` are (position, name, copied, made, bytes) of the files copied (or found) in
+    order, `problems` (position, line) of the files refused. One step adds every entry that fits (one apply_id, so one Undo); a file
+    left out by the 20-entry limit gets its own line and its fresh copy is taken back. One entry: the one-file words."""
+    if not items:
+        lines = [line for _, line in sorted(problems)]
+        return 409, {"ok": False, "code": "none_added", "message": lines[0] if lines else MESSAGES["unreadable"], "problems": lines}
+    entries = [{"name": name, "rel": f"{FILES_FOLDER}/{name}", "bytes": size} for _, name, _c, _m, size in items]
+    status, reply = pub.add_section_file({"project": code, "id": ref, "entries": entries})
+    if status != 200:
+        for _, name, copied, made, _size in items:
+            if copied and made is not None and _identity(pub, folder / name) == made:
+                try:
+                    pub.fs.remove(str(folder / name))
+                except OSError:
+                    pass
+        return status, reply
+    left = set(reply.get("left_out") or [])
+    kept = []
+    for pos, name, copied, made, size in items:
+        if name in left:
+            problems.append((pos, f"{name}: {doclinks.TOO_MANY}"))
+            if copied and made is not None and _identity(pub, folder / name) == made:
+                try:
+                    pub.fs.remove(str(folder / name))
+                except OSError:
+                    pass
+        else:
+            kept.append((name, copied))
+    if len(kept) == 1:
+        message = (ADDED if kept[0][1] else USED).format(name=kept[0][0])
+    else:
+        message = f"{len(kept)} files added."
+    out = {k: v for k, v in reply.items() if k not in ("left_out",)}
+    out.update({"message": message, "problems": [line for _, line in sorted(problems)]})
+    if len(kept) == 1:
+        out["file"] = out["added"][0]
+    return 200, out
+
+
+def drop(pub, code, ref, raw_name, data, hold=False):
     """POST /api/section-file-drop (row 1275): the bytes of one file dropped on a Documents and links section, `raw_name` the
     header as sent. The server has already checked the token and that the body is at most MAX_FILE_BYTES before reading it. The
     same rules as the file window: the client folder, the ending list and first bytes, the safe name and the number for a taken
-    name, one entry, one Undo. (status, body)."""
+    name, one entry, one Undo. (status, body). Row 1593: with `hold` (a drop of several files: one request per file, 25 MB each)
+    the file is judged and copied and NOT added; the reply names the copy, and drop_commit adds the held files in one step."""
     try:
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             raise Refused("bad_project_code", 400)
@@ -338,7 +409,69 @@ def drop(pub, code, ref, raw_name, data):
             return fail(r)
         except Invalid:
             return fail(Refused("copy_failed", 503))
+        if hold:
+            return 200, {"ok": True, "held": {"name": name, "bytes": len(data)}}
         return _added(pub, code, ref, folder, name, copied, made, data)
+    finally:
+        pub.lock.release()
+
+
+def drop_commit(pub, code, ref, raw_names):
+    """Row 1593: the end of a drop of several files. `raw_names` is the header as sent: a URL-encoded JSON list of the names the
+    holds returned, in the order dropped. Each must be a file name already in "Report files" (an ordinary file, not a link, with an
+    allowed ending and first bytes, at most 25 MB): one step adds every one that fits, one Undo takes them all off."""
+    from urllib.parse import unquote
+    try:
+        if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
+            raise Refused("bad_project_code", 400)
+        if not isinstance(ref, str) or not SECTION_ID.fullmatch(ref):
+            raise Refused("section_gone", 400)
+        try:
+            names = json.loads(unquote(raw_names or "", errors="strict"))
+        except (ValueError, UnicodeDecodeError):
+            raise Refused("bad_request", 400) from None
+        if not isinstance(names, list) or not 1 <= len(names) <= doclinks.MAX_ITEMS or not all(isinstance(n, str) for n in names) \
+                or len(set(names)) != len(names):
+            raise Refused("bad_request", 400)
+        for n in names:
+            try:
+                file_name(n)
+            except section_bodies.Bad:
+                raise Refused("bad_request", 400) from None
+    except Refused as r:
+        return fail(r)
+    if not pub.lock.acquire(blocking=False):
+        return fail(Refused("busy"))
+    try:
+        try:
+            client, kind = _before_the_dialog(pub, code, ref)
+            if kind != "doclinks":
+                raise Refused("drop_wrong_section", 400)
+            folder = _files_folder(pub, client)
+            items, problems = [], []
+            for i, n in enumerate(names):
+                path = folder / n
+                try:
+                    st = os.lstat(path)
+                    if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_FILE_BYTES:
+                        raise Refused("not_a_file")
+                    head = pub.fs.read_bytes(str(path), limit=doclinks.HEAD_BYTES)
+                    try:
+                        doclinks.allowed_content(n, head)
+                    except section_bodies.Bad:
+                        raise Refused("bad_type", name=n) from None
+                    _judge_saved(n, n)
+                except OSError:
+                    problems.append((i, _problem(n, Refused("unreadable"))))
+                except Refused as r:
+                    problems.append((i, _problem(n, r)))
+                else:
+                    items.append((i, n, True, None, st.st_size))        # made=None: the copies are the client's files now, never taken back
+        except Refused as r:
+            return fail(r)
+        except Invalid:
+            return fail(Refused("copy_failed", 503))
+        return _added_many(pub, code, ref, folder, items, problems)
     finally:
         pub.lock.release()
 
