@@ -3258,8 +3258,9 @@ def migrate_source_folders_1365(con):
 # Row 1534: the column order of the work item tables, saved with the project (published for everyone, a ruling) and not in the browser. One saved
 # order for each work item table (actions, risks, issues, decisions): the Work items page and that table's Dashboard section draw the same one.
 # The Milestones and Use cases tables are not part of it, and the Excel export does not read it. Which columns a person SHOWS stays their own
-# choice in the browser. A saved list holds ids from WORK_COLUMN_IDS (the ids of TABLE_COLUMNS.work in page/src/logic/tableColumns.js, a test pins
-# the two together), none twice, and starts with status then item, so the Item can never lose its place; a hidden column keeps its place in the list.
+# choice in the browser. A saved list holds ids from WORK_COLUMN_IDS (the ids of TABLE_COLUMNS.work in page/src/logic/tableColumns.js; the table PR of row 1534 adds the test that pins
+# the two together), none twice, and starts with status then item, so the Item can never lose its place. Only the SHOWN columns are ordered (PM ruling, row 1534):
+# a hidden column has no place in the saved list until it is shown; the list is not required to hold every column id.
 ORDER_TABLES = ("actions", "risks", "issues", "decisions")
 WORK_COLUMN_IDS = ("status", "item", "owner", "due", "prio", "id", "type", "workstream", "milestone", "raised", "closed", "usecase", "labels", "latest", "wording")
 COLUMN_ORDERS_LIMIT = 1000
@@ -3291,9 +3292,9 @@ COLUMN_ORDERS_COLUMN = "column_orders TEXT NOT NULL DEFAULT '{}' CHECK (typeof(c
 
 
 def migrate_column_orders(con):
-    """Schema version 33 to 34 (row 1534): projects.column_orders, '{}' (every table in its standard order) for every project that is there. Added at the end
+    """Schema version 34 to 35 (row 1534): projects.column_orders, '{}' (every table in its standard order) for every project that is there. Added at the end
     of the table, so no table is made again and no value changes; a column already there (a new database, or a second run) is skipped, and so is a missing
-    table. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 34 in MIGRATIONS."""
+    table. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 35 in MIGRATIONS."""
     have = columns(con, "projects")
     if have and "column_orders" not in have:
         con.execute("ALTER TABLE projects ADD COLUMN " + COLUMN_ORDERS_COLUMN)

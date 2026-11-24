@@ -8,7 +8,6 @@ import { data, rows as allRows, fromFile, asAt, openPeek, openPeekEdit } from ".
 import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
 import { classicTheme } from "./Contents.jsx";
 import { richWords } from "../logic/richWords.js";
-import { dashboardOrder, DASH_STD } from "../logic/tableColumns.js";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
 
 export const NOTHING = "Nothing to show.";
@@ -91,46 +90,35 @@ export function ItemIcon({ row, pill, plain, today }) {
     : <span class={`ico ${tone}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}<TipParts say={w} /></span>;
 }
 
-// Row 1534 (AP5): the columns in the order saved for this type on the Work items page, or the standard order. `ord` is true when the order is not the standard one: the list then
-// carries data-ord and --cols-ord (the widths in that order), and each cell its standard place (--s), which the narrow layouts use to keep the standard look (shell.css).
-export function columnsFor(type, id, classic = classicTheme()) {      // Classic only: Cards (no Theme layer) always draws the standard order
-  const d = data.value, list = dashboardOrder(d && d.project ? d.project.column_orders : null, type, id, classic), std = DASH_STD.filter((c) => id || c !== "id");
-  const ord = !list.every((c, i) => c === std[i]);
-  return { list, ord, attrs: ord ? { "data-ord": "", style: `--cols-ord:${list.map((c) => (c === "title" ? "minmax(0, 1fr)" : `var(--w-${c})`)).join(" ")}` } : {} };
-}
-export const place = (ord, c) => (ord ? { "--s": DASH_STD.indexOf(c) } : undefined);
-
 // The header row, once per card. A file has no Id column (a client is not given the item number).
-export function Head({ type, id, cols }) {
-  const { list, ord } = cols || columnsFor(type, id);
-  const head = { ico: <span class="c-ico" style={place(ord, "ico")}>Status</span>, title: <span class="c-title" style={place(ord, "title")}>Title</span>, owner: <span class="c-owner" style={place(ord, "owner")}>Owner</span>,
-    date: <span class="c-date" style={place(ord, "date")}>{dateHead(type)}</span>, prio: <span class="c-prio" style={place(ord, "prio")}>Priority</span>, id: <span class="c-id" style={place(ord, "id")}>Id</span> };
-  return <li class="wl-head" aria-hidden="true">{list.map((c) => head[c])}</li>;
+export function Head({ type, id }) {
+  return (
+    <li class="wl-head" aria-hidden="true">
+      <span class="c-ico">Status</span><span class="c-title">Title</span><span class="c-owner">Owner</span>
+      <span class="c-date">{dateHead(type)}</span><span class="c-prio">Priority</span>{id ? <span class="c-id">Id</span> : null}
+    </li>
+  );
 }
 
 export const listClass = (type, mode) => `wl irows is-${mode}${type === "decisions" ? " is-dec" : ""}`;
 
-function Row({ row, today, words, inFile, type, pick: Pick, scope, cols }) {
+function Row({ row, today, words, inFile, type, pick: Pick, scope }) {
   const pill = clientPill(row, today), who = ownerOf(row.owner), date = dueField(row);
   const title = words[row.id];
   const risk = row.kind === "risk" || row.kind === "issue";
   const late = inFile ? "" : lateWord(row, today);
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
   const P = (field, said, children, extra) => (Pick ? <Pick row={row} field={field} said={said} scope={scope} {...(extra || {})}>{children}</Pick> : children);      // row 1287: in View the Edit cell picker round the four values (status, owner, date, priority), never round the title
-  const st = (c) => place(cols.ord, c);      // row 1534: the cells are drawn in the saved order (the Work items page's order for this type)
-  const cell = {
-    ico: <span class="c-ico" style={st("ico")}>{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} />, { keep: true })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>,
-    title: <span class="wl-title c-title" style={st("title")} title={title} onClick={Pick ? (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) openPeekEdit(row.id); } : undefined}>{title}</span>,
-    owner: <span class="c-owner" style={st("owner")} title={who.initials ? who.text : undefined}>
-      {P("owner", who.initials ? who.text : "none", who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>)}
-    </span>,
-    date: <span class="c-date num" style={st("date")}>{P("due", date ? showDate(date) : "none", date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date")}</span>,
-    prio: <span class="c-prio" style={st("prio")}>{(risk || (inFile && isUrgent(row))) && row.priority ? P("priority", row.priority, <span class="prio">{row.priority}</span>) : late ? <span class="late">{late}</span> : null}</span>,
-    id: <span class="c-id wl-id num" style={st("id")}><button type="button" class="idl" aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button></span>,
-  };
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      {cols.list.map((c) => cell[c])}
+      <span class="c-ico">{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} />, { keep: true })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
+      <span class="wl-title c-title" title={title} onClick={Pick ? (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) openPeekEdit(row.id); } : undefined}>{title}</span>
+      <span class="c-owner" title={who.initials ? who.text : undefined}>
+        {P("owner", who.initials ? who.text : "none", who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>)}
+      </span>
+      <span class="c-date num">{P("due", date ? showDate(date) : "none", date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date")}</span>
+      <span class="c-prio">{(risk || (inFile && isUrgent(row))) && row.priority ? P("priority", row.priority, <span class="prio">{row.priority}</span>) : late ? <span class="late">{late}</span> : null}</span>
+      {inFile ? null : <span class="c-id wl-id num"><button type="button" class="idl" aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button></span>}
     </li>
   );
 }
@@ -138,11 +126,10 @@ function Row({ row, today, words, inFile, type, pick: Pick, scope, cols }) {
 export function ItemRows({ type, pick, scope }) {
   const inFile = fromFile.value, list = rowsFor(type), today = todayOf(), words = (inFile ? wordings : viewWords)(data.value || {});
   if (!list.length) return <p class="quiet" data-nothing>{NOTHING}</p>;
-  const cols = columnsFor(type, !inFile);
   return (
-    <ul class={listClass(type, inFile ? "file" : "view")} {...cols.attrs}>
-      <Head type={type} id={!inFile} cols={cols} />
-      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} pick={inFile ? null : pick} scope={scope} cols={cols} />)}
+    <ul class={listClass(type, inFile ? "file" : "view")}>
+      <Head type={type} id={!inFile} />
+      {list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={inFile} type={type} pick={inFile ? null : pick} scope={scope} />)}
     </ul>
   );
 }
