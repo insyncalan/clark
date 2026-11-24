@@ -219,7 +219,37 @@ class Classes(unittest.TestCase):
         self.assertIn("SIZING 1", text)
         self.assertIn("not a failed test", text)
         self.assertIn("SIZING 0", run_tests.summarize(run_tests.results_doc(300, [], {}, True), "cancelled"))   # ended: not sizing
-        self.assertIn("DEFECT 0 | FLAKE 0 | SIZING 0", run_tests.summarize(doc, "failure"))     # failed, not cancelled
+
+    def test_a_cancelled_shard_never_hides_files_that_had_failed(self):
+        doc = run_tests.results_doc(300, [], {}, False, failed_first=["test_a.py", "test_b.py"])
+        text = run_tests.summarize(doc, "cancelled")
+        self.assertIn("SIZING 1", text)
+        self.assertIn("DEFECT 2+", text)
+        self.assertNotIn("DEFECT 0", text)
+        self.assertIn("test_a.py", text)
+        self.assertNotIn("DEFECT 0", run_tests.summarize(doc, "failure"))
+        self.assertIn("DEFECT unknown", run_tests.summarize(run_tests.results_doc(300, [], {}, False), "cancelled"))
+
+    def test_a_missing_results_file_prints_unknown_not_zeros(self):
+        for status in ("failure", "cancelled", ""):
+            text = run_tests.summarize(None, status)
+            self.assertIn("DEFECT unknown", text)
+            self.assertNotIn("DEFECT 0", text)
+        d = Path(tempfile.mkdtemp(prefix="nores-", dir=BASE))
+        out = subprocess.run([sys.executable, str(ROOT / "dev" / "run_tests.py"), "--summarize", str(d / "none.json"),
+                              "--job-status", "failure"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0)
+        self.assertIn("DEFECT unknown", out.stdout)
+
+    def test_a_failure_is_written_to_the_results_while_the_run_goes(self):
+        d = folder({"test_bad_y.py": FAILS})
+        out, seen = BASE / "res2.json", []
+        real = run_tests.write_results
+        with mock.patch.object(run_tests, "write_results", lambda p, doc: (seen.append(doc), real(p, doc))), \
+                mock.patch.object(run_tests, "TESTS", d), mock.patch.object(run_tests, "FLAKY", d / "f.jsonl"), \
+                mock.patch.object(run_tests, "TIMES", d / "t.txt"), redirect_stdout(io.StringIO()):
+            run_tests.run_all([d / "test_bad_y.py"], 1, results=str(out))
+        self.assertTrue(any(x["failed_first"] == ["test_bad_y.py"] and not x["complete"] for x in seen))
 
     def test_run_all_writes_the_results_json(self):
         d = folder({"test_ok_x.py": PASSES, "test_bad_x.py": FAILS})

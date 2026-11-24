@@ -320,7 +320,7 @@ jobs:
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.14.10"      # one pinned Python on macOS (was floating 3.x: 3.14.10 on some runs, 3.15.2 on others)
+          python-version: "3.15.2"      # one pinned Python on macOS (was floating 3.x); the green macOS runs 45365455611, 45449921972, 45441941138 all ran 3.15.2
 
       - name: Find Chrome
         # The browser tests find Chrome through dev/tools/run_support.py chrome_path(): CLARK_CHROME, then the PATH, then macOS.
@@ -379,7 +379,7 @@ jobs:
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.14.10"      # pinned, as in the macos job
+          python-version: "3.15.2"      # pinned, as in the macos job
 
       - name: Find Chrome
         run: |

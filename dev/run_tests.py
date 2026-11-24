@@ -548,11 +548,12 @@ def flake_counts(names):
     return {n: max(1, seen.count(n)) for n in names}
 
 
-def results_doc(total, defects, flakes, complete, not_run=0):
-    """The machine-readable result of one run: counts of DEFECT and FLAKE, the files, and whether the run reached its end."""
+def results_doc(total, defects, flakes, complete, not_run=0, failed_first=()):
+    """The machine-readable result of one run: counts of DEFECT and FLAKE, the files, and whether the run reached its end.
+    `failed_first` are files that have failed once and are not yet classified (kept while the run is going, so a cancel hides none)."""
     return {"complete": complete, "files": total, "not_run": not_run,
             "counts": {"DEFECT": len(defects), "FLAKE": len(flakes), "SIZING": 0},
-            "defects": sorted(defects), "flakes": dict(sorted(flakes.items()))}
+            "defects": sorted(defects), "flakes": dict(sorted(flakes.items())), "failed_first": sorted(failed_first)}
 
 
 def write_results(path, doc):
@@ -564,16 +565,27 @@ def write_results(path, doc):
 
 
 def summarize(doc, job_status=""):
-    """Markdown for the job summary. A cancelled job whose run never ended is SIZING (the shard hit its time cap), not a failure."""
-    doc = json.loads(json.dumps(doc))
-    if job_status == "cancelled" and not doc.get("complete"):
-        doc["counts"]["SIZING"] = 1
-    c = doc["counts"]
-    lines = ["### Test classes", "", f"DEFECT {c['DEFECT']} | FLAKE {c['FLAKE']} | SIZING {c['SIZING']}", ""]
+    """Markdown for the job summary. Never hides a DEFECT: a run that did not end (cancelled, killed, no results file) shows the files
+    that had failed so far, or "unknown", never a zero. A cancelled job is also SIZING (the shard hit its time cap), never just "failed"."""
+    doc = json.loads(json.dumps(doc)) if doc else None
+    ended = bool(doc and doc.get("complete"))
+    c = doc["counts"] if doc else {"DEFECT": 0, "FLAKE": 0, "SIZING": 0}
+    open_files = [] if ended or not doc else doc.get("failed_first", [])
+    if job_status == "cancelled" and not ended:
+        c["SIZING"] = 1
+    if ended or (doc and job_status == "success"):
+        defect = str(c["DEFECT"])
+    elif open_files:
+        defect = f"{len(open_files)}+ (not yet re-run alone; the run did not end)"
+    else:
+        defect = "unknown (the run did not end" + ("" if doc else ", no results file") + ")"
+    lines = ["### Test classes", "", f"DEFECT {defect} | FLAKE {c['FLAKE']} | SIZING {c['SIZING']}", ""]
     if c["SIZING"]:
         lines += ["SIZING: the job was cancelled at its time cap before the run ended; this is shard sizing, not a failed test.", ""]
-    lines += [f"- DEFECT (failed twice, red): {n}" for n in doc["defects"]]
-    lines += [f"- FLAKE (failed, passed alone, x{k}): {n}" for n, k in doc["flakes"].items()]
+    if doc:
+        lines += [f"- DEFECT (failed twice, red): {n}" for n in doc["defects"]]
+        lines += [f"- DEFECT or unknown (failed once, the run ended before it was re-run alone): {n}" for n in open_files]
+        lines += [f"- FLAKE (failed, passed alone, x{k}): {n}" for n, k in doc["flakes"].items()]
     return "\n".join(lines) + "\n"
 
 
@@ -590,7 +602,7 @@ def slowest_first(files):
     return last
 
 
-def execute(files, jobs, runner, max_fail=0):
+def execute(files, jobs, runner, max_fail=0, on_fail=None):
     """Run `files` `jobs` at a time, the browser files at most CHROME_AT_ONCE at a time. With `max_fail` (--max-fail),
     once that many files have failed no further file starts (those running finish), and the rest are named.
     Returns {file name: seconds}, [(failed file name, output)], {file name: output}."""
@@ -612,6 +624,8 @@ def execute(files, jobs, runner, max_fail=0):
             report(f.name, code, secs, out)
             if code:
                 failed.append((f.name, out))
+                if on_fail:
+                    on_fail([n for n, _ in failed])
                 if max_fail and len(failed) == max_fail:
                     stop_starting(futures, named, max_fail)
     finally:
@@ -696,7 +710,7 @@ def main(argv):
         try:
             doc = json.loads(Path(a.summarize).read_text(encoding="utf-8"))
         except (OSError, ValueError):            # no results file: the run died before it began (not checked, not "no change")
-            doc = results_doc(0, [], {}, False)
+            doc = None
         print(summarize(doc, a.job_status))
         return 0
     if a.changed and a.push:
@@ -787,7 +801,8 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
     start, runner, dialogs = time.time(), Runner(timeout, ids), []
     write_results(results, results_doc(len(files), [], {}, False))      # a cancelled job leaves this: complete false
     try:
-        took, failed, outs = execute(files, jobs, runner, max_fail)
+        took, failed, outs = execute(files, jobs, runner, max_fail, lambda names: write_results(
+            results, results_doc(len(files), [], {}, False, failed_first=names)))
         try:
             TIMES.write_text("".join(f"{k} {v:.2f}\n" for k, v in sorted({**last, **took}.items())), encoding="utf-8")
         except OSError:

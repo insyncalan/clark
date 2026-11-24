@@ -234,7 +234,7 @@ class Workflow(unittest.TestCase):
         mac = self.jobs["macos"]
         self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
         self.assertRegex(mac, r"runs-on: macos-latest")
-        self.assertIn('python-version: "3.14.10"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
+        self.assertIn('python-version: "3.15.2"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
         self.assertNotIn('python-version: "3.x"', mac)
         self.assertNotIn('python-version: "3.x"', self.jobs["macos-smoke"])
         self.assertNotIn("--quick", mac)
