@@ -1,4 +1,5 @@
-"""Row 1532: the Milestones timeline shows no horizontal scroll bar in the Classic theme and still scrolls sideways (Cards is untouched).
+"""Row 1532: the Milestones timeline shows no horizontal scroll bar in the Classic theme and still scrolls sideways (Cards is untouched);
+the Dashboard section (Classic) keeps its bar.
 
 Run: python3 dev/run_tests.py test_ms_timeline_scrollbar_1532
 Chrome at 1400 and 900 px. The rule is in rules-2.css before the Row 1314 block; rules.css does not grow.
@@ -10,6 +11,7 @@ import test_server  # noqa: F401  (marks this file as a browser test for the tie
 from _paths import SRC
 import test_ms_timeline_classic_1315 as B
 from test_ms_timeline_classic_1315 import Base
+from test_server import chrome
 
 THEME = SRC / "clark" / "themes" / "prototype-2.0"
 PROBE = """(() => { const w = document.querySelector('.mv-wrap'), cs = getComputedStyle(w); w.scrollLeft = 0; const before = w.scrollLeft; w.scrollLeft = 60;
@@ -46,6 +48,18 @@ class Cards(Base, unittest.TestCase):
     def test_cards_keeps_its_bar_rule(self):
         for cdp, sid, w in self.every():
             self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.mv-wrap')).scrollbarWidth", sid), "none")
+
+
+class DashboardKeepsBar(B.Dashboard):
+    """AP4: the Dashboard Milestones section (Classic) is not the page's strip: the page rule must not reach it, so its scroll bar stays."""
+    def test_the_section_strip_keeps_its_scroll_bar_at_1400_and_900(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, "#dashboard&p=ABC", width, False, ".msv[data-place^=sec-] .mv-wrap")
+                sw = cdp.js("getComputedStyle(document.querySelector('.msv[data-place^=sec-] .mv-wrap')).scrollbarWidth", sid)
+                self.assertEqual(sw, "auto", f"the Dashboard section keeps its bar at {width}")
+
+    test_the_section_is_not_drawn_the_page_way = None  # inherited check belongs to its own file
 
 
 if __name__ == "__main__":
