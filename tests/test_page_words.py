@@ -79,9 +79,9 @@ def lines(cdp, sid):
 
 
 # row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
-FOUR_GROUPS = False      # row 1299 1a: the four groups are the Classic theme's only (Views.jsx GROUPS_CLASSIC); these tests run with the Cards look, which keeps the five groups
-GROUP_NAMES = ("You", "All projects", "Project settings", "Help and about") if FOUR_GROUPS else ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
-ASK_PAGE = "ask clark" if FOUR_GROUPS else "Claude and AI"
+# row 1299 1a: these tests run with the Cards look, which keeps the five groups; the Classic four-group menu is pinned by test_settings_groups_1299a and test_help_pr_a
+GROUP_NAMES = ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+ASK_PAGE = "Claude and AI"
 
 
 def group_names_as_written(got):
@@ -228,7 +228,7 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
+            menu = (
                     ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [

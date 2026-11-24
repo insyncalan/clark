@@ -51,5 +51,21 @@ class ValuesClean(ui.Overview):
     test_O_a_click_on_a_value_opens_that_setting_for_that_project = None
 
 
+class ValuesNoBackupOnly(ui.Overview):
+    rows = [ui.row("PUB", "Harbour Bridge Programme", last_backup_days=None, attention=["no_backup"])]
+
+    def test_asking_brand_backup_and_titles(self):      # AP14: no backup is amber and counts as a look, so the page never says "Nothing needs attention."
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p, 1400)
+            p.until("!!document.querySelector('#projects-overview .ov-table')", "the overview drew")
+            self.assertEqual(p.js("document.querySelector('#ov-issues').textContent"), "1 to look at: PUB: no backup yet")
+            self.assertFalse(p.js("!!document.querySelector('#ov-none')"), "no backup is amber: no clear line")
+
+    test_O_the_page_draws_the_ruled_words_and_one_row_for_each_project = None
+    test_O_needs_attention_keeps_only_the_projects_with_something_to_look_at = None
+    test_O_a_click_on_a_value_opens_that_setting_for_that_project = None
+
+
 if __name__ == "__main__":
     unittest.main()

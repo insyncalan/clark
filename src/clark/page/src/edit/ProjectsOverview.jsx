@@ -18,6 +18,7 @@ const WHAT = { asking: "ask clark", brand: "Brand", folders: "Read folders", rev
 export const backupWords = (d) => (d === null ? NO_BACKUP : d === 0 ? "Today" : d === 1 ? "1 day ago" : `${d} days ago`);
 export const issueWords = (row, code) => ({
   no_client_folder: `${row.code} has no client folder`,
+  no_backup: `${row.code}: ${NO_BACKUP.toLowerCase()}`,
   backup_old: `${row.code}: last backup ${backupWords(row.last_backup_days)}`,
   asking_no_folders: `${row.code}: asking is on, no folders`,
 }[code] || "");
