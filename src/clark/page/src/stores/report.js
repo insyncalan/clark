@@ -46,10 +46,7 @@ function reloadFor(s, wait = true) {
     return true;
   } catch (e) { return false; }
 }
-// The address names its project in the hash, which the server never sees: a page served with a brand block of its own cannot stay for another
-// project, so it is replaced at once. A page served on Generic reads the project first (load() below): only a project with a brand of its own
-// goes to GET /?project=<code>, and a Generic one is one load, not two (row 107: the first load was the one a slow computer's tests polled).
-if (typeof document !== "undefined" && document.getElementById && document.getElementById("brand-local")) reloadFor(start, false);
+reloadFor(start, false);
 export const project = signal(start.project);
 export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
@@ -343,8 +340,6 @@ const ALLOWED = {
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
-                  "That was not accepted. Reload the page and try again.": NOT_ACCEPTED,       // server.MESSAGES not_allowed
-                  "This page is out of date because clark was restarted. Reload the page and try again.": STALE,       // server.STALE_PAGE
                   "The server was restarted since this page was opened. Reload the page (Cmd+R) and try again.": STALE } },
   404: { fallback: "Check the project's code.",
          known: { [NO_PROJECT]: NO_PROJECT,
@@ -374,15 +369,12 @@ const CHANGE_KNOWN = {
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
   "The week ending date must be a real date. The old date was kept. Pick a date and try again.": "That isn't a real day, so the old week ending date was kept. Type another date as DD-MM-YYYY.",
-  // changes.NOT_A_DATE, and DOC_NOT_A_DATE for a document's typed date
-  "That isn't a date. Pick a day from the calendar.": "That date isn't a real day, and nothing was changed. Pick another date.",
-  "That isn't a date. Write it as DD-MM-YYYY (day, month, year), or leave it empty.": "That date isn't right. Nothing was changed. Type it as DD-MM-YYYY, or leave it empty.",
+  "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",
   "That status isn't available for this item.": "That status isn't one this item can have, and nothing was changed.",
   "A decision that is made needs the date it was made.": "A made decision needs the date it was made, and nothing was changed. Pick a date.",
   "A decision that isn't made yet has no date.": "A decision that isn't made yet has no decision date, and nothing was changed.",
-  // = changes.MADE_STAYS exactly (capital P; a test keeps them equal)
-  "A decision that has been made can't go back to Pending. Record a new decision that replaces it.":
-    "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
+  "A decision that has been made can't go back to pending. Record a new decision that replaces it.":
+    "A decision that has been made can't go back to pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
@@ -395,7 +387,8 @@ const CHANGE_KNOWN = {
   "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
-  // the change route's own limit (server.py MESSAGES change_too_large) is the key at the end of this table
+  // the change route's own limit (server.py MESSAGES change_too_large): said as the route says it, and that nothing was changed
+  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Make it shorter, then try again.",
   // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
   "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",
   // #189: a 'Progress tracker' clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
@@ -462,16 +455,7 @@ export async function loadProjects() {
   }
 }
 
-// The address of a Generic project's page, as the reload would have left it (/?project=<code> and the same hash), set in place: no navigation.
-function nameProject(s) {
-  try {
-    if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return;
-    route.replaceAddress("/?project=" + s.project + route.format(s));
-  } catch (e) {}
-}
-let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
-  const first = firstLoad; firstLoad = false;
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
@@ -484,10 +468,6 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
-    if (first) {
-      if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
-      nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)
-    }
     data.value = body.data;
     status.value = "ready";
     settle();

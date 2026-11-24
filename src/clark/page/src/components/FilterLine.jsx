@@ -66,7 +66,7 @@ function SavedViews({ board }) {
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "delete" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
+  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
   const mine = chosen.value[code];
   const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const active = shown.find((v) => v.id === mine) || matching;
@@ -93,33 +93,22 @@ function SavedViews({ board }) {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
-    else if (id === "saveas") {          // row 1073: made at once, named View 1, View 2 ...; Rename… changes the name
-      const r = FL.addView(all, FL.nextViewName(all), line.trim());
-      if (!r.ok) { say("problem", r.message); return; }
-      saveViews(code, r.views);
-      chosen.value = { ...chosen.value, [code]: r.id };
-    }
+    else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
-  };
-  // The form's input goes with the form, so focus is handed to the button that opened it (the tab's own menu for a rename or a delete) a moment after it closes.
-  const closeForm = () => {
-    const mode = form && form.mode;
-    setForm(null);
-    const order = mode === "rename" || mode === "delete" ? ["viewTabMenu", "viewNew", "viewMenu"] : ["viewNew", "viewMenu", "viewTabMenu"];
-    setTimeout(() => { const el = order.map((id) => document.getElementById(id)).find(Boolean); if (el) el.focus(); }, 0);
   };
   const submit = (e) => {
     e.preventDefault();
     if (form.mode === "delete") {
       const r = FL.deleteView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; closeForm(); } else setForm({ ...form, error: r.message });
+      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; setForm(null); } else setForm({ ...form, error: r.message });
       return;
     }
-    const r = FL.renameView(all, active.id, form.name);
+    const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
-    closeForm();
+    if (form.mode === "saveas") chosen.value = { ...chosen.value, [code]: r.id };
+    setForm(null);
   };
   // The name box takes focus once the menu has given focus back to its button (it does that in an effect of its own, so we go a moment later).
   useEffect(() => {
@@ -173,7 +162,7 @@ function SavedViews({ board }) {
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>
       {form ? (
-        <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
+        <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "delete" ? (
             <>
               <span class="vask" id="vask">Delete this view?</span>
@@ -181,12 +170,12 @@ function SavedViews({ board }) {
             </>
           ) : form.mode === "note" ? null : (
             <>
-              <label for="vname">New name for this view</label>
+              <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
               <button type="submit" class="btn sm" id="vsave">Save</button>
             </>
           )}
-          <button type="button" class="btn sm" onClick={closeForm}>{form.mode === "note" ? "Close" : "Cancel"}</button>
+          <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
@@ -260,12 +249,8 @@ export function FilterLine({ board }) {
       e.preventDefault();
       if (!listed) { setArmed(true); setActive(0); return; }
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
-    } else if (((e.key === "Backspace" && e.target.selectionStart === 0 && e.target.selectionEnd === 0) || (e.key === "Delete" && live.current.draft === "")) && live.current.chips.length) {
-      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away (Delete too, item 1014)
-    } else if ((e.key === "Backspace" || e.key === "Delete") && e.target.selectionStart === e.target.selectionEnd && Q.dropWordAt(live.current.draft, e.target.selectionStart, e.key)) {
-      e.preventDefault();        // item 1014: the caret right after a half-typed field:value takes the whole word away, not one letter at a time
-      const r = Q.dropWordAt(live.current.draft, e.target.selectionStart, e.key);
-      want.current = r.caret; edit(r.text, r.caret); setActive(-1);
+    } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
+      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (listed && active >= 0 && options[active]) pick(options[active]);

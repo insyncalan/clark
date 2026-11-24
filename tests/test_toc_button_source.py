@@ -76,8 +76,7 @@ class Look(unittest.TestCase):
         self.assertIn(".toc-ico, .toc-lbl { display: none; }", CSS)          # the words and the icon only show in the narrow block
 
     def test_reduced_motion_drops_the_slide_at_900(self):
-        # Sweep c11 replaced the 900px-only rule with one at any width, last in the file, so it still wins at 900.
-        self.assertRegex(CSS, r"@media \(prefers-reduced-motion: reduce\) \{\s*\.toc-card, \.toc\.open \.toc-card[^{]*\{ transition: none; \}\s*\.toc-card, \.toc\.open \.toc-card \{ transform: none; \}")
+        self.assertRegex(CSS, r"@media \(max-width: 900px\) and \(prefers-reduced-motion: reduce\) \{ \.toc-card, \.toc\.open \.toc-card \{ transition: none; transform: none; \}")
 
     def test_both_built_pages_carry_it(self):
         for name in ("page.html", "page-view.html"):
