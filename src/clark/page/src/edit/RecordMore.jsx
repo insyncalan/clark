@@ -13,21 +13,17 @@ const ITEMS = [
   { id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true },
 ];
 
-/** What Archive and Delete do for a record (the More actions button's and the right-click menu's one path). `focusId`: the element that takes the focus back when the question is cancelled. */
-export function recordPick(what, row, kind, place, focusId, onArchived, onDeleted) {
-  if (what === "archive") {
-    if (kind === "milestones") archiveFromPeek(row, true);
-    else change({ kind, op: "archive", id: row.id, place }, "Use case archived. It can be restored.").then((r) => { if (r && onArchived) onArchived(r); });
-  } else if (what === "delete") {
-    const b = typeof focusId === "string" ? document.getElementById(focusId) : focusId; if (b) b.focus();      // Cancel or Esc in the question gives the focus back to this element, not to the closing menu
-    deleteItem(row, place, null, kind, onDeleted);
-  }
-}
-export const RECORD_ITEMS = ITEMS;
-
 /** `kind`: "use_cases" or "milestones". `place`: "cell" (a row, a page) or "peek". `onArchived`/`onDeleted`: what the page does after the step. */
 export function RecordMore({ row, kind, place = "cell", cls = "ib", id, tab, fixed = true, onArchived, onDeleted }) {
   const mid = id || `rec-more-${row.id}`;
-  const pick = (what) => recordPick(what, row, kind, place, mid, onArchived, onDeleted);
+  const pick = (what) => {
+    if (what === "archive") {
+      if (kind === "milestones") archiveFromPeek(row, true);
+      else change({ kind, op: "archive", id: row.id, place }, "Use case archived. It can be restored.").then((r) => { if (r && onArchived) onArchived(r); });
+    } else if (what === "delete") {
+      const b = document.getElementById(mid); if (b) b.focus();      // Cancel or Esc in the question gives the focus back to this button, not to the closing menu
+      deleteItem(row, place, null, kind, onDeleted);
+    }
+  };
   return <Menu items={ITEMS} onPick={pick} icon="dots" label="" ariaLabel="More actions" tip="More actions" id={mid} btnCls={cls} chevron={false} menuLabel="More actions" fixed={fixed} tab={tab} />;
 }

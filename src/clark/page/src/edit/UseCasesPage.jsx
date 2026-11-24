@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
-import { RecordContextMenu } from "./RecordContextMenu.jsx";
+import { RecordMore } from "./RecordMore.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
@@ -71,16 +71,8 @@ function Row({ r, stop, shown }) {
       <span class="ucl-steps ucsteps num" data-steps>{stepsWord(r.open)}</span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
         onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+      <RecordMore row={r.u} kind="use_cases" cls="ucl-more" id={`ucl-more-${r.id}`} tab={-1} />      {/* item 1148: Archive and Delete, in a row's More actions */}
     </li>
-  );
-}
-
-// Row 1203: the column names over the rows (the rows' own columns; the eye has none). Not read out: each row says its own parts.
-function ColumnHeads() {
-  return (
-    <div class="ucl-cols" aria-hidden="true">
-      <span class="ucl-c1">Use case</span><span>Where it stands</span><span>Status</span><span>Next steps</span><span></span>
-    </div>
   );
 }
 
@@ -89,11 +81,11 @@ function keys(e) {
   const t = e.target, k = e.key;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented || !t.closest) return;
   const row = t.closest(".ucl-row");
-  if (!row || !t.matches(".ucl-go, .ucl-eye")) return;
-  const eye = t.classList.contains("ucl-eye"), rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
+  if (!row || !t.matches(".ucl-go, .ucl-eye, .ucl-more")) return;
+  const more = t.classList.contains("ucl-more"), eye = t.classList.contains("ucl-eye") || more, rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
   const focus = (el) => { if (el) { e.preventDefault(); el.focus(); } };
-  if (k === "ArrowRight") return focus(eye ? null : row.querySelector(".ucl-eye"));      // the name, then the eye (Archive and Delete are in the row's right-click menu, the menu key or Shift+F10)
-  if (k === "ArrowLeft") return focus(eye ? row.querySelector(".ucl-go") : null);
+  if (k === "ArrowRight") return focus(more ? null : eye ? row.querySelector(".ucl-more") : row.querySelector(".ucl-eye"));      // item 1148: the name, the eye, then More actions
+  if (k === "ArrowLeft") return focus(more ? row.querySelector(".ucl-eye") : row.querySelector(".ucl-go"));
   const to = { ArrowUp: at - 1, ArrowDown: at + 1, Home: 0, End: rows.length - 1 }[k];
   if (to === undefined) return;
   e.preventDefault();
@@ -151,17 +143,6 @@ function UseCasesList() {
   const toggleGroup = (g) => { const next = new Set(shutGroups.value), k = `${f.group}|${g.key}`; if (next.has(k)) next.delete(k); else next.add(k); shutGroups.value = next; };
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
-  const [menu, setMenu] = useState(null);      // row 1203: the right-click menu on a row (the record, the point, the element that takes the focus back)
-  const rowMenu = (e) => {      // a right click, the menu key or Shift+F10 on a row
-    const el = e.target.closest && e.target.closest(".ucl-row[data-uc]");
-    if (!el) return;
-    const rec = rows.find((x) => x.id === el.dataset.uc);
-    if (!rec) return;
-    e.preventDefault();
-    const go = el.querySelector(".ucl-go"), key = e.clientX === 0 && e.clientY === 0, at = (key ? (document.activeElement && el.contains(document.activeElement) ? document.activeElement : go) : null);
-    const box = at ? at.getBoundingClientRect() : null;
-    setMenu({ row: rec.u, x: box ? box.left : e.clientX, y: box ? box.bottom : e.clientY, from: go });
-  };
   useEffect(() => {      // coming back from a use case: its row takes the focus
     const from = returning || cameBackFrom.value;       // Back (this page noted it) or the detail's crumb and Esc (the detail left it)
     returning = "";
@@ -213,15 +194,13 @@ function UseCasesList() {
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
         ) : f.group === "nothing" ? (
-          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
-            <ColumnHeads />
+          <div class="ucl-box" ref={list} onKeyDown={keys}>
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
           </div>
         ) : (
-          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
-            <ColumnHeads />
+          <div class="ucl-box" ref={list} onKeyDown={keys}>
             {groups.map((g) => (
               <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
                 <div class="ucl-grp">
@@ -240,7 +219,6 @@ function UseCasesList() {
             ))}
           </div>
         )}
-      {menu ? <RecordContextMenu at={menu} kind="use_cases" onClose={() => setMenu(null)} /> : null}
       {rows.length ? <p class="ucl-count num" id="ucl-count" role="status">{countWords(kept_.length, rows)}</p> : null}
       <ArchivedUseCases />
     </section>

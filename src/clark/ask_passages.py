@@ -90,7 +90,6 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note."""
     safety = pdf = other = 0
     secret_labels, pdf_reasons = [], []
-    cut = 0                                   # PDF pages and parts that were not read or did not fit the part cap
     usable = []
     for f in folders or ():
         try:
@@ -160,7 +159,6 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             for number, text in pages:
                 chunks = ask_data._cut(pdf_reader.SOURCE_PAGE.format(name=label, page=number), list(_chunks(text.splitlines())))
                 parts += [ask.Passage(c.label if i == 1 else f"{pdf_reader.SOURCE_PAGE.format(name=label, page=number)}, part {i}", c.text, file=label, page=number) for i, c in enumerate(chunks, 1)]
-            cut += got.left_out + max(0, len(parts) - MAX_PDF_PARTS)      # pages past the read budget count only for a file that is kept
             parts = parts[:MAX_PDF_PARTS]
             chars += sum(len(p.text) for p in parts)
             passages += parts
@@ -171,7 +169,6 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             parts = [ask.Passage(f"{label} (part {i})", p.text, file=label) for i, p in enumerate(parts, 1)]
         passages += parts
     chosen, left = ask_data.choose(passages, question, budget)
-    left += cut
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]

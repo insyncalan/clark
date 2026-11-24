@@ -18,7 +18,7 @@ from _paths import SRC  # noqa: F401
 
 import test_ask_route as tr
 import test_docx_read as tdx
-from clark import ask, ask_data, ask_passages, pdf_reader, reach, store as st
+from clark import ask, ask_data, ask_passages, reach, store as st
 
 MACRO = {"word/vbaProject.bin": b"\0\1\2"}
 
@@ -128,18 +128,6 @@ class WhatIsRead(Folders):
             got = self.run_it()
         self.assertEqual((got.pdf, got.other, got.passages), (1, 1, ()))
         self.assertEqual([os.path.basename(p) for p in opened], ["scan.pdf"], "only the PDF is opened (#891; tests/test_ask_pdf_passages.py)")
-
-    def test_pages_left_out_of_a_screened_pdf_are_not_counted(self):
-        self.put(self.box, "keys.pdf", b"%PDF-1.4 x", binary=True)
-        self.put(self.box, "ok.pdf", b"%PDF-1.4 y", binary=True)
-        secret = "password = " + "hunter2" * 3
-        def fake(raw, truncated=False, **k):
-            text = secret if b" x" in raw else "ZQ plain page"
-            return pdf_reader.Result("ok", pages=((1, text),), left_out=7)
-        with mock.patch.object(pdf_reader, "read", side_effect=fake):
-            got = self.run_it(folders=[self.box])
-        self.assertEqual(got.safety, 1)
-        self.assertEqual(got.left_out, 7, "only the kept file's cut pages are counted")
 
     def test_a_label_that_could_forge_a_line_is_left_out(self):
         self.put(self.box, "bad‮name.txt", "ZQ-BIDI")

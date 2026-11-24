@@ -201,7 +201,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pk-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-btn:disabled { color: var(--text-muted); cursor: default; }
 .pk-btn.pri:not(:disabled) { background-color: var(--pill-color); background-image: var(--pill-bg); border-color: var(--pill-color); color: var(--pill-fg); }  /* row 946: the aqua pill, as .btn.pri */
-.pk-body { flex: 1 1 auto; overflow: auto; overscroll-behavior-y: contain; padding: 0 20px; min-height: 80px; }
+.pk-body { flex: 1 1 auto; overflow: auto; padding: 0 20px; min-height: 80px; }
 .pk-group h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .pick { list-style: none; margin: 0; padding: 0; }
 .pick label { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: var(--space-2) var(--space-1); border-top: 1px solid var(--grey-100); cursor: pointer; }
@@ -675,7 +675,7 @@ input.sec-title { width: 100%; }
 @media (max-width: 900px) { .modes { margin-left: auto; } .menu { min-width: 220px; } }
 
 /* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
-.peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; overscroll-behavior-y: contain; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
+.peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
 @media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
@@ -1269,7 +1269,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .me:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .me .i { width: 18px; height: 18px; }
 .top .dd { position: relative; display: inline-flex; }
-.dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; overscroll-behavior-y: contain; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .dlg::backdrop { background: color-mix(in srgb, var(--black) 40%, transparent); }
 .dlg-form { padding: var(--d-dlg-y) var(--space-5); }
 .dlg h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
@@ -1743,7 +1743,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
-.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; overscroll-behavior-y: contain; }   /* row 758: a box starts below the top bar, never over it */
+.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }   /* row 758: a box starts below the top bar, never over it */
 .ad:focus { outline: none; }
 .ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
 .ad-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); }

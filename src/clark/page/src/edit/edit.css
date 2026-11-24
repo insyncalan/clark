@@ -222,8 +222,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-panel { --ask-edge: color-mix(in srgb, var(--grey-700) 85%, var(--surface)); position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; max-width: 90%; isolation: isolate; color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 16%, transparent);
   background: radial-gradient(95% 48% at 100% 100%, color-mix(in srgb, var(--brand-blue) 24%, transparent), transparent 72%), radial-gradient(75% 40% at 0% 96%, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 72%), var(--surface); }
 .ask-panel:focus { outline: none; }
-/* row 1219: scrolling over the panel never moves the page behind it (the panel, its answers and its saved chats contain the scroll; core/holdScroll.js covers a panel that does not overflow). Vertical only: the sideways Back and Forward swipe (1136) must still reach the browser. */
-.ask-panel, .ask-hist, .ask-log { overscroll-behavior-y: contain; }
 /* row 885: the panel rises from the bottom of the window as it opens and sinks back as it closes (transform only; its place is unchanged); still under reduced motion */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .ask-panel { animation: ask-up var(--dur-layout) var(--ease-enter) 1; }
@@ -414,10 +412,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
 /* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
 .ucl-box { margin-top: 14px; }
-.ucl-cols { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-100); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* row 1203: the column names over the rows, the same columns */
-.ucl-cols .ucl-c1 { grid-column: 1 / 3; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
+.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -427,6 +423,11 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
+.ucl-row > .dd { justify-self: start; }   /* item 1148: the row's More actions, after the eye */
+.ucl-more { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }
+.ucl-more .i, .ucl-more svg { width: 16px; height: 16px; flex: none; }
+.ucl-more:hover, .ucl-more[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+.ucl-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-acts .ucd-more { width: 32px; padding: 0; justify-content: center; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
@@ -435,7 +436,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 900px) {
-  .ucl-row, .ucl-cols { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
+  .ucl-row { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px 36px; gap: var(--space-2); }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
@@ -1132,10 +1133,10 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .cell-val { flex-wrap: wrap; min-width: 0; }
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
-  .ucl-eye { width: 44px; height: 44px; }
-  .ucl-cols { display: none; }
-  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
+  .ucl-eye, .ucl-more { width: 44px; height: 44px; }
+  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
   .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
+  .ucl-row > .dd { grid-column: 4; grid-row: 1; justify-self: end; }
   .ucl-row > .ucl-go { grid-column: 2; }
   .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }

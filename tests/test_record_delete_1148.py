@@ -13,7 +13,6 @@ import unittest
 from unittest import mock
 
 from _demo import USER
-from _new_page import reload_to_new_page_cdp
 from _real_server import real_server
 from clark import __main__ as launcher, page, server as sv, use_cases_read
 from clark.store import open_store
@@ -88,10 +87,7 @@ class Delete(unittest.TestCase):
         return sid
 
     def pick(self, cdp, sid, button, entry):
-        if button.endswith(".ucl-go"):      # row 1203: a use case's row has no More button, its menu is the right-click menu (the same two entries)
-            cdp.js(f"document.querySelector({json.dumps(button)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: 300, clientY: 300}}))", sid)
-        else:
-            click(cdp, sid, button)
+        click(cdp, sid, button)
         self.until(cdp, sid, f"!!document.querySelector('.ddmenu [data-kind={entry}]')", "the More actions menu opened")
         return cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.dataset.kind)", sid)
 
@@ -114,7 +110,7 @@ class Delete(unittest.TestCase):
             with self.subTest(width), chrome() as cdp:
                 sid = self.visit(cdp, "#usecases&p=TUL", f"document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 && !!document.querySelector('{row}')", width)
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
-                names = self.pick(cdp, sid, f"{row} .ucl-go", "delete")
+                names = self.pick(cdp, sid, f"{row} .ucl-more", "delete")
                 self.assertEqual(names, ["archive", "delete"])
                 self.assertTrue(cdp.js("document.querySelector('.ddmenu [data-kind=delete]').classList.contains('danger')", sid))
                 click(cdp, sid, ".ddmenu [data-kind=delete]")
@@ -125,7 +121,7 @@ class Delete(unittest.TestCase):
                 self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question closed")
                 self.assertFalse(self.gone("use_cases", self.uc))
                 self.assertTrue(cdp.js(f"!!document.querySelector('{row}')", sid))
-                self.pick(cdp, sid, f"{row} .ucl-go", "delete")
+                self.pick(cdp, sid, f"{row} .ucl-more", "delete")
                 click(cdp, sid, ".ddmenu [data-kind=delete]")
                 self.question(cdp, sid)
                 click(cdp, sid, "[role=alertdialog] [data-bask=yes]")
@@ -140,118 +136,16 @@ class Delete(unittest.TestCase):
         row = f"#usecases [data-uc={json.dumps(self.uc)}]"
         with chrome() as cdp:
             sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.pick(cdp, sid, f"{row} .ucl-go", "archive")
+            self.pick(cdp, sid, f"{row} .ucl-more", "archive")
             click(cdp, sid, ".ddmenu [data-kind=archive]")
             self.toast(cdp, sid, "Use case archived. It can be restored.")
             self.assertTrue(self.archived("use_cases", self.uc))
-
-    def test_row_1203_the_rows_have_column_names_and_no_more_button_and_the_menu_key_opens_the_menu_and_esc_gives_the_focus_back(self):
-        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
-        for width in (1400, 900):
-            with self.subTest(width), chrome() as cdp:
-                sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", width)
-                heads = cdp.js("[...document.querySelectorAll('#usecases .ucl-cols > span')].map(s => s.textContent).filter(Boolean)", sid)
-                self.assertEqual(heads, ["Use case", "Where it stands", "Status", "Next steps"])
-                self.assertEqual(cdp.js("document.querySelectorAll('#usecases .ucl-more').length", sid), 0, "no More button on a row")
-                cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).focus()", sid)
-                cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: 0, clientY: 0}}))", sid)      # the menu key or Shift+F10: no pointer
-                self.until(cdp, sid, "!!document.querySelector('#ucl-ctx [data-kind=archive]')", "the menu opened")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#ucl-ctx [role=menuitem]')].map(b => b.dataset.kind)", sid), ["archive", "delete"])
-                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
-                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
-                self.until(cdp, sid, "!document.querySelector('#ucl-ctx')", "the menu closed")
-                self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(row + ' .ucl-go')})", "the focus is back on the row's name")
-
-    def ctx(self, cdp, sid, row, x=300, y=300):
-        cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: {x}, clientY: {y}}}))", sid)
-        self.until(cdp, sid, "!!document.querySelector('#ucl-ctx [data-kind=archive]')", "the row's menu opened")
-
-    def test_row_1203_the_row_menu_is_named_and_has_archive_a_separator_and_delete_in_the_warning_colour_at_the_pointer(self):
-        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
-        for width in (1400, 900):
-            with self.subTest(width), chrome() as cdp:
-                sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", width)
-                self.ctx(cdp, sid, row)
-                got = cdp.js("(() => { const m = document.querySelector('#ucl-ctx'), r = m.getBoundingClientRect(); return { role: m.getAttribute('role'), label: m.getAttribute('aria-label'), cls: m.classList.contains('ddmenu'), items: [...m.children].map(c => [c.getAttribute('role'), c.dataset.kind || '', c.textContent, c.classList.contains('danger')]), left: r.left, top: r.top, open: document.querySelectorAll('#ucl-ctx').length }; })()", sid)
-                self.assertEqual((got["role"], got["label"], got["cls"], got["open"]), ("menu", "Use case actions", True, 1))
-                self.assertEqual(got["items"], [["menuitem", "archive", "Archive", False], ["separator", "", "", False], ["menuitem", "delete", "Delete", True]])
-                self.assertLess(abs(got["left"] - 300), 4, "the menu's left edge is at the pointer")
-                self.assertTrue(300 <= got["top"] <= 312, "the menu is just under the pointer (got %s)" % got["top"])
-
-    def test_row_1203_archive_in_the_row_menu_archives_that_row_only_and_closes_the_menu(self):
-        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
-        with chrome() as cdp:
-            sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.ctx(cdp, sid, row)
-            click(cdp, sid, "#ucl-ctx [data-kind=archive]")
-            self.toast(cdp, sid, "Use case archived. It can be restored.")
-            self.assertTrue(self.archived("use_cases", self.uc))
-            self.assertFalse(self.archived("use_cases", USED_UC), "no other use case is archived")
-            self.until(cdp, sid, "!document.querySelector('#ucl-ctx')", "the menu closed")
-
-    def test_row_1203_delete_in_the_row_menu_asks_about_that_row_and_cancel_gives_the_focus_to_its_name(self):
-        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
-        with chrome() as cdp:
-            sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.ctx(cdp, sid, row)
-            click(cdp, sid, "#ucl-ctx [data-kind=delete]")
-            q = self.question(cdp, sid)
-            self.assertEqual(q["q"], QUESTION % self.uc)
-            self.until(cdp, sid, "!document.querySelector('#ucl-ctx')", "the menu closed under the question")
-            click(cdp, sid, "[role=alertdialog] [data-bask=no]")
-            self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question closed")
-            self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(row + ' .ucl-go')})", "the focus is on the row's name")
-            self.assertFalse(self.gone("use_cases", self.uc))
-
-    def test_row_1203_the_column_names_are_over_the_rows_in_both_groupings_with_the_rows_six_columns(self):
-        for width in (1400, 900):
-            with self.subTest(width), chrome() as cdp:
-                sid = self.visit(cdp, "#usecases&p=TUL", "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", width)
-                for grouping in ("status", "nothing"):
-                    cdp.js(f"localStorage.setItem('clark.ucPage', JSON.stringify({{TUL: {{line: '', tab: 'all', group: '{grouping}', sort: 'ref'}}}}))", sid)
-                    reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the rows again on the new page")
-                    got = cdp.js("""(() => {
-                        const box = document.querySelector('#usecases .ucl-box'), cols = box.querySelectorAll('.ucl-cols'), first = box.querySelector('.ucl-row[data-uc]');
-                        const tracks = (el) => getComputedStyle(el).gridTemplateColumns.split(' ').length;
-                        const w = (el) => getComputedStyle(el).gridTemplateColumns;
-                        return { n: cols.length, hidden: cols[0].getAttribute('aria-hidden'), heads: [...cols[0].children].map(s => s.textContent),
-                                 headTracks: tracks(cols[0]), rowTracks: tracks(first), same: w(cols[0]).split(' ').slice(-3).join(' ') === w(first).split(' ').slice(-3).join(' ') && w(first).split(' ').slice(-3).join(' '),  above: cols[0].getBoundingClientRect().bottom <= first.getBoundingClientRect().top,
-                                 span: getComputedStyle(cols[0].querySelector('.ucl-c1')).gridColumnStart + '/' + getComputedStyle(cols[0].querySelector('.ucl-c1')).gridColumnEnd };
-                    })()""", sid)
-                    self.assertEqual(got["n"], 1, f"one line of column names ({grouping})")
-                    self.assertEqual(got["hidden"], "true")
-                    self.assertEqual(got["heads"], ["Use case", "Where it stands", "Status", "Next steps", ""])
-                    self.assertEqual((got["headTracks"], got["rowTracks"]), (6, 6), "six columns in the names and in a row")
-                    self.assertTrue(got["same"], "the names sit on the rows' three fixed columns")
-                    self.assertIn(got["same"], ("124px 112px 36px", "124px 96px 36px"), "the fixed columns are the rows' own")
-                    self.assertTrue(got["above"], "the names are over the rows")
-                    self.assertEqual(got["span"], "1/3", "the first name spans the reference and the title columns")
-
-    def test_row_1203_a_row_has_no_more_button_in_source_or_page_and_arrows_go_name_then_eye_only(self):
-        here = __import__("pathlib").Path(page.__file__).parent
-        for part in (here / "src" / "edit" / "UseCasesPage.jsx", here / "src" / "edit" / "edit.css"):
-            self.assertNotIn("ucl-more", part.read_text(encoding="utf-8"), part.name)
-        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
-        with chrome() as cdp:
-            sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            key = lambda k: (cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": k, "code": k, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[k]}, sid), cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": k, "code": k, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[k]}, sid))
-            on = lambda: cdp.js("document.activeElement.className", sid)
-            cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).focus()", sid)
-            key("ArrowRight")
-            self.until(cdp, sid, "document.activeElement.classList.contains('ucl-eye')", "the eye after the name")
-            key("ArrowRight")
-            self.assertTrue(cdp.js("document.activeElement.classList.contains('ucl-eye')", sid), "nothing after the eye")
-            self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(row + ' button')}).length", sid), 2, "the row has the name and the eye only")
-            key("ArrowLeft")
-            self.until(cdp, sid, "document.activeElement.classList.contains('ucl-go')", "the name before the eye")
-            key("ArrowLeft")
-            self.assertTrue(cdp.js("document.activeElement.classList.contains('ucl-go')", sid), "nothing before the name")
 
     def test_a_use_case_with_work_items_is_refused_by_name_and_stays(self):
         row = f"#usecases [data-uc={json.dumps(USED_UC)}]"
         with chrome() as cdp:
             sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.pick(cdp, sid, f"{row} .ucl-go", "delete")
+            self.pick(cdp, sid, f"{row} .ucl-more", "delete")
             click(cdp, sid, ".ddmenu [data-kind=delete]")
             self.question(cdp, sid)
             click(cdp, sid, "[role=alertdialog] [data-bask=yes]")

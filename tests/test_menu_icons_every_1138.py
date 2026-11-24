@@ -65,7 +65,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx",
+    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more",
 }
 
 
@@ -84,7 +84,7 @@ class Source(unittest.TestCase):
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group", "uc-sort"), "components/UseCasesTab.jsx": ("uc-group", "uc-sort"),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
-        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",), "edit/RecordContextMenu.jsx": ("record-ctx",),
+        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -502,8 +502,6 @@ class Work(BulkBase):
                 d.check("uc-group", "document.querySelector('#ucl-group').click()", "[role=menu]", 3)
                 d.button("#ucl-sort", "Sort by")
                 d.check("uc-sort", "document.querySelector('#ucl-sort').click()", "[role=menu]", 3)
-                d.button(".ucl-go", "a use case row")
-                d.check("record-ctx", "document.querySelector('.ucl-go').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 300, clientY: 300}))", "#ucl-ctx", 2)
             d.js("location.hash = '#usecases&p=ABC&uc=ABC-U-001'")
             d.until("document.querySelector('#ucd-status')", "the use case page")
             for w, th in LOOKS:
@@ -514,7 +512,7 @@ class Work(BulkBase):
                 d.check("uc-milestone-link", "document.querySelector('[id^=ucd-mslink-]').click()", "[role=menu]", 1)
                 d.button("#ucd-more", "More actions")
                 d.check("record-more", "document.querySelector('#ucd-more').click()", "[role=menu]", 2)
-            d.expect(["uc-group", "uc-sort", "record-ctx", "uc-detail-status", "commitment", "uc-milestone-link", "record-more"])
+            d.expect(["uc-group", "uc-sort", "uc-detail-status", "commitment", "uc-milestone-link", "record-more"])
 
 
 class Gantt(unittest.TestCase):
