@@ -64,7 +64,3 @@ class RaidCardsView(PublishedFile, glance.Setup):
         self.assertEqual(cs[0]["rating"], "")
         self.assertIn("rc-b", cs[0]["cls"])
         self.assertEqual(cs[0]["latest"], "Called them.")
-
-
-if __name__ == "__main__":
-    unittest.main()

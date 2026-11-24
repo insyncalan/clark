@@ -12,7 +12,3 @@ class EdgeToken(unittest.TestCase):
         edge = re.search(r"border-top:\s*([^;]+);", rule)
         self.assertIsNotNone(edge, "the card has a top edge")
         self.assertEqual(edge.group(1), "var(--space-1) solid var(--rc-edge)")
-
-
-if __name__ == "__main__":
-    unittest.main()

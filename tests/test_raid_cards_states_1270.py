@@ -127,7 +127,3 @@ class RaidCardStates(PublishedFile, glance.Setup):
                 p.js(ESC)
                 self.assertTrue(wait(lambda: not p.js(STATE)["open"]), "Esc closes it at %d" % w)
                 self.assertTrue(wait(lambda: p.js(STATE)["active"].startswith("idl raid-id:")), "focus is back on the card's ID button at %d: %s" % (w, p.js(STATE)))
-
-
-if __name__ == "__main__":
-    unittest.main()

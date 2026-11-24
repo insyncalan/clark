@@ -117,7 +117,3 @@ class Page(PublishedFile, glance.Setup):
             got = self.read(self.draw(cdp, path, width=1400))
         self.assertEqual(got["n"], 4)
         self.assertIn("raid-n4", got["cls"])
-
-
-if __name__ == "__main__":
-    unittest.main()

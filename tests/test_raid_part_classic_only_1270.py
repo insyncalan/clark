@@ -59,7 +59,3 @@ class CardsParts(Parts):
             self.assertEqual(parts, [], w)
 
     test_classic_draws_the_part_word = None
-
-
-if __name__ == "__main__":
-    unittest.main()
