@@ -24,7 +24,7 @@ class FirstRun(panel.Panel):
         with chrome() as cdp:
             p = self.opened(cdp)
             self.assertEqual(p.js(f"{CARD}.getAttribute('aria-label')"), "About ask clark")
-            self.assertEqual(p.js(f"{LINE}.length"), 3)
+            self.assertEqual(p.js(f"{LINE}.length"), 5)
             self.assertEqual(p.js(f"{LINE}[0].textContent.trim()"), "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.")
             self.assertEqual(p.js(f"{LINE}[1].textContent.trim()"), "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
             self.assertEqual(p.js(f"{LINE}[2].textContent.trim()"), "Your question goes to Claude, which Anthropic runs.")
@@ -83,7 +83,7 @@ class FirstRun(panel.Panel):
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
             p.until("!!document.querySelector('#ask-off')", "off")
-            self.assertEqual(p.js(f"{LINE}.length"), 3)
+            self.assertEqual(p.js(f"{LINE}.length"), 5)
 
     def test_the_provider_in_use_is_named(self):
         self.stub.provider = "ChatGPT"
@@ -129,7 +129,7 @@ for _n in dir(panel.Panel):      # the panel's own tests run in test_ask_panel, 
 class Words(unittest.TestCase):
     def test_the_first_run_sentences_are_plain_and_complete(self):
         said = dict(re.findall(r'export const (FIRST_RUN_[A-Z_]+) = "((?:[^"\\]|\\.)*)"', WORDS))
-        self.assertEqual(sorted(said), ["FIRST_RUN_CHANGES", "FIRST_RUN_LABEL", "FIRST_RUN_LINK", "FIRST_RUN_READS", "FIRST_RUN_SENT"])
+        self.assertEqual(sorted(said), ["FIRST_RUN_CHANGES", "FIRST_RUN_LABEL", "FIRST_RUN_LINK", "FIRST_RUN_PASSAGES", "FIRST_RUN_PICTURES", "FIRST_RUN_READS", "FIRST_RUN_SENT"])
         for name, text in said.items():
             self.assertIsNone(NEVER.search(text), f"{name}: {text}")
             self.assertFalse(text.lower().startswith("clark"), name)

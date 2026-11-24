@@ -453,16 +453,28 @@ class FollowUp(Base):
         service.folders_for = lambda store, code: [str(self.box)]
         seen = []
         real = ask_index.folder_data
-        with mock.patch.object(ask_index, "folder_data", side_effect=lambda *a, **k: seen.append((a[2], real(*a, **k))) or seen[-1][1]):
+        with mock.patch.object(ask_index, "folder_data", side_effect=lambda *a, **k: seen.append(((a[2], list(a[5])), real(*a, **k))) or seen[-1][1]):
             earlier = [{"role": "user", "text": "What is ABC-12?"}, {"role": "assistant", "text": "ABC-12 is the launch."}]
             status, body = service.ask({"project": "PUB", "question": "And who owns it?", "earlier": earlier})
             self.assertEqual(status, 200, body)
             alone = real(self.data, "PUB", "And who owns it?")
         self.assertEqual(len(seen), 1, "the answer came from the index")
-        asked, found = seen[0]
-        self.assertTrue(asked.startswith("And who owns it?") and "ABC-12" in asked, asked)
+        (asked, ids), found = seen[0]
+        self.assertEqual((asked, ids), ("And who owns it?", ["ABC-12"]), "the question stays as typed; the IDs of the last turns go as extra terms")
         self.assertTrue(any("zqpriya" in p.text for p in found.passages), "the item's file passage is found")
         self.assertFalse(alone.passages, "the question alone finds nothing: the file holds none of its words")
+
+
+    def test_followup_id_is_a_quoted_phrase_outside_the_first_40_words(self):
+        """Row 1537 AP2 (Product Manager ruling 23-11): each ID is one quoted phrase; a question of 45 words still finds the ID's passage."""
+        self.put("a.txt", "Item RISK-12 is owned by zqpriya.")
+        self.put("b.txt", "Item RISK 99 is owned by zqother.")
+        ix.build(self.data, "PUB", [self.box])
+        question = " ".join(f"filler{i}" for i in range(45))
+        names = lambda got: sorted(p.file for p in got)
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", question)), [], "the question alone finds nothing")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", question, extra=["RISK-12"])), ["saved/a.txt"], "the phrase matches RISK-12 only, not RISK 99")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-12"])), ["saved/a.txt"], "an empty question with an ID still searches")
 
 
 class Library(Base):
@@ -513,6 +525,41 @@ class Library(Base):
         self.assertFalse(names.banned_across(text))
         self.assertEqual(len(files), 10)
         self.assertTrue(names.banned_in(text, frozenset({names.digest("zqlibdocx")})), "the check does see a banned word in the library")
+
+
+class OnlineOnly(Base):
+    def test_online_only_not_opened_and_line_says_not_searched(self):
+        """Row 1537 AP4 (Alan 19-11, NEW-WORDS.md:2225-2226): the line and the files-left-out list say "Online-only files not searched", no count; the file is never opened."""
+        self.put("here.txt", "zqhere text")
+        self.put("cloud.txt", "x" * 37)
+        opened = []
+        real, real_read = reach.online_only_stat, reach.read_bytes
+        with mock.patch.object(reach, "online_only_stat", lambda st: st.st_size == 37 or real(st)), \
+                mock.patch.object(reach, "read_bytes", side_effect=lambda p, *a, **k: opened.append(Path(p).name) or real_read(p, *a, **k)):
+            ix.build(self.data, "P1", [str(self.box)])
+        self.assertEqual(opened, ["here.txt"], "the online-only file is never opened")
+        c = ix.status(self.data, "P1", None)
+        self.assertEqual(c["online_only"], 1)
+        self.assertIn(" Online-only files not searched. ", ix.mod().line_for(c) + " ")
+        self.assertNotRegex(ix.mod().line_for(c), r"\d+ (is|are)? ?online")
+        self.assertEqual(ix.mod().left_out_line("online", 8), "Online-only files not searched", "no count in front, whatever the number")
+        got = ix.mod().folder_status(self.data, "P1", [str(self.box)])[str(self.box)]
+        self.assertEqual(got["left"]["files"][0], ["Online-only files not searched", ""])
+
+
+class FirstRunWords(unittest.TestCase):
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        """Row 1537 AP6, the card half (the Help half waits for PR 2046's Help paragraph, not on main): sentences (6) and (10), NEW-WORDS.md:2192 and :2194."""
+        from _paths import ROOT
+        base = ROOT / "src" / "clark" / "page" / "src" / "edit"
+        words, jsx = (base / "askWords.js").read_text(encoding="utf-8"), (base / "AskPanel.jsx").read_text(encoding="utf-8")
+        six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+        self.assertIn(f'export const FIRST_RUN_PASSAGES = "{six}";', words)
+        self.assertIn(f'export const FIRST_RUN_PICTURES = "{ten}";', words)
+        self.assertIn("Claude, which Anthropic runs", six, "named() swaps this one for ChatGPT")
+        self.assertEqual(jsx.count("W.FIRST_RUN_PASSAGES"), 2, "the Cards card and the Classic card")
+        self.assertEqual(jsx.count("W.FIRST_RUN_PICTURES"), 2)
 
 
 class UsedLine(unittest.TestCase):

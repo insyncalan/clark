@@ -444,12 +444,16 @@ export function AskPanel() {
               <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
+              <li>{W.named(W.FIRST_RUN_PASSAGES, askProvider.value)}</li>
+              <li>{W.FIRST_RUN_PICTURES}</li>
             </ul>
             <p class="ask-first-tip">{W.CARD_TIP_BEFORE}<kbd>{W.CARD_TIP_KEY}</kbd>{W.CARD_TIP_AFTER}</p>
           </>) : (<>
             <p>{W.FIRST_RUN_READS}</p>
             <p>{W.FIRST_RUN_CHANGES}</p>
             <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
+            <p>{W.named(W.FIRST_RUN_PASSAGES, askProvider.value)}</p>
+            <p>{W.FIRST_RUN_PICTURES}</p>
             <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
           </>)}
         </section>

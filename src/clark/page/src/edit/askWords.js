@@ -16,6 +16,9 @@ export const FIRST_RUN_LABEL = "About ask clark";
 export const FIRST_RUN_READS = "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
+// row 1537 AP6: where passages go, NEW-WORDS.md:2192 (sentence 6) and :2194 (sentence 10), approved by Jarvis; named() swaps the provider in sentence 6.
+export const FIRST_RUN_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
+export const FIRST_RUN_PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out.";
 export const FIRST_RUN_LINK = "Open the Asking card in Settings";
 // item 1352, Classic only (Cards keeps the three plain lines and the status words above): the card as the prototype draws it, a heading, three bullets and a tip.
 // The connector sentence is rule 11 of the 1292 rules: the connectors are used only when they are turned on in Settings.

@@ -399,7 +399,9 @@ class CardsKeepsItsOwn(Classic):
             self.assertEqual(p.js(f"[...{card}.querySelectorAll('p')].map(e => e.textContent)"), [
                 "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.",
                 "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.",
-                "Your question goes to Claude, which Anthropic runs."])
+                "Your question goes to Claude, which Anthropic runs.",
+                "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",
+                "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."])
             self.assertEqual(p.js(f"{card}.querySelector('.ask-first-link a').textContent"), "Open the Asking card in Settings")
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Answering with Sonnet. Standing instructions on.")
 
