@@ -38,28 +38,33 @@ class Server(unittest.TestCase):
 
 
 class FullCap(Server):
-    def test_cap_of_five_disables_add_and_server_refuses_a_sixth(self):
-        """The server half: five added pages are kept, the sixth is refused with the approved sentence and nothing is written."""
-        for n in range(5):
+    def test_cap_the_gantt_page_counts_one_so_four_more_fit_and_the_fifth_is_refused(self):
+        """The server half (PM ruling 24-11): the prebuilt Gantt page always counts one of the five, hidden or shown, so four added pages are
+        kept and the fifth is refused with the approved sentence and nothing is written."""
+        self.assertEqual(self.s.read("projects", ref="ABC")["show_gantt_editor"], 0)                # hidden: it still counts
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 1)
+        for n in range(4):
             status, body = self.page(f"Page {n}")
             self.assertEqual((status, body["ok"]), (200, True), body)
-        self.assertEqual(len(self.rows()), 5)
+        self.assertEqual(len(self.rows()), 4)
         before = self.s.con.execute("SELECT count(*) FROM change_log").fetchone()[0]
-        status, body = self.page("Sixth")
+        status, body = self.page("Fifth")
         self.assertEqual((status, body["ok"], body["message"]), (400, False, "You have 5 added pages. Remove one to add another."), body)
-        self.assertEqual(len(self.rows()), 5)
+        self.assertEqual(len(self.rows()), 4)
         self.assertEqual(self.s.con.execute("SELECT count(*) FROM change_log").fetchone()[0], before)
-        self.assertEqual(self.project(show_gantt_editor=1)[0], 400)                 # the prebuilt Gantt page would be the sixth
-        self.assertEqual(self.s.read("projects", ref="ABC")["show_gantt_editor"], 0)
+        self.assertEqual(self.project(show_gantt_editor=1)[0], 200)                  # shown: the same five, nothing more is taken
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 5)
+        self.assertEqual(self.project(show_gantt_editor=0)[0], 200)
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 5)        # hiding the Gantt page frees nothing
+        self.assertEqual(self.page("Fifth")[0], 400)
 
-    def test_the_prebuilt_gantt_page_takes_one_of_the_five_on_the_server(self):
-        self.assertEqual(self.project(show_gantt_editor=1)[0], 200)
+    def test_removing_an_added_page_frees_one_place_whatever_the_gantt_switches_say(self):
         for n in range(4):
             self.assertEqual(self.page(f"Page {n}")[0], 200)
-        status, body = self.page("Fifth added")
-        self.assertEqual((status, body["message"]), (400, "You have 5 added pages. Remove one to add another."))
-        self.assertEqual(self.project(show_gantt_editor=0)[0], 200)                  # Remove: one place is free
-        self.assertEqual(self.page("Fifth added")[0], 200)
+        self.assertEqual(self.project(show_gantt_editor=1)[0], 200)
+        self.assertEqual(self.page("Fifth")[0], 400)
+        self.assertEqual(self.change({"project": "ABC", "kind": "added_pages", "op": "delete", "id": self.rows()[0]["id"]})[0], 200)
+        self.assertEqual(self.page("Fifth")[0], 200)
 
     def test_a_page_is_checked_on_the_server(self):
         for values in ({"name": ""}, {"name": "x" * 41}, {"starter": "gantt"}, {"starter": "nope"}, {"client": 2}, {"hidden": True},
@@ -76,16 +81,16 @@ class PrebuiltGantt(Server):
         """The server half: hidden by default (both switches 0, values kept, no migration), added = show_gantt_editor 1, Hide and Remove = 0, Undo restores, client switch apart."""
         p = self.s.read("projects", ref="ABC")
         self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"]), (0, 0))
-        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 0)
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 1)         # the Gantt page counts one even while hidden
         status, body = self.project(show_gantt_editor=1)                              # Add page > Gantt
         self.assertEqual(status, 200, body)
-        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 1)         # counts one of the five
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 1)         # shown or hidden, one of the five
         self.assertEqual(self.project(show_gantt_client=1)[0], 200)                    # Shown to the client
         status, body = self.project(show_gantt_editor=0)                              # Remove
         apply_id = body["apply_id"]
         p = self.s.read("projects", ref="ABC")
         self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"]), (0, 1))     # the client value is kept
-        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 0)
+        self.assertEqual(store_module.added_page_count(self.s.con, "ABC"), 1)         # still one: the page is hidden, not gone
         self.assertEqual(self.undo({"project": "ABC", "apply_id": apply_id})[0], 200)  # Undo restores
         self.assertEqual(self.s.read("projects", ref="ABC")["show_gantt_editor"], 1)
         self.assertEqual(self.project(show_gantt_editor=0)[0], 200)
