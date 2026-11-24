@@ -62,6 +62,21 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); }
 :root[data-theme=dark] .pk-last { color: rgb(154, 169, 189); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); } :root[data-theme=auto] .pk-last { color: rgb(154, 169, 189); } }
+/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on its own ground, 18px corners with a 1px ring (--set-ring, the mock-up's line colour) on the --set-win ground with the white cards inside, and a 0 12px 36px drop shadow in the Theme-only --set-shadow token (the shared --shadow stays 0 8px 24px for the peek and the config panel) (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
+.set-win { background: var(--set-win); box-shadow: 0 0 0 1px var(--set-ring), 0 12px 36px var(--set-shadow); border-radius: 18px; padding: var(--space-4) var(--space-4) var(--space-5); }
+.set-tile { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: var(--space-2); border-radius: 7px; background: var(--brand-blue); color: var(--set-tile-ink); }
+.set-tile .i { width: 16px; height: 16px; }
+/* Row 1299 AP6 (ruling Q1): each page's tile has its own fill, the mock-up's (FINAL-settings-A7.html:46), the same in light and dark, with a white glyph (3:1 or more). The fills are Theme-only tokens in tokens.css (--set-tile-<slug>; no colour literal here: the Row 1336, 1350 and 1393 tests read this stretch of the file). Brand's amber is one step darker than the mock-up's, which measures 2.996 to 1 against white. */
+.set-tile-profile { background: var(--set-tile-profile); } .set-tile-appearance { background: var(--set-tile-appearance); } .set-tile-theme { background: var(--set-tile-theme); } .set-tile-projects { background: var(--set-tile-projects); } .set-tile-backups { background: var(--set-tile-backups); } .set-tile-reports { background: var(--set-tile-reports); } .set-tile-folder { background: var(--set-tile-folder); } .set-tile-brand { background: var(--set-tile-brand); } .set-tile-people { background: var(--set-tile-people); } .set-tile-claude { background: var(--set-tile-claude); } .set-tile-data { background: var(--set-tile-data); } .set-tile-version { background: var(--set-tile-version); } .set-tile-logs { background: var(--set-tile-logs); }
+/* Row 1299 AP5: the menu row is padding 5px 8px with 9px corners, as the mock-up's .p (FINAL-settings-A7.html:12). */
+.set-win .set-chip { padding: 5px 8px; }
+.set-win .set-chip, .set-win .set-chip[aria-current], .set-win .set-chip[aria-current]:hover { border-radius: 9px; }      /* every row incl. the open one is 9px (ruling 23-11, mock-up A7:12 '.p{padding:5px 8px;border-radius:9px}'; '.p.on' only adds colour); wins over rules.css's 10px of the ruling of 20-11 */
+.set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
+@media (min-width: 1100px) { .set-layout.set-win { grid-template-columns: 270px minmax(0, 1fr); } }      /* the mock-up's sidebar column from 1100 up */
+/* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
+@media screen { .set-layout.set-win { padding-left: 20px; } }
+@media print { .set-layout.set-win { padding-left: 0; } }
 /* Row 1288, "/" menu 4C: panel radius 12, padding 4, min 180; filter box 1px 3px 4px, 5px 9px, radius 8, 13px; rows 4px 10px, gap 10, 13.5px; rule margin 3px 0. */
 .rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
 .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
@@ -250,6 +265,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1428 (Classic only): the Report headline Edit view keeps the health pill beside the Headline and reason boxes at 900 and below (mock-up .erow: a row, gap 12px), undoing the shared stack at edit.css; Cards keeps it. */
+@media (max-width: 900px) { .tpl-rh-edit { flex-direction: row; gap: var(--space-3); } }
+/* Row 1431 (Classic only; Cards keeps its rows): the lines of the rich text Text style menu are 32px high as the prototype draws them (index.html:295, .rt-menu button min-height 32px). Height only: the 16px side padding, the radius, the size and the icons stay. */
+.rt-bar .ddmenu [role="menuitemradio"] { box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }
 /* Row 1543 part 1: the published header's pages group sits where the editor's does, above 900px. The editor's bar has 28px at the sides, 22px between its parts, the tabs stretch to 10px above the bottom and end 22px before the right-hand buttons (search, ask clark, profile). The published bar reserves their width (228.94px, and 94.94px less at 1100px and below where ask clark is only an icon: the widths the editor draws, measured) and puts the switcher and the profile circle at its far end. The date (until it goes) sits in the reserved room above 1100px, and left of the pages below it, so it never moves them. */
 @media (min-width: 901px) {
   .top-file { gap: 22px; padding: 10px 28px; }

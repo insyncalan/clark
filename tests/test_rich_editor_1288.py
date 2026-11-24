@@ -119,6 +119,17 @@ class Editor(unittest.TestCase):
                 self.assertEqual((p["r"], p["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {p}")
                 r = box(h, ".rt-bar [role=menu] [role=menuitem]")
                 self.assertEqual((r["p"], r["f"], r["r"]), ("4px 10px 4px 10px", "13.5px", "6px"), f"{w}: {r}")
+                h.key("Escape", 0, "Escape", 27)
+                # The "/" menu (Classic, with an AI place) is the one editor menu that holds a rule: the line above "Ask AI…" is hr margin 3px 0 (AP7). The foot line is the Ask AI row.
+                h.ev("window.unmount(); true")
+                h.mount("", ai="current")
+                h.type("/")
+                self.assertTrue(h.until("!!document.querySelector('.rt-slash .rt-slash-rule')"), f"{w}: slash rule")
+                rule = box(h, ".rt-slash .rt-slash-rule")
+                self.assertEqual(rule["m"], "3px 0px 3px 0px", f"{w}: {rule}")
+                ask = box(h, ".rt-slash .rt-ask")
+                self.assertEqual((ask["p"], ask["f"]), ("4px 10px 4px 10px", "13.5px"), f"{w}: {ask}")
+                self.assertEqual(h.ev("document.querySelectorAll('.rt-bar [role=menu] hr, .rt-bar [role=menu] .gl, .rt-slash .gl').length"), 0, f"{w}: no group label or rule in the More, Style or slash menus other than the slash rule")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:

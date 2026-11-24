@@ -1,7 +1,7 @@
 """Row 1366 rows 6 and 7: the files left out of a folder (Classic Settings page) and the answer note while the index is still being read.
 
 Row 6: under each folder's status line in both Source folders lists a text button "Show the files left out" opens a plain list (file name, then the
-reason, muted 13px), collapsed by default, at most 200 shown and then "and N more" (N = the rest). Classic only (Cards is unchanged: no button).
+reason, muted 13px; the button 14px, 24px high), collapsed by default, at most 200 shown and then "and N more" (N = the rest). Classic only (Cards is unchanged: no button).
 Row 7: the answer's note says "Still reading N files, so this answer may miss some." only while the index is incomplete.
 
 Run: python3 dev/run_tests.py test_ask_index_list_1366
@@ -72,7 +72,7 @@ class Base(unittest.TestCase):
 class Classic(Base):
     def look(self, js, sel):
         return js("(() => { const b = document.querySelector(%r + ' .ask-left-btn'); const c = getComputedStyle(b); const tok = (v) => { const p = document.createElement('p'); p.style.color = 'var(' + v + ')'; document.body.appendChild(p); const x = getComputedStyle(p).color; p.remove(); return x; }; "
-                  "return {color: c.color, blue: tok('--brand-blue'), size: c.fontSize, h: b.getBoundingClientRect().height, role: b.tagName, exp: b.getAttribute('aria-expanded'), "
+                  "return {color: c.color, blue: tok('--brand-blue'), size: c.fontSize, h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width, role: b.tagName, exp: b.getAttribute('aria-expanded'), "
                   "list: !!document.querySelector(%r + ' .ask-left-list'), below: !!b.closest('.ask-folder-line')}; })()" % (sel, sel))
 
     def open_list(self, js, sel):
@@ -90,7 +90,8 @@ class Classic(Base):
                     self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), (mode, w))
                     for sel in ("#ask-folders-shared", "#ask-folders"):
                         k = self.look(js, sel)
-                        self.assertEqual((k["color"], k["size"], k["role"], k["exp"], k["list"], k["below"]), (k["blue"], "13px", "BUTTON", "false", False, True), (mode, w, sel, k))
+                        self.assertEqual((k["color"], k["size"], k["role"], k["exp"], k["list"], k["below"]), (k["blue"], "14px", "BUTTON", "false", False, True), (mode, w, sel, k))
+                        self.assertEqual((k["h"], k["w"] >= 24), (24, True), (mode, w, sel, k))      # AP13 (Product Manager 24-11): 14px with a 24px hit box
                         self.assertEqual(js(BTN % sel + ".textContent"), "(why)")
             self.open_list(js, "#ask-folders")
             self.assertEqual(js(BTN % "#ask-folders" + ".getAttribute('aria-expanded')"), "true")

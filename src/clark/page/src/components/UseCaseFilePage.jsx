@@ -34,12 +34,12 @@ export function UseCaseFilePage({ id }) {
   if (!u) return <div class="ucf" data-ucf data-missing>{crumb("Use case")}<h1 ref={head} tabIndex={-1} class="ucf-h">That use case isn't in this report</h1><p><a href={listAt}>Go back to the use cases</a>.</p></div>;
   const page = (d.use_case_pages || []).find((x) => x.id === u.id) || { next_steps: [], milestones: [] };
   const work = page.next_steps.map((n) => rows.value.find((r) => r.id === n)).filter(Boolean);
-  const ms = page.milestones.map((n) => (d.milestones || []).find((m) => m.id === n)).filter(Boolean);
+  const ms = page.milestones.map((n) => ({ m: (d.milestones || []).find((m) => m.id === n.id), direct: !!n.direct })).filter((x) => x.m);      // row 1479: one boolean per milestone, set at publish
   const std = u.standing || "";                    // cleaned at publish (publish.select), as the Use cases tab draws it
   // The layout is the editor's (UseCaseLayout, row 1479), given no control: no menu, no hint, no add row, no History, no Last change.
   return (
     <UseCaseLayout p="ucf" u={u} name={refOf(u) || "Use case"} work={work} headRef={head} ro
-      ms={ms.map((m) => ({ m, how: "Through work items" }))}
+      ms={ms.map((x) => ({ m: x.m, how: x.direct ? "Directly" : "Through work items" }))}
       crumb={crumb(refOf(u) || "Use case")}
       title={<span class="ucf-name ucf-ro" data-ucf-field="title">{u.title}</span>}
       sub={{ chip: <CommitChip u={u} /> }}
