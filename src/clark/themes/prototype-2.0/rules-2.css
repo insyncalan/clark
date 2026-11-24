@@ -276,6 +276,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1289 AP7 (PM ruling): Classic peek padding equals the prototype (app.css .pk-top and .pk-scroll). The toolbar is the .pk-top: padding 10px 16px 6px 20px, full width (the peek's side padding is pulled back out by margin) and stuck at the top; everything after it is the .pk-scroll: 4px above (the toolbar's bottom margin), 24px left and right, 24px below. Cards keeps the shared frame. */
+.peek { padding: 0 24px 24px; }
+.peek .pk-tb { margin: 0 -24px 4px; padding: 10px 16px 6px 20px; top: 0; }
+/* Row 1289: the Edit words box is a band pulled out to the peek's edges by a negative side margin equal to the 24 px body inset, so it reaches the edges and no further, and its words stay in line with the content. */
+html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px; }
 /* Row 1428 (Classic only): the Report headline Edit view keeps the health pill beside the Headline and reason boxes at 900 and below (mock-up .erow: a row, gap 12px), undoing the shared stack at edit.css; Cards keeps it. */
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: row; gap: var(--space-3); } }
 /* Row 1431 (Classic only; Cards keeps its rows): the lines of the rich text Text style menu are 32px high as the prototype draws them (index.html:295, .rt-menu button min-height 32px). Height only: the 16px side padding, the radius, the size and the icons stay. */
@@ -315,6 +320,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
 :root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
+/* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
+.fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
+.fopt .c + .ftick { margin-left: var(--space-2); }
+.fchips[data-gchips] { flex: 0 0 auto; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

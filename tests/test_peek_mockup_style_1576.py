@@ -19,6 +19,7 @@ from clark import activity_read, changes, page, theme as themes
 import test_peek_latest
 import test_server  # noqa: F401  (a test that drives Chrome carries this import)
 from test_server import chrome, wait
+from _new_page import reload_to_new_page
 from test_peek import key
 
 _B = test_peek_latest.Browser
@@ -162,8 +163,7 @@ class Style(unittest.TestCase):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     sent, sid = self.load(cdp, width, shown, edit=True, dark=dark)
                     cdp.js("localStorage.setItem('clark.peekWidth', '940')", sid)
-                    cdp.js("location.reload()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0, 10))
+                    reload_to_new_page(lambda e: cdp.js(e, sid), ready="document.querySelectorAll('#work tbody tr[data-id]').length > 0", seconds=10)
                     cdp.js(f"clarkPage.openPeek({json.dumps(shown)})", sid)
                     self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(BTN)}) && !!document.querySelector({json.dumps(LABEL)})", sid)))
                     got = cdp.js("(() => { const p = document.querySelector('#peek').getBoundingClientRect(), one = s => { const e = document.querySelector(s), r = e.getBoundingClientRect(), lh = parseFloat(getComputedStyle(e).lineHeight) || 16;"
