@@ -135,7 +135,19 @@ class Head(Base):
             p.settled("the scroll to the menu item finished")
             if os.environ.get("CLARK_TEST_LATE_SCROLL") == "1":      # tests only: the wheel's scroll arrives after the page looked still (macOS headless), once per chip
                 p.js("window.__late = window.__late || 0; if (window.__late++ % 6 === 0) window.scrollTo(0, 99999)")
-            at = p.js(f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()")
+            measure = f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()"
+            at = p.js(measure)
+            if not (0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]):
+                # macOS run 45203372794, job 137792514843: the chip was read at y=1044 in a 900 px window with scrollY=0 after all 6 tries, so the scroll was
+                # not applied (or was put back to 0) when it was measured. A person looks again: this try waits a moment for the scroll to land, bringing the chip to the middle on each look.
+                seen = [at]
+
+                def looked():
+                    p.js(f"{find}.scrollIntoView({{block: 'center', behavior: 'instant'}})")
+                    seen[0] = p.js(measure)
+                    return 0 <= seen[0][0] <= seen[0][2] and 0 <= seen[0][1] <= seen[0][3]
+                wait(looked, 3)
+                at = seen[0]
             if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
                 break
         self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")
