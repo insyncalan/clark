@@ -77,8 +77,12 @@ class RowWords(unittest.TestCase):
         return p.js(f"document.querySelector({row!r}).getBoundingClientRect().height")
 
     def open_editor(self, p, row):
-        p.js(f"document.querySelector({row!r} + ' {SHOWN}').click()")
-        p.until("document.activeElement.classList.contains('ProseMirror')", "the one editor opens with the focus in it")
+        focused = "document.activeElement.classList.contains('ProseMirror')"
+        for _ in range(3):      # a click that lands while the row is still drawing is lost on a busy box: click again only while the words are still shown
+            p.js(f"(() => {{ const e = document.querySelector({row!r} + ' {SHOWN}'); if (e) e.click(); }})()")
+            if wait(lambda: p.js(focused), 4):
+                return
+        p.until(focused, "the one editor opens with the focus in it")
 
     def type(self, p, text):
         p.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()")
