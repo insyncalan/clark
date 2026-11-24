@@ -27,7 +27,7 @@ class UseCaseChanges(Base):
                              "headline": "Late supplier files", "standing": "Two files are late."})
         self.assertEqual(sorted(plan["fields"]), ["headline", "standing", "status"])
         self.assertEqual(self.row()["status"], "On track", "a dry run saves nothing")
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         row = self.row()
         self.assertEqual((row["status"], row["headline"], row["commitment"]), ("Flag", "Late supplier files", None))
         self.assertIn("Two files are late.", row["standing"])
