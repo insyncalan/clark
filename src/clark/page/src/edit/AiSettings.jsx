@@ -91,6 +91,11 @@ function ConnectCard() {
     if (el && el.isConnected) el.value = String(conn.size_value);
     return done;
   }
+  function stepSize(el, dir) {                           // row 1571 AP1: the arrow keys move the box by the step the server sends (size_step), inside the range; saved on leave or Enter like a typed value
+    const step = Number(conn.size_step) || 10000, [lo, hi] = Array.isArray(conn.size_range) ? conn.size_range : [10000, 500000];
+    const t = String(el.value).trim(), now = /^[0-9][0-9,]*$/.test(t) ? Number(t.replace(/,/g, "")) : Number(conn.size_value);
+    el.value = String(Math.min(hi, Math.max(lo, (Number.isFinite(now) ? now : lo) + dir * step)));
+  }
   async function choose(model) {
     const text = await send(() => aiModelSend(model), "save that choice", "#ai-model");
     if (text) { setConn({ ...conn }); setWeaker({ model, text }); }
@@ -193,7 +198,7 @@ function ConnectCard() {
     <div class="ai-size">
       <label for="ai-size">Size of one question</label>{" "}
       <input id="ai-size" type="text" inputmode="numeric" key={conn.size_value} defaultValue={conn.size_value} aria-describedby="ai-size-help"
-        aria-disabled={busy ? "true" : undefined} data-ai-size-input onBlur={(e) => saveSize(e.currentTarget, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveSize(e.currentTarget, e.currentTarget.value); } }} /> tokens
+        aria-disabled={busy ? "true" : undefined} data-ai-size-input onBlur={(e) => saveSize(e.currentTarget, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveSize(e.currentTarget, e.currentTarget.value); } else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); stepSize(e.currentTarget, e.key === "ArrowUp" ? 1 : -1); } }} /> tokens
       {conn.size_value !== conn.size_default
         ? <>{" "}<button type="button" class="btn sm" data-ai-size-default aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiSizeSend(conn.size_default), "save the size", "#ai-size")}>Use {conn.size_default.toLocaleString("en-US")}</button></> : null}
       <p class="muted" id="ai-size-help" data-ai-size-help>{conn.size_help}</p>

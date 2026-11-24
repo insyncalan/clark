@@ -12,13 +12,12 @@ from test_ask_retry_1293 import Retry as Base
 class OfferKept(Base):
     def test_a_failed_dry_run_leaves_the_reply_usable(self):
         reply = self.reply()
-        for down in ("dry",):
-            self.down[down] = True
-            status, body = self.dry(reply)
-            self.assertEqual((status, body["plans"][0]["code"]), (200, "busy"), "the first try fails")
-            self.down[down] = False
-            status, body = self.dry(reply)
-            self.assertEqual((status, body["ok"]), (200, True), "the same reply works on the second try: " + str(body))
+        self.down["dry"] = True
+        status, body = self.dry(reply)
+        self.assertEqual((status, body["plans"][0]["code"]), (200, "busy"), "the first try fails")
+        self.down["dry"] = False
+        status, body = self.dry(reply)
+        self.assertEqual((status, body["ok"]), (200, True), "the same reply works on the second try: " + str(body))
         self.assertEqual(self.dry(reply)[1]["code"], "shown_already", "a dry run that worked is made once")
 
 
