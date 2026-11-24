@@ -128,7 +128,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1; SMOKE=1 ;;", plan)               # a push to main: full Ubuntu and the Mac smoke set (Alan 24-11, row 1602)
+        self.assertIn("push) FULL=1; SMOKE=1 ;;", plan)               # a push to main: full Ubuntu and the Mac smoke set (the owner, 24-11, row 1602)
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -275,7 +275,7 @@ class Workflow(unittest.TestCase):
                 self.assertNotIn("continue-on-error", body, job)
 
     def test_the_nightly_runs_the_full_macos_suite_and_it_is_advisory_and_smoke_is_required(self):
-        """Alan 24-11 (row 1602): "require the Mac smoke set only; run the full suite nightly as advisory". One nightly cron (the second,
+        """the owner, 24-11 (row 1602): "require the Mac smoke set only; run the full suite nightly as advisory". One nightly cron (the second,
         '0 23 * * 0', was Monday 03:00 Dubai: a duplicate full macOS run); the schedule arm sets ADVISORY=1; a push to main asks for the smoke set and not for the shards."""
         wf = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('- cron: "0 22 * * *"', wf)
@@ -301,7 +301,7 @@ class Workflow(unittest.TestCase):
         script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
         with tempfile.TemporaryDirectory() as d:
             out = os.path.join(d, "out")
-            open(out, "w").close()
+            open(out, "w", encoding="utf-8").close()
             base = {"PATH": os.environ["PATH"], "GITHUB_OUTPUT": out, "RUNNER_TEMP": d, "EVENT": "", "BRANCH": "", "BASE_REF": "",
                     "LABELS": "", "MACOS_INPUT": "", "SCHEDULE": "", "REPO": "x/y", "PR_NUMBER": "", "GH_TOKEN": ""}
             base.update(env)
@@ -351,7 +351,7 @@ class Workflow(unittest.TestCase):
         self.assertIn(".github/*) FULL=1 ;;", plan)
 
     def test_a_pull_request_never_requires_the_macos_shards(self):
-        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check). Alan 24-11 (row 1602): a push to main
+        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check). the owner, 24-11 (row 1602): a push to main
         gets the smoke set too, and the nightly's full macOS suite is advisory, so the shards are required only for a hand-started run with macos=true."""
         plan = self.jobs["plan"]
         pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]

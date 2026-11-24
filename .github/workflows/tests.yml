@@ -10,7 +10,7 @@
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
 # label `full-ci`, and by hand.
 #
-# macOS (Alan 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
+# macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
 #  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
 #    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
 #    files), and on a pull request that carries the label `full-ci`. Nothing else asks for a Mac.
@@ -104,9 +104,9 @@ jobs:
           FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; WIDE=""; NTESTS=0
           case "$EVENT" in
             merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
-            push) FULL=1; SMOKE=1 ;;      # a push to main: the full Ubuntu matrix and the Mac smoke set (required); the full macOS suite runs in the nightly only, advisory (Alan 24-11, row 1602)
+            push) FULL=1; SMOKE=1 ;;      # a push to main: the full Ubuntu matrix and the Mac smoke set (required); the full macOS suite runs in the nightly only, advisory (the owner, 24-11, row 1602)
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
-            schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (Alan 24-11, row 1602)
+            schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (the owner, 24-11, row 1602)
           esac
           case "$BRANCH" in
             release-*|v*-release*) FULL=1; REL=1 ;;
@@ -118,7 +118,7 @@ jobs:
           case ",$LABELS," in
             *,full-ci,*) FULL=1; SMOKE=1 ;;
           esac
-          # A release branch, and a pull request into one, runs the Mac smoke set (required), not the full macOS suite (Alan 24-11, row 1602).
+          # A release branch, and a pull request into one, runs the Mac smoke set (required), not the full macOS suite (the owner, 24-11, row 1602).
           # The full suite on a release line is still there on demand: a hand-started run with macos=true (the line above clears the smoke set then).
           if [ -n "$REL" ]; then SMOKE=1; fi
           # A pull request that changes a guarded file is the full Ubuntu matrix without the label, and macOS only when the file is
