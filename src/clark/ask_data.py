@@ -125,12 +125,20 @@ def long_rows(lines):
     return sum(1 for x in lines if len(x) > MAX_PASSAGE and not ask._secret(x))
 
 
-def choose(passages, question, budget=BUDGET, limit=None):
+def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
-    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
-    keep, left = ask.choose([(p.label, p.text) for p in passages], question, budget, len(passages) if limit is None else limit)
-    return tuple(passages[i] for i in keep), left
+    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit.
+    `need_match` (row 1366 AP27): keep only a passage that shares a word or an item ID with the question; a question with no words keeps none."""
+    pairs = [(p.label, p.text) for p in passages]
+    if need_match:
+        words = {w.casefold() for w in ask.WORDS.findall(question or "")}
+        ids = set(ask.ID_PATTERN.findall(question or ""))
+        pos = [i for i, (_l, t) in enumerate(pairs) if any(x.casefold() in t.casefold() for x in ids) or any(w in t.casefold() for w in words)]
+    else:
+        pos = list(range(len(pairs)))
+    keep, _left = ask.choose([pairs[i] for i in pos], question, budget, len(passages) if limit is None else limit)
+    return tuple(passages[pos[i]] for i in keep), len(passages) - len(keep)
 
 
 def state_of(kind, row, today):
