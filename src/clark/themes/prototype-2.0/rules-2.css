@@ -55,6 +55,28 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1299 AP10 (project tabs, Classic only; the Cards look draws no tabs, shell.css is untouched): on the project pages of Settings one pill for each project across the top of the cards, pinned under the top bar while the page scrolls, one row that scrolls sideways when the projects do not fit, capped at 44px high at 1400 and at 900. A pill is a 999px radius, 5px 14px padding, 13.5px type; the open pill has the brand fill (--brand-navy, --white text, as a chosen segment has) and weight 600; in dark it takes the 1px inset --grey-500 ring a navy fill needs. Bare lengths: the 44px cap, the 999px radius, the 5px 14px padding, the 13.5px size, the 600 weight. */
+.set-tabs { position: sticky; top: var(--topbar); z-index: 16; min-width: 0; max-height: 44px; margin-bottom: var(--space-3); background: var(--bg); box-shadow: 0 1px 0 var(--grey-200); }
+.set-tabs ul { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); box-sizing: border-box; height: 44px; margin: 0; padding: 0; list-style: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.set-tabs li { flex: none; }
+.set-tab { all: unset; box-sizing: border-box; display: flex; align-items: center; padding: 5px 14px; border-radius: 999px; color: var(--text); font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+.set-tab:hover { color: var(--heading); background: var(--grey-50); }
+.set-tab[aria-current] { background-color: var(--brand-navy); color: var(--white); font-weight: 600; }
+:root[data-theme=dark] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+.set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+@media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
+/* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
+.brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
+/* Row 1299 (Settings, Classic only): the "Affects:" line at the head of a page says who the page changes (the project's code, All projects or You); small and muted, with room under it before the first card. */
+.set-cards > .set-affects { margin: 0 0 var(--space-3); font-size: var(--size-small); }
+/* Row 1299 (Projects overview, Classic only, S3 read only): the issue line, the two filters and the table of values; a value is a button that looks like text, amber when it is an override or something to fix. */
+.ov .ov-issues { margin: 0 0 var(--space-2); color: var(--status-amber-text); }
+.ov .ov-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.ov .ov-table { width: 100%; }
+.ov .ov-val { all: unset; box-sizing: border-box; cursor: pointer; color: var(--grey-700); text-decoration: underline; text-decoration-color: var(--grey-300); }
+.ov .ov-val.ov-amber { color: var(--status-amber-text); }
+.ov .ov-val:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* Row 1470 (the approved Dashboard peek mock-up, Classic only, Cards keeps today's rules): the Latest update box text is 15 px / 1.55 and the stamp under it is 12 px muted at the left, margin 6px 2px 0 (it was right-aligned in row 1257);
    in dark the box takes the mock-up's tokens --soft 192440, --line 25324D and the stamp --muted 9AA9BD (the Theme's own dark greys differ). A focused box keeps its own look. */
 .pk-lbox .rt-view, .pk-lbox .rt-view:hover, .pk-lbox .rt-host .ProseMirror { font-size: 15px; line-height: 1.55; }
