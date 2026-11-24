@@ -508,7 +508,13 @@ class AskFolders:
         want = ask_exclude.clean(rel) if isinstance(rel, str) else None
         if want is None or want not in have:
             return 409, self.fail("not_in_list")
-        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", {"excluded": ask_exclude.dump([r for r in have if r != want])}))
+        rest = [r for r in have if r != want]
+        fields = {"excluded": ask_exclude.dump(rest)}
+        if self.accepted_of(store, code).get(target) == 1:         # row 1542 AP5: a name on the 1365 list (or one inside) coming back sets the folder back to Declined in the same step
+            found = sensitive_names.scan(target, rest)
+            if found.truncated or any(i["path_rel"] == want or i["path_rel"].startswith(want + "/") for i in found):
+                fields["accepted"] = 0
+        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", fields))
         if step is False:
             return 409, self.fail("cant_save")
         return 200, {"ok": True, "folders": now, "message": MESSAGES["added"], "apply_id": step, "warnings": self.warnings_now(store, code), "left_out": self.left_list(store, code)}

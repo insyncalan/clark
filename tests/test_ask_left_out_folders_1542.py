@@ -112,6 +112,24 @@ class Data(unittest.TestCase):
         self.assertEqual(self.indexed("archive terms"), ["lib/Archive/terms.txt"], "back in on the next run")
         self.assertEqual(self.indexed("draft"), [], "the one still left out stays out")
 
+    def test_include_again_on_a_matching_name_sets_the_saved_folder_back_to_declined_and_one_undo_restores_both(self):
+        """Row 1542 AP5: a subfolder whose name is on the 1365 list (or holds one) comes back: the saved folder's accepted goes back to 0 in the same step; one Undo restores both.
+        A name that does not match leaves accepted as it was."""
+        f = self.root / "Contracts"
+        f.mkdir()
+        (f / "c.txt").write_text("terms", encoding="utf-8")
+        both = ask_exclude.dump(["Archive", "Contracts"])
+        with self.store().step("dashboard", "tester", place="menu") as step:
+            step.update("source_folders", f"ABC|{self.root}", {"excluded": both, "accepted": 1})
+        accepted = lambda: self.store().read("source_folders", "ABC")[0]["accepted"]
+        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})
+        self.assertEqual((status, accepted()), (200, 1), "no match: accepted unchanged")
+        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contracts"})
+        self.assertEqual((status, body["ok"], accepted()), (200, True, 0), "a match: back to Declined in the same step")
+        self.assertEqual(self.stored(), [])
+        status, _ = self.svc.change({"project": "ABC", "action": "undo", "apply_id": body["apply_id"]})
+        self.assertEqual((status, accepted(), self.stored()), (200, 1, ["Contracts"]), "one Undo restores both")
+
     def test_the_files_changed_count_ignores_a_left_out_folder(self):
         """Row 1542 (Hawkeye CHANGES): a new file under a left-out subfolder is not a change: the Updating line counts only what a run would read."""
         folders = [str(self.root)]
