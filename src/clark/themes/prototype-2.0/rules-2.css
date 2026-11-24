@@ -280,6 +280,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .peek { padding: 0 24px 24px; }
 .peek .pk-tb { margin: 0 -24px 4px; padding: 10px 16px 6px 20px; top: 0; }
 /* Row 1289: the Edit words box is a band pulled out to the peek's edges by a negative side margin equal to the 24 px body inset, so it reaches the edges and no further, and its words stay in line with the content. */
+html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px; }
 /* Row 1428 (Classic only): the Report headline Edit view keeps the health pill beside the Headline and reason boxes at 900 and below (mock-up .erow: a row, gap 12px), undoing the shared stack at edit.css; Cards keeps it. */
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: row; gap: var(--space-3); } }
 /* Row 1431 (Classic only; Cards keeps its rows): the lines of the rich text Text style menu are 32px high as the prototype draws them (index.html:295, .rt-menu button min-height 32px). Height only: the 16px side padding, the radius, the size and the icons stay. */
