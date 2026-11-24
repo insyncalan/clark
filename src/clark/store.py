@@ -39,7 +39,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 34          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1252): the added_pages table. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 38          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal); 38 (row 1252): the added_pages table (35 to 37 are other rows' steps, not on main yet)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -445,8 +445,8 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "client", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
-                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
+                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off", "accepted"})      # row 1365: source_folders.accepted, 0 = declined, 1 = accepted; row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -769,11 +769,21 @@ def _source_folder(con, table, row, changed):
     why = reach.never_inside(path, Path(file).parent if file else None)
     if why:
         raise Invalid(f"Asking can't read that folder: it is, or holds, a place clark keeps closed ({why}).")
+    if "excluded" in row:                               # row 1365: the subfolders left out, a JSON list of plain relative paths, never more than a short list
+        from clark import ask_exclude
+        try:
+            if not isinstance(row["excluded"], str):
+                raise ValueError("not text")
+            ask_exclude.parse(row["excluded"])
+        except ValueError:
+            raise Invalid("The subfolders left out are a short list of folder names inside this folder.") from None
+    if "accepted" in row and (type(row["accepted"]) is not int or row["accepted"] not in (0, 1)):      # row 1365: 1 = the person pressed Accept for this folder, 0 = Declined
+        raise Invalid("A folder is accepted (1) or declined (0).")
 
 
-# ── Added pages (row 1252, step 34) ───────────────────────────────────────────
+# ── Added pages (row 1252, step 38) ───────────────────────────────────────────
 
-MAX_ADDED_PAGES = 5                      # a project's added pages, the prebuilt Gantt page (show_gantt_editor 1) included
+MAX_ADDED_PAGES = 5                      # a project's added pages, the prebuilt Gantt page always included (hidden or shown)
 ADDED_PAGE_NAME_LIMIT = 40
 ADDED_PAGE_SECTION_LIMIT = 30            # sections one added page holds
 ADDED_PAGE_CAP = "You have 5 added pages. Remove one to add another."      # the approved words
@@ -788,10 +798,10 @@ ADDED_PAGE_NOT_HAND = ("gantt", "gantttable", "workitems")
 
 
 def added_page_count(con, project):
-    """How many of the five a project has used: its added_pages rows, and one more while the prebuilt Gantt page is on (show_gantt_editor 1)."""
+    """How many of the five a project has used: its added_pages rows, and one more always for the prebuilt Gantt page, hidden or shown
+    (PM ruling 24-11), so a project can add four more. show_gantt_editor and show_gantt_client stay the two switches; neither changes the count."""
     n = con.execute("SELECT count(*) FROM added_pages WHERE project = ?", (project,)).fetchone()[0]
-    on = con.execute("SELECT show_gantt_editor FROM projects WHERE code = ?", (project,)).fetchone()
-    return n + (1 if on and on[0] == 1 else 0)
+    return n + 1
 
 
 def added_page_sections(value):
@@ -820,7 +830,7 @@ def added_page_sections(value):
 
 def _added_page_rules(con, table, row, changed):
     """Row 1252: an added page has a one-line name, one of the four starters, its place, two flags and its sections; a new page is refused
-    when the project already has five (the prebuilt Gantt page counts). A page already there (an Undo putting it back) is not counted again."""
+    when the project already has five (the prebuilt Gantt page always counts one). A page already there (an Undo putting it back) is not counted again."""
     name = row.get("name")
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > ADDED_PAGE_NAME_LIMIT or any(unicodedata.category(c).startswith("C") for c in name):
         raise Invalid(ADDED_PAGE_BAD_NAME)
@@ -839,14 +849,6 @@ def _added_page_rules(con, table, row, changed):
     row["sections"] = added_page_sections(row.get("sections") if row.get("sections") is not None else "[]")
     if (not row.get("id") or fetch(con, table, row["id"]) is None) and added_page_count(con, row.get("project")) >= MAX_ADDED_PAGES:
         raise Invalid(ADDED_PAGE_CAP)
-
-
-def _gantt_switch_cap(con, table, row, changed):
-    """Row 1252: switching the prebuilt Gantt page on takes one of the five; with five used already it is refused."""
-    if "show_gantt_editor" in changed and row.get("show_gantt_editor") == 1:
-        was = con.execute("SELECT show_gantt_editor FROM projects WHERE code = ?", (row.get("code"),)).fetchone()
-        if was and was[0] != 1 and added_page_count(con, row.get("code")) >= MAX_ADDED_PAGES:
-            raise Invalid(ADDED_PAGE_CAP)
 
 
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
@@ -1150,7 +1152,6 @@ ROW_RULES = {
     "project_connectors": (_project_connector,),                             # row 1306
     "gantt_lines": (_project_exists, _gantt_rules),                          # row 926
     "added_pages": (_project_exists, _added_page_rules),                      # row 1252
-    "projects": (_gantt_switch_cap,),                                        # row 1252: the prebuilt Gantt page counts one of the five
     "use_case_milestones": (_uc_milestone_rules,),                           # row 1107
 }
 
@@ -3301,7 +3302,28 @@ def migrate_ask_files(con):
             con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN " + column)      # fixed text per table, never a person's value
 
 
-ADDED_PAGES_STEP = 34        # row 1252's step number, written once here and used by MIGRATIONS
+EXCLUDED_STEP = 34        # row 1365's one step number (33 was row 1294's ask_files), written once here and used by MIGRATIONS
+EXCLUDED_COLUMN = "excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000)"      # the same text as schema.sql's column
+ACCEPTED_COLUMN = "accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1))"      # the same text as schema.sql's column
+
+
+def migrate_source_folders_1365(con):
+    """Schema version 33 to 34 (row 1365): source_folders.excluded, the subfolders a person leaves out of a saved folder, '[]' (nothing left
+    out) for every row that is there; and source_folders.accepted, 1 when the person pressed Accept for a saved folder whose names hold a people
+    or contract word, 0 (declined, the default) for every row that is there. Both are added at the end of the table, so no table is made again
+    and no value changes; a column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside
+    the caller's transaction and does not touch the version (the runner does). It is step 34 in MIGRATIONS. Taken back the way every step is:
+    the backup the updater makes before a migration."""
+    have = columns(con, "source_folders")
+    if not have:
+        return
+    if "excluded" not in have:
+        con.execute("ALTER TABLE source_folders ADD COLUMN " + EXCLUDED_COLUMN)
+    if "accepted" not in have:
+        con.execute("ALTER TABLE source_folders ADD COLUMN " + ACCEPTED_COLUMN)
+
+
+ADDED_PAGES_STEP = 38        # row 1252's step number, written once here and used by MIGRATIONS
 ADDED_PAGES_TABLE = """CREATE TABLE IF NOT EXISTS added_pages (
   id         TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-PG-[0-9][0-9][0-9]'),
   project    TEXT NOT NULL REFERENCES projects(code),
@@ -3317,9 +3339,9 @@ ADDED_PAGES_INDEX = "CREATE INDEX IF NOT EXISTS added_pages_project ON added_pag
 
 
 def migrate_added_pages(con):
-    """Schema version 33 to 34 (row 1252): the `added_pages` table, new and empty. No existing table or value changes: show_gantt_editor and
+    """Schema version 37 to 38 (row 1252): the `added_pages` table, new and empty. No existing table or value changes: show_gantt_editor and
     show_gantt_client stay the two switches of the prebuilt Gantt page, values kept. Skipped when the table is already there (a new
-    database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 34 in MIGRATIONS."""
+    database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 38 in MIGRATIONS."""
     con.execute(ADDED_PAGES_TABLE)
     con.execute(ADDED_PAGES_INDEX)
 
@@ -3338,7 +3360,9 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (REPORT_HEADLINE_STEP, migrate_report_headline_section_type),
               (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
               (INSTALL_DEFAULTS_STEP, migrate_install_defaults), (ASK_INSTRUCTIONS_STEP, migrate_ask_instructions),
-              (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files), (ADDED_PAGES_STEP, migrate_added_pages))
+              (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files),
+              (EXCLUDED_STEP, migrate_source_folders_1365),
+              (ADDED_PAGES_STEP, migrate_added_pages))
 
 
 def migration_plan(version, table=None):

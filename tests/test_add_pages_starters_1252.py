@@ -77,6 +77,14 @@ class Starters(unittest.TestCase):
             self.assertEqual(len(secs), len(got))
         self.assertEqual(run("T.promptFor('blank', [], 'x')"), "")
 
+    def test_the_text_with_image_template_and_its_section_heading(self):
+        """AP3 (PM 24-11 18:10): the template is named 'Text with image' in the starter's list and its section heading starts as 'Text and Image Side by Side'."""
+        got = run("(() => { const t = T.TEMPLATES.find((x) => x.id === 'text-image'); const b = T.STARTERS.find((s) => s.id === 'blank'); return [t.name, t.title, b.parts.map((p) => T.TEMPLATES.find((x) => x.id === p.template).name), T.startSections('blank').map((s) => s.title)]; })()")
+        self.assertEqual(got[0], "Text with image")
+        self.assertEqual(got[1], "Text and Image Side by Side")
+        self.assertEqual(got[2][1], "Text with image")
+        self.assertEqual(got[3][1], "Text and Image Side by Side")
+
     def test_hand_added_sections_never_gantt_or_work_items(self):
         self.assertEqual(run("T.HAND_NEVER"), ["gantt", "gantttable", "workitems"])
         types = run("T.handTemplates().map((t) => t.type)")
