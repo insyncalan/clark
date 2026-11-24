@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_imagecap_heading_1592
 Part 1 reads the stylesheets (no Chrome): the Classic rule is in rules-2.css before the Row 1314 block, the Cards half of AP3 (Cards keeps hiding it) is NOT tested here: the real Classic/Cards switch no longer exists (row 1363), so AP3 stays open on the row.
 Part 2 is Chrome at 1400 and 900, light and dark, with the Classic theme layered; it needs Chrome (CLARK_CHROME). Fictional data only.
 Left out of this row (Product Manager ruling, ticket comment): the per-section heading switch, row 1272. Also not tested: a section with no title (the store refuses a blank title, store.section_title raises Invalid for blank, so no such section exists; pinned by Sheets.test_a_section_with_no_title_cannot_exist).
-Chrome could not run where this was written (no Chrome): the Chrome tests were reasoned from the render code and CSS, never run.
+Run in real Chrome (loadgate, CLARK_CHROME), 3 runs alone, all OK. Limits: AP5 asserts what makes the digit (counter-increment secn 1, ::before content counter(secn), no reset) and the rail count, not the rendered digit (Chrome returns the unresolved counter in computed content); AP6 matches the heading-to-picture gap to any other section's heading-to-body gap within 1 px (TOL), not to one named section.
 """
 import json
 import re
