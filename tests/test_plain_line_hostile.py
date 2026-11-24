@@ -6,7 +6,9 @@ Chrome is required: these tests fail, never skip, without it (the repo has no No
 test_safety_logic.py does). Fixture data is made up. Page tests run at 1400 and 900 pixels wide, in light and dark.
 """
 import base64
+import html
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -243,6 +245,13 @@ class RaidHostile(ReportBase):
     def stored(self, sec):
         return json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
 
+    def plain(self, sec):
+        """The first card's own words as plain text: the Full editor saves paragraphs as <p>..</p> HTML (row 1288), the limits count the text."""
+        own = self.stored(sec)[0].get("own", "")
+        if not own.startswith("<p>"):
+            return own
+        return html.unescape(re.sub(r"<[^>]*>", "", own.replace("</p><p>", " ")))
+
     def own(self, p, sec, html, ctrl_enter=True, closes=False):
         box = f"[data-id={json.dumps(sec)}] .rce-f .ProseMirror"
         view = f"[data-id={json.dumps(sec)}] .rce-f .rt-view"
@@ -273,16 +282,16 @@ class RaidHostile(ReportBase):
                 # 400 characters in two paragraphs, joined by one space: exactly the limit, saved
                 self.own(p, sec, "<p>" + "a" * 199 + "</p><p>" + "b" * 200 + "</p>", closes=True)
                 want = "a" * 199 + " " + "b" * 200
-                self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == want), "400 characters are saved")
+                self.assertTrue(self.wait_for(lambda: self.plain(sec) == want), "400 characters are saved")
                 n = len([s for s in self.sent if s[0] == "change"])
                 # 401: not saved, no change sent, the old words stay
                 self.own(p, sec, "<p>" + "c" * 401 + "</p>")
                 p.js("new Promise(r => setTimeout(r, 600))")
-                self.assertEqual(self.stored(sec)[0].get("own"), want, "401 characters are not saved")
+                self.assertEqual(self.plain(sec), want, "401 characters are not saved")
                 self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n, "and nothing is sent")
                 # a script tag typed as words is stored as text and drawn as text
                 self.own(p, sec, "<p>&lt;script&gt;window.__r=1&lt;/script&gt; \U0001F680</p>", closes=True)
-                self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == "<script>window.__r=1</script> \U0001F680"))
+                self.assertTrue(self.wait_for(lambda: self.plain(sec) == "<script>window.__r=1</script> \U0001F680"))
                 self.assertEqual(p.js("!!window.__r || document.querySelectorAll('[data-id=%s] script').length" % json.dumps(sec)), 0)
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
                 # only spaces: saved as empty
@@ -304,5 +313,5 @@ class RaidHostile(ReportBase):
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words drawn")
             self.assertEqual(self.stored(sec)[0].get("own", ""), "")
             self.own(p, sec, "<p>" + " ".join(["word"] * 80) + "</p>")
-            self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == " ".join(["word"] * 80)))
+            self.assertTrue(self.wait_for(lambda: self.plain(sec) == " ".join(["word"] * 80)))
             self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)

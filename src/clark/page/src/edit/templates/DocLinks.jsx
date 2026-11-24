@@ -7,7 +7,8 @@ import { EntryRow, FileRow } from "../../templates/DocLinks.jsx";
 import { ActIcon } from "../../templates/docIcons.jsx";
 import { StartPrompt } from "../StartPrompt.jsx";
 import { startText } from "../startingText.js";
-import { chooseFile } from "./fileRoute.js";
+import { chooseFile, dropFile } from "./fileRoute.js";
+import { DROP_OVER, DROP_LINE } from "../../logic/docLinksWords.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 import * as W from "../../logic/docLinksWords.js";
 
@@ -30,6 +31,7 @@ function ClassicEdit({ section }) {
   const [boxOpen, setBoxOpen] = useState(false);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [over, setOver] = useState(false);
   const [boxProblem, setBoxProblem] = useState("");
   const linkIcon = useRef(null);
   const root = useRef(null);
@@ -67,6 +69,18 @@ function ClassicEdit({ section }) {
     setProblem("");
     setBusy(true);
     try { await chooseFile(section.id); } finally { setBusy(false); }
+  };
+  // Row 1275 (Classic only): a file dragged from the computer onto the area. Only a drag that carries files is taken.
+  const hasFiles = (e) => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes("Files");
+  const onOver = (e) => { if (!hasFiles(e)) return; e.preventDefault(); setOver(true); };
+  const onDrop = async (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setOver(false);
+    if (full) { setProblem(FULL); return; }
+    setProblem("");
+    setBusy(true);
+    try { await dropFile(section.id, e.dataTransfer); } finally { setBusy(false); }
   };
   const closeBox = () => { setBoxOpen(false); setHref(""); setLabel(""); setProblem(""); setBoxProblem(""); if (linkIcon.current) linkIcon.current.focus(); };
   const addLink = async (e) => {
@@ -126,6 +140,8 @@ function ClassicEdit({ section }) {
           })}
         </ul>
       ) : <p class="quiet tpl-empty">{EMPTY}</p>}
+      <div class={`tpl-drop${over ? " over" : ""}`} data-drop onDragEnter={onOver} onDragOver={onOver} onDragLeave={() => setOver(false)} onDrop={onDrop}>{DROP_OVER}</div>
+      <p class="quiet" data-drop-line>{DROP_LINE}</p>
       <p class="tpl-allowed"><strong>{W.ALLOWED_HEAD}</strong>{" "}{W.ALLOWED_TYPES}{" "}<strong>{W.NOT_HEAD}</strong>{" "}{W.NOT_TYPES}</p>
       <p class="quiet tpl-hint">{W.RENAME_HINT} {W.NOTE}</p>
     </div>

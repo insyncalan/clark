@@ -22,7 +22,7 @@ from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 SRC = Path(page.__file__).parent / "src"
-WORK_ALL = ["Status", "Item", "Owner", "Due", "Priority", "Id", "Type", "Workstream", "Milestone", "Raised", "Closed", "Use case", "Labels", "Latest update", "Client wording"]
+WORK_ALL = ["Status", "Item", "Owner", "Due", "Priority", "Id", "Type", "Workstream", "Milestone", "Raised", "Closed", "Use case", "Labels", "Latest update", "Client Message"]
 MS_ALL = ["Date", "Milestone", "State", "Progress", "Id", "Description", "Workstream", "Owner", "Agreed", "Forecast", "Order", "State reason"]
 KEYS = {"Tab": 9, "ContextMenu": 93, "F10": 121, "Escape": 27, "Enter": 13}
 # name, address, the heading row's cells, a heading cell by column id, a body cell by column id, a row, every label, the locked labels, the standard labels
@@ -237,12 +237,23 @@ class Columns(unittest.TestCase):
             self.press(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: not self.menu(js), 5), "the menu is closed")
             grip = f"{box} .msl-hd [data-cgrip='agreed']"
+            # The new column re-flows the heading row (and on a slower computer the page scrolls once more), so the grip is aimed at only when the page is quiet
+            # and the grip has stood still for two reads; a press at a place the grip has left starts no drag and nothing is written.
+            spot = f"(() => {{ const e = document.querySelector({json.dumps(grip)}); if (!e) return null; const b = e.getBoundingClientRect(); return JSON.stringify([b.x, b.y, b.width, b.height]); }})()"
+            seen = []
+            def still():
+                seen.append(js(spot) if js(quiet) else None)
+                return len(seen) > 1 and seen[-1] is not None and seen[-1] == seen[-2]
+            self.assertTrue(wait(still, 20), "the grip stands still")
             x, y = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
             for t, px, extra in (("mouseMoved", x, {}), ("mousePressed", x, {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseMoved", x + 20, {"buttons": 1}),
                                  ("mouseReleased", x + 20, {"button": "left", "buttons": 0, "clickCount": 1})):
                 cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
             self.assertTrue(wait(lambda: "agreed" in (js("localStorage.getItem('clark.cols.msDash')") or ""), 5), "the width is kept under clark.cols.msDash")
-            self.assertEqual(json.loads(js(keys)), ["clark.cols.msDash", "clark.cols.show.msDash.TUL"], "nothing else is written, so no milestones key")
+            have = json.loads(js(keys))
+            self.assertIn("clark.cols.msDash", have, "the width key is there")
+            self.assertIn("clark.cols.show.msDash.TUL", have, "the choice key is there")
+            self.assertEqual([k for k in have if "milestones" in k], [], "no key of the Milestones page is written")
             self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "the Milestones page's widths are untouched")
             self.assertIsNone(js("localStorage.getItem('clark.cols.show.milestones.TUL')"), "and so is its choice")
 

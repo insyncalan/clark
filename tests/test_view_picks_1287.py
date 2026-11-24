@@ -43,12 +43,18 @@ class ViewPicks(T.InThePage):
                 p.until(f"((document.querySelector('#peek') || {{dataset: {{}}}}).dataset.peek || '') === '{self.a_due}'", "the peek opened")
                 p.until("!!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the peek is the editable one")
 
-    def test_a_list_set_beside_another_has_no_pickers_in_view(self):
+    def test_a_list_set_beside_another_has_the_pickers_in_view_at_both_widths(self):
+        # ruling 23-11 (A): half-width lists get the same View pickers as full-width ones, on both halves, at 1400 and 900
+        classic(self)
         with self.store.step("dashboard", T.USER) as st:
-            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1, "beside": 1})
-            ref = st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Fictional actions", "sort_order": 2})
+            left = st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Fictional actions", "sort_order": 1, "beside": 1})
+            right = st.create("report_sections", {"project": "ABC", "type": "raid", "title": "Fictional risks", "sort_order": 2})
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"].slot-right .wl-row')", "the actions list is the right half")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .cell-pick').length"), 0, "half width: no pickers")
+                p.until(f"!!document.querySelector('[data-id=\"{left}\"].slot-left .wl-row') && !!document.querySelector('[data-id=\"{right}\"].slot-right .wl-row')", "the two lists are the two halves")
+                for ref, want in ((left, {"owner", "due", "status"}), (right, {"owner", "due", "status", "priority"})):
+                    got = set(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cell-pick')].map(e => e.dataset.cell.split(':').pop())"))
+                    self.assertTrue(want <= got, f"half width: {want - got} missing in {ref}")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .c-title .cell-pick, [data-id=\"{ref}\"] .c-title input').length"), 0, "the description stays plain text")
+                self.assertEqual(p.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), True, "no sideways scroll")
