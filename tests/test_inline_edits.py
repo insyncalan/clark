@@ -271,8 +271,17 @@ def hold_still(cdp, sid, look, seconds=5):
     return seen[-1]
 
 
+def settle_motion(cdp, sid, selector, seconds=5):
+    """Wait (bounded) until no finite animation or transition is still running on the element or one around it (issue 1552: a peek slides in for half a second, and two looks in a row can agree mid-slide)."""
+    running = ("(() => { const e = document.querySelector(" + json.dumps(selector) + "); if (!e) return 0;"
+               " return document.getAnimations().filter(a => a.playState === 'running' && a.effect && a.effect.target && a.effect.target.contains && a.effect.target.contains(e)"
+               " && isFinite(a.effect.getComputedTiming().endTime)).length; })()")
+    assert wait(lambda: cdp.js(running, sid) == 0, seconds), f"a slide around {selector} was still running after {seconds} s"
+
+
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
+    settle_motion(cdp, sid, selector)
     where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"
     box = hold_still(cdp, sid, where)      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
     assert box, f"{selector} is not on the page"
@@ -1274,11 +1283,10 @@ class NoBrowserCalendar(unittest.TestCase):
         # Every inline date is DuePick's one panel, so the page code has no browser date field but the draft email's Reply by,
         # which is a field in a dialog, not an inline date, and the board's "Pick a due date" dialog (#102), shown when a card
         # moves into a column that needs a date: also a dialog, not an inline date (it may still show the browser's calendar
-        # over the dialog; that is raised on #7 for its own item), and the published report header's "As at" date box (TopBar.jsx), a
-        # field that opens from the header's date button to pick a past report, not an inline date. A new one must be clark's picker (edit/cells/DuePick.jsx).
+        # over the dialog; that is raised on #7 for its own item). (Row 1253 took the published report header's "As at" date box out of Classic; the frozen Cards theme keeps it, unchanged, in components/CardsDate.jsx.) A new one must be clark's picker (edit/cells/DuePick.jsx).
         found = sorted(str(p.relative_to(PAGE_SRC)) for p in PAGE_SRC.rglob("*") if p.suffix in (".js", ".jsx")
                        and re.search(r"type\s*[=:]\s*[\"'](date|datetime-local|month|week)[\"']|showPicker\s*\(", p.read_text(encoding="utf-8")))
-        self.assertEqual(found, ["components/DraftEmail.jsx", "components/TopBar.jsx", "edit/Board.jsx"])
+        self.assertEqual(found, ["components/CardsDate.jsx", "components/DraftEmail.jsx", "edit/Board.jsx"])
 
 
 if __name__ == "__main__":
