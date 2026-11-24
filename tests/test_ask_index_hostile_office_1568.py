@@ -56,6 +56,16 @@ class Hostile(Base):
         self.assertFalse(self.found("zzext"))
         self.assertEqual(self.connects, [])
 
+    def test_a_workbook_left_out_as_type_is_counted_and_listed(self):
+        self.put("bad.xlsx", b"PK\x03\x04 not really", binary=True)
+        self.build()
+        s = self.status()
+        self.assertEqual((s["indexed"], s["type"], s["safety"]), (0, 1, 0))
+        left = ix.mod().files_left_out(self.data, "P1", 200)
+        self.assertEqual(left["files"], [("saved/bad.xlsx", ix.mod().REASON_TYPE)])
+        self.assertEqual(left["more"], 0)
+        self.assertFalse(self.found("PK"))
+
     def test_pptx_with_macro_part_and_external_link_reads_slide_text_only(self):
         raw = pptx({1: ["zqpptx"]}, extra={
             "ppt/vbaProject.bin": b"zzvbappt",
