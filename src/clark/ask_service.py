@@ -52,7 +52,7 @@ MESSAGES = {
     "shown_already": "Those changes were shown already. Nothing was changed. Ask again to see them afresh.",
     "open_asking_off": "Asking is off, so this file can't be opened from here. Turn it on in Settings.",   # #943: the open-file click's own sentence
     "file_unavailable": "That file can't be opened from here.",
-    "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
+    "folders_unreadable": "Your folders could not be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
 FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
