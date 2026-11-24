@@ -110,6 +110,16 @@ class Disk(unittest.TestCase):
         self.assertEqual((status, body["fixed"]), (200, {"kept": 4, "left_out": 1}))
         self.assertEqual(body["damaged"]["all"], ["monday.json"])
 
+    def test_a_second_press_of_fix_never_overwrites_the_kept_original(self):
+        self.bad.write_text(json.dumps({**GOOD, "scope": "nowhere"}), encoding="utf-8")
+        original = self.bad.read_bytes()
+        self.assertEqual(self.fix()[0], 200)
+        after_first = self.bad.read_bytes()
+        status, body = self.fix()                              # the file still needs a fix: pressed again
+        self.assertEqual((status, body["ok"], body["message"]), (409, False, FAILED))
+        self.assertEqual((self.bad.parent / "monday.old").read_bytes(), original, "the kept original is the person's file, not the first fix")
+        self.assertEqual(self.bad.read_bytes(), after_first)
+
     def test_undo_puts_the_old_file_back_byte_for_byte_and_drops_the_copy(self):
         self.fix()
         status, body = self.svc.change({"scope": "all", "action": "unfix", "name": "monday.json"})

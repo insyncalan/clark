@@ -149,6 +149,8 @@ class AskCommands:
             if got is None:
                 raise Refused("fix")
             kept, left_out = got
+            if target.with_suffix(".old").exists() or target.with_suffix(".old").is_symlink():
+                raise Refused("fix")                 # a kept original is never overwritten: a second press finds it there and changes nothing
             old = target.read_bytes()
             self._swap(target.with_suffix(".old"), old)
             self._swap(target, ("{\n" + ",\n".join(" " + k for k in kept) + "\n}\n" if kept else "{}\n").encode("utf-8"))
