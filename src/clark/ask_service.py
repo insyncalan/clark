@@ -360,7 +360,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), ask_words.read_left_out(data.counts), *ask_data.left_out_lines(data.counts), *folder_notes(found),
                              *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
