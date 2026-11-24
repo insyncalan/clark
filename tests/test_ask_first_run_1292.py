@@ -8,7 +8,8 @@ import time
 import unittest
 
 from _paths import ROOT
-from test_ask_panel import NEVER, Panel
+import test_ask_panel as panel
+from test_ask_panel import NEVER
 from test_server import chrome
 
 CSS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
@@ -18,7 +19,7 @@ CARD = "document.querySelector('#ask-first-run')"
 LINE = "document.querySelectorAll('#ask-first-run p')"
 
 
-class FirstRun(Panel):
+class FirstRun(panel.Panel):
     def test_an_empty_chat_shows_the_card_with_three_lines(self):
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -118,6 +119,11 @@ class FirstRun(Panel):
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
                     p.key("Escape", code="Escape", vk=27)
                     p.until("document.querySelector('#ask-panel') === null", "closed")
+
+
+for _n in dir(panel.Panel):      # the panel's own tests run in test_ask_panel, not again here
+    if _n.startswith("test_") and _n not in FirstRun.__dict__:
+        setattr(FirstRun, _n, None)
 
 
 class Words(unittest.TestCase):

@@ -9,7 +9,7 @@ import unittest
 from _paths import ROOT
 import _rich_page as rp
 import build_page
-from test_ask_panel import Panel
+import test_ask_panel as panel
 from test_server import chrome  # noqa: E402
 
 SIZE = ("(e => { const c = getComputedStyle(e), l = parseFloat(c.lineHeight) || parseFloat(c.fontSize) * 1.2; "
@@ -41,7 +41,7 @@ class Rules:
         self.assertAlmostEqual(get()["h"], d["h"], delta=2, msg=f"{label}: a hand size is kept while typing")
 
 
-class Ask(Panel):
+class Ask(panel.Panel):
     def test_ask_box(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -70,7 +70,7 @@ class Ask(Panel):
                     p.until("!document.querySelector('#ask-panel')", "closed")
 
 
-for _n in dir(Panel):
+for _n in dir(panel.Panel):
     if _n.startswith("test_"):
         setattr(Ask, _n, None)                       # only this file's own test runs, not the panel's
 

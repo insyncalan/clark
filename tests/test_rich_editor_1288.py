@@ -87,9 +87,9 @@ class Editor(unittest.TestCase):
                 self.assertEqual(menu["mw"], "224px", f"{w}: {menu}")
                 self.assertGreaterEqual(menu["w"], 224, w)
                 sizes = h.ev("Object.fromEntries([...document.querySelectorAll('.rt-bar [role=menu] [role=menuitemradio]')].map(b => [b.dataset.kind, getComputedStyle(b).fontSize]))")
-                self.assertEqual(sizes, {"paragraph": "15px", "h1": "20px", "h2": "18px", "h3": "16px"}, f"{w}: each line at its own size")
+                self.assertEqual(sizes, {"paragraph": "14px", "h1": "14px", "h2": "14px", "h3": "14px"}, f"{w}: the four lines are the same size (row 1431 replaces the own sizes 15/20/18/16 for the toolbar menu)")
                 row = box(h, ".rt-bar [role=menu] [data-kind=paragraph]")
-                self.assertEqual(row["p"], "7px 10px 7px 10px", f"{w}: {row}")
+                self.assertEqual(row["p"], "0px 16px 0px 16px", f"{w}: {row} (row 1431: 16px side padding, 32px high)")
                 self.assertEqual(h.ev("document.querySelector('.rt-bar [role=menu] [aria-checked=true]').dataset.kind"), "paragraph", f"{w}: the tick is on the current style")
                 h.key("Escape", 0, "Escape", 27)
 
@@ -119,6 +119,17 @@ class Editor(unittest.TestCase):
                 self.assertEqual((p["r"], p["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {p}")
                 r = box(h, ".rt-bar [role=menu] [role=menuitem]")
                 self.assertEqual((r["p"], r["f"], r["r"]), ("4px 10px 4px 10px", "13.5px", "6px"), f"{w}: {r}")
+                h.key("Escape", 0, "Escape", 27)
+                # The "/" menu (Classic, with an AI place) is the one editor menu that holds a rule: the line above "Ask AI…" is hr margin 3px 0 (AP7). The foot line is the Ask AI row.
+                h.ev("window.unmount(); true")
+                h.mount("", ai="current")
+                h.type("/")
+                self.assertTrue(h.until("!!document.querySelector('.rt-slash .rt-slash-rule')"), f"{w}: slash rule")
+                rule = box(h, ".rt-slash .rt-slash-rule")
+                self.assertEqual(rule["m"], "3px 0px 3px 0px", f"{w}: {rule}")
+                ask = box(h, ".rt-slash .rt-ask")
+                self.assertEqual((ask["p"], ask["f"]), ("4px 10px 4px 10px", "13.5px"), f"{w}: {ask}")
+                self.assertEqual(h.ev("document.querySelectorAll('.rt-bar [role=menu] hr, .rt-bar [role=menu] .gl, .rt-slash .gl').length"), 0, f"{w}: no group label or rule in the More, Style or slash menus other than the slash rule")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:
