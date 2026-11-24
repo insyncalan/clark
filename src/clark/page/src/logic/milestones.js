@@ -249,7 +249,7 @@ export const TIER_MAX = 12;
 export function tierLabels(items, width, gap = 8) {
   const placed = [];
   return items.map((l) => {
-    const reach = Math.max(0, l.w / 2 - 10), offs = [0];
+    const reach = Math.max(0, l.w / 2 - 400), offs = [0];
     for (let d = 12; d <= reach; d += 12) offs.push(-d, d);
     const lo = l.w / 2, hi = Math.max(lo, width - l.w / 2);
     const at = (t, strict) => {
