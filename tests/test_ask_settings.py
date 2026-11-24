@@ -457,7 +457,7 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
             box = "document.querySelector('[data-ask-warn]')"
             self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
-            flat = lambda: js(f"{box}.innerText").replace("\n", " ")
+            flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
             self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), "the provider in use is named")
             self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
             self.assertNotIn("Claude", flat())

@@ -113,11 +113,14 @@ class Rule(Base):
     def test_the_store_takes_only_0_or_1(self):
         self.do("add", self.flagged)
         s = self.store()
-        for bad in (2, -1, "1", True, None):
+        for bad in (2, -1, "1", 1.0, None):      # True and False are the flag rule's own: they are stored as 1 and 0 (the flag rule, row 1365 FLAG_COLUMNS)
             with self.assertRaises(st.Invalid, msg=repr(bad)):
                 with s.step("dashboard", "tester", place="menu") as step:
                     step.update("source_folders", f"ABC|{self.flagged}", {"accepted": bad})
         self.assertEqual(self.accepted(), {str(self.flagged): 0})
+        with s.step("dashboard", "tester", place="menu") as step:
+            step.update("source_folders", f"ABC|{self.flagged}", {"accepted": True})
+        self.assertEqual(self.accepted(), {str(self.flagged): 1}, "True is stored as 1, the flag rule's way")
 
     def test_the_saved_folders_own_name_is_flagged_and_named(self):
         own = self.home / "Payroll"

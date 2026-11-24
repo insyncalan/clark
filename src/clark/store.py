@@ -444,7 +444,7 @@ def is_archived(con, code):
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
 FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
-                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
+                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off", "accepted"})      # row 1365: source_folders.accepted, 0 = declined, 1 = accepted; row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
