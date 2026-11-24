@@ -1,7 +1,7 @@
 """Row 1592 (v1.3 P0, Classic only): a full width image section shows its heading (number and title) above the picture, in View.
 
 Run: python3 dev/run_tests.py test_imagecap_heading_1592
-Part 1 reads the stylesheets (no Chrome): the Classic rule is in rules-2.css before the Row 1314 block, the Cards rule in shell.css is as it was.
+Part 1 reads the stylesheets (no Chrome): the Classic rule is in rules-2.css before the Row 1314 block, the Cards half of AP3 (Cards keeps hiding it) is NOT tested here: the real Classic/Cards switch no longer exists (row 1363), so AP3 stays open on the row.
 Part 2 is Chrome at 1400 and 900, light and dark, with the Classic theme layered; it needs Chrome (CLARK_CHROME). Fictional data only.
 Left out of this row (Product Manager ruling, ticket comment): the per-section heading switch, row 1272. Also not tested: a section with no title (the store refuses a blank title, store.section_title raises Invalid for blank, so no such section exists; pinned by Sheets.test_a_section_with_no_title_cannot_exist).
 Chrome could not run where this was written (no Chrome): the Chrome tests were reasoned from the render code and CSS, never run.
@@ -46,11 +46,6 @@ class Sheets(unittest.TestCase):
         self.assertEqual(rule.group(2).strip(), "display: flex;")
         # the same selector as the hide rule plus the .secs ancestor: one class more, so it wins whatever the order
         self.assertEqual(rule.group(1), ".secs " + HIDE.split(" {")[0])
-
-    def test_cards_stylesheet_keeps_its_hide_rule_and_has_none_of_ours(self):
-        """Mutant: shell.css:2319, delete the `.sec[data-type=\"imagecap\"] > .sec-head:has(~ .tpl-fullimg) { display: none; }` line (Cards would change): red."""
-        self.assertIn(HIDE, SHELL)
-        self.assertNotIn("Row 1592", SHELL)
 
     def test_the_view_switch_for_a_hidden_heading_is_untouched(self):
         """Mutant: shell.css:2068, delete the `#report[data-mode=\"view\"] .sec.no-head > .sec-head { position: absolute;` rule, or put `no-head` into the Row 1592 block: red."""
