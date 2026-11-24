@@ -256,6 +256,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
 .ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
 .ask-warn p { margin: 0; }
+.ask-warn p + p, .ask-warn-btns + p { margin-top: 6px; }      /* the question under the warning, and the state line under the buttons */
 .ask-warn [data-ask-warn-name] { font-weight: 500; }
 .ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ask-warn-btns .btn:not(.pri) { color: var(--text); }

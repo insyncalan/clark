@@ -121,7 +121,7 @@ class AskService:
 
     def folders_for(self, store, code):
         """The folders a question in project `code` may read (row 1294): those for all projects first, then the project's own, at most ask_folders.MAX_FOLDERS."""
-        own = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+        own = ask_folders.readable_paths([r for r in store.read("source_folders", code) if r.get("project", code) == code])      # row 1365: a folder with a people or contract word in a name is read only after Accept
         out = []
         for p in [*ask_folders.shared_folders(self.data_dir), *own]:
             if p not in out:

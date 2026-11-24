@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HOLDS, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_MAY_GO, PEOPLE_CONTRACT_QUESTION, PEOPLE_CONTRACT_ACCEPT, PEOPLE_CONTRACT_DECLINE, PEOPLE_CONTRACT_DECLINED, PEOPLE_CONTRACT_ACCEPTED, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { FilesAll, FilesProject } from "./FilesSettings.jsx";
@@ -135,8 +135,7 @@ function AskProject() {
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
-  const [warns, setWarns] = useState([]);                // row 1365: [{folder, items, fresh}] from the server's name-only scan
-  const [kept, setKept] = useState([]);                  // folders whose notice was answered with Keep it, for this window
+  const [warns, setWarns] = useState([]);                // row 1365: [{folder, accepted, items, fresh}] from the server's name-only scan
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
   const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
@@ -223,12 +222,20 @@ function AskProject() {
     setFmsg({ kind: "error", text: failure(r) });
   }
 
-  // Row 1365: Choose other folders REPLACES the flagged folder. The same picker as Choose folder; a cancel (or a pick that is already listed) changes nothing;
-  // a new pick is saved first, then the flagged folder is taken off the list (the list only: nothing on disk is touched).
-  async function replaceFlagged(flagged) {
-    const before = Array.isArray(folders) ? folders : [];
-    const r = await change("choose");
-    if (r && r.added.some((f) => !before.includes(f))) await change("remove", flagged);
+  // Row 1365: Accept or Decline for one flagged folder, remembered by the server per folder (no choice is Declined). The answer's warnings replace the old ones.
+  async function answer(action, p) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersChange(code, action, p);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setFolders(b.folders);
+      setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      again();
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
   }
 
   async function addTyped(e) {
@@ -290,20 +297,21 @@ function AskProject() {
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
           {list.flatMap((p, i) => {
-            const w = classicTheme() ? warns.find((x) => x.folder === p) : null;      // Classic only: the notice's CSS is Classic-only (rules.css), Cards shows nothing new
+            const w = warns.find((x) => x.folder === p);
             const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>;
             if (!w) return [row];
+            const who = askProvider.value;
             const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
             return [row, (
-              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : `${PEOPLE_CONTRACT_HEAD} ${p}`}>
-                <p>{w.fresh ? null : PEOPLE_CONTRACT_SAVED(p) + " "}{PEOPLE_CONTRACT_HEAD} {PEOPLE_CONTRACT_COUNT(w.items.reduce((n, i) => n + i.readable_files, 0))}{names}{named(PEOPLE_CONTRACT_REST, askProvider.value)}</p>
-                {kept.includes(p) ? null : (
-                  <div class="ask-warn-btns">
-                    <button type="button" class="btn pri" data-ask-warn-choose disabled={busy} onClick={() => replaceFlagged(p)}>{PEOPLE_CONTRACT_CHOOSE}</button>
-                    {w.items.some((i) => i.dir) ? <button type="button" class="btn" data-ask-warn-leave disabled={busy} onClick={() => leaveOut(p)}>{PEOPLE_CONTRACT_LEAVE}</button> : null}
-                    <button type="button" class="btn" data-ask-warn-keep onClick={() => setKept((k) => [...k, p])}>{PEOPLE_CONTRACT_KEEP}</button>
-                  </div>
-                )}
+              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : p}>
+                <p>{PEOPLE_CONTRACT_HOLDS}{names}{PEOPLE_CONTRACT_MAY_GO(who)}</p>
+                <p data-ask-warn-q>{PEOPLE_CONTRACT_QUESTION(who)}</p>
+                <div class="ask-warn-btns">
+                  <button type="button" class="btn" data-ask-warn-accept aria-pressed={w.accepted ? "true" : "false"} disabled={busy} onClick={() => answer("accept", p)}>{PEOPLE_CONTRACT_ACCEPT}</button>
+                  <button type="button" class="btn" data-ask-warn-decline aria-pressed={w.accepted ? "false" : "true"} disabled={busy} onClick={() => answer("decline", p)}>{PEOPLE_CONTRACT_DECLINE}</button>
+                  {w.items.some((i) => i.dir) ? <button type="button" class="btn" data-ask-warn-leave disabled={busy} onClick={() => leaveOut(p)}>{PEOPLE_CONTRACT_LEAVE}</button> : null}
+                </div>
+                <p data-ask-warn-state>{w.accepted ? PEOPLE_CONTRACT_ACCEPTED(who) : PEOPLE_CONTRACT_DECLINED}</p>
               </li>
             )];
           })}

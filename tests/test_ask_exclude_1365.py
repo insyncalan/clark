@@ -122,7 +122,7 @@ class Schema(Base):
             step.create("projects", {"code": "ABC", "name": "Example Programme"})
             step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 0})
         self.assertEqual(s.read("source_folders", "ABC")[0]["excluded"], "[]")
-        self.assertEqual(st.SCHEMA_VERSION, 34)
+        self.assertGreaterEqual(st.SCHEMA_VERSION, 34)      # 35 since the accepted column (test_ask_accept_1365)
         self.assertIn((34, st.migrate_source_exclusions), st.MIGRATIONS)
         self.assertEqual(st.EXCLUDED_STEP, 34)
 
@@ -146,19 +146,19 @@ class Schema(Base):
         self.build_at_33()
         s = st.open_store(self.db, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(st.SCHEMA_VERSION))
         self.assertEqual(tuple(s.con.execute("SELECT ask_new_projects FROM app_settings").fetchone()), (0,), "step 33's app setting is kept")
         self.assertEqual(tuple(s.con.execute("SELECT ask_off, ask_files_off FROM projects WHERE code = 'ABC'").fetchone()), (1, 1), "step 33's project columns are kept")
         self.assertEqual(tuple(s.con.execute("SELECT path, sort_order, excluded FROM source_folders").fetchone()), (str(self.root), 4, "[]"))
 
     def test_a_fresh_file_reaches_34_with_every_step_33_and_34_column(self):
         s = self.store()
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(st.SCHEMA_VERSION))
         have = lambda t: {r[1] for r in s.con.execute(f"PRAGMA table_info({t})")}
         self.assertLessEqual({"ask_files", "ask_new_projects"}, have("app_settings"))
         self.assertLessEqual({"ask_off", "ask_files_off"}, have("projects"))
         self.assertIn("excluded", have("source_folders"))
-        self.assertEqual([n for n, _ in st.MIGRATIONS][-2:], [33, 34])
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-3:], [33, 34, 35])
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")

@@ -332,6 +332,7 @@ CREATE TABLE IF NOT EXISTS source_folders (
   path    TEXT NOT NULL,
   sort_order INTEGER NOT NULL,
   excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000),     -- row 1365 (schema version 34): the subfolders left out, a JSON list of relative paths
+  accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1)),     -- row 1365 (schema version 35): 1 = the person pressed Accept for this folder; 0 = declined (the default)
   PRIMARY KEY (project, path)
 );
 

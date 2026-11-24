@@ -21,6 +21,7 @@ FIXED_NAMES = {
     ("history.py", "where"): "built from literal clauses and '?' marks at every call site",
     ("history.py", "SORT_KEY"): "module constant",
     ("store.py", "EXCLUDED_COLUMN"): "module constant (migrate_source_exclusions, row 1365)",
+    ("store.py", "ACCEPTED_COLUMN"): "module constant (migrate_source_accepted, row 1365)",
     ("store.py", "BRAND_COLUMN"): "module constant",
     ("store.py", "THEME_COLUMN"): "module constant",
     ("store.py", "name"): "name of GANTT_PROJECT_COLUMNS, a constant tuple",
