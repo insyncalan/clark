@@ -11,7 +11,7 @@ import { ownerOf, showDate, dueField } from "../workItems.js";
 import { dateWord, clientPill, lateWord, hiddenIds } from "../logic/sectionRows.js";
 import { rulesFor, publishable } from "../logic/publishable.js";
 import { pickable, idsOf } from "../logic/picker.js";
-import { rowsFor, candidates, wordings, todayOf, ItemIcon, Head, iconWords, listClass } from "../components/ItemRows.jsx";
+import { rowsFor, candidates, wordings, todayOf, ItemIcon, Head, iconWords, listClass, columnsFor, place } from "../components/ItemRows.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Cell } from "./cells/Cell.jsx";
@@ -77,30 +77,34 @@ export function Words({ row, text, cls = "wl-words" }) {
   return <RichField field="client_message" id={row.id} value={html} label={`Client Message of ${row.id}`} empty="" cls={cls} attrs={{ "data-ce": row.id }} save={put} />;
 }
 
-function EditRow({ row, today, words, type }) {
+function EditRow({ row, today, words, type, cols }) {
   const pill = clientPill(row, today), who = ownerOf(row.owner), date = dueField(row), late = lateWord(row, today);
   const risk = row.kind === "risk" || row.kind === "issue";
   const w = eyeWords(true, row), eye = () => change({ kind: "report_hidden", op: "new", id: row.id, place: "eye" }, w.said);
+  const st = (c) => place(cols.ord, c);      // row 1534: the cells are drawn in the order saved for this type on the Work items page
+  const cell = {
+    ico: <span class="c-ico" style={st("ico")}><Cell row={row} field="status" said={pill.text} keep tipSay={iconWords(row, pill, todayOf())}><ItemIcon row={row} pill={pill} plain /></Cell></span>,
+    title: <span class="wl-title c-title" style={st("title")} title={words[row.id]}><Words row={row} text={row.client_message || words[row.id]} /></span>,
+    owner: <span class="c-owner" style={st("owner")} title={who.initials ? who.text : undefined}>
+      <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>
+        {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
+      </Cell>
+    </span>,
+    date: <span class="c-date num" style={st("date")}>
+      <Cell row={row} field="due" said={date ? showDate(date) : "none"}>
+        <span class="num">{date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date"}</span>
+      </Cell>
+    </span>,
+    prio: <span class="c-prio" style={st("prio")}>{risk && row.priority ? <Cell row={row} field="priority" said={row.priority}><span class="prio">{row.priority}</span></Cell> : late ? <span class="late">{late}</span> : null}</span>,
+    id: <span class="c-id wl-id num" style={st("id")}>
+      <button type="button" class="idl" data-open aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button>
+      <button type="button" class="ib" data-eye aria-label={w.label} title={w.title} onClick={eye}><Icon name="eye" /></button>
+      <AskAbout kind="item" id={row.id} name={`${row.id} ${words[row.id] || ""}`.trim()} />
+    </span>,
+  };
   return (
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
-      <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tipSay={iconWords(row, pill, todayOf())}><ItemIcon row={row} pill={pill} plain /></Cell></span>
-      <span class="wl-title c-title" title={words[row.id]}><Words row={row} text={row.client_message || words[row.id]} /></span>
-      <span class="c-owner" title={who.initials ? who.text : undefined}>
-        <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>
-          {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
-        </Cell>
-      </span>
-      <span class="c-date num">
-        <Cell row={row} field="due" said={date ? showDate(date) : "none"}>
-          <span class="num">{date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date"}</span>
-        </Cell>
-      </span>
-      <span class="c-prio">{risk && row.priority ? <Cell row={row} field="priority" said={row.priority}><span class="prio">{row.priority}</span></Cell> : late ? <span class="late">{late}</span> : null}</span>
-      <span class="c-id wl-id num">
-        <button type="button" class="idl" data-open aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button>
-        <button type="button" class="ib" data-eye aria-label={w.label} title={w.title} onClick={eye}><Icon name="eye" /></button>
-        <AskAbout kind="item" id={row.id} name={`${row.id} ${words[row.id] || ""}`.trim()} />
-      </span>
+      {cols.list.map((c) => cell[c])}
     </li>
   );
 }
@@ -130,7 +134,7 @@ export function ItemRowsEdit({ type }) {
   const d = data.value;
   const [pick, setPick] = useState(false), button = useRef(null);
   if (!d) return null;
-  const today = todayOf(), words = wordings(d), shown = rowsFor(type);
+  const today = todayOf(), words = wordings(d), shown = rowsFor(type), cols = columnsFor(type, true);
   const all = candidates(type), canPick = canShow(type, d, all);
   const hidden = hiddenIds(d), shownIds = new Set(shown.map((r) => r.id));
   const left = all.filter((r) => !shownIds.has(r.id) && canPick.has(r.id));                  // the rows a person can put back
@@ -141,9 +145,9 @@ export function ItemRowsEdit({ type }) {
   const add = (ids) => change({ kind: "report_hidden", op: "pick", ids, place: "report" }, ids.length === 1 ? `${ids[0]} is on the page.` : `${ids.length} items are on the page.`).then((r) => { if (r) back(); });
   return (
     <div class="item-rows-edit" data-edit-only data-item-rows={type}>
-      <ul class={listClass(type, "edit")}>
-        <Head type={type} id />
-        {shown.map((r) => <EditRow key={r.id} row={r} today={today} words={words} type={type} />)}
+      <ul class={listClass(type, "edit")} {...cols.attrs}>
+        <Head type={type} id cols={cols} />
+        {shown.map((r) => <EditRow key={r.id} row={r} today={today} words={words} type={type} cols={cols} />)}
         <AddLine type={type} />
       </ul>
       <p class="note" data-showing>{`Showing ${shown.length} of ${all.length}. Select any part to change it; the ID opens the full item; the eye takes it off the page.`}</p>

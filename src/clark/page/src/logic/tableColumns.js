@@ -119,3 +119,14 @@ export function withOrder(columnOrders, type, ids) {
   if (rest(ids).every((x, i) => x === rest(std)[i])) delete all[key]; else all[key] = ["status", "item"].concat(rest(ids));
   return all;
 }
+
+// Row 1534 AP5 (test 6): the Dashboard's Risks and issues, Open actions and Decisions draw the order saved for the same type switch on the Work items page (no second order).
+// The Dashboard's ids map to the work ids: ico = status, title = item, owner, date = due, prio, id. The Status and the Title always lead. A published file has no Id column,
+// so a saved order that names the id loses it there; a column the saved order does not name keeps its standard place after the named ones.
+export const DASH_STD = ["ico", "title", "owner", "date", "prio", "id"];
+const DASH_TYPE = { raid: "risk", actions: "action", decisions: "decision" }, DASH_OF = { owner: "owner", due: "date", prio: "prio", id: "id" };
+export function dashboardOrder(columnOrders, sectionType, withId) {
+  const tail = DASH_STD.slice(2).filter((x) => withId || x !== "id");
+  const named = savedOrder(columnOrders, DASH_TYPE[sectionType]).map((x) => DASH_OF[x]).filter((x, i, a) => x && tail.includes(x) && a.indexOf(x) === i);
+  return DASH_STD.slice(0, 2).concat(named, tail.filter((x) => !named.includes(x)));
+}
