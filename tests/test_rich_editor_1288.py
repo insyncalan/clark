@@ -87,9 +87,9 @@ class Editor(unittest.TestCase):
                 self.assertEqual(menu["mw"], "224px", f"{w}: {menu}")
                 self.assertGreaterEqual(menu["w"], 224, w)
                 sizes = h.ev("Object.fromEntries([...document.querySelectorAll('.rt-bar [role=menu] [role=menuitemradio]')].map(b => [b.dataset.kind, getComputedStyle(b).fontSize]))")
-                self.assertEqual(sizes, {"paragraph": "15px", "h1": "20px", "h2": "18px", "h3": "16px"}, f"{w}: each line at its own size")
+                self.assertEqual(sizes, {"paragraph": "14px", "h1": "14px", "h2": "14px", "h3": "14px"}, f"{w}: the four lines are the same size (row 1431 replaces the own sizes 15/20/18/16 for the toolbar menu)")
                 row = box(h, ".rt-bar [role=menu] [data-kind=paragraph]")
-                self.assertEqual(row["p"], "7px 10px 7px 10px", f"{w}: {row}")
+                self.assertEqual(row["p"], "0px 16px 0px 16px", f"{w}: {row} (row 1431: 16px side padding, 32px high)")
                 self.assertEqual(h.ev("document.querySelector('.rt-bar [role=menu] [aria-checked=true]').dataset.kind"), "paragraph", f"{w}: the tick is on the current style")
                 h.key("Escape", 0, "Escape", 27)
 
