@@ -86,7 +86,7 @@ DATE = re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|
 PRODUCT = re.compile(r"^(ask )?clark\b", re.I)
 TITLE = "ask clark"                      # row 820: the one string allowed to start with the product's name
 # A capital letter inside a sentence is a name unless it is a word the panel is known to use.
-KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams", "Share"}      # "Share" is the start of SharePoint, which the capital-letter pattern splits (as Wi, Fi)
+KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams", "Share", "Mac"}      # "Mac" is in the approved first-run line about pictures; "Share" is the start of SharePoint, which the capital-letter pattern splits (as Wi, Fi)
 
 SETTLE = "document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled"
 
