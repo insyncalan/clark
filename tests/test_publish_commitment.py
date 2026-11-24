@@ -125,8 +125,7 @@ class WordCopy(unittest.TestCase):
         data = self.build(plant_with(**{"PUB-U-002": "Candidate"}))
         rows = self.table(data)
         self.assertEqual([r[rows[0].index("Commitment")] for r in rows[1:]], [""])
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        text = "\n".join(zf.read(n).decode("utf-8") for n in zf.namelist() if n.endswith((".xml", ".rels")))
+        text = "\n".join(z for z in (zipfile.ZipFile(io.BytesIO(data)).read(n).decode("utf-8") for n in zipfile.ZipFile(io.BytesIO(data)).namelist()))
         self.assertNotIn("Candidate", text)
 
 

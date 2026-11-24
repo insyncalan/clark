@@ -11,7 +11,6 @@ import re
 import shutil
 import tempfile
 import unittest
-from _editor_checks import for_url
 from pathlib import Path
 
 import test_placement as tp
@@ -95,7 +94,7 @@ class Logic(unittest.TestCase):
         cls.stack.close()
 
     def setUp(self):
-        self.cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.server.port}/")}, self.sid)
+        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
         self.assertTrue(wait(lambda: self.cdp.js("!!(window.N && window.N.needs)", self.sid)), "the test bundle ran")
 
     def val(self, expr):

@@ -234,8 +234,6 @@ class Cards(Base):
             p.js("document.querySelector('input[name=secstyle]:checked').focus()")
             p.key("ArrowRight", code="ArrowRight", vk=39)           # a key makes the focus show as a keyboard one
             p.until("document.documentElement.dataset.secstyle === 'roomy'", "moved")
-            ringed = 'document.querySelector("input[name=secstyle]:focus-visible + .secpick-card")'
-            p.until(f"{ringed} !== null && getComputedStyle({ringed}).outlineStyle === 'solid'", "the focused card shows a ring")      # a bounded wait on the focus state, not one read
             ring = p.js("(() => { const k = document.querySelector('input[name=secstyle]:focus-visible + .secpick-card'); if (!k) return null; const s = getComputedStyle(k); "
                         "return {w: parseFloat(s.outlineWidth), style: s.outlineStyle, c: s.outlineColor, blue: __token('--brand-blue'), bg: __behind(k.parentElement)}; })()")
             self.assertIsNotNone(ring, "the focused card shows a ring")
@@ -277,7 +275,7 @@ class Cards(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"),
-                             ["Dashboard sections", "Appearance", "Keys"])      # row 950: About you moved to the Profile card
+                             ["Dashboard sections", "Appearance", "About you"])
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent)"), [
                 "Each section is its own card, with a slim gap that shows the page picture.", "The same, with more space between the sections.",
                 "Slim gaps, and each section title in a grey band, like the Work items groups.", "All the sections in one long card."])

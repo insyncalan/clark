@@ -5,7 +5,6 @@
 // type; a template with none has no cog and no menu item. Nothing here is in View or a published file.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { Fade } from "../components/Menu.jsx";
 import { trackerSettings } from "./trackerSettings.js";
 import { WORDS } from "../logic/trackerEdit.js";
 
@@ -65,7 +64,7 @@ export function SettingsPopover({ section }) {
   if (!open) return null;
   const now = def.current(section);
   return (
-    <Fade class="tset" boxRef={box} role="dialog" aria-label={`${WORDS.templateSettings}: ${def.title}`} data-template-settings-box data-edit-only
+    <div class="tset" ref={box} role="dialog" aria-label={`${WORDS.templateSettings}: ${def.title}`} data-template-settings-box data-edit-only
       onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeSettings(true); } }}>
       <h4 class="tset-h">{def.title}</h4>
       <p class="quiet tset-line">{def.line}</p>
@@ -77,6 +76,6 @@ export function SettingsPopover({ section }) {
           </label>
         ))}
       </div>
-    </Fade>
+    </div>
   );
 }
