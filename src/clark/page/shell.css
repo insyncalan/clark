@@ -1272,7 +1272,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-lab2 b { display: block; font-weight: var(--weight-medium); color: var(--text); }
 .mv-lab2 > span { display: block; color: var(--text-muted); }
 .mv-lab2.ok > span { color: var(--status-green-text); } .mv-lab2 .slip { color: var(--status-red-text); margin-left: var(--space-1); }
-.mv-lab2:hover { background: var(--grey-100); } .mv-lab2.plain { cursor: default; } .mv-lab2.plain:hover { background: var(--grey-50); }
+.mv-lab2:hover { background: var(--grey-50); } .mv-lab2.plain { cursor: default; } .mv-lab2.plain:hover { background: var(--grey-50); }
 .mv-lab2:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-lead { position: absolute; width: 1px; margin-left: -.5px; background: var(--grey-300); z-index: 1; pointer-events: none; }
 .msv[data-place^="sec-"] .mv-today b { top: 20px; left: 6px; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--surface); font-weight: var(--weight-medium); line-height: 18px; }

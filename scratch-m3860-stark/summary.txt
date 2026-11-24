@@ -1,0 +1,30 @@
+T01 node {"node": 0} 08:49:59
+T02 node {"node": 1} 08:50:08
+T03 node {"node": 1} 08:50:16
+T04 node {"node": 1} 08:50:24
+T05 node {"node": 1} 08:50:33
+T06 node {"node": 1} 08:50:42
+T07 node {"node": 0} 08:50:48
+T08 node {"node": 0} 08:51:08
+T09 node {"node": 0} 08:51:13
+T10 node {"node": 0} 08:51:18
+T11 node {"node": 0} 08:51:24
+T12 node {"node": 1} 08:51:33
+T13 node {"node": 0} 08:51:39
+T14 node {"node": 1} 08:51:47
+T01 browser {"browser": 0, "load1": 47.7} 08:53:48
+T07 browser {"browser": 0, "load1": 58.77} 08:55:24
+T08 browser {"browser": 0, "load1": 54.72} 08:57:09
+T09 browser {"browser": 0, "load1": 49.16} 08:58:40
+T10 browser {"browser": 0, "load1": 50.18} 09:00:05
+T11 browser {"browser": 0, "load1": 47.27} 09:01:31
+T13 browser {"browser": 0, "load1": 46.41} 09:03:03
+H01 browser {"browser": 0, "load1": 46.96} 09:04:49
+H02 browser {"browser": 0, "load1": 57.78} 09:06:34
+H03 browser {"browser": 0, "load1": 53.19} 09:09:16
+H04 browser {"browser": 0, "load1": 54.56} 09:10:50
+H05 browser {"browser": 0, "load1": 57.0} 09:12:22
+H07 browser {"browser": 0, "load1": 56.7} 09:13:46
+H08 browser {"browser": 0, "load1": 43.87} 09:15:00
+H06 browser {"browser": 1, "load1": 37.84} 09:17:39
+H09 browser {"browser": 0, "load1": 47.16} 09:19:15

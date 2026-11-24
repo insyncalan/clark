@@ -1,0 +1,5 @@
+Running 1 test file: 0 quick, 1 browser, 1 at a time…
+OK    test_milestones_dashboard.py  (31.1s)
+
+1 file passed, 0 failed.
+Python 3.12.3: pass, 6 tests in 31.2 s

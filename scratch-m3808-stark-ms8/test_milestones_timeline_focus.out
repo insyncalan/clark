@@ -1,0 +1,5 @@
+Running 1 test file: 0 quick, 1 browser, 1 at a time…
+OK    test_milestones_timeline_focus.py  (10.8s)
+
+1 file passed, 0 failed.
+Python 3.12.3: pass, 2 tests in 10.9 s

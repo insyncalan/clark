@@ -1,0 +1,47 @@
+Running 1 test file: 0 quick, 1 browser, 1 at a time…
+FAIL  test_ms_header_1230.py  (65.5s)  test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today — AssertionError: 4 not greater than or equal to 8
+
+Running 1 failed file again, one at a time…
+FAIL  test_ms_header_1230.py  (87.6s, alone)  test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today, test_ms_header_1230.Header.test_today_is_a_pill_that_says_today — AssertionError: 4 not greater than or equal to 8
+
+===== test_ms_header_1230.py =====
+......FFFF..
+======================================================================
+FAIL: test_today_is_a_pill_that_says_today (test_ms_header_1230.Header.test_today_is_a_pill_that_says_today) (width=1400, edit=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_ms_header_1230.py", line 160, in test_today_is_a_pill_that_says_today
+    self.assertGreaterEqual(got["pillRadius"], 8)
+AssertionError: 4 not greater than or equal to 8
+
+======================================================================
+FAIL: test_today_is_a_pill_that_says_today (test_ms_header_1230.Header.test_today_is_a_pill_that_says_today) (width=1400, edit=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_ms_header_1230.py", line 160, in test_today_is_a_pill_that_says_today
+    self.assertGreaterEqual(got["pillRadius"], 8)
+AssertionError: 4 not greater than or equal to 8
+
+======================================================================
+FAIL: test_today_is_a_pill_that_says_today (test_ms_header_1230.Header.test_today_is_a_pill_that_says_today) (width=900, edit=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_ms_header_1230.py", line 160, in test_today_is_a_pill_that_says_today
+    self.assertGreaterEqual(got["pillRadius"], 8)
+AssertionError: 4 not greater than or equal to 8
+
+======================================================================
+FAIL: test_today_is_a_pill_that_says_today (test_ms_header_1230.Header.test_today_is_a_pill_that_says_today) (width=900, edit=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_ms_header_1230.py", line 160, in test_today_is_a_pill_that_says_today
+    self.assertGreaterEqual(got["pillRadius"], 8)
+AssertionError: 4 not greater than or equal to 8
+
+----------------------------------------------------------------------
+Ran 9 tests in 87.021s
+
+FAILED (failures=4)
+
+0 files passed, 1 failed.
+Python 3.12.3: FAIL, 9 tests in 153.2 s

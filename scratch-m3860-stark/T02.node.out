@@ -1,0 +1,42 @@
+Running 1 test file: 1 quick, 0 browser, 1 at a time…
+FAIL  test_tier_labels_node.py  (3.0s)  test_tier_labels_node.TierLabels.test_slide_offset_right_and_left, test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10 — AssertionError: 1 != 0
+
+Running 1 failed file again, one at a time…
+FAIL  test_tier_labels_node.py  (3.1s, alone)  test_tier_labels_node.TierLabels.test_slide_offset_right_and_left, test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10 — AssertionError: 1 != 0
+
+===== test_tier_labels_node.py =====
+....FF.
+======================================================================
+FAIL: test_slide_offset_right_and_left (test_tier_labels_node.TierLabels.test_slide_offset_right_and_left)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_tier_labels_node.py", line 57, in test_slide_offset_right_and_left
+    self.assertEqual(tiers([{"x": 100, "w": 20}, {"x": 130, "w": 140}]), [{"cx": 100, "t": 0}, {"cx": 190, "t": 0}])
+AssertionError: Lists differ: [{'cx': 100, 't': 0}, {'cx': 130, 't': 1}] != [{'cx': 100, 't': 0}, {'cx': 190, 't': 0}]
+
+First differing element 1:
+{'cx': 130, 't': 1}
+{'cx': 190, 't': 0}
+
+- [{'cx': 100, 't': 0}, {'cx': 130, 't': 1}]
+?                               ^        ^
+
++ [{'cx': 100, 't': 0}, {'cx': 190, 't': 0}]
+?                               ^        ^
+
+
+======================================================================
+FAIL: test_slide_reach_ends_at_half_width_less_10 (test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_tier_labels_node.py", line 66, in test_slide_reach_ends_at_half_width_less_10
+    self.assertEqual(tiers([{"x": 100, "w": 20}, {"x": 130, "w": 140}])[1]["t"], 0)
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.687s
+
+FAILED (failures=2)
+
+0 files passed, 1 failed.
+Python 3.12.3: FAIL, 7 tests in 6.1 s

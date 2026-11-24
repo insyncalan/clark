@@ -1,0 +1,5 @@
+Running 1 test file: 0 quick, 1 browser, 1 at a time…
+OK    test_milestones_inline.py  (26.9s)
+
+1 file passed, 0 failed.
+Python 3.12.3: pass, 4 tests in 26.9 s

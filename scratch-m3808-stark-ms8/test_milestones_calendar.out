@@ -1,0 +1,6 @@
+Running 2 test files: 0 quick, 2 browser, 1 at a time…
+OK    test_milestones_calendar.py  (80.2s)
+OK    test_milestones_calendar_keys.py  (112.4s)
+
+2 files passed, 0 failed.
+Python 3.12.3: pass, 16 tests in 192.9 s

@@ -1,0 +1,29 @@
+Running 1 test file: 1 quick, 0 browser, 1 at a time…
+FAIL  test_tier_labels_node.py  (3.5s)  test_tier_labels_node.TierLabels.test_slide_offset_is_in_steps_of_12 — AssertionError: {'cx': 130, 't': 1} != {'cx': 178, 't': 0}
+
+Running 1 failed file again, one at a time…
+FAIL  test_tier_labels_node.py  (3.4s, alone)  test_tier_labels_node.TierLabels.test_slide_offset_is_in_steps_of_12 — AssertionError: {'cx': 130, 't': 1} != {'cx': 178, 't': 0}
+
+===== test_tier_labels_node.py =====
+...F...
+======================================================================
+FAIL: test_slide_offset_is_in_steps_of_12 (test_tier_labels_node.TierLabels.test_slide_offset_is_in_steps_of_12)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_tier_labels_node.py", line 62, in test_slide_offset_is_in_steps_of_12
+    self.assertEqual(tiers([{"x": 100, "w": 20}, {"x": 130, "w": 120}])[1], {"cx": 178, "t": 0})
+AssertionError: {'cx': 130, 't': 1} != {'cx': 178, 't': 0}
+- {'cx': 130, 't': 1}
+?         ^^       ^
+
++ {'cx': 178, 't': 0}
+?         ^^       ^
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.556s
+
+FAILED (failures=1)
+
+0 files passed, 1 failed.
+Python 3.12.3: FAIL, 7 tests in 7.0 s

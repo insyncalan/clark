@@ -1,0 +1,34 @@
+Running 1 test file: 1 quick, 0 browser, 1 at a time…
+FAIL  test_tier_labels_node.py  (2.8s)  test_tier_labels_node.TierLabels.test_mark_must_stay_6px_inside_the_label — AssertionError: Lists differ: [{'cx': 50, 't': 0}] != [{'cx': 50, 't': 11}]
+
+Running 1 failed file again, one at a time…
+FAIL  test_tier_labels_node.py  (3.1s, alone)  test_tier_labels_node.TierLabels.test_mark_must_stay_6px_inside_the_label — AssertionError: Lists differ: [{'cx': 50, 't': 0}] != [{'cx': 50, 't': 11}]
+
+===== test_tier_labels_node.py =====
+F......
+======================================================================
+FAIL: test_mark_must_stay_6px_inside_the_label (test_tier_labels_node.TierLabels.test_mark_must_stay_6px_inside_the_label)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_tier_labels_node.py", line 76, in test_mark_must_stay_6px_inside_the_label
+    self.assertEqual(tiers([{"x": 5, "w": 100}]), [{"cx": 50, "t": 11}])
+AssertionError: Lists differ: [{'cx': 50, 't': 0}] != [{'cx': 50, 't': 11}]
+
+First differing element 0:
+{'cx': 50, 't': 0}
+{'cx': 50, 't': 11}
+
+- [{'cx': 50, 't': 0}]
+?                  ^
+
++ [{'cx': 50, 't': 11}]
+?                  ^^
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.578s
+
+FAILED (failures=1)
+
+0 files passed, 1 failed.
+Python 3.12.3: FAIL, 7 tests in 6.0 s

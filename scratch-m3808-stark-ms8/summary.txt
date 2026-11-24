@@ -1,0 +1,17 @@
+load1=55.31 start test_ms_header_1230 06:34:52
+exit 0 test_ms_header_1230
+load1=59.68 start test_milestones_page 06:42:02
+exit 0 test_milestones_page
+load1=55.35 start test_milestones_dashboard 06:45:42
+exit 0 test_milestones_dashboard
+load1=59.69 start test_milestones_crowded 06:46:14
+exit 0 test_milestones_crowded
+load1=53.85 start test_milestones_details 06:47:57
+exit 0 test_milestones_details
+load1=58.18 start test_milestones_calendar 06:48:27
+exit 0 test_milestones_calendar
+load1=52.23 start test_milestones_inline 06:51:41
+exit 0 test_milestones_inline
+load1=51.11 start test_milestones_timeline_focus 06:52:08
+exit 0 test_milestones_timeline_focus
+ALLDONE

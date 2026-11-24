@@ -1,0 +1,7 @@
+<unknown>:398: SyntaxWarning: invalid escape sequence '\d'
+Running 2 test files: 0 quick, 2 browser, 1 at a time…
+OK    test_milestones_page.py  (75.6s)
+OK    test_milestones_page_458.py  (82.8s)
+
+2 files passed, 0 failed.
+Python 3.12.3: pass, 55 tests in 158.6 s

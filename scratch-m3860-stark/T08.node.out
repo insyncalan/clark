@@ -1,0 +1,5 @@
+Running 1 test file: 1 quick, 0 browser, 1 at a time…
+OK    test_tier_labels_node.py  (3.5s)
+
+1 file passed, 0 failed.
+Python 3.12.3: pass, 7 tests in 3.6 s

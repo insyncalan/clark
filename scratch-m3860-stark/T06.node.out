@@ -1,0 +1,29 @@
+Running 1 test file: 1 quick, 0 browser, 1 at a time…
+FAIL  test_tier_labels_node.py  (3.7s)  test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10 — AssertionError: {'cx': 166, 't': 0} != {'cx': 130, 't': 1}
+
+Running 1 failed file again, one at a time…
+FAIL  test_tier_labels_node.py  (3.3s, alone)  test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10 — AssertionError: {'cx': 166, 't': 0} != {'cx': 130, 't': 1}
+
+===== test_tier_labels_node.py =====
+.....F.
+======================================================================
+FAIL: test_slide_reach_ends_at_half_width_less_10 (test_tier_labels_node.TierLabels.test_slide_reach_ends_at_half_width_less_10)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/creaite/dev.env/clark/wt-row1230-pr2-clean/tests/test_tier_labels_node.py", line 67, in test_slide_reach_ends_at_half_width_less_10
+    self.assertEqual(tiers([{"x": 100, "w": 20}, {"x": 130, "w": 100}])[1], {"cx": 130, "t": 1})
+AssertionError: {'cx': 166, 't': 0} != {'cx': 130, 't': 1}
+- {'cx': 166, 't': 0}
+?         ^^       ^
+
++ {'cx': 130, 't': 1}
+?         ^^       ^
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.872s
+
+FAILED (failures=1)
+
+0 files passed, 1 failed.
+Python 3.12.3: FAIL, 7 tests in 7.0 s
