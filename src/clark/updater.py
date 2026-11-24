@@ -334,7 +334,7 @@ class Updater:
         with self._dl_lock:
             if self._state in ("downloading", "checked"):
                 return 200, self._state_body()
-            if not force and self._looked is not None and self.clock() - self._looked < CHECK_CACHE_SECONDS:
+            if self._looked is not None and self.clock() - self._looked < CHECK_CACHE_SECONDS:
                 return 200, self._state_body()
         fetch = self._fetch()
         try:
