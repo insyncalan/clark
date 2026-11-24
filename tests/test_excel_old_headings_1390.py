@@ -137,14 +137,12 @@ class OldWorkbook(RoundTrip):
         self.assertIn("On dashboard", str(cm.exception))
         self.assertIn("On the dashboard", str(cm.exception))
 
-    def test_the_milestones_state_column_is_dropped_without_a_note_but_state_set_by_you_is_noted(self):
-        """Item 1390: State is worked out, in the old file and in the new export alike (one heading), so a note on it would show on every
-        re-import and none is given; the older State set by you column is not one the import knows, so it is noted as before."""
-        notes = [n for n in self.read().notes if n.startswith("Milestones:")]
-        self.assertEqual(len(notes), 1, notes)
-        self.assertIn("State set by you", notes[0])
-        self.assertNotIn("State,", notes[0])
-        self.assertNotIn("State are", notes[0].replace("State set by you are", ""))
+    def test_the_old_state_columns_are_ignored_without_a_word(self):
+        """Item 1390: State set by you (and the mock-up's State chosen, Chosen by you) is skipped silently, not listed as an unknown column."""
+        p = self.read()
+        self.assertEqual([n for n in p.notes if "State" in n or "ignored" in n], [], p.notes)
+        for old in ("State set by you", "State chosen", "Chosen by you"):
+            self.assertIn(xi._key(old), xi.OLD_STATE_COLUMNS, old)
 
     def test_a_new_row_typed_under_old_headings_is_added(self):
         from test_excel_roundtrip import add_row
