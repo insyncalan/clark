@@ -214,13 +214,6 @@ class StampPage(unittest.TestCase):
         self.assertIn("MsLatest = latestOn && tools.PeekMsLatest", peek)
         self.assertNotIn("Latest = editing &&", peek)
 
-    def test_the_stamp_wording(self):
-        box = (STAMP_SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertIn("`Last updated ${when}${upd && upd.who ? ` by ${upd.who}` : \"\"}${sourceBit(source)}`", box)
-        self.assertIn("` · Source: ${s}`", box)
-        self.assertIn("`${made.who ? ` by ${made.who}` : \"\"}, ${at(made)}${sourceBit(source)}`", box)
-        self.assertIn("<b data-pk-created-k>Created</b>{st.created}", box)      # "Created" bold, then "by <name>, <date time> · Source: <source>"
-
 
 class Browser(unittest.TestCase):
     def fresh(self):
@@ -508,6 +501,36 @@ class Browser(unittest.TestCase):
                 self.assertNotIn("Mallory", last(cdp, sid))
                 self.assertNotIn("20-11-2026 08:00", last(cdp, sid))
                 self.assertNotIn(" by ", last(cdp, sid))
+
+    def test_row_1470_ap4_the_stamp_reads_name_and_source_only_when_known(self):
+        row = lambda kind, who, when: {"kind": kind, "who": who, "when_text": when, "field": "Latest update"}
+        last = lambda cdp, sid: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('[data-pk-last]'))", sid)
+        cases = [("both", "Ann", "Excel import", "Last updated 19-11-2026 07:15 by Ann \u00b7 Source: Excel import"),
+                 ("name only", "Ann", "", "Last updated 19-11-2026 07:15 by Ann"),
+                 ("source only", "", "Excel import", "Last updated 19-11-2026 07:15 \u00b7 Source: Excel import"),
+                 ("neither", "", "", "Last updated 19-11-2026 07:15")]
+        for width in (1400, 900):
+            for name, who, source, want in cases:
+                with self.subTest(width=width, case=name), chrome() as cdp:
+                    hist = {"rows": [row("Changed", who, "19-11-2026 07:15")], "source_words": source}
+                    sent, sid = self.load(cdp, width, OVERDUE, history=hist)
+                    self.assertTrue(wait(lambda: last(cdp, sid) == want), f"the stamp reads: {want}")
+
+    def test_row_1470_ap5_a_never_updated_item_shows_its_created_entry_and_the_first_save_replaces_it(self):
+        row = lambda kind, who, when: {"kind": kind, "who": who, "when_text": when, "field": "Latest update"}
+        created = lambda cdp, sid: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-latest] [data-rich] .quiet'))", sid)
+        shown = lambda cdp, sid: cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]'))", sid)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                hist = {"rows": [row("Created", "Ann First", "01-10-2026 09:30")], "source_words": "Excel import"}
+                sent, sid = self.load(cdp, width, OVERDUE, seed="", history=hist)
+                self.assertTrue(wait(lambda: created(cdp, sid).startswith("Created by Ann First")), "the Created entry stands in the box")
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "First real update")
+                self.save_key(cdp, sid)
+                self.assertTrue(wait(lambda: len(sent) == 1), "one save")
+                self.assertTrue(wait(lambda: "First real update" in shown(cdp, sid) and created(cdp, sid) == ""), "the saved update replaces the Created entry")
+                self.assertNotIn("Created by", shown(cdp, sid))
 
     def test_a_risk_and_an_issue_show_the_box_save_and_undo_it_and_a_decision_shows_it_too(self):
         """Item 1185: the box, the save, the Undo and the history on the other kinds, at both widths."""
