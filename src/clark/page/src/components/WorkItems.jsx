@@ -38,8 +38,9 @@ import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic 
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
-import { ReadBoard, LANE_WORDS } from "./ReadBoard.jsx";
-import { GROUPS, LANE_GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
+import { ReadBoard } from "./ReadBoard.jsx";
+import { layoutItems, pickLayoutGroup, pickLayoutLane } from "./layoutItems.js";
+import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
 // The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
 // (tools.addItem, edit/addItem.js). The published file has no Add (#204); a page with no tools says, in words, that nothing was added.
@@ -300,10 +301,15 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
 // The published file's Group by (the app's is in the filter line's View menu, #287): a menu button reading "Group by: Status".
 function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
+  if (board) {      // row 1533: the editor's own Group by and Swimlanes entries and words (components/layoutItems.js)
+    const lay = layoutItems(work.value, true);
+    return <Menu label={lay.label} ariaLabel={lay.label} id="group-by" btnCls="btn gb" menuLabel="Group by" left items={lay.items}
+      onPick={(id) => { const [what, v] = id.split(":"); if (what === "group") pickLayoutGroup(v); else if (what === "lane") pickLayoutLane(v); }} />;
+  }
   return (
     <Menu label={`Group by: ${groupLabel(shown)}`} ariaLabel={`Group by: ${groupLabel(shown)}`} id="group-by" btnCls="btn gb" menuLabel="Group by" left
-      items={GROUPS.filter((x) => !board || x.id !== "nothing").map((x) => ({ id: x.id, name: x.label, icon: groupIcon(x.id) }))}
-      onPick={(id) => { const lane = work.value.lane; setWork({ group: id, lane: lane === id ? null : lane }); announce.value = `Grouped by ${groupLabel(id)}.`; }} />
+      items={GROUPS.map((x) => ({ id: x.id, name: x.label, icon: groupIcon(x.id) }))}
+      onPick={(id) => pickLayoutGroup(id)} />
   );
 }
 
@@ -319,11 +325,6 @@ function LayoutChoice({ board }) {
             onClick={() => { setWork({ view: v }); announce.value = v === "board" ? `Showing the board, grouped by ${groupLabel(g)}.` : "Showing the list."; }}>{t}</button>
         ))}
       </div>
-      {board ? (
-        <Menu label={`Swimlanes: ${w.lane ? LANE_WORDS[w.lane] : "None"}`} ariaLabel={`Swimlanes: ${w.lane ? LANE_WORDS[w.lane] : "None"}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left
-          items={[{ id: "none", name: "None" }, ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: x, name: LANE_WORDS[x], icon: groupIcon(x) }))]}
-          onPick={(id) => { setWork({ lane: id === "none" ? null : id }); announce.value = id === "none" ? "No swimlanes." : `Swimlanes by ${LANE_WORDS[id]}.`; }} />
-      ) : null}
     </>
   );
 }

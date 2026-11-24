@@ -11,10 +11,11 @@ import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
-import { actionIcon, groupIcon } from "../menuIcons.js";
 import { work, setWork, announce } from "../stores/work.js";
 import { say, sayLocalUndo } from "../stores/changes.js";
-import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
+import { groupLabel, boardGroup } from "../logic/board.js";
+import { layoutItems, pickLayoutGroup, pickLayoutLane } from "./layoutItems.js";
+export { layoutItems };
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
@@ -33,18 +34,6 @@ let dirtyNow = false;      // set by the saved views at each draw: whether the o
 function viewsOf(code) { void viewsRev.value; return FL.viewsGet(local(), code); }
 function saveViews(code, views) { FL.viewsPut(local(), code, views); viewsRev.value++; }
 
-
-// The View menu's Group by and Swimlanes entries (row 812: Table and Board are the two-icon switch beside it; the prototype's words: "Group by", then on the board "Swimlanes" with
-// "No lanes", "Workstream lanes", "Type lanes"; the lane Group by uses is not offered). `board` is false where there is no board.
-export function layoutItems(w, board) {
-  const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
-  const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
-  const out = [];
-  out.push({ id: "lab-group", lab: "Group by", caps: true }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
-  if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", icon: actionIcon("none"), checked: lane === "none" },
-    ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, icon: groupIcon(x), checked: lane === x })));
-  return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
-}
 
 // Row 812: the list and the board as a two-icon switch (row 1084 names the buttons "List" and "Board"; "Layout" names the pair).
 function LayoutSwitch() {
@@ -75,8 +64,8 @@ function ViewIcons({ board }) {
 function pickLayout(id) {
   const [what, v] = id.split(":");
   if (what === "layout") { setWork({ view: v }); announce.value = v === "board" ? `Showing the board, grouped by ${groupLabel(boardGroup(work.value.group))}.` : "Showing the table."; }
-  else if (what === "group") { const lane = work.value.lane; setWork({ group: v, lane: lane === v ? null : lane }); announce.value = `Grouped by ${groupLabel(v)}.`; }
-  else if (what === "lane") { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No lanes." : `${groupLabel(v)} lanes.`; }
+  else if (what === "group") pickLayoutGroup(v);
+  else if (what === "lane") pickLayoutLane(v);
 }
 
 function SavedViews({ board, add = null }) {

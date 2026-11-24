@@ -187,11 +187,14 @@ class PublishedBoard(unittest.TestCase):
             cdp.js("document.querySelector('#group-by').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
             names = cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitem]')].map(x => x.textContent.trim())", sid)
-            self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type"], "the table's choices, no Nothing on a board")
+            self.assertEqual(names[:7], ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type"], "the table's choices, no Nothing on a board")
+            self.assertEqual(names[7:], ["No lanes", "Workstream lanes", "Type lanes"], "the editor's own Swimlanes words, no others")
             cdp.js("[...document.querySelectorAll('[role=menuitem]')].find(x => x.textContent.trim() === 'Owner').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#work-board .col[data-col]') && [...document.querySelectorAll('#work-board .col')].some(c => /Ana Lopez/.test(c.getAttribute('aria-label')))", sid)), "columns follow Group by")
-            cdp.js("document.querySelector('#swimlanes').click()", sid)
-            cdp.js("[...document.querySelectorAll('[role=menuitem]')].find(x => x.textContent.trim() === 'Type').click()", sid)
+            cdp.js("document.querySelector('#group-by').click()", sid)
+            cdp.js("[...document.querySelectorAll('[role=menuitem]')].find(x => x.textContent.trim() === 'Type lanes').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.getElementById('work-live').textContent", sid) == "Type lanes."), "the editor's announcement")
+            self.assertEqual(cdp.js("document.getElementById('group-by').getAttribute('aria-label')", sid), "Group by: Owner, type lanes")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-board .lane-h').length", sid) > 0), "swimlanes draw")
 
 

@@ -13,7 +13,6 @@ import { cursor, stopOf, cardKeys } from "../listKeys.js";
 
 const TONED = ["status", "due", "priority"];
 const TYPE_LETTER = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };
-export const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 
 function ColCount({ n }) {
   const ref = useRef(null);
