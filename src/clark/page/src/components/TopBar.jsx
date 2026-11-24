@@ -1,41 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { openFile } from "../router.js";
 import { ClientMenu } from "./ClientMenu.jsx";
+import { CardsDate } from "./CardsDate.jsx";
 import { classicTheme } from "./Contents.jsx";
 import { coverLine } from "../logic/cover.js";
-import { pastReportsOf } from "../logic/clientMenu.js";
 import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
-
-// Row 1178: the published date in a client's header is a button. A click opens the browser's own calendar (a date box, showPicker). A published
-// file has no clark behind it, so it cannot rebuild a day (the as-at rebuild needs the server): a picked day that has an earlier report in the
-// same folder opens that report; any other day keeps this report and says so in one line.
-function AsAtDate() {
-  const [open, setOpen] = useState(false), [note, setNote] = useState(""), btn = useRef(null), box = useRef(null);
-  useEffect(() => {
-    if (!open || !box.current) return;
-    box.current.focus();
-    try { if (box.current.showPicker) box.current.showPicker(); } catch (e) { /* the box stays focused: its own keys still work */ }
-  }, [open]);
-  // A date box fires change for every typed digit that makes a whole date ("0002-05-05" after one digit of the year): only a year from 1990 on is a pick; a click on the button while the box is open closes it (no blur first).
-  const picked = (day) => {
-    setOpen(false);
-    if (btn.current) btn.current.focus();
-    if (!day || day === asAt.value) { setNote(""); return; }
-    const hit = pastReportsOf(data.value).find((r) => r.iso === day);
-    if (hit) { openFile(hit.href); return; }
-    setNote("No report for " + shownDate(day) + ".");
-  };
-  return (
-    <span class="asat-wrap">
-      <button type="button" class="asat num" ref={btn} title="Click to change date" aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onMouseDown={(e) => { if (open) e.preventDefault(); }} onClick={() => { setNote(""); setOpen(!open); }}>As at {shownDate(asAt.value)}</button>
-      {open ? <input type="date" class="asat-box" ref={box} aria-label="Date of the report" value={asAt.value} onChange={(e) => { if (/^(199\d|2\d{3})-/.test(e.target.value)) picked(e.target.value); }} onBlur={() => setOpen(false)} /> : null}
-      {note ? <span class="asat-note" role="status">{note}</span> : null}
-    </span>
-  );
-}
 
 export function TopBar({ tools }) {
   const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
@@ -122,7 +93,7 @@ export function TopBar({ tools }) {
           : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
-      {file && asAt.value ? <AsAtDate /> : null}      {/* row 1178: the date in a client's header, a button */}
+      {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header */}
       {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
       {file ? tail : <div class="hdr-end">{tail}</div>}
       {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}

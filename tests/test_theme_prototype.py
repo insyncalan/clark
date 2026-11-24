@@ -16,7 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
-THEME_ONLY = {"--sec-band-bg", "--ms-amber-shape", "--tile-on-bg", "--tile-on-fg"}      # rows 1311, 1396 and 1395: set and read by this Theme alone; declaring them in the committed file would change the Cards page bytes
+THEME_ONLY = {"--sec-band-bg", "--ms-amber-shape", "--tile-on-bg", "--tile-on-fg", "--pill-track", "--pill-on-fg", "--pill-on-bg", "--pill-muted", "--pri-high-sheet-bg", "--pri-high-sheet-fg"}      # rows 1311, 1396, 1395 and 1281: set and read by this Theme alone; declaring them in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
@@ -59,7 +59,7 @@ class ThemePrototype(unittest.TestCase):
         declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
-        own = set(re.findall(r"(--(?:wil|pri|adc)-[a-z0-9-]+)\s*:", RULES))      # row 1347: the four --adc-blue* properties (Draft ready button blue, a named exception, ruling 19-11); row 1195: the Work items colours the mock-up measures; row 1409: the four --pri-* priority pairs; set and read by rules.css alone
+        own = set(re.findall(r"(--(?:wil|pri|adc|badge)-[a-z0-9-]+)\s*:", RULES))      # row 1347: the four --adc-blue* properties (Draft ready button blue, a named exception, ruling 19-11); row 1195: the Work items colours the mock-up measures; row 1409: the four --pri-* priority pairs; row 1194: the --badge-* file-type colours of Documents and links; set and read by rules.css alone
         self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w", "--ad-r"}), [], "rules.css reads declared names only, and four the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js), --ad-r on the Draft sheet from AskDraft.jsx (row 1346)")
 
     def test_the_two_dark_copies_are_equal(self):

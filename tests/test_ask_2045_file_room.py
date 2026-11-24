@@ -87,6 +87,21 @@ class FileRoom(Base):
         self.assertEqual(args[5], ask.MAX_PASSAGES - 2 - seen["project_passages"])
         self.assertGreater(seen["project_passages"], 1)
 
+    def test_a_too_long_request_keeps_the_file_that_shares_no_word_with_the_question(self):
+        """Item 1292: the service tells the request how many of its passages are files, so a file the question does not name is cut last, not first."""
+        folder = ask_passages.FolderData(passages=tuple(ask.Passage("notes/f%d.md" % i, "ZQ-PLAIN%d " % i + "lorem " * 200) for i in range(3)), left_out=0)
+        data = ("ZQ-UPLOADED the vendor moved " + "lorem " * 200).encode()
+        with mock.patch.object(ask_service.ask_passages, "folder_data", return_value=folder):
+            status, got = self.question("What is open?", files=[f("note.txt", data)])
+            self.assertEqual(status, 200, got)
+            full = len(self.provider.sent[-1])
+            with mock.patch.object(ask, "request_cap", return_value=full - 1):
+                status, got = self.question("What is open?", files=[f("note.txt", data)])
+        self.assertEqual(status, 200, got)
+        self.assertIn("ZQ-UPLOADED", self.provider.sent[-1])
+        self.assertLess(len(self.provider.sent[-1]), full)
+        self.assertNotIn("ZQ-PLAIN2", self.provider.sent[-1])        # the last folder passage, not the file, was the one left out
+
     def test_without_a_file_the_project_still_takes_the_whole_limit(self):
         self.fill(300)
         store = st.open_store(self.db, onedrive_roots=[])

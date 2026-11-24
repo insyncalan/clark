@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_words, ask_files, ask_folders, ask_index, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen, settings
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -63,7 +63,7 @@ APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
 MAX_REPLIES = 20
 PASSAGE_SHOWN = 600        # characters of a source passage shown beside a change that came from it
-PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
+PROJECT_SHARE = ask.BUDGET // 2      # characters of the budget the project's own data may take (row 1508: half of it, 600,000 on main); the folders get the rest
 
 
 class Started(threading.Event):
@@ -323,7 +323,7 @@ class AskService:
         try:
             room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders):
-                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
+                found = ask_index.folder_data(self.data_dir, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), budget_left - used, room)      # a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
                 found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
@@ -331,7 +331,7 @@ class AskService:
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
                                         today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
-                                        max_request=ask.request_cap(window))
+                                        max_request=ask.request_cap(window), files=len(added))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -347,7 +347,7 @@ class AskService:
         if cancel.is_set():                          # a Stop that came before the record went in: the request goes out cancelled, so the provider never starts it
             run.cancel.set()
         try:
-            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, person=settings.profile(self.data_dir)["name"], cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
         finally:
             with self.using_lock:
@@ -359,7 +359,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
                              *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened

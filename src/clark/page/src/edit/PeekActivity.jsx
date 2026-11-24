@@ -43,7 +43,7 @@ export function PeekTabs() {
   );
 }
 
-// The Source line under the fields on the live page (Edit and View): where the item or milestone came from, by name, then " by <name>"
+// The Source line under the fields on the live page (Edit and View): where the item or milestone came from, by name, and nothing else: no person
 // (activity_read.source_line), drawn by the shared SourceLine (components/Peek.jsx; a published file draws its own data with it, row 1077).
 // Nothing is drawn while it is read, when it is empty or when the read fails.
 export function PeekSource({ row }) {
