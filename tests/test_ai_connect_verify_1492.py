@@ -30,7 +30,7 @@ class Probe(FakeProvider):
         label, models = ("Claude", ask_claude.MODELS) if name == "claude" else ("ChatGPT", ai_codex.MODELS)
         super().__init__(name, label, models, signed_in=failed is None)
         self.failed, self.why, self.reply, self.hold = failed, why, reply, hold
-        self.status_calls, self.requests = 0, []
+        self.status_calls, self.requests, self.systems = 0, [], []
 
     def status(self):
         self.status_calls += 1
@@ -41,6 +41,7 @@ class Probe(FakeProvider):
 
     def ask(self, request, model=None, prefer=False):
         self.requests.append((request.text, model, prefer))
+        self.systems.append(request.system)
         if self.hold is not None:
             self.hold.wait(20)
             if getattr(request, "cancel", None) is not None and request.cancel.is_set():
@@ -81,6 +82,7 @@ class Answered(Base):
         self.assertEqual(status, 200)
         self.assertEqual(len(self.chatgpt.requests), 2, "one request for each check, no more")
         self.assertEqual(self.chatgpt.requests[-1], (ac.TEST_QUESTION, ac.RECOMMENDED["chatgpt"], True), "the one small question, with the model clark recommends")
+        self.assertEqual(self.chatgpt.systems, [ask.RULES] * 2, "the check sends ask clark's own rules as its system prompt (ClaudeCommand refuses any other text, so the old one-word prompt could not be used)")
         self.assertTrue(settings.ai_read(self.d)["chatgpt_on"])
         tile = body["chatgpt"]
         self.assertTrue(tile["connected"] and tile["checked"])
