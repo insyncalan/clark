@@ -500,18 +500,21 @@ class AcceptedByChanges(InBrowser):
     (and a flag of 1 on a section that is not text) is what the design note's guarded changes add, so their tests come with them."""
 
     def test_a_move_without_flags_is_accepted_and_gives_the_order_the_logic_said(self):
-        with DemoStore() as store:
-            change = changes.make_change(store.path, [], USER)
-            for who, target in (("ABC-S-009", {"before": "ABC-S-003"}), ("ABC-S-001", {"before": None}), ("ABC-S-004", {"before": "ABC-S-010"})):
-                rows = order.in_order(store.read("report_sections", "ABC"))
-                got = self.val(f"T.placement.place({lit(rows)}, {lit(who)}, {lit(target)})")
-                self.assertTrue(got["ok"], got)
-                self.assertNotIn("flags", got["payload"], "a lone section with no flag to change")
-                status, body = change({"project": "ABC", "kind": "report_sections", "place": "report", **got["payload"]})
-                self.assertEqual((status, body.get("message")), (200, None), body)
-                want = self.val(f"T.placement.applied({lit(rows)}, {lit(got['payload'])}).map(s => s.id)")
-                self.assertEqual([r["id"] for r in body["sections"]], want)
-                self.assertTrue(body["apply_id"], "one step, with Undo")
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: the ids below are the ten sections an existing report has
+        store = demo.store
+        change = changes.make_change(store.path, [], USER)
+        for who, target in (("ABC-S-009", {"before": "ABC-S-003"}), ("ABC-S-001", {"before": None}), ("ABC-S-004", {"before": "ABC-S-010"})):
+            rows = order.in_order(store.read("report_sections", "ABC"))
+            got = self.val(f"T.placement.place({lit(rows)}, {lit(who)}, {lit(target)})")
+            self.assertTrue(got["ok"], got)
+            self.assertNotIn("flags", got["payload"], "a lone section with no flag to change")
+            status, body = change({"project": "ABC", "kind": "report_sections", "place": "report", **got["payload"]})
+            self.assertEqual((status, body.get("message")), (200, None), body)
+            want = self.val(f"T.placement.applied({lit(rows)}, {lit(got['payload'])}).map(s => s.id)")
+            self.assertEqual([r["id"] for r in body["sections"]], want)
+            self.assertTrue(body["apply_id"], "one step, with Undo")
 
 
 if __name__ == "__main__":

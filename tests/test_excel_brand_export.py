@@ -54,6 +54,7 @@ class Rig(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.old_layout()      # row 1266: the Cover tiles read the built-in At a glance section, which an existing report keeps
         self.dir = Path(tempfile.mkdtemp(prefix="clark-brandx-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         self.n = 0

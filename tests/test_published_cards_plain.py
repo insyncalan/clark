@@ -84,7 +84,7 @@ def findings_js():
 class Plain(PublishedFile, glance.Setup):
     def every_kind(self):
         """Four glance tiles, a use case (planted by Setup), RAID cards at three and four across and a link preview."""
-        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the RAID cards here sit with the built-in sections' (row 1193)
+        self.demo.old_layout(built_in_lists=True)      # row 1266 and row 1193: a new project has other sections and Work items lists; the cards here sit with the ten built-in sections of an existing report
         status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
         self.assertEqual(status, 200)
         with self.store.step("dashboard", USER) as st:

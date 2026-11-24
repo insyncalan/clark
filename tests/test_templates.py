@@ -374,6 +374,8 @@ class Logic(unittest.TestCase):
 OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %s, opener: document.activeElement}, cancelable: true, bubbles: true}))"
 
 class Box(Base):
+    OLD_LAYOUT = False      # row 1266: the box is tried over a new project's eleven sections
+
     def open_box(self, p, after, focus=None):
         if focus:
             p.js(f"document.querySelector({json.dumps(focus)}).focus()")

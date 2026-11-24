@@ -34,6 +34,7 @@ def wait(check, seconds=15):
 
 
 from test_work_filters import click, expect, key, need_chrome, page_rows, pause, select_line, set_line, where  # noqa: E402
+from _demo import builtin_glance  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
@@ -75,6 +76,7 @@ class Line(unittest.TestCase):
         shared.start()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.projects = cls.store.read("projects")
+        builtin_glance(cls.store, [p["code"] for p in cls.projects])      # row 1266: a new project has the At a glance template; the tiles here are the built-in one's
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.projects}
 
     @classmethod

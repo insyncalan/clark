@@ -46,6 +46,7 @@ class Published(unittest.TestCase):
         self.s = self.demo.store
         self.change = changes.make_change(self.s.path, [], USER)
         self.n = 0
+        self.demo.old_layout()      # row 1266: these tests are the Supporting documents section's, which an existing report keeps
 
     def plant(self, title, url, kind="Report", date="2030-01-02", archived=0, project="ABC"):
         """A document written past the writer: none of the store's rules are asked."""

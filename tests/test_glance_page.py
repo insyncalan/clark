@@ -45,6 +45,8 @@ def plant(self):
 
 
 class Setup(Base):
+    OLD_LAYOUT = False      # row 1266: a new project's sections; plant_builtin_sections adds the built-in ones
+
     def setUp(self):
         super().setUp()
         plant(self)

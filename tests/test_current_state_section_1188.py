@@ -57,15 +57,19 @@ class Reads(Base):
     def inputs(self):
         return publish.read_inputs(self.s, "ABC")
 
+    def first_text(self):
+        """Row 1266: the first section of a new project is the Headline now; the text section the Current state words go in is the Header."""
+        return [r for r in self.sections() if r["type"] == "text"][0]["id"]
+
     def state(self, inputs=None):
         return publish.select(inputs or self.inputs())["data"]["project"]["current_state"]
 
     def test_the_published_project_block_carries_the_section_body(self):
-        self.change(self.sections()[0]["id"], title="Current state", body="<p>Build is half done.</p>")
+        self.change(self.first_text(), title="Current state", body="<p>Build is half done.</p>")
         self.assertEqual(self.state(), "<p>Build is half done.</p>")
 
     def test_a_hidden_section_gives_nothing(self):
-        self.change(self.sections()[0]["id"], body="<p>Secret.</p>", hidden=1)
+        self.change(self.first_text(), title="Current state", body="<p>Secret.</p>", hidden=1)
         self.assertEqual(self.state(), "")
 
     def test_an_old_report_with_a_current_section_still_reads_the_column(self):
@@ -89,7 +93,7 @@ class Reads(Base):
         self.assertEqual(self.state(inputs), "<p>Column.</p>")
 
     def test_ask_sees_the_section_body(self):
-        self.change(self.sections()[0]["id"], body="<p>Vendor contract signed.</p>")
+        self.change(self.first_text(), title="Current state", body="<p>Vendor contract signed.</p>")
         text = repr(ask_data.project_data(self.s, "ABC", "current state vendor", budget=40000).passages)
         self.assertIn("Vendor contract signed.", text)
 

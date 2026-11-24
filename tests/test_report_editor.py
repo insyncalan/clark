@@ -199,9 +199,13 @@ class Pg:
 
 
 class Base(unittest.TestCase):
+    OLD_LAYOUT = True            # row 1266: these tests are the editor's over the ten sections an existing report has; a class over a new project's eleven sets this False
+
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        if self.OLD_LAYOUT:
+            self.demo.old_layout()
         self.store = self.demo.store
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
@@ -307,7 +311,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
-            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
+            self.assertEqual(p.js(texts), ["Click to write."] + [SECTION_HINTS[t] for t in ("This week", "Next week")], "Edit: the text sections are empty; This week and Next week show their guiding line as the editor's hint (items 1188, 1193), and one titled Current state, which an existing report keeps, has no hint of its own since row 1266 (the hint is the Header's)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -1422,6 +1426,7 @@ class Published(unittest.TestCase):
     def test_the_published_file_has_no_edit_part_and_not_a_hidden_section(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: these tests are over the ten sections an existing report has
         store = demo.store
         change = changes.make_change(store.path, [], USER)
         for ref, edit in (("ABC-S-001", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown <b>plan</b>"})):
@@ -1463,6 +1468,7 @@ class Published(unittest.TestCase):
         and a hidden section's body are not there; with This week hidden, Next week takes the whole row."""
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: these tests are over the ten sections an existing report has
         store = demo.store
         long_word = "Z" * 400
         bodies = {"ABC-S-001": f"<p>Summary ZQ-SUMMARY <strong>bold</strong></p><ul><li>one</li></ul><p>{long_word}</p>"
@@ -1522,6 +1528,7 @@ class Published(unittest.TestCase):
         beside Next week, so with This week empty Next week takes the whole row. A body that is only a picture still shows."""
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: these tests are over the ten sections an existing report has
         store = demo.store
         picture = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
         with store.step("dashboard", USER) as st:
@@ -1554,6 +1561,7 @@ class Published(unittest.TestCase):
         beside Risks and issues (This week no longer beside it), so with Risks and issues left out Next week takes the row."""
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: these tests are over the ten sections an existing report has
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}

@@ -298,6 +298,7 @@ class PublishedFile(unittest.TestCase):
         from test_server import wait
         demo = DemoStore()
         self.addCleanup(demo.close)
+        demo.old_layout()      # row 1266: the ids and titles below are the ten sections an existing report has
         store = demo.store
         change = changes.make_change(store.path, [], USER)
         for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown plan"})):

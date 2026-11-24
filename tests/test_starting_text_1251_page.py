@@ -10,10 +10,12 @@ from _demo import USER
 from test_report_editor import Base
 from test_server import chrome
 
+HEADER_HINT = "Say where the project stands today"      # the hint of a section titled Header (default_sections), drawn in Cards too: it is not a starting text
+
 # type, title, the words Edit shows somewhere in the section (text, placeholder or a field's empty line)
 CASES = [
     ("text", "Fictional plain", ["Write here."]),
-    ("text", "Header", ["Say where the project stands."]),
+    ("text", "Header", [HEADER_HINT]),      # row 1266: the Header's hint is the long line of default_sections, which replaces the starting text
     ("textimage", "Fictional ti", ["Write here.", "Add a picture.", "Say what the picture shows."]),
     ("gallery", "Fictional gal", ["Add a picture.", None]),
     ("imagecap", "Fictional cap", ["Add a picture.", None]),
@@ -113,7 +115,7 @@ class Cards(Base):
                     p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
                     text = p.js(f"{SEEN}({json.dumps(sel)})")
                     self.assertFalse(p.js(f"!!document.querySelector({json.dumps(sel)} + ' [data-tpl-prompt]')"), f"{ref}: a prompt in Cards at {width}")
-                    for w in [w for w in ALL if w != "Add a picture."] + ["Add a step."]:          # "Add a picture." is also the old Image with caption hint
+                    for w in [w for w in ALL if w not in ("Add a picture.", HEADER_HINT)] + ["Add a step.", "Say where the project stands."]:          # "Add a picture." is also the old Image with caption hint
                         self.assertNotIn(w, text, f"{ref}: {w!r} in Cards at {width}")
                 p.view()
 

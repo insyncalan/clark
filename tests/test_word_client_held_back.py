@@ -38,6 +38,7 @@ class Setup:
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.old_layout()      # row 1266: these tests are over the ten sections an existing report has
         self.store = self.demo.store
         self.tmp = Path(tempfile.mkdtemp(prefix="clark-held-back-")).resolve()
         self.addCleanup(shutil.rmtree, self.tmp, True)

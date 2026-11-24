@@ -16,7 +16,7 @@ import unittest
 from _editor_checks import for_project
 from unittest import mock
 
-from _demo import USER, DemoStore
+from _demo import USER, DemoStore, builtin_glance
 from _new_page import reload_to_new_page_cdp
 from _real_server import real_server
 from _paths import SRC, TOOLS
@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections
+                             ["ABC-S-003", "ABC-S-004", "ABC-S-005"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections (the Header, This week, Next week)
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
@@ -267,6 +267,7 @@ class PageGate(unittest.TestCase):
                 self.assertEqual(js(f"document.querySelectorAll('{sec} .ProseMirror [contenteditable], {sec} b').length"), 0, kind)
 
     def test_the_at_a_glance_reason_opens_the_one_editor_with_its_menu(self):          # item 1005
+        builtin_glance(self.store, ["ABC"])      # row 1266: a new project has the At a glance template; the reason here is the built-in one's
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"health": "At risk", "health_reason": "Old plain words <b>kept</b>\nand a second line"})      # an old plain row
         s = self.serve(self.page_on)

@@ -195,7 +195,7 @@ class RunsAsAProcess(TempFolder):
         self.assertEqual(get(port, "/api/projects")[0], 403, "the list needs the token like everything under /api/")
         sent = {"X-Clark-Token": token}                                    # #65: saving and Undo, each call on its own store
         sections = json.loads(get(port, "/api/data?project=TUL", headers=sent)[1])["data"]["report_sections"]
-        self.assertEqual(len(sections), 10)
+        self.assertEqual(len(sections), 11)      # row 1266: a new project starts with eleven sections
         first = sections[4]["id"]
         status, made = post(port, "/api/change", {"project": "TUL", "kind": "report_sections", "op": "update", "id": first,
                                                   "changes": {"title": "Renamed in the demo"}}, sent)

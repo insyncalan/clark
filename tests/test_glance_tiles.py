@@ -14,6 +14,7 @@ import unittest
 
 from _paths import ROOT, SRC  # noqa: F401
 
+from _demo import builtin_glance  # noqa: E402
 from clark import page  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_filters import click, need_chrome  # noqa: E402
@@ -32,16 +33,6 @@ def expected(data):
         "risks": sum(1 for k, r in opened if k not in ("action", "decision") and r.get("priority") in ("Urgent", "High")),
         "decisions": sum(1 for k, r in rows if k == "decision" and r["status"] == "Pending"),
     }
-
-
-def builtin_glance(store, codes):
-    """Row 1266: a new project starts with the template glance; these tests are the built-in one's, which an existing project keeps, so it takes the template's place."""
-    with store.step("dashboard", "tester") as st:
-        for code in codes:
-            for row in store.read("report_sections", code):
-                if row["type"] == "glancetemplate":
-                    st.cancel("report_sections", row["id"])
-                    st.create("report_sections", {"project": code, "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
 
 
 class Tiles(unittest.TestCase):

@@ -575,7 +575,7 @@ class RealSaving(unittest.TestCase):
         self.assertTrue(all("body" not in r for r in body["sections"]))
         status, body = self.post("/api/undo", {"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, body["ok"], body["skipped"]), (200, True, []))
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Next week")
         status, body = self.post("/api/change", {**change, "changes": {"hidden": True}})
         self.assertEqual((status, body["message"], body["code"]), (400, "That must be 0 or 1.", "refused"))
         status, body = self.post("/api/change", {**change, "id": "XYZ-S-001"})
@@ -599,11 +599,11 @@ class RealSaving(unittest.TestCase):
             status, body = self.post("/api/change", {"project": "OLD", "kind": "report_sections", "op": "new", "values": {"title": title}})
             self.assertEqual(status, 200, body)
             made.append(body["apply_id"])
-        self.assertEqual(len(self.sections("OLD")), 13)
+        self.assertEqual(len(self.sections("OLD")), 14)
         status, body = self.post("/api/undo", {"project": "OLD", "apply_id": made[0]})
         self.assertEqual((status, body["skipped"]), (200, []))
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Current state"], ["y", "Hello"], False))
+        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (13, ["Headline"], ["y", "Hello"], False))
 
     def test_a_second_undo_of_an_old_projects_first_change_over_http_is_409_undone_already(self):
         self.old_project("OLD")
@@ -614,7 +614,7 @@ class RealSaving(unittest.TestCase):
         status, again = self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})
         self.assertEqual((status, again.get("ok"), again.get("message"), again.get("code")), (409, False, "That step has been undone already.", "undone"))
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps, "no step was written")
-        self.assertEqual(len(self.sections("OLD")), 10, "the starting sections stay")
+        self.assertEqual(len(self.sections("OLD")), 11, "the starting sections stay")
 
     def test_a_rename_that_seeded_and_is_undone_leaves_all_the_starting_sections(self):
         self.old_project("OLD")
@@ -623,7 +623,7 @@ class RealSaving(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})[0], 200)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[4]), (10, "This week"))
+        self.assertEqual((len(titles), titles[4]), (11, "Next week"))
 
     def test_two_first_adds_at_once_on_an_old_project_make_one_seed_and_two_steps(self):
         self.old_project("OLD")
@@ -639,8 +639,8 @@ class RealSaving(unittest.TestCase):
             t.join(20)
         self.assertEqual(sorted(r[0] for r in results), [200, 200], results)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), sorted(titles[-2:])), (12, ["One", "Two"]))
-        self.assertEqual(titles.count("Current state"), 1, "one seed")
+        self.assertEqual((len(titles), sorted(titles[-2:])), (13, ["One", "Two"]))
+        self.assertEqual(titles.count("Header"), 1, "one seed")
         steps = {r[0] for r in self.demo.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE item_id LIKE 'OLD-S-%'")}
         self.assertEqual(len(steps), 2, "one step each")
         self.assertEqual(len({r[1]["apply_id"] for r in results}), 2)
@@ -651,7 +651,7 @@ class RealSaving(unittest.TestCase):
         for extra in ({"Origin": "https://evil.example"}, {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}):
             status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"), extra=extra)
             self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"), extra)
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Next week")
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps)
         status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"),
                                      extra={"Origin": f"http://127.0.0.1:{self.s.port}"})

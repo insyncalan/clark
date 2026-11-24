@@ -47,6 +47,7 @@ class TheBrowser(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
+        self.demo.old_layout()      # row 1266: the ids below are the ten sections an existing report has
         store = self.demo.store
         with store.step("dashboard", USER) as st:
             st.update("report_sections", "ABC-S-001", {"body": CURRENT})      # item 1188: the first section is a text section, its body is the text

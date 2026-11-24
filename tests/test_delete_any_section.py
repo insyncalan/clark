@@ -18,36 +18,7 @@ BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions",
 class Base(Api):
     def setUp(self):
         super().setUp()
-        self.old_actions_row()
-        self.old_decisions_row()
-        self.old_raid_row()
-
-    def old_raid_row(self):
-        """row 1193-8: a new project starts with Risks and issues as a Work items list; an existing report still has the built-in raid section, which these tests are about."""
-        con = sqlite3.connect(str(self.path))
-        try:
-            con.execute("UPDATE report_sections SET type = 'raid', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Risks and issues'")
-            con.commit()
-        finally:
-            con.close()
-
-    def old_actions_row(self):
-        """row 1193-9: a new project starts with Open actions as a Work items list; an existing report still has the built-in actions section, which these tests are about."""
-        con = sqlite3.connect(str(self.path))
-        try:
-            con.execute("UPDATE report_sections SET type = 'actions', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Open actions'")
-            con.commit()
-        finally:
-            con.close()
-
-    def old_decisions_row(self):
-        """row 1193-10: a new project starts with Decisions as a Work items list; an existing report still has the built-in decisions section, which these tests are about."""
-        con = sqlite3.connect(str(self.path))
-        try:
-            con.execute("UPDATE report_sections SET type = 'decisions', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Decisions'")
-            con.commit()
-        finally:
-            con.close()
+        self.demo.old_layout(built_in_lists=True)      # row 1266 and row 1193-8 to 10: a new project starts with other sections and Work items lists; an existing report still has the ten built-in ones, which these tests are about
 
     def counts(self):
         con = sqlite3.connect(str(self.path))
@@ -229,7 +200,7 @@ class ReAdd(Base):
     def test_every_built_in_is_added_again_once_with_its_own_title_and_settings(self):
         for t in BUILT_INS:
             with self.subTest(type=t):
-                title = self.of_type(t)[0]["title"]
+                title = changes.BUILT_IN_TITLES[t]      # row 1266: an existing report may call its use cases section "Use case summary"; the one added again is called "Use cases"
                 self.ok("delete", id=self.of_type(t)[0]["id"])
                 got = self.ok("new", values={"type": t, "title": "Something else"})
                 row = self.s.read(KIND, ref=got["ref"])

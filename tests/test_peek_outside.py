@@ -17,6 +17,7 @@ from _paths import ROOT
 import test_peek as tp  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
+from _demo import builtin_glance  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
@@ -33,7 +34,11 @@ PROBE = """(() => {
 
 
 class OutsideBrowser(unittest.TestCase):
-    setUpClass = tp.Browser.__dict__["setUpClass"]
+    @classmethod
+    def setUpClass(cls):
+        tp.Browser.__dict__["setUpClass"].__func__(cls)
+        builtin_glance(cls.store, list(cls.ids))      # row 1266: a new project has the At a glance template; the dashboard is waited for by the built-in glance
+
     tearDownClass = tp.Browser.__dict__["tearDownClass"]
     load_page = tp.Browser.load_page
     edit_mode = tp.Browser.edit_mode

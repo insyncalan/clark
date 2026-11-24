@@ -12,7 +12,7 @@ Run: python3 dev/run_tests.py test_pins_1189
 import re
 import unittest
 
-from _demo import USER, DemoStore
+from _demo import USER, DemoStore, builtin_glance
 from _paths import ROOT
 from clark import publish
 from test_glance import ON, RULES, data, sections, use_case
@@ -47,6 +47,7 @@ class PublishedSections(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        builtin_glance(self.store, ["ABC"])      # row 1266: a new project has the At a glance template; these tests are the built-in one's
 
     def set_hidden(self, typ, hidden):
         with self.store.step("dashboard", USER) as st:
