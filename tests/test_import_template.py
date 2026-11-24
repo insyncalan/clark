@@ -15,7 +15,7 @@ from pathlib import Path
 
 from _paths import SRC
 from openpyxl import load_workbook
-from clark import excel, excel_import, server as sv
+from clark import excel, excel_colours, excel_import, server as sv
 import test_publish_route as base
 from test_preview_export_route import get
 from test_settings_data_page import Card, WIDTHS

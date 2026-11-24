@@ -143,9 +143,9 @@ class Lists(unittest.TestCase):
     def test_the_lists_sheet_is_hidden_and_last(self):
         self.assertEqual(self.wb["Lists"].sheet_state, "hidden")
         self.assertEqual(self.wb.sheetnames[-2:], ["Lists", excel.META_NAME])
-        self.assertEqual(self.wb.active.title, "Cover")             # the workbook opens on a visible sheet
+        self.assertEqual(self.wb.active.title, "Report")             # the workbook opens on a visible sheet
         for name in self.wb.sheetnames[:-2]:
-            self.assertEqual(self.wb[name].sheet_state, "visible", name)
+            self.assertEqual(self.wb[name].sheet_state, "hidden" if name == "History" else "visible", name)   # 1390: History is hidden
 
     def test_owner_is_free_text_with_a_note(self):
         for name, label in (("Actions", "Owner"), ("Risks & Issues", "Owner"), ("Milestones", "Owner"), ("Decisions", "Made by")):
