@@ -120,6 +120,14 @@ class Page(unittest.TestCase):
     def tops(self, sel):
         return self.val(f"[...document.querySelectorAll({json.dumps(sel)})].map(e => Math.round(e.getBoundingClientRect().top))")
 
+    def dark(self, on=True):
+        self.cdp.js(f"document.documentElement.setAttribute('data-theme', {json.dumps('dark' if on else 'light')})", self.sid)
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark" if on else "light"}]}, self.sid)
+
+    def token(self, name):
+        """The colour a token resolves to on the page now (so dark values come from the page's own tokens)."""
+        return self.val(f"(function(){{ const e = document.createElement('i'); e.style.color = 'var({name})'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }})()")
+
     def calls(self):
         return self.val("F.server.calls")
 
@@ -127,20 +135,25 @@ class Page(unittest.TestCase):
         return self.val("(F.toast() || {}).text")
 
 
+WIDTHS = ((1400, 3), (900, 2))       # page width, tiles across (the sheet goes to two across at 900)
+
+
 class Grid(Page):          # AP1, AP2
     def test_gallery_edit_grid(self):
-        self.mount(many(6))
-        self.assertEqual(self.count(".tpl-gal-tile"), 6)
-        self.assertEqual(self.style(".tpl-gal-tiles", "display", "columnGap", "rowGap"), ["grid", "12px", "12px"])
-        cols = self.style(".tpl-gal-tiles", "gridTemplateColumns")[0].split()
-        self.assertEqual(len(cols), 3, cols)
-        px = [float(c[:-2]) for c in cols]
-        self.assertLess(max(px) - min(px), 0.6, "the three columns are equal (minmax(0, 1fr))")
-        top = self.tops(".tpl-gal-tile")
-        self.assertEqual(top[:3], [top[0]] * 3)
-        self.assertGreater(top[3], top[0], "the fourth is on the next row")
-        w = self.widths(".tpl-gal-tile")
-        self.assertAlmostEqual(w[0], w[1], delta=0.6)
+        for page, across in WIDTHS:
+            with self.subTest(page):
+                self.mount(many(6), page)
+                self.assertEqual(self.count(".tpl-gal-tile"), 6)
+                self.assertEqual(self.style(".tpl-gal-tiles", "display", "columnGap", "rowGap"), ["grid", "12px", "12px"])
+                cols = self.style(".tpl-gal-tiles", "gridTemplateColumns")[0].split()
+                self.assertEqual(len(cols), across, cols)
+                px = [float(c[:-2]) for c in cols]
+                self.assertLess(max(px) - min(px), 0.6, "the columns are equal (minmax(0, 1fr))")
+                top = self.tops(".tpl-gal-tile")
+                self.assertEqual(top[:across], [top[0]] * across)
+                self.assertGreater(top[across], top[0], "the next one is on the next row")
+                w = self.widths(".tpl-gal-tile")
+                self.assertAlmostEqual(w[0], w[1], delta=0.6)
 
     def test_columns_two_gives_two_across_and_a_half_width_section_is_two_across(self):
         for what, body, page, slot in (("columns 2 at full width", many(6, {"columns": 2}), 1400, ""), ("half width", many(6), 1400, "left"),
@@ -153,9 +166,13 @@ class Grid(Page):          # AP1, AP2
                 self.assertFalse(self.val("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
     def test_the_shape_for_all_sets_the_frame_ratio(self):
-        for shape, ratio in (("square", 1), ("16:9", 16 / 9), ("4:3", 4 / 3)):
-            with self.subTest(shape):
-                self.mount(many(3, {"shape": shape}))
+        for page, shape, ratio, cls in ((p, *r) for p, _ in WIDTHS for r in (("square", 1, "s11"), ("16:9", 16 / 9, "s169"), ("4:3", 4 / 3, None))):
+            with self.subTest(f"{shape} at {page}"):
+                self.mount(many(3, {"shape": shape}), page)
+                if cls:
+                    self.assertTrue(self.val(f"document.querySelector('.tpl-gal-tiles').classList.contains({json.dumps(cls)})"), "the shape class is applied")
+                else:
+                    self.assertFalse(self.val("/\\bs(11|169|whole)\\b/.test(document.querySelector('.tpl-gal-tiles').className)"), "4:3 is the default: no shape class")
                 w, h = self.val("(function(){const r = document.querySelector('.tpl-gal-frame').getBoundingClientRect(); return [r.width, r.height];})()")
                 self.assertAlmostEqual(w / h, ratio, delta=0.03)
 
@@ -187,14 +204,19 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.style(".tpl-gal-frame img", "objectFit"), ["cover"])
 
     def test_add_tile_is_dashed_and_gone_at_six(self):
-        self.mount(many(3))
+        for page, _ in WIDTHS:
+            with self.subTest(page):
+                self.add_tile_at(page)
+
+    def add_tile_at(self, page):
+        self.mount(many(3), page)
         self.assertEqual(self.text(".tpl-gal-add"), "+" + ADD)
         self.assertEqual(self.val("document.querySelector('.tpl-gal-add').getAttribute('aria-label')"), ADD)
         self.assertEqual(self.style(".tpl-gal-add", "borderTopStyle", "borderTopWidth", "borderTopColor", "borderTopLeftRadius"), ["dashed", "2px", "rgb(196, 206, 227)", "12px"])   # --grey-300 (the mock-up draws #b8c1dc: no hex in the Classic block)
         self.assertGreaterEqual(self.val("document.querySelector('.tpl-gal-add').getBoundingClientRect().height"), 120)
         self.assertEqual(self.style(".tpl-gal-add b", "fontSize")[0], "26px")
         self.assertEqual(self.style(".tpl-gal-add span", "fontSize")[0], "13px")
-        self.mount(many(6))
+        self.mount(many(6), page)
         self.assertEqual(self.count(".tpl-gal-add"), 0)
 
     def test_the_empty_area_is_one_large_dashed_area_with_the_words(self):
@@ -216,6 +238,26 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.text(".tpl-gal-tcap"), "Fictional site visit")
             self.assertEqual(self.style(".tpl-gal-tcap", "fontSize", "color", "marginTop", "marginRight", "marginBottom", "marginLeft", "textAlign"),
                              ["13px", "rgb(71, 85, 119)", "8px", "2px", "0px", "2px", "start"])
+
+
+class Dark(Page):          # the key colours again in the dark theme, read from the page's own tokens
+    def tearDown(self):
+        self.dark(False)
+
+    def test_dark_selected_border_dashed_add_tile_and_caption_use_the_dark_tokens(self):
+        for page, _ in WIDTHS:
+            with self.subTest(page):
+                self.dark(False)
+                self.mount(many(3, {"items": {"1": {"caption": "Fictional"}}}), page)
+                light = (self.token("--brand-blue"), self.token("--grey-300"), self.token("--text-muted"))
+                self.dark()
+                dk = (self.token("--brand-blue"), self.token("--grey-300"), self.token("--text-muted"))
+                self.assertNotEqual(light[1:], dk[1:], "the page has dark values for these tokens")
+                self.assertEqual(self.style(".tpl-gal-tile:nth-child(1)", "borderTopColor"), [dk[0]])
+                self.assertEqual(self.style(".tpl-gal-tile:nth-child(2)", "borderTopColor"), ["rgba(0, 0, 0, 0)"])
+                self.assertEqual(self.style(".tpl-gal-add", "borderTopStyle", "borderTopColor"), ["dashed", dk[1]])
+                self.assertEqual(self.style(".tpl-gal-tcap", "color"), [dk[2]])
+                self.assertEqual(self.style(".tpl-gal-add", "color"), [dk[2]])
 
 
 class Adding(Page):        # the file picker, the drop, the refusals
@@ -241,6 +283,7 @@ class Adding(Page):        # the file picker, the drop, the refusals
         self.assertEqual(self.toast_text(), "Added 2 of the 5 files. A gallery holds up to six images.")
         self.assertEqual(len(self.calls()), 2)
         self.mount(many(5))
+        self.assertIsNone(self.toast_text(), "mounting clears the last toast")
         self.val("add(3)", True)
         self.until("(F.toast() || {}).text && F.toast().text.startsWith('Added')", "said")
         self.assertEqual(self.toast_text(), "Added 1 of the 3 files. A gallery holds up to six images.", "the gallery is now full")
@@ -264,13 +307,17 @@ class Adding(Page):        # the file picker, the drop, the refusals
         self.assertEqual(self.body(), json.loads(v1))
         self.val("add(1)", True)
         self.until("document.querySelectorAll('.tpl-gal-tile').length === 2", "added")
-        self.assertEqual(self.body()["v"], 1, "an image alone is no version 2 field")
+        calls = self.calls()
+        self.assertEqual([(c["path"], c["slot"]) for c in calls], [("/api/section-image", "2")], "one image call to slot 2 and nothing else (no body write that could set a version)")
+        self.assertGreater(calls[0]["bytes"], 0)
+        self.assertEqual(self.body()["v"], 1, "the stand-in keeps the version itself: this only shows it was not changed")
         got = gallery.published(gallery.check(json.loads(v1), None), None)       # publishing a version 1 body: as 1.0.7 did
         self.assertEqual(gallery.check(json.loads(v1), None)["v"], 1)
         self.assertNotIn("columns", got["content"])
         self.mount(many(1))
         self.val("add(1)", True)
         self.until("document.querySelectorAll('.tpl-gal-tile').length === 2", "added")
+        self.assertEqual([(c["path"], c["slot"]) for c in self.calls()], [("/api/section-image", "2")])
         self.assertEqual(self.body()["v"], 2)
 
 

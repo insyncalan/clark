@@ -49,6 +49,7 @@ window.F = {
   mount(s, width, slot) {
     server.sections = [{ id: s.id, type: "gallery", title: "Image gallery", hidden: 0, body: s.body || "" }];
     server.calls = [];
+    toast.value = null;     // a toast left by the last mount never answers the next wait
     project.value = "ABC";
     data.value = { project: { code: "ABC" }, report_sections: sectionsOut() };
     const root = document.getElementById("root");
