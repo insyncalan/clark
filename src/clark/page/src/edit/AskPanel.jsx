@@ -48,7 +48,7 @@ function sourceLabels(list) {
 function readOf(r) {
   if (!r || typeof r !== "object") return null;
   const n = (v) => (Number.isInteger(v) && v >= 0 ? v : 0);
-  return { work_items: n(r.work_items), milestones: n(r.milestones), use_cases: n(r.use_cases), as_at: typeof r.as_at === "string" ? r.as_at.slice(0, 10) : "" };
+  return { work_items: n(r.work_items), milestones: n(r.milestones), use_cases: n(r.use_cases), as_at: typeof r.as_at === "string" ? r.as_at.slice(0, 10) : "", items: n(r.items), left_out: n(r.left_out) };      // row 1294: items read and items left out, for "N items read, M left out."
 }
 
 // Row 1292: a citation or a Used chip opens that item or milestone in its peek, which sits left of the panel (the panel stays open).
@@ -444,6 +444,7 @@ export function AskPanel() {
               <li>{hasFolders ? W.CARD_READS_FOLDERS : W.CARD_READS}</li>
               <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
               <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
+              <li>{W.named(W.CARD_PASSAGES, askProvider.value)}</li>
             </ul>
             <p class="ask-first-tip">{W.CARD_TIP_BEFORE}<kbd>{W.CARD_TIP_KEY}</kbd>{W.CARD_TIP_AFTER}</p>
           </>) : (<>

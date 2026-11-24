@@ -49,6 +49,8 @@ def planted(plant):
     add("milestones", "PUB-M-005", name=MARKERS["hidden_ms"][1], client_visible=0)
     add("actions", "PUB-A-022", description="ZQ-KEEP-STEP-OF-HIDDEN-MILESTONE", client_message=None, use_case="PUB-U-001", milestone="PUB-M-005")
     d["actions"][0]["internal_note"] = MARKERS["note"][1]
+    # row 1479: links straight from the use case: to a shown milestone (PUB-M-002, no step names it), to the hidden one and to the one with the eye off
+    d["uc_milestones"] = [{"use_case": "PUB-U-001", "milestone": m} for m in ("PUB-M-002", "PUB-M-003", "PUB-M-005")]
     plant["changes"].append({"at": "2026-10-20 09:00:00", "apply_id": 1, "tbl": "use_cases", "item_id": "PUB-U-001",
                              "field": "headline", "old_value": MARKERS["history"][1], "new_value": "Going to plan", "op": "update",
                              "via": "test"})
@@ -105,7 +107,7 @@ class Absent(unittest.TestCase):
         self.assertAbsent("hidden_ms", "PUB-M-005")
         steps = {p["id"]: p for p in self.pub["data"]["use_case_pages"]}["PUB-U-001"]
         self.assertIn("PUB-A-022", steps["next_steps"], "its step is shown; only the milestone is not")
-        self.assertNotIn("PUB-M-005", steps["milestones"])
+        self.assertNotIn("PUB-M-005", [m["id"] for m in steps["milestones"]], "a direct link to it does not bring it in either")
         self.assertIsNone(next(a for a in self.pub["data"]["actions"] if a["id"] == "PUB-A-022")["milestone"])
 
     def test_internal_note_on_a_next_step(self):
@@ -148,13 +150,13 @@ class Absent(unittest.TestCase):
             planted(plant)
             plant["data"]["actions"][0]["status"] = "Closed"
         _, pub, _ = made(closed)
-        self.assertEqual(pub["data"]["use_case_pages"], [{"id": "PUB-U-001", "next_steps": ["PUB-A-022"], "milestones": []}], "the closed step and its milestone go")
+        self.assertEqual(pub["data"]["use_case_pages"], [{"id": "PUB-U-001", "next_steps": ["PUB-A-022"], "milestones": [{"id": "PUB-M-002", "direct": True}]}], "the closed step and its milestone go; the straight link stays")
 
 
 class Present(unittest.TestCase):
     def test_the_kept_use_case_with_its_step_and_milestone(self):
         plant, pub, text = made()
-        self.assertEqual(pub["data"]["use_case_pages"], [{"id": "PUB-U-001", "next_steps": ["PUB-A-001", "PUB-A-022"], "milestones": ["PUB-M-001"]}])
+        self.assertEqual(pub["data"]["use_case_pages"], [{"id": "PUB-U-001", "next_steps": ["PUB-A-001", "PUB-A-022"], "milestones": [{"id": "PUB-M-001", "direct": False}, {"id": "PUB-M-002", "direct": True}]}])
         self.assertEqual([u["id"] for u in pub["data"]["use_cases"]], ["PUB-U-001"])
         for kept in ("ZQ-KEEP-USECASE-1", "ZQ-KEEP-STANDING", "ZQ-KEEP-ACTION-1", "ZQ-KEEP-MESSAGE-1", "ZQ-KEEP-MILESTONE-1"):
             self.assertIn(kept, text, kept)
@@ -286,3 +288,53 @@ class RealBrowser(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DirectMilestones(unittest.TestCase):
+    """Row 1479 (PM 22-11): one boolean per milestone, `direct`: true when the use case itself is linked to it (also when a step names
+    it too), false when only a step does. Nothing else is published of the links, and a milestone that is not published names nothing."""
+
+    @staticmethod
+    def pages(mutate=planted, **kw):
+        _, pub, text = made(mutate, **kw)
+        return {p["id"]: p for p in pub["data"]["use_case_pages"]}, text
+
+    def test_direct_only_through_work_items_only_and_both(self):
+        def both(plant):
+            planted(plant)
+            plant["data"]["uc_milestones"].append({"use_case": "PUB-U-001", "milestone": "PUB-M-001"})      # M-001 is also named by a step of the use case
+        pages, _ = self.pages()
+        self.assertEqual(pages["PUB-U-001"]["milestones"], [{"id": "PUB-M-001", "direct": False}, {"id": "PUB-M-002", "direct": True}])
+        pages, _ = self.pages(both)
+        self.assertEqual(pages["PUB-U-001"]["milestones"], [{"id": "PUB-M-001", "direct": True}, {"id": "PUB-M-002", "direct": True}], "both = Directly")
+
+    def test_a_hidden_or_unpublished_milestone_leaks_nothing(self):
+        pages, text = self.pages()
+        self.assertEqual([m["id"] for m in pages["PUB-U-001"]["milestones"]], ["PUB-M-001", "PUB-M-002"], "M-003 (eye off) and M-005 (eye off) are linked straight and named by no page")
+        for gone in ("PUB-M-003", "PUB-M-005", "ZQ-FLAG-OFF-MILESTONE", "ZQ-HIDDEN-USECASE-MILESTONE"):
+            self.assertNotIn(gone, text)
+
+        def report_hidden(plant):
+            planted(plant)
+            plant["hidden"].append("PUB-M-002")
+        pages, text = self.pages(report_hidden)
+        self.assertEqual([m["id"] for m in pages["PUB-U-001"]["milestones"]], ["PUB-M-001"], "a milestone hidden from the report is not named by its link")
+
+        def section_off(plant):
+            planted(plant)
+            for s in plant["sections"]:
+                if s["type"] == "milestones":
+                    s["hidden"] = 1
+        pages, text = self.pages(section_off)
+        self.assertEqual(pages["PUB-U-001"]["milestones"], [], "the Milestones section is hidden: no milestone, linked or not")
+        self.assertNotIn("ZQ-KEEP-MILESTONE-2", text)
+
+    def test_the_link_publishes_one_boolean_and_nothing_team_only(self):
+        plant, pub, text = made()
+        for p in pub["data"]["use_case_pages"]:
+            self.assertEqual(set(p), {"id", "next_steps", "milestones"})
+            for m in p["milestones"]:
+                self.assertEqual(set(m), {"id", "direct"})
+                self.assertIs(type(m["direct"]), bool)
+        self.assertNotIn("uc_milestones", pub["data"])
+        self.assertNotIn("link_id", text)
