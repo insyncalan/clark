@@ -55,26 +55,23 @@ class Screens(Base):
 
 
 class Caps(Base):
-    def test_m16_an_excel_sheet_is_read_only_up_to_the_row_cap(self):
+    def test_m16_an_excel_sheet_over_the_row_cap_is_left_out_whole_as_too_long(self):
         rows = [["item", "owner"]] + [[f"t{i}", f"zqrow{i}"] for i in range(10)]
         self.put("s.xlsx", xlsx({"Plan": rows}), binary=True)
         with mock.patch.object(ask_index, "MAX_EXCEL_ROWS", 3):
             self.build()
-        self.assertTrue(self.found("zqrow0"))
-        self.assertTrue(self.found("zqrow1"))
-        self.assertFalse(self.found("zqrow2"))
+        self.assertFalse(self.found("zqrow0"))
         self.assertFalse(self.found("zqrow9"))
+        self.assertEqual(state_of(self, "s.xlsx"), "too_long")
 
-    def test_m16_an_excel_file_is_read_only_up_to_the_cell_cap_across_its_sheets(self):
+    def test_m16_an_excel_file_over_the_cell_cap_across_its_sheets_is_left_out_whole_as_too_long(self):
         rows = [[f"zqa{i}", f"b{i}", f"c{i}"] for i in range(10)]
         self.put("c.xlsx", xlsx({"One": rows, "Two": [["zqsecondsheet", "x", "y"]]}), binary=True)
         with mock.patch.object(ask_index, "MAX_EXCEL_CELLS", 5):
             self.build()
-        self.assertTrue(self.found("zqa0"))
-        self.assertTrue(self.found("zqa1"))
-        self.assertFalse(self.found("zqa2"))
-        self.assertFalse(self.found("zqa9"))
-        self.assertFalse(self.found("zqsecondsheet"))
+        for word in ("zqa0", "zqa9", "zqsecondsheet"):
+            self.assertFalse(self.found(word), word)
+        self.assertEqual(state_of(self, "c.xlsx"), "too_long")
 
     def test_m19_a_file_keeps_at_most_the_part_cap_of_passages(self):
         long_line = "zqword " * 100                     # one line is about one passage

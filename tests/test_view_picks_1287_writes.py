@@ -79,6 +79,35 @@ class ViewPickWrites(T.InThePage):
             p.until("!!document.querySelector('[data-pop] [data-value=Cancelled]')", "the status menu opened")
             self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [data-value]')].map(b => b.dataset.value).filter((v, i, a) => a.indexOf(v) === i)"), ["Open", "Delayed", "Closed", "Cancelled"])
 
+    def test_a_hostile_owner_typed_into_a_half_width_picker_is_never_run_or_stored_as_markup(self):
+        # write path of the pickers on a list set beside another (ruling 23-11 A): markup and oversize text typed in the owner box
+        classic(self)
+        with self.store.step("dashboard", T.USER) as st:
+            left = st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Fictional half", "sort_order": 1, "beside": 1})
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 2})
+        cell = f"[data-id=\"{left}\"].slot-left .wl-row[data-id=\"{self.a_due}\"] .c-owner .cell-pick"
+        before_owner = self.store.read("actions", ref=self.a_due)["owner"]
+        hostile = ['<img src=x onerror="window.__pwn=1">', "'; DROP TABLE actions; --", "A" * 400]
+        for width in (1400, 900):
+            for text in hostile:
+                with self.subTest(width=width, text=text[:20]), chrome() as cdp:
+                    p = self.show(cdp, width)
+                    p.until(f"!!document.querySelector('{cell}')", "the half-width actions list drew its owner picker")
+                    self.press(p, cell)
+                    p.until("!!document.querySelector('[data-pop] input.cp-in')", "the owner box opened")
+                    p.js("document.querySelector('[data-pop] input.cp-in').select()")
+                    p.type(text)
+                    p.key("Enter", code="Enter", vk=13)
+                    p.js("new Promise(r => setTimeout(r, 600))")
+                    self.assertIsNone(p.js("window.__pwn === undefined ? null : window.__pwn"), "typed markup never ran")
+                    self.assertEqual(p.js("document.querySelectorAll('#report img[src=x], [data-pop] img[src=x]').length"), 0, "typed markup drew no element")
+                    owner = self.store.read("actions", ref=self.a_due)["owner"]
+                    self.assertTrue(owner == before_owner or owner == text[:200], f"the store holds the old owner or the literal text (the box keeps 200 characters), nothing else: {owner!r}")
+                    self.assertLessEqual(len(owner or ""), 200, "oversize text is cut to 200, never stored whole")
+                    self.assertGreater(self.store.con.execute("SELECT count(*) FROM actions").fetchone()[0], 0, "the table is intact")
+                    with self.store.step("dashboard", T.USER) as st:
+                        st.update("actions", self.a_due, {"owner": before_owner})
+
     def test_previous_and_next_leave_the_edit_peek_a_description_click_opened(self):
         classic(self)
         title = f".wl-row[data-id=\"{self.a_due}\"] .c-title"

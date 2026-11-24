@@ -125,6 +125,55 @@ def label(text, limit=LABEL_MAX):
     return text if len(text) <= limit else (text[:max(0, limit - 2)] + "..")[:max(0, limit)]
 
 
+def lines(text, limit=LABEL_MAX, most=2):
+    """A lane name as at most `most` lines of at most `limit` characters: it breaks at spaces, a word longer than a line is split, and
+    only a name too long for `most` lines ends in two dots (never a cut at the first line)."""
+    limit, most = max(1, limit), max(1, most)             # a limit or a line count below 1 never loops or indexes an empty list
+    text = label(text, 10 ** 6)
+    out, line = [], ""
+    for word in text.split(" "):
+        while len(word) > limit:
+            if line:
+                out.append(line)
+                line = ""
+            out.append(word[:limit])
+            word = word[limit:]
+        if line and len(line) + 1 + len(word) <= limit:
+            line += " " + word
+        else:
+            if line:
+                out.append(line)
+            line = word
+    out.append(line)
+    if len(out) > most:
+        # PM ruling: a name of limit*most characters or fewer never gets dots (it is cut at the line width if the word breaks
+        # do not fit); a longer one wraps at the line width and keeps '..' at the end of the last line.
+        out, rest = [], text
+        for _ in range(most):                             # a cut never leaves a space at the start or end of a line
+            rest = rest.lstrip(" ")
+            out.append(rest[:limit].rstrip(" "))
+            rest = rest[limit:]
+        if rest:                                          # the name has no trailing space, so what is left is a word
+            out[-1] = (out[-1][:max(0, limit - 2)].rstrip(" ") + "..")[:limit]
+    return out
+
+
+def lane_tops(top, names, one, limit=LABEL_MAX):
+    """The top of each lane and the picture's lane space: a name on two lines has a lane tall enough for both."""
+    tops, at = [], top
+    for n in names:
+        tops.append(at)
+        at += max(one, 2 * 7 * TEXT_SCALE + 4) if len(lines(n, limit)) > 1 else one
+    return tops, at - top
+
+
+def draw_name(c, x, y, h, name, colour):
+    ls = lines(name)
+    block = len(ls) * 7 * TEXT_SCALE + (len(ls) - 1) * 2
+    for k, ln in enumerate(ls):
+        draw_text(c, x, y + (h - block) // 2 + k * (7 * TEXT_SCALE + 2), ln, colour)
+
+
 def text_width(text):
     return len(text) * 6 * TEXT_SCALE
 
@@ -218,7 +267,9 @@ def plan(milestones, today, tok):
     start_iso, end_iso = mr.timeline_span(rows, now.isoformat() if now else first.isoformat())
     start, end = date.fromisoformat(start_iso), date.fromisoformat(end_iso)
     days = max(1, (end - start).days)
-    height = TOP + LANE * len(rows) + 2
+    tops, space = lane_tops(TOP, [r["row"].get("name") for r in rows], LANE)
+    tops.append(TOP + space)
+    height = TOP + space + 2
 
     def x(d):
         return X0 + round((d - start).days * (X1 - X0) / days)
@@ -226,7 +277,7 @@ def plan(milestones, today, tok):
     c = Canvas(WIDTH, height, t["surface"])
     for i in range(len(rows)):
         if i % 2 == 0:
-            c.rect(0, TOP + i * LANE, WIDTH, TOP + (i + 1) * LANE, t["grey-100"])
+            c.rect(0, tops[i], WIDTH, tops[i + 1], t["grey-100"])
     months = []
     y, m = start.year, start.month
     while date(y, m, 1) < end and len(months) < 2000:
@@ -240,9 +291,9 @@ def plan(milestones, today, tok):
     if now and start <= now < end:
         c.vline(x(now), 0, height, t["brand-navy"], 2)
     for i, r in enumerate(rows):
-        draw_text(c, PAD, TOP + i * LANE + (LANE - 7 * TEXT_SCALE) // 2, label(r["row"].get("name")), t["text"])
+        draw_name(c, PAD, tops[i], tops[i + 1] - tops[i], r["row"].get("name"), t["text"])
     for i, r in enumerate(rows):
-        cy = TOP + i * LANE + LANE // 2
+        cy = (tops[i] + tops[i + 1]) // 2
         if not r["solid"]:
             continue
         if r["ghost"]:
@@ -325,22 +376,24 @@ def gantt(lines, today, tok):
     pictures = []
     for at in range(0, len(drawn), GANTT_CHUNK):
         run = drawn[at:at + GANTT_CHUNK]
-        height = G_TOP + G_LANE * len(run) + 2
+        tops, space = lane_tops(G_TOP, [r["line"].get("name") for r in run], G_LANE)
+        tops.append(G_TOP + space)
+        height = G_TOP + space + 2
         c = Canvas(WIDTH, height, t["surface"])
         for i, r in enumerate(run):
             if r["type"] == "phase":
-                c.rect(0, G_TOP + i * G_LANE, WIDTH, G_TOP + (i + 1) * G_LANE, t["grey-50"])
-            c.hline(0, WIDTH, G_TOP + (i + 1) * G_LANE - 1, t["grey-100"])
+                c.rect(0, tops[i], WIDTH, tops[i + 1], t["grey-50"])
+            c.hline(0, WIDTH, tops[i + 1] - 1, t["grey-100"])
         for d in ticks:
             c.vline(x(d), 0, height, t["grey-100"])
         month_labels(c, ticks, x, t["text"])
         for i, r in enumerate(run):
-            draw_text(c, PAD, G_TOP + i * G_LANE + (G_LANE - 7 * TEXT_SCALE) // 2, label(r["line"].get("name")), t["text"])
+            draw_name(c, PAD, tops[i], tops[i + 1] - tops[i], r["line"].get("name"), t["text"])
         c.hline(0, WIDTH, G_TOP, t["grey-300"], 2)
         if now and first <= now <= last:
             c.vline(x(now), 0, height, t["status-red"], 2)
         for i, r in enumerate(run):
-            cy = G_TOP + i * G_LANE + G_LANE // 2
+            cy = (tops[i] + tops[i + 1]) // 2
             x1 = x(r["start"])
             if r["type"] == "milestone":
                 border, fill = (t["status-green-text"], t["status-green"]) if r["pct"] >= 100 else (t["status-amber-text"], t["status-amber"])

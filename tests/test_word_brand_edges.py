@@ -149,7 +149,7 @@ EVIL = '<!DOCTYPE r [<!ENTITY e "boom">]><x/>'
 
 
 class DoctypeInAnyPart(unittest.TestCase):
-    """Row 1383: a DOCTYPE or entity, spelled in plain ASCII (or UTF-8), is refused in every part whatever the part is named (the document points at parts by relationship). Not covered, and the same on main: a DOCTYPE hidden in UTF-16 or split by NUL bytes in a part other than word/document.xml and .rels."""
+    """Row 1383: a DOCTYPE or entity, spelled in plain ASCII (or UTF-8), is refused in every part whatever the part is named (the document points at parts by relationship). The UTF-16 and NUL-split spellings are in test_word_brand_edges_1448."""
 
     def refused(self, extra):
         with self.assertRaises(WordRefused) as e:
