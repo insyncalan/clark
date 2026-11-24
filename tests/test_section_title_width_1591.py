@@ -26,9 +26,10 @@ class Sheets(unittest.TestCase):
 
     def test_the_box_fills_the_row_on_one_line_without_a_mid_word_break(self):
         rule = re.search(r"^\.sec-t > \.sec-title \{([^}]*)\}", BLOCK, re.M).group(1)
-        for want in ("display: block", "width: 100%", "white-space: nowrap", "text-overflow: ellipsis", "overflow: hidden", "overflow-wrap: normal"):
+        for want in ("vertical-align: top", "width: 100%", "white-space: nowrap", "text-overflow: ellipsis", "overflow: hidden", "overflow-wrap: normal"):
             self.assertIn(want, rule)
-        self.assertIn(".sec-t:has(> .sec-title) { display: block; }", BLOCK)
+        self.assertIn(".sec-t:has(> .sec-title) { width: 100%; }", BLOCK)
+        self.assertNotIn("display: block", BLOCK)   # the title and its .sec-t stay inline-block: a block title changes the head's line height and moves the .tpl-icons offset
 
     def test_focused_the_text_is_not_cut(self):
         self.assertIn(".sec-t > .sec-title:focus { text-overflow: clip; }", BLOCK)
