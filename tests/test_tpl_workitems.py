@@ -652,6 +652,7 @@ class InThePage(PageBase):
             self.assertIn("Due:false", names)
             p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
 
