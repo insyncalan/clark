@@ -116,15 +116,14 @@ class Look(Base):
             made = st.create("report_sections", {"project": "ABC", "type": "imagecap", "title": title, "sort_order": 990, "beside": beside,
                                                  "body": store_module.check_section_body("imagecap", json.dumps(body))})
             if beside:      # a half only exists with a section after it to share the row
-                st.create("report_sections", {"project": "ABC", "type": "text", "title": PARTNER, "sort_order": 991, "beside": 0,
-                                              "body": store_module.check_section_body("text", json.dumps("Fictional words."))})
+                st.create("report_sections", {"project": "ABC", "type": "text", "title": PARTNER, "sort_order": 991, "beside": 0})
             return made
 
     def settle(self, cdp, p, width, scheme):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until(f"window.innerWidth === {width}", "resized")
-        p.until("document.querySelector('.tpl-fullimg, .fi-stage')", "the image section is drawn")
+        p.until("!!document.querySelector('.tpl-fullimg, .fi-stage')", "the image section is drawn")
 
     def rows(self, cdp, p, width, scheme):
         self.settle(cdp, p, width, scheme)
