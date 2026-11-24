@@ -94,6 +94,60 @@ class Box(unittest.TestCase):
                 self.assertIn("Latest update of", self.toast(cdp, sid))
 
 
+class Stamp1470(unittest.TestCase):
+    """Row 1470 (Classic): the stamp under the Latest update box reads "Last updated <date> <time> · Source: <source>", the Source only when clark recorded it; no person is named."""
+    load, fresh, refused, open_box, type_in, save_key = _B.load, _B.fresh, _B.refused, _B.open_box, _B.type_in, _B.save_key
+    SHOWN, BOX = _B.SHOWN, _B.BOX
+    HOLD = _B.HOLD
+    setUp = _B.setUp
+    DATE = r"Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}"
+
+    @staticmethod
+    def prep(user=True, source=True):
+        def make(store):
+            import sqlite3
+            con = sqlite3.connect(str(store.path))
+            if not user:
+                con.execute("UPDATE applies SET by_user = ''")
+            if not source:
+                con.execute("UPDATE actions SET source = '' WHERE id = 'TUL-A-001'")
+            con.commit()
+            con.close()
+        return make
+
+    def test_stamp_has_name_date_time_source_and_omits_unknown(self):
+        """The name comes from the item's update row (ruling 23-11 10:25): no update row, no \"by\"; after a real save through the peek the stamp reads \"by <name>\"."""
+        cases = ((True, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
+                 (True, False, rf"^{self.DATE}$"), (False, False, rf"^{self.DATE}$"))
+        for width in (1400, 900):
+            if width == 900 and test_server.PAUSED_900:
+                raise unittest.SkipTest(test_server.PAUSED_900)       # the repo pauses every 900 px case; the 1400 half ran
+            with chrome() as cdp:                          # one browser per width: many launches in one test make Chrome close the pipe
+                for mode in ("view", "edit"):
+                    for user, source, want in cases:
+                        self.check(cdp, width, mode, user, source, want)
+                    self.check_by(cdp, width, mode)
+
+    def check_by(self, cdp, width, mode):
+        with self.subTest(width=width, mode=mode, by="saved update"):
+            sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)), "a stamp first")
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, f"By-name update {width} {mode}")
+            self.save_key(cdp, sid)
+            want = rf"^{self.DATE} by Demo User · Source: Demo data \(fictional\)$"
+            self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")),
+                            "the stamp names the person who saved the update: " + str(cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid)))
+
+    def check(self, cdp, width, mode, user, source, want):
+        with self.subTest(width=width, mode=mode, user=user, source=source):
+            sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True, prep=self.prep(user, source))
+            self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")), "the stamp reads as asked")
+            r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, ml: c.marginLeft, left: s.getBoundingClientRect().left, box: document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().left }; })()", sid)
+            self.assertEqual((r["svg"], r["fs"], r["mt"], r["ml"]), (0, "12px", "6px", "2px"), r)
+            self.assertAlmostEqual(r["left"] - r["box"], 2, delta=1, msg="at the left of the box (margin 2), not right-aligned as row 1257 had it")
+
+
 del _B
 
 

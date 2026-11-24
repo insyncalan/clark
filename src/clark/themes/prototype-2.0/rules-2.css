@@ -55,6 +55,13 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1470 (the approved Dashboard peek mock-up, Classic only, Cards keeps today's rules): the Latest update box text is 15 px / 1.55 and the stamp under it is 12 px muted at the left, margin 6px 2px 0 (it was right-aligned in row 1257);
+   in dark the box takes the mock-up's tokens --soft 192440, --line 25324D and the stamp --muted 9AA9BD (the Theme's own dark greys differ). A focused box keeps its own look. */
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover, .pk-lbox .rt-host .ProseMirror { font-size: 15px; line-height: 1.55; }
+.pk-last { display: block; margin: 6px 2px 0; }
+:root[data-theme=dark] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); }
+:root[data-theme=dark] .pk-last { color: rgb(154, 169, 189); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); } :root[data-theme=auto] .pk-last { color: rgb(154, 169, 189); } }
 /* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on its own ground, 18px corners with a 1px ring (--set-ring, the mock-up's line colour) on the --set-win ground with the white cards inside, and a 0 12px 36px drop shadow in the Theme-only --set-shadow token (the shared --shadow stays 0 8px 24px for the peek and the config panel) (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
 .set-win { background: var(--set-win); box-shadow: 0 0 0 1px var(--set-ring), 0 12px 36px var(--set-shadow); border-radius: 18px; padding: var(--space-4) var(--space-4) var(--space-5); }
 .set-tile { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: var(--space-2); border-radius: 7px; background: var(--brand-blue); color: var(--set-tile-ink); }
