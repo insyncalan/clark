@@ -269,7 +269,7 @@ class TheChangesPath(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
-        self.action = self.demo.action(owner="Sam Lee")
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, no client tick
         self.ask = ask_apply.AskApply(self.s.path, [], USER)
         self.change = changes.make_ask_change(self.s.path, [], USER)
         self.said = {"op": "change", "status": "Closed", "id": self.action, "current_title": "Draft the cut-over plan", "current_owner": "Sam Lee"}

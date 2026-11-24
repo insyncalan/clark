@@ -30,7 +30,7 @@ RECORD_UNDOS = """(() => {
 
 class Killers(Card):
     def test_undo_all_is_not_offered_when_one_saved_change_cannot_be_undone(self):
-        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        second = self.demo.action(owner="Kim Roe", description="Order the badges", client_visible=0)
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -44,7 +44,7 @@ class Killers(Card):
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 0, "one step cannot be undone: no Undo all")
 
     def test_undo_all_is_one_undo_request_for_both_steps(self):
-        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        second = self.demo.action(owner="Kim Roe", description="Order the badges", client_visible=0)
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
         with chrome() as cdp:
             p = self.opened(cdp)
