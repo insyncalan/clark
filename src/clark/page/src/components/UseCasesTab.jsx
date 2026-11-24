@@ -3,6 +3,7 @@
 // Row 1114: the list as the full app's Use cases page draws it, read only: the tabs with their counts (no "On the dashboard" tab, every
 // published row is on it), Sort by and Group by menus (item 1149: the rows are the dashboard summary's) with groups that shut, the count line and the filtered-empty state.
 // A published row carries no work item count, so there is no Work items heading to sort by. The choice lives for the visit only.
+import { richWords } from "../logic/richWords.js";
 import { StepsBadge } from "./StepsBadge.jsx";
 import { signal } from "@preact/signals";
 import { data, uc, project } from "../stores/report.js";
@@ -28,7 +29,7 @@ const set = (patch) => { view.value = { ...view.value, ...patch }; };
 function Item({ p, u, steps, marks }) {
   const d = data.value;
   const mine = p.next_steps.map((id) => steps[id]).filter(Boolean);
-  const ms = p.milestones.map((id) => marks[id]).filter(Boolean);
+  const ms = p.milestones.map((x) => marks[x.id]).filter(Boolean);
   return (
     <details class="ucp" open={printing.value}>
       <summary class="ucp-bar">{/* item 1149: the dashboard summary's row: reference box, title, where it stands, status word with the commitment, the shared next steps */}
@@ -42,7 +43,7 @@ function Item({ p, u, steps, marks }) {
         <p><a class="link" data-uc-page href={`#usecases&p=${project.value}&uc=${encodeURIComponent(ucKey(d, u))}`}>Open the page</a></p>
         {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}
         <h2>Next steps</h2>
-        {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{a.client_message || a.description}</li>)}</ul> : <p class="muted ucp-none">No next steps are shared for this use case.</p>}
+        {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{richWords(a.client_message) || a.description}</li>)}</ul> : <p class="muted ucp-none">No next steps are shared for this use case.</p>}
         <h2>Milestones</h2>
         {ms.length ? <ul class="plain">{ms.map((m) => <li key={m.id}>{m.name} <span class="muted">{m.state_word}</span></li>)}</ul> : <p class="muted ucp-none">No milestones are shared for this use case.</p>}
       </div>

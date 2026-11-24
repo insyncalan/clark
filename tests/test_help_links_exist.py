@@ -62,7 +62,7 @@ elif "const GROUPS = [" in VIEWS_JSX:
     GROUPS = re.search(r"const GROUPS = \[(.*?)\n\];", VIEWS_JSX, re.S).group(1)
     ENTRIES = [(k, n, [t for t in re.findall(r'"(\w+)"', tools)]) for k, n, tools in re.findall(r'\["([\w-]+)", "([^"]+)", \[([^\]]*)\]\]', GROUPS)]
     CARD_NAMES = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt", "Diagnostics": "Logs and diagnostics",
-                  "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
+                  "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "People": "People", "AskSettings": "Asking", "Quit": "Quit"}
     NAMES = {n for _, n, _ in ENTRIES} | set(CARD_NAMES.values()) | {k["title"] for k in context_cards()} | {"AI"}
     HEADS = set(re.findall(r'\w+: "([\w-]+-h)"', re.search(r"const HEADS = \{(.*?)\};", VIEWS_JSX, re.S).group(1)))
     ANCHORS = {k["card"]: k["card"] for k in context_cards()}

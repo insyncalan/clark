@@ -58,8 +58,7 @@ class WorkItemsOptionA(unittest.TestCase):
             self.assertEqual(got["btn"], ["600", "15px", "Montserrat"], "heading weight, size, face")
             self.assertEqual(got["count"][:2], ["13px", "2px"], "count 13 px, 2 px before it")
             self.assertEqual(got["chev"][0], "3px", "chevron 3 px from the top")
-            # macOS Chrome reports the computed value of align-items: flex-start as 'flow-start' (the same top alignment, a different keyword); the CSS value is the one rule
-            self.assertIn(got["chev"][2], ("flex-start", "flow-start"), "the heading text aligns top")
+            self.assertEqual(got["chev"][2], "flex-start", "the heading text aligns top")
             self.assertEqual(got["chev"][1], got["count"][2], "chevron and count are the --muted colour")
             self.assertEqual(got["margins"], ["14px"] + ["18px"] * (got["n"] - 1), "14 px under the column names, 18 px between groups")
             self.assertEqual(got["colhLine"], ["1px", "solid", "0px"], "1 px line under the column names, none over them")

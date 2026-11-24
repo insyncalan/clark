@@ -428,12 +428,12 @@ class Page(unittest.TestCase):
         pad = self.style("input[id$='-heading']", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft")
         self.assertEqual(pad, ["7px", "10px", "7px", "10px"])
 
-    def test_the_editor_bar_bold_italic_and_bulleted_list_are_28_by_26(self):      # AP9: Bold, Italic and Bulleted list are 28 x 26 (the mock-up's numbers)
+    def test_the_editor_bar_bold_italic_and_bulleted_list_are_34_by_26(self):      # AP9: Bold, Italic and Bulleted list are 34 wide (row 1288 tight menus: min-width 34) and 26 high
         self.with_image(page=1400)
         self.val("(document.querySelector('.tpl-sbs-edit-words .rt-view, .tpl-sbs-edit-words .rich, .tpl-sbs-edit-words [tabindex]') || document.querySelector('.tpl-sbs-edit-words')).click()")
         self.until("document.querySelector('.tpl-sbs-edit-words .ProseMirror')", "the words editor is open")
         sizes = self.val("['Bold', 'Italic', 'Bulleted list'].map(n => { const r = document.querySelector('.tpl-sbs-edit-words .rt-btn[aria-label=\"' + n + '\"]').getBoundingClientRect(); return [n, r.width, r.height]; })")
-        self.assertEqual(sizes, [["Bold", 28, 26], ["Italic", 28, 26], ["Bulleted list", 28, 26]])
+        self.assertEqual(sizes, [["Bold", 34, 26], ["Italic", 34, 26], ["Bulleted list", 34, 26]])
 
     def test_rich_editor_min_height_150_and_15px(self):
         self.with_image(page=1400)

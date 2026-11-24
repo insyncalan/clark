@@ -1566,7 +1566,7 @@ class TheSnapshot(Base):
 # publish. A tracked file in either place that is not listed forces a decision: add it here to publish it, or put it on
 # EXCLUDED in dev/tools/publish_public.py to keep it private. (README.md is the public README, swapped in by the tool.)
 KNOWN_PUBLIC = frozenset({
-    ".gitattributes", ".gitignore", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md", "clark.command", "requirements-audit.txt",   # row 1382: the audit workflow reads it
+    ".gitattributes", ".gitignore", ".mergify.yml", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md", "clark.command", "requirements-audit.txt",   # row 1382: the audit workflow reads it
     "docs/ARCHITECTURE.md", "docs/BRD.md", "docs/DESIGN-SYSTEM.md", "docs/DESIGN-SYSTEM-COMPONENTS.md", "docs/PROJECT-BRIEF.md", "docs/REUSE-FROM-CREAITE.md", "docs/RULES.md",
     "docs/publishing-the-public-copy.md", "docs/testing-on-linux.md",
     # #751: the README at the top of the release zip: every sentence is word for word from README.md (tests/test_zip_readme.py)

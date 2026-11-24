@@ -12,7 +12,7 @@ export const FILLS = ["blur", "brand", "plain"];
 
 // Numbers: the print width (300 dpi across about 257 mm), the small-image width, the flattest and tallest a height may be.
 export const PRINT_WIDE = 3000;
-export const SMALL_WIDE = 1200;
+export const SMALL_WIDE = 600;
 export const FLATTEST = 4;               // width : height, at most
 export const TALLEST = 0.7;              // of the window's height
 export const MOST_BYTES = 3 * 1024 * 1024;   // the original and the framed copy, each, decoded (imagecap.py ORIGINAL_MAX, FRAMED_MAX)

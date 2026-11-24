@@ -1,4 +1,4 @@
-"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and a short list has no grip.
+"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line. Row 1570: in Classic it shows only while the line overflows its box.
 
 Run: python3 dev/run_tests.py test_ms_timeline_grip_1267
 Chrome launches at 1400 and 900 px.
@@ -18,6 +18,8 @@ CLASSIC = "prototype-2.0"
 GEO = """(() => { const w = document.querySelector('.mv-wrap').getBoundingClientRect(), g = document.querySelector('[data-grip]').getBoundingClientRect();
   return [(g.left + g.width / 2) - (w.left + w.width / 2), w.bottom - g.bottom, w.bottom - g.top, getComputedStyle(document.querySelector('.mv-wrap')).resize]; })()"""
 PCT = "document.querySelector('.mv-wrap').dataset.zoomPct"
+OVER = "(() => { const w = document.querySelector('.mv-wrap'); return w.scrollWidth > w.clientWidth + 1; })()"
+GRIPS = "document.querySelectorAll('[data-grip]').length"
 KEY = "(k) => { const g = document.querySelector('[data-grip]'); g.focus(); g.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }"
 
 
@@ -286,7 +288,7 @@ class DarkAndSideways(Classic, BrowserBase, unittest.TestCase):
 
 
 class ShortList(Classic, BrowserBase, unittest.TestCase):
-    """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
+    """A line that does not overflow its box has nothing to spread: no grip (row 1570: the rule is the overflow, not the count)."""
 
     def serve(self, theme=CLASSIC):
         def short(code, archived="hide"):
@@ -305,6 +307,7 @@ class ShortList(Classic, BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
+                self.assertFalse(cdp.js(OVER, sid), f"{width}: the two demo milestones sit inside the box")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: no useless grip")
 
     def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
@@ -323,19 +326,115 @@ class ShortList(Classic, BrowserBase, unittest.TestCase):
 class ThreeMilestones(ShortList):
     COUNT = 3
 
-    def test_three_milestones_are_enough_for_the_grip(self):
+    def test_three_milestones_have_the_grip_when_they_overflow_and_not_otherwise(self):
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 3, f"{width}: the line is drawn")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 1, f"{width}: exactly three milestones keep the grip")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == (1 if cdp.js(OVER, sid) else 0)), f"{width}: the grip is there exactly when the line overflows ({cdp.js(OVER, sid)})")
 
     def test_two_milestones_draw_the_line_and_no_grip(self):
         pass
 
     def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
         pass
+
+
+def dated(data, dates):
+    """The project's data with its milestones cut down to one per date, each only baselined on that date."""
+    d = copy.deepcopy(data)
+    d["milestones"] = [dict(m, baseline_date=at, forecast_date=None, actual_date=None, state=None) for m, at in zip(d["milestones"], dates)]
+    return d
+
+
+CLOSE = ["2026-11-10", "2026-11-12", "2026-11-14", "2026-11-16", "2026-11-18", "2026-11-20"]
+MID = ["2026-10-01", "2026-12-01", "2027-01-15"]   # fits at 1400, scrolls sideways at 900 (checked by the resize test)
+FAR = ["2024-01-15", "2028-06-15"]
+
+
+class Overflow(Classic, BrowserBase, unittest.TestCase):
+    """Row 1570: in Classic the grip is drawn when the line scrolls sideways (scrollWidth past clientWidth), whatever the count; a stored zoom keeps it (ShortList)."""
+
+    def serve(self, dates=None, other=None):
+        """dates: the milestone dates of project TUL; other: those of project MOSS (None leaves it as it is)."""
+        def data_for(code, archived="hide"):
+            d = self.store.data_for(code, archived)
+            if code == "TUL" and dates is not None:
+                return dated(d, dates)
+            if code == "MOSS" and other is not None:
+                return dated(d, other)
+            return d
+        s = Running(data_for=data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=CLASSIC))
+        self.addCleanup(s.close)
+        return s.port
+
+    def test_one_milestone_has_no_grip(self):
+        port = self.serve(["2026-11-18"])
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 1, f"{width}: the line is drawn")
+                self.assertFalse(cdp.js(OVER, sid), f"{width}: one milestone fits the box")
+                cdp.js("new Promise((r) => setTimeout(r, 300))", sid)
+                self.assertEqual(cdp.js(GRIPS, sid), 0, width)
+
+    def test_six_close_milestones_that_do_not_overflow_have_no_grip(self):
+        port = self.serve(CLOSE)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 6, f"{width}: six are drawn")
+                self.assertFalse(cdp.js(OVER, sid), f"{width}: scrollWidth is not past clientWidth")
+                cdp.js("new Promise((r) => setTimeout(r, 300))", sid)
+                self.assertEqual(cdp.js(GRIPS, sid), 0, f"{width}: six milestones, no overflow, no grip")
+
+    def test_two_far_apart_milestones_that_overflow_have_a_grip(self):
+        port = self.serve(FAR)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: two are drawn")
+                self.assertTrue(wait(lambda: cdp.js(OVER, sid)), f"{width}: scrollWidth is past clientWidth")
+                self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == 1), f"{width}: two milestones that overflow have the grip")
+
+    def test_the_grip_is_decided_after_layout(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == (1 if cdp.js(OVER, sid) else 0)), f"{width}: the demo's six milestones: the grip count follows the overflow ({cdp.js(OVER, sid)})")
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, HASH, self.serve(FAR))
+            self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == 1), "the grip is drawn once the first layout has measured the strip")
+
+    def test_the_grip_follows_the_overflow_when_the_window_is_resized(self):
+        port = self.serve(MID)
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, HASH, port)
+            self.assertFalse(cdp.js(OVER, sid), "1400: the line fits")
+            cdp.js("new Promise((r) => setTimeout(r, 300))", sid)
+            self.assertEqual(cdp.js(GRIPS, sid), 0, "1400: no grip")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            self.assertTrue(wait(lambda: cdp.js(OVER, sid)), "900: the narrower box scrolls sideways")
+            self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == 1), "900: the grip appears with the overflow")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            self.assertTrue(wait(lambda: not cdp.js(OVER, sid)), "1400 again: the line fits")
+            self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == 0), "1400 again: the grip goes")
+
+    def test_the_grip_follows_the_overflow_when_the_milestone_list_changes(self):
+        port = self.serve(CLOSE, other=FAR)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                cdp.js("new Promise((r) => setTimeout(r, 300))", sid)
+                self.assertEqual(cdp.js(GRIPS, sid), 0, f"{width}: the close list has no grip")
+                cdp.js("location.hash = '#milestones&p=MOSS'; true", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the other project's two milestones are drawn")
+                self.assertTrue(wait(lambda: cdp.js(OVER, sid) and cdp.js(GRIPS, sid) == 1), f"{width}: the far apart list overflows and has the grip")
+                cdp.js("location.hash = '#milestones&p=TUL'; true", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 6), f"{width}: back to the close list")
+                self.assertTrue(wait(lambda: cdp.js(GRIPS, sid) == 0), f"{width}: the grip goes with the overflow")
 
 
 class KeyGuards(Classic, BrowserBase, unittest.TestCase):
