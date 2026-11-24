@@ -594,6 +594,7 @@ class ClaudeCommand(ask.Provider):
                 return ask.Failure(BUSY)
             self.owner = getattr(request, "owner", None)
             self.stop_event.clear()
+            self.lock.release()
             cancel = getattr(request, "cancel", None)
             cancelled = cancel is not None and cancel.is_set()   # a Stop that came before this point, for this run
         try:
@@ -613,7 +614,10 @@ class ClaudeCommand(ask.Provider):
         finally:
             with self.guard:
                 self.owner = None
-                self.lock.release()
+                try:
+                    self.lock.release()
+                except RuntimeError:
+                    pass
 
     def stop(self, owner=None):
         """Stop the question being answered, if there is one (its whole process group ends). True when one was running. With
