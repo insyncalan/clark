@@ -10,12 +10,9 @@ export const PLACE_OF = {
   "current.state": "current",        // Current state (the report's headline)
   "usecase.standing": "current",     // a use case's "Where it stands"
   "peek.latest_update": "current",   // an item's or milestone's Latest update (row 1005)
-  "milestone.description": "current", // a milestone's Description in its peek (row 1005)
   "textimage.text": "current",       // a Text and picture section's text (row 1005)
   "movement.internal_note": "current", // a milestone's Internal note on the Movement page (row 1005)
   "glance.health_reason": "current", // the At a glance Reason for the project's health (row 1005)
-  "linkcard.text": "current",        // a Link preview card's words (row 1005)
-  "onedoc.text": "current",          // a One document section's words under the file (row 1005)
   "callout.text": "current",         // a Callout section's words (row 1005)
   // The notes editor: a Notes-kind section (when it lands) and any meeting-notes field. It adds Pull out the tasks.
   "notes.section": "notes",
@@ -24,13 +21,15 @@ export const PLACE_OF = {
   "peek.risk_wording": "plain",
   // Words meant to reach a client: the milestone's client wording. Its client check applies (the place decides it).
   "milestone.client_wording": "client_message",
+  // One line, no AI (row 1288): a milestone's Description in its peek. The Link card words and the One document words are Not rich: a plain box, no entry.
+  "milestone.description": "plain",
   // The Movement form's one-line fields (row 1005): plain, like the other short fields.
   "movement.who": "plain",
   "movement.reason": "plain",
   "movement.source": "plain",
-  "raid.own_words": "plain",         // a RAID entry's Own words (row 1005)
-  // A picture's caption: one plain line (row 1005).
-  "picture.caption": "plain",
+  "raid.own_words": "current",       // a RAID entry's Own words: the Full editor (row 1288)
+  // A picture's caption: the Full editor (row 1288).
+  "picture.caption": "current",
   // The Draft email preview.
   "email.draft": "email",
 };
@@ -47,8 +46,6 @@ export const RICH_FIELDS = {
   textimage: "textimage.text",
   internal_note: "movement.internal_note",
   health_reason: "glance.health_reason",
-  linkcard: "linkcard.text",
-  onedoc: "onedoc.text",
   callout: "callout.text",
   caption: "picture.caption",
   mv_who: "movement.who",

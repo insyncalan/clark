@@ -203,9 +203,10 @@ class SavePath(unittest.TestCase):
             for br in LINE_BREAKS:
                 self.assertNotIn(br, out)
 
-    def test_the_row_words_source_flattens_with_plainFromEditor_one_line(self):
+    def test_the_row_words_source_is_the_full_editor_and_no_longer_flattens_1288(self):
         text = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
-        self.assertRegex(text, r"plainFromEditor\([^)]*true\)")
+        self.assertNotIn("plainFromEditor(", text)
+        self.assertNotIn("oneLine", text)
 
     def test_caption_one_line_passes_the_picture_section_check(self):
         cap = plain("<p>A &lt;b&gt; caption</p><p>second line</p>", True)

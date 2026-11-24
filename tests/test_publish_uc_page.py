@@ -62,8 +62,9 @@ class TheFilesUseCasePage(unittest.TestCase):
                     self.assertEqual(det["labels"], ["Owner", "Status"] + (["Commitment"] if uc.get("commitment") else []))
                     self.assertIn(OWNER, det["text"])
                     self.assertEqual(uc["owner"], OWNER)
-                    how = js(cdp, sid, "[...document.querySelectorAll('[data-ucf] [data-ms-how]')].map(e => e.textContent)")
-                    self.assertTrue(how and set(how) == {"Through work items"}, "the label of how a milestone is reached, with no explanation line")
+                    # row 1479 (PM 22-11): 'Directly' for a milestone the use case itself is linked to, 'Through work items' for one only a step names
+                    how = js(cdp, sid, "Object.fromEntries([...document.querySelectorAll('[data-ucf] [data-ms-how]')].map(e => [e.parentElement.querySelector('[data-ms-open]').dataset.msOpen, e.textContent]))")
+                    self.assertEqual(how, {"PUB-M-001": "Through work items", "PUB-M-002": "Directly"}, "the label of how a milestone is reached, with no explanation line")
                     self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-ucf] [data-ms-note]').length"), 0)
                     self.assertIn(uc["status"], det["text"])
                     self.assertEqual(det["controls"], 0, "the Details card is read only")

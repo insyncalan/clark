@@ -28,7 +28,7 @@ export const CARD_SENT = "Your question and what it needs go to Claude.";
 export const CARD_LINK = "What will be sent? (Settings)";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
-export const CARD_TIP_AFTER = " in the box for shortcuts.";
+export const CARD_TIP_AFTER = " in the box for slash commands.";
 export const CLASSIC_STATUS_READY = "Ready. Reading this project's report data.";   // the prototype's status line; it does not name the model
 export const CLASSIC_STANDING = "Standing instructions on";                          // the prototype's words, no full stop (the line is a button there)
 export const CHECKING_LINE = "Checking whether you can ask…";
@@ -36,7 +36,7 @@ export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // row 1292 step S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
-export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for slash commands)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -382,6 +382,7 @@ const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 /** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
 export function READ_LINE(read) {
   if (!read || typeof read !== "object") return "";
+  if (Number.isInteger(read.left_out) && read.left_out > 0 && Number.isInteger(read.items) && read.items >= 0) return `${read.items} ${read.items === 1 ? "item" : "items"} read, ${read.left_out} left out.`;      // row 1294: a project cut to fit the limit says how many were read and how many were left out (the ruled line)
   const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
     .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
   if (!parts.length) return "";
@@ -393,3 +394,16 @@ export const SLASH_HINT_CLASSIC = {
   summary: "Summarise this week into a draft",
   overdue: "What is overdue?",
 };
+// Row 1365: the warning for a source folder whose names hold a people or contract word. A WARNING the person accepts or declines; no choice is Declined.
+// APPROVED WORDING (row 1365 ticket rule 13:39, approved 13:41; ruling WO-M17452 14:03); this is its one place. {provider} is Claude, or ChatGPT when
+// Claude is off and ChatGPT is on (askProvider). For ChatGPT the words "which Anthropic runs" are dropped (the ruling), and no other words are added.
+export const PEOPLE_CONTRACT_HOLDS = "This folder holds ";
+export const PEOPLE_CONTRACT_AND = " and ";
+export const PEOPLE_CONTRACT_MAY_GO = (who) => `. Passages from it may go to ${who === "ChatGPT" ? "ChatGPT" : "Claude, which Anthropic runs"}, and they can contain personal information.`;
+export const PEOPLE_CONTRACT_QUESTION = (who) => `Send passages from this folder to ${who === "ChatGPT" ? "ChatGPT" : "Claude"}?`;
+export const PEOPLE_CONTRACT_ACCEPT = "Accept";
+export const PEOPLE_CONTRACT_DECLINE = "Decline";
+export const PEOPLE_CONTRACT_DECLINED = "Left out of ask clark.";
+export const PEOPLE_CONTRACT_ACCEPTED = (who) => `Passages may go to ${who === "ChatGPT" ? "ChatGPT" : "Claude"}.`;
+// Kept from the first version of the notice (no new words): the button that leaves the flagged subfolders out, so the rest of the folder is read.
+export const PEOPLE_CONTRACT_LEAVE = "Leave these subfolders out";

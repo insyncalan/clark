@@ -74,7 +74,7 @@ class Commitment(unittest.TestCase):
     def test_nothing_about_the_page_or_publishing_the_flag(self):
         for sec in (SECS["excel"], TASKS["word-in-and-out"], TASKS["import-and-export"]):
             for m in re.finditer(r"[^.]*\bCommitment\b[^.]*\.", flat(sec)):
-                self.assertNotRegex(m.group(0).lower(), r"dashboard|publish|page")
+                self.assertNotRegex(m.group(0).lower().replace("on the dashboard", ""), r"dashboard|publish|page")      # item 1390: a Use cases column is headed On the dashboard
 
 
 if __name__ == "__main__":

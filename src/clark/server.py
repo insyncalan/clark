@@ -39,6 +39,7 @@ Routes:
 - GET  /api/providers    Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
 - POST /api/providers/connect {provider}: clark may use it; POST /api/providers/disconnect {provider}: clark stops using it, and the sign-in stays
 - POST /api/providers/model {model, accept?}: the model asking uses, from a fixed list
+- GET /api/providers/progress; POST /api/providers/verify {provider}: the re-check (row 1492), one real request; POST /api/providers/cancel {provider}
 - POST /api/providers/test {}: Test the connection (row 1294): one short question to each model that is on, and how long each took
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
@@ -225,9 +226,12 @@ JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON 
 PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
+DROP_ROUTE = "/api/section-file-drop"      # row 1275
+DROP_MAX_BYTES = 25 * 1024 * 1024          # the same number as section_files.MAX_FILE_BYTES (a test pins that they agree)
+DROP_TOO_BIG = "That file is larger than 25 MB, so it was not added."
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB); row 1233: to one gallery picture sent (14 MiB), each template keeps its own size limit
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/providers/verify": 1024, "/api/providers/cancel": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
@@ -242,7 +246,8 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
                      "/api/demo/clear": 1024,      # #731: no words, only the token
-                     "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
+                     "/api/section-file": 1024,     # #96: names a project and a section only; the file never comes in the request
+                     "/api/section-file-drop": DROP_MAX_BYTES}     # row 1275: the raw bytes of one dropped file (do_POST reads this route's body itself)
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -968,7 +973,7 @@ IDLE = None
 BUSY = {"n": 0}
 BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
-SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
+SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/section-file-drop", "/api/client-folder",
               "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/ask-connectors", "/api/ask-files", "/api/ask-new-projects", "/api/ask-instructions", "/api/ask-commands", "/api/theme",
               "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
@@ -1404,6 +1409,18 @@ def profile_route(method):
     return route
 
 
+def notices_route(handler):
+    """GET /api/notices (row 1046): the notices in the file or folder set in Settings, read only. The server's `notices`
+    (notices_file.Notices) answers (status, body); without one: not found. Checked like the other GET routes before this runs."""
+    seam = handler.server.notices
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding") or urlsplit(handler.path).query:
+        return handler.send(400, error_body("bad_request"))
+    status, body = seam.read()
+    return handler.send(status, body)
+
+
 def demo_route(method):
     """GET /api/demo (is demo data on show) and POST /api/demo/clear (#731): hand the request to the server's `demo` (demo_seed.Demo),
     which answers (status, body). Without one: not on show, and nothing to remove. Checked like change_route before this runs."""
@@ -1555,15 +1572,15 @@ class BrandLibrary:
 GET_ROUTES = {"/api/projects": projects_route, "/api/projects-overview": projects_overview_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/providers/progress": ai_connect_route("progress"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
-              "/api/brands": brand_route("listing")}
+              "/api/brands": brand_route("listing"), "/api/notices": notices_route}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-commands": ask_commands_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/ask-files": app_settings_route("change_files"), "/api/ask-new-projects": app_settings_route("change_new"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
-                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"),
+                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"), "/api/providers/verify": ai_connect_route("verify"), "/api/providers/cancel": ai_connect_route("cancel"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
@@ -1583,7 +1600,8 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                "/api/demo/clear": demo_route("remove"),     # #731
                "/api/brands/review": brand_route("review"), "/api/brands/install": brand_route("install"),     # #944
                "/api/brands/remove": brand_route("remove"), "/api/brands/undo": brand_route("undo"),
-                "/api/section-file": publisher_route("section_file")}     # later items: /api/import
+                "/api/section-file": publisher_route("section_file"),
+                "/api/section-file-drop": publisher_route("drop_section_file")}     # row 1275 (do_POST reads its body); later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -1681,6 +1699,31 @@ class Handler(BaseHTTPRequestHandler):
             return json.loads(self.rfile.read(n) or b"{}") if n else {}
         except RecursionError:                          # nested too deep to read: a bad request, not a fault
             raise ValueError("nested too deep") from None
+
+    def drop_post(self, route):
+        """POST /api/section-file-drop (row 1275), after the Host, Origin and token checks: one dropped file as raw bytes. The size
+        is judged from Content-Length before any byte is read (a body over the limit is never read: the connection is closed after
+        the refusal); the project, the section and the URL-encoded name travel in headers."""
+        if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/octet-stream":
+            return self.send(415, error_body("send_json"))
+        if self.chunked() or self.headers.get("Content-Length") is None:
+            return self.send(411, error_body("length_required"))
+        try:
+            n = int(self.headers["Content-Length"])
+        except ValueError:
+            return self.send(400, error_body("bad_request"))
+        if n < 0:
+            return self.send(400, error_body("bad_request"))
+        if n > DROP_MAX_BYTES:
+            self.close_connection = True
+            return self.send(400, {"ok": False, "code": "too_big", "message": DROP_TOO_BIG})
+        data = self.rfile.read(n) if n else b""
+        if len(data) != n:
+            self.close_connection = True
+            return self.send(400, error_body("bad_request"))
+        head = self.headers.get
+        return self.run_route(self.post_route(route), head("X-Clark-Project") or "", head("X-Clark-Section") or "", head("X-Clark-File-Name") or "", data,
+                              head("X-Clark-Hold") or None, head("X-Clark-Commit") or None)
 
     def authorised(self):
         """Whether an API call may go ahead: the right Host, no other site's Origin (csp_local's test, #65: a page on another
@@ -1787,6 +1830,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorised() or updating(self, route):
             return None
         self.follow_zone()
+        if route == DROP_ROUTE and self.post_route(route):      # not in setup mode, which has no such route (404 below)
+            return self.drop_post(route)
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
         try:
@@ -1896,7 +1941,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None, notices=None):
         self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
@@ -1916,6 +1961,7 @@ class LocalServer(ThreadingHTTPServer):
         self.milestones = milestones          # milestone_feed.make_feed (#146): the Calendar's rows; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name, brand_id=None: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
+        self.notices = notices                # notices_file.Notices (row 1046): GET /api/notices reads the file set in Settings; None: that route answers 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
         self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
@@ -1968,7 +2014,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None, notices=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     if brands is None and BRAND_PATHS["root"] is not None:
@@ -1979,7 +2025,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, projects_overview=projects_overview, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, notices=notices, mail=mail)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
