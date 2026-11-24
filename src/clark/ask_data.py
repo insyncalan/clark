@@ -132,7 +132,7 @@ def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     `need_match` (row 1366 AP27): keep only a passage that shares a word or an item ID with the question; a question with no words keeps none."""
     pairs = [(p.label, p.text) for p in passages]
     if need_match:
-        words = {w.casefold() for w in ask.WORDS.findall(question or "")}
+        words = {w.casefold() for w in ask.WORDS.findall(ask.ID_PATTERN.sub(" ", question or ""))}      # an ID typed in the question is matched whole: its pieces (abc, 012, risk) are not words
         ids = set(ask.ID_PATTERN.findall(question or ""))
         pos = [i for i, (_l, t) in enumerate(pairs) if any(x.casefold() in t.casefold() for x in ids) or any(w in t.casefold() for w in words)]
     else:

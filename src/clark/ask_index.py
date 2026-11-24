@@ -465,8 +465,9 @@ def build(data_dir, code, folders, home=None):
 def search(data_dir, code, question, limit=MAX_RESULTS, extra=()):
     """Passages for `question`, best first (newer file first when equal). Opens no source file. `extra` (row 1537 AP2) are item IDs of earlier turns:
     each is one quoted phrase ("RISK-12"), outside the first 40 question words."""
-    words = _WORD.findall(question or "")
-    phrases = ['"' + str(x).replace('"', "") + '"' for x in extra or () if str(x).replace('"', "").strip()]
+    typed = ask.ID_PATTERN.findall(question or "")       # an item ID typed in this question is matched whole, like one of an earlier turn: its pieces are not words
+    words = _WORD.findall(ask.ID_PATTERN.sub(" ", question or ""))
+    phrases = ['"' + str(x).replace('"', "") + '"' for x in (*typed, *(extra or ())) if str(x).replace('"', "").strip()]
     if not words and not phrases:
         return []
     db = _open_read(data_dir, code)
