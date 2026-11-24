@@ -62,10 +62,17 @@ class FilterChipShape(unittest.TestCase):
         src = CSS_DIR / "src" / "components"
         for name, count in (("WorkItems.jsx", 2), ("FilterLine.jsx", 1)):
             text = (src / name).read_text(encoding="utf-8")
-            tags = re.findall(r"<span class=\"fchip\"[^>]*>", text)
+            tags = re.findall(r"<span class=(?:\"fchip\"|\{classicTheme\(\) \? (?:\"fchip word\"|Q\.chipClass\([^)]*\)) : \"fchip\"\})[^>]*>", text)
             self.assertEqual(len(tags), count, name)
             for tag in tags:
                 self.assertNotIn("style=", tag)
+
+    def test_the_plain_word_chip_gets_the_word_class(self):
+        src = CSS_DIR / "src" / "components"
+        self.assertIn('class={classicTheme() ? "fchip word" : "fchip"} data-chip="search"', (src / "WorkItems.jsx").read_text(encoding="utf-8"))
+        self.assertIn('classicTheme() ? Q.chipClass(c, rows, ctx, extra) : "fchip"', (src / "FilterLine.jsx").read_text(encoding="utf-8"))
+        ui = (CSS_DIR / "src" / "logic" / "filterQueryUi.js").read_text(encoding="utf-8")
+        self.assertRegex(ui, r'export function chipClass[^}]*"fchip word"[^}]*"fchip"')
 
 
 if __name__ == "__main__":
