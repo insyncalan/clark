@@ -26,7 +26,7 @@ MESSAGES = {
     "saved": "Saved.",
     "removed": "Removed.",
     "reset": "Back to the built-in.",
-    "fixed": "Fixed: %d lines kept, %d left out. The old file is kept.",       # NEW-WORDS.md:2343 (row 1435)
+    "fixed": "Fixed: %d lines kept, %d left out. The old file is kept.",       # approved, row 1435 (words log of 24-11 21:1x)
     "cant_fix": "Could not fix the file. The old file is kept.",
     "cant_save": "That could not be saved. Wait a moment and try again; if it keeps happening, close clark and start it again. Nothing was changed.",
 }

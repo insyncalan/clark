@@ -13,7 +13,7 @@ export const SLASH_OPEN = "Open the editor ↗";
 export const SLASH_NEW = "New slash command ↗";
 export const SLASH_EDIT = "Edit ↗";
 export const SLASH_UNAVAILABLE = "Slash commands aren't ready on this computer yet.";
-// Row 1435 (the words are approved: NEW-WORDS.md:2343; the toast and the failed line come from the server, ask_commands_service.py MESSAGES). The "!" is an icon, not text.
+// Row 1435 (the words are approved, row 1435, words log of 24-11 21:1x; the toast and the failed line come from the server, ask_commands_service.py MESSAGES). The "!" is an icon, not text.
 export const SLASH_NEEDS_FIX = "Needs a fix", SLASH_FIX = "Fix it with AI";
 export const TAG_BUILT = "Built in", TAG_YOURS = "Yours", TAG_ACTION = "Action", TAG_EDITED = "edited";
 export const TAG_PROJECT = (code) => `${code} only`;
