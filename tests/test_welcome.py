@@ -51,6 +51,17 @@ class Welcome(Base):
         p.js("document.querySelector('#profile-menu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
         self.assertFalse(p.js(f"!!{CARD}"), "the welcome is not shown")
 
+    def card_shown(self, p):
+        """Wait for the card; if it never draws, the failure says what the page had (the hash, the hold, the answer kept in this browser,
+        the profile button, the page's own text), so a macOS red names its cause instead of only 'the welcome is shown'."""
+        state = ("JSON.stringify({hash: location.hash, held: window.__clarkWelcome, ready: document.readyState, "
+                 "answered: (() => { try { return localStorage.getItem('clark.welcome'); } catch (e) { return 'unreadable'; } })(), "
+                 "profile_btn: !!document.querySelector('#profile-btn'), card: !!document.querySelector('[data-welcome]'), "
+                 "width: window.innerWidth, active: document.activeElement && document.activeElement.tagName, "
+                 "text: document.body.innerText.slice(0, 200)})")
+        if not wait(lambda: p.js(f"!!{CARD}"), 15):
+            self.fail("the welcome is shown; the page had: " + str(p.js(state)))
+
     def type_name(self, p, text):
         p.js(f"(() => {{ const el = document.querySelector('#welcome-name'); el.value = {json.dumps(text)}; "
              "el.dispatchEvent(new Event('input', {bubbles: true})); })()")
@@ -60,7 +71,7 @@ class Welcome(Base):
             for w in WIDTHS:
                 with self.subTest(look=look, width=w), chrome() as cdp:
                     p = self.load(cdp, look, w)
-                    p.until(f"!!{CARD}", "the welcome is shown")
+                    self.card_shown(p)
                     self.assertEqual(p.js(f"{CARD}.querySelector('h2').textContent"), HEAD)
                     self.assertEqual(p.js("document.querySelector('#welcome-ask').textContent"), ASK)
                     self.assertEqual(p.js("document.querySelector('label[for=welcome-name]').textContent"), "Your name")
