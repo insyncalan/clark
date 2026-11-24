@@ -1404,6 +1404,18 @@ def profile_route(method):
     return route
 
 
+def notices_route(handler):
+    """GET /api/notices (row 1046): the notices in the file or folder set in Settings, read only. The server's `notices`
+    (notices_file.Notices) answers (status, body); without one: not found. Checked like the other GET routes before this runs."""
+    seam = handler.server.notices
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding") or urlsplit(handler.path).query:
+        return handler.send(400, error_body("bad_request"))
+    status, body = seam.read()
+    return handler.send(status, body)
+
+
 def demo_route(method):
     """GET /api/demo (is demo data on show) and POST /api/demo/clear (#731): hand the request to the server's `demo` (demo_seed.Demo),
     which answers (status, body). Without one: not on show, and nothing to remove. Checked like change_route before this runs."""
@@ -1558,7 +1570,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/projects-overview": project
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
-              "/api/brands": brand_route("listing")}
+              "/api/brands": brand_route("listing"), "/api/notices": notices_route}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
@@ -1896,7 +1908,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None, notices=None):
         self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
@@ -1916,6 +1928,7 @@ class LocalServer(ThreadingHTTPServer):
         self.milestones = milestones          # milestone_feed.make_feed (#146): the Calendar's rows; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name, brand_id=None: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
+        self.notices = notices                # notices_file.Notices (row 1046): GET /api/notices reads the file set in Settings; None: that route answers 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
         self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
@@ -1968,7 +1981,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None, notices=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     if brands is None and BRAND_PATHS["root"] is not None:
@@ -1979,7 +1992,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, projects_overview=projects_overview, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, notices=notices, mail=mail)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
