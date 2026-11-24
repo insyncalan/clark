@@ -13,7 +13,8 @@
   --set-ring: #E9EDF6; --set-win: #F1F3F9; --set-shadow: rgba(6, 47, 58, .18);
   --set-tile-ink: #FFFFFF; --set-tile-profile: #8794b3; --set-tile-appearance: #5b47d8; --set-tile-theme: #5b47d8; --set-tile-projects: #2f4bb8; --set-tile-backups: #a3301f; --set-tile-reports: #2f4bb8; --set-tile-folder: #2f4bb8; --set-tile-brand: #c48900; --set-tile-people: #006b5e; --set-tile-claude: #7a3fd0; --set-tile-data: #006b5e; --set-tile-version: #475577; --set-tile-logs: #8794b3;      /* row 1299 AP6: one fill per page, the same in light and dark (inherited) */
   --ms-amber-shape: #C58A00;      /* row 1396: the amber milestone dot, as the prototype's --amber-shape draws it */
-  --tile-on-bg: #ECE9FB; --tile-on-fg: var(--brand-blue);      /* row 1395: the chosen layout tile of the Work items toolbar */
+  --tile-on-bg: #ECE9FB; --tile-on-fg: var(--brand-blue); --pill-track: #ECEFF6; --pill-on-fg: #4F35C9; --pill-on-bg: #FFFFFF; --pill-muted: #4A5578;      /* row 1281: the profile menu's Appearance pill, the track and the chosen cell's text as the ticket gives them. Row 1395: the chosen layout tile of the Work items toolbar */
+  --pri-high-sheet-bg: #F4DEDB; --pri-high-sheet-fg: #B3392F;      /* row 1390 AP3: the sheet's High priority pair (light only); rules-2.css points --pri-high-bg and --pri-high-fg at it */
   --sec-band-bg: rgba(255, 255, 255, .72);      /* row 1311: the white panel of every other section, over the Whisper page gradient */
 }
 :root[data-theme=dark] {
@@ -28,7 +29,7 @@
   --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
   --set-ring: #2B3850; --set-win: #151F2C; --set-shadow: rgba(6, 47, 58, .18);
   --ms-amber-shape: #E0A620;
-  --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
+  --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue); --pill-track: #1C3040; --pill-on-fg: #A99BFF; --pill-on-bg: #13232E; --pill-muted: #9FB0BD;
   --sec-band-bg: rgba(255, 255, 255, .04);
 }
 @media (prefers-color-scheme: dark) {
@@ -44,7 +45,7 @@
     --sec-number-color: var(--brand-blue); --sec-number-size: 20px;
     --set-ring: #2B3850; --set-win: #151F2C; --set-shadow: rgba(6, 47, 58, .18);
     --ms-amber-shape: #E0A620;
-    --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue);
+    --tile-on-bg: var(--brand-blue-tint); --tile-on-fg: var(--brand-blue); --pill-track: #1C3040; --pill-on-fg: #A99BFF; --pill-on-bg: #13232E; --pill-muted: #9FB0BD;
     --sec-band-bg: rgba(255, 255, 255, .04);
   }
 }
