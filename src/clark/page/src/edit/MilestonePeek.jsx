@@ -52,7 +52,7 @@ const said = (m, field, now, text) => (now == null || now === "" ? `${field} of 
 const asHtml = (value) => { try { return richOrPlain(value || ""); } catch (e) { return "<p>" + String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } };
 function Description({ m }) {
   const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
-  return <RichField field="description" id={m.id} value={asHtml(m.description)} label="Description" empty="Add description" save={put} />;
+  return <RichField field="description" id={m.id} value={asHtml(m.description)} label="Description" empty="Add description" save={put} oneLine />;
 }
 // Client Message: on the editor while the milestone is shown to the client; greyed and not clickable while it is not (the Client visible line turns it on).
 function ClientWording({ m, on }) {

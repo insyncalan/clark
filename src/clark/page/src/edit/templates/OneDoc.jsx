@@ -5,22 +5,27 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { oneDoc, fileOf } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
 import { chooseFile } from "./fileRoute.js";
-import { stored, oneLine, labelProblem, saveContent, wordsAsHtml, noBreaks } from "./filesEdit.js";
-import { RichField } from "../RichField.jsx";
 import { StartPrompt } from "../StartPrompt.jsx";
+import { stored, oneLine, labelProblem, saveContent, plainWords, withPlainWords, paragraphsOf, linesProblem } from "./filesEdit.js";
+
+// The words under the file are Not rich (row 1288): plain lines in a box, saved with Save; the store allows TEXT_LINES paragraphs of LINE_MAX characters (onedoc.py).
+const LINES = 6, EACH = 600, BAD_WORDS = `The words under the file can be ${LINES} paragraphs of ${EACH} characters at most. Shorten them and try again.`;
 
 export function Edit({ section }) {
   const content = stored(section);
   const savedLabel = typeof content.label === "string" ? content.label : "";
+  const savedWords = plainWords(content.html, content.text);
   const [label, setLabel] = useState(savedLabel);
+  const [words, setWords] = useState(savedWords);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
-  const seen = useRef(section.body);
-  useEffect(() => {                       // a save or an Undo brought another body: show it (never on the first draw, which would undo typing)
-    if (seen.current === section.body) return;
-    seen.current = section.body;
+  const seen = useRef({ label: savedLabel, words: savedWords });
+  useEffect(() => {                       // a save or an Undo brought other words: show them (never on the first draw, which would undo typing; never for a file choice, which changes the body but not these two)
+    if (seen.current.label === savedLabel && seen.current.words === savedWords) return;
+    seen.current = { label: savedLabel, words: savedWords };
     setLabel(savedLabel);
-  }, [section.body]);
+    setWords(savedWords);
+  }, [savedLabel, savedWords]);
   const file = fileOf(content.file);
   const d = oneDoc(section);
 
@@ -31,14 +36,15 @@ export function Edit({ section }) {
   };
   const save = (e) => {
     e.preventDefault();
-    const words = oneLine(label);
-    const why = labelProblem(words);
+    const shown = oneLine(label);
+    const wordsChanged = words !== savedWords;         // words left alone keep what is stored (an old file's formatting stays until they are typed over)
+    const why = labelProblem(shown) || (wordsChanged ? linesProblem(paragraphsOf(words), LINES, EACH, BAD_WORDS) : "");
     setProblem(why);
     if (why) return;
-    saveContent(section, { ...content, label: words }, "Saved.");
+    saveContent(section, { ...(wordsChanged ? withPlainWords(content, words) : content), label: shown }, "Saved.");
   };
   const fid = `tpl-${section.id}`;
-  const changed = oneLine(label) !== savedLabel;
+  const changed = oneLine(label) !== savedLabel || words !== savedWords;
   return (
     <div class="tpl-edit tpl-files-edit">
       {file ? <p class="tpl-od-file"><FileRow file={file} label={d ? d.label : ""} /></p>
@@ -50,13 +56,10 @@ export function Edit({ section }) {
       <form class="tpl-form" onSubmit={save} data-save>
         <label for={`${fid}-label`}>Words to show for the file (optional)</label>
         <input id={`${fid}-label`} type="text" autocomplete="off" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
+        <label for={`${fid}-words`}>Words under the file (optional)</label>
+        <textarea id={`${fid}-words`} rows={3} autocomplete="off" value={words} onInput={(e) => setWords(e.currentTarget.value)} />
         <button type="submit" class="btn" disabled={!changed}>Save</button>
       </form>
-      <div class="tpl-form tpl-rich-words">
-        <span class="tpl-lbl">Words under the file (optional)</span>
-        <RichField field="onedoc" empty="Click to write." id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words under the file"
-          save={(html) => saveContent(section, { ...content, html: noBreaks(html), text: [] }, "Saved.")} />
-      </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
       <p class="quiet tpl-hint">The file is copied into the client folder's “Report files” folder and opens from the client's copy of the report.</p>
     </div>

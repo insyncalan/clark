@@ -616,7 +616,7 @@ class Milestone(Base):
 
     # ---- the Description editor -------------------------------------------------------------------------------------------------------------------
 
-    def test_description_enter_is_a_new_line_cmd_or_ctrl_enter_or_leaving_saves_and_esc_cancels(self):
+    def test_description_one_line_enter_or_leaving_saves_and_esc_cancels(self):
         mod = "/Mac/.test(navigator.platform)"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -625,15 +625,13 @@ class Milestone(Base):
                 cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
                 p.until("document.hasFocus()", "the page has the focus")
                 row = "#peek [data-ms-row=description] [data-rich=description]"
-                # Enter is a new line, nothing is sent; Cmd or Ctrl and Enter saves
+                # One line (row 1288): typing sends nothing; Enter saves
                 self.click(p, row)
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
-                p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('First'); true")
+                p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('First Second'); true")
+                self.assertEqual(self.sent, [], "typing sends nothing")
                 p.key("Enter", code="Enter", vk=13)
-                p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Second'); true")
-                self.assertEqual(self.sent, [], "a plain Enter only adds a line")
-                p.key("Enter", modifiers=4 if p.js(mod) else 2, code="Enter", vk=13)
-                self.saved("description", "<p>First</p><p>Second</p>")
+                self.saved("description", "<p>First Second</p>")
                 p.until("!document.querySelector('#peek .ProseMirror')", "closed after the save")
                 # Esc cancels
                 n = len(self.sent)
@@ -643,7 +641,7 @@ class Milestone(Base):
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#peek .ProseMirror')", "Esc closed it")
                 self.assertEqual(len(self.sent), n, "Esc sent nothing")
-                self.assertEqual(self.row(GO_LIVE)["description"], "<p>First</p><p>Second</p>")
+                self.assertEqual(self.row(GO_LIVE)["description"], "<p>First Second</p>")
                 # leaving saves
                 self.click(p, row)
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened a third time")
@@ -662,7 +660,7 @@ class Milestone(Base):
                     if wait_for(gone, 4):
                         break
                     p.js("(() => { const e = document.querySelector('#peek .ProseMirror'); if (e) e.focus(); return true; })()")
-                self.saved("description", "<p>First</p><p>Second Third</p>")
+                self.saved("description", "<p>First Second Third</p>")
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------
 

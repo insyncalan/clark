@@ -145,6 +145,9 @@ class Wording(Fields):
     def words(self, cdp, sid):
         return cdp.js(f"(t => t ? t.textContent.trim() : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
 
+    def save_words(self, cdp, sid):       # row 1288: the wording is the Full editor, Enter makes a new line; Ctrl+Enter saves
+        cdp.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
+
     def type_words(self, cdp, sid, text):
         cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
@@ -159,9 +162,9 @@ class Wording(Fields):
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
-                key(cdp, sid, "Enter")
+                self.save_words(cdp, sid)
                 self.assertTrue(wait(lambda: len(sent) == 1))
-                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "<p>Plain words a client can read</p>"}))
                 self.assertTrue(wait(lambda: f"Client Message of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
@@ -176,7 +179,7 @@ class Wording(Fields):
             self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_words(cdp, sid, "x" * 201)
-            key(cdp, sid, "Enter")
+            self.save_words(cdp, sid)
             self.assertTrue(wait(lambda: "200 characters at most" in cdp.js("(document.querySelector('#peek .rt-problem') || {textContent: ''}).textContent", sid)), "the field says why")
             self.assertEqual(sent, [])
             key(cdp, sid, "Escape")

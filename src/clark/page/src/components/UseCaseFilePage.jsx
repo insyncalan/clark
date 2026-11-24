@@ -1,6 +1,7 @@
 // One use case's own page in a published file (row 1111): the same layout and classes as the page the editor has (UseCaseDetail), read only.
 // It reads what the file holds (data.use_case_pages names, for each use case the client may see, the next steps and milestones to show),
 // draws no control, no History and no Last change (the 20-11 decision, row 1479), and its Details card shows Owner, status and commitment, and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
+import { richWords } from "../logic/richWords.js";
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, project } from "../stores/report.js";
 import { refOf } from "../logic/useCasesList.js";
@@ -43,7 +44,7 @@ export function UseCaseFilePage({ id }) {
       title={<span class="ucf-name ucf-ro" data-ucf-field="title">{u.title}</span>}
       sub={{ chip: <CommitChip u={u} /> }}
       headline={<span class="ucf-headline ucf-ro" data-ucf-field="headline">{u.headline || <span class="muted">No headline yet</span>}</span>}
-      titleOfRow={(r) => r.client_message || r.title}
+      titleOfRow={(r) => richWords(r.client_message) || r.title}
       std={std ? <div class="prose ucf-std" dangerouslySetInnerHTML={{ __html: std }} /> : <p class="muted">Not written yet.</p>}
       noWork="No work items are shared for this use case."
       owner={u.owner ? <span class="ucf-owner ucf-ro" data-ucf-field="owner">{u.owner}</span> : null}
