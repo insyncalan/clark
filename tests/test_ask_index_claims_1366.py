@@ -378,7 +378,7 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
             self.assertIn("\u201c" + app + "\u201d", t, app)
         # the list holds exactly these reasons: a file that is online only is counted as not read but is not listed
         self.assertEqual(reasons, set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
-        self.assertIn("online only and was not opened", ask_index.line_for({"indexed": 1, "online_only": 1}))
+        self.assertIn(ask_index.ONLINE_LINE, ask_index.line_for({"indexed": 1, "online_only": 1}))
         self.assertIn("is counted in the number that could not be read, but is not in that list", t)
         self.assertEqual(ask_index.MAX_LEFT_OUT_SHOWN, 200)
         self.assertIn("up to 200 names", t)
