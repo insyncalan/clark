@@ -157,6 +157,46 @@ class Editor(unittest.TestCase):
                             continue
                         self.assertLessEqual(max(t) - min(t), 60, f"{w} {where}: {c} is a colour, not a grey")
 
+    def test_font_colour_letter_and_open_box_are_read_1288(self):
+        """AP8 by name: the Font colour control is the one exemption, so read it: the A letter, then the open colour box (Automatic and six swatches)."""
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.show_editor(h, w)
+                letter = box(h, ".rt-bar [aria-label='Font colour'] .rt-A")
+                self.assertEqual(h.ev(Q % json.dumps(".rt-bar [aria-label='Font colour'] .rt-A") + ".textContent"), "A", w)
+                t = rgb(letter["col"])
+                self.assertLessEqual(max(t) - min(t), 60, f"{w}: the A letter is grey until a colour is chosen: {letter['col']}")
+                self.assertEqual(h.ev("document.querySelector('.rt-bar [aria-label=\\'Font colour\\']').getAttribute('aria-expanded')"), "false", w)
+                h.ev("document.querySelector(\"[aria-label='Font colour']\").click(); true")
+                self.assertTrue(h.until("!!document.querySelector('.rt-pal')"), f"{w}: the colour box opened")
+                pal = box(h, ".rt-pal")
+                for key in ("bg", "bc"):
+                    t = rgb(pal[key])
+                    self.assertLessEqual(max(t) - min(t), 60, f"{w}: the box's own {key} is grey: {pal[key]}")
+                names = h.ev("[...document.querySelectorAll('.rt-pal button')].map(b => (b.getAttribute('aria-label') || b.textContent.replace(/[^A-Za-z ]/g, '')).trim())")
+                self.assertEqual(names, ["Automatic", "Grey", "Brand", "Red", "Amber", "Green", "Blue"], f"{w}: {names}")
+                cols = h.ev("[...document.querySelectorAll('.rt-pal .rt-sw')].map(b => getComputedStyle(b).color)")
+                spread = [max(rgb(c)) - min(rgb(c)) for c in cols]
+                self.assertEqual(len(cols), 6, w)
+                self.assertTrue(all(x > 20 for x in spread[1:]), f"{w}: the five colour swatches carry a colour: {cols}")
+                self.assertEqual(len({tuple(rgb(c)) for c in cols}), 6, f"{w}: six different swatch colours: {cols}")
+                h.ev("window.unmount(); true")                  # the same control in the selection bubble
+                self.show_editor(h, w)
+                h.select_all()
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble [aria-label=\\'Font colour\\']')"), f"{w}: the bubble has the Font colour control")
+                bl = box(h, ".rt-bubble [aria-label='Font colour'] .rt-A")
+                self.assertEqual(h.ev("document.querySelector(\".rt-bubble [aria-label='Font colour'] .rt-A\").textContent"), "A", w)
+                t = rgb(bl["col"])
+                self.assertLessEqual(max(t) - min(t), 60, f"{w}: the bubble's A letter is grey: {bl['col']}")
+                h.ev("document.querySelector(\".rt-bubble [aria-label='Font colour']\").click(); true")
+                self.assertTrue(h.until("!!document.querySelector('.rt-bubble .rt-pal')"), f"{w}: the bubble's colour box opened")
+                bn = h.ev("[...document.querySelectorAll('.rt-bubble .rt-pal button')].map(b => (b.getAttribute('aria-label') || b.textContent.replace(/[^A-Za-z ]/g, '')).trim())")
+                self.assertEqual(bn, ["Automatic", "Grey", "Brand", "Red", "Amber", "Green", "Blue"], f"{w}: {bn}")
+                bp = box(h, ".rt-bubble .rt-pal")
+                for key in ("bg", "bc"):
+                    t = rgb(bp[key])
+                    self.assertLessEqual(max(t) - min(t), 60, f"{w}: the bubble box's own {key} is grey: {bp[key]}")
+
 
 SRC_EDIT = JS / "edit"
 OLD_TEXT = 'Line one: a < b & "c" it\'s <b>not bold</b>\nLine two\n\nLine four'     # fictional old plain text, with markup characters in it
