@@ -2,8 +2,7 @@
 
 Run: python3 dev/run_tests.py test_menu_fit_1286
 The real page in headless Chrome (Classic) against the real server over a demo database. For each of the menus below (the selection menu
-of the bar, the row menu, the View menu, the Columns menu, a cell's Status list) the window is 900 wide and 900 high, then 900 wide and
-a short 420 high (a menu with ten lines cannot be whole there), light and dark. The menu box must sit inside the window (top >= 0,
+of the bar, the row menu, the View menu, the Columns menu, a cell's Status list) the window is 1400 and 900 wide (AP6), each 900 high, then a short 420 high (a menu with ten lines cannot be whole there), light and dark. The menu box must sit inside the window (top >= 0,
 bottom <= window height) and, if its lines are taller than the box, the box must scroll (overflow-y auto or scroll) with the first line
 reachable. Chrome is required: the test fails, never skips, without it.
 """
@@ -16,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_board_page import tearDownModule, setUpModule  # noqa: E402,F401
 from test_work_filters import set_line, where  # noqa: E402
 
-LOOKS = [(900, 900, "light"), (900, 900, "dark"), (900, 420, "light"), (900, 420, "dark")]
+LOOKS = [(w, h, th) for w in (1400, 900) for h in (900, 420) for th in ("light", "dark")]     # AP6 (Row 1286 Stage 0): 1400 is the priority width, 900 stays
 # The box that holds the lines of the open menu, and the measure of it.
 MEASURE = """((sel) => { const el = [...document.querySelectorAll(sel)].filter(e => e.getBoundingClientRect().height > 0).pop();
   if (!el) return null;
