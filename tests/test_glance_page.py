@@ -347,13 +347,29 @@ class EditTiles(Setup):
             p.until("!document.querySelector('.tilemenu:not(.leaving)')", "closed")
             self.assertTrue(p.js("document.activeElement === document.querySelector('[data-tile=overdue] [data-tile-grip]')"))
 
+    def test_the_outline_menu_marks_the_colour_in_use_for_a_screen_reader_and_opens_on_it(self):
+        for width, value, name in ((1400, "G", "Green"), (900, "R", "Red")):      # a different colour each time, so each save is a change
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+                p.until("!!document.querySelector('.tilemenu')", "the colour menu")
+                p.js(f"document.querySelector('.tilemenu [data-outline={value}]').click()")
+                p.saved()
+                p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+                p.until("!!document.querySelector('.tilemenu')", "the colour menu again")
+                self.assertEqual(p.js("document.querySelector('.tilemenu [aria-checked=true]').textContent"), "\u2713" + name)
+                self.assertEqual(p.js("document.querySelector('.tilemenu [aria-checked=true] .ck').getAttribute('aria-hidden')"), "true", "the tick is not read out")
+                self.assertEqual(p.js("document.querySelectorAll('.tilemenu [aria-checked=false] .ck').length"), 0)
+                p.until(f"document.activeElement === document.querySelector('.tilemenu [data-outline={value}]')", "the menu opens on the colour in use")
+
     def test_right_click_sets_the_outline_colour_and_undo_puts_it_back(self):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
             p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
             p.until("!!document.querySelector('.tilemenu')", "the colour menu")
-            self.assertEqual(p.js("[...document.querySelectorAll('.tilemenu [role^=menuitem]')].map(b => b.textContent.replace('✓ ', ''))"),
+            self.assertEqual(p.js("[...document.querySelectorAll('.tilemenu [role^=menuitem]')].map(b => b.textContent.replace('✓', ''))"),
                              ["Automatic", "Green", "Amber", "Red", "No colour"])
             p.js("document.querySelector('.tilemenu [data-outline=G]').click()")
             p.saved()

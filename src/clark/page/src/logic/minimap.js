@@ -3,6 +3,7 @@
 // to (below the sticky section bar), and what a key does inside the list.
 
 import { isOpen, todayIso } from "../workItems.js";
+import { visibleDocs } from "./documents.js";
 import { milestoneRows } from "./milestones.js";
 import { CALM_WORDS } from "./useCasesList.js";
 
@@ -98,7 +99,7 @@ export function countOf(section, d, today, client) {
       return red ? some(red, "red") : open.length ? { text: String(open.length), hot: false } : null;
     }
     case "decisions": return some(live(data.decisions).filter((r) => r.status === "Pending").length, "pending");
-    case "docs": { const n = (data.documents || []).length; return n ? { text: String(n), hot: false } : null; }
+    case "docs": { const n = visibleDocs(data, client).length; return n ? { text: String(n), hot: false } : null; }
     default: return null;
   }
 }

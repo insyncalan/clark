@@ -128,7 +128,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="backup-panel" role="region" aria-label="Backup preview" tabIndex={-1} ref={panelEl}
+        <div class="backup-panel" id="backup-panel" role="region" aria-label={panel.confirming ? `Put back the backup from ${panel.preview.when}` : `Backup from ${panel.preview.when}, preview`} tabIndex={-1} ref={panelEl}
              onKeyDown={(e) => { if (e.key === "Escape" && !busy) { e.stopPropagation(); closePanel(); } }}>
           {L.previewLines(panel.preview).map((t) => <p key={t}>{t}</p>)}
           {panel.confirming && L.canRestore(panel.preview) ? (

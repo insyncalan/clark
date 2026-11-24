@@ -3,7 +3,7 @@
 // `lines` is the words after "Weekly report" (logic/cover.js coverLine); a part with nothing to show is already left out of it.
 export function Cover({ title, lines }) {
   return (
-    <header class="cover" id="cover">
+    <header class="cover" id="cover" tabIndex={-1}>
       <h1>{title}</h1>
       <p class="cover-line"><b class="cover-kind">Weekly report</b>{(lines || []).map((t) => <span key={t}>{t}</span>)}</p>
     </header>

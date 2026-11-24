@@ -46,7 +46,7 @@ export function ReviewDays() {
       <div class="fld" data-review-days>
         <label for="review-days">Not reviewed after (days)</label>
         <input id="review-days" type="text" inputMode="numeric" value={shown} aria-describedby="review-days-line" aria-invalid={said ? "true" : undefined}
-          onInput={(e) => { setTyped(e.currentTarget.value); }} onBlur={save}
+          onInput={(e) => { setTyped(e.currentTarget.value); setSaid(""); }} onBlur={save}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } else if (e.key === "Escape") { setTyped(null); setSaid(""); } }} />
         <small id="review-days-line">A whole number from 1 to 365. The default is 14. Not in the published report.</small>
         <p class="fld-bad" role="alert" data-review-days-bad>{said}</p>

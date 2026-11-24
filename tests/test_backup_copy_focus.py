@@ -108,6 +108,18 @@ class BackupCopyFocus(unittest.TestCase):
                 cdp.js("document.querySelector('[data-copy-suggestion]').click()", sid)
                 self.assertEqual(cdp.js("document.querySelector('[data-copy-folder]').value", sid), "/tmp/OneDrive", "the suggestion fills the box when idle")
 
+    def test_the_panel_is_named_for_its_backup_and_for_the_question_it_asks(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.shown(cdp, width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-preview]')", sid)), "the backup is drawn")
+                cdp.js("document.querySelector('[data-preview]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-restore-from-preview]')", sid)), "the preview is shown")
+                self.assertEqual(cdp.js("document.querySelector('#backup-panel').getAttribute('aria-label')", sid), "Backup from today, preview")
+                cdp.js("document.querySelector('[data-restore-from-preview]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-put-back]')", sid)), "the question is shown")
+                self.assertEqual(cdp.js("document.querySelector('#backup-panel').getAttribute('aria-label')", sid), "Put back the backup from today")
+
     def test_esc_while_the_panel_is_busy_does_nothing(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

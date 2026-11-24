@@ -89,7 +89,7 @@ export function Dashboard({ tools }) {
   const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
-  const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has no sections." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";
+  const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has nothing to show yet." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";
   const anchors = {};
   for (const e of entries(list)) anchors[e.id] = e.anchor;      // one anchor per section, shared with the minimap
   const counts = {};

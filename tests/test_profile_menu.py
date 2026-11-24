@@ -64,6 +64,14 @@ class ProfileMenu(Base):
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
                              "Appearance", "the group is named Appearance, so a screen reader says it before each radio")
 
+    def test_every_entry_of_the_menu_has_an_id_of_its_own(self):
+        """The menu draws each entry under its id, so the two separators must not share one."""
+        src = (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8")
+        line = next(ln for ln in src.splitlines() if ln.lstrip().startswith("const shown = ["))
+        seps = re.findall(r'\{ id: "([^"]+)", sep: true \}', line)
+        self.assertEqual(len(seps), 2)
+        self.assertEqual(len(set(seps)), 2, seps)
+
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
         for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:

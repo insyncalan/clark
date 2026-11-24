@@ -42,7 +42,7 @@ DATA = {
     "milestones": [{"id": "ABC-M-001", "name": "Pilot live", "baseline_date": "2026-12-01", "state": "On track", "status": "Planned", "client_visible": 1},
                    {"id": "ABC-M-002", "name": "Go live", "baseline_date": "2027-02-01", "state": None, "status": "Planned", "client_visible": 1}],
     "use_cases": [{"id": "ABC-U-001", "ref": "1.1", "title": "Draft replies\nsecond line", "status": "Flag", "client_visible": 1}],
-    "documents": [{"id": "d1", "title": "Steering minutes", "kind": "Minutes", "date": "2026-10-20"}],
+    "documents": [{"id": "d1", "title": "Steering minutes", "kind": "Minutes", "date": "2026-10-20", "url": "https://example.com/minutes"}],
 }
 HIDDEN = ["ABC-A-003", "ABC-001", "ABC-D-001", "ABC-U-001", "d1", "ABC-M-002"]       # plus ABC-A-002 (client_visible 0)
 SECTIONS = [{"id": "current", "type": "current", "title": "Current state"},
@@ -421,6 +421,15 @@ class MinimapCounts(InBrowser):
         self.assertEqual(self.count("docs", DATA), {"text": "1", "hot": False})
         self.assertIsNone(self.count("docs", {}))
 
+    def test_the_documents_count_is_the_documents_the_section_draws(self):
+        docs = {"documents": [{"id": "d1", "title": "A", "url": "https://example.com/a"},
+                              {"id": "d2", "title": "B", "url": "https://example.com/b", "archived": 1},
+                              {"id": "d3", "title": "C", "url": "https://example.com/c"},
+                              {"id": "d4", "title": "D", "url": "not a link"}],
+                "report_hidden": [{"item_id": "d3"}]}
+        self.assertEqual(self.count("docs", docs), {"text": "1", "hot": False}, "an archived, a hidden and a document with no usable link are not counted")
+        self.assertEqual(self.count("docs", docs, client=True), {"text": "3", "hot": False}, "a published file holds only the ones chosen for it")
+
     def test_late_actions_red_risks_and_pending_decisions(self):
         d = {"actions": [{"status": "Open", "due_date": "2026-11-01"}, {"status": "Open", "due_date": "2026-12-01"}, {"status": "Closed", "due_date": "2026-10-01"}],
              "raid": [{"status": "Open", "priority": "High"}, {"status": "Open", "priority": "Low"}],
@@ -610,6 +619,19 @@ class MinimapInBrowser(InBrowser):
         self.js("document.querySelector('.toc-top').click()")
         self.assertTrue(wait(lambda: self.js("window.scrollY") == 0))
         self.assertFalse(self.is_open())
+
+    def test_back_to_top_keeps_the_focus_on_the_page_at_both_widths(self):
+        for width in (1400, 900):
+            self.load(width)
+            self.mount()
+            self.js("window.scrollTo(0, 900)")
+            self.settle()
+            self.js("document.querySelector('.toc-lines').click()" if width <= 900 else "document.querySelector('.toc-lines').focus()")   # at 900 it is the "On this page" button
+            self.assertTrue(wait(self.is_open))
+            self.js("document.querySelector('.toc-top').focus()")
+            self.js("document.querySelector('.toc-top').click()")
+            self.assertTrue(wait(lambda: self.js("window.scrollY") == 0))
+            self.assertEqual(self.js("document.activeElement.id"), "cover", f"the focus is on the top of the report at {width}")
 
     def test_the_current_entry_follows_the_scroll(self):
         self.mount()

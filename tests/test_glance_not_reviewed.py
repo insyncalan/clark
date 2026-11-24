@@ -90,6 +90,18 @@ class NotReviewed(Setup):
                 self.assertEqual(p.js("document.querySelector('[data-review-days-bad]').textContent"), "", "the refusal went once a good number was saved")
                 self.assertEqual(p.js("document.querySelector('#review-days').value"), "7")
 
+    def test_a_refusal_goes_as_soon_as_a_good_number_is_typed(self):
+        for width, dark in SIZES:
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                self.set_days(p, "abc")
+                p.until("document.querySelector('[data-review-days-bad]').textContent !== ''", "the refusal shows")
+                p.js("(() => { const el = document.querySelector('#review-days'); el.focus(); el.select(); })()")
+                p.type("7")
+                p.until("document.querySelector('#review-days').value === '7'", "the number was typed")
+                self.assertEqual(p.js("document.querySelector('[data-review-days-bad]').textContent"), "", "the refusal is gone while typing")
+                self.assertIsNone(p.js("document.querySelector('#review-days').getAttribute('aria-invalid')"))
+
     def test_the_history_says_who_how_and_when_the_number_changed(self):
         with chrome() as cdp:
             p = self.show(cdp)

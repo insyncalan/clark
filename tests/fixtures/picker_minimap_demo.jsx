@@ -18,6 +18,11 @@ T.mountMinimap = (sections, hiddenSections, noOnJump, counts) => {
   const root = document.getElementById("root");
   root.innerHTML = '<div id="bar" style="position:sticky;top:0;height:48px;background:var(--brand-navy);color:var(--white);z-index:30">bar</div><div id="page" style="padding-bottom:100vh"></div><div id="mm"></div><button id="after">after</button>';
   const page = document.getElementById("page");
+  const cover = document.createElement("header");       // the report's top band, the place Back to top puts the focus
+  cover.id = "cover";
+  cover.tabIndex = -1;
+  cover.style.cssText = "height:0;overflow:hidden";
+  page.appendChild(cover);
   const shut = new Set(hiddenSections);
   for (const s of sections.filter((x) => !x.hidden && !shut.has(x.id))) {     // a hidden section is not on the page
     const sec = document.createElement("section");

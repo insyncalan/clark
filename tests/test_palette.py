@@ -155,6 +155,21 @@ class Opening(Base):
             p.show()
 
 
+class Opening2(Base):
+    def test_a_card_that_does_not_block_the_page_does_not_stop_the_palette(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                p.width(width)
+                p.js("var d=document.createElement('div'); d.id='layer'; d.setAttribute('role','dialog'); d.setAttribute('aria-modal','false'); document.body.appendChild(d)")
+                p.show()
+                p.palette_key()
+                p.until("!document.querySelector('#palette')", "the same keys closed it")
+                p.js("document.getElementById('layer').setAttribute('aria-modal','true')")
+                p.palette_key()
+                self.assertFalse(p.js("!!document.querySelector('#palette')"), "a dialog that blocks the page still keeps it")
+
+
 class Results(Base):
     def test_every_kind_in_order_with_its_kind_in_words(self):
         with chrome() as cdp:

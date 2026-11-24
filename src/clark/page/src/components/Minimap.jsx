@@ -42,8 +42,10 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, co
   // Back to the top of the page (the sticky bar stays); the list closes and the focus leaves it, as after a jump.
   const top = () => {
     setOpen(false);
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     window.scrollTo(0, 0);
+    const cover = document.getElementById("cover");       // the focus goes to the top of the report, as a jump puts it on its section
+    if (cover) cover.focus({ preventScroll: true });
+    else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   };
   const links = () => Array.from(root.current ? root.current.querySelectorAll("button[data-id]") : []);
   const focusAt = (i) => setTimeout(() => { const l = links()[i]; if (l) l.focus(); }, 0);   // after the list has opened (a closed one can't take focus)
