@@ -1,4 +1,4 @@
-"""Hostile tests, row 1417 (uncommitted). Fictional data only."""
+"""Hostile tests, row 1417. Fictional data only."""
 import unittest
 
 from _paths import SRC  # noqa: F401

@@ -4,8 +4,11 @@ Run: python3 dev/run_tests.py test_ask_1417_workstreams
 Ruling on the ticket (22-11 02:38): ask clark may read a workstream lead; the lead is read on the read side only; store.NEVER_PUBLISH keeps it for the publish side.
 Fictional data only.
 """
+import shutil
 import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 
 from _paths import SRC  # noqa: F401
 
@@ -13,6 +16,7 @@ from _demo import DemoStore
 import test_ask_1367 as base
 from clark import ask_data, publish
 from clark import store as st
+from test_store_use_case_done_migration import make_at
 
 NEW = ("lead", "start", "end", "latest_update", "links")
 
@@ -108,6 +112,26 @@ class Before(unittest.TestCase):
         self.assertTrue(line.startswith("PUB-W-001 Delivery | status: Active | created: "))
         for name in ("lead", "start", "end", "latest update", "links"):
             self.assertNotIn(name + ":", line)
+
+    def test_a_real_file_at_layout_33_is_read_without_blanks_or_an_error(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        path = make_at(folder, 33)      # a database at schema 33: no start, end or latest_update column on workstreams
+        con = sqlite3.connect(str(path), isolation_level=None)
+        self.assertEqual([r[1] for r in con.execute("PRAGMA table_info(workstreams)") if r[1] in ("start", "end", "latest_update")], [])
+        con.execute("INSERT INTO workstreams (project, id, name, source, created) VALUES ('ABC', 'ABC-W-001', 'Delivery', 'demo', '2026-11-01')")
+        con.close()
+        s = st.open_store(path, onedrive_roots=[])      # the open brings it to 34
+        try:
+            text = "\n".join(p.text for p in ask_data.project_data(s, "ABC", "workstreams?").passages)
+        finally:
+            s.close()
+        line = line_of(text, "ABC-W-001")
+        self.assertTrue(line.startswith("ABC-W-001 Delivery | status: "), line)
+        for name in ("lead", "start", "end", "latest update", "links", "None", "null"):
+            self.assertNotIn(name, line)
+        self.assertNotIn(" | |", line)
+        self.assertFalse(line.rstrip().endswith("|"))
 
 
 if __name__ == "__main__":
