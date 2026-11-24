@@ -153,7 +153,7 @@ class SamePage(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
-        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: self.built)
+        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.layer_theme(self.built, themes.css("prototype-2.0")))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)

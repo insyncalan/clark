@@ -80,19 +80,19 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
 .rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
 .rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
-.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
+.rt-bar .ddmenu [role="menuitem"], .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
 /* Row 1288: the editor bubble ends with Ask AI in purple words only. */
 .rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
 .rt-bar .rt-more { min-width: 40px; gap: 2px; }
 /* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
 .rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
 :is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { padding: 7px 10px; font-size: 15px; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
 .rt-bubble { gap: 6px; }
-:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible), .rt-bubble .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
 :is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
 .rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
 .rt-bubble .rt-bubble-ai { font-size: 13px; }
@@ -219,6 +219,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-r { color: var(--status-red-text); }
 :is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-g { color: var(--status-green-text); }
 :is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-b { color: var(--tone-blue-text); }
+/* Row 1294: the Defaults page opens the All projects tab with a text link, as the mock-up A8 draws it (muted dashed underline, brand colour on hover). Classic only. */
+.essentials .ess-link { background: none; border: 0; border-bottom: 1px dashed var(--text-muted); border-radius: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.essentials .ess-link:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
+
 /* Row 1275 (Classic only): the drop area on a Documents and links section in Edit, as docs-approved.html lines 18 and 99 draw .drop and .drop.over: a 1.5px dashed box, 12px radius, 14px padding, text centred, 10px above it; while a file is over it the border and text are the blue token and the fill the tint token. */
 .tpl-drop { border: 1.5px dashed var(--grey-200); border-radius: 12px; padding: 14px; text-align: center; color: var(--text-muted); margin-top: 10px; }
 .tpl-drop.over { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--brand-blue); }
