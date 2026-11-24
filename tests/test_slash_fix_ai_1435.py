@@ -90,6 +90,20 @@ class Disk(unittest.TestCase):
         self.assertEqual(self.svc.change({"scope": "all", "action": "unfix", "name": "monday.json"})[1]["message"], FAILED)     # no .old copy: nothing to undo
 
 
+    def test_a_link_is_not_fixed_and_a_copy_is_not_undone_as_a_file(self):
+        other = self.d / "elsewhere.txt"
+        other.write_bytes(OLD)
+        link = self.d / "ask-commands" / "linked.json"
+        link.symlink_to(other)
+        with mock.patch.object(ac, "readable_lines", lambda p: (KEPT, 0)):
+            self.assertEqual(self.fix("linked.json")[1]["message"], FAILED)
+        self.assertEqual((other.read_bytes(), link.is_symlink(), (self.d / "ask-commands" / "linked.json.old").exists()), (OLD, True, False))
+        (self.d / "ask-commands" / "monday.json.old").write_bytes(b"copy")
+        (self.d / "ask-commands" / "monday.json.old.old").write_bytes(b"copy of a copy")
+        self.assertEqual(self.svc.change({"scope": "all", "action": "unfix", "name": "monday.json.old"})[1]["message"], FAILED)
+        self.assertEqual((self.d / "ask-commands" / "monday.json.old").read_bytes(), b"copy")
+
+
 class Fix(AiBase):
     def settings_at(self, cdp, width):
         sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
