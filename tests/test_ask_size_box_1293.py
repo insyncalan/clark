@@ -68,6 +68,14 @@ class Box(unittest.TestCase):
         view = self.connect.get()[1]
         self.assertEqual((view["size_default"], view["size_range"], view["size_step"], view["size_help"]), (300_000, [10_000, 500_000], 10_000, HELP))
 
+    def test_a_saved_size_says_the_approved_toast_once_and_a_refused_one_does_not(self):
+        """Row 1571 (Romanoff CHANGES, item 2): the answer to a save carries 'Size of one question is saved.'; a refusal carries the refusal and no saved toast."""
+        status, got = self.connect.size({"size": 20_000})
+        self.assertEqual((status, got["message"]), (200, "Size of one question is saved."))
+        status, got = self.connect.size({"size": 5_000})
+        self.assertEqual((status, got["message"]), (400, REFUSAL))
+        self.assertNotIn("is saved", got["message"])
+
     def test_a_settings_file_with_a_bad_size_reads_as_the_default_and_other_settings_stay(self):
         (self.d / settings.FILE).write_text(json.dumps({"ask_size_value": 7, "profile_name": "Pat"}), encoding="utf-8")
         self.assertEqual(settings.ask_size(self.d), 300_000)
