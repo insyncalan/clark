@@ -223,7 +223,7 @@ class Editor(unittest.TestCase):
             self.cdp = cdp
             self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
 
-    def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up: a refusal the box shows is a problem too
+    def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up; item 1005: a refusal is the toast's, counted through say("problem")
         self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
         with chrome() as cdp:
             self.visit(cdp, "?project=ABC#dashboard&p=ABC")
@@ -231,17 +231,19 @@ class Editor(unittest.TestCase):
             ref = self.store.data_for("ABC")["actions"][0]["id"]
             self.js("window.__before = 1")
             self.js(f"clarkPage.openPeek('{ref}', 'item')")
-            self.until("!!document.querySelector('[data-pk-latest-text]')", "the peek drew")
-            self.js("document.querySelector('[data-pk-latest-text]').click()")
-            self.until("document.activeElement.hasAttribute('data-pk-latest-in')", "the box is open")
+            self.until("!!document.querySelector('[data-rich=latest_update]')", "the peek drew")
+            self.js("document.querySelector('[data-rich=latest_update]').click()")
+            self.until("!!document.querySelector('.pk-latest [contenteditable]')", "the box is open")
+            self.js("document.querySelector('.pk-latest [contenteditable]').focus()")
             self.cdp.call("Input.insertText", {"text": "Typed, then refused"}, self.sid)
+            self.js("document.querySelector('.pk-latest [contenteditable]').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', ctrlKey: true, bubbles: true}))")
+            self.until("!!document.querySelector('.toast.problem')", "the refusal is said in the toast")
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the refusal's words")
             self.js("clarkPage.setProject('XYZ')")
-            self.assertTrue(wait(lambda: "change" in self.sent, 10), "the box's change was sent, and refused")
             time.sleep(1.5)
-            self.assertEqual(self.js("window.__before"), 1, "the same page")
+            self.assertEqual(self.js("window.__before"), 1, "the same page: a refusal is a problem for the failed-save check")
             self.assertEqual(self.js("clarkPage.project()"), "ABC")
             self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
-            self.assertEqual(self.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the box says why")
 
     def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
         self.slow = 11
