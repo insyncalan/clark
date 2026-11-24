@@ -450,7 +450,7 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: "Nothing was changed" in js("document.querySelector('#ask-folders-card').innerText"), 10))
             self.assertTrue(js("!!document.querySelector('[data-ask-warn]')"))
 
-    def test_the_warning_names_the_provider_in_use(self):
+    def test_warning_names_connected_provider(self):
         """Row 1365 test 5: ChatGPT is named when it is the provider (and 'which Anthropic runs' is dropped); on open the notice is a labelled region, not an alert."""
         with chrome() as cdp:
             js = self.warn_page(cdp, 1400, "light", provider="ChatGPT", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Payroll", "readable_files": 1}]}])

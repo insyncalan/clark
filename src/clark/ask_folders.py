@@ -55,16 +55,18 @@ MESSAGES = {
 
 
 def read_ok(path, excluded=None, accepted=0):
-    """Row 1365: whether asking may read a saved folder. A folder with a people or contract word in a name (sensitive_names, names only, the subfolders the
-    person left out not counted) is read only when the person pressed Accept for it (`accepted` is exactly 1); with no choice it is Declined. A left-out list
-    that cannot be read is passed on as before: the reader (ask_passages) sends nothing from that folder and counts it. A folder with no such name is read as before."""
+    """Row 1365: whether asking may read a saved folder. A folder with a people or contract word in a name (sensitive_names, names only: the folder's own name,
+    and the names inside it, the subfolders the person left out not counted) is read only when the person pressed Accept for it (`accepted` is exactly 1); with no
+    choice it is Declined. A name scan that stopped at its limit (truncated) counts as flagged: it fails closed. A left-out list that cannot be read is passed on as
+    before (True): the reader (ask_passages) sends nothing from that folder and counts it as skipped for safety, which a False here would hide. A folder with no such name is read as before."""
     if accepted == 1 and type(accepted) is int:
         return True
     try:
         gone = ask_exclude.parse(excluded)
     except ValueError:
         return True
-    return not sensitive_names.scan(path, gone)
+    found = sensitive_names.scan(path, gone)
+    return not (found or found.truncated)
 
 
 def readable_paths(rows):
@@ -117,7 +119,7 @@ class AskFolders:
 
     def warned(self, folders, left=None, accepted=None):
         """Row 1365 S2: [{folder, accepted, items: [{name, readable_files, dir}]}] for each folder whose names hold a people or contract word (S1 scan, names only).
-        `left` is {folder: stored list of left-out subfolders}: those are not named. A list that cannot be read leaves the folder unscanned.
+        `left` is {folder: stored list of left-out subfolders}: those are not named. A list that cannot be read leaves the folder unscanned (the reader refuses and counts it). A scan that stopped at its limit is flagged.
         `accepted` is {folder: 0 or 1}: 1 only after the person pressed Accept for that folder; a folder not in it is Declined."""
         out = []
         for f in folders:
@@ -125,9 +127,12 @@ class AskFolders:
                 gone = ask_exclude.parse((left or {}).get(f))
             except ValueError:
                 continue
-            items = [{"name": h["name"], "readable_files": h["readable_files"], "dir": h["dir"]} for h in sensitive_names.scan(f, gone)]
+            found = sensitive_names.scan(f, gone)
+            items = [{"name": h["name"], "readable_files": h["readable_files"], "dir": h["dir"]} for h in found]
+            if found.truncated and not items:              # a scan that stopped at its limit fails closed: flagged, named by the folder's own name
+                items = [{"name": os.path.basename(os.path.normpath(f)) or f, "readable_files": 0, "dir": False}]
             if items:
-                out.append({"folder": f, "accepted": (accepted or {}).get(f) == 1, "items": items})
+                out.append({"folder": f, "accepted": (accepted or {}).get(f) == 1, "items": items, **({"truncated": True} if found.truncated else {})})
         return out
 
     def listed(self, store, code):

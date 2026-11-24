@@ -134,10 +134,16 @@ class ScanResult(list):
 def scan(folder, left_out=()):
     """[{name, path_rel, words, readable_files}] for each folder (any depth) and each top-level file named with a listed word.
 
+    A saved folder whose own name holds a listed word comes first in the list (own=True, path_rel "", dir False).
     `left_out` (row 1365) is the folder's list of left-out subfolders (relative paths): they and what is below are not looked at or named.
     The list has a truncated attribute: True when the scan stopped at MAX_ENTRIES names."""
     out = ScanResult()
     budget = _Budget()
+    own = os.path.basename(os.path.normpath(str(folder)))      # row 1365: the saved folder's own name counts too, and is named in the warning
+    found = words_in(own)
+    if found:
+        out.append({"name": own, "path_rel": "", "words": found, "dir": False, "own": True,
+                    "readable_files": _count(str(folder), 1, budget, "", tuple(left_out))})
     _walk(str(folder), "", 0, budget, out, tuple(left_out))
     out.truncated = budget.truncated
     return out

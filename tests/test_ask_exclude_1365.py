@@ -122,8 +122,8 @@ class Schema(Base):
             step.create("projects", {"code": "ABC", "name": "Example Programme"})
             step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 0})
         self.assertEqual(s.read("source_folders", "ABC")[0]["excluded"], "[]")
-        self.assertGreaterEqual(st.SCHEMA_VERSION, 34)      # 35 since the accepted column (test_ask_accept_1365)
-        self.assertIn((34, st.migrate_source_exclusions), st.MIGRATIONS)
+        self.assertGreaterEqual(st.SCHEMA_VERSION, 34)      # the same step also holds the accepted column (test_ask_accept_1365)
+        self.assertIn((34, st.migrate_source_folders_1365), st.MIGRATIONS)
         self.assertEqual(st.EXCLUDED_STEP, 34)
 
     def build_at_33(self):
@@ -158,20 +158,20 @@ class Schema(Base):
         self.assertLessEqual({"ask_files", "ask_new_projects"}, have("app_settings"))
         self.assertLessEqual({"ask_off", "ask_files_off"}, have("projects"))
         self.assertIn("excluded", have("source_folders"))
-        self.assertEqual([n for n, _ in st.MIGRATIONS][-3:], [33, 34, 35])
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-3:], [32, 33, 34])
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")
         con.row_factory = sqlite3.Row
         con.execute("CREATE TABLE source_folders (project TEXT NOT NULL, path TEXT NOT NULL, sort_order INTEGER NOT NULL, PRIMARY KEY (project, path))")
         con.execute("INSERT INTO source_folders VALUES ('ABC', '/x/y', 3)")
-        st.migrate_source_exclusions(con)
-        st.migrate_source_exclusions(con)
+        st.migrate_source_folders_1365(con)
+        st.migrate_source_folders_1365(con)
         self.assertEqual([tuple(r) for r in con.execute("SELECT project, path, sort_order, excluded FROM source_folders")], [("ABC", "/x/y", 3, "[]")])
         self.assertEqual([r["name"] for r in con.execute("PRAGMA table_info(source_folders)")].count("excluded"), 1)
         empty = sqlite3.connect(":memory:")
         empty.row_factory = sqlite3.Row
-        st.migrate_source_exclusions(empty)      # no table: nothing to do, nothing fails
+        st.migrate_source_folders_1365(empty)      # no table: nothing to do, nothing fails
         self.assertEqual(list(empty.execute("SELECT name FROM sqlite_master")), [])
 
     def test_the_schema_and_the_step_say_the_same_column_text(self):
@@ -180,7 +180,7 @@ class Schema(Base):
         old = sqlite3.connect(":memory:")
         old.row_factory = sqlite3.Row
         old.execute("CREATE TABLE source_folders (project TEXT, path TEXT, sort_order INTEGER)")
-        st.migrate_source_exclusions(old)
+        st.migrate_source_folders_1365(old)
         stepped = {r["name"]: (r["type"], r["notnull"], r["dflt_value"]) for r in old.execute("PRAGMA table_info(source_folders)")}
         self.assertEqual(stepped["excluded"], made["excluded"])
         self.assertEqual(made["excluded"], ("TEXT", 1, "'[]'"))
@@ -213,7 +213,7 @@ class SchemaChecks(Base):
         old.row_factory = sqlite3.Row
         old.execute("CREATE TABLE source_folders (project TEXT, path TEXT, sort_order INTEGER)")
         old.execute("INSERT INTO source_folders VALUES ('ABC', '/x', 0)")
-        st.migrate_source_exclusions(old)
+        st.migrate_source_folders_1365(old)
         self.check(old)
 
 

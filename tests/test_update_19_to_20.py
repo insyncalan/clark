@@ -36,7 +36,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 35      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type, use_case_milestones, then latest_update on raid and milestones, then priority and latest_update on decisions, then source_folders.excluded); the test pins the number on purpose
+NEW_LAYOUT = 34      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type, use_case_milestones, then latest_update on raid and milestones, then priority and latest_update on decisions, then source_folders.excluded); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''

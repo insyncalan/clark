@@ -39,7 +39,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 35          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out; 35 (row 1365): source_folders.accepted, 0 = declined, 1 = accepted. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 34          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -3229,32 +3229,24 @@ def migrate_ask_files(con):
             con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN " + column)      # fixed text per table, never a person's value
 
 
-EXCLUDED_STEP = 34        # row 1365's step number (33 was row 1294's ask_files), written once here and used by MIGRATIONS
+EXCLUDED_STEP = 34        # row 1365's one step number (33 was row 1294's ask_files), written once here and used by MIGRATIONS
 EXCLUDED_COLUMN = "excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000)"      # the same text as schema.sql's column
-
-
-def migrate_source_exclusions(con):
-    """Schema version 33 to 34 (row 1365): source_folders.excluded, the subfolders a person leaves out of a saved folder, '[]' (nothing left
-    out) for every row that is there. Added at the end of the table, so no table is made again and no value changes; a column already there
-    (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's transaction and does not touch
-    the version (the runner does). It is step 34 in MIGRATIONS."""
-    have = columns(con, "source_folders")
-    if have and "excluded" not in have:
-        con.execute("ALTER TABLE source_folders ADD COLUMN " + EXCLUDED_COLUMN)
-
-
-ACCEPTED_STEP = 35        # row 1365's second step number, written once here and used by MIGRATIONS
 ACCEPTED_COLUMN = "accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1))"      # the same text as schema.sql's column
 
 
-def migrate_source_accepted(con):
-    """Schema version 34 to 35 (row 1365): source_folders.accepted, 1 when the person pressed Accept for a saved folder whose names hold a people or
-    contract word, 0 (declined, the default) for every row that is there. Added at the end of the table, so no table is made again and no value
-    changes; a column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's
-    transaction and does not touch the version (the runner does). It is step 35 in MIGRATIONS. Taken back the way every step is: the backup the
-    updater makes before a migration."""
+def migrate_source_folders_1365(con):
+    """Schema version 33 to 34 (row 1365): source_folders.excluded, the subfolders a person leaves out of a saved folder, '[]' (nothing left
+    out) for every row that is there; and source_folders.accepted, 1 when the person pressed Accept for a saved folder whose names hold a people
+    or contract word, 0 (declined, the default) for every row that is there. Both are added at the end of the table, so no table is made again
+    and no value changes; a column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside
+    the caller's transaction and does not touch the version (the runner does). It is step 34 in MIGRATIONS. Taken back the way every step is:
+    the backup the updater makes before a migration."""
     have = columns(con, "source_folders")
-    if have and "accepted" not in have:
+    if not have:
+        return
+    if "excluded" not in have:
+        con.execute("ALTER TABLE source_folders ADD COLUMN " + EXCLUDED_COLUMN)
+    if "accepted" not in have:
         con.execute("ALTER TABLE source_folders ADD COLUMN " + ACCEPTED_COLUMN)
 
 
@@ -3273,7 +3265,7 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
               (INSTALL_DEFAULTS_STEP, migrate_install_defaults), (ASK_INSTRUCTIONS_STEP, migrate_ask_instructions),
               (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files),
-              (EXCLUDED_STEP, migrate_source_exclusions), (ACCEPTED_STEP, migrate_source_accepted))
+              (EXCLUDED_STEP, migrate_source_folders_1365))
 
 
 def migration_plan(version, table=None):
