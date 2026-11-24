@@ -63,7 +63,7 @@ class RoundTrip(unittest.TestCase):
     def test_the_export_has_no_column_for_the_flag_and_an_untouched_export_has_no_difference(self):
         for sheet in ("Actions", "Risks & Issues"):
             head = [c.value for c in load_workbook(self.path)[sheet][1]]
-            self.assertFalse([h for h in head if h and "client" in h.lower() and h not in ("Client-visible", "Client Message")], head)
+            self.assertFalse([h for h in head if h and "client" in h.lower() and h not in ("Client visible", "Client Message")], head)
         p = xi.read_workbook(self.s, self.path, "ABC", state_path=self.state)
         self.assertEqual((p.changes, p.problems), ([], []))
 

@@ -1,4 +1,4 @@
-"""Hostile tests for the Feedback tab logic (#1069): empty, huge and odd input, repeated calls, the length edge and the refusal
+"""Hostile tests for the Feedback mail logic (#1069): empty, huge and odd input, repeated calls, the length edge and the refusal
 sentences. Same harness as test_feedback_tab.py (headless Chrome). Fictional data only.
 
 Run: python3 dev/run_tests.py test_hostile_feedback
@@ -63,27 +63,6 @@ class Hostile(tft.InBrowser):
         a = self.val("(function(){ var f = {message: 'one', contact: 'c'}; var c = {version: '1', platform: 'p'}; var x = T.logic.mail(f, c); T.logic.mail({message: '', contact: ''}, c); T.logic.copyText(f, c); return [x, T.logic.mail(f, c), f]; })()")
         self.assertEqual(a[0], a[1])
         self.assertEqual(a[2], {"message": "one", "contact": "c"})
-
-    def test_typing_then_clearing_then_whitespace_removes_the_link_each_time(self):
-        self.mount()
-        self.type("#feedback-message", "hello")
-        self.assertTrue(self.href())
-        self.type("#feedback-message", "")
-        self.assertEqual(self.href(), "")
-        self.type("#feedback-message", "   \n  ")
-        self.assertEqual(self.href(), "")
-        self.assertEqual(self.text("#feedback-note").strip() in ("", self.val("T.logic.NOTHING_YET")), True)
-        self.type("#feedback-message", "again")
-        self.assertTrue(self.href())
-
-    def test_a_huge_card_input_leaves_copy_working_and_no_link(self):
-        self.mount()
-        self.js("(function(){ var e = document.querySelector('#feedback-message'); e.value = 'z'.repeat(150000); e.dispatchEvent(new Event('input', {bubbles: true})); })()")
-        self.settle()
-        self.assertEqual(self.href(), "")
-        self.assertIn(self.val("T.logic.TOO_LONG"), self.js("document.body.textContent"))
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(self.text("#feedback-note"), "Copied")
 
 
 if __name__ == "__main__":

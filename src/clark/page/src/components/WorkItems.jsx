@@ -26,7 +26,7 @@ import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
 import { sortRows, liveWindow, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS, labelsText } from "../workItems.js";
-import { defsOf, standardIds } from "../logic/tableColumns.js";
+import { defsOf, standardIds, shownOrder } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
@@ -106,10 +106,10 @@ function GhostRow({ row, today, Eye, group, onMotionEnd, cols = STD }) {
     <tr class="leaving" role="presentation" aria-hidden="true" inert onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "m-out") onMotionEnd(row.id); }}>
       <td class="c-status"><ItemIcon row={row} pill={pill} today={today} plain /></td>
       <td class="c-item"><div class="tcell"><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group, metaLess(cols))}</span></span></div></td>
-      {cols.includes("owner") ? <td class="c-owner">{o.text}</td> : null}
-      {cols.includes("due") ? <td class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio">{row.priority || ""}</td> : null}
-      {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`}>{extraCell(id, row)}</td>)}
+      {rest(cols).map((id) => (id === "owner" ? <td key={id} class="c-owner">{o.text}</td>
+        : id === "due" ? <td key={id} class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td>
+        : id === "prio" ? <td key={id} class="c-prio">{row.priority || ""}</td>
+        : <td key={id} class={`c-x c-x-${id}`}>{extraCell(id, row)}</td>))}
       {Eye ? <td class="c-eye" /> : null}
     </tr>
   );
@@ -143,6 +143,8 @@ function useRowMotion(lay) {
 
 // Row 1222: the columns beyond the five a table always had. Each is plain text from the row; a column with nothing to say is a muted dash.
 const STD = standardIds("work").filter((id) => id !== "id"), isStd = (id) => STD.includes(id);   // #1195: the Id is on by default in the page clark serves (the column menu) and drawn as an extra cell, its own blue column; a published file keeps its columns without it
+// Row 1534: a published file (and the page when no menu is drawn) takes the order saved with the project for the type switch (Classic only; Cards keeps the standard order); "All" keeps the standard order.
+const publishedOrder = (type) => { const d = data.value; return shownOrder(classicTheme(), STD, d && d.project ? d.project.column_orders : null, type); };
 const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label || id;
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
@@ -151,6 +153,7 @@ const EXTRA = {
 };
 const extraCell = (id, row) => { const t = String((EXTRA[id] || (() => ""))(row) || "").trim(); return t ? (id === "id" || id === "raised" || id === "closed" ? <span class="num">{t}</span> : t) : <span class="muted">{"—"}</span>; };
 const extras = (cols) => cols.filter((id) => !isStd(id));
+const rest = (cols) => cols.filter((id) => id !== "status" && id !== "item");      // row 1534: the cells after the Status and the Item, in the order of the columns (the saved order of the type)
 const metaLess = (cols) => ({ id: cols.includes("id"), milestone: cols.includes("milestone"), workstream: cols.includes("workstream"), uc: cols.includes("usecase") });
 
 function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEnd, cols = STD }) {
@@ -187,10 +190,10 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </span>
         </div>
       </td>
-      {cols.includes("owner") ? <td class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td> : null}
-      {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`} data-pri={classicTheme() ? row.priority : undefined}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
-      {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
+      {rest(cols).map((id) => (id === "owner" ? <td key={id} class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
+        : id === "due" ? <td key={id} class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
+        : id === "prio" ? <td key={id} class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`} data-pri={classicTheme() ? row.priority : undefined}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td>
+        : <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>))}
       {Eye ? <td class="c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
     </tr>
   );
@@ -210,7 +213,7 @@ function Heads({ eye, hand, cw, cm, cols }) {
   return (
     <>
       {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
-      {cols.map((id) => <th key={id} scope="col" class={colClass(id)} data-col={id} {...h(id, labelOf(id))}>{labelOf(id)}{g(id, labelOf(id))}{cm && !eye && id === last ? cm.button() : null}</th>)}
+      {cols.map((id) => <th key={id} scope="col" class={colClass(id)} data-col={id} {...h(id, labelOf(id))} {...(cm && cm.headProps ? cm.headProps(id) : {})}>{labelOf(id)}{g(id, labelOf(id))}{cm && !eye && id === last ? cm.button() : null}</th>)}
       {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span>{cm ? cm.button() : null}</th> : null}
     </>
   );
@@ -239,7 +242,7 @@ const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
 function Table({ rows, today, type, Cell, Eye, CW, CM }) {
   const cw = CW ? CW("work") : NO_WIDTHS;
-  const cm = CM ? CM("work") : null, cols = cm ? cm.shown : STD;      // row 1222: the columns chosen from the heading row (the page clark serves only)
+  const cm = CM ? CM("work", false, type) : null, cols = cm ? cm.shown : publishedOrder(type);      // row 1222: the columns chosen from the heading row (the page clark serves only)
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = cols.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
@@ -338,7 +341,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
           </span>
         ))}
-        {words ? <span class="fchip" data-chip="search">{`Search: ${query.value.trim()}`}
+        {words ? <span class={classicTheme() ? "fchip word" : "fchip"} data-chip="search">{`Search: ${query.value.trim()}`}
           <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
         </span> : null}
         {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}

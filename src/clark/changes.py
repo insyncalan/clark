@@ -44,6 +44,7 @@ from clark import people as people_rules
 from clark import store as clark_store
 from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
+from clark.section_kinds import doclinks as section_kind_doclinks
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
@@ -59,7 +60,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
-PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand",)
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand", "column_orders")
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
@@ -2019,6 +2020,11 @@ def _checked_project_changes(fields):
             raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
         if k == "brand" and (type(v) is not str or v not in brand_ids()):
             raise Refused(BAD_OP)       # #944: an id that is not generic or installed (a real string only), refused before the step opens
+        if k == "column_orders":
+            try:                                                # row 1534: the store's own check, called here so the first refusal is the route's
+                out[k] = clark_store.column_orders(v)
+            except Invalid as e:
+                raise Refused(str(e)) from None
         if k in ("show_gantt_editor", "show_gantt_client"):
             out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
         if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
@@ -2067,7 +2073,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"], "brand": now["brand"],
+                             "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
@@ -2681,6 +2687,11 @@ def words(reversed_, skipped, names):
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
             continue
+        if e["field"] == "column_orders":                           # row 1534: the saved column order of the work item tables
+            if "the column order" not in seen:
+                seen.add("the column order")
+                put.append("the column order")
+            continue
         if e["field"] == "brand":                                   # #944: the project's brand
             if "the brand" not in seen:
                 seen.add("the brand")
@@ -2834,7 +2845,7 @@ def _do_undo(store, by_user, req):
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"], "brand": now["brand"],
+                          "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 
@@ -3105,6 +3116,12 @@ def _do_section_file(store, by_user, req):
     stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
     the type's checker like any other body write, so the store's rules are the same as a save from the page."""
     project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    entries = req.get("entries")                    # row 1593: several files in ONE step (one apply_id, so one Undo); `entry` is the one-file form
+    if entries is not None:
+        if not isinstance(entries, list) or not entries:
+            raise Refused(NO_FILE_HERE)
+    else:
+        entries = [entry]
     if not isinstance(project, str) or store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     if clark_store.is_archived(store.con, project):
@@ -3117,13 +3134,25 @@ def _do_section_file(store, by_user, req):
         if kind is None:
             raise Refused(NO_FILE_HERE)
         text = _section_body(row, row.get("body") or "")
-        try:
-            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
-        except section_bodies.Bad as e:
-            raise Refused(str(e)) from None
+        value = json.loads(text) if text else None
+        added, left_out = [], []
+        for e in entries:
+            try:
+                value = section_bodies.TEMPLATES[kind].add_file(value, e)
+                added.append(e)
+            except section_bodies.Bad as err:
+                if len(entries) > 1 and str(err) == section_kind_doclinks.TOO_MANY:        # the files that fit are added in order, the rest are named
+                    left_out.append(e)
+                    continue
+                raise Refused(str(err)) from None
+        if not added:
+            raise Refused(section_kind_doclinks.TOO_MANY)
         st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    reply = {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    if req.get("entries") is not None:
+        reply.update({"added": added, "left_out": [e["name"] for e in left_out]})
+    return 200, reply
 
 
 def make_section_file(path, onedrive_roots=None, by_user=None):

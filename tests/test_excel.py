@@ -40,17 +40,17 @@ def tearDownModule():
 ON = "2030-06-01"
 HEADERS = {
     "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
-                   "Order", "% complete", "Owner", "Shown state", "State", "State set by you", "State reason", "Movement",
-                   "Achieved on", "Client-visible", "Client Message", "Latest update", "Internal note", "Open work items", "Source", "Updated"],
-    "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
-                "Latest update", "Client-visible", "Client Message", "Milestone", "Use case", "Labels", "Source", "Updated"],
-    "Risks & Issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
-             "Priority", "Status", "Raised", "Closed", "Latest update", "Client-visible", "Client Message", "Milestone", "Use case", "Labels",
-             "Source", "Updated"],
-    "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
-                  "Replaces", "Latest update", "Client-visible", "Client Message", "Use case", "Labels", "Source", "Updated"],
-    "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
-                  "Linked milestones", "Open work items", "Source", "Updated"],
+                   "Sort order", "Progress %", "Owner", "State", "State reason", "Movement",
+                   "Achieved on", "Client visible", "Client Message", "Latest update", "Internal note", "Open work items", "Added from", "Last updated"],
+    "Actions": ["ID", "Title", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
+                "Latest update", "Client visible", "Client Message", "Milestone", "Use case", "Labels", "Added from", "Last updated"],
+    "Risks & Issues": ["ID", "Title", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
+             "Priority", "Status", "Raised", "Closed", "Latest update", "Client visible", "Client Message", "Milestone", "Use case", "Labels",
+             "Added from", "Last updated"],
+    "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Decided on", "Reasoning", "Options considered", "Revisit",
+                  "Replaces", "Latest update", "Client visible", "Client Message", "Use case", "Labels", "Added from", "Last updated"],
+    "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Sort order", "On the dashboard",
+                  "Linked milestones", "Open work items", "Added from", "Last updated"],
 }
 
 
@@ -153,7 +153,7 @@ class ExcelTests(unittest.TestCase):
         self.assertEqual(len(self.column(self.sheet("Use cases"), "ID")), 2)
 
     def test_every_milestone_state(self):
-        shown = {k: c.value for k, c in self.column(self.sheet("Milestones"), "Shown state").items()}
+        shown = {k: c.value for k, c in self.column(self.sheet("Milestones"), "State").items()}
         for state, ref in self.d.milestones.items():
             self.assertEqual(shown[ref], state)
 
@@ -192,7 +192,7 @@ class ExcelTests(unittest.TestCase):
         self.assertIn(("custom", "FALSE"), rules)                                # locked ID, source, updated
         self.assertIn(("list", '"Open,Delayed,Closed,Cancelled"'), rules)
         ms = [(dv.type, dv.formula1) for dv in self.sheet("Milestones").data_validations.dataValidation]
-        self.assertIn(("list", '"On track,At risk,Slipped,Overdue,Forecast,Achieved"'), ms)
+        self.assertNotIn(("list", '"On track,At risk,Slipped,Overdue,Forecast,Achieved"'), ms)      # item 1390: State is worked out and locked, with no list
 
     def test_the_id_column_is_shaded_and_locked_on_a_protected_sheet(self):
         """#85d, item 727: each sheet is protected with no password (the locked cells are pinned in test_excel_protection). The ID
@@ -203,8 +203,8 @@ class ExcelTests(unittest.TestCase):
             self.assertTrue(ws.protection.sheet, name)
             self.assertGreater(n, 0)
             for row in range(2, n + 2):
-                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], "E7E7E7", (name, row))
-            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], "E7E7E7")
+                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], excel.colours.TOKENS["locked-fill"], (name, row))
+            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], excel.colours.TOKENS["locked-fill"])
             self.assertIn(excel.ID_NOTE, ws["A1"].comment.text)
             self.assertEqual(excel.ID_NOTE, "IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
             prompts = {str(dv.sqref): dv for dv in ws.data_validations.dataValidation          # the ID column's (A) prompts;
@@ -270,7 +270,7 @@ class ExcelTests(unittest.TestCase):
         n = len(self.d.store.read("actions", "ABC"))
         head = {c.value: c.column for c in ws[1]}
         self.assertIsNone(ws.cell(row=n + 2, column=head["ID"]).value)
-        ws.cell(row=n + 2, column=head["Description"]).value = "Typed in a spare row"
+        ws.cell(row=n + 2, column=head["Title"]).value = "Typed in a spare row"
         wb.save(self.d.path)
         plan = xi.read_workbook(self.d.store, self.d.path, "ABC")
         new = [c for c in plan.changes if c.kind == "new"]
@@ -403,7 +403,7 @@ class RowsOnly(unittest.TestCase):
         excel.export(path, "DEMO", rows, self.dir / "state.json", on=ON)
         ws = load_workbook(path)["Milestones"]
         head = [c.value for c in ws[1]]
-        order, name = ws.cell(row=2, column=head.index("Order") + 1), ws.cell(row=2, column=head.index("Milestone") + 1)
+        order, name = ws.cell(row=2, column=head.index("Sort order") + 1), ws.cell(row=2, column=head.index("Milestone") + 1)
         self.assertEqual((order.value, order.data_type), (-5, "n"))
         self.assertEqual((name.value, name.data_type), ("-5", "s"))
         back = excel.read_workbook(path)["milestones"][0]

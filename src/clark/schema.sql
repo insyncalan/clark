@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS projects (
   brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60),   -- clark: #944: the project's brand id, as the migration's ADD COLUMN puts it
   ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= 4000),   -- clark: row 1294: the project's own standing instructions for asking; last, as the migration's ADD COLUMN puts it
   ask_files_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_files_off IN (0,1)),   -- clark: row 1294: 1 when this project keeps files off for asking; as the migration's ADD COLUMN puts it
-  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1))   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); last, as the migration's ADD COLUMN puts it
+  ask_off INTEGER NOT NULL DEFAULT 0 CHECK (ask_off IN (0,1)),   -- clark: row 1294: 1 when asking is off for this project (0 on; a new project gets the opposite of app_settings.ask_new_projects); as the migration's ADD COLUMN puts it,
+  column_orders TEXT NOT NULL DEFAULT '{}' CHECK (typeof(column_orders) = 'text' AND length(column_orders) <= 1000)   -- clark: row 1534, step 35: the saved column order of the work item tables, JSON {table: [column ids]}; last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
@@ -334,6 +335,8 @@ CREATE TABLE IF NOT EXISTS source_folders (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   path    TEXT NOT NULL,
   sort_order INTEGER NOT NULL,
+  excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000),     -- row 1365 (schema version 34): the subfolders left out, a JSON list of relative paths
+  accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1)),     -- row 1365 (schema version 34): 1 = the person pressed Accept for this folder; 0 = declined (the default)
   PRIMARY KEY (project, path)
 );
 
