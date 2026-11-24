@@ -98,7 +98,7 @@ class AddedPageTab(Base):
     @unittest.expectedFailure
     def test_bar_is_56px_at_1400(self):
         """AP2: the bar is 56px (--topbar) at 1400. KNOWN GAP, kept visible: the shipped header (top-hdr, project name over the tabs) measures 85px and
-        shell.css sets html:has(.top-hdr) --topbar 85px; 56px is only the :root default. Needs a PM or Jarvis word; drop expectedFailure when it is settled."""
+        shell.css sets html:has(.top-hdr) --topbar 85px; 56px is only the :root default. Needs a product ruling; drop expectedFailure when it is settled."""
         with chrome() as cdp:
             p = self.open(cdp, 1400)
             self.assertEqual(p.js("document.querySelector('.top').getBoundingClientRect().height"), 56)
