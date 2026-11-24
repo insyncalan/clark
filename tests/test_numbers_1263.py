@@ -304,7 +304,9 @@ class Classic(Base):
             p = self.sized(cdp, 1400, "light")
             self.edit(p, ref)
             self.assertEqual(p.js(f"Array.from(document.querySelectorAll('{self.sec(ref, '.num-bar .num-bar-l, .num-bar button')}')).map(e => e.textContent).join(' ')"), "Numbers 3 4")
-            self.assertEqual(p.js(f"document.querySelector('{self.sec(ref, '.num-bar')}').getAttribute('aria-label')"), "Numbers tools")
+            self.assertEqual(p.js(f"document.querySelector('{self.sec(ref, '.num-bar')}').getAttribute('aria-label')"), None)
+            self.assertEqual(p.js(f"document.querySelectorAll('{self.sec(ref, '.num-bar [aria-label]')}').length"), 1)       # the one name is the count group's
+            self.assertEqual(p.js(f"document.querySelector('{self.sec(ref, '.num-count')}').getAttribute('aria-label')"), "How many numbers")
             self.assertEqual(p.js(f"document.querySelectorAll('{self.sec(ref, '[data-slot]')}').length"), 4)
             self.assertEqual(self.pressed(p, ref, ".num-count"), "4")
             steps = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]

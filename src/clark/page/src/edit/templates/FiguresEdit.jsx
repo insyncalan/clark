@@ -57,9 +57,9 @@ export function figuresEdit(type) {
     return (
       <div class="tpl-edit" data-edit-only="" data-template={type}>
         {classic ? (
-          <div class="num-bar" role="group" aria-label="Numbers tools">
+          <div class="num-bar">
             <span class="num-bar-l">Numbers</span>
-            <Seg cls="num-count" label="Numbers" items={COUNTS.map((n) => [n, String(n)])} on={count} onPick={setCount} />
+            <Seg cls="num-count" label="How many numbers" items={COUNTS.map((n) => [n, String(n)])} on={count} onPick={setCount} />
           </div>
         ) : null}
         {shown.length ? <FigureRow list={shown} type={type} count={count} /> : <><StartPrompt id="figures-4" /><p class="quiet">Nothing to show yet. Fill in a figure below, or choose a live one.</p></>}
