@@ -463,7 +463,7 @@ def is_noise(name):
     return any(fnmatch.fnmatchcase(low, pat.lower()) for pat in NOISE)
 
 
-def readable_files(folders, data, reasons=None, home_dir=None):
+def readable_files(folders, data, reasons=None, home_dir=None, leave_out=None):
     """(files, skipped, stopped): the real paths of every file ask clark may read in the saved folders, sorted, each once; and how
     many things were skipped for safety (a file or folder that holds secrets, is part of clark's data, is a link, is not
     an ordinary file, has more than one name, is online only, is on another disk, or can't be opened). A skipped folder
@@ -473,6 +473,10 @@ def readable_files(folders, data, reasons=None, home_dir=None):
     MAX_ENTRIES folders and files looked at (kept or skipped, so a tree of empty folders ends too) or TIME_BUDGET seconds by CLOCK.
     `stopped` is True when the list is incomplete because one of those caps was reached (files, bytes, depth, entries or time), so the page can say "not everything was listed", not only count.
     `reasons`, if a dict, gets {plain reason: how many}.
+    `leave_out` (row 1365) is {saved folder: a function of the path's names below that folder (a tuple) that says True for a subfolder or file left
+    out by the person}: what it names (and what is below it) is never entered, listed or counted, and takes nothing from the caps. The function is
+    given by the caller (ask_passages, from ask_exclude) so this module stays standard library and clark.platform only. A folder that is not
+    among the saved ones is ignored.
     The UI shows the count so a file that never appears is explained."""
     files, seen, skipped = [], set(), [0]
     total = 0
@@ -493,6 +497,14 @@ def readable_files(folders, data, reasons=None, home_dir=None):
             reasons[why] = reasons.get(why, 0) + 1
 
     saved = roots(folders, home_dir)
+    cuts = []                                                # (the parts of a saved folder, its test): a cut holds wherever that folder is walked, also from a saved folder above it
+    for f, gone in (leave_out or {}).items():
+        try:
+            base = real(f, home_dir)
+        except (BadPath, OSError, ValueError, RuntimeError):
+            continue
+        if base in saved:
+            cuts.append((base.parts, gone))
 
     def failed(e):
         skip("a folder couldn't be opened")
@@ -506,9 +518,17 @@ def readable_files(folders, data, reasons=None, home_dir=None):
         for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=failed):
             depth = len(Path(dirpath).parts) - len(root.parts)
             keep = []
+            above = Path(dirpath).parts
+
+            def cut_out(name):
+                full = (*above, name)
+                return any(full[:len(b)] == b and gone(full[len(b):]) for b, gone in cuts)
+
             for name in sorted(dirnames):
                 full = os.path.join(dirpath, name)
                 if is_noise(name):
+                    continue
+                if cuts and cut_out(name):
                     continue
                 why = over()
                 if why:
@@ -531,6 +551,8 @@ def readable_files(folders, data, reasons=None, home_dir=None):
                 break
             for name in sorted(filenames):
                 if is_noise(name):
+                    continue
+                if cuts and cut_out(name):
                     continue
                 why = over()
                 if why:
