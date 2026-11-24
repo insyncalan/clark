@@ -203,7 +203,7 @@ def milestone_ids(text, refs=None):
 
 
 def _label(table, f):
-    """A column as the person sees it: the export's header label (Due, Agreed, Client Message ...)."""
+    """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
     for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
         if field_ == f:
             return label

@@ -12,9 +12,9 @@ from clark import excel_import as xi
 
 ACCEPTED = {
     "actions": ["ID", "Title", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed", "Latest update",
-                "Client visible", "Client Message", "Milestone", "Use case", "Labels", "Added from", "Last updated"],
+                "Client visible", "Client wording", "Milestone", "Use case", "Labels", "Added from", "Last updated"],
     "decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Decided on", "Reasoning",
-                  "Options considered", "Revisit", "Replaces", "Latest update", "Client visible", "Client Message", "Use case",
+                  "Options considered", "Revisit", "Replaces", "Latest update", "Client visible", "Client wording", "Use case",
                   "Labels", "Added from", "Last updated"],
 }
 OLD = {"Description", "Client-visible", "Source", "Updated", "Date", "Options", "Order", "% complete", "Shown state",

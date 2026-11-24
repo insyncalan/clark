@@ -370,7 +370,7 @@
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
      "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
-     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the Client Message and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All. The words you typed in the box show as their own Search: chip among the filters.",
+     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the Client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All. The words you typed in the box show as their own Search: chip among the filters.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case’s reference), opens Work items already filtered to what it counts."
     ],
     "page": [
@@ -409,7 +409,7 @@
      "Under the title are the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour. In Edit, click **Status** to choose another value. For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an open item is due on a weekend, or an open action is overdue, with one-click fixes such as **Move to Friday** and the date.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
-     "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client Message; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
+     "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client wording; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. **Previous item** and **Next item** at the top step through the list; [[Up]] and [[Down]] do the same only when focus is on one of the peek’s own buttons."
@@ -448,7 +448,7 @@
      "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
      "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
-     "An item’s **Client Message** (on its row in Edit; for a decision also in its peek, in Edit) is used on the page in place of its title. A milestone has the same, as **Client Message** in its peek."
+     "An item’s **Client wording** (on its row in Edit; for a decision also in its peek, in Edit) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
     ],
     "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
     "page": [
@@ -637,7 +637,7 @@
      "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons in the State chip under the title. Overdue follows the dates and isn’t one of them.",
      "**Dates**: the **Agreed date** is shown and the peek does not change it; change the **Forecast date** as things move. A Done milestone also has an **Achieved on** date.",
      "**Progress** is set by hand with the ten blocks in the Progress chip. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Client visible** (the line under the rows), and the **Client Message** used on the page in place of the name.",
+     "**Client visible** (the line under the rows), and the **Client wording** used on the page in place of the name.",
      "To tie a work item to a milestone, open the item’s peek and, in Edit, pick the milestone under Details."
     ],
     "page": [
@@ -728,7 +728,7 @@
      "The answer is a suggestion: your text is unchanged until you press **Accept**. **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
      "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
     ],
-    "n": "Item fields and Client Message offer Improve and Ask; report sections offer Structure and Format notes as well.",
+    "n": "Item fields and Client wording offer Improve and Ask; report sections offer Structure and Format notes as well.",
     "page": [
      "dashboard+edit"
     ]
@@ -1647,8 +1647,8 @@
        "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved are the states. In Edit the State chip opens the five you can pick: Forecast, On track, At risk, Slipped and Achieved. Overdue is shown when the dates make it so, and cannot be picked.",
        "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, the Forecast date chip opens a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
        "**Progress**: in Edit, ten blocks in the Progress chip, set by hand. Press the block that matches the progress to set it back to 0.",
-       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client Message, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client Message. Description and Client Message use the rich text editor.",
-       "**Client visible** and **Client Message**. A client sees the same peek, read only, without the Client visible line."
+       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client wording, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client wording. Description and Client wording use the rich text editor.",
+       "**Client visible** and **Client wording**. A client sees the same peek, read only, without the Client visible line."
       ]
      ]
     ]
@@ -1676,7 +1676,7 @@
     "b": [
      [
       "p",
-      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and Client Message, and a milestone’s description and Client Message. Click the text and it opens in place."
+      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and Client wording, and a milestone’s description and Client wording. Click the text and it opens in place."
      ],
      [
       "tbl",
@@ -1703,7 +1703,7 @@
        ],
        [
         "One-line fields",
-        "One-line fields (the Client Message on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
+        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]
@@ -1733,7 +1733,7 @@
         "Improve: Rewrite clearly, Shorter, Make it executive, Polish; Make into; Ask"
        ],
        [
-        "Client Message",
+        "Client wording",
         "The same as an item’s fields"
        ]
       ]
@@ -2003,19 +2003,19 @@
       [
        [
         "Actions",
-        "ID, Title, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client visible, Client Message, Milestone, Use case, Labels"
+        "ID, Title, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client visible, Client wording, Milestone, Use case, Labels"
        ],
        [
         "Risks & Issues",
-        "ID, Title, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Latest update, Client visible, Client Message, Milestone, Use case, Labels"
+        "ID, Title, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Latest update, Client visible, Client wording, Milestone, Use case, Labels"
        ],
        [
         "Decisions",
-        "ID, Decision, Status, Priority, Made by, Needed by, Decided on, Reasoning, Options considered, Revisit, Replaces, Latest update, Client visible, Client Message, Use case, Labels"
+        "ID, Decision, Status, Priority, Made by, Needed by, Decided on, Reasoning, Options considered, Revisit, Replaces, Latest update, Client visible, Client wording, Use case, Labels"
        ],
        [
         "Milestones",
-        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Sort order, Progress %, Owner, State reason, Movement, Achieved on, Client visible, Client Message, Latest update, Internal note"
+        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Sort order, Progress %, Owner, State reason, Movement, Achieved on, Client visible, Client wording, Latest update, Internal note"
        ],
        [
         "Use cases",
