@@ -7,7 +7,7 @@ import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
 import { askProvider } from "./askState.js";
 import { classicTheme } from "../components/Contents.jsx";
-import { aiCancelSend, aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, aiProgressRead, aiTestSend, aiVerifySend, words } from "./publishApi.js";
+import { aiCancelSend, aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, aiProgressRead, aiSizeSend, aiTestSend, aiVerifySend, words } from "./publishApi.js";
 
 export const AI_CHECKING_LINE = "Checking whether AI suggestions are on…";
 export const AI_LATER_LINE = "AI suggestions come in a later version.";      // the status route answered 404: no AI service in this version
@@ -82,6 +82,14 @@ function ConnectCard() {
     setConn({ ...conn });                                // the drop-down goes back to the model in use
     setMsg({ kind: "error", text: r.status >= 400 && r.status < 500 && b && typeof b.message === "string" ? b.message : words(r, what) });
     return null;
+  }
+  async function saveSize(el, text) {                   // row 1293: saved on leave or Enter; a refused value is said and the saved one is put back, never clamped
+    const t = String(text).trim();
+    if (t === String(conn.size_value)) return;
+    const n = /^[0-9][0-9,]*$/.test(t) ? Number(t.replace(/,/g, "")) : NaN;
+    const done = await send(() => aiSizeSend(Number.isSafeInteger(n) ? n : t), "save the size", "#ai-size");
+    if (el && el.isConnected) el.value = String(conn.size_value);
+    return done;
   }
   async function choose(model) {
     const text = await send(() => aiModelSend(model), "save that choice", "#ai-model");
@@ -181,6 +189,14 @@ function ConnectCard() {
       <select id="ai-model" disabled={!conn.models.length} aria-disabled={busy ? "true" : undefined} value={conn.model} onChange={(e) => { if (busy) setConn({ ...conn }); else choose(e.currentTarget.value); }}>
         {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
+    </div>
+    <div class="ai-size">
+      <label for="ai-size">Size of one question</label>{" "}
+      <input id="ai-size" type="text" inputmode="numeric" key={conn.size_value} defaultValue={conn.size_value} aria-describedby="ai-size-help"
+        aria-disabled={busy ? "true" : undefined} data-ai-size-input onBlur={(e) => saveSize(e.currentTarget, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveSize(e.currentTarget, e.currentTarget.value); } }} /> tokens
+      {conn.size_value !== conn.size_default
+        ? <>{" "}<button type="button" class="btn sm" data-ai-size-default aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiSizeSend(conn.size_default), "save the size", "#ai-size")}>Use {conn.size_default.toLocaleString("en-US")}</button></> : null}
+      <p class="muted" id="ai-size-help" data-ai-size-help>{conn.size_help}</p>
     </div>
     <p class="muted" data-ai-size>{conn.size}</p>
     {weaker ? (

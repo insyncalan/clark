@@ -39,6 +39,7 @@ Routes:
 - GET  /api/providers    Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
 - POST /api/providers/connect {provider}: clark may use it; POST /api/providers/disconnect {provider}: clark stops using it, and the sign-in stays
 - POST /api/providers/model {model, accept?}: the model asking uses, from a fixed list
+- POST /api/providers/size {size}: Size of one question in tokens, a whole number from 10,000 to 500,000 (row 1293; settings.json)
 - GET /api/providers/progress; POST /api/providers/verify {provider}: the re-check (row 1492), one real request; POST /api/providers/cancel {provider}
 - POST /api/providers/test {}: Test the connection (row 1294): one short question to each model that is on, and how long each took
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
@@ -231,7 +232,7 @@ DROP_MAX_BYTES = 25 * 1024 * 1024          # the same number as section_files.MA
 DROP_TOO_BIG = "That file is larger than 25 MB, so it was not added."
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB); row 1233: to one gallery picture sent (14 MiB), each template keeps its own size limit
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/providers/verify": 1024, "/api/providers/cancel": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/size": 1024, "/api/providers/test": 1024, "/api/providers/verify": 1024, "/api/providers/cancel": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
@@ -1580,7 +1581,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-commands": ask_commands_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/ask-files": app_settings_route("change_files"), "/api/ask-new-projects": app_settings_route("change_new"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
-                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"), "/api/providers/verify": ai_connect_route("verify"), "/api/providers/cancel": ai_connect_route("cancel"),
+                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/size": ai_connect_route("size"), "/api/providers/test": ai_connect_route("test"), "/api/providers/verify": ai_connect_route("verify"), "/api/providers/cancel": ai_connect_route("cancel"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
