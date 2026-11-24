@@ -1,6 +1,6 @@
-"""Row 1466: "Client Message" is now "Client wording" wherever a person reads it (the peeks, the table columns, the data card, the
+"""Row 1466: "Client wording" is now "Client Message" wherever a person reads it (the peeks, the table columns, the data card, the
 Excel header, Help, the raid card source), and a published file never draws the "Client visible" or "Client not visible" line or its eye.
-Local View and Edit keep the line (test_client_line_1256c). The import still reads the old header "Client Message" (test_excel_import_names).
+Local View and Edit keep the line (test_client_line_1256c). The import still reads the old header "Client wording" (test_excel_import_names).
 Run: CLARK_CHROME=/usr/local/bin/creaite-chrome python3 dev/run_tests.py test_client_message_label_1466
 """
 import re
@@ -18,7 +18,7 @@ from test_excel_import_names import NameCase  # noqa: E402
 import test_publish as tp  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 
-OLD = re.compile(r"client message", re.I)
+OLD = re.compile(r"client wording", re.I)
 HELP = ROOT / "src/clark/page/src/help/helpContent.json"
 
 
@@ -28,46 +28,46 @@ class Words(unittest.TestCase):
             with self.subTest(view=view):
                 html = page.page_html(tp.EMPTY_BRANDING, view=view)
                 hit = OLD.search(html)
-                self.assertIsNone(hit, "Client Message is on a built page" + (": " + html[hit.start() - 60:hit.end() + 40] if hit else ""))
-                self.assertIn("Client wording", html)
+                self.assertIsNone(hit, "Client wording is on a built page" + (": " + html[hit.start() - 60:hit.end() + 40] if hit else ""))
+                self.assertIn("Client Message", html)
         text = HELP.read_text(encoding="utf-8")
-        self.assertIsNone(OLD.search(text), "Client Message is in Help")
-        self.assertIn("Client wording", text)
+        self.assertIsNone(OLD.search(text), "Client wording is in Help")
+        self.assertIn("Client Message", text)
 
-    def test_the_spelling_is_exactly_client_message_wherever_a_person_reads_it(self):          # ruling 1466, reversed by the owner on PR 2255: "Client wording", nothing else
-        """Every "client wording" in the built pages and Help, in any case, is "Client wording" (the one other form is the milestone box's
-        placeholder "Add client wording", a sentence); the Excel headers, the history label and the raid card words use the same spelling."""
-        loose = re.compile(r"client wording", re.I)
+    def test_the_spelling_is_exactly_client_message_wherever_a_person_reads_it(self):          # ruling 1466: capital M, nothing else
+        """Every "client message" in the built pages and Help, in any case, is "Client Message" (the one other form is the milestone box's
+        placeholder "Add client message", a sentence); the Excel headers, the history label and the raid card words use the same spelling."""
+        loose = re.compile(r"client message", re.I)
         for name, text in (("page", page.page_html(tp.EMPTY_BRANDING, view=False)), ("view page", page.page_html(tp.EMPTY_BRANDING, view=True)),
                            ("Help", HELP.read_text(encoding="utf-8"))):
             for m in loose.finditer(text):
                 with self.subTest(where=name, at=m.start()):
-                    self.assertTrue(m.group(0) == "Client wording" or text[max(0, m.start() - 4):m.start()] == "Add ", text[m.start() - 30:m.end() + 20])
+                    self.assertTrue(m.group(0) == "Client Message" or text[max(0, m.start() - 4):m.start()] == "Add ", text[m.start() - 30:m.end() + 20])
         from clark import history
         from clark.section_kinds import raid3
         for table in ("actions", "raid", "decisions", "milestones"):
-            self.assertEqual(history.field_name(table, "client_message"), "Client wording")
-            self.assertIn("Client wording", excel.COLUMN_OF[table])
-            self.assertEqual([k for k in excel.COLUMN_OF[table] if k.lower() == "client wording"], ["Client wording"])
+            self.assertEqual(history.field_name(table, "client_message"), "Client Message")
+            self.assertIn("Client Message", excel.COLUMN_OF[table])
+            self.assertEqual([k for k in excel.COLUMN_OF[table] if k.lower() == "client message"], ["Client Message"])
         for words in (raid3.BAD_SOURCE, raid3.NO_LATEST):
-            self.assertEqual([m.group(0) for m in loose.finditer(words)], ["Client wording"])
+            self.assertEqual([m.group(0) for m in loose.finditer(words)], ["Client Message"])
 
     def test_the_history_label_for_client_message_is_client_message(self):
         from clark import history
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
-                self.assertEqual(history.field_name(table, "client_message"), "Client wording")
+                self.assertEqual(history.field_name(table, "client_message"), "Client Message")
 
     def test_the_excel_export_headers_say_client_message(self):
         for table in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(table=table):
-                self.assertEqual(excel.COLUMN_OF[table].get("Client wording"), "client_message")
-                self.assertNotIn("Client Message", excel.COLUMN_OF[table])
+                self.assertEqual(excel.COLUMN_OF[table].get("Client Message"), "client_message")
+                self.assertNotIn("Client wording", excel.COLUMN_OF[table])
 
     def test_the_ask_clark_words_and_the_raid_card_source_say_client_message(self):
         from clark.section_kinds import raid3
         for words in (raid3.BAD_SOURCE, raid3.NO_LATEST):
-            self.assertIn("Client wording", words)
+            self.assertIn("Client Message", words)
             self.assertIsNone(OLD.search(words))
 
 
@@ -95,10 +95,10 @@ class Published(unittest.TestCase):
                     self.assertEqual(cdp.js(self.GONE, sid), 0)
                     shown = cdp.js("document.querySelector('#peek').innerText", sid)
                     self.assertNotRegex(shown, r"(?i)client (not )?visible")
-                    self.assertNotRegex(shown, r"(?i)client message")
+                    self.assertNotRegex(shown, r"(?i)client wording")
 
     def test_the_use_case_page_draws_no_client_visible_line_or_eye(self):
-        # Rule 2 names the use case too. Rule 1 has nothing to check there: the use-case page has no Client wording row (its words are the headline and the standing text).
+        # Rule 2 names the use case too. Rule 1 has nothing to check there: the use-case page has no Client Message row (its words are the headline and the standing text).
         # The published file draws UseCaseFilePage (read only); the Edit page's .ucd-eye ("On the dashboard") is an Edit-only button, so the file must have no eye at all.
         _plant, _pub, text = tp.made()
         folder = Path(tempfile.mkdtemp(prefix="clark-1466-"))
@@ -114,7 +114,7 @@ class Published(unittest.TestCase):
                 shown = cdp.js("document.querySelector('[data-ucf]').innerText", sid)
                 self.assertTrue(cdp.js("!!document.querySelector('[data-ucf-details]')", sid), "the Details card drew")
                 self.assertNotRegex(shown, r"(?i)client (not )?visible")
-                self.assertNotRegex(shown, r"(?i)client message")
+                self.assertNotRegex(shown, r"(?i)client wording")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-ucf] .ucd-eye, [data-ucf] [data-eye], [data-ucf] .ucf-eye, [data-ucf] [data-pk-client-row], "
                                         "[data-ucf] [data-pk-client-read], [data-ucf] [data-pk-client], [data-ucf] .cv').length", sid), 0)
 
@@ -152,7 +152,7 @@ class Published(unittest.TestCase):
         and the rows are the same at 1400 and 900 (the ticket gives no spec for the layout; only the absence of a gap is pinned)."""
         path = self.published()
         allowed = {"Workstream", "Milestone", "Use case", "Raised", "Description", "Agreed date", "Forecast date", "Achieved on", "Reasoning", "Options considered",
-                   "Revisit", "Replaces", "Latest update", "Client wording"}
+                   "Revisit", "Replaces", "Latest update", "Client Message"}
         rows = ("[...document.querySelectorAll('#peek .pk-fields .pk-row')].map(r => { const dt = r.querySelector('dt'), dd = r.querySelector('dd');"
                 " return [dt ? dt.textContent.trim() : null, dd ? dd.textContent.trim() : null, r.getBoundingClientRect().height]; })")
         for hash_, who in self.KINDS:
@@ -176,7 +176,7 @@ class Published(unittest.TestCase):
 
 class Import(NameCase):
     def read_with(self, header):
-        self.rename(None, Actions=("Client wording", header), **{"RAID": ("Client wording", header)})
+        self.rename(None, Actions=("Client Message", header), **{"RAID": ("Client Message", header)})
         self.edit("Actions", self.a1, header, "Plan is on its way")
         self.edit("RAID", self.r1, header, "Still watching")
         p = self.read()
@@ -184,14 +184,14 @@ class Import(NameCase):
         return {(c.table, c.id): c.after for c in p.changes}
 
     def test_import_old_header_client_wording_still_fills_client_message(self):          # AP3
-        got = self.read_with("Client Message")
+        got = self.read_with("Client wording")
         self.assertEqual(got[("actions", self.a1)], {"client_message": "Plan is on its way"})
         self.assertEqual(got[("raid", self.r1)], {"client_message": "Still watching"})
 
     def test_import_new_header_client_message(self):          # AP3
         heads = [c.value for c in load_workbook(str(self.path))["Actions"][1]]
-        self.assertIn("Client wording", heads)
-        got = self.read_with("Client wording")
+        self.assertIn("Client Message", heads)
+        got = self.read_with("Client Message")
         self.assertEqual(got[("actions", self.a1)], {"client_message": "Plan is on its way"})
         self.assertEqual(got[("raid", self.r1)], {"client_message": "Still watching"})
 

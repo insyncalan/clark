@@ -66,7 +66,7 @@ export function RaidEdit({ section, size }) {
     };
     const missing = card && !found;
     const note = !card ? "" : missing ? "This item is not in the record any more. Choose another item or remove the card."
-      : card.source === "client" && !wordsOf(card, found.row) ? "This item has no Client wording yet, so the card shows the item only. Add it on the item, or choose Own words."
+      : card.source === "client" && !wordsOf(card, found.row) ? "This item has no Client Message yet, so the card shows the item only. Add it on the item, or choose Own words."
       : card.source === "latest" && !wordsOf(card, found.row) ? "This action has no latest update yet, so the card shows the item only."
       : "";
     rows.push(
