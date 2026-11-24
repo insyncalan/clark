@@ -249,6 +249,10 @@ class Movement(tmp.Base):
                 # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
                 # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
                 p.t.assertTrue(wait(lambda: p.js("document.hasFocus() && !!document.querySelector(%s) && document.querySelector(%s).contains(document.activeElement)" % (sel, sel)), 15), "page focused with the caret in the open editor")
+                # The editor's own focus (tiptap's focus command) runs view.focus() again in a later animation frame, whatever has the focus by then: a Tab sent before that frame
+                # moved the focus to the next field and the frame put it back in the box (a macOS run logged the focus on the next field for 11 ms and then back in the editor). Let two frames pass first.
+                p.js("window.__frames = 0; requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.__frames = 2; }); }); true")
+                p.t.assertTrue(wait(lambda: p.js("window.__frames === 2"), 15), "two animation frames after the editor opened")
                 p.key("Tab", code="Tab", vk=9)
                 # The editor closes when its leave handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
                 gone = None
