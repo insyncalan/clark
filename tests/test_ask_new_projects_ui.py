@@ -81,13 +81,14 @@ class Settings(unittest.TestCase):
 
 
     def test_essentials_row_names_all_projects(self):
+        # Row 1294: Essentials keeps no asking switch; one link row opens the All projects tab
         with chrome() as cdp:
             self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
             js = lambda e: cdp.js(e, self.sid)          # noqa: E731
-            self.until(js, "!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the Asking row")
-            self.assertTrue(js("document.getElementById('theme') !== null"), "this is the Classic page")
-            self.assertEqual(js("document.querySelector('[data-ess-ask]').innerText"), "Turn off asking for all projects")
-            self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Asking is on for all projects.")
+            self.until(js, "!!document.querySelector('[data-ess-ask-open]')", "the ask clark row")
+            self.assertFalse(js("!!document.querySelector('[data-ess-ask]')"), "no asking switch on Essentials")
+            self.assertEqual(js("document.querySelector('[data-ess-ask-open]').innerText"), "Open All projects")
+            self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Connections, model, folders, instructions and slash commands for every project")
 
 
 class CardsSettings(Settings):
@@ -119,16 +120,14 @@ class CardsSettings(Settings):
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
 
     def test_essentials_row_names_all_projects(self):
+        # Row 1294: Cards Essentials has the same one link row
         with chrome() as cdp:
             self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
             js = lambda e: cdp.js(e, self.sid)          # noqa: E731
-            self.until(js, "!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the Asking row")
-            self.assertFalse(js("document.getElementById('theme') !== null"))
-            for w in WIDTHS:
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
-                self.assertEqual(js("document.querySelector('[data-ess-ask]').innerText"), "Turn off asking")
-                self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Asking is on.")
-
+            self.until(js, "!!document.querySelector('[data-ess-ask-open]')", "the ask clark row")
+            self.assertFalse(js("!!document.querySelector('[data-ess-ask]')"), "no asking switch on Essentials")
+            self.assertEqual(js("document.querySelector('[data-ess-ask-open]').innerText"), "Open All projects")
+            self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Connections, model, folders, instructions and slash commands for every project")
 
 class Panel(Base):
     def setUp(self):
