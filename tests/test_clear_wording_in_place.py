@@ -1,5 +1,5 @@
 """Row 893: in Edit, clearing a report row's wording box and pressing Enter clears the wording (no refusal). The change request carries
-client_message '', the toast is the existing 'Wording of <ID> changed.', the row stays in its section and shows the item's title
+client_message '', the toast is the existing 'Client Message of <ID> changed.', the row stays in its section and shows the item's title
 (its fallback, row 851), and one Undo puts the old words back. 1400 and 900, light and dark. All rows are fictional.
 
 Run: python3 dev/run_tests.py test_clear_wording_in_place
@@ -52,7 +52,7 @@ class ClearWordingInPlace(unittest.TestCase):
                         p.until("document.activeElement.classList.contains('ProseMirror')", f"{where}: the editor opens")
                         p.js("(() => { const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.deleteSelection(); })()")
                         p.key("Enter", modifiers=2, code="Enter", vk=13)     # Ctrl+Enter saves the Full editor
-                        p.toast_is(f"Wording of {ident} changed.")
+                        p.toast_is(f"Client Message of {ident} changed.")
                         self.assertTrue(wait(lambda: any('"client_message": ""' in b or '"client_message":""' in b for b in p.js("window.__sent"))), f"{where}: the request carries client_message ''")
                         p.until(f"{box}.textContent.trim() === {json.dumps(title)}", f"{where}: the row stays in its section and shows the item's title")
                         self.assertEqual(p.js(f"document.querySelectorAll({row!r}).length"), 1, where)

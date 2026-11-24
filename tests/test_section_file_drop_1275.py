@@ -290,14 +290,16 @@ class InThePage(base.InThePage):
             for w in WIDTHS:
                 with self.subTest(width=w):
                     self.size(cdp, p, w)
-                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop files here to add them.")
                     self.assertEqual(p.js("document.querySelector('[data-drop-line]').textContent"), "Dropped files are kept in the client folder, in Report files.")
                     self.assertTrue(p.js("document.querySelector('[data-drop]').compareDocumentPosition(document.querySelector('[data-drop-line]')) & Node.DOCUMENT_POSITION_FOLLOWING"))
                     self.drag(p, ["a.pdf"], over=True)
                     p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
-                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop a file here to add it.")
+                    self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop files here to add them.")
 
-    def test_several_files_or_a_folder_are_refused_whole(self):
+    def test_good_files_and_a_refused_one_show_what_was_added_with_its_undo_and_the_refusal(self):
+        """Row 1593 (a reader reproduced it in Chrome): a drop of good files plus one refused file adds the good ones, and the ONE toast says
+        what was added with its Undo button AND names the refused file with its reason (before: only the problem toast, no Undo)."""
         self.classic()
         ref = self.add("doclinks")
         sel = f"[data-id={json.dumps(ref)}]"
@@ -307,13 +309,32 @@ class InThePage(base.InThePage):
                 with self.subTest(width=w):
                     self.size(cdp, p, w)
                     p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
-                    self.drag(p, ["one.pdf", "two.pdf"])
-                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal")
-                    folder = ("(function(){const area=document.querySelector('[data-drop]');const ev=new DragEvent('drop',{bubbles:true,cancelable:true});"
-                              "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
+                    self.drag(p, [f"Good one {w}.pdf", f"Good two {w}.pdf", f"Refused {w}.exe"])
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length >= 2", "the good files are drawn")
+                    p.until("!!document.querySelector('.toast [data-undo], [data-undo]')", "the Undo button is on the toast")
+                    text = p.js("document.querySelector('.toast').textContent")
+                    self.assertIn("2 files added.", text)
+                    self.assertIn(f"Refused {w}.exe:", text, "the refused file is named")
+                    self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Undo took the whole batch off")
+
+    def test_a_folder_in_the_drop_is_refused_whole(self):
+        """Row 1593 (replaces the several-files-or-a-folder test): several files are added now, a folder still refuses the whole drop."""
+        self.classic()
+        ref = self.add("doclinks")
+        sel = f"[data-id={json.dumps(ref)}]"
+        sentence = "Folders can't be added. Drop files, not folders."
+        with chrome() as cdp:
+            p = self.open_edit(cdp, ref)
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
                     p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
+                    folder = ("(function(){const area=document.querySelector('[data-drop]');const ev=new DragEvent('drop',{bubbles:true,cancelable:true});"
+                              "Object.defineProperty(ev,'dataTransfer',{value:{types:['Files'],files:[new File([''],'one.pdf'),new File([''],'Folder')],items:[{webkitGetAsEntry:()=>({isDirectory:false})},{webkitGetAsEntry:()=>({isDirectory:true})}]}});area.dispatchEvent(ev);})()")
                     p.js(folder)
-                    p.until("!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Drop one file at a time.')", "the refusal for a folder")
+                    p.until(f"!!document.querySelector('.toast') && document.querySelector('.toast').textContent.includes({json.dumps(sentence)})", "the refusal for a folder")
                     self.assertEqual(p.js(f"document.querySelectorAll('{sel} .tpl-dl-i').length"), 0)
                     self.assertFalse((self.client / "Report files").exists(), "nothing was copied")
 

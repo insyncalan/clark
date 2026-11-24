@@ -53,10 +53,12 @@ def tracker_renderers_with_raw_html(root):
 
 
 class TrackerPublishedCaveatsTest(unittest.TestCase):
-    def test_overall_only_tracker_is_left_out(self):
+    def test_overall_only_tracker_is_published_with_its_typed_figures(self):      # row 1420 changes the old 'left out': the page draws a just-the-bar tracker, so the file carries it (the old pin was test_overall_only_tracker_is_left_out)
         overall = {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late."}
-        self.assertIsNone(sb.published("tracker", {"v": 1, "overall": overall, "columns": {}, "groups": []}))
-        self.assertIsNone(sb.published("tracker", {"v": 1, "overall": overall, "columns": {}, "groups": [{"name": "Build", "lines": []}]}))
+        want = {"size": "medium", "overall": overall, "columns": {"tasks": False, "agents": False, "workflows": False}, "groups": []}
+        self.assertEqual(sb.published("tracker", {"v": 1, "overall": overall, "columns": {}, "groups": []}), want)
+        self.assertEqual(sb.published("tracker", {"v": 1, "overall": overall, "columns": {}, "groups": [{"name": "Build", "lines": []}]}), want, "a group with no line is left out; the figures stay")
+        self.assertIsNone(sb.published("tracker", {"v": 1, "overall": {}, "columns": {}, "groups": []}), "no figure, no health, no note: the page draws nothing, so the file leaves it out")
 
     def test_tracker_with_a_line_is_published_as_raw_text(self):
         got = sb.published("tracker", {"v": 1, "overall": {}, "columns": {}, "groups": [{"name": "<b>Build</b>", "lines": [line(text="<i>x</i>")]}]})
@@ -132,13 +134,15 @@ class RealPublishTest(unittest.TestCase):
         text, data = self.published_file()
         by_id = {s["id"]: s for s in data["sections"]}
         self.assertIn(full, by_id)
-        self.assertNotIn(only_overall, by_id, "figures with no line are left out")
+        self.assertIn(only_overall, by_id, "row 1420: figures with no line are published (the just-the-bar tracker)")
+        self.assertEqual(by_id[only_overall]["overall"], overall)
+        self.assertEqual(by_id[only_overall]["groups"], [])
         self.assertNotIn(hidden, by_id)
         shown = by_id[full]
         self.assertEqual([g["name"] for g in shown["groups"]], [markup], "a group with no line is left out")
         self.assertEqual([l["text"] for l in shown["groups"][0]["lines"]], ["<i>x</i>", "Second"], "every line is published, raw")
         self.assertEqual(shown["groups"][0]["lines"][0]["tasks"], 5)
-        self.assertEqual(shown["overall"], {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late."})
+        self.assertEqual(shown["overall"], {"actual": 800, "planned": 1000, "health": "atrisk", "note": "Late."}, "row 1420: with lines the overall is the sums of the lines (achieved 800 + 0, planned 1000 + 0), health and note as typed")
         self.assertNotIn("Hidden line", text)
         self.assertNotIn("<b>Build</b>", text, "the text is in the file only as an escaped value in the data block")
         self.assertNotIn("<i>x</i>", text)

@@ -87,9 +87,9 @@ class Editor(unittest.TestCase):
                 self.assertEqual(menu["mw"], "224px", f"{w}: {menu}")
                 self.assertGreaterEqual(menu["w"], 224, w)
                 sizes = h.ev("Object.fromEntries([...document.querySelectorAll('.rt-bar [role=menu] [role=menuitemradio]')].map(b => [b.dataset.kind, getComputedStyle(b).fontSize]))")
-                self.assertEqual(sizes, {"paragraph": "15px", "h1": "20px", "h2": "18px", "h3": "16px"}, f"{w}: each line at its own size")
+                self.assertEqual(sizes, {"paragraph": "14px", "h1": "14px", "h2": "14px", "h3": "14px"}, f"{w}: the four lines are the same size (row 1431 replaces the own sizes 15/20/18/16 for the toolbar menu)")
                 row = box(h, ".rt-bar [role=menu] [data-kind=paragraph]")
-                self.assertEqual(row["p"], "7px 10px 7px 10px", f"{w}: {row}")
+                self.assertEqual(row["p"], "0px 16px 0px 16px", f"{w}: {row} (row 1431: 16px side padding, 32px high)")
                 self.assertEqual(h.ev("document.querySelector('.rt-bar [role=menu] [aria-checked=true]').dataset.kind"), "paragraph", f"{w}: the tick is on the current style")
                 h.key("Escape", 0, "Escape", 27)
 
@@ -133,12 +133,17 @@ class Editor(unittest.TestCase):
 
     def test_ai_menu_colours_and_widths_1288(self):
         """AP6 (row 1586, mock-up 5B): the Classic AI menu's group labels, hover row, three icon colours and min-width, at 1400 and 900.
-        Dark has no ruled colours (the menu keeps the theme's tokens there), so dark is read for the width and for 'not the light hexes' only."""
-        want_icons = {"improve": [124, 77, 255], "structure": [47, 125, 74]}
+        Dark keeps what main draws (row 1586 ruling): the label is the resolved --text-muted, the hover row the resolved --brand-blue-tint, the icons the colour they inherit from their row (--text)."""
+        want_icons = {"improve": [124, 77, 255], "structure": [47, 125, 74], "ask": [183, 121, 31]}
         grab = ("(() => { const q = s => document.querySelector(s), c = e => getComputedStyle(e); const menu = q('.aim');"
                 " const ic = k => { const e = q('.aim .aim-ic-' + k); return e ? c(e).color : null; };"
                 " return {mw: c(menu).minWidth, w: menu.getBoundingClientRect().width, gl: [...document.querySelectorAll('.aim .aim-gl')].map(e => c(e).color),"
-                " improve: ic('improve'), structure: ic('structure')}; })()")
+                " improve: ic('improve'), structure: ic('structure'), ask: ic('ask'),"
+                " rowColor: c(q('.aim .aim-opt')).color,"
+                " muted: (() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const v = c(p).color; p.remove(); return v; })(),"
+                " tint: (() => { const p = document.createElement('i'); p.style.backgroundColor = 'var(--brand-blue-tint)'; document.body.appendChild(p); const v = c(p).backgroundColor; p.remove(); return v; })()}; })()")
+        bgof = "getComputedStyle(%s).backgroundColor"
+        move = lambda h, x, y: h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, h.sid)
         with rp.Harness(chrome) as h:
             for theme in ("light", "dark"):
                 for w in WIDTHS:
@@ -160,12 +165,28 @@ class Editor(unittest.TestCase):
                             self.assertEqual(rgb(c), [59, 111, 212], f"{tag}: group label {c}")
                         for kind, rgbv in want_icons.items():
                             self.assertEqual(rgb(got[kind]), rgbv, f"{tag}: {kind} icon {got[kind]}")
-                        h.ev("document.querySelector('.aim .aim-opt').focus(); true")
-                        bg = h.ev("getComputedStyle(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt')).backgroundColor")
-                        self.assertEqual(rgb(bg), [230, 238, 252], f"{tag}: the focused row draws the hover blue: {bg}")
+                    # A real pointer over the LAST row (nothing focused yet), then the focused FIRST row.
+                    h.ev("document.activeElement && document.activeElement.blur(); true")
+                    r = h.ev("(() => { const e = [...document.querySelectorAll('.aim .aim-opt')].pop(); e.setAttribute('data-hov', '1'); const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()")
+                    move(h, 1, 1)
+                    move(h, r[0], r[1])
+                    self.assertTrue(h.until("document.querySelector('.aim [data-hov]').matches(':hover')"), f"{tag}: the pointer is on the last row")
+                    hov = h.ev(bgof % "document.querySelector('.aim [data-hov]')")
+                    move(h, 1, 1)
+                    h.ev("document.querySelector('.aim .aim-opt').focus(); true")
+                    foc = h.ev(bgof % "(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt'))")
+                    if theme == "light":
+                        self.assertEqual(rgb(hov), [230, 238, 252], f"{tag}: the hovered row draws the hover blue: {hov}")
+                        self.assertEqual(rgb(foc), [230, 238, 252], f"{tag}: the focused row draws the hover blue: {foc}")
                     else:
                         for c in got["gl"]:
-                            self.assertNotEqual(rgb(c), [59, 111, 212], f"{tag}: dark keeps the theme's label colour, {c}")
+                            self.assertEqual(rgb(c), rgb(got["muted"]), f"{tag}: dark label is the resolved --text-muted {got['muted']}, got {c}")
+                            self.assertNotEqual(rgb(c), [59, 111, 212], f"{tag}: dark label {c}")
+                        self.assertEqual(rgb(hov), rgb(got["tint"]), f"{tag}: dark hover is the resolved --brand-blue-tint {got['tint']}, got {hov}")
+                        self.assertEqual(rgb(foc), rgb(got["tint"]), f"{tag}: dark focus is the resolved --brand-blue-tint {got['tint']}, got {foc}")
+                        for kind in want_icons:
+                            self.assertEqual(rgb(got[kind]), rgb(got["rowColor"]), f"{tag}: dark {kind} icon keeps the row colour {got['rowColor']}, got {got[kind]}")
+                            self.assertNotEqual(rgb(got[kind]), want_icons[kind], f"{tag}: dark {kind} icon is not the light colour")
                     h.ev("window.unmount(); true")
         # Cards is frozen: its own menu rules (edit.css, outside the Classic theme files) keep the muted label and 240 px, and rules.css does not grow.
         edit = (JS / "edit" / "edit.css").read_text(encoding="utf-8")

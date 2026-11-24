@@ -24,7 +24,7 @@ The plug-in points (a later item changes only these, never store.py, changes.py 
 - EMPTY[type]: the body a new section of that type starts with. Chosen by the store, never taken from the request.
 - LIMITS[type]: the most bytes the stored text may take.
 - published(type, value, ctx): what a published file carries of a checked body (a dict that is merged into the section's entry),
-  or None to leave the section out. Needs publishes its shown rows; the tracker publishes nothing of its content yet (see published).
+  or None to leave the section out. Needs publishes its shown rows; the tracker publishes its size, overall, columns and groups (see published).
 
 A section template (#96) is NOT added here: each one is a module in section_kinds/ (its READY, LIMIT, EMPTY, check and
 published; the contract is section_kinds/base.py), and the tables below are built from that registry, which is filled with all
@@ -584,17 +584,21 @@ def _published_tracker(value):
         lines = [x for x in (_published_tracker_line(l) for l in g["lines"]) if x]
         if lines:
             groups.append({"name": g["name"], "lines": lines})
-    if not groups:
-        return None
     o, cols = value.get("overall"), value.get("columns")
     o = o if type(o) is dict else {}
+    typed = {"actual": o.get("actual") if type(o.get("actual")) is int else None,
+             "planned": o.get("planned") if type(o.get("planned")) is int else None,
+             "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
+             "note": o.get("note") if isinstance(o.get("note"), str) else ""}
+    if groups:                                  # row 1420: with lines the overall is what the page shows, the sums of the lines (logic/tracker.js totals), never the typed figures
+        for key, name in (("actual", "achieved"), ("planned", "planned")):
+            typed[key] = sum(l[name] for g in groups for l in g["lines"] if type(l[name]) is int)
+    elif typed["actual"] is None and not typed["health"] and not typed["note"]:
+        return None                             # the page draws nothing for it (components/Tracker.jsx), so the file leaves it out
     cols = cols if type(cols) is dict else {}
     size = value.get("size")
     return {"size": size if size in TRACKER_SIZES else "medium",
-            "overall": {"actual": o.get("actual") if type(o.get("actual")) is int else None,
-                        "planned": o.get("planned") if type(o.get("planned")) is int else None,
-                        "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
-                        "note": o.get("note") if isinstance(o.get("note"), str) else ""},
+            "overall": typed,
             "columns": {k: cols.get(k) is True for k in TRACKER_COLUMNS}, "groups": groups}
 
 
@@ -606,7 +610,8 @@ def published(kind, value, ctx=None):
     DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
     tracker (#189, #930): {"size", "overall", "columns", "groups"}, `size` one of the four words (Medium when the body has none): each group that has at least one line shows, with its lines (a group with no line is
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
-    None when no group has a line. Totals are never published: the page works them out."""
+    None when no group has a line and the page would draw nothing for it. `overall` is what the page shows (row 1420): with lines the sums of
+    the lines' achieved and planned, else the typed figures; its health word and note are as typed."""
     if kind in TEMPLATES:
         value = _flat_lines(kind, value, False)[0]            # row 1288: a caption or a card's own words go to the file as words on one line
         value = _clean_rich(kind, value, strict=False)       # cleaned AGAIN: what is stored is never trusted at publish; a text too long to clean is left out, not the whole section

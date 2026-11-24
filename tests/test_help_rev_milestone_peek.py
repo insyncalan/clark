@@ -44,7 +44,7 @@ class MilestonePeekHelp(unittest.TestCase):
     def test_rows_match_the_peek(self):
         t = section()
         for row in ("Name", "Owner", "Agreed date", "Forecast date", "Achieved on", "State", "Progress",
-                    "Description", "Workstream", "Use case", "Client visible", "Client wording"):
+                    "Description", "Workstream", "Use case", "Client visible", "Client Message"):
             self.assertIn(row, t)
 
     def test_states_and_tabs(self):
