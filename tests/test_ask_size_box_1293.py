@@ -83,7 +83,7 @@ class Cut(unittest.TestCase):
         self.db = plant.build_db(self.d / "clark.db")
         self.budgets = []
 
-        def fake(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES):
+        def fake(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None):
             self.budgets.append(budget)
             return ask_passages.FolderData([], 0)
         patch = mock.patch.object(ask_passages, "folder_data", fake)
