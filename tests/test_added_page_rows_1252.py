@@ -3,7 +3,7 @@
 ACCEPTANCE VALUES (written first; sources: the issue's AP1, AP5, AP6, AP7, AP11 and the approved mock-up frames 1, 3, 4, 6, 7)
   Card: heading "Pages", on the Reports page after Gantt; Classic only (Cards: no card, no row), a project open, Edit.
   Row 1, "Add page": help "A custom page for <project>, built from a template, then named, placed and marked client or internal"; button "Add page".
-  Limit line (always): "Up to 5 added pages per project". Meter text: "<n> of 5 added pages", n = the added pages + 1 (the prebuilt Gantt page counts ALWAYS,
+  Limit line (always): "Up to 5 added pages per project". Meter text: "<n> of 5 added pages (Gantt counts)", n = the added pages + 1 (the prebuilt Gantt page counts ALWAYS,
   hidden or shown), so 1 of 5 with none added and 5 of 5 with four. At 5: the button is disabled (background var(--hover)) and the amber box reads
   "You have 5 added pages. Remove one to add another." No "no pages yet" text: with none added the list holds only the Gantt row.
   List order: the prebuilt Gantt row first (name "Gantt", words "Hidden from you and from the client. Counts as one of the 5. Sections built in: Header and
@@ -86,7 +86,7 @@ class Rows(Base):
                 self.assertEqual(p.js("document.querySelector('#add-page').textContent"), "Add page")
                 self.assertFalse(p.js("document.querySelector('#add-page').disabled"))
                 self.assertEqual(p.js("document.querySelector('.ap-cap').textContent"), "Up to 5 added pages per project")
-                self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "2 of 5 added pages")      # one added, the hidden Gantt page counts
+                self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "2 of 5 added pages (Gantt counts)")      # one added, the hidden Gantt page counts
                 self.assertEqual(p.js(LIST), ["Gantt", "Supplier status"])
                 self.assertEqual(p.js("document.querySelector('#add-pages .ap-page.ap-gantt small').textContent"),
                                  "Hidden from you and from the client. Counts as one of the 5. Sections built in: Header and Text, Gantt, Work items.")
@@ -100,7 +100,7 @@ class Rows(Base):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.open(cdp, w)
-                self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "5 of 5 added pages")
+                self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "5 of 5 added pages (Gantt counts)")
                 self.assertTrue(p.js("document.querySelector('#add-page').disabled"))
                 self.assertEqual(p.js("document.querySelector('.ap-limit').textContent"), CAP)
                 got = p.js("""(() => { const probe = document.createElement('i'); probe.style.background = 'var(--hover)'; document.querySelector('#add-pages').appendChild(probe);
@@ -199,11 +199,11 @@ class Rows(Base):
         with chrome() as cdp:
             p = self.open(cdp, 1400)
             self.assertEqual(p.js("[...document.querySelectorAll('#add-pages .ap-gantt .st')].map(e => e.textContent)"), ["You: on", "Client: on"])
-            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages")
+            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages (Gantt counts)")
             p.js("document.querySelector('#ap-gantt-remove').click()")
             p.until("!document.querySelector('#ap-gantt-remove')", "Gantt off in the menu")
             self.assertEqual(self.store.read("projects", ref="ABC")["show_gantt_editor"], 0)
-            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages", "the Gantt page still counts")
+            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages (Gantt counts)", "the Gantt page still counts")
 
     def test_cards_shows_no_pages_card(self):
         self.s.close()

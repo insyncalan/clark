@@ -57,6 +57,33 @@ class Team(Published):
         self.assertNotIn("Notes head", json.dumps(got))
 
 
+class Never(Published):
+    def test_an_added_pages_published_sections_never_carry_gantt_gantttable_or_workitems(self):
+        """The store refuses these three types on an added page, so the rows are written straight into the table here (a file made by hand or
+        by an older build): the published file still leaves them out and keeps the text section beside them. The Gantt tab is in the file here
+        (the client switch is on and a line has its eye on), so the later rule that drops a Gantt section when there is no tab cannot hide a missing
+        clause in publish.client_pages."""
+        mixed = json.dumps([{"id": "a", "type": "text", "title": "Kept head", "body": BODY},
+                            {"id": "g", "type": "gantt", "title": "Gantt head", "body": ""},
+                            {"id": "t", "type": "gantttable", "title": "Gantt table head", "body": ""},
+                            {"id": "w", "type": "workitems", "title": "Work items head", "body": ""}])
+        self.assertEqual(self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {"show_gantt_client": 1}})[0], 200)
+        status, body = self.change({"project": "ABC", "kind": "gantt_lines", "op": "new",
+                                    "values": {"type": "phase", "name": "Build", "start": "2026-10-01", "end": "2026-12-01", "show": 1}})
+        self.assertEqual(status, 200, body)
+        self.assertTrue(self.file()["data"].get("gantt"), "the Gantt tab is in the file, so only the page rule keeps its section out")
+        with self.s.con:
+            self.s.con.execute("INSERT INTO added_pages (id, project, name, starter, sort_order, client, hidden, sections) VALUES (?,?,?,?,?,?,?,?)",
+                               ("ABC-PG-001", "ABC", "Mixed", "blank", 1, 1, 0, mixed))
+        got = self.file()
+        self.assertEqual(self.names(got), ["Mixed"])
+        self.assertEqual([(s["type"], s["title"]) for s in got["data"]["pages"][0]["sections"]], [("text", "Kept head")])
+        built = publish.build(self.s, "ABC", DAY, None)["body"].decode()
+        self.assertIn("Kept head", built)
+        for gone in ("Gantt head", "Gantt table head", "Work items head"):
+            self.assertNotIn(gone, built, gone)
+
+
 class Client(Published):
     def test_a_page_shown_to_the_client_has_its_tab_and_sections_in_order(self):
         first, second = self.page("Notes", client=1, sort_order=1), self.page("Plans", client=1, sort_order=2)
