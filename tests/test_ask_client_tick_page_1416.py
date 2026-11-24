@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_ask_client_tick_page_1416
 """
 import json
 
+import test_server  # noqa: F401  (the runner tells a browser file by this import)
 from test_ask_change_page import Card, WORDS, chrome
 
 

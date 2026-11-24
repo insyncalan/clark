@@ -51,6 +51,7 @@ class ClassicCards(Themed):
             self.assertEqual(self.lines(p), [{"apply": True, "dup": DUPLICATE, "line": ""}, {"apply": True, "dup": "", "line": ""}])
             self.assertTrue(p.js("(() => { const c = document.querySelector('[data-ask-change]'); const d = c.querySelector('[data-ask-duplicate]');"
                                  " return !!(d.compareDocumentPosition(c.querySelector('[data-ask-apply]')) & Node.DOCUMENT_POSITION_FOLLOWING); })()"), "above Apply")
+            p.js("document.querySelector('[data-ask-confirm]').click()")      # row 1416: a new item needs the extra tick before Apply
             p.js("document.querySelector('[data-ask-apply]').click()")
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "added anyway")
             self.assertEqual(len([r for r in self.store.read("actions", "ABC") if r["description"] == TITLE.lower()]), 1)
