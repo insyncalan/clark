@@ -117,7 +117,7 @@ class Base(unittest.TestCase):
 
 class Allowed(Base):
     def test_an_empty_list_then_add_then_read_then_remove(self):
-        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": []}))
+        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": [], "warnings": []}))
         status, body = self.add(self.docs)
         self.assertEqual((status, body["ok"], body["folders"]), (200, True, [str(self.docs)]))
         self.assertTrue(body["message"])
@@ -486,3 +486,72 @@ class Choosing(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PeopleContractWarning(Base):
+    """Row 1365 tests 4: the save and the list carry the S1 scan's warning; the folder is saved either way; no provider is involved."""
+
+    def tree(self):
+        root = self.docs / "work"
+        (root / "Contract 2026").mkdir(parents=True)
+        (root / "Contract 2026" / "terms.txt").write_text("x", encoding="utf-8")
+        (root / "plain").mkdir()
+        return root
+
+    def test_adding_a_folder_with_a_contract_subfolder_returns_the_warning_and_saves_the_folder(self):
+        root = self.tree()
+        status, got = self.add(root)
+        self.assertEqual(status, 200)
+        self.assertEqual(got["warnings"], [{"folder": str(root), "accepted": False, "items": [{"name": "Contract 2026", "readable_files": 1, "dir": True}]}])
+        self.assertEqual(self.stored(), [str(root)], "a warning is not a block: the folder is saved")
+
+    def test_the_list_carries_the_same_warning_on_every_read(self):
+        root = self.tree()
+        self.add(root)
+        for _ in range(2):
+            status, got = self.get()
+            self.assertEqual((status, got["warnings"]), (200, [{"folder": str(root), "accepted": False, "items": [{"name": "Contract 2026", "readable_files": 1, "dir": True}]}]))
+
+    def test_a_folder_without_such_names_has_an_empty_warning_and_the_choose_route_carries_it_too(self):
+        (self.more / "notes").mkdir()
+        self.assertEqual(self.add(self.more)[1]["warnings"], [])
+        root = self.tree()
+        self.service.choose_folder = lambda prompt, start=None: root
+        status, got = self.post({"project": "ABC", "action": "choose"})
+        self.assertEqual((status, [w["folder"] for w in got["warnings"]]), (200, [str(root)]))
+
+    def test_mutation_survivors_the_warning_names_each_hit_in_order_by_its_own_name_and_only_the_added_folder(self):
+        root = self.tree()
+        self.add(root)
+        (self.more / "Salary").mkdir()
+        (self.more / "Salary" / "a.txt").write_text("x", encoding="utf-8")
+        (self.more / "archive" / "Payroll").mkdir(parents=True)
+        (self.more / "archive" / "Payroll" / "b.txt").write_text("x", encoding="utf-8")
+        (self.more / "archive" / "Payroll" / "c.md").write_text("x", encoding="utf-8")
+        status, got = self.add(self.more)
+        self.assertEqual(status, 200)
+        self.assertEqual(got["warnings"], [{"folder": str(self.more), "accepted": False, "items": [
+            {"name": "Salary", "readable_files": 1, "dir": True}, {"name": "Payroll", "readable_files": 2, "dir": True}]}],
+            "the added folder only; every hit; in scan order; the name, not the path")
+
+    def test_mutation_survivors_the_list_warns_for_every_project_folder_and_not_for_the_all_projects_folders(self):
+        first = self.tree()
+        self.add(first)
+        (self.more / "Payroll").mkdir()
+        (self.more / "Payroll" / "a.txt").write_text("x", encoding="utf-8")
+        self.add(self.more)
+        other = self.docs / "shared"
+        (other / "Passport").mkdir(parents=True)
+        (other / "Passport" / "a.txt").write_text("x", encoding="utf-8")
+        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps([str(other)]), encoding="utf-8")
+        status, got = self.get()
+        self.assertEqual(status, 200)
+        self.assertEqual([w["folder"] for w in got["warnings"]], [str(first), str(self.more)],
+                         "each folder of the project, in list order; the all-projects folders are not part of this warning")
+        self.assertEqual([w["items"] for w in got["warnings"]], [[{"name": "Contract 2026", "readable_files": 1, "dir": True}], [{"name": "Payroll", "readable_files": 1, "dir": True}]],
+                         "each folder is scanned for itself, not the first folder's items under every folder")
+
+    def test_no_provider_is_involved_in_the_warning(self):
+        root = self.tree()
+        with mock.patch("socket.socket.connect", side_effect=AssertionError("no network")):
+            self.assertEqual(self.service.add(st.open_store(self.db, onedrive_roots=[]), "ABC", str(root))[0], 200)
