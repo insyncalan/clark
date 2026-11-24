@@ -3,7 +3,6 @@
 // serves carries the stored `body` (JSON text, the same fields). Both are read here, defensively: anything that is not the
 // expected kind of value is left out, so a view only ever draws text. Pure: no DOM, no Preact.
 import { safeHref } from "./safe.js";
-import { richOf } from "./files.js";
 
 export const TONES = ["info", "decision", "warning"];
 export const TONE_WORDS = { info: "Information", decision: "Decision needed", warning: "Warning" };
@@ -21,11 +20,11 @@ export function source(section) {
   return {};
 }
 
-export function tidyCallout(v, clean) {
+export function tidyCallout(v) {
   const o = v || {};
-  return { tone: TONES.includes(o.tone) ? o.tone : "info", title: text(o.title), paras: list(o.paras).map(text).filter(Boolean).slice(0, LIMITS.paras), html: richOf(o.html, clean) };
+  return { tone: TONES.includes(o.tone) ? o.tone : "info", title: text(o.title), paras: list(o.paras).map(text).filter(Boolean).slice(0, LIMITS.paras) };
 }
-export const calloutEmpty = (c) => !c.title && c.paras.length === 0 && !c.html;
+export const calloutEmpty = (c) => !c.title && c.paras.length === 0;
 
 export function tidyQuote(v) {
   const o = v || {};

@@ -63,7 +63,7 @@ class MenuBorder(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def read(self, code, archived=None):
+    def read(self, code):
         st = open_store(self.path, onedrive_roots=[])
         try:
             return st.data_for(code)

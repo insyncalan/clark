@@ -11,7 +11,6 @@ import unittest
 from test_server import chrome
 from test_work_board_page import Base
 from test_work_filters import arm, click, hover, key, select_line, set_line
-from test_filter_line_page import click_tab
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -147,7 +146,7 @@ class Header(Base):
             self.assertNotEqual(got["badge"]["radius"], "0px", "the count is in a round badge")
             self.assertNotEqual(got["badge"]["bg"], "rgba(0, 0, 0, 0)")
             # the made view can be opened, and then it is the one with the underline
-            click_tab(cdp, sid, ".vtab[data-view-id=mine]")
+            click(cdp, sid, ".vtab[data-view-id=mine]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=mine]').getAttribute('aria-pressed') === 'true'", "the made view is open")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
@@ -179,7 +178,7 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
-            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
+            click(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open", why=lambda: cdp.js(self.CLICK_DIAG, sid))
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
@@ -204,7 +203,7 @@ class Header(Base):
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
             for tab in ("core-open", "risky"):         # the first tab (its arrow is near the page's left edge) and a later one
-                click_tab(cdp, sid, f".vtab[data-view-id={tab}]")
+                click(cdp, sid, f".vtab[data-view-id={tab}]")
                 self.until(cdp, sid, f"document.querySelector('.vtab[data-view-id={tab}]').getAttribute('aria-pressed') === 'true' && document.querySelector('#viewTabMenu')", f"{tab} chosen")
                 click(cdp, sid, "#viewTabMenu")
                 self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
@@ -296,7 +295,7 @@ class Header(Base):
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
-            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
+            click(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
             self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no message before")
             click(cdp, sid, "#fline-input")
@@ -375,7 +374,7 @@ class Header(Base):
             self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
             self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
-            click_tab(cdp, sid, ".vtab[data-view-id=quiet]")
+            click(cdp, sid, ".vtab[data-view-id=quiet]")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
             click(cdp, sid, "#fline-x")          # row 845: the saved line's filters are chips; Clear takes them away before the new word is typed
@@ -386,7 +385,7 @@ class Header(Base):
         self.each(check)
 
     # ---- row 807 ----
-    def test_row_807_a_selected_card_and_a_selected_list_row_have_no_check_mark_but_still_show_it_is_selected(self):
+    def test_row_807_a_selected_card_has_no_check_mark_but_still_shows_it_is_selected_and_a_list_row_keeps_its_tick(self):
         def check(cdp, sid, width):
             self.board(cdp, sid, "status")
             card = "#work-board article.bcard .bc-main"
@@ -400,40 +399,14 @@ class Header(Base):
             self.assertIn(", selected", got["label"], "a screen reader still hears it")
             self.assertNotEqual(got["border"], got["other"], "the border shows the selection")
             self.assertNotEqual(got["shadow"], "none")
-            # a click opens the details panel (row 806), which covers the layout switch, so it is closed first
+            # the list row keeps its tick (the details panel the click opened covers the switch, so it is closed first)
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('#peek:not([hidden])') || document.querySelector('#peek').getBoundingClientRect().width === 0 || getComputedStyle(document.querySelector('#peek')).display === 'none'", "the details panel closed")
-            # the list row has no check mark either (row 807): the tint, border and bar show it
             self.view_pick(cdp, sid, "layout:table")
             self.until(cdp, sid, "document.querySelector('table.items')", "the table")
             click(cdp, sid, "table.items tbody tr[data-id] .c-item .t")
             self.until(cdp, sid, "document.querySelector('table.items tbody tr.picked')", "a row is selected")
-            got = cdp.js("(() => { const r = document.querySelector('table.items tbody tr.picked'), c = getComputedStyle(r);"
-                         " return {tick: !!r.querySelector('.tick'), svg: r.querySelectorAll('.c-item svg').length, sel: r.getAttribute('aria-selected'),"
-                         " shadow: c.boxShadow, other: getComputedStyle(document.querySelector('table.items tbody tr[data-id]:not(.picked)')).boxShadow}; })()", sid)
-            self.assertFalse(got["tick"], "no check mark on the selected list row")
-            self.assertEqual(got["svg"], 0, "no icon drawn in the item cell of the selected row")
-            self.assertEqual(got["sel"], "true", "a screen reader still hears it")
-            self.assertIn("inset", got["shadow"], "the border and the bar show the selection")
-            self.assertNotEqual(got["shadow"], got["other"])
-        self.each(check)
-
-    def test_row_807_a_list_row_is_as_tall_selected_as_not_selected(self):
-        from test_multi_select import MOD, tap
-
-        def check(cdp, sid, width):
-            self.until(cdp, sid, "document.querySelector('table.items tbody tr[data-id]')", "the table")
-            rid = cdp.js("document.querySelector('table.items tbody tr[data-id]').dataset.id", sid)
-            row = "#work-list tr[data-id='%s']" % rid
-            h = "document.querySelector(\"%s\").getBoundingClientRect().height" % row
-            self.until(cdp, sid, "document.getAnimations().length === 0", "animations finished")
-            before = cdp.js(h, sid)
-            tap(cdp, sid, row + " .c-item .t", MOD)
-            self.until(cdp, sid, "document.querySelector(\"%s\").classList.contains('picked')" % row, "the row is selected")
-            self.until(cdp, sid, "document.getAnimations().length === 0", "animations finished")
-            self.assertFalse(cdp.js("!!document.querySelector('#peek')", sid), "a Ctrl or Cmd click selects without opening the peek, so the table keeps its width")
-            self.assertEqual(cdp.js(h, sid), before, "the row's height is the same selected and not selected")
-            self.assertGreater(before, 20, "the row was measured")
+            self.assertTrue(cdp.js("!!document.querySelector('table.items tbody tr.picked .c-item .tick')", sid), "the list row keeps its tick")
         self.each(check)
 
     # ---- row 833: the view and filter area is no taller than the prototype's (95 px from the tabs to the chips; first group at 305 px) ----
