@@ -137,7 +137,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Export to Word, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
+    "Preview, Export to Excel, Publish, Published reports, Settings, Appearance (System, Light or Dark) and Help. At the top right.",
     ""
    ],
    [
@@ -278,10 +278,10 @@
     "id": "word-in-and-out",
     "g": "Every week",
     "t": "Export to Word",
-    "w": "Profile circle › Export to Word",
+    "w": "Settings › Data › Export to Word…",
     "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
+     "Press your profile circle, choose **Settings**, and on the **Data** card press **Export to Word…**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
      "To bring a Word file in, press your profile circle, choose **Settings**, and on the **Data** card press **Import from Word…**."
@@ -370,7 +370,7 @@
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
      "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
-     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All. The words you typed in the box show as their own Search: chip among the filters.",
+     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the Client Message and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All. The words you typed in the box show as their own Search: chip among the filters.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case’s reference), opens Work items already filtered to what it counts."
     ],
     "page": [
@@ -388,7 +388,7 @@
      "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, the **Group by** button also has **Swimlanes**: rows across the board: choose **No lanes**, **Workstream lanes** or **Type lanes**.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
-     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],
@@ -409,7 +409,7 @@
      "Under the title are the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour. In Edit, click **Status** to choose another value. For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an open item is due on a weekend, or an open action is overdue, with one-click fixes such as **Move to Friday** and the date.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
-     "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client wording; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
+     "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client Message; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. **Previous item** and **Next item** at the top step through the list; [[Up]] and [[Down]] do the same only when focus is on one of the peek’s own buttons."
@@ -448,7 +448,7 @@
      "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
      "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
-     "An item’s **Client wording** (on its row in Edit; for a decision also in its peek, in Edit) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
+     "An item’s **Client Message** (on its row in Edit; for a decision also in its peek, in Edit) is used on the page in place of its title. A milestone has the same, as **Client Message** in its peek."
     ],
     "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
     "page": [
@@ -637,7 +637,7 @@
      "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons in the State chip under the title. Overdue follows the dates and isn’t one of them.",
      "**Dates**: the **Agreed date** is shown and the peek does not change it; change the **Forecast date** as things move. A Done milestone also has an **Achieved on** date.",
      "**Progress** is set by hand with the ten blocks in the Progress chip. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Client visible** (the line under the rows), and the **Client wording** used on the page in place of the name.",
+     "**Client visible** (the line under the rows), and the **Client Message** used on the page in place of the name.",
      "To tie a work item to a milestone, open the item’s peek and, in Edit, pick the milestone under Details."
     ],
     "page": [
@@ -728,7 +728,7 @@
      "The answer is a suggestion: your text is unchanged until you press **Accept**. **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
      "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
     ],
-    "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well.",
+    "n": "Item fields and Client Message offer Improve and Ask; report sections offer Structure and Format notes as well.",
     "page": [
      "dashboard+edit"
     ]
@@ -827,10 +827,10 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "In **Settings**, open **Version and updates** and press **Check now**. When a newer version is there, press **Download**; when it says the download is checked, press **Install and restart**. If you were sent the update file, press **Choose zip…** under **Use a file instead** and pick it; **Review** shows the version before you install.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
-     "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
+     "To go back, press **Undo** in the **Updated to clark** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
     ],
     "page": [
      "settings#update"
@@ -906,7 +906,7 @@
      ],
      [
       "p",
-      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Preview the page in a new tab, Export to Excel, Publish, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -922,19 +922,18 @@
      [
       "ul",
       [
-       "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
-       "**Export to Word**: the report saved as a Word file, without publishing the web page.",
+       "**Publish…**: the Publish box, on the Dashboard.",
        "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Settings**: opens Settings. Until you add your name, the top line is a link to Settings too.",
-       "**Appearance**: System, Light or Dark; the one in use has a tick.",
+       "**Appearance**: System, Light or Dark.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
       ]
      ],
      [
       "p",
-      "Publish, Preview and Export appear once the report has loaded."
+      "Preview, Export and Publish appear once the report has loaded."
      ]
     ]
    },
@@ -1031,17 +1030,17 @@
         "Full or half"
        ],
        [
-        "Text and Image Side by Side",
+        "Text with image",
         "A story with a picture: a site visit, a design, a screenshot of the new system.",
         "Full or half"
        ],
        [
-        "Key figures, four",
+        "Numbers",
         "Three or four numbers with labels and a change since last week.",
         "Full or half"
        ],
        [
-        "Key figures, three",
+        "Numbers",
         "Three numbers with labels, in wider cards, so a short note fits under the change.",
         "Full or half"
        ],
@@ -1051,7 +1050,7 @@
         "Full or half"
        ],
        [
-        "Image gallery",
+        "Picture grid",
         "Pictures in a grid, each with a caption.",
         "Full"
        ],
@@ -1061,22 +1060,22 @@
         "Full"
        ],
        [
-        "RAID cards, three",
+        "Item cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
        ],
        [
-        "RAID cards, four",
+        "Item cards, four",
         "Four shorter cards: good for “this week’s actions” or “decisions needed”.",
         "Full"
        ],
        [
-        "Work items list",
+        "Work items",
         "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.",
         "Full or half"
        ],
        [
-        "Documents and links",
+        "Files and links",
         "The papers that go with this week’s report.",
         "Full or half"
        ],
@@ -1086,19 +1085,14 @@
         "Full or half"
        ],
        [
-        "Callout",
+        "Must-see note",
         "One thing the reader must see.",
         "Half or full"
        ],
        [
-        "Image with caption",
-        "One picture with its caption.",
-        "Half or full"
-       ],
-       [
-        "Full width image",
-        "One image across the full width, framed as you choose, with an optional caption.",
-        "Full"
+        "Image",
+        "One image, framed as you choose, with an optional caption.",
+        "Full or half"
        ],
        [
         "Quote",
@@ -1106,27 +1100,27 @@
         "Half or full"
        ],
        [
-        "Contacts",
+        "Who to ask",
         "Who to ask.",
         "Half or full"
        ],
        [
-        "Checklist",
+        "Next steps",
         "Next steps or readiness, ticked off.",
         "Half or full"
        ],
        [
-        "Key dates",
+        "Coming dates",
         "What’s coming, from the milestones.",
         "Half or full"
        ],
        [
-        "Link preview",
+        "Web page card",
         "A web page shown as a card you write: a dashboard, a news item, a recording.",
         "Full"
        ],
        [
-        "One document",
+        "One file",
         "A single file to read.",
         "Half or full"
        ],
@@ -1136,7 +1130,7 @@
         "Full or half"
        ],
        [
-        "Plan summary",
+        "Where we are, what’s next",
         "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
         "Full or half"
        ],
@@ -1146,12 +1140,12 @@
         "Full"
        ],
        [
-        "Table",
+        "Gantt table",
         "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
         "Full or half"
        ],
        [
-        "Use case summary",
+        "Use cases",
         "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
         "Full"
        ],
@@ -1161,6 +1155,14 @@
         "Full"
        ]
       ]
+     ],
+     [
+      "p",
+      "A Quote section shows up to 6 quotes, each with the words, a name and a role. Choose Left or Centre, and 2 or 3 quotes in a row. A half-width section, and a window narrower than 900 px, show them one under the other."
+     ],
+     [
+      "p",
+      "Tile and Heading are two switches: turn either off, or both. With both off the quote sits directly on the page."
      ]
     ],
     "page": [
@@ -1419,7 +1421,7 @@
      ],
      [
       "p",
-      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. The Asking switch in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
       "ul",
@@ -1429,7 +1431,7 @@
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "ask reads the project’s own data, including items hidden from the report (a hidden section, an item with its eye off). Archived items are left out. If the project is too big to send in full, the answer ends with a line such as Sent 20 of 47 milestones (the closest to your question); 27 were left out.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
-       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list.",
+       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list. **Remove** shows only when there is a chat to remove.",
        "Drag its left edge to make it wider."
       ]
      ],
@@ -1460,7 +1462,7 @@
        "**The title**, then the chips **Status**, **Priority** (a risk or issue says **Rating**), **Owner** and **Due**, each in colour.",
        "**Latest update** (in Edit; a published file shows it as a read-only line), and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details** (in Edit a tab, with Activity; in View the same rows with no tab): Workstream, Milestone, Raised, and in Edit the Client visible line (a risk and an issue also have Use case); a decision has its own rows instead; an open decision also has Raised and Last reviewed. Status, Owner, Due and Priority are the chips above it. An item’s description is its title.",
-       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. It names the source and nothing else: no person. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],
@@ -1650,8 +1652,8 @@
        "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved are the states. In Edit the State chip opens the five you can pick: Forecast, On track, At risk, Slipped and Achieved. Overdue is shown when the dates make it so, and cannot be picked.",
        "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, the Forecast date chip opens a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
        "**Progress**: in Edit, ten blocks in the Progress chip, set by hand. Press the block that matches the progress to set it back to 0.",
-       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client wording, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client wording. Description and Client wording use the rich text editor.",
-       "**Client visible** and **Client wording**. A client sees the same peek, read only, without the Client visible line."
+       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client Message, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client Message. Description and Client Message use the rich text editor.",
+       "**Client visible** and **Client Message**. A client sees the same peek, read only, without the Client visible line."
       ]
      ]
     ]
@@ -1679,7 +1681,7 @@
     "b": [
      [
       "p",
-      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and client wording, and a milestone’s description and client wording. Click the text and it opens in place."
+      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and Client Message, and a milestone’s description and Client Message. Click the text and it opens in place."
      ],
      [
       "tbl",
@@ -1706,7 +1708,7 @@
        ],
        [
         "One-line fields",
-        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
+        "One-line fields (the Client Message on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]
@@ -1736,7 +1738,7 @@
         "Improve: Rewrite clearly, Shorter, Make it executive, Polish; Make into; Ask"
        ],
        [
-        "Client wording",
+        "Client Message",
         "The same as an item’s fields"
        ]
       ]
@@ -1771,7 +1773,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page."
+      "In Settings › Data, Export to Word… saves the Word file on its own, without publishing the web page."
      ]
     ]
    },
@@ -1828,7 +1830,7 @@
      [
       "ul",
       [
-       "**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.",
+       "**The top bar**: the logo, the project name, then Weekly report and the week. In the Classic look nothing in it is a button; the Cards look keeps its date button.",
        "**The tabs**: Dashboard always, then Work items and Milestones unless you hid them, then Use cases when the client can see any, and Gantt when its switch is on with at least one line shown.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. The Excel file is the client copy: it holds only the rows the report shows, has no Client visible or On the dashboard columns, no Internal note and no History sheet, and cannot be imported back.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
@@ -1862,7 +1864,7 @@
       [
        [
         "Essentials",
-        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
+        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
        ],
        [
         "Profile",
@@ -1870,7 +1872,7 @@
        ],
        [
         "Publishing",
-        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear**, which shows only once a folder is chosen, takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Personal",
@@ -1902,11 +1904,11 @@
        ],
        [
         "Version and updates",
-        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo**. See [Updating clark](#ref-updating-clark)."
        ],
        [
         "Brands",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check. The Word letterhead of a brand goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** shows only on a brand you added, and asks you to confirm with “Back to the default look”. **Undo** shows only when there is a change to put back: what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check. The Word letterhead of a brand goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
        ],
        [
         "Theme",
@@ -1918,7 +1920,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
+        "The Asking switch (it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -1964,11 +1966,11 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button with the new version number when a newer update is in Downloads. There is no online check.",
-       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
+       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button when a newer update is in Downloads. The newest version is looked up quietly when you open this card and when you choose **Check now**. It never installs by itself.",
+       "**Choose zip…**, under **Use a file instead**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
        "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
-       "**Undo update** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
+       "**Undo** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
       ]
      ]
     ],
@@ -2030,19 +2032,19 @@
       [
        [
         "Actions",
-        "ID, Title, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client visible, Client wording, Milestone, Use case, Labels"
+        "ID, Title, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client visible, Client Message, Milestone, Use case, Labels"
        ],
        [
         "Risks & Issues",
-        "ID, Title, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Latest update, Client visible, Client wording, Milestone, Use case, Labels"
+        "ID, Title, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Latest update, Client visible, Client Message, Milestone, Use case, Labels"
        ],
        [
         "Decisions",
-        "ID, Decision, Status, Priority, Made by, Needed by, Decided on, Reasoning, Options considered, Revisit, Replaces, Latest update, Client visible, Client wording, Use case, Labels"
+        "ID, Decision, Status, Priority, Made by, Needed by, Decided on, Reasoning, Options considered, Revisit, Replaces, Latest update, Client visible, Client Message, Use case, Labels"
        ],
        [
         "Milestones",
-        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Sort order, Progress %, Owner, State reason, Movement, Achieved on, Client visible, Client wording, Latest update, Internal note"
+        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Sort order, Progress %, Owner, State reason, Movement, Achieved on, Client visible, Client Message, Latest update, Internal note"
        ],
        [
         "Use cases",
@@ -2501,7 +2503,7 @@
    "s": [
     "In Edit you change the report itself: its text, its tiles and its sections.",
     "Add a section from the **Add a section** box, and rename any heading in place.",
-    "Your profile circle’s menu has **Publish**, **Export to Word** and **Export to Excel**.",
+    "Your profile circle’s menu has **Publish** and **Export to Excel**.",
     "Press **View** to see the report as it will read."
    ],
    "full": "howto-arrange-the-report"
@@ -2542,7 +2544,7 @@
     {
      "card": "essentials",
      "title": "Essentials",
-     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
+     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
     },
     {
      "card": "profile",
@@ -2641,11 +2643,11 @@
      "pic": "templates-add-box"
     },
     {
-     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Project information**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Project information**, **Text and pictures**, **Numbers**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
      "pic": "templates-dialog"
     },
     {
-     "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
+     "d": "Choose a template in the list, such as **Numbers** or **Must-see note**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
     },
     {
      "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.",

@@ -311,8 +311,9 @@ class Dropped(Plant):
         m = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S)
         self.assertEqual(len(csp_hashes(text)["script"]), 1, "the data can't start a script")
         self.assertNotRegex(m.group(1), r"[<>&  ]", "nothing in the block can be read as markup")
-        self.assertIn("</script><script>zq=1</script><!--   & <b>", block(text)["data"]["actions"][0]["client_message"],
-                      "and it still reads back exactly")
+        # row 1288: an action's client wording is rich now: plain text is escaped into a paragraph (no markup survives), and that still reads back exactly
+        self.assertEqual(block(text)["data"]["actions"][0]["client_message"],
+                         "<p>&lt;/script&gt;&lt;script&gt;zq=1&lt;/script&gt;&lt;!-- \u2028 &amp; &lt;b&gt;</p>", "and it still reads back exactly")
         self.assertEqual(block(text)["data"]["project"]["name"], 'Bridge & "Harbour" <Programme>')
 
     def test_rich_text_is_cleaned(self):
@@ -1119,7 +1120,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 1, "row 1178: the bar has the one date button (the old chip is gone)")
+            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 0, "row 1253 (the 20-11 ruling): the bar has no As at date button")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
             self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):

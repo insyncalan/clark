@@ -7,7 +7,7 @@
 // another row or card moves the peek with it, and Esc puts the focus on the row of the item shown. Nothing else takes an arrow.
 import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
+import { data, rows, peek, peekEdit, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
 import { width, wide, setWidth, resetWidth, MIN, DEFAULT } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
@@ -20,7 +20,7 @@ import { Icon } from "./Icon.jsx";
 import { classicTheme } from "./Contents.jsx";
 import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
-import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
+import { statusTone, priorityToneFor, dateTone, iconClass } from "../iconColours.js";
 import { stateOf, LOOK } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { MsProgress } from "./MsList.jsx";
@@ -91,7 +91,7 @@ function ItemChips({ row, tools, editing }) {
   return (
     <PeekChips>
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityToneFor(prio, undefined, row.kind)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} subTone={classicTheme() && row.kind === "decision" ? "word" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
@@ -115,8 +115,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Made on" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind === "issue" ? <Row key_="priority" ref_={row.id} name="Rating"><Toned icon="bars" tone={priorityTone(row.priority)}>{colourOf(row.priority).word}{row.priority ? ` · ${row.priority}` : ""}</Toned></Row>      /* row 1183: an issue's Priority row is its Rating: the colour word and the level word */
-        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
+      {row.kind === "issue" ? <Row key_="priority" ref_={row.id} name="Rating"><Toned icon="bars" tone={priorityToneFor(row.priority, undefined, row.kind)}>{colourOf(row.priority).word}{row.priority ? ` · ${row.priority}` : ""}</Toned></Row>      /* row 1183: an issue's Priority row is its Rating: the colour word and the level word */
+        : <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityToneFor(row.kind === "decision" ? row.peek_priority : row.priority, undefined, row.kind)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>}
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating>{row.kind === "issue" ? ` ${kept} kept` : ` · ${kept}`}</span> : null}      {/* row 1183: a closed issue says "Red kept" under its Closed pill (the Risk ticket's sub-line) */}
@@ -132,8 +132,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}
-      {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
-      {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
+      {Wording ? <Row name="Client Message" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
+      {!editing && fromFile.value && row.client_message ? <Row name="Client Message" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}      {/* row 1288: the file's wording is clean HTML (publish.clean_html). item 1111: a published file's peek draws the Client Message the file carries, read only and only when there is some */}
       {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
@@ -146,8 +146,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
   return <PeekDetails summary={summary}>{rows}</PeekDetails>;
 }
 
-// The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, by name. On the live page
-// the Edit part reads it (tools.PeekSource, GET /api/activity, with " by <name>"); a published file draws the name its data carries (publish.select).
+// The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, naming the source and no person (row 1258). On the live page
+// the Edit part reads it (tools.PeekSource, GET /api/activity, source name only); a published file draws the name its data carries (publish.select).
 // The text is drawn as text; nothing is drawn when there is none.
 export function SourceLine({ text }) {
   return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
@@ -189,7 +189,7 @@ function MilestoneFields({ m, tools }) {
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
         <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
-        {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
+        {wording || !fromFile.value ? <Row name="Client Message" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
         {latest ? <Row name="Latest update" ms="latest_update"><Rich html={latest} /></Row> : null}      {/* item 1185: a published file's milestone shows its latest update when it carries one (the live editor's peek has its own box) */}
       </dl>
       </PeekDetails>
@@ -217,15 +217,16 @@ export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), pending = useRef(""), pendingKind = useRef("item"), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
-  const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
+  const editing = !!tools && !fromFile.value && (isEditing() || (!!p && p.kind === "item" && peekEdit.value === p.id));      // every page but a Dashboard in View (row 824)
+  const dashView = !!tools && !fromFile.value && classicTheme();      // row 1470: the Latest update box is drawn on a Dashboard peek in View too (Classic; a published file stays read only)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const History = editing && tools.PeekHistory;      // row 1180: the history tabs (All, Activity, Updates, Source) under the body
-  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = msEditing && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
+  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = (msEditing || dashView) && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
-  const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
+  const Warn = editing && forItem && tools.PeekWarn, Latest = (editing || dashView) && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
   const Source = !!tools && !fromFile.value && tools.PeekSource;
@@ -401,7 +402,7 @@ export function Peek({ tools }) {
           {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
             {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
-              {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
+              {row.client_message ? <Row name="Client Message" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}
             </dl> : null}
             <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} onFile={fromFile.value} />
           </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}

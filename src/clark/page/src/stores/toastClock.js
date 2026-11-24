@@ -3,12 +3,12 @@
 // (changes.js) and the profile menu's note (menuNote.js). The bar itself is drawn by edit/ToastCard.jsx and edit/ProfileMenu.jsx.
 export const TOAST_MS = 5000;
 
-export function toastClock(onEnd) {
+export function toastClock(onEnd, ms = TOAST_MS) {
   let handle = 0, left = 0, since = 0, running = false;
   const holds = new Set();
   const run = () => { since = performance.now(); running = true; handle = setTimeout(() => { running = false; onEnd(); }, left); };
   return {
-    start() { clearTimeout(handle); holds.clear(); running = false; left = TOAST_MS; run(); },
+    start() { clearTimeout(handle); holds.clear(); running = false; left = ms; run(); },
     stop() { clearTimeout(handle); holds.clear(); running = false; left = 0; },
     hold(why) {
       if (holds.has(why)) return;

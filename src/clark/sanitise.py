@@ -7,6 +7,7 @@ was a model for the shape of an allow-list only and nothing is copied (so there 
 
 What may stay, and nothing else:
 - p, br, strong, em, s, h1, h2, h3, ul, ol, li, blockquote, hr, with no attributes at all;
+- span, only as `span class="rt-c-NAME"` (font colour, row 1364: grey, brand, red, amber, green, blue), nothing else on it;
 - a, with href only and rel="noopener noreferrer" added: the address must be http:, https:, mailto: or a #fragment;
 - input, only as `input type="checkbox"` (a checklist item), with `checked` and `disabled` as its only other attributes.
 Every other tag is removed and its text stays (a removed block tag such as div or td leaves a line break between its text and
@@ -37,9 +38,12 @@ MAX_DEPTH = 50               # open tags nested deeper than this are removed (th
 MAX_HREF = 8000
 MAX_BLANK_RUN = 5            # blank lines (empty paragraphs) in a row that are kept; a longer run is cut to this (#84)
 
-ALLOWED = frozenset(("p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"))
+ALLOWED = frozenset(("p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input", "span"))
 VOID = frozenset(("br", "hr", "input"))
-INLINE = frozenset(("strong", "em", "s", "a"))
+INLINE = frozenset(("strong", "em", "s", "a", "span"))
+# Row 1364: font colour. A span stays only with exactly one of these classes (no other class, no style, no other attribute); each is
+# drawn by the page's and the published file's stylesheet from a design token. Anything else about a span goes and its text stays.
+COLOUR_CLASSES = ("rt-c-grey", "rt-c-brand", "rt-c-red", "rt-c-amber", "rt-c-green", "rt-c-blue")
 PARAGRAPH = frozenset(("p", "h1", "h2", "h3"))                  # these hold inline content only: a block ends them
 ENDS_PARAGRAPH = frozenset(("p", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr"))
 # Removed with everything inside (an unclosed one takes the rest of the field with it). Others just lose their tag.
@@ -287,6 +291,10 @@ class _Cleaner:
             if target is None:
                 return                                        # a link with no safe address is just its text
             opening = f'<a href="{attr_escape(target)}" rel="noopener noreferrer">'
+        elif tag == "span":
+            if given.get("class") not in COLOUR_CLASSES:
+                return                                        # a span with any other class, or none, is just its text
+            opening = f'<span class="{given["class"]}">'
         else:
             opening = f"<{tag}>"
         if tag in VOID:
@@ -433,6 +441,12 @@ def rich_plain_text(value):
         return plain_text(rich_or_plain(value))
     except SanitiseError:
         return ""
+
+
+def flat_line(value):
+    """Row 1288: the words of a stored rich-or-legacy value on ONE line, as text (a line break or a paragraph is a space): for a place that
+    is one line in the file, the page and the exports (a caption, a card's own words). "" for none, or for a value too big to clean."""
+    return " ".join(rich_plain_text(value).split())
 
 
 _MARKUP_EDGE = re.compile(r"</?[A-Za-z][A-Za-z0-9]*|[<>]")

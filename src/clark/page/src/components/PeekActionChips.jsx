@@ -6,7 +6,7 @@ import { PeekChips, PeekChip } from "./PeekChips.jsx";
 import { flashed } from "../stores/wordsState.js";
 import { dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { classicTheme } from "./Contents.jsx";
-import { statusTone, priorityTone, dateTone } from "../iconColours.js";
+import { statusTone, priorityToneFor, dateTone } from "../iconColours.js";
 
 const DASH = "—";
 const ROW_OF = { owner: "owner", due_date: "due", priority: "priority", status: "status" };
@@ -27,7 +27,7 @@ export function ActionChips({ row, tools, editing }) {
   return (
     <PeekChips>
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={lateOpen ? "b" : statusTone(row, today)} value={lateOpen ? "Open" : pill.text} sub={lateOpen && classicTheme() ? "needed by passed" : ""} subTone={lateOpen && classicTheme() ? "word" : ""} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} flash={hit("priority")} pop={pop("priority")} />
+      <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityToneFor(row.priority)} value={text(row.priority)} flash={hit("priority")} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name="Owner" icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name="Due date" icon="cal" tone={dateTone(row, today)} value={due.date} sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>

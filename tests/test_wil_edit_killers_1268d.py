@@ -1,4 +1,5 @@
 import json
+import time
 import unittest
 
 import test_tpl_workitems as base
@@ -36,8 +37,13 @@ class EditKillers(base.InThePage):
             p = self.show(cdp)
             p.edit()
             self.drawn(p, ref)
-            p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ContextMenu', bubbles: true, cancelable: true}}))")
-            p.until("!!document.querySelector('.cols-menu')", "the menu key opened the menu")
+            sent = p.js(f"document.querySelector({json.dumps(self.head(ref))}).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ContextMenu', bubbles: true, cancelable: true}}))")
+            t0 = time.time()
+            opened = wait(lambda: p.js("!!document.querySelector('.cols-menu')"), 10)
+            # On a failure only, the message carries the page's state (the cause of the macOS shard failure, job 137358003065, is not proven).
+            state = "" if opened else " | " + json.dumps({"waited_s": round(time.time() - t0, 2), "dispatchEvent_result": sent, **p.js(
+                f"({{hasFocus: document.hasFocus(), active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.getAttribute('aria-label')] : null, colsMenu: !!document.querySelector('.cols-menu'), headingInDom: !!document.querySelector({json.dumps(self.head(ref))})}})")})
+            self.assertTrue(opened, "the menu key opened the menu" + state)
 
     def test_a_right_click_on_a_heading_keeps_the_browsers_own_menu_away(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})

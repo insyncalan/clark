@@ -259,6 +259,10 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 
 
 # ===== Rich text =====
+FONT_COLOUR_TOKEN = {"rt-c-grey": "text-muted", "rt-c-brand": "brand-blue", "rt-c-red": "tone-red-text", "rt-c-amber": "tone-amber-text",
+                     "rt-c-green": "tone-green-text", "rt-c-blue": "tone-blue-text"}      # row 1364: the page's six font colours, each the same token the stylesheet uses
+
+
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
@@ -267,14 +271,16 @@ class _Rich:
         self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
+        self.colours = []                              # row 1364: the token of each open span (None for a span that carries no colour)
         self.stack, self.lists = [], []
 
     def add_text(self, text):
         if not text:
             return
         c = self.ctx
+        token = next((t for t in reversed(self.colours) if t), None)
         r = run(text, bold=bool(self.fmt["strong"]), italic=bool(self.fmt["em"]), strike=bool(self.fmt["s"]),
-                color=c.tok["status-blue-text"] if self.link else None, style="Hyperlink" if self.link else None)
+                color=c.tok[token] if token else c.tok["status-blue-text"] if self.link else None, style="Hyperlink" if self.link else None)
         self.runs.append(f'<w:hyperlink r:id="{self.link}" w:history="1">{r}</w:hyperlink>' if self.link else r)
 
     def flush(self):
@@ -309,6 +315,8 @@ class _Rich:
             self.add_text("☑ " if "checked" in dict(attrs) else "☐ ")
         elif name in self.fmt:
             self.fmt[name] += 1
+        elif name == "span":
+            self.colours.append(FONT_COLOUR_TOKEN.get(dict(attrs).get("class")))
         elif name == "a":
             address = sanitise.href(dict(attrs).get("href"))
             if address and address.lower().startswith(("https://", "mailto:")):
@@ -319,6 +327,9 @@ class _Rich:
     def end(self, name):
         if name in self.fmt:
             self.fmt[name] = max(0, self.fmt[name] - 1)
+        elif name == "span":
+            if self.colours:
+                self.colours.pop()
         elif name == "a":
             self.link = None
         if name in ("p", "h1", "h2", "h3", "li", "blockquote", "ul", "ol"):
@@ -364,7 +375,7 @@ def _open(rows):
 
 def _words(row, field, own):
     """The client's wording when the row has some, else the row's own text (data-model.md: client_message is optional)."""
-    return (row.get("client_message") or "").strip() or row.get(own) or ""
+    return sanitise.rich_plain_text(row.get("client_message")).strip() or row.get(own) or ""      # row 1288: the wording is the Full editor's HTML, or the plain text an older clark stored
 
 
 def _date(iso):

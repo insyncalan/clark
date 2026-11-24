@@ -119,8 +119,8 @@ SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
 WORDLESS_DROPS = {"actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "latest_update")}     # item 1185: a risk, an issue and a milestone follow the action
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update", "client_message"), "raid": ("latest_update", "client_message"), "decisions": ("latest_update", "client_message"), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("actions", "client_message"), ("raid", "client_message"), ("decisions", "client_message"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),   # item 1158: the needs-from-you flag is no longer read here
@@ -172,9 +172,9 @@ DROP_WITH_TEXT = {"script", "style", "iframe", "object", "embed", "form", "templ
                   "select"}                                   # these and everything inside them; link, meta... just go
 VOID = {"br", "hr", "img"}
 ALLOWED_TAGS = {"p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "code", "pre", "blockquote", "span", "div",
-                "ul", "ol", "li", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
+                "ul", "ol", "li", "h1", "h2", "h3", "h4", "a", "img", "table", "thead", "tbody", "tr", "th", "td"}
 ALLOWED_ATTRS = {"a": ("href", "title"), "img": ("src", "alt", "title"), "td": ("colspan", "rowspan"),
-                 "th": ("colspan", "rowspan")}
+                 "th": ("colspan", "rowspan"), "span": ("class",)}
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]*", re.I)
 SPAN = re.compile(r"[0-9]{1,3}")
 
@@ -224,7 +224,11 @@ class _Cleaner(HTMLParser):
                 return                                            # an image that isn't embedded is dropped whole
             if name in ("colspan", "rowspan") and not SPAN.fullmatch(value.strip()):
                 continue
+            if name == "class" and value not in sanitise.COLOUR_CLASSES:       # row 1364: a span keeps only one of the six font colour classes
+                continue
             keep.append(f' {name}="{htmllib.escape(value.strip() if name == "src" else value, quote=True)}"')
+        if tag == "span" and not keep:
+            return                                                # no colour class: unwrapped, its text stays
         if tag == "img" and not any(a.startswith(" src=") for a in keep):
             return
         if tag == "a":
@@ -385,13 +389,15 @@ OPEN_STEPS = ("Open", "Delayed")                                # an action's st
 def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=()):
     """The single place for "what a client may see of a use case". Given `data` (as Store.data_for gives it), the project
     `code`, the report-hidden ids, the label rules and the hidden section types, returns a list, in the data's order, of
-    {"id", "next_steps": [action ids], "milestones": [milestone ids]}, one per use case the client may see, and nothing else.
+    {"id", "next_steps": [action ids], "milestones": [{"id": milestone id, "direct": bool}]}, one per use case the client may see, and nothing else.
 
     A use case is in the list when it is not archived, is on the dashboard (client_visible, the eye), belongs to the project,
     is not report-hidden, has no Sensitive or exclude label, and the Use cases section is not hidden. Its next steps are
     the actions that point at it that pass the same gates and are still open (and the Actions section is not hidden). Its
-    milestones are the milestones named by those next steps that pass the gates (and the Milestones section is not hidden).
-    Ids only: the rows are published once, by select, and an id can only name a row that was published. The caller (the
+    milestones are the milestones named by those next steps or linked straight to the use case (use_case_milestones, as
+    Store.data_for gives them in uc_milestones) that pass the gates (and the Milestones section is not hidden); each carries
+    ONE boolean, `direct`, true when the use case itself is linked to it (also when a next step names it too), false when only
+    a next step does (row 1479). A link to a milestone that does not pass the gates names nothing. Ids and that boolean only: the rows are published once, by select, and an id can only name a row that was published. The caller (the
     published file, or a route that tells the editor what the client sees) never repeats this rule."""
     hidden_types = set(hidden_types or ())
     keep = _keeper(data, code, set(hidden_ids or ()), _excluded_labels(label_rules))
@@ -403,9 +409,10 @@ def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=())
     pages = []
     for u in shown("use_cases"):
         mine = [a for a in steps if a.get("use_case") == u["id"]]
-        named = {a.get("milestone") for a in mine}
+        named = {a.get("milestone") for a in mine} & milestone_ids
+        direct = {l.get("milestone") for l in data.get("uc_milestones") or () if l.get("use_case") == u["id"]} & milestone_ids
         pages.append({"id": u["id"], "next_steps": [a["id"] for a in mine],
-                      "milestones": sorted(named & milestone_ids)})
+                      "milestones": [{"id": m, "direct": m in direct} for m in sorted(named | direct)]})
     return pages
 
 
@@ -561,7 +568,7 @@ def select(inputs):
             c = _pick(r, PUBLISH_FIELDS[k])
             if k in SOURCED:                                      # row 1077: the source by name, never a path
                 c["source"] = source_name(c.get("source"), published=True) or None
-            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
+            if not (reason_text(sanitise.rich_plain_text(r.get("client_message"))) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
                 for f in WORDLESS_DROPS.get(k, ()):
                     c[f] = None
             for f in RICH.get(k, ()):
@@ -604,11 +611,11 @@ def select(inputs):
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     for_templates = {"use_cases": built["use_cases"]}            # the four work and milestone kinds follow, each with its words made plain
-    for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["actions"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                                 for r in built["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
-    for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["raid"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                              for r in built["raid"]]                            # item 1185: the same for a risk or issue
-    for_templates["decisions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+    for_templates["decisions"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") or r.get("client_message") else r
                                   for r in built["decisions"]]                  # row 1195: the same for a decision
     for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))}
                                    if r.get("client_message") or r.get("latest_update") else r

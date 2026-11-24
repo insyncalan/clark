@@ -454,7 +454,12 @@ class MutationGaps(unittest.TestCase):
     def test_parent_folder_name_is_not_matched(self):  # words_in(e.name) -> words_in(e.path)
         root = Path(self.root, "Contracts Archive")
         tree(root, ["notes/a.txt", "b.txt"])
-        self.assertEqual(list(sn.scan(root)), [])
+        rows = list(sn.scan(root))
+        self.assertEqual([(r["name"], r["own"], r["dir"], r["words"], r["readable_files"]) for r in rows], [("Contracts Archive", True, False, ["contracts"], 2)],
+                         "row 1365: the scanned folder's own name is named once; its subfolder and file are not matched by that name")
+        tree(Path(self.root, "Other"), ["Contracts Archive/notes/a.txt", "notes/b.txt"])
+        rows = list(sn.scan(Path(self.root, "Other")))
+        self.assertEqual([r["path_rel"] for r in rows], ["Contracts Archive"], "a parent's name is not matched for the folders below it")
 
     def test_all_words_of_a_name_are_listed(self):  # 'words': found[:1], folder and file
         tree(self.root, ["CV Salary/a.txt", "Payroll Passport.txt"])

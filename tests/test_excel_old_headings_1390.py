@@ -1,7 +1,7 @@
 """Item 1390, slice 1: a workbook exported BEFORE the headings followed the page still imports, cell for cell.
 
 The old file is made here, by writing the older headings over a fresh export: Description, Client-visible, Source, Updated,
-Date, Options, Order, % complete, Shown state, and the two Milestones columns State and State set by you, which the export no
+Date, Options, Order, % complete, Client wording (the heading before row 1466), Shown state, and the two Milestones columns State and State set by you, which the export no
 longer writes. The import reads the older names as the new ones, and no longer sets a milestone's state from a cell.
 
 Run: python3 dev/run_tests.py test_excel_old_headings_1390
@@ -26,6 +26,11 @@ OLD = {
                    "Added from": "Source", "Last updated": "Updated"},
     "Use cases": {"Sort order": "Order", "On the dashboard": "Client-visible", "Added from": "Source", "Last updated": "Updated"},
 }
+
+
+for _names in OLD.values():
+    _names["Client Message"] = "Client wording"       # row 1466: the heading before Client Message; every sheet that has the column
+OLD["Use cases"].pop("Client Message")                  # a use case has no Client Message column
 
 
 def make_old(path):
@@ -84,6 +89,16 @@ class OldWorkbook(RoundTrip):
         self.assertEqual(self.s.read("actions", ref=self.a1)["description"], "Old file, reworded")
         got = self.s.read("decisions", ref=self.d1)
         self.assertEqual((got["options"], got["date"]), ("Old options text", "2030-03-04"), got)
+
+    def test_a_workbook_headed_client_wording_still_imports_as_the_client_message(self):
+        """Row 1390 C, row 1466: Client wording (the heading before Client Message) is read as the Client Message."""
+        from test_excel_roundtrip import edit
+        self.assertIn("Client wording", self.heads("Actions"))
+        self.assertNotIn("Client Message", self.heads("Actions"))
+        edit(self.path, "Actions", self.a1, **{"Client wording": "Said under the old heading"})
+        p = self.read()
+        self.assertEqual(p.problems, [])
+        self.assertEqual({c.table: c.after for c in p.changes}["actions"], {"client_message": "Said under the old heading"})
 
     def test_the_old_state_columns_never_set_a_milestones_state(self):
         before = {r["id"]: (r["state"], r["state_set"]) for r in self.s.read("milestones", "ABC")}

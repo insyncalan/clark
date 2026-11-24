@@ -55,6 +55,18 @@ class Card(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
             self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
 
+    def test_the_profile_line_shows_at_1400_and_900_only_with_a_saved_name(self):
+        for name in ("", "Sam Lee"):
+            settings.set_profile(self.d, name, "")
+            with chrome() as cdp:
+                js = self.show(cdp)
+                for width in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    got = js("(document.querySelector('[data-ai-profile]')||{}).innerText || ''")
+                    self.assertEqual(got, ai_connect.PROFILE_LINE if name else "", (width, name))
+                    if name:
+                        self.assertTrue(js("document.querySelector('[data-ai-profile]').getBoundingClientRect().right <= innerWidth"), width)
+
     def test_disconnect_then_connect(self):
         with chrome() as cdp:
             js = self.show(cdp)
@@ -88,12 +100,12 @@ class Card(unittest.TestCase):
             self.assertGreater(js("document.querySelector('#ask-notice').offsetHeight"), 0, "the notice is on show, not hidden (#1062)")
             self.tab(js, "all")
             js("document.querySelector('[data-ai-connect=chatgpt]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10))
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10), "ChatGPT offers gpt-6.1-sol after Connect")
             self.pick(js, "gpt-6.1-sol")
-            self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10))
+            self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10), "the drop-down shows gpt-6.1-sol")
             self.assertEqual(settings.ai_read(self.d)["model"], "gpt-6.1-sol")
             self.tab(js, "project")
-            self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10))
+            self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10), "the project tab's asking words name ChatGPT")
             self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))
             self.assertIn("billed to the ChatGPT account", js("document.querySelector('#ask-notice').innerText"))
 
