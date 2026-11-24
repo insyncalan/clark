@@ -210,6 +210,26 @@ class View(unittest.TestCase):
         self.js("document.querySelector('.tpl-gal-x').click()")
         self.assertTrue(wait(lambda: not self.state()["open"]))
 
+    def test_a_new_gallery_as_clark_publishes_it_is_4_3_three_across_and_two_at_half_width_and_900(self):
+        """Row 1233 ruling, end to end: the content comes from the real gallery model (a new body with real PNGs), not from a fixture."""
+        from clark.section_kinds import gallery
+        body = {"v": 2}
+        for n in range(1, 4):
+            body = gallery.check(gallery.with_picture(body, str(n), uri(png(160, 90, COLOURS[n], COLOURS[n + 1]))), None)
+        content = gallery.published(body, None)["content"]
+        self.assertEqual((content["columns"], content["shape"]), (3, "4:3"))
+        for width, cls, across in ((1400, "", 3), (900, "", 2), (1400, "slot-left", 2), (1400, "slot-right", 2)):
+            self.draw(content["pictures"], width, "light", cls, columns=content["columns"], shape=content["shape"])
+            m = self.measure()
+            with self.subTest(width=width, cls=cls):
+                self.assertEqual(m["across"], across)
+                self.assertAlmostEqual(m["ratio"], 4 / 3, 1)
+        old = gallery.published({"v": 1, "pictures": {"1": uri(png(160, 90)), "2": uri(png(160, 90))}}, None)["content"]
+        self.assertEqual(set(old), {"pictures"})
+        self.draw(old["pictures"], 1400)
+        m = self.measure()
+        self.assertEqual((m["across"], round(m["ratio"], 2), "n-2" in m["cls"]), (2, 1.33, True), "an old gallery is drawn as it was")
+
     def test_old_gallery_with_nothing_said_is_drawn_as_it_was(self):
         for n, across in ((1, 1), (2, 2), (3, 3), (6, 3)):
             self.draw(pictures(n))

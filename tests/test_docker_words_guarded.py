@@ -5,7 +5,9 @@ Run: python3 dev/run_tests.py test_docker_words_guarded
 Real server and real BrandLibrary; the only thing faked is that this is a Docker container on Linux. Nothing is opened or run.
 """
 import http.client
+import importlib
 import sys
+import sysconfig
 import traceback
 import unittest
 from unittest import mock
@@ -14,6 +16,14 @@ from _brand_rig import make_dirs
 from test_brand_routes import Rig
 
 from clark import platform as pl, server as sv
+
+# Row 1559 (macOS): these tests patch sys.platform to "linux" while the real server thread runs. The first request lazily imports
+# clark.zone -> zoneinfo -> sysconfig.get_config_var('TZPATH'), and sysconfig builds the module name from sys.platform, so on a Mac it
+# looked for "_sysconfigdata__linux_darwin" (ModuleNotFoundError), the handler died and the client saw RemoteDisconnected.
+# Import all of it here, before any patch, so nothing is first imported while sys.platform is faked.
+import zoneinfo  # noqa: E402,F401
+sysconfig.get_config_vars()
+importlib.import_module("clark.zone")
 
 WORDS = "This needs clark to run on the Mac itself; start it from Terminal: bash clark.command"
 
