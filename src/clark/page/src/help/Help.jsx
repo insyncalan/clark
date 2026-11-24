@@ -349,11 +349,11 @@ export function Help() {
       </div>
       <div class="hp-tabs" role="tablist" aria-label="Help" onKeyDown={onTabKey}>
         {TABS.map((t) => (
-          <button type="button" role="tab" key={t.key} id={`hpTab-${t.key}`} data-htab={t.key} aria-controls={asked ? "hpRes" : "hpPane"} aria-selected={tab === t.key ? "true" : "false"}
+          <button type="button" role="tab" key={t.key} id={`hpTab-${t.key}`} data-htab={t.key} aria-controls="hpPane" aria-selected={tab === t.key ? "true" : "false"}
             tabIndex={tab === t.key ? 0 : -1} onClick={() => setTab(t.key)}>{t.name}</button>
         ))}
       </div>
-      {asked ? <div id="hpRes" class="hp-res" onKeyDown={onResKey}><Results /></div> : null}
+      {asked ? <div id="hpRes" class="hp-res" aria-live="polite" onKeyDown={onResKey}><Results /></div> : null}
       {asked ? null : <div id="hpPane" class={`hp-pane hp-${tab}`} role="tabpanel" data-tab={tab} aria-labelledby={`hpTab-${tab}`} onKeyDown={onPaneKey}><Pane /></div>}
     </section>
   );

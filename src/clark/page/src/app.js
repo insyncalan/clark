@@ -5,7 +5,7 @@
 // - the manifest link and the theme-colour meta (the top bar's colour, --brand-navy, which the app window's title bar takes on)
 // - the service worker (/sw.js), which shows the "clark isn't running" page when the server is stopped
 // - "still here": POST /api/here with the token every 10 seconds, and once when the page becomes visible. A launcher-started
-//   clark stops a minute after the last one.
+//   clark stops two minutes after the last one.
 const HEARTBEAT_MS = 10000;                   // idle.HEARTBEAT, in step (a test keeps the two together)
 
 function bootToken() {

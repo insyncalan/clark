@@ -1,7 +1,7 @@
 """Stopping a launcher-started server when no clark window is left (#71; the logic only, server.py wires it in).
 
 An open clark page says "still here" every 10 seconds (POST /api/here, which needs the token; opening the page counts too).
-A server the launcher started (CLARK_LAUNCHED=1) stops once nothing has said so for STOP_AFTER seconds (a minute), and never
+A server the launcher started (CLARK_LAUNCHED=1) stops once nothing has said so for STOP_AFTER seconds (two minutes), and never
 while a job is running. A server started by hand, or any server with CLARK_LAUNCHED unset, never stops by itself. The Docker
 server (row 1080) never stops by itself either: no window is ever left open in a container, so nothing there is "too quiet".
 
@@ -15,7 +15,7 @@ import time
 
 from clark import platform
 
-STOP_AFTER = 60.0           # seconds without a "still here" before a launcher-started server stops
+STOP_AFTER = 120.0          # seconds without a "still here" before a launcher-started server stops
 STOP_CHECK = 5.0            # how often it looks
 HEARTBEAT = 10              # seconds between an open page's "still here" (the page's; kept here so the two stay in step)
 

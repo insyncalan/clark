@@ -73,9 +73,6 @@ function ProfileBox({ onClose }) {
   );
 }
 
-// Space on a focused link does nothing by itself (only Enter follows it); in this menu it opens the report too.
-const spaceOpens = (e) => { if (e.key === " ") { e.preventDefault(); e.currentTarget.click(); } };
-
 export function ClientMenu() {
   const [open, setOpen] = useMenuState();
   const [box, setBox] = useState(false);
@@ -106,7 +103,7 @@ export function ClientMenu() {
           {item("pdf", WORDS.pdf, () => { printReport(); })}
           <div class="cm-group" role="group" aria-labelledby="client-menu-past" data-row="past">
             <div class="lab" role="presentation" id="client-menu-past">{WORDS.past}</div>
-            {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} onKeyDown={spaceOpens} key={r.iso + r.href}>{r.date}</a>)}
+            {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}>{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
           </div>
           <div class="cm-group" role="group" aria-labelledby="client-menu-dark" data-row="dark">

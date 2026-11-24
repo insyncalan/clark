@@ -30,7 +30,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
     setState((s) => ({ ...s, phase: s.list ? "ready" : "loading" }));
     const r = await api.list(code, showArch);
     if (r.status === 200 && L.isList(r.body)) setState({ phase: "ready", list: r.body, message: "" });
-    else setState((s) => ({ phase: "failed", list: s.list, message: L.listWords(r.status, r.body) }));
+    else setState({ phase: "failed", list: null, message: L.listWords(r.status, r.body) });
   }
   useEffect(() => { if (!publishing) load(); }, [code, publishing, showArch]);
 
@@ -85,7 +85,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
   );
   return (
     <section class="pp-list" id="pubs">
-      {state.phase === "loading" ? <p class="muted" id="pubs-loading" role="status">{L.LOADING}</p> : null}
+      {state.phase === "loading" ? <p class="muted" id="pubs-loading">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-pubs-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {latest ? (
         <div class="pp-block pp-latest" id="pubs-latest" data-latest={latest.number}>
@@ -105,7 +105,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
         <div class="pp-block pp-earlier">
           <p class="pp-kicker">{L.PAGE.earlier}</p>
           <table class="pubs" id="pubs-table">
-            <thead><tr>{L.COLUMNS.map((c, i) => <th scope="col" key={i}>{c || <span class="sr">Actions</span>}</th>)}</tr></thead>
+            <thead><tr>{L.COLUMNS.map((c, i) => <th scope="col" key={i}>{c || <span class="sr">Open</span>}</th>)}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.number} data-pub={r.number} class={r.archived ? "arch-row" : ""}>
@@ -122,7 +122,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
         </div>
       ) : null}
       {list && views.length ? <p class="muted small" id="pubs-note">{zoneWords}{L.cutLine(list.total, list.shown) ? " " + L.cutLine(list.total, list.shown) : ""}</p> : null}
-      <div class="pub-msg">{msg ? <p class={msg.kind} role={msg.kind === "error" ? "alert" : "status"}>{msg.text}</p> : null}</div>
+      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
       {withAsAt ? <AsAtPick code={code} /> : null}
     </section>
   );

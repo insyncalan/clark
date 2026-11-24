@@ -938,7 +938,7 @@ def open_route(handler, route):
 
 # #71: "still here". An open clark page posts to /api/here every few seconds (with the token), and opening the page counts too.
 # Only a server the launcher started has an Idle (clark.idle, given by __main__ with set_idle); it stops that server when no
-# window has said so for a minute and no job is running. A server started by hand has none and never stops by itself.
+# window has said so for two minutes and no job is running. A server started by hand has none and never stops by itself.
 HERE_ROUTE = "/api/here"
 IDLE = None
 BUSY = {"n": 0}

@@ -459,6 +459,7 @@ def _without_account(segment):
     """One folder name without an e-mail address: "GoogleDrive-name@example.org" is "GoogleDrive", "Backup name@example.org" is
     "Backup", and a name that is only an address goes."""
     segment = re.sub(r"^(dropbox)(?:\s+\((?!personal\)$).*\)|\s+-\s.*)$", r"\1", segment, flags=re.IGNORECASE)   # "Dropbox (Acme Corp)": the company is not shown
+    segment = re.sub(r"^(onedrive)(?:\s*-\s*(?!\s*personal$).*)$", r"\1", segment, flags=re.IGNORECASE)   # "OneDrive - Contoso", "OneDrive-Contoso": the tenant is not shown; "OneDrive - Personal" is kept. Every folder name in the path is treated so, a deeper "OneDrive - Old" too
     if "@" not in segment:
         return segment
     kept = re.sub(r"^([A-Za-z0-9]+)-[^@]*@.*$", r"\1", segment)
@@ -500,12 +501,14 @@ def check_data_dir(path, roots=None, what="data", synced=None):
         if root is not None:
             path = host_shown(os.environ["CLARK_DATA_SOURCE"])   # (written without the user's name) and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
+        kind = account_free(root.name)                       # the tenant folder ("OneDrive - Name") is the company: only a tenant-free name is ever said
+        named = "" if kind.lower() == "onedrive" else f" ({kind})"
         if what == "backups":
-            raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
+            raise PlatformError(f"Backups can't be kept in {account_free(shown(path))} because it is inside OneDrive{named}. OneDrive "
                                 "copies files while they are being written, which damages a database. Keep them beside the "
                                 "database on this computer. To have a copy in OneDrive, choose it in Settings › Backups › Copy my "
                                 "backups to.")
-        raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
+        raise PlatformError(f"Your data can't be kept in {account_free(shown(path))} because it is inside OneDrive{named}. OneDrive "
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
                             "Backups › Copy my backups to): backups can still go to OneDrive.")
@@ -555,9 +558,9 @@ _HELD_LOCKS = {}                # data folder -> the open lock file; kept open f
 def already_open(folder, restoring=False):
     """What a person reads when another clark has `folder` open. `restoring`: the words for `clark restore NAME`."""
     if restoring:
-        return "Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, then run the restore again."
+        return "Nothing was restored: clark is open with this data. Close its window, wait two minutes for clark to stop, then run the restore again."
     return (f"Nothing was started: clark is already open with the data in {with_tilde(folder)}. Switch to its window. If you can't "
-            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+            "find it, wait two minutes and try again: clark stops by itself two minutes after its last window closes.")
 
 
 def cant_check(folder, restoring=False):
