@@ -59,7 +59,7 @@ def texts(o, path=""):
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
 # One approved sentence names the company that runs the service ("Claude"): approved wording (NEW-WORDS, row 1366 AP27 item 6), exempt as these exact texts only (items 6 and the pictures sentence, row 1616).
 APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",
-                  "On a Mac, pictures (PNG and JPG) are read on this Mac and are never sent out; text found in them goes to Claude only when it contains words from your question.")
+                  "On a Mac, pictures (PNG and JPG) in your folders are read on this Mac and are never sent out; text found in them is treated like any other passage from your folders.")
 
 
 def without_approved(s):
