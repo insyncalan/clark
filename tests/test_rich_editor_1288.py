@@ -168,12 +168,12 @@ class Editor(unittest.TestCase):
                             self.assertNotEqual(rgb(c), [59, 111, 212], f"{tag}: dark keeps the theme's label colour, {c}")
                     h.ev("window.unmount(); true")
         # Cards is frozen: its own menu rules (edit.css, outside the Classic theme files) keep the muted label and 240 px, and rules.css does not grow.
-        edit = (JS / "edit" / "edit.css").read_text()
+        edit = (JS / "edit" / "edit.css").read_text(encoding="utf-8")
         self.assertRegex(edit, r"\.aim \{[^}]*min-width: 240px")
         self.assertRegex(edit, r"\.aim-gl \{[^}]*color: var\(--text-muted\)")
         themes = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
         self.assertLessEqual((themes / "rules.css").stat().st_size, 131072)
-        two = (themes / "rules-2.css").read_text()
+        two = (themes / "rules-2.css").read_text(encoding="utf-8")
         self.assertLess(two.index(".aim-gl { color: rgb(59, 111, 212)"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
