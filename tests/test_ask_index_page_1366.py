@@ -233,10 +233,23 @@ class FiveStates(Fixture):
             js = self.show(cdp, "all")
             self.check(cdp, js, "#ask-all-folder-list .ask-folder-line", "Indexed for 3 of 3 projects")
             self.assertEqual(js("document.querySelector('#ask-all-folder-list .ask-folder-live').textContent"), "100% indexed")
+            self.assertNotIn("100% indexed", js("document.querySelector('#ask-all-folder-list .ask-folder-line').innerText"))
         self.svc.indexed_counts = lambda folders: {path: [2, 3]}
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed for 2 of 3 projects'", "2 of 3")
+            self.assertNotIn("100% indexed", js("document.querySelector('#ask-all-folder-list .ask-folder-line').innerText"))
+
+    def test_a_project_tab_keeps_100_percent_indexed_for_its_own_and_an_all_projects_folder(self):
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        self.svc.indexed_counts = lambda folders: {str(self.shared): [3, 3]}
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, "document.querySelectorAll('.ask-folder-line').length === 2", "two lines")
+            self.until(js, "[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('100% indexed'))", "100% indexed")
+            self.assertFalse(js("[...document.querySelectorAll('.ask-folder-line')].some(e => e.innerText.includes('Indexed for'))"))
 
     def test_the_all_projects_tab_failed_link_asks_for_the_read_again(self):
         ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})

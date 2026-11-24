@@ -300,6 +300,7 @@ class FiveStates(Base):
         got = ix.status_for("ABC", [a, b])
         self.assertEqual(got[a]["state"], "reading")
         self.assertEqual(got[b], {"state": "waiting", "line": "Waiting to index"})
+        self.assertEqual(ix.peek("ABC", [a, b])[b]["state"], "waiting")      # the count of indexed projects reads the same states and starts nothing
         gate.set()
         self.assertTrue(ix.wait_idle(5))
         self.assertEqual({v["state"] for v in ix.status_for("ABC", [a, b]).values()}, {"done"})
@@ -330,6 +331,10 @@ class FiveStates(Base):
         self.assertTrue(ask_index.refresh(self.data, "ABC", [a, b], self.home))
         self.put(self.b, "three.txt", "beta lake")
         self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", [a, b], self.home), {b: 1})
+        (self.b / "three.txt").unlink()
+        (self.b / "two.txt").unlink()
+        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", [a, b], self.home), {b: 1})      # a file gone counts too
+        self.put(self.b, "three.txt", "beta lake")
         got = ask_index.folder_status(self.data, "ABC", [a, b], {a: (0, 1)}, busy=True, changed={b: 1})
         self.assertEqual(got[b]["line"], "Updating\u2026 1 file changed")
 
@@ -359,6 +364,38 @@ class FiveStates(Base):
         self.assertTrue(bad.wait_idle(5))
         self.assertEqual(calls, ["ABC", "ABC"])
 
+    def test_a_read_started_again_clears_failed_and_cleared_and_asking_off_forgets_the_index(self):
+        self.put(self.a, "one.txt", "alpha river")
+        a = str(self.a)
+        flag = {"fail": True, "on": True}
+        real = ask_index.refresh
+
+        def once(data, code, folders, home=None, stop=None, progress=None):
+            if flag["fail"]:
+                raise RuntimeError("x")
+            return real(data, code, folders, home, stop=stop, progress=progress)
+        ix = ask_index.Indexer(self.data, self.home, refresh_fn=once, allowed=lambda: flag["on"])
+        self.addCleanup(ix.shutdown)
+        ix.start("ABC", [a])
+        self.assertTrue(ix.wait_idle(5))
+        self.assertEqual(ix.status_for("ABC", [a])[a]["state"], "failed")
+        flag["fail"] = False
+        ix.start("ABC", [a])                            # Try again
+        self.assertTrue(ix.wait_idle(5))
+        self.assertEqual(ix.status_for("ABC", [a])[a]["state"], "done")
+        ask_index.remove(self.data, "ABC")
+        self.assertEqual(ix.status_for("ABC", [a])[a]["state"], "cleared")
+        ix.start("ABC", [a])                            # Index again
+        self.assertTrue(ix.wait_idle(5))
+        self.assertEqual(ix.status_for("ABC", [a])[a]["state"], "done")
+        flag["on"] = False                              # asking Off deletes the index; On again builds it, it is not "cleared"
+        self.assertEqual(ix.status_for("ABC", [a]), {})
+        flag["on"] = True
+        ix.checked.clear()                              # the poll looks at most once every few seconds
+        self.assertNotEqual(ix.status_for("ABC", [a]).get(a, {}).get("state"), "cleared")
+        self.assertTrue(ix.wait_idle(5))
+        self.assertEqual(ix.status_for("ABC", [a])[a]["state"], "done")
+
 
 class IndexAgain(Route):
     """Row 1371: the Try again and Index again links ask the server to read the folders again (action "reindex", nothing saved)."""
@@ -380,6 +417,21 @@ class IndexAgain(Route):
         self.svc.change_all({"scope": "all", "action": "add", "path": str(self.a)})
         self.assertTrue(self.ix.wait_idle(10))
         self.assertEqual(self.svc.read_all("ABC")[1]["projects"], {str(self.a): [1, 1]})
+
+    def test_the_count_leaves_out_archived_projects_and_counts_only_finished_ones(self):
+        store = st.open_store(self.db, onedrive_roots=[])
+        with store.step("dashboard", "tester", place="menu") as step:
+            step.create("projects", {"code": "NEW", "name": "Second"})
+            step.create("projects", {"code": "OLD", "name": "Old"})
+        with store.step("dashboard", "tester", place="menu") as step:
+            step.archive("projects", "OLD")
+        store.close()
+        self.put(self.a, "one.txt", "alpha river")
+        with mock.patch.object(self.svc, "reindex"):
+            self.svc.change_all({"scope": "all", "action": "add", "path": str(self.a)})
+        self.ix.start("ABC", [str(self.a)])
+        self.assertTrue(self.ix.wait_idle(10))
+        self.assertEqual(self.svc.read_all("ABC")[1]["projects"], {str(self.a): [1, 2]})      # NEW has no index yet; OLD is archived
 
 
 if __name__ == "__main__":
