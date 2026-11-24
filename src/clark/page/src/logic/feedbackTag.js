@@ -32,11 +32,11 @@ const SETTINGS_NAMES = { "": "Projects", projects: "Projects overview", people: 
 function text(x) { return x == null ? "" : String(x); }
 const kindOf = (k) => (KINDS.includes(k) ? k : DEFAULT_KIND);
 
-/** Whether the tag is drawn: Help, or a Settings page other than the one that holds the Feedback card (and not while a search shows that card); never in a published file or an as-at view. */
-export function tagShown({ view, page, helpOpen, fromFile, past, feedbackCard } = {}) {
+/** Whether the tag is drawn: Help, or any Settings page; never in a published file or an as-at view. */
+export function tagShown({ view, page, helpOpen, fromFile, past } = {}) {
   if (fromFile || past) return false;
   if (helpOpen) return true;
-  return view === "settings" && page !== "version" && !feedbackCard;   // feedbackCard: Settings search is showing the Feedback card
+  return view === "settings";
 }
 
 /** The page the user was on, in words, for the added lines. */

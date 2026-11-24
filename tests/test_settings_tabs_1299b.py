@@ -83,7 +83,7 @@ class Tabs(Base):
                     self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), f"{slug} has no tabs")
 
     def test_T_a_click_on_another_tab_changes_the_settings_project_and_nothing_else(self):
-        """The tab switch is off (Views.jsx SWITCH_TABS) until the project cards follow the chosen tab: the other tab cannot be chosen, nothing moves."""
+        """The tab switch is off (stores/report.js switchTabs) until the project cards follow the chosen tab: the other tab cannot be chosen, nothing moves."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400, slug="people")

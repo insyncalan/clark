@@ -1,6 +1,6 @@
 """Row 1402 in the Classic Theme: the Settings Projects card as the prototype draws it (issue 1402, Classic audit 19-11), on the REAL Settings page, as Chrome
 computes it at 1400 (the spec) and 900 (also checked), light and dark; Cards as the control.
-Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no vertical dividers between header cells; cell padding 8px 10px 8px 0 (header and body);
+Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no vertical dividers between header cells; body cell padding 8px 10px 8px 0, header padding 6px 10px 6px 0, header weight 600 in the muted colour, 1px --line-soft rule under each body cell (row 1317);
 Add project is navy rgb(6, 47, 58), white text, radius 8. Dark keeps the Theme's tokens for colours.
 
 Run: python3 dev/run_tests.py test_settings_projects_1402"""
@@ -17,6 +17,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p]; i.remove(); return r; };
   return { thBottom: [g(th, 'borderBottomWidth'), g(th, 'borderBottomStyle'), g(th, 'borderBottomColor')].join(' '), thLeft2: g(th2, 'borderLeftWidth'), thRight: g(th, 'borderRightWidth'),
     tdLeft: g(td2, 'borderLeftWidth'), thPad: pad(th), thPad2: pad(th2), tdPad: pad(td), tdPad2: pad(td2),
+    thWeight: g(th, 'fontWeight'), thWeight2: g(th2, 'fontWeight'), thColor: g(th, 'color'), thColor2: g(th2, 'color'), tdBottom: [g(td, 'borderBottomWidth'), g(td, 'borderBottomStyle'), g(td, 'borderBottomColor')].join(' '), tdBottom2: [g(td2, 'borderBottomWidth'), g(td2, 'borderBottomStyle'), g(td2, 'borderBottomColor')].join(' '), muted: tok('var(--text-muted)', 'color'), lineSoft: tok('var(--line-soft)', 'borderTopColor'),
     btnBg: g(btn, 'backgroundColor'), btnColor: g(btn, 'color'), btnRadius: g(btn, 'borderTopLeftRadius'), brand: tok('var(--brand-blue)', 'backgroundColor'), grey200: tok('var(--grey-200)', 'borderTopColor') }; })()"""
 
 
@@ -54,7 +55,13 @@ class ProjectsCard(t13.RealSettings):
             self.assertEqual((c["thLeft2"], c["thRight"], c["tdLeft"]), ("0px", "0px", "0px"), tag + ": no dividers between cells")
             self.assertTrue(c["thBottom"].startswith("1px solid "), tag + ": 1px rule under the header, got " + c["thBottom"])
             self.assertEqual(c["thBottom"], "1px solid " + ("rgb(217, 224, 239)" if light else c["grey200"]), tag)
-            self.assertEqual((c["thPad"], c["thPad2"], c["tdPad"], c["tdPad2"]), ("8px 10px 8px 0px",) * 4, tag + ": cell padding 8px 10px 8px 0")
+            self.assertEqual((c["thPad"], c["thPad2"]), ("6px 10px 6px 0px",) * 2, tag + ": header padding 6px 10px 6px 0 (row 1317)")
+            self.assertEqual((c["tdPad"], c["tdPad2"]), ("8px 10px 8px 0px",) * 2, tag + ": body cell padding 8px 10px 8px 0")
+            self.assertEqual((c["thWeight"], c["thWeight2"]), ("600", "600"), tag + ": header weight 600 (row 1317)")
+            self.assertEqual((c["thColor"], c["thColor2"]), (c["muted"],) * 2, tag + ": header in the muted text colour (row 1317)")
+            self.assertEqual((c["tdBottom"], c["tdBottom2"]), ("1px solid " + c["lineSoft"],) * 2, tag + ": body cell 1px --line-soft rule (row 1317)")
+            if light:
+                self.assertEqual(c["lineSoft"], "rgb(233, 237, 246)", tag + ": --line-soft is #E9EDF6")
             self.assertEqual(c["btnRadius"], "8px", tag)
             if light:
                 self.assertEqual((c["btnBg"], c["btnColor"]), ("rgb(6, 47, 58)", "rgb(255, 255, 255)"), tag + ": navy Add project, white text")

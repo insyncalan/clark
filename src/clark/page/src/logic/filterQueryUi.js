@@ -300,6 +300,12 @@ export function withCounts(options, chips, rows, ctx, extra) {
   });
 }
 
+/** Row 1290: a chip made of plain words (not a field, is, has or no filter) takes the grey word look, class "fchip word". */
+export function chipClass(chip, rows, ctx, extra) {
+  const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  return t && t.kind === "text" ? "fchip word" : "fchip";
+}
+
 /** The word a chip's remove button names: the field's name, or the whole chip for is, has and no (two is: chips must not both be "the is filter"). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];

@@ -20,7 +20,7 @@ WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
 # Row 1024: Settings shows one page at a time. The pages by group, as the menu names them, with the cards (name, heading id) each draws.
@@ -127,7 +127,19 @@ class Head(Base):
             p.settled("the scroll to the menu item finished")
             if os.environ.get("CLARK_TEST_LATE_SCROLL") == "1":      # tests only: the wheel's scroll arrives after the page looked still (macOS headless), once per chip
                 p.js("window.__late = window.__late || 0; if (window.__late++ % 6 === 0) window.scrollTo(0, 99999)")
-            at = p.js(f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()")
+            measure = f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()"
+            at = p.js(measure)
+            if not (0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]):
+                # macOS run 45203372794, job 137792514843: the chip was read at y=1044 in a 900 px window with scrollY=0 after all 6 tries, so the scroll was
+                # not applied (or was put back to 0) when it was measured. A GUESS, not measured: this try waits up to 3 s for the scroll to land, bringing the chip to the middle on each look; no run shows yet that it helps.
+                seen = [at]
+
+                def looked():
+                    p.js(f"{find}.scrollIntoView({{block: 'center', behavior: 'instant'}})")
+                    seen[0] = p.js(measure)
+                    return 0 <= seen[0][0] <= seen[0][2] and 0 <= seen[0][1] <= seen[0][3]
+                wait(looked, 3)
+                at = seen[0]
             if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
                 break
         self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")

@@ -26,8 +26,8 @@ MS, UC = "Pilot wave 2", "Reporting set-up"
 
 
 def work_item(path, text="Set up the test rig", ms=MS, uc=UC, sheet="Actions"):
-    cells = {"Actions": {"Description": text, "Milestone": ms, "Use case": uc},
-             "Risks & Issues": {"Description": text, "Type": "Risk", "Status": "Open", "Milestone": ms, "Use case": uc},
+    cells = {"Actions": {"Title": text, "Milestone": ms, "Use case": uc},
+             "Risks & Issues": {"Title": text, "Type": "Risk", "Status": "Open", "Milestone": ms, "Use case": uc},
              "Decisions": {"Decision": text, "Status": "Pending", "Use case": uc}}[sheet]    # the Decisions sheet has no Milestone column
     add_row(path, sheet, **cells)
 

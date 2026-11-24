@@ -183,7 +183,7 @@ class ImportLook(Look, TemplatePage):
             self.addCleanup(__import__("shutil").rmtree, tmp, True)
             p = self.ready(cdp, w, scheme)
             self.open_box(p)
-            self.choose(p, edited(self.rig, tmp, Description="Agree the cut-over plan, version two"))
+            self.choose(p, edited(self.rig, tmp, Title="Agree the cut-over plan, version two"))
             p.until("!!document.querySelector('#import-summary')", "the check")
             at, box = f"Check the import {w} {scheme}", "#import-box"
             self.assertLooks(p.js, "#import-box-t", box, scheme, at + " title", surface=box)

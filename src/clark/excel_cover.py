@@ -69,6 +69,14 @@ def return_note(owner=None, email=None):
     return RETURN_WITH.format(owner=owner, email=f" ({email})" if email else "")
 
 
+TRACKER_LABEL = "Achieved"                # the page's own label for the overall figure (logic/tracker.js WORDS.actual)
+
+
+def tenths_text(n):
+    """Tenths of a percent as the page writes a figure: 625 is 62.5, 940 is 94, 5 is 0.5."""
+    return f"{n // 10}" if n % 10 == 0 else f"{n // 10}.{n % 10}"
+
+
 def _line(kind, text="", **more):
     """One Cover line: {"kind", "text"} and whatever else that kind carries."""
     line = {"kind": kind, "text": text}
@@ -172,6 +180,10 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
             part = [_tile(t) for t in tiles or [] if not t.get("hidden")]
             if part:
                 out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
+        elif kind == "tracker":              # row 1420: one line, the overall achieved figure of the published entry; nothing when it has none
+            actual = (sec.get("overall") or {}).get("actual") if type(sec.get("overall")) is dict else None
+            if type(actual) is int and not isinstance(actual, bool) and 0 <= actual <= 1000:
+                out.append(_line("text", f"{TRACKER_LABEL} {tenths_text(actual)}%"))
         elif kind == "text":
             body = plain(sec.get("body"))
             nxt = shown[i + 1] if i + 1 < len(shown) else {}

@@ -3,7 +3,7 @@ Run: python3 dev/run_tests.py test_projects_overview_ui_1299
 
 Asserted: the page draws the ticket's intro, the issue line ("<n> to look at: ..." with the ruled words, singulars), the two filters with their counts, the seven columns, a row for
 each project with Not set / Today / n days ago words; Needs attention keeps only the projects with something to look at; a click on a value opens that setting
-for that project (the page, the Affects line, the chosen tab). Cards draws none of it. Chrome is required: these tests fail, never skip, without it."""
+for that project (the page; with the project switch off the Affects line and chosen tab stay the open project). Cards draws none of it. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 from clark import page, theme
@@ -85,15 +85,19 @@ class Overview(Base):
             p.until("document.querySelectorAll('.ov-table tbody tr').length === 2", "all again")
 
     def test_O_a_click_on_a_value_opens_that_setting_for_that_project(self):
-        for key, slug in (("client", "Brand and publishing"), ("review", "Reports and pages"), ("asking", "ask clark"), ("backup", "Backups")):
-            with self.subTest(value=key), chrome() as cdp:
+        for w, (key, slug) in ((w, kv) for w in WIDTHS for kv in (("client", "Brand and publishing"), ("review", "Reports and pages"), ("asking", "ask clark"), ("backup", "Backups"))):
+            with self.subTest(width=w, value=key), chrome() as cdp:
                 p = self.page(cdp)
-                self.open_settings(p, 1400)
+                self.open_settings(p, w)
                 p.until("!!document.querySelector('#projects-overview .ov-table')", "the overview drew")
+                before = (list(self.rig.store.con.iterdump()), [dict(r, attention=list(r["attention"])) for r in self.rows])      # everything stored, and ABC's overview row
                 p.js(f"document.querySelector('tr[data-ov-project=ABC] [data-ov={key}]').click()")
                 p.until(f"document.querySelector('.set-chip[aria-current]').textContent.trim() === {slug!r}", "the page opened")
                 if key != "backup":
-                    self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: ABC")
+                    self.assertEqual(p.js("document.querySelector('.set-affects').textContent.trim()"), "Affects: PUB", "the switch is off: the cards edit the open project, so no other project is chosen")
+                    p.until("!!document.querySelector('.set-tab[aria-current]')", "the project tabs drew")      # the tabs are read after the page opens
+                    self.assertEqual(p.js("document.querySelector('.set-tab[aria-current]').textContent.trim()"), TWO[0]["name"])
+                self.assertEqual(before, (list(self.rig.store.con.iterdump()), self.rows), "nothing of ABC (or any project) was edited by the click")
 
 
 class OverviewClean(Overview):
