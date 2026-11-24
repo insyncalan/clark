@@ -208,6 +208,25 @@ class AskFolders:
         except Exception:                                   # noqa: BLE001 the folder change is saved; the read is only a copy
             pass
 
+    def start_missing(self):
+        """At launch: start the background read for every project that has a saved folder but no index file yet (a first start after an update, a deleted index).
+        A project whose index exists is left to the poll and the question, which carry on or refresh it. Never raises, never waits."""
+        if self.indexer is None:
+            return
+        try:
+            from clark import ask_index
+            store = self.store()
+            try:
+                codes = [r["code"] for r in store.read("projects") if not r.get("archived")]
+            finally:
+                store.close()
+            for c in codes:
+                folders = self.all_folders(c)
+                if folders and not ask_index.path_for(self.data_dir, c).exists():
+                    self.indexer.start(c, folders)
+        except Exception:                                   # noqa: BLE001 the read is only a copy; the poll and the question start it later
+            pass
+
     def save_shared(self, folders):
         """One atomic write of the list; False when it can't be written. No folder on disk is touched."""
         target = self.data_dir / SHARED_FILE

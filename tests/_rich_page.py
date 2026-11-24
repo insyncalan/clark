@@ -5,7 +5,7 @@ same aliases and the page's own CSS) into a temporary folder, opens it in headle
 the test `ev` (evaluate in the page), `key`, `type`, `resize` and `theme`. The page offers:
   unmount()             removes it
   mount(value)          draws RichText for `value`; window.saves has every html it saved, window.ended counts closes
-  window.CE             { clarkEditor, cleanHtml, toHtml, forEditor, href }
+  window.CE             { clarkEditor, cleanHtml, toHtml, forEditor, href, richOrPlain }
 Fictional text only.
 """
 import json
@@ -28,15 +28,16 @@ import { RichText } from %(rich)s;
 import { clarkEditor } from %(editor)s;
 import { toHtml, forEditor } from %(html)s;
 import { cleanHtml, href } from %(clean)s;
+import { richOrPlain } from %(plain)s;
 import %(fade)s;
-window.CE = { clarkEditor, cleanHtml, toHtml, forEditor, href };
+window.CE = { clarkEditor, cleanHtml, toHtml, forEditor, href, richOrPlain };
 window.saves = []; window.ended = 0; window.saveResult = true;
 const root = document.getElementById("root");
 window.unmount = () => render(null, root);
-window.mount = (value) => {
+window.mount = (value, ai, oneLine) => {
   render(null, root);
   window.saves = []; window.ended = 0; window.saveResult = window.saveResult === undefined ? true : window.saveResult;
-  render(<RichText value={value} label="Test text"
+  render(<RichText value={value} label="Test text" ai={ai || null} oneLine={!!oneLine}
     onSave={(h) => { window.saves.push(h); return Promise.resolve(window.saveResult); }}
     onClose={() => { window.ended += 1; render(null, root); }} />, root);
 };
@@ -56,7 +57,7 @@ def bundle(tmp):
     q = lambda *p: json.dumps(str(PAGE_SRC.joinpath(*p)))  # noqa: E731
     entry = Path(tmp) / "entry.jsx"
     entry.write_text(ENTRY % {"rich": q("edit", "RichText.jsx"), "editor": q("core", "editor.js"), "html": q("core", "richHtml.js"),
-                              "clean": q("logic", "cleanHtml.js"), "fade": q("edit", "fadeCopy.js")}, encoding="utf-8")
+                              "clean": q("logic", "cleanHtml.js"), "plain": q("logic", "richOrPlain.js"), "fade": q("edit", "fadeCopy.js")}, encoding="utf-8")
     out = Path(tmp) / "rich.js"
     args = ["--bundle", "--format=iife", "--target=es2020", "--tsconfig-raw={}", "--loader:.jsx=jsx", *build_page.preact_flags(),
             str(entry), f"--outfile={out}"]
@@ -127,8 +128,8 @@ class Harness:
         """The page counts as focused (the editor's leave handler ignores a blur while document.hasFocus() is false). Waits, then says so plainly."""
         assert self.until("document.hasFocus() === true"), "the test page never got the window focus, so a blur would not count as leaving the field"
 
-    def mount(self, value=""):
-        self.ev(f"window.mount({json.dumps(value)})")
+    def mount(self, value="", ai=None, one_line=False):
+        self.ev(f"window.mount({json.dumps(value)}, {json.dumps(ai)}, {json.dumps(one_line)})")
         assert self.until("!!document.querySelector('.rt .ProseMirror')"), "the editor did not open"
         assert self.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')"), "the editor has no focus"
         # The editor's own focus call runs on a frame. Until that frame has run, a test that moves the focus away is undone by it

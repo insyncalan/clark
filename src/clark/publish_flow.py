@@ -789,6 +789,11 @@ class Publisher:
         folder and the step that adds the file to the section (section_files.py has the rules)."""
         return section_files.attach(self, body)
 
+    def drop_section_file(self, code, section, name, data):
+        """POST /api/section-file-drop (row 1275): one file dropped on a Documents and links section, `name` as the page sent it
+        (a header, URL-encoded). The same rules as section_file (section_files.drop)."""
+        return section_files.drop(self, code, section, name, data)
+
     def read_section_file(self, code, name):
         """GET /api/section-file?project=&name= (#1221): (status, body) for one listed file of the project (section_files.read)."""
         return section_files.read(self, code, name)
