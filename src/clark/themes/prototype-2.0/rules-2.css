@@ -84,6 +84,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
+/* Row 1475 (Classic only): a Work items section with a list is a column, so its foot (Show all items at the left, Review all N items at the right, one line) sits at the bottom of the card: the two footers of a half width pair are level at any list length. */
+.sec:has(> .wil) { display: flex; flex-direction: column; }
+.sec > .wil { flex: 1 1 auto; display: flex; flex-direction: column; }
+.sec > .wil > * { flex: none; }
+.sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
+.wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
