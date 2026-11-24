@@ -29,8 +29,8 @@ export const PLACE_OF = {
   "movement.reason": "plain",
   "movement.source": "plain",
   "raid.own_words": "plain",         // a RAID entry's Own words (row 1005)
-  // A picture's caption: one plain line (row 1005).
-  "picture.caption": "plain",
+  // A picture's caption: the Full editor (row 1288).
+  "picture.caption": "current",
   // The Draft email preview.
   "email.draft": "email",
 };

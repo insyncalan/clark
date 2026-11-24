@@ -1,4 +1,4 @@
-"""Row 1005: the other fields saved as one line of plain text (a picture's caption, the Movement form's Who agreed it, Reason and Source, a RAID
+"""Row 1005: the other fields saved as one line of plain text (the Movement form's Who agreed it, Reason and Source, a RAID
 card's Own words) are the one-line editor too: no / menu, no formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks,
 because what they save is plain words. 1400 and 900. Fictional data only.
 
@@ -26,8 +26,23 @@ def widths(p):
 
 class Caption(PicturePage):
     KIND = "imagecap"
+    HTML = "<p>Fine <strong>words</strong></p><p>second line</p>"
 
-    def test_a_caption_is_the_one_line_editor(self):
+    def stored(self, ref):
+        return self.body(ref).get("caption", "")
+
+    def wait_for(self, fn, seconds=10):
+        import time
+        end = time.time() + seconds
+        while time.time() < end:
+            if fn():
+                return True
+            time.sleep(0.1)
+        return False
+
+    def test_a_caption_is_the_full_editor_and_saves_its_html(self):
+        """Row 1288: a caption is the Full editor; an older plain caption is shown as the same words and left alone; Ctrl+B and the toolbar are
+        there; what is saved is the editor's HTML and one Undo puts the older caption back."""
         ref = self.add({"v": 1, "caption": "Fictional caption", "pictures": {"image": GOOD}})
         with self.chrome() as cdp:
             p = self.visit(cdp)
@@ -37,9 +52,18 @@ class Caption(PicturePage):
             for where in widths(p):
                 p.js(f"document.querySelector({json.dumps(view)}).click()")
                 p.until("document.activeElement.classList.contains('ProseMirror')", "opened with the focus in it")
-                plain_only(self, p, f"caption {where}")
+                self.assertEqual(p.js("document.activeElement.innerText.trim()"), "Fictional caption", f"{where}: shown as the same words")
+                self.assertTrue(p.js("!!document.querySelector('.rt-bar [aria-label=\"Bold\"]')"), f"{where}: the Full toolbar")
                 p.key("Escape", code="Escape", vk=27)
                 p.until(f"!document.querySelector('[data-id={json.dumps(ref)}] .ProseMirror')", "closed")
+                self.assertEqual(self.stored(ref), "Fictional caption", f"{where}: opening and leaving it changes nothing")
+            p.js(f"document.querySelector({json.dumps(view)}).click()")
+            p.until("document.activeElement.classList.contains('ProseMirror')", "opened")
+            p.js(f"document.activeElement.cxed.editor.commands.setContent({json.dumps(self.HTML)})")
+            p.key("Enter", modifiers=2, code="Enter", vk=13)
+            self.assertTrue(self.wait_for(lambda: self.stored(ref) == self.HTML), "saved as the editor's HTML")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.assertTrue(self.wait_for(lambda: self.stored(ref) == "Fictional caption"), "one Undo puts the older caption back")
 
 
 class Move(tmp.Base):
