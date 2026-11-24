@@ -33,7 +33,7 @@ class Base(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
         self.path = self.store.path
-        self.action = self.demo.action(owner="Sam Lee", client_visible=1)
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, so no client tick here
         self.provider = ask.StubProvider(reply="")
         self.service = ask_service.AskService(self.path, self.provider, [], applier=ask_apply.AskApply(self.path, [], USER))
         self.s = Running()
@@ -203,7 +203,7 @@ class OnceOnly(Base):
     def test_a_new_item_is_made_once_however_often_apply_is_pressed(self):
         got = self.answer(change_line(op="new", kind="action", title="Book the room", owner="Sam Lee"))
         offer = self.dry(got["reply"])[1]["plans"][0]["offer"]
-        results = [self.apply(offer)[0] for _ in range(3)]
+        results = [self.apply(offer, confirm=True)[0] for _ in range(3)]
         self.assertEqual(results, [200, 409, 409])
         self.assertEqual(len([r for r in self.store.read("actions", "ABC") if r["description"] == "Book the room"]), 1)
 
@@ -288,7 +288,7 @@ class TheDryRunAndUndo(Base):
         got = self.answer(change_line(op="new", kind="milestone", title="Training done", owner="Sam Lee", agreed_date="2030-05-01"))
         plan = self.dry(got["reply"])[1]["plans"][0]
         self.assertIsNone(plan["before"])
-        done = self.apply(plan["offer"])[1]
+        done = self.apply(plan["offer"], confirm=True)[1]
         self.assertEqual(self.store.read("milestones", ref=done["ref"])["name"], "Training done")
         self.assertEqual(self.s.api("POST", "/api/undo", {"project": "ABC", "apply_id": done["apply_id"]})[0], 200)
         row = self.store.read("milestones", ref=done["ref"])
