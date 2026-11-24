@@ -138,7 +138,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   const gripKey = (e) => {                          // a slider's keys: Up and Right raise the value, Down and Left lower it, Home is the lowest, End the highest
     const k = e.key;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
-    if (k === "ArrowUp" || k === "ArrowRight") zoomTo(clampZoom(Math.round((z + 0.1) * 100) / 100), true);
+    if (k === "ArrowUp") zoomTo(clampZoom(Math.round((z + 0.1) * 100) / 100), true);
     else if (k === "ArrowDown" || k === "ArrowLeft") zoomTo(clampZoom(Math.round((z - 0.1) * 100) / 100), true);
     else if (k === "Home") zoomTo(ZOOM_MIN, true);
     else if (k === "End") zoomTo(ZOOM_MAX, true);
