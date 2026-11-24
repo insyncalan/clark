@@ -28,7 +28,7 @@ export const CARD_SENT = "Your question and what it needs go to Claude.";
 export const CARD_LINK = "What will be sent? (Settings)";
 // row 1366 AP27: the passages line and the pictures line, words approved in NEW-WORDS (items 6 and 10).
 export const CARD_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
-export const CARD_PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out.";
+export const CARD_PICTURES = "On a Mac, pictures (PNG and JPG) are read on this Mac and are never sent out; text found in them goes to Claude only when it contains words from your question.";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
 export const CARD_TIP_AFTER = " in the box for slash commands.";

@@ -201,7 +201,7 @@ class Files(Base):
 
 class FirstRunAndHelpWords(unittest.TestCase):
     """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (items 6 and 10)."""
-    PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+    PICTURES = "On a Mac, pictures (PNG and JPG) are read on this Mac and are never sent out; text found in them goes to Claude only when it contains words from your question."
     SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
 
     def test_first_run_card_and_help_state_passages_go_to_claude(self):
@@ -253,6 +253,26 @@ class QuestionNeedsNoPassages(RouteBase):
         unneeded = self.ask("milestones")
         self.assertNotIn("zebrafish", unneeded)
         self.assertNotIn("tank.txt", unneeded)
+
+    def test_a_pictures_text_is_sent_only_when_the_question_matches_and_the_picture_never_is(self):
+        """Row 1616 (the first-run and Help sentence): text found in a picture goes to the provider only when the question has one of its words, and the
+        picture file itself, its bytes, never does."""
+        from clark import ask_picture, platform as pl
+        reader = lambda raw: raw.decode("latin-1").split("|", 1)[-1]
+        for p in (mock.patch.object(ask_picture.platform, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", reader)):
+            p.start()
+            self.addCleanup(p.stop)
+        (self.box / "scan.png").write_bytes(b"RAWBYTESzqnever|the quarterly xylophone invoice")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        needed = self.ask("what does the xylophone invoice say")
+        self.assertIn("quarterly xylophone invoice", needed, "control: a question with a word of the picture's text sends that text")
+        self.assertIn("scan.png", needed)
+        unneeded = self.ask("milestones")
+        self.assertNotIn("xylophone", unneeded)
+        self.assertNotIn("scan.png", unneeded)
+        for sent in (needed, unneeded):
+            self.assertNotIn("RAWBYTES", sent, "the picture file's own bytes are never sent")
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
         self.service.indexer = None                       # no current index: the folders are read at question time
