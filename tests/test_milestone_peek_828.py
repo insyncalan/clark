@@ -55,6 +55,10 @@ class Fields(Base):
         p = Pg.at(self, cdp, self.s.port, f"#{view}&p=ABC&ms={ms}")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until("!!document.querySelector('#peek')", "the peek drew")
+        # Row 1588: the metrics override sends the page a resize a frame later; a picker opened before it lands is closed by it (Pop.jsx closes on resize).
+        p.until(f"window.innerWidth === {width}", f"the window is {width} wide")
+        p.js("window.__f2 = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__f2 = 1; }))")
+        p.until("window.__f2 === 1", "two frames drew after the resize")
         if theme:
             p.js(f"document.documentElement.dataset.theme = '{theme}'")
         return p
