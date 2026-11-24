@@ -557,7 +557,7 @@ class Timing(Base):
 
         def boom():
             raise RuntimeError("secret /Users/someone/.claude token abc123")
-        provider.command.command = staticmethod(boom)
+        provider.command.command = boom
         self.svc(claude=provider)
         status, body = self.verify("claude")
         self.assertEqual((status, body["code"], body["message"]), (409, "no_answer", "Claude did not answer."))
