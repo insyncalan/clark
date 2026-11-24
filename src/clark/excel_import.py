@@ -1311,6 +1311,11 @@ def _gantt_sheet(self, ws):
 _Reader.gantt_sheet = _gantt_sheet
 
 
+# item 1390: the two Milestones columns an older export wrote (State set by you; the mock-up calls them State chosen and Chosen by you):
+# the import no longer reads them and does not mention them either.
+OLD_STATE_COLUMNS = {"state_set", "state_set_by_you", "state_chosen", "chosen_by_you"}
+
+
 def header_map(first_row, table, cols, sheet):
     """(header, named, ignored) for a sheet's first row: header[column] = its position, named[column] = the heading as written,
     ignored = headings the import does not know. read_workbook and list_sheets read the heading row the same way (issue 737)."""
@@ -1324,8 +1329,8 @@ def header_map(first_row, table, cols, sheet):
         if h is None or h is _FORMULA or not str(h).strip():
             continue
         k = labels.get(str(h).strip().lower()) or _key(h)       # the export's label first, then a column name
-        if k in excel.DERIVED:
-            continue                                  # worked out by the export (Original, Shown state): never read back
+        if k in excel.DERIVED or k in OLD_STATE_COLUMNS:
+            continue                                  # worked out by the export (Original, State), or an old state column: never read, said nowhere
         if k in cols and k in header:
             raise Invalid(f"The {sheet} sheet has two columns for the same thing: “{named[k]}” and “{str(h).strip()}”. Keep one of "
                           "them and import again. Nothing was changed.")

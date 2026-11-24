@@ -55,7 +55,7 @@ class Folders(unittest.TestCase):
 class WhatIsRead(Folders):
     def test_text_and_word_files_become_labelled_passages(self):
         self.put(self.box, "notes/plan.md", "ZQ-TEXT the plan is on track")
-        self.put(self.box, "weekly.docx", tdx.docx(tdx.P("ZQ-WORD the budget is agreed")), binary=True)
+        self.put(self.box, "weekly.docx", tdx.docx(tdx.P("ZQ-WORD the plan budget is agreed")), binary=True)
         got = self.run_it()
         self.assertIn("ZQ-TEXT", self.text_of(got))
         self.assertIn("ZQ-WORD", self.text_of(got))
@@ -65,9 +65,18 @@ class WhatIsRead(Folders):
             self.assertNotIn(str(self.d), label)
         self.assertEqual(got.safety, 0)
 
+    def test_only_a_passage_sharing_a_word_with_the_question_is_sent(self):     # row 1366 AP27
+        self.put(self.box, "tank.txt", "ZQ-TANK the zebrafish tank is cleaned on Tuesdays")
+        self.assertIn("ZQ-TANK", self.text_of(self.run_it("when is the zebrafish tank cleaned")), "control: a matching question sends it")
+        for question in ("milestones", "?? !!", ""):
+            got = self.run_it(question)
+            self.assertEqual((got.passages, got.left_out), ((), 0), question)
+            from clark import ask_service
+            self.assertEqual(ask_service.left_out_note(got.left_out), "", "nothing was too long, so the person is told nothing of the kind: " + repr(question))
+
     def test_a_file_outside_the_saved_folder_is_never_read(self):
         self.put(self.other, "outside.txt", "ZQ-OUTSIDE")
-        self.put(self.box, "in.txt", "ZQ-IN")
+        self.put(self.box, "in.txt", "ZQ-IN plan")
         got = self.run_it()
         self.assertNotIn("ZQ-OUTSIDE", self.text_of(got))
         self.assertIn("ZQ-IN", self.text_of(got))
@@ -84,7 +93,7 @@ class WhatIsRead(Folders):
         self.put(self.box, ".env", "ZQ-ENV=1")
         self.put(self.box, "prod.env", "ZQ-ENV2=1")
         self.put(self.box, "tls/server.pem", "ZQ-PEM")
-        self.put(self.box, "ok.txt", "ZQ-OK")
+        self.put(self.box, "ok.txt", "ZQ-OK plan")
         got = self.run_it()
         self.assertNotIn("ZQ-ENV", self.text_of(got))
         self.assertNotIn("ZQ-PEM", self.text_of(got))
@@ -113,7 +122,7 @@ class WhatIsRead(Folders):
     def test_a_hostile_word_file_is_refused_and_counted(self):
         self.put(self.box, "macro.docx", tdx.docx(tdx.P("ZQ-MACRO"), parts=MACRO), binary=True)
         self.put(self.box, "junk.docx", b"not a zip at all", binary=True)
-        self.put(self.box, "fine.txt", "ZQ-FINE")
+        self.put(self.box, "fine.txt", "ZQ-FINE plan")
         got = self.run_it()
         self.assertNotIn("ZQ-MACRO", self.text_of(got))
         self.assertIn("ZQ-FINE", self.text_of(got))
@@ -134,7 +143,7 @@ class WhatIsRead(Folders):
         self.put(self.box, "ok.pdf", b"%PDF-1.4 y", binary=True)
         secret = "password = " + "hunter2" * 3
         def fake(raw, truncated=False, **k):
-            text = secret if b" x" in raw else "ZQ plain page"
+            text = secret if b" x" in raw else "ZQ plain plan page"
             return pdf_reader.Result("ok", pages=((1, text),), left_out=7)
         with mock.patch.object(pdf_reader, "read", side_effect=fake):
             got = self.run_it(folders=[self.box])
@@ -225,8 +234,8 @@ class ASecretAcrossAChunk(Folders):
 class TheBudget(Folders):
     def test_the_budget_holds_and_the_rest_is_counted(self):
         for i in range(30):
-            self.put(self.box, f"f{i:02d}.txt", ("word%d " % i) * 600)         # about 3,500 characters each
-        got = self.run_it("word5")
+            self.put(self.box, f"f{i:02d}.txt", ("word%d shared " % i) * 600)         # about 3,500 characters each; every one shares a word with the question, so what is left out is left out for size (row 1366: a passage that merely does not match is not counted)
+        got = self.run_it("shared word5")
         self.assertLessEqual(sum(len(p.text) for p in got.passages), ask.BUDGET)
         self.assertGreater(got.left_out, 0)
         self.assertIn("word5", self.text_of(got))

@@ -8,6 +8,7 @@ Fictional data only.
 import base64
 import json
 import os
+import sys
 import time
 import unittest
 from pathlib import Path
@@ -173,7 +174,7 @@ class Raid(PageBase):
             p.js(f"document.querySelector({json.dumps(view)}).click()")
             p.until(f"document.activeElement === document.querySelector({json.dumps(box)})", "opened")
             p.js("document.activeElement.cxed.editor.commands.setContent('<p>x</p>'); document.activeElement.cxed.editor.commands.selectAll()")
-            p.key("b", modifiers=2, code="KeyB", vk=66)
+            p.key("b", modifiers=4 if sys.platform == "darwin" else 2, code="KeyB", vk=66)   # the editor's Mod-b: Cmd on macOS, Ctrl elsewhere
             self.assertTrue(p.js("!!document.activeElement.querySelector('strong, b')"), "Ctrl+B makes bold")
             p.js("document.activeElement.cxed.editor.commands.setContent(%s)" % json.dumps(PARAS))
             p.key("Enter", modifiers=2, code="Enter", vk=13)

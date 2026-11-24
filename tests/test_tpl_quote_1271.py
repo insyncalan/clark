@@ -419,6 +419,21 @@ class Look:
             p.until(f"!!{sel}", "Per row")
             p.until(f"{sel}.disabled", "off at 900")
 
+    def test_tile_off_in_the_left_slot_under_comfortable_density_leaves_no_band_strip(self):
+        """Row 1606 (found in row 1579): the comfortable-density left slot paints a band-coloured box-shadow into the gap beside it
+        (rules.css item 1311 block); with Tile off the section is clear, so that shadow is a strip beside a clear section. Tile off: no shadow; Tile on (control): the shadow stays."""
+        off = self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")], "tile": False})
+        on = self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")]})
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, 1400)
+                p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(scheme)}); document.documentElement.setAttribute('data-density', 'comfortable')")
+                # the page redraws a section's classes, so the two classes are put on and the shadow is read in the same call
+                shadow = lambda r: p.js(f"(() => {{ const e = document.querySelector('[data-id=' + JSON.stringify({json.dumps(r)}) + ']'); e.classList.add('band', 'slot-left'); return getComputedStyle(e).boxShadow; }})()")
+                self.assertEqual(shadow(off), "none", "Tile off: no band strip beside the clear section")
+                self.assertNotEqual(shadow(on), "none", "control: the banded section keeps its shadow")
+
 
 class Classic(Look, n.PageChecks):
     """The editor page with the Classic Theme layered (the look is Classic only; Cards keeps shell.css)."""
