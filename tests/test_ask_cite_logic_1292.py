@@ -75,6 +75,16 @@ class ReadLine(unittest.TestCase):
         self.assertEqual(words('W.READ_LINE({work_items:1,milestones:0,use_cases:1,as_at:"17-11-2026"})'), "1 work item and 1 use case read · as at 17-11-2026")
         self.assertEqual(words('W.READ_LINE({work_items:3,milestones:0,use_cases:0,as_at:""})'), "3 work items read")
 
+    def test_a_cut_project_says_how_many_were_read_and_how_many_were_left_out(self):      # row 1294: the ruled line
+        self.assertEqual(words('W.READ_LINE({work_items:17,milestones:6,use_cases:8,as_at:"17-11-2026",items:31,left_out:12})'), "31 items read, 12 left out.")
+        self.assertEqual(words('W.READ_LINE({work_items:1,milestones:0,use_cases:0,as_at:"",items:1,left_out:4})'), "1 item read, 4 left out.")
+        self.assertEqual(words('W.READ_LINE({work_items:0,milestones:0,use_cases:0,as_at:"",items:0,left_out:3})'), "0 items read, 3 left out.")
+
+    def test_nothing_left_out_or_a_bad_count_keeps_the_usual_line(self):
+        usual = "17 work items, 6 milestones and 8 use cases read · as at 17-11-2026"
+        for extra in ("items:31,left_out:0", "items:31", "left_out:5", 'items:"31",left_out:5', "items:31,left_out:-2", "items:31,left_out:1.5"):
+            self.assertEqual(words('W.READ_LINE({work_items:17,milestones:6,use_cases:8,as_at:"17-11-2026",%s})' % extra), usual, extra)
+
     def test_nothing_read_or_a_bad_reply_says_nothing(self):
         self.assertEqual(words('[W.READ_LINE({work_items:0,milestones:0,use_cases:0,as_at:"17-11-2026"}), W.READ_LINE(null), W.READ_LINE("x"), W.READ_LINE({work_items:"9"})]'), ["", "", "", ""])
 

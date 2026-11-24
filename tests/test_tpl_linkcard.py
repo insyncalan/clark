@@ -138,7 +138,7 @@ class InThePage(PageBase):
             labels = p.js(f"[...document.querySelectorAll('{sel} .tpl-form label')].map(l => !!document.getElementById(l.htmlFor))")
             self.assertTrue(labels and all(labels), "every field has its label")
 
-    def test_saving_the_words_keeps_a_typed_unsaved_link_and_an_undo_of_the_card_still_resets_it(self):
+    def test_the_words_are_saved_with_the_card_and_an_undo_of_the_card_still_resets_the_typed_link(self):
         ref = self.add(CARD)
         sel = f"[data-id={json.dumps(ref)}]"
         href = f"{sel} input[id$=-href]"
@@ -147,22 +147,13 @@ class InThePage(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-save]')", "the Edit part drew")
             self.put(p, href, "https://example.org/typed-not-saved")
-            p.js(f"document.querySelector('{sel} [data-rich]').click()")
-            p.until(f"!!document.querySelector('{sel} .ProseMirror')", "the words editor opened")
-            p.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')", "it has the focus")
-            p.js(f"document.querySelector('{sel} .ProseMirror').cxed.editor.commands.insertContent('<p>ZQ-WORDS</p>'); true")
-            p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
-            self.assertTrue(wait(lambda: "ZQ-WORDS" in self.store.read("report_sections", ref=ref)["body"], 15), "the words were saved")
-            p.until(f"!document.querySelector('{sel} .ProseMirror')", "the words field closed")
-            self.assertEqual(p.js(f"document.querySelector({json.dumps(href)}).value"), "https://example.org/typed-not-saved")
-            # the words' own toast carries an Undo too: close it, so the Undo waited for below is the card save's
-            p.until("!!document.querySelector('.toast [data-dismiss]')", "the words' toast")
-            p.js("document.querySelector('.toast [data-dismiss]').click()")
-            p.until("!document.querySelector('.toast')", "the words' toast is gone")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel} [data-rich]').length"), 0, "row 1288: the words are a plain box, saved with the card")
+            self.put(p, f"{sel} textarea", "ZQ-WORDS")
             self.put(p, href, CARD["href"])
             self.put(p, f"{sel} input[id$=-title]", "Pilot dashboard, week 3")
             p.js(f"document.querySelector('{sel} [data-save] button').click()")
             self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=ref)["body"])["title"] == "Pilot dashboard, week 3", 10), "the card saved")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["text"], ["ZQ-WORDS"], "the words went with it")
             p.until("!!document.querySelector('[data-undo]')", "with Undo")
             self.put(p, href, "https://example.org/typed-again")
             p.js("document.querySelector('[data-undo]').click()")

@@ -28,3 +28,10 @@ export const ALLOWED_TYPES = "PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), P
 export const NOT_HEAD = "Not allowed:";
 export const NOT_TYPES = "HTML, SVG, ZIP and any program or script, because they can run code or hide what is inside. Links (to a SharePoint file, a web page or an email): https:// or mailto:.";
 export const RENAME_HINT = "Name: click to rename, Enter saves, Esc cancels.";
+// Row 1275, the drop area (all approved: NEW-WORDS Row 1275, 1773 and 1291).
+export const DROP_OVER = "Drop a file here to add it.";
+export const DROP_LINE = "Dropped files are kept in the client folder, in Report files.";
+export const DROP_ONE = "Drop one file at a time.";
+export const DROP_TOO_BIG = "That file is larger than 25 MB, so it was not added.";
+export const DROP_UNREAD = "That file could not be read from the drop. Reload the page and try again.";
+export const DROP_MAX_BYTES = 25 * 1024 * 1024;

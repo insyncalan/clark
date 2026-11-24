@@ -384,6 +384,18 @@ class Remembered(unittest.TestCase):
         self.assertIsNone(re.search(r"(?<![\w.])open\(", code))
 
 
+class PublishedHeading(unittest.TestCase):
+    def test_a_first_heading_one_stays_a_heading_so_the_filter_reads_words_not_tags(self):
+        """Row 1288: the editor writes h1 to h3; the publish cleaner kept only h2 and h3, which left `Heading<p>Details</p>` (read as old plain text, tags and all)."""
+        html = publish.clean_html("<h1>Heading</h1><p>Details</p>")
+        self.assertEqual(html, "<h1>Heading</h1><p>Details</p>")
+        row = {"id": "A-1", "description": "Do it", "client_message": html, "status": "Open"}
+        got = cf._row("action", row, ON)
+        self.assertNotIn("<", got["latest_update"])
+        self.assertIn("Heading", got["latest_update"])
+        self.assertIn("Details", got["latest_update"])
+
+
 class Cases(unittest.TestCase):
     """The shared cases the page's JavaScript must also pass (tests/fixtures/client-filter-cases.json)."""
 

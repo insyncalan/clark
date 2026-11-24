@@ -1,4 +1,4 @@
-"""#1111: a published file's work item peek draws the Latest update and the Client wording the file already carries, read only, and
+"""#1111: a published file's work item peek draws the Latest update and the Client Message the file already carries, read only, and
 only when there is some (no new published data). Real publish.select/render and headless Chrome.
 Run: python3 dev/run_tests.py test_peek_latest_wording_1111
 """
@@ -47,7 +47,7 @@ class PublishedPeek(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 labels, body, controls, em = self.labels("PUB-A-001", width)
-                self.assertIn("Client wording", labels)
+                self.assertIn("Client Message", labels)
                 self.assertIn("Latest update", labels)
                 self.assertIn("ZQ-KEEP-MESSAGE-1", body)
                 self.assertIn("Plan agreed ZQ-KEEP-LATEST", body)
@@ -58,7 +58,7 @@ class PublishedPeek(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 labels, _body, _controls, _em = self.labels("PUB-A-002", width)
-                self.assertNotIn("Client wording", labels)
+                self.assertNotIn("Client Message", labels)
                 self.assertNotIn("Latest update", labels)
 
     def test_a_risk_or_decision_never_shows_a_latest_update(self):

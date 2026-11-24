@@ -1,6 +1,6 @@
 """#96 G2, the RAID cards templates, three across (store type raid3; test_tpl_raid4.py runs the same for four across).
 
-A card is a work item's id and where its words come from (Client wording, Own words, or an action's Latest update). The checker,
+A card is a work item's id and where its words come from (Client Message, Own words, or an action's Latest update). The checker,
 the published fields (a hidden, archived, not client visible, sensitive or hidden-section item never publishes; an empty template
 stays out of the file), one change = one step = one Undo, and the page: View draws only what the file would, Edit saves each
 choice as one change. Fictional data only.
@@ -89,10 +89,10 @@ class CheckerBase:
             with self.subTest(id=bad_id):
                 self.bad(body({"id": bad_id}), "A card needs the number of a risk, issue, action or decision.")
         self.bad(body(card("ABC-001"), card("ABC-001")), "The same item is on two cards.")
-        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client wording or Own words for this card.")
+        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client Message or Own words for this card.")
         self.bad(body(card("ABC-D-001", "latest")))
         self.check(body(card("ABC-A-001", "latest")))
-        self.bad(body(card("ABC-001", "other")), "Choose Client wording, Own words or Latest update for a card.")
+        self.bad(body(card("ABC-001", "other")), "Choose Client Message, Own words or Latest update for a card.")
         self.bad(body(card("ABC-001", "own", "x" * 401)), "A card's own words can be 400 characters at most.")
         self.check(body(card("ABC-001", "own", "x" * 400)))
         self.bad(body({"id": "ABC-001", "source": "own", "own": 7}))
@@ -100,6 +100,13 @@ class CheckerBase:
         self.bad(body({"id": "ABC-001", "source": "own", "own": "a\nb"}))
         self.bad(body({"id": "ABC-001\n"}))
         self.bad(body({"id": "ABC-001", "source": "own", "own": "a​b"}))
+
+    def test_a_line_or_paragraph_separator_in_own_words_is_refused_as_hidden_text(self):
+        """Row 1288: the Full editor turns U+2028 and U+2029 into spaces before it sends; the store still refuses one that arrives (the backstop)."""
+        for ch in ("\u2028", "\u2029"):
+            with self.subTest(ch=hex(ord(ch))):
+                self.bad(body(card("ABC-001", "own", "a" + ch + "b")), section_bodies.BAD_TEXT)
+                self.bad(body(card("ABC-001", "own", "<p>a" + ch + "b</p>")), section_bodies.BAD_TEXT)
 
     def test_markup_in_own_words_is_only_text(self):
         text = self.check(body(card("ABC-001", "own", "<script>alert(1)</script> & <b>bold</b>")))
@@ -182,7 +189,7 @@ class Items(Api):
         self.assertNotIn("source", json.dumps(sec["cards"]))
 
     def test_a_client_card_with_no_wording_publishes_the_items_title_and_never_other_fields(self):
-        """#916: Client wording falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
+        """#916: Client Message falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
         with self.s.step("dashboard", USER) as st:
             st.update("actions", self.action, {"client_message": "", "latest_update": "LATESTWORDS", "owner": "Pat Owner"})
             st.update("raid", self.risk, {"client_message": ""})
@@ -337,14 +344,14 @@ class PageSide(PageBase):
             p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card text changed.'", "the page has taken the saved text source of card 2 (toast)")
             n = len([s for s in self.sent if s[0] == "change"])
             self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 1 text']", "own")
-            # row 1005: Own words is the one editor (RichField); two paragraphs are kept as one plain line
+            # row 1005: Own words is the one editor (RichField); two paragraphs are saved as HTML (row 1288)
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words field")
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(sec)}] .rce input').length"), 0, "no plain box")
             p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view').click()")
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror')", "the editor opened")
             p.js(f"(function(){{ const b = document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror'); b.focus(); b.cxed.editor.commands.setContent('<p>Typed</p><p>words</p>'); }})()")
             p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][0].get("own") == "Typed words"))
+            self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][0].get("own") == "<p>Typed</p><p>words</p>"))
             self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n + 2, "the source and the words are one change each")
             final = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
             self.assertEqual(final[1]["source"], "latest", "the words change did not undo the earlier choice of card 2")
