@@ -19,6 +19,7 @@ import test_ai_places as tap  # noqa: E402  (the module, not its test classes)
 import test_rich_storage_1288c as rs  # noqa: E402
 from clark import excel_client, publish, sanitise, section_bodies  # noqa: E402
 
+CARDS_CSS = None
 WIDTHS = (1400, 900)
 JS = ROOT / "src" / "clark" / "page" / "src"
 BOX = ("(b => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return {w: r.width, h: r.height, mw: c.minWidth, r: c.borderTopLeftRadius,"
@@ -29,9 +30,21 @@ Q = "document.querySelector(%s)"
 
 def setUpModule():       # the Classic theme's rules are appended to the page's own CSS (as test_rich_menus_tight_1288 does), and the theme layer marks the page Classic
     orig, css = build_page.page_css, theme.css("prototype-2.0")
+    global CARDS_CSS
+    CARDS_CSS = lambda: orig(build_page.ENTRY)
     p = mock.patch.object(build_page, "page_css", lambda *a, **k: orig(build_page.ENTRY) + "\n" + css)      # the served page's CSS: it holds edit.css, where the AI menu's rules are
     p.start()
     unittest.addModuleCleanup(p.stop)
+
+
+AIM_GRAB = ("(() => { const q = s => document.querySelector(s), c = e => getComputedStyle(e); const menu = q('.aim');"
+            " const ic = k => { const e = q('.aim .aim-ic-' + k); return e ? c(e).color : null; };"
+            " return {mw: c(menu).minWidth, w: menu.getBoundingClientRect().width, gl: [...document.querySelectorAll('.aim .aim-gl')].map(e => c(e).color),"
+            " improve: ic('improve'), structure: ic('structure'), ask: ic('ask'),"
+            " rowColor: c(q('.aim .aim-opt')).color,"
+            " muted: (() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const v = c(p).color; p.remove(); return v; })(),"
+            " tint: (() => { const p = document.createElement('i'); p.style.backgroundColor = 'var(--brand-blue-tint)'; document.body.appendChild(p); const v = c(p).backgroundColor; p.remove(); return v; })()}; })()")
+LIGHT_ICONS = {"improve": [124, 77, 255], "structure": [47, 125, 74], "ask": [183, 121, 31]}
 
 
 def layer(h):
@@ -135,13 +148,7 @@ class Editor(unittest.TestCase):
         """AP6 (row 1586, mock-up 5B): the Classic AI menu's group labels, hover row, three icon colours and min-width, at 1400 and 900.
         Dark keeps what main draws (row 1586 ruling): the label is the resolved --text-muted, the hover row the resolved --brand-blue-tint, the icons the colour they inherit from their row (--text)."""
         want_icons = {"improve": [124, 77, 255], "structure": [47, 125, 74], "ask": [183, 121, 31]}
-        grab = ("(() => { const q = s => document.querySelector(s), c = e => getComputedStyle(e); const menu = q('.aim');"
-                " const ic = k => { const e = q('.aim .aim-ic-' + k); return e ? c(e).color : null; };"
-                " return {mw: c(menu).minWidth, w: menu.getBoundingClientRect().width, gl: [...document.querySelectorAll('.aim .aim-gl')].map(e => c(e).color),"
-                " improve: ic('improve'), structure: ic('structure'), ask: ic('ask'),"
-                " rowColor: c(q('.aim .aim-opt')).color,"
-                " muted: (() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const v = c(p).color; p.remove(); return v; })(),"
-                " tint: (() => { const p = document.createElement('i'); p.style.backgroundColor = 'var(--brand-blue-tint)'; document.body.appendChild(p); const v = c(p).backgroundColor; p.remove(); return v; })()}; })()")
+        grab = AIM_GRAB
         bgof = "getComputedStyle(%s).backgroundColor"
         move = lambda h, x, y: h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, h.sid)
         with rp.Harness(chrome) as h:
@@ -188,14 +195,77 @@ class Editor(unittest.TestCase):
                             self.assertEqual(rgb(got[kind]), rgb(got["rowColor"]), f"{tag}: dark {kind} icon keeps the row colour {got['rowColor']}, got {got[kind]}")
                             self.assertNotEqual(rgb(got[kind]), want_icons[kind], f"{tag}: dark {kind} icon is not the light colour")
                     h.ev("window.unmount(); true")
-        # Cards is frozen: its own menu rules (edit.css, outside the Classic theme files) keep the muted label and 240 px, and rules.css does not grow.
-        edit = (JS / "edit" / "edit.css").read_text(encoding="utf-8")
-        self.assertRegex(edit, r"\.aim \{[^}]*min-width: 240px")
-        self.assertRegex(edit, r"\.aim-gl \{[^}]*color: var\(--text-muted\)")
+        # rules.css does not grow (the Cards page itself is read in test_ai_menu_cards_page_unchanged_1288).
         themes = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
         self.assertLessEqual((themes / "rules.css").stat().st_size, 131072)
         two = (themes / "rules-2.css").read_text(encoding="utf-8")
         self.assertLess(two.index(".aim-gl { color: rgb(59, 111, 212)"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
+
+    def aim_auto_dark(self, w):
+        """The AI menu at width `w` with data-theme=auto and the OS dark scheme emulated: returns (values, hovered-row bg, focused-row bg)."""
+        with rp.Harness(chrome) as h:
+            h.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]}, h.sid)
+            self.show_editor(h, w)
+            h.theme("auto")
+            self.assertTrue(h.ev("matchMedia('(prefers-color-scheme: dark)').matches"), "the OS dark scheme is emulated")
+            h.select_all()
+            self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+            h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+            self.assertTrue(h.until("!!document.querySelector('.aim .aim-opt')"), f"auto-dark {w}: the AI menu opens")
+            got = h.ev(AIM_GRAB)
+            h.ev("document.activeElement && document.activeElement.blur(); true")
+            r = h.ev("(() => { const e = [...document.querySelectorAll('.aim .aim-opt')].pop(); e.setAttribute('data-hov', '1'); const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()")
+            for x, y in ((1, 1), tuple(r)):
+                h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, h.sid)
+            self.assertTrue(h.until("document.querySelector('.aim [data-hov]').matches(':hover')"), f"auto-dark {w}: the pointer is on the last row")
+            hov = h.ev("getComputedStyle(document.querySelector('.aim [data-hov]')).backgroundColor")
+            h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, h.sid)
+            h.ev("document.querySelector('.aim .aim-opt').focus(); true")
+            foc = h.ev("getComputedStyle(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt')).backgroundColor")
+            return got, hov, foc
+
+    def test_ai_menu_auto_dark_icons_keep_the_row_colour_1288(self):
+        """The auto-dark `.aim-ic { color: currentColor }` rule: with the OS dark scheme the icons take the row's colour, not the light icon colours."""
+        for w in WIDTHS:
+            got, _, _ = self.aim_auto_dark(w)
+            for kind, light in LIGHT_ICONS.items():
+                self.assertEqual(rgb(got[kind]), rgb(got["rowColor"]), f"auto-dark {w}: {kind} icon {got[kind]} is not the row colour {got['rowColor']}")
+                self.assertNotEqual(rgb(got[kind]), light, f"auto-dark {w}: {kind} icon keeps the light colour")
+
+    def test_ai_menu_auto_dark_label_is_the_muted_text_1288(self):
+        """The auto-dark `.aim-gl` rule: the group labels are the resolved --text-muted, not the light blue."""
+        for w in WIDTHS:
+            got, _, _ = self.aim_auto_dark(w)
+            self.assertTrue(got["gl"])
+            for c in got["gl"]:
+                self.assertEqual(rgb(c), rgb(got["muted"]), f"auto-dark {w}: label {c}, --text-muted is {got['muted']}")
+                self.assertNotEqual(rgb(c), [59, 111, 212], f"auto-dark {w}: label keeps the light blue")
+
+    def test_ai_menu_auto_dark_hover_and_focus_are_the_blue_tint_1288(self):
+        """The auto-dark `.aim-opt:hover, :focus-visible` rule: a hovered and a focused row are the resolved --brand-blue-tint, not the light blue."""
+        for w in WIDTHS:
+            got, hov, foc = self.aim_auto_dark(w)
+            self.assertEqual(rgb(hov), rgb(got["tint"]), f"auto-dark {w}: hovered row {hov}, --brand-blue-tint is {got['tint']}")
+            self.assertEqual(rgb(foc), rgb(got["tint"]), f"auto-dark {w}: focused row {foc}, --brand-blue-tint is {got['tint']}")
+            self.assertNotEqual(rgb(hov), [230, 238, 252], f"auto-dark {w}: hover keeps the light blue")
+
+    def test_ai_menu_cards_page_unchanged_1288(self):
+        """Cards is frozen (no theme layer): the real page's menu keeps min-width 240px and the muted label, at 1400 and 900."""
+        with mock.patch.object(build_page, "page_css", lambda *a, **k: CARDS_CSS()):
+            with rp.Harness(chrome) as h:
+                for w in WIDTHS:
+                    h.resize(w)
+                    h.ev("var o = document.getElementById('theme'); if (o) o.remove(); true")
+                    h.mount("<p>Some words here</p>", ai="current")
+                    h.select_all()
+                    self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+                    h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                    self.assertTrue(h.until("!!document.querySelector('.aim .aim-gl')"), f"{w}: the Cards AI menu opens with its group labels")
+                    got = h.ev(AIM_GRAB)
+                    self.assertEqual(got["mw"], "240px", f"cards {w}: {got}")
+                    for c in got["gl"]:
+                        self.assertEqual(rgb(c), rgb(got["muted"]), f"cards {w}: label {c}, --text-muted is {got['muted']}")
+                    h.ev("window.unmount(); true")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:
