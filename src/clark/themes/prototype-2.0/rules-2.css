@@ -161,6 +161,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .sec > .wil > * { flex: none; }
 .sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
 .wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
+/* Row 1615 (Classic only; the selectors are the Work items footer's own): Review all N items keeps one line and its own width, the count is the part that gives way (min-width 0, never clipped, no ellipsis; the product ruling of row 1615), and the foot lines its children up at the top so Review all sits the same distance from the top of its own foot on both cards of a pair (the feet are bottom-aligned, so their tops differ by the difference of the foot heights). */
+.wil-foot .wil-all-b, .wil-foot .wil-review { white-space: nowrap; flex: none; }
+.wil-foot [data-wil-count] { min-width: 0; }
+.wil-foot { align-items: flex-start; }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
@@ -320,6 +324,16 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
+#peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: rgb(85, 103, 122); }
+#peek .pk-latest-client svg { width: 18px; height: 18px; color: rgb(10, 143, 156); }
+#peek .pk-lh-btn { font-size: 13px; font-weight: 600; color: var(--brand-blue); border-radius: 8px; }
+#peek .pk-lh-btn .pk-lh-car { width: 16px; height: 16px; }      /* the 16px chevron rules.css gives it (that rule's selector `.pk-lh-car svg` matches nothing: the icon is the .pk-lh-car element itself, 14px) */
+#peek .pk-lh-btn:hover { background: var(--brand-blue-tint); }
+#peek .pk-lh-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+:root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
+:root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
 /* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
 .mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
 .mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
@@ -327,6 +341,8 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
 .fopt .c + .ftick { margin-left: var(--space-2); }
 .fchips[data-gchips] { flex: 0 0 auto; }
+/* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
+.secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
 html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */

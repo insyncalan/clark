@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_ask_btn_dot_1349
 Headless Chrome, the real page, a stub for the server's ask. Fails, never skips, without Chrome.
 """
 import json
+import time
 import unittest
 
 from clark import page, theme
@@ -25,6 +26,9 @@ LOOK = """(() => { const b = document.querySelector('#ask-btn'), br = b.getBound
   return JSON.stringify({dot: true, cls: d.className, size: [Math.round(r.width), Math.round(r.height)], top: Math.round(r.top - br.top), right: Math.round(br.right - r.right),
     bg: s.backgroundColor, cyan: tok('var(--brand-cyan)'), amber: tok('var(--status-amber)'), ring: s.boxShadow, navy: tok('var(--brand-navy)'), pos: s.position, anim, radius: s.borderTopLeftRadius,
     inner: [...d.children].map((e) => getComputedStyle(e).display), text: d.textContent.trim(), fs: s.fontSize, word: w.display, label: b.getAttribute('aria-label'), btn: [Math.round(br.width), Math.round(br.height)]}); })()"""
+MEASURE = """JSON.stringify({iw: window.innerWidth, ow: window.outerWidth, dpr: window.devicePixelRatio, mq: window.matchMedia('(max-width: 900px)').matches,
+  theme: !!document.getElementById('theme'), btn: !!document.querySelector('#ask-btn'), bar: !!document.querySelector('.top #ask-btn'),
+  rect: (document.querySelector('#ask-btn') || document.body).getBoundingClientRect().width})"""
 IN_BAR = "(function(){var e=document.querySelector('.top #ask-btn'); return !!e && e.getClientRects().length > 0 && e.getBoundingClientRect().width > 0;})()"
 
 
@@ -123,7 +127,14 @@ class Cards(Dot):
         self.stub.hold.clear()
         with chrome() as cdp:
             p = self.at(cdp, 900)
-            self.assertFalse(p.js(IN_BAR), "Cards at 900: the button is still in the profile menu only")
+            in_bar = p.js(IN_BAR)
+            message = "Cards at 900: the button is still in the profile menu only"
+            if in_bar:
+                # diagnostic only: read the measurements, then again after 1 s, just to fill the message
+                first = p.js(MEASURE)
+                time.sleep(1)
+                message += "; measured now: %s; measured 1 s later: %s" % (first, p.js(MEASURE))
+            self.assertFalse(in_bar, message)
         idle, working, ready, _ = self.run_states(1400)
         self.assertEqual(working["cls"], "tb-ask-dots")
         self.assertEqual(ready["text"], "1", "Cards: the badge still shows the number")
