@@ -1,4 +1,4 @@
-"""Item 1169: both Gantt "on" boxes, the Feedback boxes, the Asking folder box (message, shown text, contact) and a select in a `.fld` (the brand choice) draw the 2 px house focus ring, in real Chrome.
+"""Item 1169: both Gantt "on" boxes, the Asking folder box and a select in a `.fld` (the brand choice) draw the 2 px house focus ring, in real Chrome.
 
 Run: python3 dev/run_tests.py test_settings_focus_ring_1169
 The real Settings page over the fictional demo data at 1400 and 900 px, light and dark. Each control is focused from the keyboard's point of view
@@ -20,8 +20,8 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); const f = document.createElement('form'); f.className = 'row'; f.innerHTML = '<input id=\"ask-folder-path\" class=\"grow\" type=\"text\">'; document.querySelector('#feedback').appendChild(f); })()"
-SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model", "ask-folder-path": "#ask-folder-path"}
+PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('.set-cards').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); const f = document.createElement('form'); f.className = 'row'; f.innerHTML = '<input id=\"ask-folder-path\" class=\"grow\" type=\"text\">'; document.querySelector('.set-cards').appendChild(f); })()"
+SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model", "ask-folder-path": "#ask-folder-path"}
 MEASURE = r"""((sels) => {
   const out = {};
   const blue = getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim();
@@ -36,13 +36,6 @@ MEASURE = r"""((sels) => {
   out.blue = getComputedStyle(probe).color; probe.remove();
   return JSON.stringify(out);
 })"""
-# The clipboard always refuses, so the Feedback box draws its shown-text box (#feedback-shown) after Copy as text.
-REFUSE_CLIPBOARD = "Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText: () => Promise.reject(new Error('refused'))}});"
-TYPE_MESSAGE = """(() => {
-  const el = document.querySelector('#feedback-message');
-  el.value = 'x';
-  el.dispatchEvent(new Event('input', {bubbles: true}));
-})()"""
 
 
 def tearDownModule():
@@ -73,20 +66,16 @@ class SettingsFocusRing(unittest.TestCase):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": REFUSE_CLIPBOARD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL&s=reports"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the bundle ran")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         cdp.js("(document.querySelector('[data-mode=edit]') || {click() {}}).click()", sid)
         got = {}
-        for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("feedback", "feedback-shown", "feedback-contact", "fld-select", "ai-model-select", "ask-folder-path"))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, Feedback on Version and updates
+        for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("fld-select", "ai-model-select", "ask-folder-path"))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, the probes on Version and updates
             cdp.js(f"location.hash = '#settings&p=TUL&s={page}'", sid)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.set-cards').getAttribute('data-page') === {json.dumps(page)} && !!document.querySelector({json.dumps(SEL[names[0]])})", sid)), f"the {page} page drew {names[0]}")
             if page == "version":
-                cdp.js(TYPE_MESSAGE, sid)       # a message, then Copy as text, which the refused clipboard answers by drawing the shown-text box
-                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('button[data-feedback-copy]').disabled", sid)), "Copy as text is enabled by the message")
-                cdp.js("document.querySelector('button[data-feedback-copy]').click()", sid)
                 cdp.js(PROBE_SELECT, sid)       # the Brand for this project choice is a select in a .fld; its card needs the brand service, which this test server has not
             for name in names:
                 self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(SEL[name])})", sid)), f"{name} is on the page")
@@ -109,7 +98,6 @@ class SettingsFocusRing(unittest.TestCase):
                         self.assertEqual(m["style"], "solid", label)
                         self.assertEqual(m["width"], 2, label + ": the ring is 2 px")
                         self.assertEqual(m["color"], got["blue"], label + ": the house blue")
-                    self.assertEqual(got["feedback-shown"]["offset"], 1, f"feedback-shown, {width} px, {theme}: the ring sits 1 px off the box")
 
 
 if __name__ == "__main__":
