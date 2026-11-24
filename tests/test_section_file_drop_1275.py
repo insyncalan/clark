@@ -68,7 +68,7 @@ class Drop(base.Route):
         self.assertEqual([i["name"] for i in self.items(self.ref)["items"]], ["Plan v2.pdf"], "Undo takes the entry off")
         self.assertEqual(self.files(), ["Budget.pdf", "Plan v2.pdf"], "and leaves the file in Report files")
 
-    def test_the_limit_is_25_mb_for_drop_and_file_window_alike(self):
+    def test_the_limit_is_25_mb_for_drop_and_file_window(self):
         self.assertEqual(section_files.MAX_FILE_BYTES, 25 * 1024 * 1024)
         self.assertEqual(sv.DROP_MAX_BYTES, section_files.MAX_FILE_BYTES)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-file-drop"], 25 * 1024 * 1024)
@@ -118,6 +118,8 @@ class Drop(base.Route):
 
     def test_first_bytes_check_txt_and_legacy_office(self):
         self.assertEqual(self.refused_drop("Notes.txt", b"plain\x00text", "bad_type"), f"Notes.txt: {SENTENCE}")
+        self.refused_drop("Mid.txt", b"x" * 600 + b"\x00", "bad_type")                 # past the old 512, inside the first 8 KB
+        self.refused_drop("Edge.txt", b"x" * 8191 + b"\x00", "bad_type")               # the last byte of the first 8 KB
         status, body = self.drop("Late.txt", b"x" * 8192 + b"\x00")
         self.assertEqual(status, 200, "a NUL after the first 8 KB is not judged")
         for name in ("Old.doc", "Old.xls", "Old.ppt"):
@@ -180,7 +182,9 @@ class Drop(base.Route):
         status, _, data = self.over_http("Budget.pdf", PDF)
         self.assertEqual((status, json.loads(data)["file"]["name"]), (200, "Budget.pdf"), data)
         self.assertEqual(self.files(), ["Budget.pdf"])
-        logged = "".join(p.read_text(encoding="utf-8") for p in folder.glob("*.log")) if folder.exists() else ""
+        self.assertTrue(folder.is_dir(), "the log folder exists, so the log assert below reads something")
+        logged = "".join(p.read_text(encoding="utf-8") for p in folder.glob("*.log"))
+        self.assertTrue(logged, "the log has lines to check")
         for marker in ("Budget", "Secret plan", "Huge", "Client share", str(self.tmp)):
             self.assertNotIn(marker, logged)
 
@@ -232,18 +236,24 @@ class InThePage(base.InThePage):
         self.classic()
         ref = self.add("doclinks")
         sel = f"[data-id={json.dumps(ref)}]"
+        kept = []
         with chrome() as cdp:
             p = self.open_edit(cdp, ref)
-            self.drag(p, ["Dropped plan.pdf"])
-            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the dropped file is drawn")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-rename').value"), "Dropped plan.pdf")
-            p.until("!!document.querySelector('[data-undo]')", "one Undo toast")
-            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
-            self.assertEqual(sorted(x.name for x in (self.client / "Report files").iterdir()), ["Dropped plan.pdf"])
-            self.assertEqual((self.client / "Report files" / "Dropped plan.pdf").read_bytes(), PDF)
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Undo took the entry off")
-            self.assertEqual(sorted(x.name for x in (self.client / "Report files").iterdir()), ["Dropped plan.pdf"], "the file stays")
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
+                    name = f"Dropped plan {w}.pdf"
+                    kept.append(name)
+                    self.drag(p, [name])
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the dropped file is drawn")
+                    self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-rename').value"), name)
+                    p.until("!!document.querySelector('[data-undo]')", "one Undo toast")
+                    self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
+                    self.assertEqual(sorted(x.name for x in (self.client / "Report files").iterdir()), sorted(kept))
+                    self.assertEqual((self.client / "Report files" / name).read_bytes(), PDF)
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Undo took the entry off")
+                    self.assertEqual(sorted(x.name for x in (self.client / "Report files").iterdir()), sorted(kept), "the file stays")
 
     def test_the_drop_area_box_and_over_state_at_both_widths(self):
         self.classic()
