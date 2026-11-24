@@ -97,6 +97,22 @@ class SlashPanel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-box').getAttribute('aria-expanded')"), "true")
             self.assertEqual(p.js("document.querySelector('#ask-box').getAttribute('aria-controls')"), "ask-slash")
 
+    def test_the_menu_opens_filters_and_runs_a_command_at_900(self):
+        """Row 1578 AP4: the panel tests above never set a width; at 900 the menu lists the 8 commands, filters and /risks asks its question."""
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.type("/")
+            p.until("!!document.querySelector('#ask-slash')", "the menu opened at 900")
+            self.assertEqual(json.loads(p.js(ROWS)), NAMES)
+            p.type("ri")
+            p.until(ROWS + " === JSON.stringify(['risks'])", "filtered at 900")
+            self.assertTrue(p.js("(() => { const r = document.querySelector('#ask-slash').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= window.innerWidth; })()"), "the menu is inside the window")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("!document.querySelector('#ask-stop') && document.querySelectorAll('.ask-turn').length >= 2", "answered", 20)
+            self.assertEqual(len(self.asked()), 1)
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "")
+
     def test_a_slash_later_in_the_line_opens_nothing(self):
         with chrome() as cdp:
             p = self.open_panel(cdp)
