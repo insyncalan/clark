@@ -55,6 +55,53 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1288, "/" menu 4C: panel radius 12, padding 4, min 180; filter box 1px 3px 4px, 5px 9px, radius 8, 13px; rows 4px 10px, gap 10, 13.5px; rule margin 3px 0. */
+.rt-slash { padding: 4px; border-radius: var(--radius-lg); border-color: var(--border); box-shadow: var(--shadow); min-width: 180px; }
+.rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; gap: 10px; border-radius: 6px; }
+.rt-slash .rt-slash-filter { margin: 1px 3px 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); min-height: 1lh; }
+.rt-slash .rt-slash-filter:empty::before { content: attr(data-ph); }
+.rt-slash .rt-slash-rule { margin: 3px 0; border: 0; border-top: 1px solid var(--line-soft); }
+/* Row 1288, tight menus (Classic only): buttons 34 high; float panels radius 12, padding 4, rows 4px 10px at 13.5px. */
+.rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
+.rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
+.rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
+/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
+.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
+.rt-bar .rt-more { min-width: 40px; gap: 2px; }
+/* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
+.rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
+:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+.rt-bubble { gap: 6px; }
+:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
+:is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
+.rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
+.rt-bubble .rt-bubble-ai { font-size: 13px; }
+/* Row 1046 (Classic only; Cards draws no bell): the notices bell, left of search; the popup is a non-modal dialog under it. The bell is drawn only when the Classic theme layer is on (TopBar.jsx), so these rules are in the theme and not in the shell. */
+.bell-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+.tb-bell { position: relative; }
+.bell-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--brand-cyan); color: var(--pill-fg); font-size: var(--size-caption); font-weight: 700; line-height: 16px; text-align: center; }
+.bell-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 340px; max-width: calc(100vw - 24px); max-height: 70vh; overflow: auto; box-sizing: border-box; padding: 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); text-align: left; font-size: var(--size-body); }
+.bell-pop:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.bell-title { flex: 1; }
+.bell-link { all: unset; cursor: pointer; text-decoration: underline; color: inherit; font-size: var(--size-body); }
+.bell-link:focus-visible, .bell-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-list { list-style: none; margin: 0; padding: 0; }
+.bell-item { padding: 8px 0; border-top: 1px solid var(--border); }
+.bell-item p { margin: 0 0 4px; }
+.bell-read { opacity: .65; }
+.bell-sev { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.bell-sev-ico { width: 16px; height: 16px; flex: none; }
+.bell-date { margin-left: auto; font-weight: 400; }
+.bell-ttl { font-weight: 600; }
+.bell-acts { display: flex; gap: 12px; align-items: center; }
+.bell-act { all: unset; cursor: pointer; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--radius-sm); }
+.bell-empty { margin: 0; }
 /* Row 1364: font colour. The six colours are design tokens (never a hex); the same classes colour the text in the editor, in the page and in the published file. */
 .rt-c-grey { color: var(--text-muted); }
 .rt-c-brand { color: var(--brand-blue); }
@@ -84,6 +131,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
+/* Row 1475 (Classic only): a Work items section with a list is a column, so its foot (Show all items at the left, Review all N items at the right, one line) sits at the bottom of the card: the two footers of a half width pair are level at any list length. */
+.sec:has(> .wil) { display: flex; flex-direction: column; }
+.sec > .wil { flex: 1 1 auto; display: flex; flex-direction: column; }
+.sec > .wil > * { flex: none; }
+.sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
+.wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
@@ -151,6 +204,9 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .essentials .ess-link { background: none; border: 0; border-bottom: 1px dashed var(--text-muted); border-radius: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
 .essentials .ess-link:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
 
+/* Row 1275 (Classic only): the drop area on a Documents and links section in Edit, as docs-approved.html lines 18 and 99 draw .drop and .drop.over: a 1.5px dashed box, 12px radius, 14px padding, text centred, 10px above it; while a file is over it the border and text are the blue token and the fill the tint token. */
+.tpl-drop { border: 1.5px dashed var(--grey-200); border-radius: 12px; padding: 14px; text-align: center; color: var(--text-muted); margin-top: 10px; }
+.tpl-drop.over { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--brand-blue); }
 /* Row 1271 (Quote template, look F as the approved mock-up draws it, Classic only; the Cards look keeps shell.css and draws each quote as its own grey panel, one name, role line). Measured from the mock-up's own rules (quote-approved.html, the F rules): panel padding --space-5, the display mark 64px bold in --font-head (line height .8, a 30px box), the words in --font-head at --size-h3, line height 1.45, weight 400, at most 62ch wide, the 32 x 2 rule above the name, the name in small capitals (uppercase, .07em apart), the role in --size-caption. Bare lengths with no token: 64px, 30px, 62ch, 32px, 2px, 1px, .07em, 1.45, .8, 2 x 1.4em + 12px, the 6px and 10px box padding, the 200px field minimum. */
 .tpl-quotes { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--space-2) 0; }
 .tpl-quotes[data-per-row="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -202,6 +258,18 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 }
 @media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
 @media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
+
+/* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
+.toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
+.toast.refresh:first-child { margin-top: 0; }
+.refresh-lead { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; color: var(--brand-cyan); }
+
+/* Row 1046: the Critical (upgrade required) banner under the top bar. */
+.crit-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-4); background: color-mix(in srgb, var(--status-red) 12%, var(--surface)); color: var(--status-red-text); border-bottom: 1px solid var(--status-red); font-weight: 600; }
+.crit-text { flex: 1 1 24ch; min-width: 0; overflow-wrap: break-word; }
+.crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
+.crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

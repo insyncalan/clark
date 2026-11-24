@@ -311,8 +311,9 @@ class Dropped(Plant):
         m = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S)
         self.assertEqual(len(csp_hashes(text)["script"]), 1, "the data can't start a script")
         self.assertNotRegex(m.group(1), r"[<>&  ]", "nothing in the block can be read as markup")
-        self.assertIn("</script><script>zq=1</script><!--   & <b>", block(text)["data"]["actions"][0]["client_message"],
-                      "and it still reads back exactly")
+        # row 1288: an action's client wording is rich now: plain text is escaped into a paragraph (no markup survives), and that still reads back exactly
+        self.assertEqual(block(text)["data"]["actions"][0]["client_message"],
+                         "<p>&lt;/script&gt;&lt;script&gt;zq=1&lt;/script&gt;&lt;!-- \u2028 &amp; &lt;b&gt;</p>", "and it still reads back exactly")
         self.assertEqual(block(text)["data"]["project"]["name"], 'Bridge & "Harbour" <Programme>')
 
     def test_rich_text_is_cleaned(self):
