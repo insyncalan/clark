@@ -249,6 +249,86 @@ class Look:
                     self.assertEqual(p.js(f"getComputedStyle({one(r)}).backgroundColor"), clear)
                     self.assertEqual(p.js(f"getComputedStyle({one(r)}).paddingLeft"), "0px")
 
+    def test_both_off_the_quote_sits_on_the_page_in_light_and_dark_at_1400_and_900(self):
+        """Row 1579 AP1 (check 2 of row 1271): Tile and Heading both off, the quote sits straight on the report page: no section tile, no quote panel,
+        no visible heading, in light and in dark at 1400 and 900. Control: Tile on draws the panel in the grey-50 token."""
+        body = {"v": 1, "quotes": [Q("Fictional.", "Sam")]}
+        both = self.make({**body, "tile": False, "heading": False})
+        on = self.make(body)
+        clear = "rgba(0, 0, 0, 0)"
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width), chrome() as cdp:
+                    p = self.visit(cdp)
+                    self._at(cdp, p, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(scheme)})")
+                    sec = lambda r: f"document.querySelector('[data-id={json.dumps(r)}]')"
+                    one = lambda r: f"{self._quotes(r)}.querySelector('.tpl-quote')"
+                    got = p.js(f"(() => {{ const s = {sec(both)}, h = s.querySelector('.sec-head'), cs = getComputedStyle(s), q = getComputedStyle({one(both)});"
+                               f" return {{secFill: cs.backgroundColor, secEdge: cs.borderTopColor, secShadow: cs.boxShadow, fill: q.backgroundColor, pad: q.paddingLeft,"
+                               f" headW: h.getBoundingClientRect().width, headText: h.textContent}}; }})()")
+                    self.assertEqual((got["secFill"], got["fill"], got["pad"]), (clear, clear, "0px"), got)
+                    self.assertIn(got["secEdge"], ("transparent", clear), got)
+                    self.assertEqual(got["secShadow"], "none", got)
+                    self.assertLessEqual(got["headW"], 2, got)
+                    self.assertIn("Fictional", got["headText"], "the heading is clipped, not removed")
+                    want = p.js("(() => { const i = document.createElement('i'); i.style.backgroundColor = 'var(--grey-50)'; document.body.append(i); const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })()")
+                    self.assertNotEqual(want, clear)
+                    self.assertEqual(p.js(f"getComputedStyle({one(on)}).backgroundColor"), want, "control: Tile on draws the panel")
+
+    def test_edit_off_states_are_dashed_struck_through_and_tagged_in_light_and_dark_at_1400_and_900(self):
+        """Row 1579 AP2 (check 3 of row 1271): in Edit, Tile off keeps a dashed 1px outline in the grey-500 token and Heading off strikes the heading
+        through in the text-muted token; the tag says what View leaves out; with both on there is no tag, no dashed outline and no strike; View has no tag."""
+        want = {(True, True): None, (False, True): "Tile not shown in View", (True, False): "Heading not shown in View", (False, False): "Heading and tile not shown in View"}
+        refs = {k: self.make({"v": 1, "quotes": [Q("Fictional.", "Sam")], "tile": k[0], "heading": k[1]}) for k in want}
+        tok = ("(v, prop) => { const i = document.createElement('i'); i.style[prop] = v; document.body.append(i);"
+               " const c = getComputedStyle(i)[prop]; i.remove(); return c; }")
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width), chrome() as cdp:
+                    p = self.visit(cdp)
+                    self._at(cdp, p, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(scheme)})")
+                    tags = lambda r: f"[...document.querySelectorAll('[data-id={json.dumps(r)}] [data-not-shown]')].map(e => e.textContent)"
+                    for r in refs.values():
+                        self.assertEqual(p.js(tags(r)), [], "View draws no tag")
+                    p.edit()
+                    for (tile, head), r in refs.items():
+                        p.until(f"!!document.querySelector('[data-id={json.dumps(r)}] [data-tq-count]')", "the quote in Edit")
+                        if not tile:     # the outline fades in (a colour transition): read it once it has settled on the token
+                            p.until(f"(() => {{ const tok = {tok}; const s = document.querySelector('[data-id={json.dumps(r)}]'); return getComputedStyle(s).borderTopColor === tok('var(--grey-500)', 'borderTopColor'); }})()", "the dashed outline settles on the grey-500 token")
+                        got = p.js(f"(() => {{ const tok = {tok}; const s = document.querySelector('[data-id={json.dumps(r)}]'), cs = getComputedStyle(s), h = getComputedStyle(s.querySelector('.sec-h'));"
+                                   f" return {{style: cs.borderTopStyle, width: cs.borderTopWidth, edge: cs.borderTopColor, edgeWant: tok('var(--grey-500)', 'borderTopColor'),"
+                                   f" line: h.textDecorationLine, ink: h.color, inkWant: tok('var(--text-muted)', 'color'), tags: {tags(r)}}}; }})()")
+                        self.assertEqual(got["tags"], [want[(tile, head)]] if want[(tile, head)] else [], got)
+                        if tile:
+                            self.assertNotEqual(got["style"], "dashed", got)
+                        else:
+                            self.assertEqual((got["style"], got["width"], got["edge"]), ("dashed", "1px", got["edgeWant"]), got)
+                        if head:
+                            self.assertNotIn("line-through", got["line"], got)
+                        else:
+                            self.assertEqual((got["line"], got["ink"]), ("line-through", got["inkWant"]), got)
+
+    def test_edit_shows_the_empty_hint_for_a_name_and_role_without_words_and_drops_it_with_words(self):
+        """Row 1579 AP3 (check 6 of row 1271, the Edit half): a quote with a name and a role but no words shows the hint in Edit; words remove it; View leaves it out."""
+        hint = "Empty for now: add the words. It stays out of the published page until then."
+        empty = self.make({"v": 1, "quotes": [Q("", "Sam Example", "Fictional sponsor")]})
+        full = self.make({"v": 1, "quotes": [Q("Fictional words.", "Sam Example", "Fictional sponsor")]})
+        quiet = lambda r: f"[...document.querySelectorAll('[data-id={json.dumps(r)}] p.quiet')].filter(e => e.textContent === {json.dumps(hint)})"
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width), chrome() as cdp:
+                    p = self.visit(cdp)
+                    self._at(cdp, p, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(scheme)})")
+                    self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "View leaves the empty quote out")
+                    p.edit()
+                    p.until(f"!!document.querySelector('[data-id={json.dumps(empty)}] [data-tq-count]') && !!document.querySelector('[data-id={json.dumps(full)}] [data-tq-count]')", "both in Edit")
+                    self.assertEqual(p.js(f"{quiet(empty)}.length"), 1)
+                    self.assertGreater(p.js(f"{quiet(empty)}[0].getBoundingClientRect().height"), 0)
+                    self.assertEqual(p.js(f"{quiet(full)}.length"), 0, "words are there: no hint")
+
     def test_the_quote_parts_keep_their_order_in_view(self):
         """The name comes before the role inside the person line, and the words come before the person (a swap of the two spans or the two parts fails)."""
         ref = self.make({"v": 1, "quotes": [Q("Fictional words.", "Sam Example", "Fictional sponsor")]})
