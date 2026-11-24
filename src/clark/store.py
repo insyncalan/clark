@@ -3254,50 +3254,6 @@ def column_orders(value):
     return text
 
 
-COLUMN_ORDERS_STEP = 35        # row 1534's step number (34 is row 1365), written once here and used by MIGRATIONS
-COLUMN_ORDERS_COLUMN = "column_orders TEXT NOT NULL DEFAULT '{}' CHECK (typeof(column_orders) = 'text' AND length(column_orders) <= 1000)"      # the same text as schema.sql's column
-
-
-def migrate_column_orders(con):
-    """Schema version 34 to 35 (row 1534): projects.column_orders, '{}' (every table in its standard order) for every project that is there. Added at the end
-    of the table, so no table is made again and no value changes; a column already there (a new database, or a second run) is skipped, and so is a missing
-    table. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 35 in MIGRATIONS."""
-    have = columns(con, "projects")
-    if have and "column_orders" not in have:
-        con.execute("ALTER TABLE projects ADD COLUMN " + COLUMN_ORDERS_COLUMN)
-
-
-# Row 1534: the column order of the work item tables, saved with the project (published for everyone, a ruling) and not in the browser. One saved
-# order for each work item table (actions, risks, issues, decisions): the Work items page and that table's Dashboard section draw the same one.
-# The Milestones and Use cases tables are not part of it, and the Excel export does not read it. Which columns a person SHOWS stays their own
-# choice in the browser. A saved list holds ids from WORK_COLUMN_IDS (the ids of TABLE_COLUMNS.work in page/src/logic/tableColumns.js, a test pins
-# the two together), none twice, and starts with status then item, so the Item can never lose its place; a hidden column keeps its place in the list.
-ORDER_TABLES = ("actions", "risks", "issues", "decisions")
-WORK_COLUMN_IDS = ("status", "item", "owner", "due", "prio", "id", "type", "workstream", "milestone", "raised", "closed", "usecase", "labels", "latest", "wording")
-COLUMN_ORDERS_LIMIT = 1000
-COLUMN_ORDERS_BAD = "The column order is a short list of this table's columns, with the Status first and the Item second. Nothing was changed."
-
-
-def column_orders(value):
-    """The project's column_orders as it is stored: JSON text of an object {table: [column ids]} (a dict is accepted and written the same way).
-    A table not in ORDER_TABLES, an id not in WORK_COLUMN_IDS, a repeat, or a list that does not start with status then item is Invalid; an empty
-    object (nothing saved, every table in its standard order) is '{}'. The same input always gives the same text (sorted tables, no spaces)."""
-    try:
-        got = json.loads(value) if isinstance(value, str) else value
-    except ValueError:
-        raise Invalid(COLUMN_ORDERS_BAD) from None
-    if type(got) is not dict:
-        raise Invalid(COLUMN_ORDERS_BAD)
-    for table, ids in got.items():
-        if table not in ORDER_TABLES or type(ids) is not list or len(ids) > len(WORK_COLUMN_IDS) or ids[:2] != ["status", "item"] \
-                or len(set(ids)) != len(ids) or any(type(i) is not str or i not in WORK_COLUMN_IDS for i in ids):
-            raise Invalid(COLUMN_ORDERS_BAD)
-    text = json.dumps(got, sort_keys=True, separators=(",", ":"))
-    if len(text) > COLUMN_ORDERS_LIMIT:
-        raise Invalid(COLUMN_ORDERS_BAD)
-    return text
-
-
 COLUMN_ORDERS_STEP = 34        # row 1534's step number (row 1365 also asks for 34; whoever merges second renumbers: this literal and SCHEMA_VERSION's line), written once here and used by MIGRATIONS
 COLUMN_ORDERS_COLUMN = "column_orders TEXT NOT NULL DEFAULT '{}' CHECK (typeof(column_orders) = 'text' AND length(column_orders) <= 1000)"      # the same text as schema.sql's column
 

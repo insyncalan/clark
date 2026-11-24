@@ -206,5 +206,58 @@ class Logic(unittest.TestCase):
         self.assertEqual(run_node("CO.withOrder('not json', 'risk', ['status', 'item', 'due', 'owner'])", blocked), {"risks": ["status", "item", "due", "owner"]})
 
 
+    def test_column_click_still_sorts(self):
+        """A click or short press on a heading is not a drag: the heading's own handlers stay, and only a press that travels 5 px or more moves a column. The real click is a Chrome flow and is NOT run here."""
+        menu = source("edit", "ColumnsMenu.jsx")
+        head = menu[menu.index("const headProps = (id) =>"):menu.index("onPointerDown: (e) =>")]
+        self.assertNotIn("onClick", head, "the move props take over no click: the heading keeps the click it had")
+        self.assertIn('if (!canMove || id === "status" || id === "item") return {};', head, "the Status and the Item add nothing to their heading")
+        drag = menu[menu.index("onPointerDown: (e) =>"):menu.index("const up = () => done(true)")]
+        self.assertNotIn("onClick", drag)
+        self.assertIn("Math.hypot(m.clientX - x0, m.clientY - y0) < 5) return;", drag, "under 5 px nothing is a drag")
+        self.assertIn("if (!moving) return;", drag, "a press that never became a drag ends without touching the click")
+        after_moving = drag[drag.index("if (!moving) return;"):]
+        self.assertLess(after_moving.index('addEventListener("click", quiet'), after_moving.index("moveTo(to, id)"))
+        self.assertEqual(drag.count('addEventListener("click", quiet'), 1, "only the click that ends a real drag is swallowed")
+        self.assertIn("e.target.closest(\".cgrip, button\")", drag, "a press on the resize grip or a button is left alone")
+        # the heading keeps its own props, and the move props come after them without replacing a handler of the same name
+        src = source("components", "WorkItems.jsx")
+        self.assertIn("{...h(id, labelOf(id))} {...(cm && cm.headProps ? cm.headProps(id) : {})}", src)
+        # nothing moves for a click: no target and no step
+        self.assertIsNone(run_node("CO.moveColumn(['status', 'item', 'owner', 'due'], 'owner', 0)"))
+        self.assertIsNone(run_node("CO.moveColumn(['status', 'item', 'owner', 'due'], 'owner', null, 'owner')"))
+
+    def test_reset_to_standard_order(self):
+        """'Reset to the standard order' saves the standard list, which is stored as nothing, so the table follows the standard again; it does nothing when no order is saved."""
+        std = json.dumps(["status", "item", "owner", "due", "prio", "id"])
+        self.assertEqual(run_node(f"CO.withOrder({{risks: ['status', 'item', 'due', 'owner', 'prio', 'id']}}, 'risk', {std})"), {}, "the standard list leaves no key")
+        self.assertEqual(run_node(f"CO.withOrder({{risks: ['status', 'item', 'id'], actions: ['status', 'item', 'due']}}, 'risk', {std})"), {"actions": ["status", "item", "due"]},
+                         "another table keeps its own order")
+        self.assertEqual(run_node("CO.Words.RESET_ORDER"), "Reset to the standard order")
+        menu = source("edit", "ColumnsMenu.jsx")
+        self.assertIn("const resetOrder = () => { if (savedOrder(co, type).length) saveOrder(standardOrder(), W.RESET_ORDER); };", menu)
+        self.assertIn("const standardOrder = () => defsOf(table).map((c) => c.id).filter((id) => ordered.includes(id));", menu, "the standard is the table's own list of columns")
+        self.assertIn('data-order-reset="" tabIndex={-1} aria-disabled={savedOrder(co, type).length ? undefined : "true"} onClick={resetOrder}', menu)
+        # and in the file: a saved order, then the standard one, is stored as nothing
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        change = changes.make_change(demo.store.path, [], USER)
+        put = lambda v: change({"project": "ABC", "kind": "projects", "op": "update", "changes": {"column_orders": v}})
+        self.assertEqual(put({"risks": ORDER})[0], 200)
+        self.assertEqual(put({})[0], 200)
+        self.assertEqual(demo.store.con.execute("SELECT column_orders FROM projects WHERE code = 'ABC'").fetchone()[0], "{}")
+
+    def test_column_move_saves_without_a_toast(self):
+        """The ruling for the row: no 'Column moved. Undo' toast; the change is silent and the step is kept for the undo key."""
+        menu = source("edit", "ColumnsMenu.jsx")
+        save = menu[menu.index("const saveOrder = async"):menu.index("const moveTo = ")]
+        self.assertIn('changes: { column_orders: next }, place: "menu" }, "", { silent: true });', save)
+        self.assertEqual(menu.count("column_orders: next"), 1, "the order has one writer in the menu, and it is the silent one")
+        changes_js = source("stores", "changes.js")
+        self.assertIn("named && named.silent", changes_js, "change() still honours {silent: true}")
+        code = "\n".join(l for l in (menu + source("logic", "columnsWords.js")).splitlines() if not l.lstrip().startswith("//"))
+        self.assertNotIn("Column moved", re.sub(r"//[^\n]*", "", code), "no string of the dropped toast (a comment may name it)")
+
+
 if __name__ == "__main__":
     unittest.main()
