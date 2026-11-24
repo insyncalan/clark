@@ -69,7 +69,7 @@ class Box(unittest.TestCase):
         self.assertEqual((view["size_default"], view["size_range"], view["size_step"], view["size_help"]), (300_000, [10_000, 500_000], 10_000, HELP))
 
     def test_a_saved_size_says_the_approved_toast_once_and_a_refused_one_does_not(self):
-        """Row 1571 (Romanoff CHANGES, item 2): the answer to a save carries 'Size of one question is saved.'; a refusal carries the refusal and no saved toast."""
+        """Row 1571 (the read's item 2): the answer to a save carries 'Size of one question is saved.'; a refusal carries the refusal and no saved toast."""
         status, got = self.connect.size({"size": 20_000})
         self.assertEqual((status, got["message"]), (200, "Size of one question is saved."))
         status, got = self.connect.size({"size": 5_000})
