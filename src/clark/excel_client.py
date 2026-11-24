@@ -59,17 +59,17 @@ def palette_of(branding):
 
 # (header, field, width) per table: only fields the file carries (publish.PUBLISH_FIELDS). Headers are the export's own.
 COLUMNS = {
-    "actions": [("ID", "id", 12), ("Description", "_words", 50), ("Workstream", "workstream", 16), ("Owner", "owner", 16),
+    "actions": [("ID", "id", 12), ("Title", "_words", 50), ("Workstream", "workstream", 16), ("Owner", "owner", 16),
                 ("Priority", "priority", 10), ("Due", "due_date", 12), ("Status", "status", 12), ("Raised", "raised", 12),
                 ("Closed", "closed", 12), ("Latest update", "latest_update", 40)],
-    "raid": [("ID", "id", 12), ("Type", "type", 10), ("Description", "_words", 50), ("Workstream", "workstream", 16),
+    "raid": [("ID", "id", 12), ("Type", "type", 10), ("Title", "_words", 50), ("Workstream", "workstream", 16),
              ("Owner", "owner", 16), ("Due", "due_date", 12), ("Impact", "impact", 10), ("Likelihood", "likelihood", 10),
              ("Priority", "priority", 10), ("Status", "status", 12), ("Raised", "raised", 12), ("Closed", "closed", 12), ("Latest update", "latest_update", 40)],
     "decisions": [("ID", "id", 12), ("Decision", "_words", 50), ("Status", "status", 12), ("Priority", "priority", 10), ("Made by", "made_by", 16),
-                  ("Needed by", "needed_by", 12), ("Date", "date", 12), ("Revisit", "revisit", 12), ("Latest update", "latest_update", 40)],
+                  ("Needed by", "needed_by", 12), ("Decided on", "date", 12), ("Revisit", "revisit", 12), ("Latest update", "latest_update", 40)],
     "milestones": [("ID", "id", 12), ("Milestone", "name", 30), ("Description", "_words", 50), ("Workstream", "workstream", 16),
                    ("Original", "original_date", 12), ("Agreed", "baseline_date", 12), ("Forecast", "forecast_date", 12),
-                   ("Shown state", "state_word", 14), ("% complete", "percent_complete", 11), ("Owner", "owner", 16),
+                   ("State", "state_word", 14), ("Progress %", "percent_complete", 11), ("Owner", "owner", 16),
                    ("State reason", "state_reason", 40), ("Achieved on", "actual_date", 12), ("Latest update", "latest_update", 40)],
     "use_cases": [("ID", "id", 12), ("Reference", "ref", 12), ("Use case", "title", 30), ("Status", "status", 12),
                   ("Headline", "headline", 40), ("Where it stands", "standing", 60)],
@@ -79,7 +79,7 @@ OWN_TEXT = {"actions": "description", "raid": "description", "decisions": "decis
 LEGACY_RICH = set(publish.LEGACY_RICH)      # (table, field): rich now, plain before (row 1005)
 RICH = {"standing"}                      # HTML the editor wrote: shown as its text
 EDITOR_LOCKED = {table: locked for _, table, _, locked in excel.SHEETS}     # each sheet's own locked set in the editor export
-EDITOR_FIELD = {"state_word": "shown_state"}      # the client column that is the export's worked-out Shown state
+EDITOR_FIELD = {"state_word": "shown_state"}      # the client column that is the export's worked-out State
 DATE_FIELDS = excel.DATES | {"revisit"}
 BLOCKS = re.compile(r"</(?:p|div|li|h[1-6]|blockquote|pre|tr)>|<br\s*/?>|<hr\s*/?>", re.I)
 TAGS = re.compile(r"<[^>]*>")
@@ -207,6 +207,7 @@ def write_sheet(wb, published, table, palette=None):
             else:
                 cell.fill = excel.LOCKED      # item 1157: a locked cell is grey, as in the export
     ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(4, 4 + len(rows_of(published, table)))}"      # Row 1390 AP4: the filter covers the header (row 4) and the data
     excel.print_setup(ws)
     excel.protect_sheet(ws)           # as the export's sheets (item 727): no password, the same allowed actions
     return ws
@@ -244,6 +245,7 @@ def write_gantt_sheet(wb, published, palette=None):
                 cell.number_format = excel.DATE_FORMAT
             excel.protect_text_cell(cell)
     ws.freeze_panes = "C5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(4, 4 + len(g['lines']))}"
     excel.print_setup(ws)
     excel.protect_sheet(ws)
     wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)   # row 926: the import's mark of a client copy (moving a row cannot remove it)
@@ -286,6 +288,7 @@ def write_glance_sheet(wb, published, sec, palette=None):
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             excel.protect_text_cell(cell)
     ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(GLANCE_HEADS))}{max(4, 4 + len(rows))}"
     excel.print_setup(ws)
     excel.protect_sheet(ws)
     wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)
