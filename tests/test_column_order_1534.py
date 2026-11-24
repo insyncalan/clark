@@ -255,7 +255,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(menu.count("column_orders: next"), 1, "the order has one writer in the menu, and it is the silent one")
         changes_js = source("stores", "changes.js")
         self.assertIn("named && named.silent", changes_js, "change() still honours {silent: true}")
-        code = "\n".join(l for l in (menu + source("logic", "columnsWords.js")).splitlines() if not l.lstrip().startswith("//"))
+        code = "\n".join(l for l in (menu + source("logic", "columnsWords.js") + source("logic", "columnOrderWords.js")).splitlines() if not l.lstrip().startswith("//"))
         self.assertNotIn("Column moved", re.sub(r"//[^\n]*", "", code), "no string of the dropped toast (a comment may name it)")
 
 
