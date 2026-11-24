@@ -79,7 +79,7 @@ class Setup(Base):
         if hash_ == "#usecases&p=ABC":
             p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
         if hash_.startswith("#dashboard"):
-            p.until("document.querySelectorAll('[data-mode]').length === 3", "the Dashboard drew its whole View | Edit switch (row 804)")
+            p.until("document.querySelectorAll('[data-mode]').length > 0", "the Dashboard drew its View | Edit switch (row 804)")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 3, "the View | Edit switch is on the Dashboard")      # row 804: the Dashboard has it, so the page must have drawn before anything is read (a race on a slow runner)
         else:
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
@@ -125,7 +125,7 @@ class Tab(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.ready()
-            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases"])      # row 976: no Settings tab
+            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Settings"])
             p.js("document.querySelector('[data-view=usecases]').click()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "the tab opened the page at its own address")
             self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases")

@@ -17,10 +17,6 @@ export function contentOf(section) {
 }
 
 const words = (v) => (typeof v === "string" ? v.trim() : "");
-// The words the one editor wrote (HTML). The page clark serves hands in its own cleaner (`clean`, edit/index.js: cleanHtml), so a body
-// written past the store is never drawn as stored; a published file's page has none (it holds no cleaner), and its html was
-// cleaned at publish (section_kinds/doclinks.rich, called from each template's published). "" when there are none or the cleaner refuses.
-export const richOf = (v, clean) => { try { return typeof v === "string" && v ? (clean ? clean(v) : v) : ""; } catch (e) { return ""; } };
 const lines = (v) => (Array.isArray(v) ? v.map(words).filter(Boolean) : []);
 
 // A file entry as it is drawn: { name, href, bytes } (bytes null when unknown), or null when it is not one the folder can hold.
@@ -65,17 +61,17 @@ export function docItems(section) {
 }
 
 // One document: { file, label, text } when there is a file to draw, else null (words alone stay out, as in the file).
-export function oneDoc(section, clean) {
+export function oneDoc(section) {
   const c = contentOf(section);
   const file = c ? fileOf(c.file) : null;
-  return file ? { file, label: words(c.label), text: lines(c.text), html: richOf(c.html, clean) } : null;
+  return file ? { file, label: words(c.label), text: lines(c.text) } : null;
 }
 
 // Link preview: { link, title, site, text } when there is a link to draw, else null.
-export function linkCard(section, clean) {
+export function linkCard(section) {
   const c = contentOf(section);
   const link = c ? linkOf(c.href) : null;
-  return link ? { link, title: words(c.title), site: words(c.site), text: lines(c.text), html: richOf(c.html, clean) } : null;
+  return link ? { link, title: words(c.title), site: words(c.site), text: lines(c.text) } : null;
 }
 
 // A file's size as a person reads it: "12 KB", "3.4 MB". "" when unknown.

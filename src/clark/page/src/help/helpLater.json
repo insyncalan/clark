@@ -50,31 +50,36 @@
   },
   {
    "at": 7,
+   "keys": "[[Alt+/]]",
+   "waits_for": "the AI menu"
+  },
+  {
+   "at": 8,
    "keys": "[[/]] in an editor",
    "waits_for": "the editor"
   },
   {
-   "at": 12,
+   "at": 13,
    "keys": "[[Enter]] or [[Space]]",
    "waits_for": "a section menu on the grip"
   },
   {
-   "at": 13,
+   "at": 14,
    "keys": "[[Alt+Left]] [[Alt+Right]]",
    "waits_for": "At a glance tiles"
   },
   {
-   "at": 14,
+   "at": 15,
    "keys": "[[Enter]] or [[Space]]",
    "waits_for": "use cases"
   },
   {
-   "at": 16,
+   "at": 17,
    "keys": "[[Mod+Z]]",
    "waits_for": "the editor"
   },
   {
-   "at": 17,
+   "at": 18,
    "keys": "Double-click",
    "waits_for": "the peek"
   }

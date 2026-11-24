@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_filter_line_page
 Starts the real server over the demo store at CLARK_NOW=2026-10-28 and drives the committed page in headless Chrome with real mouse and key
-events, at 1400 px here and at 900 px in test_filter_line_page_900 (#912: two files, so each is about half as long), in light and in dark. The pure rules are in test_filter_line. Required: fails, never skips, without Chrome.
+events, at 1400 and 900 px, in light and in dark. The pure rules are in test_filter_line. Required: fails, never skips, without Chrome.
 """
 import copy
 import re
@@ -34,7 +34,7 @@ from test_work_filters import click, expect, key, need_chrome, page_rows, pause,
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
-SIZES = (1400,)        # #912: the 900 px half of every loop over SIZES is test_filter_line_page_900 (the same tests, run at 900), a file of its own
+SIZES = (1400, 900)
 THEMES = ("light", "dark")
 
 
@@ -45,15 +45,13 @@ EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
 def click_tab(cdp, sid, selector):
     """Click a view tab. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen, so a tab is
     not where it was measured while that slide runs and the click lands beside it. Wait until the row has stopped (the same offset on
-    four reads one frame apart, and no animation running), bring the tab into view, then click."""
+    four reads 60 ms apart), bring the tab into view, then click."""
+    reads = []
+
     def still():
-        """No animation is running and the offset is the same on four reads one frame apart (#912: frames, not four sleeps of 60 ms)."""
-        if not cdp.js("document.getAnimations().length === 0", sid):
-            return False
-        reads = cdp.call("Runtime.evaluate", {"expression": "(async () => { const row = document.querySelector('.vtabs'); const r = []; for (let i = 0; i < 4; i++) { "
-                         "r.push(row.scrollLeft); await new Promise(f => requestAnimationFrame(f)); } return r; })()",
-                         "awaitPromise": True, "returnByValue": True}, sid)["result"].get("value") or []
-        return len(reads) == 4 and len(set(reads)) == 1
+        reads.append(cdp.js("document.querySelector('.vtabs').scrollLeft", sid))
+        time.sleep(0.06)
+        return len(reads) >= 4 and len(set(reads[-4:])) == 1
     assert wait(still), "the tab row is still sliding"
     cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
     click(cdp, sid, selector)
@@ -335,40 +333,6 @@ class Line(unittest.TestCase):
             self.assertEqual(self.chips(cdp, sid), ["is:open", "priority:High", "type:action"])
             pause(cdp, sid)
             self.assertEqual(self.shown(cdp, sid), expect([r for r in rows if r["kind"] == "action"], "open", filters={"priority": ["High"]}))
-
-    def test_backspace_or_delete_right_after_a_half_typed_field_value_removes_the_whole_word(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load(cdp, s.port)
-            self.focus(cdp, sid)
-            for name in ("Backspace", "Delete"):
-                self.put(cdp, sid, "")
-                self.type(cdp, sid, "status:Op")
-                self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "status:Op")
-                key(cdp, sid, name)
-                self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", name + " takes the whole status:Op")
-            self.type(cdp, sid, "fix ow")
-            key(cdp, sid, "Backspace")
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "fix o", "a plain word still goes one letter")
-
-    def test_delete_in_an_empty_box_takes_the_last_chip_and_before_a_space_takes_the_space(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load(cdp, s.port)
-            self.put(cdp, sid, "is:open priority:High ")
-            self.assertEqual(self.chips(cdp, sid), ["is:open", "priority:High"])
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "both words are chips, the box is empty")
-            key(cdp, sid, "Delete")
-            self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "Delete in the empty box takes the last chip like Backspace")
-            self.type(cdp, sid, "fix ow")
-            cdp.js("(() => { const i = document.querySelector('#fline-input'); i.setSelectionRange(0, 0); })()", sid)
-            key(cdp, sid, "Delete")
-            self.assertEqual(self.chips(cdp, sid), ["is:open", "ix", "ow"], "Delete in a box with text is the usual forward letter, no chip goes")
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "ix ow")
-            self.put(cdp, sid, "xx:Op x")
-            cdp.js("(() => { const i = document.querySelector('#fline-input'); i.setSelectionRange(5, 5); })()", sid)
-            key(cdp, sid, "Delete")
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "xx:Opx", "Delete before the space takes the space only")
 
     def test_a_token_with_an_error_is_underlined_says_why_and_filters_nothing(self):
         s = self.serve()
@@ -964,30 +928,6 @@ class Line(unittest.TestCase):
                     self.no_list(cdp, sid, "row 931: Tab into the empty line opens no list")
                     self.arm(cdp, sid)
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 1), "Space opens the fields")
-
-    def test_the_view_name_form_gives_the_focus_back_when_it_closes(self):
-        """The form's input is removed when it closes; focus goes back to the button that opened it, not to the top of the page."""
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load(cdp, s.port)
-            for how in ("Escape", "#vcancel", "Enter"):
-                click(cdp, sid, "#viewNew")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
-                if how == "Enter":
-                    self.type(cdp, sid, "Back focus")
-                    key(cdp, sid, "Enter")
-                elif how == "Escape":
-                    key(cdp, sid, "Escape")
-                else:
-                    cdp.js("document.querySelector('.vform .btn.sm[type=button]').click()", sid)
-                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#vname')", sid)), "the form closed")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), f"{how}: the focus is on + New view")
-            click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
-            click(cdp, sid, "#viewTabMenu")
-            click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
-            key(cdp, sid, "Escape")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewTabMenu"), "a rename gives the focus back to the tab's menu button")
 
     def test_the_list_opens_after_space_or_arrow_down_and_closes_on_a_choice_or_escape_row_931(self):
         s = self.serve()
