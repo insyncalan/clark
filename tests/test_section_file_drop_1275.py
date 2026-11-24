@@ -297,6 +297,28 @@ class InThePage(base.InThePage):
                     p.until("document.querySelector('[data-drop]').classList.contains('over')", "the over state")
                     self.assertEqual(p.js("document.querySelector('[data-drop]').textContent"), "Drop files here to add them.")
 
+    def test_good_files_and_a_refused_one_show_what_was_added_with_its_undo_and_the_refusal(self):
+        """Row 1593 (a reader reproduced it in Chrome): a drop of good files plus one refused file adds the good ones, and the ONE toast says
+        what was added with its Undo button AND names the refused file with its reason (before: only the problem toast, no Undo)."""
+        self.classic()
+        ref = self.add("doclinks")
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.open_edit(cdp, ref)
+            for w in WIDTHS:
+                with self.subTest(width=w):
+                    self.size(cdp, p, w)
+                    p.js("document.querySelectorAll('.toast').forEach(t => t.remove())")
+                    self.drag(p, [f"Good one {w}.pdf", f"Good two {w}.pdf", f"Refused {w}.exe"])
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length >= 2", "the good files are drawn")
+                    p.until("!!document.querySelector('.toast [data-undo], [data-undo]')", "the Undo button is on the toast")
+                    text = p.js("document.querySelector('.toast').textContent")
+                    self.assertIn("2 files added.", text)
+                    self.assertIn(f"Refused {w}.exe:", text, "the refused file is named")
+                    self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Undo took the whole batch off")
+
     def test_a_folder_in_the_drop_is_refused_whole(self):
         """Row 1593 (replaces the several-files-or-a-folder test): several files are added now, a folder still refuses the whole drop."""
         self.classic()

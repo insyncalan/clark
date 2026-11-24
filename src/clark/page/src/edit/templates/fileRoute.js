@@ -130,13 +130,18 @@ async function dropMany(id, list) {
   const added = status === 200 && body && body.ok === true;
   if (added) {
     await reread(code);
-    say("done", typeof body.message === "string" && body.message ? body.message : `${Array.isArray(body.added) && body.added.length ? body.added.length : held.length} files added.`, body.apply_id || null, code);
     lines.push(...problemLines(body));
-  } else if (held.length) {
-    const more = problemLines(body);
-    lines.push(...(more.length ? more : [fileWords(status, body)]));
+    // There is ONE toast slot and a problem toast replaces what is on show, so a drop of good files plus a refused one says both in the ONE
+    // toast that carries the Undo: what was added, then each refused file with its reason (row 1593; the single "problem" toast hid the Undo).
+    const head = typeof body.message === "string" && body.message ? body.message : `${Array.isArray(body.added) && body.added.length ? body.added.length : held.length} files added.`;
+    say("done", [head, ...lines].join(" "), body.apply_id || null, code);
+  } else {
+    if (held.length) {
+      const more = problemLines(body);
+      lines.push(...(more.length ? more : [fileWords(status, body)]));
+    }
+    if (lines.length) say("problem", lines.join(" "));      // nothing was added: all the refusals in the one toast (a toast per file would show only the last)
   }
-  lines.forEach((line) => say("problem", line));
   return added ? "added" : "refused";
 }
 
