@@ -47,6 +47,7 @@ Routes:
 - POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
 - GET  /api/ask-files[?project=CODE] and POST /api/ask-files {on} | {project, off_here} | {undo}: the Files switch, for all projects and one project's own turn-off (row 1294; app_settings.py)
 - GET  /api/ask-commands?project=CODE and POST /api/ask-commands {scope, project?, action: save | remove | reset, ...}: the slash commands of ask clark (row 1295; ask_commands_service.py)
+- GET  /api/projects-overview  each live project's settings values for the Projects overview, read only (row 1299 S3; projects_overview.py)
 - GET  /api/ask-new-projects[?project=CODE] and POST /api/ask-new-projects {on} | {project, off_here} | {undo}: the starting value of asking for new projects and a project's own asking (row 1294; app_settings.py)
 - GET  /api/ask-instructions?project=CODE and POST /api/ask-instructions {scope: all | project, project?, text} or {scope, project?, undo}: the standing instructions of asking, for all projects and for one (row 1294; ask_instructions.py)
 - GET  /api/ask-usage: this month's questions and tokens, per project and in all, read only (row 1294; ask_usage.py, ask_service.py)
@@ -196,7 +197,7 @@ ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: 
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 ASK_BODY_LIMIT = 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024)     # #1292 S14: a question (128 KiB) and up to five files of 10 MB in base64 (ask_files.FILE_MAX, FILE_BYTES); the route screens each file
 EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
-IMAGE_FILE_MB = 8                      # row 1223: the most one image may take when sent to /api/section-image (section_kinds/imagecap.py PICTURE_MAX, a test keeps them equal); the other picture templates hold their own 1 MiB, checked in changes.py
+IMAGE_FILE_MB = 10                     # row 1233: the most one image may take when sent to /api/section-image (section_kinds/gallery.py PICTURE_MAX, a test keeps them equal; the Image and Text and image templates refuse over 8 MiB by their own check, imagecap.py PICTURE_MAX); the other picture templates hold their own 1 MiB, checked in changes.py
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
@@ -225,7 +226,7 @@ PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colo
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
-                     "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
+                     "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB); row 1233: to one gallery picture sent (14 MiB), each template keeps its own size limit
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/ask-instructions": 24 * 1024, "/api/ask-commands": 8 * 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024, "/api/ask": ASK_BODY_LIMIT, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
@@ -852,6 +853,18 @@ def projects_route(handler):
             one["open"] = count
         out.append(one)
     return handler.send(200, {"ok": True, "projects": out})
+
+
+def projects_overview_route(handler):
+    """GET /api/projects-overview (row 1299, S3): each live project's values for the Projects overview, read only. The server's `projects_overview`
+    (projects_overview.ProjectsOverview) answers (status, body); without one: not found. No parameter is taken: any query is refused."""
+    service = getattr(handler.server, "projects_overview", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    if urlsplit(handler.path).query:
+        return handler.send(400, error_body("bad_request"))
+    status, body = service.read()
+    return handler.send(status, body)
 
 
 def use_cases_route(handler):
@@ -1539,7 +1552,7 @@ class BrandLibrary:
         return self._run(lambda lib: (lib.undo(self.root, self.data), {})[1])
 
 
-GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
+GET_ROUTES = {"/api/projects": projects_route, "/api/projects-overview": projects_overview_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/ask-files": ask_files_read_route, "/api/ask-new-projects": ask_new_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
@@ -1882,7 +1895,7 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
                  people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
         self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
@@ -1911,6 +1924,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ask_commands = ask_commands                # ask_commands_service.AskCommandsService (row 1295); None: its route answers 404
         self.ask_instructions = ask_instructions        # standing_instructions.StandingInstructions (row 1294); None: its route answers 404
         self.ai_connect = ai_connect          # ai_connect.AiConnect (#54): Settings › AI; None: its routes answer 404
+        self.projects_overview = projects_overview      # projects_overview.ProjectsOverview (row 1299, S3); None: its route answers 404
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.people, self.people_undo, self.people_list = people, people_undo, people_list      # #115: the person writers, their Undo and the list; None: saving off (503) or not found (404)
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
@@ -1953,7 +1967,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, ask_commands=None, projects_overview=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
           people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
@@ -1964,7 +1978,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
         httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), SetupHandler if setup is not None else Handler, data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
+                            milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, ask_commands=ask_commands, projects_overview=projects_overview, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
                             people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:

@@ -25,6 +25,20 @@ class CardsKeepTheirRows(T.InThePage):
                 self.assertEqual(p.js("!!document.getElementById('theme')"), False, "this is the Cards page")
                 self.assertEqual(p.js("document.querySelectorAll('.secs [data-cell], .secs .cell-pick').length"), 0, "no picker anywhere in the sections")
 
+    def test_a_half_width_list_on_cards_is_unchanged_no_pickers(self):
+        # ruling 23-11 (B): Cards stays frozen, a list set beside another included: no picker, same cells as before
+        with self.store.step("dashboard", T.USER) as st:
+            left = st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Fictional actions", "sort_order": 1, "beside": 1})
+            st.create("report_sections", {"project": "ABC", "type": "raid", "title": "Fictional risks", "sort_order": 2})
+        row = f"[data-id=\"{left}\"].slot-left .wl-row[data-id=\"{self.a_due}\"]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('{row}')", "the half-width actions list drew")
+                self.assertEqual(p.js("!!document.getElementById('theme')"), False, "this is the Cards page")
+                self.assertEqual(p.js("document.querySelectorAll('.secs [data-cell], .secs .cell-pick, .secs .wl-row button.cell-pick').length"), 0, "no picker on Cards at half width")
+                self.assertEqual(p.js(f"document.querySelectorAll('{row} .c-owner, {row} .c-date, {row} .c-ico').length"), 3, "the row keeps its owner, date and status cells, as plain text")
+
     def test_a_title_click_opens_the_peek_read_only_on_cards(self):
         ref = self.section("actions", "Fictional actions")
         row = f"[data-id=\"{ref}\"] .wl-row[data-id=\"{self.a_due}\"]"

@@ -46,7 +46,13 @@ LIGHT = {
         # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
         '--tile-on-bg': '#ECE9FB',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--pill-track': '#ECEFF6',
+        '--pill-on-fg': '#4F35C9',
+        '--pill-on-bg': '#FFFFFF',
+        '--pill-muted': '#4A5578',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
+        '--pri-high-sheet-bg': '#F4DEDB',
+        '--pri-high-sheet-fg': '#B3392F',
         '--ms-amber-shape': '#C58A00',
     }
 DARK = {
@@ -83,6 +89,10 @@ DARK = {
         '--sec-number-size': '20px',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--pill-track': '#1C3040',
+        '--pill-on-fg': '#A99BFF',
+        '--pill-on-bg': '#13232E',
+        '--pill-muted': '#9FB0BD',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
         '--ms-amber-shape': '#E0A620',
     }
@@ -117,9 +127,9 @@ RULE_LINES = [
         '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
         "/* Row 1195: the Work items section as the approved mock-up draws it, Classic only (Cards keeps today's rules and markup). Table cells, in the page and in Edit. */",
         "/* Row 1195: the mock-up's measured colours, light; dark keeps the Theme's own tokens. */",
-        '.wil { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }',
-        ':root[data-theme=dark] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }',
-        '@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }',
+        '.wil, #work { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }',
+        ':root[data-theme=dark] .wil, :root[data-theme=dark] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }',
+        '@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil, :root[data-theme=auto] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }',
         '.wil-table th { font-size: calc(var(--size-caption) - 1.5px); color: var(--wil-th); }',
         '.wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue); }',
         '.wil-pr { border: 1px solid var(--wil-pr-bd); border-radius: 6px; background: var(--wil-pr-bg); color: var(--wil-pr-fg); font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); }',
