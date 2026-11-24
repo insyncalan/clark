@@ -598,7 +598,7 @@ class FromFolders(tp.Folders):
         assert_growth(self, work, 10000, "long file")
 
     def test_removing_the_screen_lets_the_secret_through(self):
-        self.put(self.box, "s.txt", "ZQ-S pass" + "word=" + PW)
+        self.put(self.box, "s.txt", "ZQ-S plan pass" + "word=" + PW)
         with mock.patch.object(secret_screen, "looks_like_secret", return_value=False):
             got = self.run_it()
         self.assertIn(PW, self.text_of(got))                                # so the tests above depend on the screen
