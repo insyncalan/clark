@@ -200,8 +200,8 @@ class Files(Base):
 
 
 class FirstRunAndHelpWords(unittest.TestCase):
-    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (item 6; item 10 is held)."""
-    PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (items 6 and 10)."""
+    PICTURES = "On a Mac, pictures (PNG and JPG) in your folders are read on this Mac and are never sent out; text found in them is treated like any other passage from your folders."
     SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat."
 
     def test_first_run_card_and_help_state_passages_go_to_claude(self):
@@ -215,10 +215,9 @@ class FirstRunAndHelpWords(unittest.TestCase):
         self.assertIn("W.CARD_PASSAGES", panel)
         entries = json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8"))
         self.assertIn(self.SENTENCE, json.dumps(entries, ensure_ascii=False))
-        # item 10 (pictures read on this Mac) is held until the picture reader exists: it is in neither the card nor Help.
-        self.assertNotIn("CARD_PICTURES", said)
-        self.assertNotIn("CARD_PICTURES", panel)
-        self.assertNotIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
+        self.assertEqual(said.get("CARD_PICTURES"), self.PICTURES)
+        self.assertIn("W.CARD_PICTURES", panel)
+        self.assertIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
 
 
 class QuestionNeedsNoPassages(RouteBase):
@@ -290,6 +289,25 @@ class QuestionNeedsNoPassages(RouteBase):
             self.assertIn("whole.txt", sent, index_path)
             self.assertNotIn("longer.txt", sent, index_path)
             self.assertNotIn("longer.txt", self.ask("and who owns it?"), "control: with no earlier turn the ID is not known")
+
+    def test_a_pictures_text_is_treated_like_a_text_files_passage_and_the_picture_never_is_sent(self):
+        """Row 1616 AP1 (the first-run and Help sentence): text found in a picture in the folders is a passage like the text of a .txt file with the same words:
+        sent for a question that matches, not otherwise; the picture file's own bytes are never sent."""
+        from clark import ask_picture, platform as pl
+        reader = lambda raw: raw.decode("latin-1").split("|", 1)[-1]
+        for p in (mock.patch.object(ask_picture.platform, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", reader)):
+            p.start()
+            self.addCleanup(p.stop)
+        (self.box / "scan.png").write_bytes(b"RAWBYTESzqnever|the quarterly xylophone invoice")
+        (self.box / "note.txt").write_text("the quarterly xylophone invoice", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        for question, sent_expected in (("what does the xylophone invoice say", True), ("milestones", False)):
+            sent = self.ask(question)
+            self.assertEqual("scan.png" in sent, sent_expected, question)
+            self.assertEqual("note.txt" in sent, sent_expected, question)
+            self.assertEqual("quarterly xylophone invoice" in sent, sent_expected, question)
+            self.assertNotIn("RAWBYTES", sent, "the picture file's own bytes are never sent")
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
         self.service.indexer = None                       # no current index: the folders are read at question time

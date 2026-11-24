@@ -90,22 +90,22 @@ class Retry(Base):
     def test_a_busy_save_keeps_the_offer_and_it_saves_the_next_time(self):
         offer = self.offer()
         self.down["save"] = True
-        status, body = self.apply(offer)
+        status, body = self.apply(offer, confirm=True)
         self.assertEqual((status, body["code"]), (503, "busy"))
         self.assertEqual(self.status_of(self.action), "Open")
         self.down["save"] = False
-        status, body = self.apply(offer)
+        status, body = self.apply(offer, confirm=True)
         self.assertEqual((status, body["ok"]), (200, True), body)
         self.assertEqual(self.status_of(self.action), "Closed")
-        self.assertEqual(self.apply(offer)[1]["code"], "no_offer", "saved once, used once")
+        self.assertEqual(self.apply(offer, confirm=True)[1]["code"], "no_offer", "saved once, used once")
 
     def test_a_fault_while_saving_keeps_the_offer(self):
         offer = self.offer()
         self.down["boom"] = True
         with self.assertRaises(RuntimeError):
-            self.service.applier.apply(offer, "ABC")
+            self.service.applier.apply(offer, "ABC", confirm=True)
         self.down["boom"] = False
-        self.assertEqual(self.apply(offer)[0], 200)
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200)
 
     def test_a_fault_after_the_save_was_committed_does_not_restore_the_offer(self):
         reply = self.answer(change_line(op="new", kind="action", title="Task once", owner="Sam Lee"))["reply"]
@@ -115,18 +115,18 @@ class Retry(Base):
         before = self.counts()[0]
         with mock.patch("clark.backup.finish", side_effect=RuntimeError("after the commit")):
             with self.assertRaises(RuntimeError):
-                self.service.applier.apply(offer, "ABC")
+                self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual(self.counts()[0], before + 1, "the save happened")
-        self.assertEqual(self.apply(offer)[1]["code"], "no_offer", "the offer is used up: a second Apply saves nothing")
+        self.assertEqual(self.apply(offer, confirm=True)[1]["code"], "no_offer", "the offer is used up: a second Apply saves nothing")
         self.assertEqual(self.counts()[0], before + 1, "saved once")
 
     def test_a_fault_before_the_commit_restores_the_offer_and_nothing_is_saved(self):
         offer = self.offer()
         with mock.patch("clark.store.Store.ask_enabled", side_effect=RuntimeError("before the commit")):
             with self.assertRaises(RuntimeError):
-                self.service.applier.apply(offer, "ABC")
+                self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual(self.status_of(self.action), "Open")
-        self.assertEqual(self.apply(offer)[0], 200)
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200)
         self.assertEqual(self.status_of(self.action), "Closed")
 
     def new_offer(self):
@@ -141,10 +141,10 @@ class Retry(Base):
         before = self.counts()[0]
         busy = ask_apply.changes.Invalid("clark's data is in use by another window")
         with mock.patch("clark.backup.finish", side_effect=busy):
-            status, body = self.service.applier.apply(offer, "ABC")
+            status, body = self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual((status, body["code"]), (503, "busy"))
         self.assertEqual(self.counts()[0], before + 1, "the save happened")
-        self.assertEqual(self.apply(offer)[1]["code"], "no_offer")
+        self.assertEqual(self.apply(offer, confirm=True)[1]["code"], "no_offer")
         self.assertEqual(self.counts()[0], before + 1, "saved once")
 
     def test_a_busy_answer_before_the_save_keeps_the_offer_through_the_real_save(self):
@@ -153,10 +153,10 @@ class Retry(Base):
         before = self.counts()[0]
         busy = ask_apply.changes.Invalid("clark's data is in use by another window")
         with mock.patch("clark.store.Store.step", side_effect=busy):
-            status, body = self.service.applier.apply(offer, "ABC")
+            status, body = self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual((status, body["code"]), (503, "busy"))
         self.assertEqual(self.counts()[0], before)
-        self.assertEqual(self.apply(offer)[0], 200, "kept for the next Apply")
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200, "kept for the next Apply")
         self.assertEqual(self.counts()[0], before + 1)
 
     def test_a_fault_inside_the_step_before_the_commit_restores_the_offer(self):
@@ -165,9 +165,9 @@ class Retry(Base):
         before = self.counts()[0]
         with mock.patch("clark.changes._AskStore.shown", side_effect=RuntimeError("inside the step")):
             with self.assertRaises(RuntimeError):
-                self.service.applier.apply(offer, "ABC")
+                self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual(self.counts()[0], before)
-        self.assertEqual(self.apply(offer)[0], 200)
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200)
         self.assertEqual(self.counts()[0], before + 1)
 
     def test_a_commit_that_fails_restores_the_offer(self):
@@ -194,9 +194,9 @@ class Retry(Base):
             return store
         with mock.patch.object(ask_apply.changes.clark_store, "open_store", open_store):
             with self.assertRaises(RuntimeError):
-                self.service.applier.apply(offer, "ABC")
+                self.service.applier.apply(offer, "ABC", confirm=True)
         self.assertEqual(self.counts()[0], before)
-        self.assertEqual(self.apply(offer)[0], 200, "nothing was committed, so the offer was kept")
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200, "nothing was committed, so the offer was kept")
 
     def test_a_fault_in_a_dry_run_is_not_a_committed_save(self):
         offer_request = self.service.applier.offers[self.new_offer()].request
@@ -218,8 +218,8 @@ class Retry(Base):
         offer = self.offer()
         with mock.patch.object(self.service.applier, "ask_change", side_effect=KeyboardInterrupt):
             with self.assertRaises(KeyboardInterrupt):
-                self.service.applier.apply(offer, "ABC")
-        self.assertEqual(self.apply(offer)[0], 200)
+                self.service.applier.apply(offer, "ABC", confirm=True)
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200)
 
     def test_a_kept_offer_still_expires_when_it_would_have(self):
         now = [1000.0]
@@ -227,7 +227,7 @@ class Retry(Base):
         offer = self.offer()
         now[0] += 10 * 60
         self.down["save"] = True
-        self.assertEqual(self.apply(offer)[0], 503)
+        self.assertEqual(self.apply(offer, confirm=True)[0], 503)
         self.down["save"] = False
         now[0] += 21 * 60                         # 31 minutes after it was made, 21 after the busy save
         self.assertEqual((self.apply(offer)[0], self.apply(offer)[1]["code"]), (409, "no_offer"))
