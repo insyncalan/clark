@@ -1,6 +1,7 @@
 /* Theme prototype-2.0 (item 1260): values only, under the committed names. Layered over src/clark/brand/tokens.css and under a project's Brand.
    Light, then dark written twice (data-theme=dark and data-theme=auto), as in the committed file; tests/test_theme_prototype.py keeps the copies equal. */
 :root {
+  --aim-label: #3B6FD4; --aim-hover: #e6eefc; --aim-ic-improve: #7C4DFF; --aim-ic-structure: #2F7D4A; --aim-ic-ask: #B7791F;
   --text: #1D2433; --heading: #0F1A2E; --grey-50: #F6F8FC; --grey-100: #E9EDF6; --grey-500: #8794B3;
   --status-amber-text: #8A5A00; --tone-amber-text: #8A5A00; --tone-blue-text: #2F4BB8;
   --tone-red-tint: #FBECEA; --tone-amber-tint: #FBF1DA; --tone-green-tint: #E0F3EF; --tone-blue-tint: #E8EDFB; --tone-grey-tint: #ECEFF5; --tone-urgent: #6B1D2A;

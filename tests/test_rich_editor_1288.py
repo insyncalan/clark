@@ -163,7 +163,7 @@ class Editor(unittest.TestCase):
         themes = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
         self.assertLessEqual((themes / "rules.css").stat().st_size, 131072)
         two = (themes / "rules-2.css").read_text()
-        self.assertLess(two.index(".aim-gl { color: #3B6FD4"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
+        self.assertLess(two.index(".aim-gl { color: var(--aim-label)"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:

@@ -268,11 +268,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 
 /* Row 1288 (AP6, Classic AI menu, mock-up 5B): group labels blue, the hovered or focused row light blue, the Improve, Structure and Ask icons purple, green and amber, and the menu at least 210 px wide. Dark has no ruled values yet, so it keeps the theme's own muted label and tint. */
 .aim { min-width: 210px; }
-.aim-gl { color: #3B6FD4; }
-.aim-opt:hover, .aim-opt:focus-visible { background: #e6eefc; }
-.aim-ic-improve { color: #7C4DFF; }
-.aim-ic-structure { color: #2F7D4A; }
-.aim-ic-ask { color: #B7791F; }
+.aim-gl { color: var(--aim-label); }
+.aim-opt:hover, .aim-opt:focus-visible { background: var(--aim-hover); }
+.aim-ic-improve { color: var(--aim-ic-improve); }
+.aim-ic-structure { color: var(--aim-ic-structure); }
+.aim-ic-ask { color: var(--aim-ic-ask); }
 :root[data-theme=dark] .aim-gl { color: var(--text-muted); }
 :root[data-theme=dark] .aim-opt:hover, :root[data-theme=dark] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
 :root[data-theme=dark] .aim-ic { color: currentColor; }
