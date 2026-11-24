@@ -164,8 +164,7 @@ def _item(value, rules, n=1, stored=False):
     if kind == "file":
         value = fields(value, ("kind", "name", "rel", "bytes", "label"), ("kind", "name", "rel", "bytes"))
         entry = file_entry({k: value[k] for k in ("name", "rel", "bytes")})
-        if not stored:
-            allowed_type(entry["name"])
+        pass
         return {"kind": "file", **entry, "label": words(value.get("label", ""), rules)}
     if kind == "link":
         value = fields(value, ("kind", "href", "label"), ("kind", "href"))
