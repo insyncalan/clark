@@ -279,6 +279,13 @@ class PageSide(PageBase):
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", ids["sec"], {"body": body(*cards)})
 
+    def classic(self, p, sec):
+        """The served page draws as Cards; the card change of row 1270 is Classic only (Cards is frozen), so put the Theme mark on every new document the way the published file carries it, and reload."""
+        mark = "document.addEventListener('DOMContentLoaded', () => { if (!document.getElementById('theme')) { const s = document.createElement('style'); s.id = 'theme'; document.head.appendChild(s); } });"
+        p.cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": mark}, p.sid)
+        p.reload()
+        p.until("!!document.getElementById('theme')", "the page carries the Classic Theme mark")
+
     def card_ids(self, p, sec):
         return self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] .raid-card')].map(e => e.dataset.card)")
 
@@ -290,6 +297,8 @@ class PageSide(PageBase):
         with chrome() as cdp:
             p = self.visit(cdp)
             sec = ids["sec"]
+            self.classic(p, sec)
+            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .raid-part')", "the Classic card is drawn")
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]], "the item that is not client visible has no card")
             shown = p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent")
             self.assertIn("Supplier may slip", shown, "the item's own description")
@@ -332,6 +341,7 @@ class PageSide(PageBase):
             # a second change. It counts changes, so it needs the unfocused page it was written for.
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
+            self.classic(p, sec)
             p.edit()
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-first')", "the first-step line is shown")
             first = p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-first').textContent")
