@@ -120,7 +120,7 @@ export function MsPicker({ data, leftOut, onAdd, onClose }) {
       <div class="pk-foot">
         <span class="muted pk-count" aria-live="polite">{selectedWords(n)}</span>
         <button type="button" class="pk-btn" onClick={onClose}>Cancel</button>
-        <button type="submit" class="pk-btn pri" disabled={!n}>{addWords(n)}</button>
+        <button type="submit" class="pk-btn pri" disabled={false}>{addWords(n)}</button>
       </div>
     </form>
   );

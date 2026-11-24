@@ -138,6 +138,14 @@ class Survivors(unittest.TestCase):
         self.assertEqual(run_node("W.options('status').map((o) => o[0])"),
                          ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled"])
 
+    def test_the_due_and_client_options_and_the_zero_toast(self):
+        self.assertEqual(run_node("W.options('due')"), [["overdue", "Overdue"], ["soon", "Due in 7 days"], ["none", "No date"], ["later", "Later"]])
+        self.assertEqual(run_node("W.options('client')"), [["yes", "Shown to the client"], ["no", "Internal only"]])
+        self.assertEqual(run_node("W.toastWords(0)"), "0 milestones added to the page.")
+
+    def test_no_data_offers_nothing(self):
+        self.assertEqual(run_node("[W.offered(null, [], today), W.offered({}, null, today)]"), [[], []])
+
 
 if __name__ == "__main__":
     unittest.main()

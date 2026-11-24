@@ -132,6 +132,34 @@ class Picker(unittest.TestCase):
             self.until("!!document.querySelector('.toast .toast-text')", "the toast")
             self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "3 milestones added to the page.")
             self.assertEqual(self.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
+    def test_row_click_header_states_is_not_and_the_empty_progress(self):
+        with chrome() as cdp:
+            self.open(cdp, 1400)
+            got = self.launch()
+            self.assertEqual([r[4] for r in got["rows"]], ["—", "—", "—"], "no percent is a dash")
+            self.assertEqual(self.js("document.querySelector('form.ms-pk [type=submit]').disabled"), True, "Add is off with nothing ticked")
+            state = "(() => { const b = document.querySelector('form.ms-pk'); const h = b.querySelector('[data-pksa]'); return [b.querySelector('.pk-count').textContent.trim(), h.checked, h.indeterminate, b.querySelector('[type=submit]').disabled]; })()"
+            self.js("document.querySelector('form.ms-pk tbody tr td.nm').click()")
+            self.until("document.querySelector('form.ms-pk .pk-count').textContent === '1 selected'", "a click on the row ticked it")
+            self.assertEqual(self.js(state), ["1 selected", False, True, False], "some ticked: header is mixed, not checked, Add is on")
+            self.js("document.querySelector('form.ms-pk tbody tr input[type=checkbox]').click()")
+            self.until("document.querySelector('form.ms-pk .pk-count').textContent === 'None selected'", "the tick itself toggled once, not twice")
+            self.js("document.querySelector('form.ms-pk [data-pksa]').click()")
+            self.until("document.querySelector('form.ms-pk .pk-count').textContent === '3 selected'", "header ticked all")
+            self.assertEqual(self.js(state), ["3 selected", True, False, False])
+            self.js("document.querySelector('form.ms-pk [data-pkp]').click()")
+            self.until("!!document.querySelector('form.ms-pk .fpan')", "the panel opened")
+            self.js("[...document.querySelectorAll('form.ms-pk .frow')].find((b) => b.textContent.startsWith('On the page')).click()")
+            self.js("document.querySelector('form.ms-pk [data-pkn=\"1\"]').click()")
+            self.js("document.querySelector(\"form.ms-pk [data-pkv='%s']\").click()" % NOT_ON)
+            self.until("document.querySelectorAll('form.ms-pk tbody tr').length === 2", "is not hides the Not on the page row")
+            self.assertEqual([self.js("document.querySelector('form.ms-pk [data-pkn=\"1\"]').getAttribute('aria-pressed')")], ["true"])
+            self.js("document.querySelector('form.ms-pk [data-pksa]').click()")
+            self.until("document.querySelector('form.ms-pk .pk-count').textContent === '1 selected'", "header untick drops only the shown rows")
+            self.js("[...document.querySelectorAll('form.ms-pk .frow')].find((b) => b.textContent.startsWith('Status')).click()")
+            self.assertEqual(self.js("[...document.querySelectorAll('form.ms-pk .fopts input')].filter((i) => i.disabled).length"), 6, "values with no rows are off")
+            self.js("document.querySelector('form.ms-pk [data-pkp]').click()")
+            self.until("!document.querySelector('form.ms-pk .fpan')", "the filter button closes the panel when open")
 
     def test_no_show_all_link_with_more_than_five_rows(self):
         for edit in (False, True):
