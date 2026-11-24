@@ -105,6 +105,14 @@ class Switch(Base):
         self.assertEqual(self.proj()["show_board_client"], 0)
         self.assertEqual(self.put(0)[1]["apply_id"], None, "off to off changes nothing and has no Undo")
 
+    def test_the_undo_sentence_is_exactly_one_line_and_said_once_for_two_entries(self):
+        def entry(ref, to):
+            return {"field": "show_board_client", "ref": ref, "to": to, "change": "changed"}
+        one = changes.words([entry("ABC", "0")], [], {})
+        self.assertEqual(one, "Put back: the board view for the client.")      # not a second, generic phrase after it
+        two = changes.words([entry("ABC", "0"), entry("DEF", "1")], [], {})
+        self.assertEqual(two, "Put back: the board view for the client.")      # one line however many entries
+
     def test_the_field_is_in_the_change_lists_and_has_its_words(self):
         self.assertIn("show_board_client", changes.CHANGE_KINDS["projects"]["update"])
         self.assertIn("show_board_client", changes.UNDOABLE["projects"])

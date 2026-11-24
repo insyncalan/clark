@@ -75,6 +75,13 @@ class PublishedBoard(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-layout], #layout-seg, #work-board').length", sid), 0, f"{w} {s}: no Board choice, no board")
                 self.assertGreater(cdp.js("document.querySelectorAll('#work-list tr[data-id]').length", sid), 0, "the list stays")
 
+    def test_published_board_only_the_whole_number_1_turns_it_on(self):
+        for i, bad in enumerate((True, 1.0, "1", 2, -1, None, [1], 0)):
+            out = self.tmp / f"bad{i}"
+            out.mkdir()
+            text = publish_with(self.store, out, bad).read_text(encoding="utf-8").replace(" ", "")
+            self.assertNotIn('"board":1', text, f"{bad!r} draws no board")
+
     def test_published_board_switch_on_offers_list_and_board_list_first(self):
         for w, s in VARIANTS:
             with chrome() as cdp:
@@ -197,6 +204,35 @@ class PublishedBoard(unittest.TestCase):
             self.assertEqual(cdp.js("document.getElementById('group-by').getAttribute('aria-label')", sid), "Group by: Owner, type lanes")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-board .lane-h').length", sid) > 0), "swimlanes draw")
 
+
+    def test_published_board_picking_the_lane_as_group_clears_the_lane_and_none_says_no_lanes(self):
+        def pick(cdp, sid, name):
+            cdp.js("document.querySelector('#group-by').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
+            cdp.js(f"[...document.querySelectorAll('[role^=menuitem]')].find(x => x.textContent.replace('\\u2713', '').trim() === {name!r}).click()", sid)
+
+        def label(cdp, sid):
+            return cdp.js("document.getElementById('group-by').getAttribute('aria-label')", sid)
+        with chrome() as cdp:
+            sid = self.page(cdp, self.on)
+            self.to_board(cdp, sid)
+            pick(cdp, sid, "Type lanes")
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Workstream, type lanes"))
+            pick(cdp, sid, "Type")      # the lane becomes the group: the lane is dropped, not kept for later
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Type"))
+            self.assertEqual(cdp.js("document.getElementById('work-live').textContent", sid), "Grouped by Type.")
+            pick(cdp, sid, "Workstream")
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Workstream"), "no lane comes back")
+            pick(cdp, sid, "Type lanes")
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Workstream, type lanes"))
+            pick(cdp, sid, "No lanes")
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Workstream"), "No lanes clears the lane")
+            self.assertEqual(cdp.js("document.getElementById('work-live').textContent", sid), "No lanes.")
+            self.assertEqual(cdp.js("document.querySelectorAll('#work-board .lane-h').length", sid), 0, "no lane rows are drawn")
+            self.assertGreater(cdp.js("document.querySelectorAll('#work-board article[data-id]').length", sid), 0, "the cards are still there")
+            pick(cdp, sid, "Type")
+            pick(cdp, sid, "Workstream")
+            self.assertTrue(wait(lambda: label(cdp, sid) == "Group by: Workstream"), "the cleared lane stayed cleared")
 
     def test_published_board_print_follows_table(self):
         with chrome() as cdp:
