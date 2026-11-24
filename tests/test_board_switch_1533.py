@@ -1,4 +1,4 @@
-"""Row 1533, PR 1: the author's switch for the client's Work items board (projects.show_board_client, step 37, store and changes are guarded).
+"""Row 1533, PR 1: the author's switch for the client's Work items board (projects.show_board_client, step 34, store and changes are guarded).
 
 Covered: the migration adds the column off (0) for every project and a second run changes nothing; the schema and the migration say the
 same column; a new project is off; the change route sets it to the whole numbers 0 and 1 only, records one step with Undo, and says it in
@@ -36,10 +36,10 @@ class Migration(unittest.TestCase):
         finally:
             con.row_factory = None
 
-    def test_the_step_is_37_and_the_version_says_so(self):
-        self.assertEqual(store_module.BOARD_CLIENT_STEP, 37)
-        self.assertIn((37, store_module.migrate_board_client), store_module.MIGRATIONS)
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 37)
+    def test_the_step_is_34_and_the_version_says_so(self):
+        self.assertEqual(store_module.BOARD_CLIENT_STEP, 34)
+        self.assertIn((34, store_module.migrate_board_client), store_module.MIGRATIONS)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 34)
 
     def test_the_step_adds_the_column_off_for_every_project_and_a_second_run_changes_nothing(self):
         path = make_at(self.dir, 33)
