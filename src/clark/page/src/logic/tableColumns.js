@@ -74,3 +74,48 @@ const keyOf = (table, project) => `cols.show.${table}.${project || "none"}`;
 export const readChoice = (table, project) => shownIds(table, recall(keyOf(table, project), null));
 /** Kept for this table and this project in this browser; the standard set is kept as nothing at all (the key is taken away), so the table follows any later change of the standard. */
 export const writeChoice = (table, project, shown) => (isStandard(table, shown) ? forget(keyOf(table, project)) : remember(keyOf(table, project), shownIds(table, shown)));
+
+// Row 1534: the ORDER of the Work items columns. Unlike which columns are shown (above, this browser only), the order is saved with the project
+// (projects.column_orders, a JSON object {actions|risks|decisions: [ids]}) and so is the order a client sees in the published file. One order for each
+// type switch (Actions, Risks and issues, Decisions); "All" mixes types, so it keeps the standard order and cannot be moved. Only the shown columns
+// are ordered. When the Status is shown it is first and the Item is second; a column cannot be moved into or before those two places.
+export const ORDER_KEY = { action: "actions", risk: "risks", decision: "decisions" };
+export const movable = (type) => Object.prototype.hasOwnProperty.call(ORDER_KEY, type);
+const parsed = (columnOrders) => {
+  try {
+    const g = typeof columnOrders === "string" ? JSON.parse(columnOrders) : columnOrders;
+    return g && typeof g === "object" && !Array.isArray(g) ? g : {};
+  } catch (e) { return {}; }
+};
+/** The saved ids of one type from a project's column_orders (text or object); [] when there is none or it cannot be read. Never throws. */
+export function savedOrder(columnOrders, type) {
+  if (!movable(type)) return [];
+  const list = parsed(columnOrders)[ORDER_KEY[type]];
+  return Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+}
+/** `shown` (the ids to draw, as shownIds gives them) in the saved order: the Status first (if shown), the Item next, then the saved ones that are shown, then any shown column the order does not name. */
+export function inOrder(shown, saved) {
+  const lead = ["status", "item"].filter((id) => shown.includes(id));
+  const rest = shown.filter((id) => !lead.includes(id));
+  const named = (saved || []).filter((id, i, a) => rest.includes(id) && a.indexOf(id) === i);
+  return lead.concat(named, rest.filter((id) => !named.includes(id)));
+}
+/** The ids after moving `id` one place (delta -1 or +1) or in front of `beforeId` (delta null; beforeId null = the end). The Status and the Item do not move and nothing goes in front of them; null when nothing changes. */
+export function moveColumn(ids, id, delta, beforeId = null) {
+  const fixed = (x) => x === "status" || x === "item", first = ids.filter(fixed).length, at = ids.indexOf(id);
+  if (at < 0 || fixed(id)) return null;
+  const rest = ids.filter((x) => x !== id);
+  let to;
+  if (delta !== null) to = Math.max(first, Math.min(rest.length, at + delta));
+  else if (beforeId === null) to = rest.length;
+  else { const b = rest.indexOf(beforeId); if (b < 0) return null; to = Math.max(first, b); }
+  const next = rest.slice(0, to).concat(id, rest.slice(to));
+  return next.every((x, i) => x === ids[i]) ? null : next;
+}
+/** The project's column_orders as an object, with `type`'s order set to `ids` (the shown columns, in order). The standard order is saved as nothing (the type's key is dropped), so the table follows any later change of the standard. Status and Item always lead the saved list, as the project's own check asks. */
+export function withOrder(columnOrders, type, ids) {
+  const all = { ...parsed(columnOrders) }, key = ORDER_KEY[type], rest = (list) => list.filter((x) => x !== "status" && x !== "item");
+  const std = defsOf("work").map((c) => c.id).filter((x) => ids.includes(x));
+  if (rest(ids).every((x, i) => x === rest(std)[i])) delete all[key]; else all[key] = ["status", "item"].concat(rest(ids));
+  return all;
+}
