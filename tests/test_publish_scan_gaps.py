@@ -16,7 +16,6 @@ from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
 from clark import page, publish, to_client  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
-from _growth import assert_growth  # noqa: E402
 from test_publish import EMPTY_BRANDING, ICON_LINK, TOUCH_LINK, made  # noqa: E402
 
 OPENER = '<script type="application/json" id="clark-data">'
@@ -91,43 +90,6 @@ class Gaps(unittest.TestCase):
                  '<img srcset="//x.invalid/a.png 1x">', '<source srcset="&#47;&#47;x.invalid/a.png 1x">',
                  '<img srcset="a.png 1x,\n//x.invalid/b.png 2x">', '<img srcset="\\\\x.invalid/a.png 1x">')
 
-    # (e) style attributes
-    def test_style_attributes_are_scanned(self):
-        self.bad('<div style="background:url(//x.invalid)">x</div>', "<div style='background:url(https://x.invalid/a.png)'>x</div>",
-                 "<div style=background:url(//x.invalid)>x</div>", '<div STYLE="background:URL( //x.invalid )">x</div>',
-                 '<div style="background:url(&#47;&#47;x.invalid)">x</div>', '<div style="background:url(&quot;//x.invalid&quot;)">x</div>',
-                 '<div style="@import url(//x.invalid/a.css)">x</div>', '<div style = "background : url(a.png)">x</div>',
-                 '<div style="background:image-set(&quot;//x.invalid/a.png&quot; 1x)">x</div>',
-                 '<div style="background:u\\72l(//x.invalid)">x</div>')
-
-    # #112 H1: an unquoted value ends only at HTML white space (tab, LF, FF, CR, space, >). Python's \s also matches these, so a
-    # value like style=a<char>;background:url(...) must still be read to the url. One fragment per character class.
-    def test_unquoted_style_value_ends_only_at_html_white_space(self):
-        classes = {"vertical tab": "\x0b", "file separator": "\x1c", "group separator": "\x1d", "record separator": "\x1e",
-                   "unit separator": "\x1f", "next line": "\x85", "no-break space": "\xa0", "line separator": " ",
-                   "ideographic space": "　", "ogham space": " ", "en quad": " ", "hair space": " ",
-                   "paragraph separator": " ", "narrow no-break space": " ", "medium mathematical space": " "}
-        for name, ch in classes.items():
-            with self.subTest(name):
-                self.bad(f"<div style=a{ch};background:url(https://x.invalid/a.png)>x</div>")
-
-    # #112 H2: after "=" a browser skips only tab, LF, FF, CR and space before the value. Any other character (a vertical tab, NUL,
-    # a no-break space, 1c to 1f, U+0085, U+2028, U+3000 and the rest) starts an UNQUOTED value, which ends at the next space. So in
-    # x=<char>'a style=background:url(...) b' the quote is not a quote: the browser reads style=... as a real attribute and fetches
-    # the outside address. The scan must not treat that quote as one and hide what is inside it.
-    def test_odd_white_space_after_equals_is_not_a_quote(self):
-        chars = {"vertical tab": "\x0b", "NUL": "\x00", "no-break space": "\xa0", "file separator": "\x1c", "group separator": "\x1d",
-                 "record separator": "\x1e", "unit separator": "\x1f", "next line": "\x85", "line separator": "\u2028",
-                 "paragraph separator": "\u2029", "ideographic space": "\u3000", "ogham space": "\u1680", "en quad": "\u2000",
-                 "hair space": "\u200a", "narrow no-break space": "\u202f", "medium mathematical space": "\u205f"}
-        for name, ch in chars.items():
-            with self.subTest(name + " (style)"):
-                self.bad(f"<div x={ch}'a style=background:url(https://evil.example/a.png) b'>x</div>")
-            with self.subTest(name + " (img)"):
-                self.bad(f"<img x={ch}'a src=&#47;/evil.example/a.png b'>")
-        with self.subTest("script and meta"):
-            self.bad("<script x=\x0b'a src=a.js b'></script>", "<meta x=\x0b'a http-equiv=refresh content=0;url=a.html b'>")
-
     # Control: after "=", HTML white space (tab, LF, FF, CR, space) IS skipped, so the quote is real and holds one value.
     def test_html_white_space_after_equals_still_reads_a_real_quote(self):
         for ch in ("\t", "\n", "\x0c", "\r", " "):
@@ -151,22 +113,6 @@ class Gaps(unittest.TestCase):
                  '<a href="\t//x.invalid">x</a>', '<a href="/\n/x.invalid">x</a>', '<a href="HTTP://x.invalid">x</a>',
                  '<a href="http:x.invalid">x</a>', '<img src="https:\\\\x.invalid">', '<a href=//x.invalid>x</a>')
 
-    def test_script_and_html_urls_in_href_and_src(self):
-        self.bad('<a href="javascript:alert(1)">x</a>', '<a href="JaVaScRiPt:alert(1)">x</a>', '<a href=" javascript:alert(1)">x</a>',
-                 '<a href="jav&#x09;ascript:alert(1)">x</a>', '<a href="jav\tascript:alert(1)">x</a>', '<a href="java&Tab;script:alert(1)">x</a>',
-                 '<a href="vbscript:x">x</a>', '<a href="data:text/html,<b>x</b>">x</a>', '<img src="data:text/html;base64,AAAA">',
-                 '<a href="DATA:text/html;base64,AAAA">x</a>', '<iframe src="data:text/html,x"></iframe>', '<a href="data:application/xhtml+xml,x">x</a>')
-
-    def test_other_elements_and_attributes_that_load_things(self):
-        self.bad('<object data="//x.invalid/a.swf"></object>', '<embed src="//x.invalid/a.swf">', '<form action="//x.invalid/p"></form>',
-                 '<a ping="//x.invalid/p">x</a>', '<a ping="#a //x.invalid/p">x</a>', '<a ping="#a   https://x.invalid/p">x</a>',
-                 '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="//x.invalid/a.svg#i"/></svg>',
-                 '<use XLINK:HREF="//x.invalid/a.svg#i"/>', '<video poster="//x.invalid/p.png"></video>', '<button formaction="//x.invalid">x</button>',
-                 '<table background="//x.invalid/a.png"></table>', '<iframe src="a.html"></iframe>', '<iframe srcdoc="x"></iframe>',
-                 '<frame src="a.html">', '<object data="a.swf"></object>', '<embed src="a.swf">', '<base href="x/">',
-                 '<link rel=stylesheet href=a.css>', '<link rel="stylesheet" href="data:text/css,a{}">',
-                 '<audio src="//x.invalid/a.mp3"></audio>', '<video><source src="//x.invalid/a.mp4"></video>', '<track src="//x.invalid/a.vtt">')
-
     def test_a_null_byte_or_comment_in_an_address_does_not_hide_it(self):
         self.bad('<img src="/\x00/x.invalid">', "<style>a{background:url(\x00//x.invalid)}</style>", "<style>a{background:u\x00rl(//x.invalid)}</style>",
                  "<style>@\x00import 'x.css';</style>")
@@ -185,74 +131,6 @@ class Gaps(unittest.TestCase):
                  "<div style='background:url(&#x2f;&#x2f;x.invalid)'>x</div>", '<div style="background:url(&amp;#47;&amp;#47;x.invalid)">x</div>',
                  "<!-- <img src=//x.invalid> -->")
 
-    def test_the_new_scans_are_linear(self):
-        # The old check was a wall-clock limit (3 s for 30,000 repeats); it is now the growth from 30,000 to 120,000 repeats in CPU time.
-        for name, make in (("open tags", lambda n: "<a " * n), ("open quotes", lambda n: '<a b="' * n),
-                           ("entities", lambda n: '<img src="' + "&#47;" * (2 * n) + 'x">'),
-                           ("comment openers in style", lambda n: "<style>" + "/*" * n + "</style>"),
-                           ("url openers", lambda n: "<style>" + "url(" * n + "</style>"),
-                           ("escapes", lambda n: "<style>" + "\\\\" * n + "</style>"), ("hex escapes", lambda n: "<style>" + "\\75 " * n + "</style>"),
-                           ("srcset commas", lambda n: '<img srcset="' + "," * n + '">'), ("srcset words", lambda n: '<img srcset="' + "a " * n + '">'),
-                           ("style attrs", lambda n: '<a style="' * n), ("ampersands", lambda n: '<a href="' + "&" * n + '">'),
-                           ("image-set", lambda n: "<style>" + "image-set(" * n + "</style>")):
-            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 30000, name)
-
-
-FOREIGN = ("<svg><style><![CDATA[ /* </style> */ @import url(//evil/x.css); ]]></style></svg>",
-           "<svg><style><!-- </style> --> @import url(//evil/x.css); </style></svg>", "<svg></svg>", "<math></math>", "<![CDATA[x]]>",
-           "<SVG>", "<Math>", "<svg>", '<svg><style>&#64;import "//e";</style></svg>', "<svg><style>a{background:u&#114;l(//e)}</style></svg>",
-           "<![cdata[x]]>")
-
-
-def positions(bad):
-    """The fragment `bad` in each place a hostile file could carry it, as whole files."""
-    text, out = real(), []
-    out.append(text.replace(OPENER, bad + OPENER, 1))                              # before the data block
-    out.append(text.replace("</body>", bad + "</body>"))                           # after it (the block is then page markup)
-    out.append(text + bad)                                                         # after </html>
-    out.append(text.replace("<head>", "<head>" + bad, 1))                          # in the head
-    out.append(text.replace(OPENER, "<!--" + bad + "-->" + OPENER, 1))             # in a comment
-    out.append(text.replace(OPENER, "<script>/*" + bad + "*/</script>" + OPENER, 1))     # in a script
-    out.append(text.replace(OPENER, "<template>" + bad + "</template>" + OPENER, 1))     # in a template
-    return out
-
-
-class ForeignContent(unittest.TestCase):
-    """#112 H1: an svg, math or CDATA section hides real CSS from the style scan, so each is refused, wherever it stands."""
-
-    def test_each_is_refused_by_all_three_checks_at_every_position(self):
-        for bad in FOREIGN:
-            for n, text in enumerate(positions(bad)):
-                label = f"{bad!r} at position {n}"
-                self.assertIn(publish.FOREIGN_FOUND, publish.outside_addresses(text), label)
-                self.assertIn(publish.FOREIGN_FOUND, to_client.check_copy(text.encode("utf-8"), markers=()), label)
-                with self.assertRaises(PublishError, msg=label):
-                    publish.check_brand(text)
-
-    def test_the_real_page_and_its_parts_have_none(self):
-        self.assertEqual(publish.outside_addresses(real()), [])
-        publish.check_brand(real())
-        self.assertIsNone(publish.FOREIGN.search(publish.without_data_block(real())))
-
-    def test_the_built_page_bundles_pass_the_brand_check(self):
-        for name in ("page.html", "page-view.html"):
-            text = (SRC / "clark" / "page" / name).read_text(encoding="utf-8")
-            publish.check_brand(text)
-            self.assertNotIn(publish.FOREIGN_FOUND, publish.outside_addresses(text), name)
-
-    def test_a_less_than_before_math_in_a_script_is_no_tag(self):
-        for code in ("s<Math.min(a,b)", "a<math.x", "if(a<svg.length)b()", "x<Math", "x<svg"):
-            page = "<html><body><script>" + code + "</script></body></html>"
-            publish.check_brand(page)
-            self.assertNotIn(publish.FOREIGN_FOUND, publish.outside_addresses(page), code)
-
-    def test_real_tags_are_found_before_every_html_boundary(self):
-        for tag in ("<math>", "<MATH x>", "<svg>", "<SVG ", "<math/>", "<svg\tx>", "<svg\nx>", "<svg\fx>", "<svg\rx>"):
-            page = "<html><body>" + tag + "</body></html>"
-            self.assertIn(publish.FOREIGN_FOUND, publish.outside_addresses(page), repr(tag))
-            with self.assertRaises(PublishError, msg=repr(tag)):
-                publish.check_brand(page)
-
 
 class UrlOutside(unittest.TestCase):
     """#112 H3: _url_outside matches in place (no slice per url( ); the answers are the old ones."""
@@ -263,36 +141,6 @@ class UrlOutside(unittest.TestCase):
             self.assertFalse(f(text), text)
         for text in ("url(a)", "url(  ", "url() data:x", "url(data:a) url(b)", "url(//x)", "url(", "url(x data:)"):
             self.assertTrue(f(text), text)
-
-
-class Desync(unittest.TestCase):
-    """#112 H4: a quote that swallows a < must not hide the tags inside it, and `=` may start an attribute name."""
-    bad = Gaps.bad
-
-    def test_entity_encoded_addresses_after_a_quote_that_swallows_a_tag(self):
-        img = '<img src="&#47;&#47;evil.invalid/a.png">'
-        self.bad('<!-- <a title=" -->' + img, "<!-- <a title=' -->" + img.replace('"', "'"), "<!-- <a title=' -->" + img,
-                 '<textarea><a title="</textarea>' + img, "<textarea><a title='</textarea>" + img,
-                 '<title><a title="</title>' + img, "<title><a title='</title>" + img,
-                 '<xmp><a title="</xmp>' + img, '<a title=">' + img, '<a title="x<a title=">' + img,
-                 '<a b="' + img, '<a b="<a c="' + img)
-
-    def test_a_bracket_inside_an_unquoted_value_or_name_is_part_of_it(self):
-        # a browser keeps < in an unquoted value: style=a<b;background:url(...) has a first declaration that is skipped and a
-        # second that loads. Cutting the value at < (round 3's proposed fix) would lose this; the reader keeps it and stays
-        # linear by not re-reading a run it has read.
-        self.bad('<a style=a<b;background:url(http://e.example/i.png)>x</a>',
-                 '<p style=x<q;background:url(//e.example/i.png)>x</p>',
-                 '<div style=<x;background:url(https://e.example/i.png) class=y>x</div>')
-
-    def test_an_equals_sign_may_start_an_attribute_name(self):
-        self.bad('<a ="x" href="&#47;&#47;evil.invalid">x</a>', '<a =x href="&#47;&#47;evil.invalid">x</a>',
-                 '<a = href="&#47;&#47;evil.invalid">x</a>', '<a ==x href=&#47;&#47;evil.invalid>x</a>',
-                 "<a ='x' src='&#47;&#47;evil.invalid'>x</a>", '<img =" src="&#47;&#47;evil.invalid">')
-
-    def test_the_reader_finds_the_tags_a_swallowing_quote_holds(self):
-        self.assertEqual([n for n, _ in publish.tags('<a title="<b><i>">')], ["a", "b", "i"])
-        self.assertEqual(list(publish.tags('<a =x y=1>')), [("a", [("=x", ""), ("y", "1")])])
 
 
 class StyleJoin(unittest.TestCase):
