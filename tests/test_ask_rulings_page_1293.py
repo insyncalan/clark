@@ -12,7 +12,7 @@ import _testpage as testpage
 from _real_server import real_server
 from test_ask_change_page import Card
 from test_server import chrome
-from clark import ask_words, page, platform, theme as themes
+from clark import ask, ask_words, page, platform, theme as themes
 
 TITLE = "Draft the cut-over plan"
 STALE = "This one was not saved: status changed when the first change was saved. Ask again to change it."
@@ -89,6 +89,19 @@ class ClassicCards(Themed):
             self.assertTrue(got[0]["line"].startswith("Done."))
             self.assertEqual(self.status(), "Closed", "the first stays saved and nothing was written for the second")
             self.assertNotEqual(self.store.read("actions", ref=self.action)["priority"], "High", "nothing was written for the second")
+
+    def test_the_change_limit_line_at_1400_and_900(self):
+        lines = [self.new(f"Task number {i}") for i in range(ask.MAX_CHANGES + 1)]
+        self.says(*lines)
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            p.until(f"document.querySelectorAll('[data-ask-change]').length === {ask.MAX_CHANGES}", "only the first five cards")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                text = p.js("document.querySelector('#ask-panel').innerText")
+                self.assertIn(ask.CHANGE_LIMIT, text.replace("\n", " "), f"{width}: the change-limit line is on the page")
+                self.assertEqual(p.js("document.querySelectorAll('[data-ask-change]').length"), ask.MAX_CHANGES, width)
 
     def test_a_card_for_another_item_is_not_marked(self):
         other = self.demo.action(owner="Kit Moss", description="Order the lanyards")
