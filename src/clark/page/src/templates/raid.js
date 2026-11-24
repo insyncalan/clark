@@ -9,7 +9,7 @@ import { richWords } from "../logic/richWords.js";
 
 export const SIZES = { raid3: 3, raid4: 4 };
 export const OWN_MAX = 400;
-export const SOURCES = [["client", "Client wording"], ["own", "Own words"], ["latest", "Latest update"]];
+export const SOURCES = [["client", "Client Message"], ["own", "Own words"], ["latest", "Latest update"]];
 const ID = /^[A-Z][A-Z0-9]{2,6}-(?:([AD])-)?[0-9]{3}$/;
 const KIND_OF = { A: "actions", D: "decisions" };
 
