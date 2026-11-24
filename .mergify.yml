@@ -4,6 +4,8 @@ queue_rules:
   - name: default
     queue_conditions:
       - label = queue
+      - base = main
+      - -draft
       - check-success = Tests passed
       - check-success = bifrost-closes-guard
       - check-success = bifrost-point-map

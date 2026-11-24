@@ -43,7 +43,7 @@ class MergifyConfig(unittest.TestCase):
 
     def test_queue_conditions_are_the_label_and_the_four_required_check_names(self):
         self.assertEqual(list_under("queue_conditions"),
-                         ["label = queue"] + ["check-success = " + c for c in CHECKS])
+                         ["label = queue", "base = main", "-draft"] + ["check-success = " + c for c in CHECKS])
         self.assertEqual(list_under("merge_conditions"), ["check-success = " + c for c in CHECKS])
 
     def test_queue_squashes_in_batches_of_3_and_waits_1_minute(self):
