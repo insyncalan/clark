@@ -130,7 +130,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
+        self.assertEqual(wb.sheetnames, ["Report", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
@@ -231,7 +231,7 @@ class ExcelTests(unittest.TestCase):
         wb = load_workbook(self.d.path)
         self.assertEqual(wb.sheetnames[-3:-1], ["History", "Lists"])
         self.assertEqual(wb["Lists"].sheet_state, "hidden")
-        self.assertEqual(wb["History"].sheet_state, "visible")
+        self.assertEqual(wb["History"].sheet_state, "hidden")        # 1390
 
     def test_every_sheet_named_in_a_formula_exists_and_needs_no_quotes(self):
         import re

@@ -106,13 +106,13 @@ class TheLines(unittest.TestCase):
         self.assertNotIn("tag", got[0])
         self.assertNotIn("internal", [x["kind"] for x in got])
 
-    def test_the_subtitle_has_the_week_and_the_client_as_the_page_band_shows_them(self):
+    def test_the_subtitle_is_the_dashboard_header_line_with_no_client(self):
         project = {**PROJECT, "week_ending": "2026-10-23", "client_name": "Example Client"}
-        self.assertEqual(build(project=project)[1], {"kind": "subtitle", "text": "Weekly report · Week ending Friday 23 October 2026 · for Example Client"})
+        self.assertEqual(build(project=project)[1], {"kind": "subtitle", "text": "Weekly report · Week ending 23-10-2026"})
 
     def test_the_subtitle_leaves_out_a_part_with_no_data(self):
-        self.assertEqual(build(project={**PROJECT, "week_ending": "2026-10-23"})[1]["text"], "Weekly report · Week ending Friday 23 October 2026")
-        self.assertEqual(build(project={**PROJECT, "client_name": " Example Client "})[1]["text"], "Weekly report · for Example Client")
+        self.assertEqual(build(project={**PROJECT, "week_ending": "2026-10-23"})[1]["text"], "Weekly report · Week ending 23-10-2026")
+        self.assertEqual(build(project={**PROJECT, "client_name": " Example Client "})[1]["text"], "Weekly report")
         self.assertEqual(build()[1]["text"], "Weekly report")
         self.assertEqual(build(project={**PROJECT, "week_ending": "", "client_name": None})[1]["text"], "Weekly report")
 
@@ -211,7 +211,7 @@ class HostileText(unittest.TestCase):
 
     def test_empty_everything_still_gives_a_cover(self):
         got = cover.lines({}, [], [], STAMP)
-        self.assertEqual([x["kind"] for x in got], ["title", "subtitle", "about", "exported", "caution", "return", "where", "ids", "locked"])
+        self.assertEqual([x["kind"] for x in got], ["title", "subtitle", "sheets", "key", "about", "exported", "caution", "return", "where", "ids", "locked"])
 
 
 class PlainWords(unittest.TestCase):
@@ -221,7 +221,7 @@ class PlainWords(unittest.TestCase):
 
     def test_the_wording_says_the_cover_is_not_read_back(self):
         self.assertEqual(cover.WHERE_TO_EDIT, "Make your changes on the Actions, Risks & Issues, Decisions, Milestones and Use cases "
-                                              "sheets. Changes made on this Cover are ignored.")
+                                              "sheets. Changes made on this Report sheet are ignored.")
         self.assertEqual(cover.IDS, "Please don't change or move IDs. Each ID stays with its own row: if you change one, or sort "
                                     "only the ID column, the details go to another item when the file is imported. Leave the ID "
                                     "empty for a new item.")       # #128 done-when 5, in words true of the import (#129)
@@ -295,15 +295,15 @@ class InTheWorkbook(unittest.TestCase):
                                     owner_email="kim.example@example.com")
 
     def cover_cells(self):
-        ws = load_workbook(self.path)["Cover"]
+        ws = load_workbook(self.path)["Report"]
         return [c.value for row in ws.iter_rows() for c in row if c.value is not None]
 
     def test_cover_is_first_and_open_with_gridlines_off_and_the_band_frozen(self):
         wb = load_workbook(self.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
-        self.assertEqual(wb.active.title, "Cover")
-        self.assertFalse(wb["Cover"].sheet_view.showGridLines)
-        self.assertEqual(wb["Cover"].freeze_panes, "A3")      # below the title band (the title and the subtitle)
+        self.assertEqual(wb.sheetnames, ["Report", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
+        self.assertEqual(wb.active.title, "Report")
+        self.assertFalse(wb["Report"].sheet_view.showGridLines)
+        self.assertEqual(wb["Report"].freeze_panes, "A3")      # below the title band (the title and the subtitle)
 
     def test_merged_cells_stay_inside_a_12_column_grid_and_a_row_is_never_merged_across_rows(self):
         ws = self.cover_sheet()
@@ -338,7 +338,7 @@ class InTheWorkbook(unittest.TestCase):
             self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
 
     def cover_sheet(self):
-        return load_workbook(self.path)["Cover"]
+        return load_workbook(self.path)["Report"]
 
     def find(self, value):
         (cell,) = [c for row in self.cover_sheet().iter_rows() for c in row if c.value == value]
@@ -353,7 +353,7 @@ class InTheWorkbook(unittest.TestCase):
         ws = self.cover_sheet()
         title, tag, sub = ws["A1"], ws["K1"], ws["A2"]
         self.assertEqual((title.value, tag.value), ("Example Programme", "INTERNAL"))
-        self.assertEqual(sub.value, "Weekly report · Week ending Friday 31 May 2030 · for Example Client")
+        self.assertEqual(sub.value, "Weekly report · Week ending 31-05-2030")
         self.assertEqual(tag.fill.fgColor.rgb[-6:], colours.TOKENS["status-red"], "the INTERNAL tag is red")
         for c in (title, sub):
             self.assertEqual(c.fill.fgColor.rgb[-6:], colours.TOKENS["brand-navy"])
@@ -383,11 +383,11 @@ class InTheWorkbook(unittest.TestCase):
     def test_the_cover_reads_in_the_dashboards_order_and_ends_with_the_about_block(self):
         ws = self.cover_sheet()
         col = [c.value for c in ws["A"] if c.value]
-        self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending Friday 31 May 2030 · for Example Client", "■  Current state"])
-        self.assertEqual([v for v in col if str(v).startswith("■")], ["■  Current state", "■  At a glance", "■  Summary"])
-        tail = [c.value for c in ws["A"] if c.value][-7:]
+        self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending 31-05-2030", "■  Current state"])
+        self.assertEqual([v for v in col if str(v).startswith("■")], ["■  Current state", "■  At a glance", "■  Summary", "■  " + cover.SHEETS_HEADING, "■  " + cover.COLOUR_KEY_HEADING])
+        tail = [c.value for c in ws["A"] if c.value][-8:]
         self.assertEqual(tail, ["About this export", "Exported", "Caution", "Sending changes back", "Where to make changes", "IDs",
-                                "Locked cells"])
+                                "Locked cells", "History sheet"])
 
     def test_the_tiles_sit_side_by_side_with_a_label_a_big_number_and_a_sub_line(self):
         ws = self.cover_sheet()
@@ -483,7 +483,7 @@ class InTheWorkbook(unittest.TestCase):
 
     def test_a_hostile_current_state_makes_no_tag_and_no_formula(self):
         wb = load_workbook(self.path)
-        for row in wb["Cover"].iter_rows():
+        for row in wb["Report"].iter_rows():
             for c in row:
                 self.assertNotEqual(c.data_type, "f", c.coordinate)
         everything = "\n".join(self.cover_cells())
@@ -493,7 +493,7 @@ class InTheWorkbook(unittest.TestCase):
                       "a cell that starts with = shows as typed, as a text cell; a later line in it can't start a formula")
 
     def test_the_health_pill_is_a_coloured_cell_and_its_words_name_the_health(self):
-        ws = load_workbook(self.path)["Cover"]
+        ws = load_workbook(self.path)["Report"]
         (cell,) = [c for row in ws.iter_rows() for c in row if c.value == "On track"]
         fill, ink = colours.hexes("green")
         self.assertEqual(cell.fill.fgColor.rgb[-6:], fill)
@@ -508,7 +508,7 @@ class InTheWorkbook(unittest.TestCase):
         plan = xi.read_workbook(self.s, self.path, "ABC", state_path=self.state)
         self.assertEqual((plan.changes, plan.problems), ([], []))
         wb = load_workbook(self.path)
-        for row in wb["Cover"].iter_rows():
+        for row in wb["Report"].iter_rows():
             for c in row:
                 if c.value is not None:
                     c.value = "edited " + str(c.value)

@@ -60,7 +60,7 @@ class Base(unittest.TestCase):
 
 class Protected(Base):
     def test_every_sheet_is_protected_with_no_password(self):
-        self.assertEqual(self.wb.sheetnames[0], "Cover")
+        self.assertEqual(self.wb.sheetnames[0], "Report")
         for ws in self.wb.worksheets:
             p = ws.protection
             self.assertTrue(p.sheet, ws.title)
@@ -77,7 +77,7 @@ class Protected(Base):
                         self.assertNotIn(attr, tag.group(0))
 
     def test_cover_history_and_lists_are_fully_locked(self):
-        for name in ("Cover", "History", "Lists"):
+        for name in ("Report", "History", "Lists"):
             ws = self.wb[name]
             for row in ws.iter_rows():
                 for c in row:
@@ -165,7 +165,7 @@ class Protected(Base):
                 "To change them, choose Review, then Unprotect Sheet. There is no password. "
                 "Excel will not sort a protected sheet; unprotect it first.")
         self.assertEqual(excel_cover.LOCKED_CELLS, want)
-        texts = [c.value for row in self.wb["Cover"].iter_rows() for c in row if c.value]
+        texts = [c.value for row in self.wb["Report"].iter_rows() for c in row if c.value]
         self.assertIn("Locked cells", texts)
         self.assertEqual(texts.count(want), 1)
 

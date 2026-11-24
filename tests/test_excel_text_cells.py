@@ -237,7 +237,7 @@ class TheCover(unittest.TestCase):
                 self.addCleanup(shutil.rmtree, path.parent, True)
                 ws = excel.write_cover(wb, cover.lines(project, sections, [], datetime(2030, 6, 1, 9, 0)))
                 wb.save(path)
-                seen = {c.value: c for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+                seen = {c.value: c for row in load_workbook(path)["Report"].iter_rows() for c in row if c.value}
                 for want in (lead + "Name", lead + "Now."):
                     self.assertIn(want, seen)
                     self.assertEqual((seen[want].data_type, seen[want].quotePrefix), ("s", True), want)
@@ -255,7 +255,7 @@ class TheCover(unittest.TestCase):
         self.addCleanup(shutil.rmtree, path.parent, True)
         excel.write_cover(wb, cover.lines(project, [{"type": "current", "title": "'=Section"}], [], datetime(2030, 6, 1, 9, 0)))
         wb.save(path)
-        seen = {c.value for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+        seen = {c.value for row in load_workbook(path)["Report"].iter_rows() for c in row if c.value}
         for want in ("'=Name", "\u25a0  '=Section", "'+Now."):
             self.assertIn(want, seen)
         self.assertFalse([v for v in seen if isinstance(v, str) and v.startswith("''")])

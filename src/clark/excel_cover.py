@@ -5,8 +5,8 @@ back a list of {"kind", ...} lines in the order the Cover shows them. Writing th
 the text escaping, the row heights and the sheet order) is the workbook's job (excel.py). Standard library only, Python 3.9.
 
 What the Cover holds, top to bottom, in the dashboard's order (Option A of the signed mockup): the title band (the report title,
-tagged INTERNAL when the internal note is given, and a subtitle line: Weekly report, the week ending and the client, as the
-page's band shows them), then in the order of `sections` the Current state, At a glance (one "tiles" line: health with its
+tagged INTERNAL when the internal note is given, and a subtitle line: Weekly report and the week ending, exactly the
+Dashboard's header, row 1390: no client), then in the order of `sections` the Current state, At a glance (one "tiles" line: health with its
 reason, then each tile that is shown with its number and sub-line) and every text section. This week and Next week, when both
 have words and follow one another, are ONE "pair" line, drawn side by side. A section with nothing to show is left off,
 heading and all. A hidden section and a hidden tile are not here at all. Last, a quiet "About this export" block: when and by
@@ -16,7 +16,7 @@ Nothing else of a project reaches the Cover; every line is built from the fields
 
 The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS, LOCKED_CELLS.
 """
-from clark import sanitise
+from clark import excel_blocks, sanitise
 from clark import timefmt
 
 CAUTION = "This workbook shows the project as it was on the date above. It does not include changes made in clark since."
@@ -25,7 +25,7 @@ RETURN_WITH = ("If you change anything here, send the file back to {owner}{email
 RETURN_ANYONE = ("If you change anything here, send the file back to the person who sent it to you. They then import your changes into "
                  "clark, which checks each one before saving it.")
 WHERE_TO_EDIT = ("Make your changes on the Actions, Risks & Issues, Decisions, Milestones and Use cases sheets. Changes made on "
-                 "this Cover are ignored.")
+                 "this Report sheet are ignored.")
 ABOUT = "About this export"
 INTERNAL_TAG = "INTERNAL"
 MORE = " … (continues in clark)"
@@ -35,8 +35,13 @@ IDS = ("Please don't change or move IDs. Each ID stays with its own row: if you 
 LOCKED_CELLS = ("Grey cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
                 "To change them, choose Review, then Unprotect Sheet. There is no password. "
                 "Excel will not sort a protected sheet; unprotect it first.")
+HISTORY_HIDDEN = "The History sheet is hidden: right-click any sheet tab and choose Unhide."     # row 1390 (approved 21-11): the editor export only
 SUBTITLE_KIND = "Weekly report"
-KINDS = ("title", "subtitle", "heading", "text", "tiles", "pair", "about", "exported", "caution", "return", "where", "ids", "locked")
+AS_AT = "Shown as at"                                  # row 1390: the line under the title band, only when the report is shown as at a day
+COUNTS_HEADING = "Risks and issues by type"
+SHEETS_HEADING = "Sections of the Dashboard that have a sheet"
+COLOUR_KEY_HEADING = "Colour key"
+KINDS = ("title", "subtitle", "asat", "heading", "text", "tiles", "pair", "counts", "sheets", "key", "about", "exported", "caution", "return", "where", "ids", "locked", "history")
 LINE_POINTS = 13.5            # one line of the 10 point body text, for the row heights
 MAX_ROW_POINTS = 409          # Excel's tallest row
 
@@ -97,16 +102,24 @@ def long_date(iso):
 
 
 def subtitle(project):
-    """'Weekly report · Week ending Friday 23 October 2026 · for Example Client' (the signed Option A): from the same two fields
-    of the project row as the page's report band. A part with nothing to show is left out."""
+    """'Weekly report · Week ending 23-10-2026': exactly the Dashboard's header line (page logic/cover.js coverLine and the top bar: the
+    kind, then the stored week ending as DD-MM-YYYY). The client is not named there (row 1178), so it is not named here. A part with
+    nothing to show is left out."""
     parts = [SUBTITLE_KIND]
     week = str(project.get("week_ending") or "").strip()
-    client = str(project.get("client_name") or "").strip()
     if week:
-        parts.append(f"Week ending {long_date(week)}")
-    if client:
-        parts.append(f"for {client}")
+        parts.append(f"Week ending {show_date(week)}")
     return cut(" \u00b7 ".join(parts), 500)
+
+
+def raid_counts(shown):
+    """[(type, n)]: the open risks and issues of what `publish.select` kept, by type, the types with none left out, in name order. A hidden
+    Risks and issues section keeps no row, so it gives none."""
+    got = {}
+    for r in (shown.get("data") or {}).get("raid") or ():
+        if r.get("status") == "Open" and str(r.get("type") or "").strip():
+            got[str(r["type"]).strip()] = got.get(str(r["type"]).strip(), 0) + 1
+    return sorted(got.items())
 
 
 def rows_needed(text, chars):
@@ -143,7 +156,7 @@ def _tile(t):
             "detail": cut(detail, 2000), "colour": colour or None}
 
 
-def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal=""):
+def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", as_at=None, counts=None, history=False):
     """The Cover as a list of {"kind", "text", ...}.
 
     project  the project row: "name" (or "code"), "current_state" (HTML), "week_ending" and "client_name"; read only
@@ -152,12 +165,17 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
     exported the words for the export's date and time, for example excel.exported_text()
     by       the name that exported it (Settings › Profile); owner, email: who the file goes back to
     internal the INTERNAL sentence (excel.INTERNAL_NOTE): when given, the title band carries the tag INTERNAL. The sentence
-             itself is not on the Cover."""
+             itself is not on the Cover.
+    as_at    (row 1390) the day the report is shown as at, only when one is used: the line "Shown as at DD-MM-YYYY" under the title band
+    counts   (row 1390) [(type, n)] open risks and issues by type (raid_counts): a "counts" line after the sections, none when empty
+    history  (row 1390) True for the editor export, which has a hidden History sheet: a last "history" line says how to unhide it"""
     name = str(project.get("name") or project.get("code") or "").strip()
     title = _line("title", cut(name, 200))
     if internal:
         title["tag"] = INTERNAL_TAG
     out = [title, _line("subtitle", subtitle(project))]
+    if as_at and str(as_at).strip():
+        out.append(_line("asat", show_date(as_at)))
     shown = [s for s in sections or [] if not s.get("hidden")]
     skip = None
     for i, sec in enumerate(shown):
@@ -184,16 +202,23 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
                 skip = i + 1
             elif body.strip():
                 out += [_line("heading", cut(sec.get("title") or "", 200))] + _text(body)
+        elif kind in excel_blocks.BLOCKS:
+            out += [_line(x["kind"], cut(x["text"], 200 if x["kind"] == "heading" else LIMIT)) for x in excel_blocks.block(sec)]
+    if counts:
+        out.append(_line("counts", COUNTS_HEADING, counts=[[str(k), int(n)] for k, n in counts]))
+    out += [_line("sheets", SHEETS_HEADING), _line("key", COLOUR_KEY_HEADING)]
     stamp = str(exported).strip()
     out += [_line("about", ABOUT),
             _line("exported", cut(f"{stamp} by {str(by).strip()}" if by and str(by).strip() else stamp, 400)),
             _line("caution", CAUTION), _line("return", cut(return_note(owner, email), 1000)),
             _line("where", WHERE_TO_EDIT), _line("ids", IDS),
             _line("locked", LOCKED_CELLS)]
+    if history:
+        out.append(_line("history", HISTORY_HIDDEN))
     return out
 
 
-def from_store(store, code, exported, by=None, owner=None, email=None, internal="", as_at=None):
+def from_store(store, code, exported, by=None, owner=None, email=None, internal="", as_at=None, show_as_at=False):
     """The Cover for project `code`, worked out from the store the way the published page is (#39): `publish.select` decides what
     is shown, so a hidden section, a hidden row and a Sensitive item are absent here as they are there, and the tiles count what
     the page counts (`glance.tiles(for_client=True)`). Nothing is read that the page does not read. Needs the project to
@@ -206,4 +231,5 @@ def from_store(store, code, exported, by=None, owner=None, email=None, internal=
                              deleted=inputs.get("sections_deleted"))
     tiles = glance.tiles(inputs["data"], today, for_client=True, kept=kept)
     sections = [dict(s, hidden=0) for s in shown["sections"]]
-    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal)
+    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal,
+                 as_at=today if show_as_at else None, counts=raid_counts(shown), history=True)
