@@ -8,6 +8,7 @@ under its own centre point, and the line holding the keyboard focus is wholly be
 Reverting the header clearance in Menu.jsx (the `lo` limit of MenuPanel) turns this red. Chrome is required: the test fails, never skips, without it.
 """
 import json
+import time
 import unittest
 
 from test_bulk_bar import Base  # noqa: E402
@@ -46,11 +47,33 @@ MEASURE = """(() => {
 })()"""
 
 
+# A menu closes on any scroll or resize of the page (Menu.jsx), so the button is pressed only once the page has been still for a while. The page
+# records when it last scrolled or resized; STATE is what a failure prints (where the page and the button stood, and whether the menu was there).
+WATCH = """(() => { if (!window.__stillSince) { window.__stillSince = performance.now(); const t = () => { window.__stillSince = performance.now(); };
+  addEventListener('scroll', t, true); addEventListener('resize', t); } return true; })()"""
+STATE = """(() => { const top = document.querySelector('.top'), b = document.querySelector('#viewTabMenu'), f = document.activeElement, m = document.querySelector('#viewTabMenuList');
+  const r = b ? b.getBoundingClientRect() : null;
+  return { scrollY: Math.round(scrollY), headerBottom: top ? Math.round(top.getBoundingClientRect().bottom) : null, btnTop: r ? Math.round(r.top) : null, btnBottom: r ? Math.round(r.bottom) : null,
+           expanded: b ? b.getAttribute('aria-expanded') : null, focusOnBtn: f === b, focus: f ? f.tagName + '#' + f.id : null, menu: m ? Math.round(m.getBoundingClientRect().height) : null,
+           quietMs: Math.round(performance.now() - (window.__stillSince || 0)), w: innerWidth, h: innerHeight };
+})()"""
+
+
 class MenuPinHeader(Base):
     def press(self, cdp, sid, name, code, vk):
         d = {"key": name, "code": code, "windowsVirtualKeyCode": vk}
         cdp.call("Input.dispatchKeyEvent", dict(d, type="keyDown", **({"text": "\r"} if name == "Enter" else {})), sid)      # a real Enter carries its character, which presses a button
         cdp.call("Input.dispatchKeyEvent", dict(d, type="keyUp"), sid)
+
+    def still(self, cdp, sid, quiet=300, seconds=10):
+        """True once the page has not scrolled or resized for `quiet` ms and the button, header and scroll position are the same on two looks 100 ms
+        apart; False at the limit (the caller prints the state)."""
+        def at_rest():
+            a = cdp.js(STATE, sid)
+            time.sleep(0.1)
+            b = cdp.js(STATE, sid)
+            return all(a[k] == b[k] for k in ("scrollY", "headerBottom", "btnTop", "btnBottom", "w", "h")) and b["quietMs"] >= quiet
+        return wait(at_rest, seconds)
 
     def check(self, width, theme):
         where = f"{width} wide, {theme}"
@@ -68,15 +91,24 @@ class MenuPinHeader(Base):
             self.assertLessEqual(put["btnBottom"], put["headerBottom"] - 8, f"{where}: the button is well under the header ({put})")
             self.assertEqual(put["btnBottom"], put["headerBottom"] - GAP, f"{where}: the button is under the header ({put})")
             opened = "!!document.querySelector('#viewTabMenuList[role=menu]')"
-            for _ in range(6):                      # a late scroll closes a menu: open again until it stays
+            cdp.js(WATCH, sid)
+            tries = []
+            for n in range(6):                      # a late scroll closes a menu: open again until it stays
                 if cdp.js(opened, sid):
                     break
                 cdp.js(PLACE % GAP, sid)                # a late scroll of the page moved the button: put it under the header again
+                still = self.still(cdp, sid)            # press Enter only on a page that has stopped moving
                 cdp.js("document.querySelector('#viewTabMenu').focus({preventScroll: true})", sid)
+                before = cdp.js(STATE, sid)
                 self.press(cdp, sid, "Enter", "Enter", 13)
-                if wait(lambda: cdp.js(opened, sid), 5) and not wait(lambda: not cdp.js(opened, sid), 0.5):
+                came = wait(lambda: cdp.js(opened, sid), 5)
+                stayed = came and not wait(lambda: not cdp.js(opened, sid), 0.5)
+                tries.append({"try": n, "still": still, "before": before, "opened": came, "stayed": stayed, "after": cdp.js(STATE, sid)})
+                if stayed:
                     break
-            self.until(cdp, sid, "!!document.querySelector('#viewTabMenuList') && document.querySelector('#viewTabMenuList').getBoundingClientRect().height > 0", f"{where}: the menu opened")
+            if not cdp.js(opened, sid):
+                print(f"OPEN FAILED {where}: {json.dumps(tries)}")
+            self.until(cdp, sid, "!!document.querySelector('#viewTabMenuList') && document.querySelector('#viewTabMenuList').getBoundingClientRect().height > 0", f"{where}: the menu opened (last looks: {json.dumps(tries[-2:])})")
             got = cdp.js(MEASURE, sid)
             print(f"MEASURE {where}: {json.dumps(got)}")
             self.assertEqual(got["btnBottom"], got["headerBottom"] - GAP, (where, "the button is still under the header when measured", got))

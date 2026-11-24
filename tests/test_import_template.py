@@ -37,8 +37,8 @@ def planted_strings(store):
             found.update(v for v in row.values() if isinstance(v, str) and len(v) >= 4 and not v.isdigit())
     found.discard("")
     vocabulary = {v for _, table, cols, _ in excel.SHEETS for _, f in cols for v in (excel.choices(table, f) or [])} | {"Yes", "No"}
-    vocabulary |= {w for t in excel_colours.BY_FIELD.values() for w in t}      # item 1390: and the words its colour rules name (a milestone's State is worked out, no longer a drop-down)
-    return found - vocabulary          # the words clark itself offers in a drop-down or colours (Open, High, At risk) are not the project's
+    vocabulary |= {w for words in excel.colours.BY_FIELD.values() for w in words}     # item 1390: the words of the colour rules (Milestones State has no drop-down now; its At risk is a rule)
+    return found - vocabulary          # the words clark itself offers in a drop-down (Open, High, At risk) are not the project's
 
 
 class Template(unittest.TestCase):

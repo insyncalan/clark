@@ -266,7 +266,7 @@ class ShippedGuides(unittest.TestCase):
     def test_the_words_the_guides_use_for_the_templates_are_the_templates_names(self):
         templates = (SRC / "clark" / "page" / "src" / "logic" / "templates.js").read_text(encoding="utf-8")
         text = " ".join(s["d"] for g in SHIPPED for s in g["steps"])
-        for name in re.findall(r"\*\*(Key figures, four|Callout|Text and pictures|Figures|Work items|Files and links|People and dates|Notes)\*\*", text):
+        for name in re.findall(r"\*\*(Numbers|Must-see note|Text and pictures|Work items|Files and links|People and dates|Notes)\*\*", text):
             self.assertIn(f'"{name}"', templates, name)
 
     def test_search_finds_each_guide_and_its_steps(self):
@@ -352,7 +352,7 @@ class PageKey(unittest.TestCase):
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Feedback": "Feedback", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "ThemeSettings": "Theme", "Quit": "Quit", "AskSettings": "Asking"}
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "ThemeSettings": "Theme", "Quit": "Quit", "AskSettings": "Asking"}
 SETTINGS_LEFT_OUT = set()
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
@@ -404,7 +404,7 @@ class ContextText(unittest.TestCase):
                 self.assertNotIn("cards", c, page)
 
     def test_each_card_title_is_a_title_the_page_shows(self):
-        names = ("Essentials.jsx", "ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "ThemeSettings.jsx", "Feedback.jsx", "Quit.jsx", "AskSettings.jsx")
+        names = ("Essentials.jsx", "ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "ThemeSettings.jsx", "Quit.jsx", "AskSettings.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         for title in SETTINGS_PARTS.values():

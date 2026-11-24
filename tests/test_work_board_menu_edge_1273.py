@@ -28,6 +28,8 @@ class MenuEdge(wb.Base):
                     box = cdp.js("(() => { const r = document.querySelector('.ddmenu').getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom, innerWidth, innerHeight]; })()", sid)
                     self.assertGreaterEqual(box[0], 0, f"{cid} {box}")
                     self.assertLessEqual(box[1], box[4], f"{cid} {box}")
+                    self.assertGreaterEqual(box[2], 0, f"{cid} top {box}")
+                    self.assertLessEqual(box[3], box[5], f"{cid} the panel runs past the bottom edge at height {box[5]}: {box}")
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
                     self.until(cdp, sid, "!document.querySelector('.ddmenu')", "the menu shut")
 
@@ -46,6 +48,20 @@ class MenuEdge(wb.Base):
                 self.assertGreaterEqual(got[0], got[2] - 1, f"the panel starts at the button, not left of it: {cid} {got}")
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
                 self.until(cdp, sid, "!document.querySelector('.ddmenu')", "the menu shut")
+
+    def test_the_group_by_panel_stays_inside_the_window_sideways_and_at_the_bottom(self):
+        """The View menu's Group by panel at 900 height: left, right, top and bottom all inside the window."""
+        for width in WIDTHS:
+            with self.subTest(width=width), wb.shared.page() as cdp:
+                sid = self.visit(cdp, width=width, height=900)
+                self.board(cdp, sid, "status")
+                click(cdp, sid, "#viewMenu")
+                self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+                box = cdp.js("(() => { const r = document.querySelector('#viewMenuList').getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom, innerWidth, innerHeight]; })()", sid)
+                self.assertGreaterEqual(box[0], 0, f"{box}")
+                self.assertLessEqual(box[1], box[4], f"{box}")
+                self.assertGreaterEqual(box[2], 0, f"{box}")
+                self.assertLessEqual(box[3], box[5], f"the Group by panel runs past the bottom edge: {box}")
 
     def test_the_ticked_line_does_not_light_up_on_hover_like_a_choice(self):
         """aria-disabled and aria-current: the line is not a choice, so the mouse over it must not give it the choice fill (.ddmenu [role=menuitem]:hover)."""

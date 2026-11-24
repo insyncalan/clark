@@ -6,7 +6,9 @@ Move straight after typing, a pasted script and onerror, a line break kept out o
 words); a RAID card's Own words (the 400 and 401 boundary counted in emoji, saving twice quickly, Undo after a save, a paste with a script,
 10,000 characters, U+2028 and U+0085, right-to-left words, Escape after an over-long try). 1400 and 900 wide, light and dark. Made-up data only.
 """
+import html
 import json
+import re
 import time
 import unittest
 
@@ -49,7 +51,13 @@ class Logic(unittest.TestCase):
 
 
 class Raid(PageBase):
-    seed, stored, wait_for, open_editor, typed = (eye.Raid.__dict__[k] for k in ("seed", "stored", "wait_for", "open_editor", "typed"))
+    seed, wait_for, open_editor, typed = (eye.Raid.__dict__[k] for k in ("seed", "wait_for", "open_editor", "typed"))
+
+    def stored(self):
+        """The card's own words as plain text: the editor saves one paragraph as <p>..</p> (row 1288), the words seeded stay as seeded."""
+        own = eye.Raid.__dict__["stored"](self)
+        one = re.fullmatch(r"<p>([^<]*)</p>", own)
+        return html.unescape(one.group(1)) if one else own
 
     def edit_open(self, p, view, box):
         p.js(f"document.querySelector({json.dumps(view)}).click()")
@@ -109,7 +117,7 @@ class Raid(PageBase):
             self.assertTrue(self.wait_for(lambda: "Hi" in self.stored()))
             time.sleep(0.5)
             got = self.stored()
-            self.assertNotIn("<", got)
+            self.assertEqual(re.findall(r"<(?!/?p>)", got), [], "only paragraphs are kept (row 1288: the Full editor stores cleaned HTML)")
             self.assertNotIn("onerror", got)
             self.assertFalse(p.js("!!window.__pwn"))
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(self.sec)}] img, [data-id={json.dumps(self.sec)}] script').length"), 0)
@@ -123,13 +131,16 @@ class Raid(PageBase):
             self.assertEqual(self.stored(), "Old words")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
 
-    def test_line_separators_and_next_line_never_reach_the_store(self):
+    def test_line_separators_and_next_line_are_stored_as_spaces_never_refused(self):
         for p, view, box in self.each():
             self.edit_open(p, view, box)
             self.typed(p, box, "a%sb%sc%sd" % (LS, NEL, PS))
             p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored().startswith("a")), "saved")
+            # row 1288: the Full editor turns U+2028 and U+2029 into spaces before it sends (as it does U+0085), so nothing is refused or hidden
+            self.assertTrue(self.wait_for(lambda: self.stored().startswith("a")))
             got = self.stored()
+            self.assertEqual(got, "a b c d", "the three separators are spaces in the store")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')"), "nothing was refused")
             for ch in (LS, NEL, PS, "\n"):
                 self.assertNotIn(ch, got, repr(got))
 
@@ -233,7 +244,7 @@ class Movement(tmp.Base):
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
                 sel = json.dumps(self.box("who"))
                 p.js("document.querySelector(%s).focus()" % sel)
-                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
+                p.js("window.__k = []; addEventListener('keydown', (e) => { window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]); (window.__ke = window.__ke || []).push(e); }, true); window.__t0 = Math.round(performance.now())")
                 # The leave handler skips a focusout while the page has no focus, and a Tab with the focus elsewhere never leaves the box: wait for the page to have the focus
                 # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
                 # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
@@ -247,7 +258,7 @@ class Movement(tmp.Base):
                     if gone:
                         break
                     time.sleep(0.05)
-                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, tabDefaultPrevented: (window.__ke || []).filter(e => e.key === 'Tab').map(e => e.defaultPrevented), activeDesc: document.activeElement ? [document.activeElement.tagName, document.activeElement.id, document.activeElement.className] : null, since: Math.round(performance.now()) - window.__t0})" % sel))
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")

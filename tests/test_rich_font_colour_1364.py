@@ -110,7 +110,7 @@ class Base(unittest.TestCase):
 
 class Ui(Base):
     def test_button_after_strikethrough_toolbar_and_bubble(self):
-        """AP1: after Strikethrough, 32 x 32 like its neighbours, in the toolbar and in the bubble, at 1400 and 900."""
+        """AP1: after Strikethrough, 34 x 34 (the row 1288 bar) like its neighbours, in the toolbar and in the bubble, at 1400 and 900."""
         for width in self.both():
             with self.subTest(width=width):
                 self.mount_selected()
@@ -121,7 +121,7 @@ class Ui(Base):
                 self.assertEqual(bubble, ["Bold", "Italic", "Strikethrough", "Font colour", "Link"])
                 for where in (".rt-bar", ".rt-bubble"):
                     r, s = self.rect(self.btn(where)), self.rect(f"{where} [aria-label=Strikethrough]")
-                    self.assertEqual((r["w"], r["h"]), (32, 32), where)
+                    self.assertEqual((r["w"], r["h"]), (34, 34), where)
                     self.assertEqual((r["w"], r["h"]), (s["w"], s["h"]), "like its neighbour")
                 self.h.ev("window.unmount(); true")
 
@@ -129,11 +129,11 @@ class Ui(Base):
         """AP21: the toolbar's other buttons keep their order and size with the new one added (test_rich_editor and test_sizes run unchanged beside this)."""
         self.h.mount(TEXT)
         labels = self.h.ev("[...document.querySelectorAll('.rt-bar button')].map(function(b){ return b.getAttribute('aria-label'); })")
-        self.assertEqual(labels, ["Text style: Text", "Bold", "Italic", "Strikethrough", "Font colour", "Bulleted list", "Numbered list", "Checklist", "Quote", "Divider",
+        self.assertEqual(labels, ["Text style: Text", "Bold", "Italic", "Strikethrough", "Font colour", "Bulleted list", "Numbered list", "Checklist", "More blocks: Quote, Divider",
                                   "Link", "Undo", "Redo"])
         for name in ("Bold", "Italic", "Strikethrough", "Bulleted list", "Undo"):
             r = self.rect(f".rt-bar [aria-label='{name}']")
-            self.assertEqual((r["w"], r["h"]), (32, 32), name)
+            self.assertEqual((r["w"], r["h"]), (34, 34), name)
         # Tab walks the toolbar in that order: Strikethrough, then Font colour, then the list button
         self.h.ev("document.querySelector(\".rt-bar [aria-label='Strikethrough']\").focus(); true")
         self.press("Tab", 9)

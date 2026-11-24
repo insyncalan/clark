@@ -112,8 +112,8 @@ class TypedFilter(unittest.TestCase):
         flt = code("filters.js")
         self.assertIn('FIELDS.filter((f) => f !== "client" && f !== "reviewed")', flt)
         self.assertIn("a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone.", self.FIND)
-        self.assertIn("map[r.id] = [r.id, words, who, richWords(r.latest_update), r.client_message, r.use_case]", code("clientView.js"))
-        self.assertIn("finds words in the ID, the description, the owner, the latest update, the client wording and the use case", self.FIND)
+        self.assertIn("map[r.id] = [r.id, words, who, richWords(r.latest_update), richWords(r.client_message), r.use_case]", code("clientView.js"))
+        self.assertIn("finds words in the ID, the description, the owner, the latest update, the Client Message and the use case", self.FIND)
         self.assertIn("a published file keeps the type and Open / Closed / All", wi)
         self.assertIn("**Clear all** removes the filters and the search but keeps the type and Open, Closed or All.", self.FIND)
 
@@ -146,7 +146,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
         self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
         # the Help words still name the cards, which are the same cards; they are rewritten for the menu in a later stage of row 1024
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking and Quit, in the order the cards are drawn.", self.TEXT)
 
     def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
         views = code("components", "Views.jsx")

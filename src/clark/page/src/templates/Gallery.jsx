@@ -8,7 +8,7 @@
 // one. No tool, dot, bin or red mark. Click an image (or Enter on it) to see it larger with its caption; Esc, a click outside it, or the
 // close button closes it. Same words and keys as section_kinds/gallery.py published().
 import { useEffect, useRef, useState } from "preact/hooks";
-import { contentOf, lineOf, picturesOf } from "./pictures.jsx";
+import { contentOf, lineOf, captionOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
 
 export const READY = true;
@@ -22,7 +22,7 @@ export function shown(v) {
   const pics = picturesOf(v), items = v.items && typeof v.items === "object" && !Array.isArray(v.items) ? v.items : {};
   const list = SLOTS.filter((s) => lineOf(pics[s])).map((s) => {
     const it = items[s] && typeof items[s] === "object" ? items[s] : {};
-    return { image: pics[s], caption: lineOf(it.caption), alt: lineOf(it.alt) };
+    return { image: pics[s], caption: captionOf(it.caption), alt: lineOf(it.alt) };
   });
   if (!list.length) return null;
   const out = { pictures: list };

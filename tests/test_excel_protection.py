@@ -99,7 +99,7 @@ class Protected(Base):
 
     def test_every_locked_column_has_the_grey_fill_on_its_data_rows_and_no_other_does(self):
         """Item 1157: the Project and the worked-out columns are grey too, not only the sheet's own locked set."""
-        grey = "E7E7E7"      # item 1390: the Cover grey, not the old blue-ish grey-100 (E6EBF6)
+        grey = excel.colours.TOKENS["locked-fill"]
         seen = 0
         for name in DATA:
             ws = self.wb[name]
@@ -119,7 +119,7 @@ class Protected(Base):
         self.assertIsNone(ws.cell(blank, 1).value)
         self.assertTrue(ws.cell(blank, 1).protection.locked)
         labels = [c.value for c in ws[1]]
-        for label in ("Title", "Owner", "Priority", "Due", "Status", "Client wording", "Milestone", "Use case", "Labels"):
+        for label in ("Title", "Owner", "Priority", "Due", "Status", "Client Message", "Milestone", "Use case", "Labels"):
             self.assertFalse(ws.cell(blank, labels.index(label) + 1).protection.locked, label)
 
     def test_the_commitment_column_is_editable_and_keeps_its_drop_down_on_a_protected_sheet(self):
