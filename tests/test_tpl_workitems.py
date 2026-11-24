@@ -656,6 +656,7 @@ class InThePage(PageBase):
             # The second press is made once the first one is in the store: a press made while the first save's reply is still on its way is built on a list the
             # reply then redraws (a loaded runner takes seconds over it). Every assert and wait below is as it was.
             self.assertTrue(wait(lambda: self.demo.last_step() == steps + 1), "the first press reached the store")
+            p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
 
