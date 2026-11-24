@@ -1,7 +1,8 @@
 """Row 1273: Add milestone, Add project and Add use case take the dashed look of the Add opener on Work items, border style only.
 
 Reads edit.css (no browser): a rule for the three openers sets a 1px dashed border, and sets nothing that moves the button
-(no margin, padding, width, height or position), and the border colour is the blue text token. The look in a browser is not run here.
+(no margin, padding, width, height or position), and the border colour is the blue text token. The look of the Work items opener in Classic dark is read in a
+browser by WorkItemsOpenerInDark (row 1462 AP5); the three openers above are not run in a browser here.
 """
 import json
 import re
@@ -56,6 +57,8 @@ class WorkItemsOpenerInDark(W.Look):
                 p = self.show(cdp, width, dark=True)
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-add .newb')", "the Add opener drew")
+                p.until("document.getAnimations({subtree: true}).length === 0", "no transition is still running on the page")      # .newb has a colour transition: read its colour only once it has ended
+                self.assertTrue(p.js("!!document.getElementById('theme')"), "the Classic theme is the one drawn")
                 got = json.loads(p.js(read))
                 self.assertEqual(got["theme"], "dark", width)
                 self.assertEqual((got["style"], got["bw"], got["rad"]), ("dashed", "1px", "6px"), (width, got))

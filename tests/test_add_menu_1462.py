@@ -36,7 +36,8 @@ class Static(unittest.TestCase):
         hits = [b for s, b in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if "newBtnMenu" in s and re.search(r"\.mi\s*$", s.strip()) and "color" in b]
         self.assertEqual(len(hits), 1)
         self.assertRegex(hits[0], r"(^|[;\s])color\s*:\s*var\(--text-muted\)\s*;?\s*$")
-        self.assertIn("min-width: 224px", css)
+        add = [b for sel, b in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if 'aria-label^="Add "' in sel and "min-width" in b]
+        self.assertTrue(add and all(re.search(r"min-width\s*:\s*224px", b) for b in add), "the Add menu's own rule says min-width 224px: " + repr(add))
 
 
 class AddMenu(W.Look):
