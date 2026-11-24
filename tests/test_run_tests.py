@@ -536,6 +536,63 @@ class Running(Records):
         self.assertIn("No file has failed under load and passed alone", listed.getvalue())
 
 
+# ===== row 1566: a file stopped for running too long leaves evidence of where it stuck (posix) =====
+SLEEPS = ("import time, unittest\n"
+          "def sleeping_forever_here():\n    time.sleep(600)\n"
+          "class Probe(unittest.TestCase):\n    def test_hang(self):\n        sleeping_forever_here()\n")
+IGNORES_ABORT = ("import signal, time, unittest\n"
+                 "signal.signal(signal.SIGABRT, signal.SIG_IGN)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                 "class Probe(unittest.TestCase):\n    def test_hang(self):\n        time.sleep(600)\n")
+
+
+@unittest.skipUnless(os.name == "posix", "the evidence is posix only")
+class TimeoutEvidence(unittest.TestCase):
+    @staticmethod
+    def left_over():
+        """Processes still running the probe (only python started as `-m unittest test_probe_hang`)."""
+        ps = subprocess.run(["ps", "-axo", "command="], capture_output=True, text=True).stdout.splitlines()
+        return [ln for ln in ps if re.match(r"\S*python\S* -m unittest test_probe_hang", ln)]
+
+    def run_file(self, text, timeout):
+        d = folder({"test_probe_hang.py": text})
+        r = run_tests.Runner(timeout=timeout)
+        try:
+            began = time.time()
+            res = r.run(d / "test_probe_hang.py")
+            return res, time.time() - began
+        finally:
+            r.close()
+
+    def test_a_hung_file_shows_where_it_stuck_and_its_processes(self):
+        (f, code, took, out), _ = self.run_file(SLEEPS, 3)
+        self.assertEqual(code, run_tests.TIMED_OUT)
+        self.assertIn("TIMEOUT: test_probe_hang.py ran over 3s (--file-timeout) and was stopped", out)
+        self.assertIn("PROCESSES in the group of the hung file", out)
+        self.assertIn("most recent call first", out)
+        self.assertIn("sleeping_forever_here", out)
+        self.assertRegex(out, r"(?m)^\s*\d+\s+\d+\s+\S+\s+\S+\s+.*unittest")
+
+    def test_nothing_is_left_running_afterwards(self):
+        (f, code, took, out), _ = self.run_file(SLEEPS, 2)
+        self.assertEqual(code, run_tests.TIMED_OUT)
+        self.assertEqual(self.left_over(), [])
+
+    def test_a_file_that_ignores_the_abort_is_still_stopped_within_a_few_seconds(self):
+        (f, code, took, out), spent = self.run_file(IGNORES_ABORT, 2)
+        self.assertEqual(code, run_tests.TIMED_OUT)
+        self.assertIn("TIMEOUT: test_probe_hang.py", out)
+        self.assertIn("PROCESSES in the group", out)
+        self.assertLess(spent, 2 + 3 + 10 + 2 + 5 + 2)        # timeout, abort wait, old stop grace, second stop, reader
+        self.assertEqual(self.left_over(), [])
+
+    def test_a_file_that_passes_has_no_listing_and_no_traceback(self):
+        (f, code, took, out), _ = self.run_file(PASSES, 30)
+        self.assertEqual(code, 0)
+        self.assertNotIn("PROCESSES", out)
+        self.assertNotIn("TIMEOUT", out)
+        self.assertNotIn("most recent call first", out)
+
+
 class FlakeLog(Records):
     """A file that failed under load and passed alone is logged with which tests failed and the end of that output
     (creaite)."""

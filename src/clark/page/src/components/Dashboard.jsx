@@ -1,8 +1,8 @@
 // The Dashboard (#65): the report's sections (At a glance and the use case summary among them, #45), in the order clark keeps them (data.report_sections, by sort_order then id).
 // View removes, never hides: it draws only the sections that show (a hidden one is dropped) and renders no edit component, so there is
 // no input, text area, select, editable text, grip, menu or Add in the page. ONE exception, changed on purpose (ruling M10041, row 1287):
-// the four cells priority, due, owner and status of the lists in a full-width section are pickers in View (the pick prop, from tools.Cell),
-// and the description opens the peek in edit. Not in a published file, and not in a list set beside another. Edit (a page clark serves, with
+// the four cells priority, due, owner and status of the lists (full or half width) are pickers in View (the pick prop, from tools.Cell),
+// and the description opens the peek in edit. Not in a published file. Edit (a page clark serves, with
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
@@ -114,7 +114,7 @@ export function Dashboard({ tools }) {
   const classic = classicTheme();      // row 1318: Classic has the left Contents column and no Minimap; Cards (no Theme layer) keeps the Minimap and draws exactly what it drew
   const secs = (
     <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
-      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} pick={classic && !editing && !fromFile.value && tools && places[i] === "full" ? tools.Cell : null} />)}
+      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} pick={classic && !editing && !fromFile.value && tools ? tools.Cell : null} />)}
     </div>
   );
   return (

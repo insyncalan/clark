@@ -1,6 +1,7 @@
 // The page: the top bar and the open view. `tools` is what Edit adds (edit/index.js); the published page passes none.
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { view, status, tabs, shownTabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES } from "../stores/report.js";
+import { classicTheme } from "./Contents.jsx";
 import { AsAtBanner } from "./AsAtBanner.jsx";
 import { printing } from "../stores/print.js";
 import { printTabs, publishedLine } from "../logic/printView.js";
@@ -62,6 +63,7 @@ export function App({ tools: given }) {
   const own = (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
   const Published = view.value === "published" && !fromFile.value && tools && tools.PublishedPage;      // row 1087: the Published reports page is the editor's; a published file never has it
   const Page = Published ? Published : view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
+  const CritBanner = !fromFile.value && tools && tools.CriticalBanner && classicTheme() ? tools.CriticalBanner : null;      // row 1046: a critical notice (upgrade required) also shows a banner until it is read; the editor only, Classic only (as the bell)
   const DemoBanner = !fromFile.value && tools && tools.DemoBanner;         // #731: the demo data line (Edit only); a published file has none, nor has any page drawn from one
   const Toast = tools && tools.Toast;
   const RowMenu = tools && tools.RowMenu;               // the right-click menu on a work item (#97); a published file has none
@@ -82,6 +84,7 @@ export function App({ tools: given }) {
     <>
       <a class="skip" href="#main" onClick={skipToMain}>Skip to content</a>      {/* row 862: the first Tab stop; Enter puts focus in <main> and leaves the address (the router's hash) alone */}
       <TopBar tools={tools} />
+      {CritBanner ? <CritBanner /> : null}
       {DemoBanner ? <DemoBanner /> : null}
       <main id="main" tabIndex={-1} aria-busy={status.value === "loading" && !isFile() ? "true" : undefined}>{stacked ? <PrintStack tools={tools} /> : Layer ? <Layer>{body}</Layer> : body}</main>
       {publication.value ? <footer class="pubfoot num" id="publication-footer">{asAt.value ? `Published ${plainDate(asAt.value)}. ` : ""}Publication {publication.value}.</footer> : null}
