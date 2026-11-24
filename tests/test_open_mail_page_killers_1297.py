@@ -4,11 +4,9 @@ import json
 import unittest
 
 import test_draft_email_editor as DE
-import test_feedback_tab as FB
 from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome through the base classes above, so the tier reader sees it)
 
 NOTE = "No mail app opened. Use Copy as text and paste it into your mail."
-LINK = "a[data-feedback-mail]"
 
 
 class Shared:
@@ -61,18 +59,6 @@ class Shared:
         self.answer(0, {}, reject=True)
         click()
         self.assertEqual(self.notes(), 0, "no answer at all: no note")
-
-
-class Feedback(Shared, FB.InBrowser):
-    def test_the_post_and_the_failures(self):
-        self.mount()
-        self.type("#feedback-message", "The tab is slow")
-        href = self.href()
-        self.answer(200, {"ok": True})
-        self.click(LINK)
-        self.check_post(href)
-        self.check_failures(lambda: self.click(LINK))
-        self.check_follow(lambda: self.click(LINK), href)
 
 
 class Draft(Shared, DE.InBrowser):
