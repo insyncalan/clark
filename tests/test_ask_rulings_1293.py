@@ -48,7 +48,7 @@ class SecondChange(ApplyBase):
     def test_the_field_named_is_from_the_second_changes_own_fields_when_the_first_moved_more(self):
         a, b = self.two({"status": "Closed", "priority": "High"}, {"priority": "Low"})
         self.assertEqual(self.applied(a["offer"])["stale"][0]["message"], ask_words.stale("priority"))
-        other = self.demo.action(owner="Kit Moss", description="Order the lanyards")
+        other = self.demo.action(owner="Kit Moss", description="Order the lanyards", client_visible=0)
         c = self.planned({"op": "change", "id": other, "current_title": "Order the lanyards", "priority": "High", "status": "Closed"})
         d = self.planned({"op": "change", "id": other, "current_title": "Order the lanyards", "status": "Delayed"})
         self.assertEqual(self.applied(c["offer"])["stale"][0]["message"], ask_words.stale("status"))
@@ -59,7 +59,7 @@ class SecondChange(ApplyBase):
         self.assertEqual(ask_words.field_name("some_field"), "some field")
 
     def test_a_change_to_another_item_is_not_stale(self):
-        other = self.demo.action(owner="Kit Moss", description="Order the lanyards")
+        other = self.demo.action(owner="Kit Moss", description="Order the lanyards", client_visible=0)
         a = self.planned({"op": "change", "id": self.action, "current_title": TITLE, "status": "Closed"})
         b = self.planned({"op": "change", "id": other, "current_title": "Order the lanyards", "status": "Closed"})
         self.assertEqual(self.applied(a["offer"])["stale"], [])
@@ -73,8 +73,8 @@ class SecondChange(ApplyBase):
     def test_a_new_item_has_no_stale_offers(self):
         a = self.planned({"op": "new", "kind": "action", "title": "Book the room"})
         b = self.planned({"op": "new", "kind": "action", "title": "Book the hall"})
-        self.assertEqual(self.applied(a["offer"])["stale"], [])
-        self.assertEqual(self.applied(b["offer"])["after"]["description"], "Book the hall")
+        self.assertEqual(self.applied(a["offer"], confirm=True)["stale"], [])
+        self.assertEqual(self.applied(b["offer"], confirm=True)["after"]["description"], "Book the hall")
 
 
 class Duplicate(ApplyBase):
@@ -112,7 +112,7 @@ class Duplicate(ApplyBase):
     def test_the_warning_never_blocks_and_apply_adds_another(self):
         plan = self.planned({"op": "new", "kind": "action", "title": TITLE, "owner": "Sam Lee"})
         self.assertTrue(plan["ok"] and plan["duplicate"] and plan["offer"])
-        self.assertEqual(self.applied(plan["offer"])["after"]["description"], TITLE)
+        self.assertEqual(self.applied(plan["offer"], confirm=True)["after"]["description"], TITLE)
         self.assertEqual(len([r for r in self.s.read("actions", "ABC") if r["description"] == TITLE]), 2)
 
     def test_a_card_that_is_not_a_duplicate_has_no_duplicate_key(self):
