@@ -9,6 +9,7 @@ Run: python3 dev/run_tests.py test_hostile_1068
 """
 import copy
 import json
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -41,12 +42,15 @@ def with_sections(inputs, *extra):
     return inputs
 
 
+NEW_WORKSTREAM_COLUMNS = re.compile(r",NULL,NULL,NULL\);$")      # row 1417 (step 34): start, end and latest_update are the last three columns, NULL in an older file; only these are cut from a workstreams row
+
+
 def others(path):
     """Everything in the file except report_sections: its dump lines, so a rebuild of that one table may not touch any other.
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "install_defaults" not in l and "connector_switches" not in l and "project_connectors" not in l and "ask_instructions" not in l and "ask_files" not in l and "ask_off" not in l and not l.startswith(("CREATE TABLE projects", 'INSERT INTO "projects"')) and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and "workstreams" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
+        return [NEW_WORKSTREAM_COLUMNS.sub(");", l) if l.startswith('INSERT INTO "workstreams"') else l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "install_defaults" not in l and "connector_switches" not in l and "project_connectors" not in l and "ask_instructions" not in l and "ask_files" not in l and "ask_off" not in l and not l.startswith(("CREATE TABLE projects", 'INSERT INTO "projects"')) and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and "app_settings" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions", "CREATE TABLE workstreams"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
     finally:
         con.close()
 
