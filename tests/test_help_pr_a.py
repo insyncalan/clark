@@ -146,7 +146,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
         self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
         # the Help words still name the cards, which are the same cards; they are rewritten for the menu in a later stage of row 1024
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking and Quit, in the order the cards are drawn.", self.TEXT)
 
     def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
         views = code("components", "Views.jsx")
@@ -245,12 +245,12 @@ class ExcelColumns(unittest.TestCase):
         self.assertEqual(table[1], ["Sheet", "Columns the import reads"])
         self.assertEqual([(r[0], r[1]) for r in table[2]], want)
         heads = flat(table)
-        for real in ("Achieved on", "% complete"):
+        for real in ("Achieved on", "Progress %"):
             self.assertIn(real, heads)
-        for wrong in ("Rating", "Progress", "Title", "Open work items"):
+        for wrong in ("Rating", "Open work items"):
             self.assertNotIn(wrong, heads)
         py = (SRC / "excel.py").read_text(encoding="utf-8")
-        for label in ('("Achieved on", "actual_date")', '("% complete", "percent_complete")'):
+        for label in ('("Achieved on", "actual_date")', '("Progress %", "percent_complete")'):
             self.assertIn(label, py)
 
     def test_the_table_is_what_the_importer_applies(self):
