@@ -77,7 +77,7 @@ NOTHING = "That suggestion doesn't say what to change. Nothing was changed. Ask 
 NEEDS_CONFIRM = ("This change comes from one of your files. Read the passage, then press Confirm to save it. "
                  "Nothing was changed yet.")
 NEEDS_CONFIRM_CLIENT = ("This change is to something your client sees. Check it, then press Confirm to save it. "
-                        "Nothing was changed yet.")      # row 1416: words proposed, to Jarvis for approval before the PR
+                        "Nothing was changed yet.")      # row 1416: words approved
 NO_OFFER = "That change is no longer waiting to be saved. Nothing was changed. Ask again."
 ASKING_OFF = changes.ASK_OFF
 BUSY = "The saved data could not be opened just now. Wait a moment and try again. Nothing was changed."
