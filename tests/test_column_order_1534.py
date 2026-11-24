@@ -185,7 +185,15 @@ class Logic(unittest.TestCase):
         menu = source("edit", "ColumnsMenu.jsx")
         self.assertIn("const ordered = shownOrder(ordering, drawn, co, type);", menu)
         self.assertIn("return { shown: ordered,", menu)                                                    # the table draws `ordered` ...
-        self.assertIn("ordered.map((id) => defsOf(table).find", menu)                                      # ... and the menu lists the same list, the hidden columns after
+        self.assertIn("ordering ? menuLines(defsOf(table), ordered) : defsOf(table);", menu)               # ... and the Classic menu lists the same list (menuLines), the Status first, the hidden columns after
+        # Row 1499 (red priority): an unticked Status stays the first line of the Classic menu; the Cards menu keeps defsOf(table)
+        names = lambda ordered: run_node(f"CO.menuLines(CO.defsOf('work'), {json.dumps(ordered)}).map((c) => c.id)")  # noqa: E731
+        every = run_node("CO.defsOf('work').map((c) => c.id)")
+        got = names(["item", "due", "owner"])
+        self.assertEqual(got[:4], ["status", "item", "due", "owner"], "the Status unticked: it is still the first line, then the shown ones in the table's order")
+        self.assertEqual(got[4:], [i for i in every if i not in ("status", "item", "due", "owner")], "the hidden ones after, in the standard order")
+        self.assertEqual(names(["status", "item", "due", "owner"])[:4], ["status", "item", "due", "owner"])
+        self.assertEqual(names(["item", "owner", "due", "prio", "id"])[0], "status")
         self.assertEqual(menu.count("{listed."), 2, "both menus (Classic and Cards) list the columns in the table's order")
         self.assertIn("W.RESET_ORDER", menu)
         # "Reset to the standard order": the standard list is saved as nothing, so the type's key goes and the table follows the standard again

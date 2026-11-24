@@ -100,6 +100,12 @@ export function inOrder(shown, saved) {
   const named = (saved || []).filter((id, i, a) => rest.includes(id) && a.indexOf(id) === i);
   return lead.concat(named, rest.filter((id) => !named.includes(id)));
 }
+/** The Classic Columns menu's lines (`defs` = the table's columns, `ordered` = the shown ids as the table draws them): the Status stays first, ticked or not (it is the table's fixed leading column), then the shown columns in the table's order, then the hidden ones in the standard order. */
+export function menuLines(defs, ordered) {
+  const named = ordered.filter((id) => id !== "status").map((id) => defs.find((c) => c.id === id)).filter(Boolean);
+  const hidden = defs.filter((c) => c.id !== "status" && !ordered.includes(c.id));
+  return defs.filter((c) => c.id === "status").concat(named, hidden);
+}
 /** `shown` in the order saved for `type`: only in the Classic look (`classic`); Cards (false) gets `shown` back as it is. */
 export const shownOrder = (classic, shown, columnOrders, type) => (classic ? inOrder(shown, savedOrder(columnOrders, type)) : shown);
 /** The ids after moving `id` one place (delta -1 or +1) or in front of `beforeId` (delta null; beforeId null = the end). The Status and the Item do not move and nothing goes in front of them; null when nothing changes. */

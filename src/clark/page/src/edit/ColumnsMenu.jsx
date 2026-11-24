@@ -11,7 +11,7 @@ import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { classicTheme } from "../components/Contents.jsx";
-import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds, movable, savedOrder, shownOrder, moveColumn, withOrder } from "../logic/tableColumns.js";
+import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds, movable, savedOrder, shownOrder, menuLines, moveColumn, withOrder } from "../logic/tableColumns.js";
 import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
 
@@ -39,7 +39,7 @@ export function useColumns(table, css = false, type = "all") {
   const ordering = table === "work" && classic, canMove = ordering && movable(type), co = data.value && data.value.project ? data.value.project.column_orders : null;
   const out = shownIds(table, shown), drawn = table === "work" && !classic && !out.includes("status") ? ["status", ...out] : out;      // Cards: the Status stays always shown, even after it was unticked in the Classic look
   const ordered = shownOrder(ordering, drawn, co, type);      // row 1534: the saved order, drag and Move items are the Classic look's; Cards keeps the standard order and its markup
-  const listed = ordering ? ordered.map((id) => defsOf(table).find((c) => c.id === id)).concat(defsOf(table).filter((c) => !ordered.includes(c.id))) : defsOf(table);      // the menu lists the columns in the table's order, the hidden ones after
+  const listed = ordering ? menuLines(defsOf(table), ordered) : defsOf(table);      // the menu lists the columns in the table's order with the Status first, ticked or not, the hidden ones after
   const labelOfId = (id) => (defsOf(table).find((c) => c.id === id) || {}).label || id;
   // The order is saved with the project through the one writer (no toast: the key Cmd or Ctrl+Z puts it back). The page draws the new order at once and takes it back if it was refused.
   const saveOrder = async (ids, words) => {
