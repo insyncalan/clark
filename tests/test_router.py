@@ -805,6 +805,7 @@ class BuiltPage(Browser):
             self.assertEqual(self.at()[1], n + 1, "the same project adds nothing")
             self.ev("history.back()")
             self.until("document.getElementById('project-name').textContent", "Example Programme", "back to the first project")
+            self.until("(clarkPage.peek() || {}).id", "A-12", "its peek came back after the page loaded")
             self.assertEqual(self.peek(), {"kind": "item", "id": "A-12"}, "and its peek")
             self.ev("history.forward()")
             self.until("document.getElementById('project-name').textContent", "Second Programme", "forward")
