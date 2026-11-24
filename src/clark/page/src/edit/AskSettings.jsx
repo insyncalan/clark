@@ -17,7 +17,8 @@ import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { announce, LINKS } from "./indexNote.js";
-import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
+import { sayLocalUndo, say } from "../stores/changes.js";
+import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersInclude, askFoldersUndo, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
@@ -38,6 +39,8 @@ export const SAFETY = [
 const SAFETY_NOTE = "These are not switches.";
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
+const LEFT_OUT_HEAD = "Left out of questions";      // row 1542, as approved (NEW-WORDS.md)
+const INCLUDE_AGAIN = "Include again";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 // The status line under each folder (Row 1366): the server says what it has read ("Indexing… 42%" then "Indexed ..."). It is asked again
@@ -137,6 +140,7 @@ function AskProject() {
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
   const [warns, setWarns] = useState([]);                // row 1365: [{folder, accepted, items, fresh}] from the server's name-only scan
+  const [lefts, setLefts] = useState([]);                // row 1542: [{folder, rels}] the subfolders left out of each saved folder, as saved
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
   const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
@@ -163,6 +167,7 @@ function AskProject() {
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
       setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
       setWarns(r.status === 200 && b && Array.isArray(b.warnings) ? b.warnings : []);
+      setLefts(r.status === 200 && b && Array.isArray(b.left_out) ? b.left_out : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -218,6 +223,7 @@ function AskProject() {
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      if (Array.isArray(b.left_out)) setLefts(b.left_out);
       return;
     }
     setFmsg({ kind: "error", text: failure(r) });
@@ -234,6 +240,27 @@ function AskProject() {
       setFolders(b.folders);
       setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
       again();
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1542: Include again puts one left-out subfolder back. The toast says it and carries the one Undo; Undo asks the server to take that step back and the list is drawn from its answer.
+  async function includeAgain(folder, rel) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersInclude(code, folder, rel);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.left_out)) {
+      setLefts(b.left_out);
+      again();
+      if (b.apply_id) sayLocalUndo("done", b.message, async () => {
+        const u = await askFoldersUndo(code, b.apply_id);
+        const ub = u.body;
+        if (u.status === 200 && ub && ub.ok === true) { if (Array.isArray(ub.left_out)) setLefts(ub.left_out); again(); say("done", ub.message); }
+        else say("problem", failure(u));
+      });
       return;
     }
     setFmsg({ kind: "error", text: failure(r) });
@@ -317,6 +344,16 @@ function AskProject() {
             )];
           })}
         </ul>
+      ) : null}
+      {classic && Array.isArray(folders) && lefts.some((l) => list.includes(l.folder) && l.rels.length) ? (
+        <div class="ask-left-folders" id="ask-left-folders">
+          <h3 id="ask-left-folders-h">{LEFT_OUT_HEAD}</h3>
+          <ul class="ask-left-list" aria-labelledby="ask-left-folders-h">
+            {lefts.filter((l) => list.includes(l.folder)).flatMap((l) => l.rels.map((rel) => (
+              <li key={l.folder + "|" + rel}><span class="ask-left-name">{rel}</span> <button type="button" class="ask-left-btn" data-ask-include={rel} aria-label={`${INCLUDE_AGAIN}: ${rel}`} disabled={busy} onClick={() => includeAgain(l.folder, rel)}>{INCLUDE_AGAIN}</button></li>
+            )))}
+          </ul>
+        </div>
       ) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (
