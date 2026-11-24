@@ -63,5 +63,18 @@ class Settings900(t13.RealSettings):
             self.assertEqual(b["media"], [], scheme + ": no media rule sets the Projects th/td font-weight, colour, padding or bottom border")
 
 
+class RulesCssTh(unittest.TestCase):
+    """Row 1583: the dead weight 700 on the Projects th is gone from rules.css (rules-2.css sets 600)."""
+
+    def test_rules_css_th_rule_has_no_font_weight_700(self):
+        import pathlib
+        css = (pathlib.Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        rules = [ln for ln in css.splitlines() if ln.startswith(".projects table.proj-table th {")]
+        self.assertEqual(len(rules), 1, "one th rule in rules.css")
+        self.assertNotIn("font-weight", rules[0])
+        self.assertIn("text-transform: none", rules[0])
+        self.assertIn("border-top: 0", rules[0])
+
+
 if __name__ == "__main__":
     unittest.main()
