@@ -3,6 +3,7 @@ cell keeps the status colour. No rule paints a Status cell red for being late. R
 
 Run: python3 dev/run_tests.py test_excel_pastdue_1390
 """
+import re
 import unittest
 
 import _paths  # noqa: F401
@@ -35,10 +36,24 @@ class PastDue(unittest.TestCase):
             rules = [r for col, r in f.rules_of(ws) if col == head["Status"]]
             with self.subTest(sheet=sheet):
                 self.assertTrue(rules)
+                by_priority = {}
                 for r in rules:
-                    self.assertEqual(r.type, "cellIs")
                     self.assertFalse(r.stopIfTrue)
-                    self.assertNotEqual(f.rgb(r.dxf.fill.bgColor) if r.dxf.fill else None, red_fill)
+                    fill = f.rgb(r.dxf.fill.bgColor) if r.dxf.fill else None
+                    if r.type == "expression":
+                        # Item 1390: an open Risk or Issue takes its Priority's colour (so the Urgent and High ones are red and maroon on
+                        # purpose). Only these rules may: Risks & Issues, a formula of exactly AND(Status="Open", Priority="<word>"), no TODAY.
+                        self.assertEqual(sheet, "Risks & Issues")
+                        m = re.fullmatch(r"AND\(\$%s2=\"Open\",\$%s2=\"(\w+)\"\)" % (head["Status"], head["Priority"]), r.formula[0])
+                        self.assertTrue(m, r.formula[0])
+                        by_priority[m.group(1)] = fill
+                    else:
+                        self.assertEqual(r.type, "cellIs")
+                        self.assertNotEqual(fill, red_fill)
+                if sheet == "Risks & Issues":
+                    self.assertEqual(by_priority, {w: colours.hexes(n)[0] for w, n in colours.OPEN_BY_PRIORITY.items()})
+                else:
+                    self.assertEqual(by_priority, {})
 
     def test_an_actions_status_words_keep_their_status_colour(self):
         ws = self.wb["Actions"]
