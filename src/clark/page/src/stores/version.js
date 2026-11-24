@@ -5,16 +5,33 @@ import { signal } from "@preact/signals";
 export const version = signal("");
 let asked = false;
 
+// The one /health read of this page, shared by the profile menu's version line (below) and the Bell's installed version (edit/noticesState.js): a good
+// answer (a string version) is kept, so the page reads /health once; a failed or odd one is dropped, so a later call asks again. It never throws.
+let health = null;
+export function readHealth() {
+  if (!health) {
+    const mine = (async () => {
+      try {
+        const r = await fetch("/health", { cache: "no-store" });
+        let body = null;
+        try { body = await r.json(); } catch (e) { /* not JSON: no body */ }
+        return { ok: r.ok !== false, status: r.status, body };
+      } catch (e) {
+        return { ok: false, status: undefined, body: null };
+      }
+    })();
+    health = mine;
+    mine.then((h) => { if (!h.ok || !h.body || typeof h.body.version !== "string") { if (health === mine) health = null; } });
+  }
+  return health;
+}
+
 export async function loadVersion() {
   if (asked) return;
   asked = true;
-  try {
-    const r = await fetch("/health", { cache: "no-store" });
-    if (r.ok === false) { asked = false; return; }   // a 404 or 500 (a proxy or error page) may carry a JSON body with a version: show none
-    const b = await r.json();
-    if (b && typeof b.version === "string") version.value = b.version;
-    else asked = false;
-  } catch (e) {
-    asked = false;                                     // a failed read may be asked for again by a later call (none is made after the mount)
-  }
+  const h = await readHealth();
+  if (!h.ok) { asked = false; return; }   // a 404 or 500 (a proxy or error page) may carry a JSON body with a version: show none
+  const b = h.body;
+  if (b && typeof b.version === "string") version.value = b.version;
+  else asked = false;
 }

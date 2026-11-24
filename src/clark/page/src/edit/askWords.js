@@ -30,7 +30,7 @@ export const CARD_LINK = "What will be sent? (Settings)";
 export const CARD_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
-export const CARD_TIP_AFTER = " in the box for shortcuts.";
+export const CARD_TIP_AFTER = " in the box for slash commands.";
 export const CLASSIC_STATUS_READY = "Ready. Reading this project's report data.";   // the prototype's status line; it does not name the model
 export const CLASSIC_STANDING = "Standing instructions on";                          // the prototype's words, no full stop (the line is a button there)
 export const CHECKING_LINE = "Checking whether you can ask…";
@@ -38,7 +38,7 @@ export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // row 1292 step S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
-export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for slash commands)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
