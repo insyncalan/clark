@@ -78,7 +78,7 @@ class Pair(unittest.TestCase):
           var secs=[...document.querySelectorAll('.secs > .sec')].map(function(s){var r=s.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width};});
           var figs=[...document.querySelectorAll('.tpl-fullimg')].map(function(f){var r=f.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width};});
           var imgs=[...document.querySelectorAll('.tpl-fullimg-img')].map(function(f){var r=f.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width};});
-          return {grid:g.width, gap:gap, secs:secs, figs:figs, imgs:imgs, n:document.querySelectorAll('.tpl-fullimg').length,
+          return {grid:g.width, gap:gap, mlb:parseFloat(getComputedStyle(document.querySelectorAll('.secs > .sec')[1]).marginLeft) || 0, secs:secs, figs:figs, imgs:imgs, n:document.querySelectorAll('.tpl-fullimg').length,
                   scroll:[document.documentElement.scrollWidth, document.documentElement.clientWidth]};})()""")
 
     def test_two_half_width_images_sit_side_by_side_at_1400_and_stack_at_900(self):
@@ -94,7 +94,8 @@ class Pair(unittest.TestCase):
                         half = (m["grid"] - m["gap"]) / 2
                         self.assertGreater(m["gap"], 0, "the grid has a side gap")
                         self.assertLessEqual(abs(a["width"] - half), 1, "each section is the content width less the gap, over two")
-                        self.assertLessEqual(abs(b["width"] - half), 1)
+                        # the page's default density pulls the right section 24 px left over the gap (shell.css `.sec.slot-right { margin-left: -24px; padding-left: 24px }`): its box is the half less that margin, its content the same width as the left one
+                        self.assertLessEqual(abs(b["width"] - (half - m["mlb"])), 1, "the right section is the half, plus what its negative left margin gives back")
                         self.assertLessEqual(abs(a["top"] - b["top"]), 1, "side by side: the tops are equal")
                         self.assertLessEqual(a["right"], b["left"] + 1, "two across, the first on the left")
                         self.assertLessEqual(abs(fa["width"] - fb["width"]), 1, "the two Images are the same width")
