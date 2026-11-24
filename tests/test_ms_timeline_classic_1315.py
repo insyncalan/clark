@@ -43,6 +43,14 @@ class Base(BrowserBase):
         sid = self.visit(cdp, width, HASH, self.serve())
         cdp.js(f"document.documentElement.dataset.theme = '{mode}'", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length > 0", sid)))
+        edge = "(() => { const g = document.querySelector('.mv-grip'), w = document.querySelector('.mv-wrap'); return g ? [g.getBoundingClientRect().bottom, w.offsetHeight, w.clientHeight] : null; })()"
+        last = []
+        def settled():                                # row 1570: the grip is drawn after the first layout has measured the strip: wait for it and for its edge to stop moving
+            now = cdp.js(edge, sid)
+            same = now is not None and last[-1:] == [now]
+            last.append(now)
+            return same
+        self.assertTrue(wait(settled), "the grip is drawn and has settled")
         return sid
 
     def every(self):
