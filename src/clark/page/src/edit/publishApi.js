@@ -102,6 +102,7 @@ export const aiVerifySend = (provider) => changing("POST", "/api/providers/verif
 export const aiCancelSend = (provider) => call("POST", "/api/providers/cancel", { provider });
 export const aiProgressRead = () => call("GET", "/api/providers/progress");
 export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
+export const aiSizeSend = (size) => changing("POST", "/api/providers/size", { size });
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
