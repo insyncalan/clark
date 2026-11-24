@@ -130,7 +130,7 @@ class ClassicWords(Classic):
             self.assertEqual(p.js(f"{li}[1].textContent"), "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
             self.assertEqual(p.js(f"{li}[2].textContent"), "Your question and what it needs go to Claude. What will be sent? (Settings)")
             self.assertEqual(p.js("document.querySelector('#ask-first-run li a').textContent"), "What will be sent? (Settings)")
-            self.assertEqual(p.js("document.querySelector('#ask-first-run p.ask-first-tip').textContent"), "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type / in the box for shortcuts.")
+            self.assertEqual(p.js("document.querySelector('#ask-first-run p.ask-first-tip').textContent"), "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type / in the box for slash commands.")
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project's report data. Standing instructions on")
             self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on")
 
