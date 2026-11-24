@@ -215,6 +215,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .pp-flat h1 { margin: var(--space-4) 0 var(--space-2); }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
+/* Row 1294: the Defaults page opens the All projects tab with a text link, as the mock-up A8 draws it (muted dashed underline, brand colour on hover). Classic only. */
+.essentials .ess-link { background: none; border: 0; border-bottom: 1px dashed var(--text-muted); border-radius: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.essentials .ess-link:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
+
 /* Row 1275 (Classic only): the drop area on a Documents and links section in Edit, as docs-approved.html lines 18 and 99 draw .drop and .drop.over: a 1.5px dashed box, 12px radius, 14px padding, text centred, 10px above it; while a file is over it the border and text are the blue token and the fill the tint token. */
 .tpl-drop { border: 1.5px dashed var(--grey-200); border-radius: 12px; padding: 14px; text-align: center; color: var(--text-muted); margin-top: 10px; }
 .tpl-drop.over { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--brand-blue); }

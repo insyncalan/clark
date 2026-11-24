@@ -1864,7 +1864,7 @@
       [
        [
         "Essentials",
-        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
+        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
        ],
        [
         "Profile",
@@ -2544,7 +2544,7 @@
     {
      "card": "essentials",
      "title": "Essentials",
-     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
+     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder."
     },
     {
      "card": "profile",
