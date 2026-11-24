@@ -488,7 +488,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
           <span class="fl1">{o.label}</span>
           {o.note ? <span class="fl2">{o.note}</span> : null}
           {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
-          {o.checked ? <span class="ftick" data-checked="true" aria-label="Current">{"\u2713"}</span> : null}
+          {o.checked ? <span class="ftick" data-checked="true">{"\u2713"}</span> : null}
         </li>
       ))}
     </Fade>

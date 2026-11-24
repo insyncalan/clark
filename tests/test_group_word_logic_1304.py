@@ -64,6 +64,13 @@ class Words(unittest.TestCase):
     def test_an_unfinished_word_under_the_caret_is_not_taken(self):
         self.assertIsNone(run_node("GW.takeGroup('group:owner', 12, false)"))
 
+    def test_a_finished_word_is_taken_only_once_the_caret_is_past_it(self):
+        """The caret guard (end >= caret): 'group:owner x' ends at 11; with the caret AT the end of the word (11) or inside it nothing is taken, one past it (12) the word goes."""
+        self.assertIsNone(run_node("GW.takeGroup('group:owner x', 11, false)"))
+        self.assertIsNone(run_node("GW.takeGroup('group:owner x', 8, false)"))
+        got = run_node("GW.takeGroup('group:owner x', 12, false)")
+        self.assertEqual((got["id"], got["text"]), ("owner", "x"))
+
     def test_nothing_on_the_board_is_refused_with_the_board_flag(self):
         got = run_node("GW.takeGroup('group:nothing ', 14, true)")
         self.assertTrue(got["board"])
