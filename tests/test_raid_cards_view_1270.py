@@ -2,7 +2,7 @@
 every kind, and a foot line pinned to the bottom so foot lines line up across a row.
 
 Run: python3 dev/run_tests.py test_raid_cards_view_1270
-Fictional rows. Opened in headless Chrome at 1400 and 900 (the only widths checked).
+Fictional rows. Opened in headless Chrome at 1400 and 900 (the only widths checked), light and dark.
 """
 import json
 import unittest
@@ -38,8 +38,8 @@ class RaidCardsView(PublishedFile, glance.Setup):
         self.seed()
         path = self.publish()
         with chrome() as cdp:
-            for w in (1400, 900):
-                p = self.draw(cdp, path, width=w)
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                p = self.draw(cdp, path, width=w, dark=dark)
                 cs = self.read(p)
                 self.assertEqual(len(cs), 3, w)
                 self.assertEqual([c["rating"] for c in cs], ["Red", "Green", "Not rated"], w)
