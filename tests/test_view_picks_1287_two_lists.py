@@ -3,6 +3,7 @@ cell of the other list shut. Classic layer, widths 1400 and 900. Fictional data 
 
 Run: python3 dev/run_tests.py test_view_picks_1287_two_lists   (headless Chrome; fails, never skips, without it)
 """
+import time
 import unittest
 
 import test_tpl_workitems as T
@@ -34,6 +35,21 @@ class ViewPickTwoLists(T.InThePage):
                     p.js(f"document.querySelector('{b}').click()")
                     p.until(f"document.querySelector('{b}').getAttribute('aria-expanded') === 'true'", "the second list's picker opened")
                     self.assertEqual(p.js(f"document.querySelector('{a}').getAttribute('aria-expanded')"), "false", "the first closed when the second opened")
+
+    def test_the_page_has_taken_its_width_when_show_returns_so_no_late_resize_closes_a_picker(self):
+        """CI flake: the `resize` event of the width the test sets arrived just after the first click and closed the picker it had opened (edit/cells/Pop.jsx).
+        show() now returns only after that event: a listener added when it returns sees none. Eight fresh pages at 1400 (the width that resizes)."""
+        classic(self)
+        self.section("actions", "Fictional actions one", 1)
+        late = []
+        for i in range(8):
+            with chrome() as cdp:
+                p = self.show(cdp, 1400)
+                p.js("window.__late = 0; window.addEventListener('resize', () => { window.__late += 1; })")
+                p.until("!!document.querySelector('.wl-row')", "a list drew")
+                time.sleep(1.2)
+                late.append(p.js("window.__late"))
+        self.assertEqual(late, [0] * 8, "a resize event landed after show() returned")
 
 
 if __name__ == "__main__":
