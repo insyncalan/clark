@@ -96,7 +96,8 @@ class Box(unittest.TestCase):
 
 class Stamp1470(unittest.TestCase):
     """Row 1470 (Classic): the stamp under the Latest update box reads "Last updated <date> <time> · Source: <source>", the Source only when clark recorded it; no person is named."""
-    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    load, fresh, refused, open_box, type_in, save_key = _B.load, _B.fresh, _B.refused, _B.open_box, _B.type_in, _B.save_key
+    SHOWN, BOX = _B.SHOWN, _B.BOX
     HOLD = _B.HOLD
     setUp = _B.setUp
     DATE = r"Last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}"
@@ -131,10 +132,10 @@ class Stamp1470(unittest.TestCase):
         with self.subTest(width=width, mode=mode, by="saved update"):
             sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)), "a stamp first")
-            _B.open_box(self, cdp, sid)
-            _B.type_in(self, cdp, sid, f"By-name update {width} {mode}")
-            _B.save_key(self, cdp, sid)
-            want = rf"^{self.DATE} by Demo Author · Source: Demo data \(fictional\)$"
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, f"By-name update {width} {mode}")
+            self.save_key(cdp, sid)
+            want = rf"^{self.DATE} by Demo User · Source: Demo data \(fictional\)$"
             self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")),
                             "the stamp names the person who saved the update: " + str(cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid)))
 
