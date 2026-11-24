@@ -114,7 +114,8 @@ class Stamp1470(unittest.TestCase):
             con.close()
         return make
 
-    def test_stamp_has_date_time_source_and_omits_unknown(self):
+    def test_stamp_has_name_date_time_source_and_omits_unknown(self):
+        """The name comes from the item's update row (ruling 23-11 10:25): no update row, no \"by\"; after a real save through the peek the stamp reads \"by <name>\"."""
         cases = ((True, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"), (False, True, rf"^{self.DATE} · Source: Demo data \(fictional\)$"),
                  (True, False, rf"^{self.DATE}$"), (False, False, rf"^{self.DATE}$"))
         for width in (1400, 900):
@@ -124,6 +125,18 @@ class Stamp1470(unittest.TestCase):
                 for mode in ("view", "edit"):
                     for user, source, want in cases:
                         self.check(cdp, width, mode, user, source, want)
+                    self.check_by(cdp, width, mode)
+
+    def check_by(self, cdp, width, mode):
+        with self.subTest(width=width, mode=mode, by="saved update"):
+            sent, sid = self.load(cdp, width, "TUL-A-001", edit=False, dash=mode, classic=True)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)), "a stamp first")
+            _B.open_box(self, cdp, sid)
+            _B.type_in(self, cdp, sid, f"By-name update {width} {mode}")
+            _B.save_key(self, cdp, sid)
+            want = rf"^{self.DATE} by Demo Author · Source: Demo data \(fictional\)$"
+            self.assertTrue(wait(lambda: re.match(want, cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid) or "")),
+                            "the stamp names the person who saved the update: " + str(cdp.js("(e => e ? e.textContent.trim() : '')(document.querySelector('#peek [data-pk-last]'))", sid)))
 
     def check(self, cdp, width, mode, user, source, want):
         with self.subTest(width=width, mode=mode, user=user, source=source):
