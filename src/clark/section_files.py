@@ -13,7 +13,8 @@ all are clear:
 3. The system's Open dialog (platform.choose_open_file). Cancel changes nothing.
 4. The chosen file: an ordinary file (a link is judged by where it leads, and not followed when read), not in a place clark never
    reads (reach.py: secrets, system folders, clark's own data), not a secret's name, at most MAX_FILE_BYTES.
-5. The copy: "Report files" is made if it is not there (it must be a real folder inside the client folder, not a link out of it);
+5. The copy (also the drop, row 1275: POST /api/section-file-drop, the bytes in the body, the name in a header, cleaned; the ending
+   and first bytes judged first, for a Documents and links section): "Report files" is made if it is not there (it must be a real folder inside the client folder, not a link out of it);
    the name is platform.safe_name's; a taken name gets a number ("Plan (2).pdf"); the bytes go to a temporary file beside it and
    are linked into place, so nothing is ever overwritten (to_client.RealFs.write_file, the one place clark writes into a client
    folder). A file already in "Report files" is used where it is, with no copy.
@@ -37,7 +38,9 @@ from clark.section_kinds.doclinks import FILES_FOLDER, allowed_type, file_name
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 SECTION_ID = re.compile(r"[A-Za-z0-9|_-]{1,64}")
 KEYS = ("project", "section")
-MAX_FILE_BYTES = 100 * 1024 * 1024      # a report's paper, not a whole drive: the copy is read into memory once
+MAX_FILE_BYTES = 25 * 1024 * 1024       # row 1275: 25 MB for the file window and the drop alike; the copy is read into memory once
+READ_LIMIT = 100 * 1024 * 1024          # what reading a listed file back may hold: files added before the 25 MB rule stay readable
+NAME_CHARS = 120                        # a dropped name, at most (row 1275)
 MAX_NUMBER = 99                         # "Plan (2).pdf" ... "Plan (99).pdf", then the person is asked to rename
 PROMPT = "Choose a file to add to the report"
 
@@ -57,8 +60,9 @@ MESSAGES = {
     "not_a_file": "That isn't a file clark can copy. Choose an ordinary file, then try again.",
     "never_place": "That file is in a place clark never copies from, such as a folder of passwords or of the system. Choose "
                    "another file.",
-    "too_big": f"That file is bigger than {MAX_FILE_BYTES // (1024 * 1024)} MB, too big to copy into the report's folder. Put it "
-               "in the client's folder yourself and add a link to it instead.",
+    "too_big": f"That file is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB, so it was not added.",       # approved words (row 1275)
+    "drop_unread": "That file could not be read from the drop. Reload the page and try again.",      # approved (NEW-WORDS 1291)
+    "drop_wrong_section": "Files can be dropped on a Documents and links section only. Use Add a file there.",
     "unreadable": "That file could not be read. Check it opens on this computer, then try again.",
     "files_folder": "The client folder has something called “Report files” that clark can't use as a folder. Rename it, then "
                     "add the file again.",
@@ -108,7 +112,7 @@ def _checked_request(body):
 
 
 def _before_the_dialog(pub, code, ref):
-    """Steps 1 and 2, read only: the client folder to copy into."""
+    """Steps 1 and 2, read only: the client folder to copy into, and the section's template."""
     store = pub.store()
     try:
         row = store.read("projects", ref=code)
@@ -167,6 +171,26 @@ def _source(pub, chosen):
     return real, data
 
 
+def dropped_name(raw):
+    """A dropped file's name as the page sent it (URL-encoded in a header), cleaned: no path parts, no control character, no leading
+    dot, at most NAME_CHARS characters (the ending is kept). Refused (drop_unread) when nothing is left or it cannot be read."""
+    from urllib.parse import unquote
+    try:
+        name = unquote(raw or "", errors="strict")
+    except UnicodeDecodeError:
+        raise Refused("drop_unread", 400) from None
+    name = re.split(r"[\\/]", name)[-1]
+    name = "".join(c for c in name if c >= " " and c != "\x7f" and not 0x80 <= ord(c) < 0xa0).strip().lstrip(".").strip()
+    if len(name) > NAME_CHARS:
+        stem, dot, ext = name.rpartition(".")
+        if not dot or not stem or len(ext) > 10:
+            stem, ext = name, ""
+        name = stem[:NAME_CHARS - (len(ext) + 1 if ext else 0)].rstrip() + ("." + ext if ext else "")
+    if not name:
+        raise Refused("drop_unread", 400)
+    return name
+
+
 def _files_folder(pub, client):
     """Step 5's folder: "Report files" inside the client folder, made if it is not there, and a real folder inside it."""
     folder = client / FILES_FOLDER
@@ -191,11 +215,12 @@ def _identity(pub, path):
 
 
 def _judge_saved(real, saved):
-    """The ending of the name the file is saved under; the refusal carries the name that was chosen."""
+    """The ending of the name the file is saved under; the refusal carries the name that was chosen (`real` is the chosen file or the
+    dropped name)."""
     try:
         allowed_type(saved)
     except section_bodies.Bad:
-        raise Refused("bad_type", name=real.name) from None
+        raise Refused("bad_type", name=getattr(real, "name", real)) from None
 
 
 def _copy(pub, folder, real, data, judged=False):
@@ -207,14 +232,20 @@ def _copy(pub, folder, real, data, judged=False):
             return file_name(real.name), False, None
         except section_bodies.Bad:
             raise Refused("no_name") from None
+    return _save(pub, folder, real.name, data, real if judged else None)
+
+
+def _save(pub, folder, wanted, data, judged=None):
+    """The copy under a safe, free name in `folder`: (name, True, identity). A taken name gets a number, never overwritten. `judged`:
+    the chosen file (or the dropped name) when the saved name must also have an allowed ending (Documents and links)."""
     try:
-        name = platform.safe_name(real.name.lstrip(". ") or "untitled", folder=folder)     # no leading dot first, so a device name is seen as one
+        name = platform.safe_name(wanted.lstrip(". ") or "untitled", folder=folder)     # no leading dot first, so a device name is seen as one
         name = platform.safe_name(name.lstrip(". "), folder=folder)       # and the whole name checked again after all stripping
         name = file_name(name)
     except (platform.PlatformError, section_bodies.Bad):
         raise Refused("no_name") from None
-    if judged:
-        _judge_saved(real, name)                    # the name that is written, judged before anything is written
+    if judged is not None:
+        _judge_saved(judged, name)                    # the name that is written, judged before anything is written
     for n in range(1, MAX_NUMBER + 1):
         candidate = name if n == 1 else platform.safe_name(numbered(name, n), folder=folder)
         try:
@@ -255,16 +286,59 @@ def attach(pub, body):
             return fail(r)
         except Invalid:
             return fail(Refused("copy_failed", 503))
-        entry = {"name": name, "rel": f"{FILES_FOLDER}/{name}", "bytes": len(data)}
-        status, reply = pub.add_section_file({"project": code, "id": ref, "entry": entry})
-        if status != 200:
-            if copied and made is not None and _identity(pub, folder / name) == made:
-                try:
-                    pub.fs.remove(str(folder / name))          # the copy this request made a moment ago, and nothing else
-                except OSError:
-                    pass
-            return status, reply
-        return 200, {**reply, "file": entry, "message": (ADDED if copied else USED).format(name=name)}
+        return _added(pub, code, ref, folder, name, copied, made, data)
+    finally:
+        pub.lock.release()
+
+
+def _added(pub, code, ref, folder, name, copied, made, data):
+    """Step 6, the same for the file window and the drop: the entry added in one step with one Undo; a step that fails takes back
+    the copy just made."""
+    entry = {"name": name, "rel": f"{FILES_FOLDER}/{name}", "bytes": len(data)}
+    status, reply = pub.add_section_file({"project": code, "id": ref, "entry": entry})
+    if status != 200:
+        if copied and made is not None and _identity(pub, folder / name) == made:
+            try:
+                pub.fs.remove(str(folder / name))          # the copy this request made a moment ago, and nothing else
+            except OSError:
+                pass
+        return status, reply
+    return 200, {**reply, "file": entry, "message": (ADDED if copied else USED).format(name=name)}
+
+
+def drop(pub, code, ref, raw_name, data):
+    """POST /api/section-file-drop (row 1275): the bytes of one file dropped on a Documents and links section, `raw_name` the
+    header as sent. The server has already checked the token and that the body is at most MAX_FILE_BYTES before reading it. The
+    same rules as the file window: the client folder, the ending list and first bytes, the safe name and the number for a taken
+    name, one entry, one Undo. (status, body)."""
+    try:
+        if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
+            raise Refused("bad_project_code", 400)
+        if not isinstance(ref, str) or not SECTION_ID.fullmatch(ref):
+            raise Refused("section_gone", 400)
+        if len(data) > MAX_FILE_BYTES:
+            raise Refused("too_big", 400)
+        wanted = dropped_name(raw_name)
+    except Refused as r:
+        return fail(r)
+    if not pub.lock.acquire(blocking=False):
+        return fail(Refused("busy"))
+    try:
+        try:
+            client, kind = _before_the_dialog(pub, code, ref)
+            if kind != "doclinks":
+                raise Refused("drop_wrong_section", 400)
+            try:                                            # the same list and first-bytes rule as the file window (doclinks, row 1194)
+                doclinks.allowed_content(wanted, data[:doclinks.HEAD_BYTES])
+            except section_bodies.Bad:
+                raise Refused("bad_type", name=wanted) from None
+            folder = _files_folder(pub, client)
+            name, copied, made = _save(pub, folder, wanted, data, wanted)
+        except Refused as r:
+            return fail(r)
+        except Invalid:
+            return fail(Refused("copy_failed", 503))
+        return _added(pub, code, ref, folder, name, copied, made, data)
     finally:
         pub.lock.release()
 
@@ -331,10 +405,10 @@ def read(pub, code, name):
         if real.parent != Path(pub.fs.realpath(str(folder))) or os.path.islink(folder / name):
             raise Refused("file_not_there", 404)
         try:
-            data = pub.fs.read_bytes(str(real), limit=MAX_FILE_BYTES + 1)
+            data = pub.fs.read_bytes(str(real), limit=READ_LIMIT + 1)
         except OSError:
             raise Refused("file_not_there", 404) from None
-        if len(data) > MAX_FILE_BYTES:
+        if len(data) > READ_LIMIT:
             raise Refused("too_big")
     except Refused as r:
         return fail(r)

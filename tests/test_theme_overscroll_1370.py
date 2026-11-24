@@ -27,6 +27,20 @@ PAGE_PROBE = """(() => { const h = getComputedStyle(document.documentElement), b
 EDGE_PROBE = """(() => { const e = document.scrollingElement; return {overscroll: getComputedStyle(document.documentElement).overscrollBehaviorY,
   scrollTop: Math.round(e.scrollTop), max: e.scrollHeight - e.clientHeight, top: Math.round(document.querySelector('.top-hdr').getBoundingClientRect().top)}; })()"""
 
+# Counts the animation frames in a row in which scrollHeight and scrollTop did not change; window.__settle.n is that count.
+SETTLE_START = """(() => { const e = document.scrollingElement; const s = window.__settle = {n: 0, h: e.scrollHeight, t: e.scrollTop};
+  (function tick() { if (e.scrollHeight === s.h && e.scrollTop === s.t) s.n++; else { s.n = 0; s.h = e.scrollHeight; s.t = e.scrollTop; } requestAnimationFrame(tick); })(); return true; })()"""
+SETTLE_FRAMES = 5
+SETTLE_SECONDS = 5
+
+EDGE_NUMBERS = """(() => { const e = document.scrollingElement; return {scrollHeight: e.scrollHeight, clientHeight: e.clientHeight, scrollTop: e.scrollTop, innerHeight: window.innerHeight}; })()"""
+
+
+def settle(p):
+    """Wait until the page height and scroll position have not changed for 5 frames in a row (at most 5 s); a page that never settles fails here."""
+    p.js(SETTLE_START)
+    p.until("window.__settle.n >= %d" % SETTLE_FRAMES, "the page height and scroll position settled", seconds=SETTLE_SECONDS)
+
 
 class Text(unittest.TestCase):
     def test_the_block_has_one_comment_and_one_rule_and_no_colour_or_path(self):
@@ -96,9 +110,25 @@ class Editor(Setup):
             to = "1e6" if bottom else "0"
             p.until("document.scrollingElement.clientHeight <= 300 && document.scrollingElement.scrollHeight > 300 && (document.scrollingElement.scrollTo(0, %s), Math.abs(document.scrollingElement.scrollTop - %s) < 2)"
                     % (to, "(document.scrollingElement.scrollHeight - document.scrollingElement.clientHeight)" if bottom else "0"), "the page is at its edge")
+            settle(p)
+            # A page that grew after the first hit leaves scrollTop short of the edge: go to the edge again and wait again.
+            p.js("document.scrollingElement.scrollTo(0, %s)" % ("1e6" if bottom else "0"))
+            settle(p)
             before = p.js(EDGE_PROBE)
+            before["numbers"] = p.js(EDGE_NUMBERS)
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 200, "y": 150, "deltaX": 0, "deltaY": 600 if bottom else -600}, p.sid)
-            return before, p.js(EDGE_PROBE)
+            after = p.js(EDGE_PROBE)
+            after["numbers"] = p.js(EDGE_NUMBERS)
+            return before, after
+
+    def test_the_settle_wait_holds_until_the_height_has_stopped_changing_for_5_frames(self):
+        with chrome() as cdp:
+            p = self.show(cdp, 1400, False, settings=True)
+            p.until("!!document.querySelector('.top-hdr .hdr-project') && document.documentElement.dataset.ready === '1'", "the header drew")
+            p.js("window.__grow = 0; (function g() { document.body.style.minHeight = (3000 + 7 * window.__grow) + 'px'; if (++window.__grow < 30) requestAnimationFrame(g); })()")
+            settle(p)
+            self.assertGreaterEqual(p.js("window.__grow"), 30, "the wait did not return while the height was still changing")
+            self.assertGreaterEqual(p.js("window.__settle.n"), SETTLE_FRAMES)
 
     def test_a_wheel_at_the_bottom_and_at_the_top_does_not_move_the_page_on_every_page_at_1400_and_900(self):
         for width in (1400, 900):
@@ -108,8 +138,10 @@ class Editor(Setup):
                         before, after = self.edge(width, hash_, bottom)
                         self.assertEqual(before["overscroll"], "none")
                         self.assertGreater(before["max"], 0, "the page is taller than the window, so it has a bottom to test")
-                        self.assertEqual(after["scrollTop"], before["scrollTop"], "a wheel past the edge does not move the page")
-                        self.assertEqual(after["top"], before["top"])
+                        self.assertEqual(before["scrollTop"], before["max"] if bottom else 0, "the page is at its edge before the wheel; before %s" % before["numbers"])
+                        said = "a wheel past the edge does not move the page; before %s after %s" % (before["numbers"], after["numbers"])
+                        self.assertEqual(after["scrollTop"], before["scrollTop"], said)
+                        self.assertEqual(after["top"], before["top"], said)
 
 
 class InTheFile(PublishedFile, Setup):

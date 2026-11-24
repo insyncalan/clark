@@ -10,7 +10,7 @@ Standard library only, Python 3.9."""
 
 from clark import changes, history
 from clark.source_name import source_name
-from clark.store import OP_MADE, Store, connect
+from clark.store import Store, connect
 
 TABLES = ("actions", "raid", "decisions", "milestones")      # the rows a peek opens on
 ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "from_file", "undo_refused")
@@ -40,20 +40,17 @@ def has_item(data, item_id):
     return any(isinstance(r, dict) and r.get("id") == item_id for t in TABLES for r in (data.get(t) or []))
 
 
-def source_line(con, item_id, events):
+def source_line(con, item_id, events=None):
     """The Source line for the Peek: the item's stored `source` words by NAME (source_name: the last part of any path, the date day first;
-    row 1077), then " by <name>" when its first insert step has a name. A published file carries the name itself (publish.select), so it
-    asks no server. "" when the row has none (the table name is from TABLES, never a caller's)."""
+    row 1077); row 1258: no " by <name>" (the mock-up draws the source line without one). A published file carries the name itself
+    (publish.select), so it asks no server. `events` is no longer read (kept so a caller that passes it still works). "" when the row has none (the table name is from TABLES, never a caller's)."""
     for table in TABLES:
         row = con.execute("SELECT source FROM " + table + " WHERE id = ?", (item_id,)).fetchone()
         if row is not None:
             break
     else:
         return ""
-    words = source_name(row[0])                                          # the stored text has YYYY-MM-DD and may hold a path; the person reads DD-MM-YYYY and the name. The column is untouched
-    made = [e for e in events if e.get("op") == OP_MADE and e.get("ref") == item_id and e.get("table") == table]
-    who = str(made[-1].get("by_user") or "").strip() if made else ""      # events are newest first: the last is the first insert
-    return words + (" by " + who if who and words else "")
+    return source_name(row[0])                                           # the stored text has YYYY-MM-DD and may hold a path; the person reads DD-MM-YYYY and the name. The column is untouched
 
 
 def source_path(con, item_id):
@@ -75,7 +72,7 @@ def make_read(path, data_for):
         con = connect(path, readonly=True)
         try:
             view = history.activity_for_item(con, item_id, "all", ROW_LIMIT)
-            source = source_line(con, item_id, history.history(con, item_id))
+            source = source_line(con, item_id)
             path_as_written = source_path(con, item_id)
             refused = changes.undo_refusals(Store(con, path), code, {r["step"] for r in view["rows"] if isinstance(r.get("step"), int)})
         finally:

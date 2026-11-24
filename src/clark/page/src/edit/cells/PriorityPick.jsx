@@ -9,5 +9,5 @@ import { priorityIcon } from "../../menuIcons.js";
 export function PriorityPick({ row, anchor, onPick, onClose, place }) {
   if (row.kind !== "action") return <Matrix row={row} anchor={anchor} onClose={onClose} place={place || "cell"} />;
   return <MenuPick anchor={anchor} label={`Priority of ${row.id}`} current={row.priority} onPick={onPick} onClose={onClose}
-    choices={PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p) }))} />;
+    choices={PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p, row.kind) }))} />;
 }

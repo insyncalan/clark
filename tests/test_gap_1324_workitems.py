@@ -14,13 +14,15 @@ from clark import page, theme  # noqa: E402
 
 PROBE = """(() => { const q = (s, r) => (r || document).querySelector(s), qa = (s, r) => [...(r || document).querySelectorAll(s)], c = (e) => getComputedStyle(e);
   const gs = qa('#work .wgroup:has(table.grouped)'), top = (e) => e.getBoundingClientRect().top, bot = (e) => e.getBoundingClientRect().bottom;
+  /* macOS Chrome 157.0.8103.79 prints the computed align-items: flex-start as 'flow-start' (Ubuntu .78 prints flex-start); this maps that ONE engine spelling and nothing else, so the expected value in the test stays 'flex-start' */
+  const engineSpelling = (v) => (v === 'flow-start' ? 'flex-start' : v);
   const th = q('#work .wcolh th'), gh = q('#work tr.grp th'), b = q('#work .grp-b'), gc = q('#work .grp-b .gc'), ic = q('#work .grp-b .i');
   const first = q('#work table.grouped tbody tr[data-id]'), cells = qa('td', first), hc = qa('#work .wcolh th');
   return { n: gs.length, colh: qa('#work tr.colh').length, colhInGroup: qa('#work table.grouped tr.colh').length,
     tile: [c(gs[0]).backgroundColor, c(gs[0]).borderTopWidth, c(gs[0]).borderTopLeftRadius, c(gs[0]).overflow],
     head: [c(gh).backgroundColor, c(gh).paddingLeft, c(gh).paddingBottom, c(gh).borderTopWidth, c(gh).borderBottomWidth, c(gh).borderBottomStyle],
     btn: [c(b).fontWeight, c(b).fontSize, c(b).fontFamily.split(',')[0]],
-    count: [c(gc).fontSize, c(gc).marginLeft, c(gc).color], chev: [c(ic).marginTop, c(ic).color, c(b).alignItems],
+    count: [c(gc).fontSize, c(gc).marginLeft, c(gc).color], chev: [c(ic).marginTop, c(ic).color, engineSpelling(c(b).alignItems)],
     gaps: gs.map((e, i) => Math.round(top(e) - (i ? bot(gs[i - 1]) : bot(q('#work .wcolh'))))), margins: gs.map((e) => c(e).marginTop),
     colhLine: [c(q('#work .wcolh')).borderBottomWidth, c(q('#work .wcolh')).borderBottomStyle, c(th).borderTopWidth],
     pad: [c(cells[0]).paddingLeft, c(cells[cells.length - 1]).paddingRight, c(hc[0]).paddingLeft, c(hc[hc.length - 1]).paddingRight],

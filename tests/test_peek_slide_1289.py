@@ -35,6 +35,8 @@ class Slide(unittest.TestCase):
             with self.subTest(theme=theme, width=width), chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
                 cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                # a runner (macOS) may report reduce; this test is the normal-motion case
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, sid)
                 self.open_first(cdp, sid)
                 a = cdp.js(ANIM, sid)
                 self.assertIsNotNone(a, f"{width}: the peek runs an animation on opening")

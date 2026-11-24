@@ -3,6 +3,7 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
+import { richWords } from "../logic/richWords.js";
 import { watchRefit } from "../logic/ucRefit.js";
 import { StepsBadge } from "./StepsBadge.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -45,7 +46,7 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 /** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
 export function StepLine({ r }) {
   const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
-  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {r.client_message || r.title}</span></>;
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {richWords(r.client_message) || r.title}</span></>;
 }
 
 function Row({ s, shown, toggle, ed }) {
@@ -119,17 +120,25 @@ export function UseCases({ tools, section }) {
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls });
   const shut = useRef(new Map());       // each row's height when closed, by id: a row that is open keeps the height it had closed, so opening one never moves the box
+  const shutAt = useRef(0);       // the window width the remembered heights were taken at
+  const forgetClosed = () => {       // the window or the fonts changed: re-measure the closed rows; at an unchanged width keep an open row's closed height (it cannot be measured while open; dropping it moved the box when the fonts or a resize event arrived after a row opened, #1551), at a new width drop it (it is stale)
+    const ul = box.current, keep = new Map(), same = shutAt.current === window.innerWidth;
+    if (ul && same) ul.querySelectorAll(":scope > .ucrow.open").forEach((r) => { if (shut.current.has(r.dataset.uc)) keep.set(r.dataset.uc, shut.current.get(r.dataset.uc)); });
+    shut.current = keep;
+    shutAt.current = window.innerWidth;
+  };
   const fit = (n) => {
     const ul = box.current;
     if (!ul || !n) return;
     const rows = [...ul.querySelectorAll(":scope > .ucrow")];
+    if (!shutAt.current) shutAt.current = window.innerWidth;
     rows.forEach((r) => { if (!r.classList.contains("open") && r.offsetHeight) shut.current.set(r.dataset.uc, r.offsetHeight); });
     const first = rows.slice(0, Math.ceil(n)).map((r) => shut.current.get(r.dataset.uc)).filter(Boolean);
     if (first.length) ul.style.setProperty("--ucrow-h", first.reduce((a, b) => a + b, 0) / first.length + "px");       // n times this is the first n closed rows added up
   };
   useLayoutEffect(() => { fit(rowsHigh); });
   useEffect(() => {
-    return watchRefit(window, document, box.current, () => { shut.current.clear(); fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
+    return watchRefit(window, document, box.current, () => { forgetClosed(); fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
   });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
