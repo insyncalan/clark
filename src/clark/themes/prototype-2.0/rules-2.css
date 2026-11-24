@@ -316,6 +316,9 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
+.mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
+.mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
 /* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
 .fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
 .fopt .c + .ftick { margin-left: var(--space-2); }
