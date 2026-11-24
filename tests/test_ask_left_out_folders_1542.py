@@ -58,7 +58,7 @@ class Data(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
         self.data, self.home = self.d / "data", self.d / "home"
         self.root = self.home / "lib"
-        for rel, text in (("Notes/a.txt", "alpha notes"), ("Contract/terms.txt", "contract terms"), ("HR/Candidates/cv.txt", "candidate one")):
+        for rel, text in (("Notes/a.txt", "alpha notes"), ("Archive/terms.txt", "archive terms"), ("Drafts/Old/cv.txt", "draft one")):
             f = self.root / rel
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(text, encoding="utf-8")
@@ -67,7 +67,7 @@ class Data(unittest.TestCase):
         s = self.store()
         with s.step("dashboard", "tester", place="menu") as step:
             step.create("projects", {"code": "ABC", "name": "Example Programme"})
-            step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 0, "excluded": ask_exclude.dump(["Contract", "HR/Candidates"])})
+            step.create("source_folders", {"project": "ABC", "path": str(self.root), "sort_order": 0, "excluded": ask_exclude.dump(["Archive", "Drafts/Old"])})
         self.svc = ask_folders.AskFolders(self.db, [], data_dir=self.data, home=self.home, by_user=lambda: "tester")
 
     def store(self):
@@ -86,27 +86,55 @@ class Data(unittest.TestCase):
 
     def test_include_again_puts_folder_back_and_next_run_indexes_it(self):
         status, body = self.svc.read("ABC")
-        self.assertEqual(body["left_out"], [{"folder": str(self.root), "rels": ["Contract", "HR/Candidates"]}], "read lists what is left out, relative as saved")
+        self.assertEqual(body["left_out"], [{"folder": str(self.root), "rels": ["Archive", "Drafts/Old"]}], "read lists what is left out, relative as saved")
         self.assertEqual(self.left_files(), ["Notes/a.txt"])
-        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contract"})
+        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})
         self.assertEqual((status, body["ok"]), (200, True), body)
-        self.assertEqual(body["left_out"], [{"folder": str(self.root), "rels": ["HR/Candidates"]}], "0 lines left for that folder")
-        self.assertEqual(self.stored(), ["HR/Candidates"])
-        self.assertEqual(self.left_files(), ["Contract/terms.txt", "Notes/a.txt"], "its files are read again")
-        ask_index.build(self.data, "ABC", [str(self.root)], self.home)
-        self.assertTrue(any("terms.txt" in p.label for p in ask_index.search(self.data, "ABC", "contract terms")), "the next index run has its files")
+        self.assertEqual(body["left_out"], [{"folder": str(self.root), "rels": ["Drafts/Old"]}], "0 lines left for that folder")
+        self.assertEqual(self.stored(), ["Drafts/Old"])
+        self.assertEqual(self.left_files(), ["Archive/terms.txt", "Notes/a.txt"], "its files are read again")
+
+    def indexed(self, words):
+        return sorted(p.file for p in ask_index.search(self.data, "ABC", words))
+
+    def test_the_index_run_leaves_out_a_left_out_folder_drops_what_was_kept_and_takes_it_back_after_include_again(self):
+        """Row 1542 AP2: a left-out folder is absent from an index run (also files an earlier run kept), and present on the next run after Include again."""
+        folders = [str(self.root)]
+        ask_index.build(self.data, "ABC", folders, self.home)                                      # an earlier run, before the folders were left out
+        self.assertEqual(self.indexed("archive terms"), ["lib/Archive/terms.txt"])
+        ask_index.refresh(self.data, "ABC", folders, self.home, leave_out=self.svc.left_map("ABC"))
+        self.assertEqual((self.indexed("archive terms"), self.indexed("draft")), ([], []), "left out: dropped from the index")
+        self.assertEqual(self.indexed("alpha"), ["lib/Notes/a.txt"], "the rest stays")
+        self.assertFalse(ask_index.stale(self.data, "ABC", folders, self.home, self.svc.left_map("ABC")), "nothing changed since that run")
+        self.assertEqual(self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})[0], 200)
+        self.assertTrue(ask_index.stale(self.data, "ABC", folders, self.home, self.svc.left_map("ABC")), "put back: the next run has something to read")
+        ask_index.refresh(self.data, "ABC", folders, self.home, leave_out=self.svc.left_map("ABC"))
+        self.assertEqual(self.indexed("archive terms"), ["lib/Archive/terms.txt"], "back in on the next run")
+        self.assertEqual(self.indexed("draft"), [], "the one still left out stays out")
+
+    def test_the_background_reader_asks_for_the_left_out_list_itself(self):
+        """Row 1542: an Indexer given to AskFolders reads what the person left out from the saved data on every run, so no start path can index it."""
+        ix = ask_index.Indexer(self.data, home=self.home)
+        self.addCleanup(ix.shutdown)
+        svc = ask_folders.AskFolders(self.db, [], data_dir=self.data, home=self.home, by_user=lambda: "tester", indexer=ix)
+        ix.start("ABC", [str(self.root)])
+        self.assertTrue(ix.wait_idle(30))
+        self.assertEqual((self.indexed("archive terms"), self.indexed("alpha")), ([], ["lib/Notes/a.txt"]))
+        self.assertEqual(svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})[0], 200)      # the change starts the next run itself
+        self.assertTrue(ix.wait_idle(30))
+        self.assertEqual(self.indexed("archive terms"), ["lib/Archive/terms.txt"])
 
     def test_include_again_is_one_step_with_one_undo_and_refuses_what_is_not_left_out(self):
-        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contract"})
+        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})
         self.assertEqual(status, 200)
         status, undone = self.svc.change({"project": "ABC", "action": "undo", "apply_id": body["apply_id"]})
         self.assertEqual((status, undone["message"]), (200, ask_folders.MESSAGES["undone"]))
-        self.assertEqual(self.stored(), ["Contract", "HR/Candidates"])
-        self.assertEqual(undone["left_out"], [{"folder": str(self.root), "rels": ["Contract", "HR/Candidates"]}])
+        self.assertEqual(self.stored(), ["Archive", "Drafts/Old"])
+        self.assertEqual(undone["left_out"], [{"folder": str(self.root), "rels": ["Archive", "Drafts/Old"]}])
         for bad in ({"rel": "Notes"}, {"rel": "../x"}, {"rel": 5}, {"path": str(self.d)}):
-            status, out = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contract", **bad})
+            status, out = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive", **bad})
             self.assertEqual((status, out["ok"]), (409 if status == 409 else 400, False), (bad, out))
-        self.assertEqual(self.stored(), ["Contract", "HR/Candidates"], "a refused include changes nothing")
+        self.assertEqual(self.stored(), ["Archive", "Drafts/Old"], "a refused include changes nothing")
         self.assertEqual(self.svc.change({"project": "ABC", "action": "include", "path": str(self.root)})[0], 400, "the subfolder is required")
 
 

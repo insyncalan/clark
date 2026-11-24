@@ -110,6 +110,8 @@ class AskFolders:
         self.choose_folder = choose_folder or platform.choose_folder      # the system's folder window (a seam for tests)
         self.lock = threading.Lock()
         self.indexer = indexer                                # ask_index.Indexer or None: the background reader of the saved folders (Row 1366)
+        if indexer is not None and getattr(indexer, "leave_out", None) is None:
+            indexer.leave_out = self.left_map                 # row 1542: the background reader never reads a subfolder the person left out
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -154,6 +156,14 @@ class AskFolders:
             if rels:
                 out.append({"folder": f, "rels": rels})
         return out
+
+    def left_map(self, code):
+        """{saved folder: stored left-out list} for project `code`, opened and closed here: what the background index reader is given (row 1542). Raises Invalid when the data cannot be opened."""
+        store = self.store()
+        try:
+            return self.left_out(store, code)
+        finally:
+            store.close()
 
     def accepted_of(self, store, code):
         """{saved folder: 1 when the person pressed Accept for it, else 0} (row 1365; 0 is Declined, the default)."""

@@ -32,7 +32,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_exclude, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
@@ -247,6 +247,22 @@ def _unusable(folders, data_dir, home):
     return usable, bad
 
 
+def _cuts(folders, leave_out):
+    """Row 1542: (usable folders, the folders whose left-out list cannot be read, {folder: the test the walk is given}). A folder whose list cannot be read is not indexed at all
+    (the same fail-closed rule as the question's reader): a broken list never means "index everything"."""
+    use, broken, cuts = [], [], {}
+    for f in folders:
+        try:
+            rels = ask_exclude.parse((leave_out or {}).get(f))
+        except ValueError:
+            broken.append(f)
+            continue
+        use.append(f)
+        if rels:
+            cuts[f] = ask_passages._gone(rels)
+    return use, broken, cuts
+
+
 def _open_read(data_dir, code):
     """The index for a reader (a question, the Settings poll): None when there is none or it cannot be opened now (a refresh holds it locked)."""
     try:
@@ -268,12 +284,15 @@ def _set(db, k, v):
     db.execute("INSERT OR REPLACE INTO meta VALUES(?, ?)", (k, v if isinstance(v, str) else json.dumps(v)))
 
 
-def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
+def refresh(data_dir, code, folders, home=None, stop=None, progress=None, leave_out=None):
     """Bring the index up to date with `folders`; reads again only the files whose size or modified time changed.
     `stop` (a threading.Event) ends it early (False is returned, the index is not marked complete); `progress(folder, done, total)` is
-    called after each file. Returns True when it ran to the end."""
+    called after each file. Returns True when it ran to the end.
+    `leave_out` (row 1542) is {saved folder: the stored list of subfolders the person left out}: nothing under them is read, and what an earlier run kept from them is dropped."""
     listed = sorted(str(f) for f in folders or ())
     usable, bad = _unusable(folders, data_dir, home)
+    usable, broken, cuts = _cuts(usable, leave_out)
+    bad = [*bad, *broken]
     per = {str(f): {**dict.fromkeys(NAMES, 0), "safety": 1} for f in bad}
     if not usable:
         remove(data_dir, code)               # no folder left: no copy of its text stays
@@ -289,12 +308,12 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
         return True
     db = _open(data_dir, code)
     try:
-        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress)
+        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress, cuts)
     finally:
         db.close()                               # also when a read fails half way: no connection is left open by the worker
 
 
-def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress):
+def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress, cuts=None):
     _set(db, "complete", "0")
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
@@ -306,7 +325,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     stopped_listing = False
     for folder in usable:
         reasons = {}
-        listing = reach.readable_files([folder], data_dir, reasons, home)
+        listing = reach.readable_files([folder], data_dir, reasons, home, {folder: cuts[folder]} if cuts and folder in cuts else None)
         stopped_listing = stopped_listing or bool(listing.stopped)
         roots = reach.roots([folder], home)
         c = dict.fromkeys(NAMES, 0)
@@ -639,7 +658,7 @@ def current(data_dir, code, folders):
         db.close()
 
 
-def stale(data_dir, code, folders, home=None):
+def stale(data_dir, code, folders, home=None, leave_out=None):
     """True when the files now in `folders` differ from the ones the index holds: a file new, gone (or no longer readable), or with another
     size or modified time. Lists the folders the way `refresh` does and reads no file. A file changed to the same size AND the same modified
     time cannot be seen this way (no content hash: that would mean reading every file on every question)."""
@@ -655,11 +674,12 @@ def stale(data_dir, code, folders, home=None):
     finally:
         db.close()
     usable, _bad = _unusable(folders, data_dir, home)
+    usable, _broken, cuts = _cuts(usable, leave_out)
     names = _prefixes(_all_roots(usable, home))
     seen = set()
     try:
         for folder in usable:
-            listing = reach.readable_files([folder], data_dir, None, home)
+            listing = reach.readable_files([folder], data_dir, None, home, {folder: cuts[folder]} if folder in cuts else None)
             roots = reach.roots([folder], home)
             for path in listing.files:
                 if not str(path).lower().endswith(TRACKED_TYPES):
@@ -695,10 +715,11 @@ class Indexer:
     """One background thread that keeps the indexes up to date. `start(code, folders)` queues a run (the newest request for a project
     replaces an older one still waiting); `busy` counts runs queued or running; `shutdown()` stops the run at the next file and ends the thread."""
 
-    def __init__(self, data_dir, home=None, refresh_fn=None, allowed=None):
+    def __init__(self, data_dir, home=None, refresh_fn=None, allowed=None, leave_out=None):
         self.data_dir = Path(data_dir)
         self.allowed = allowed               # None, or a function that says whether asking is On: while it is Off no index is built and none is kept
         self.home = home
+        self.leave_out = leave_out           # None, or a function code -> {saved folder: stored left-out list} (row 1542); set by the owner of the saved folders
         self.refresh = refresh_fn or refresh
         self.wake = threading.Condition()
         self.queue = {}                      # code -> folders, in the order asked
@@ -755,7 +776,8 @@ class Indexer:
                     os.nice(10)
                 except (OSError, AttributeError):
                     pass
-                self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t))
+                cut = self._cut(code)
+                self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t), **({"leave_out": cut} if cut else {}))
                 if not self._on():
                     remove(self.data_dir, code)      # asking was turned Off while it ran
             except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the next start tries again
@@ -765,6 +787,18 @@ class Indexer:
                     self.live.pop(code, None)
                     self.busy -= 1
                     self.wake.notify_all()
+
+    def _cut(self, code):
+        """{saved folder: stored left-out list} for the project, only the folders that have something left out; {} when none or no source. A source that fails stops the run (it never reads everything)."""
+        if self.leave_out is None:
+            return {}
+        return {f: raw for f, raw in self.leave_out(code).items() if raw not in (None, "", "[]", [])}
+
+    def _cut_or_none(self, code):
+        try:
+            return self._cut(code)
+        except Exception:                    # noqa: BLE001 a left-out list that cannot be read: treated as changed, so the run starts and stops there
+            return None
 
     def _note(self, code, folder, done, total):
         with self.wake:
@@ -789,7 +823,7 @@ class Indexer:
             self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
-        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
+        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home, self._cut_or_none(code)):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
@@ -827,7 +861,7 @@ class Indexer:
             if folders:
                 self.resume(code, folders)          # the first pass was stopped or failed: carry on in the background; this question reads the folders
             return False
-        if stale(self.data_dir, code, folders, self.home):
+        if stale(self.data_dir, code, folders, self.home, self._cut_or_none(code)):
             self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
             return False
         return True
