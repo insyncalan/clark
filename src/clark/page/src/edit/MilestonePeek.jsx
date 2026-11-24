@@ -72,7 +72,7 @@ function ClientWording({ m, on }) {
 export function PeekMsLatest({ m }) {
   const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
   const shown = isOn(m);
-  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} placeholder="What changed? Add the latest update…" />;
+  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).

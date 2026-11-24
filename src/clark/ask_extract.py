@@ -113,7 +113,7 @@ def pptx_groups(raw, truncated=False):
         raise ValueError("pptx") from e
 
 
-_SKIP = {"script", "style", "noscript", "template", "head"}
+_SKIP = {"script", "style", "noscript", "template", "head", "iframe"}
 _BREAK = {"p", "div", "br", "li", "ul", "ol", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6", "section", "article", "header",
           "footer", "blockquote", "pre", "hr", "td", "th", "title", "main", "nav", "aside", "form", "dd", "dt", "dl"}
 
