@@ -27,7 +27,7 @@ export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      
 export const CARD_SENT = "Your question and what it needs go to Claude.";
 export const CARD_LINK = "What will be sent? (Settings)";
 // row 1366 AP27: the passages line, words approved in NEW-WORDS (item 6; the pictures line, item 10, is held until the picture reader exists).
-export const CARD_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
+export const CARD_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat.";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
 export const CARD_TIP_AFTER = " in the box for slash commands.";

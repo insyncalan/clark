@@ -58,7 +58,7 @@ def texts(o, path=""):
 # The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
 # One approved sentence names the company that runs the service ("Claude"): approved wording (NEW-WORDS, row 1366 AP27 item 6), exempt as this exact text only.
-APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",)
+APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat.",)
 
 
 def without_approved(s):

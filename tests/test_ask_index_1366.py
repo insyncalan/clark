@@ -202,7 +202,7 @@ class Files(Base):
 class FirstRunAndHelpWords(unittest.TestCase):
     """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (item 6; item 10 is held)."""
     PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
-    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat."
 
     def test_first_run_card_and_help_state_passages_go_to_claude(self):
         import json
