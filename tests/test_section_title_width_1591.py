@@ -37,6 +37,19 @@ class Sheets(unittest.TestCase):
         self.assertNotIn("Row 1591", SHELL)
         self.assertNotIn("text-overflow", re.search(r"^\.sec-title \{[^}]*\}", SHELL, re.M).group(0))
 
+    def test_no_other_rule_sets_white_space_on_the_title_and_ours_is_the_only_one_that_can_win(self):
+        # Cascade pin (no Chrome): every white-space rule whose selector can reach .sec-title, across shell.css, edit.css and the Classic layer.
+        # Only ours (two classes, in rules-2.css, layered after shell.css) may set it; the title span is contenteditable="plaintext-only",
+        # for which Chrome itself turns the computed value of nowrap into pre (still no wrap), so the browser test accepts both.
+        sheets = [SHELL, (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8"),
+                  (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8"), RULES2]
+        hits = []
+        for css in sheets:
+            for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css, flags=re.S)):
+                if re.search(r"(^|[\s,>])(\.sec-title\b|\.sec-t\b|span\b|\[data-title\]|\[contenteditable)", sel.strip().split(",")[0]) and "sec-title" in sel and "white-space" in body:
+                    hits.append(sel.strip())
+        self.assertEqual(hits, [".sec-t > .sec-title"])
+
     def test_row_1314_is_still_the_last_row_block(self):
         self.assertEqual(RULES2.rindex("/* Row "), RULES2.index("/* Row 1314"))
 
@@ -85,7 +98,7 @@ class SectionTitleWidth(Look):
     def test_headline_and_milestones_are_on_one_line(self):
         for _, _, where, r in self.each():
             self.assertLess(r["h"], r["lh"] * 1.6, f"{where}: one line, {r}")
-            self.assertEqual(r["ws"], "nowrap", where)
+            self.assertIn(r["ws"], ("nowrap", "pre"), where)      # the title span is contenteditable="plaintext-only": Chrome computes nowrap as pre there; neither wraps (the ticket asks for one line, no value)
 
     def test_a_long_title_has_an_ellipsis_and_is_editable_to_its_end(self):
         for cdp, p, where, r in self.each():
