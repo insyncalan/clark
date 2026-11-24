@@ -44,7 +44,7 @@ export function AddPageBox({ project, opener, onClose }) {
                 <button type="button" role="radio" key={s.id} class="ap-choice" aria-checked={i === at ? "true" : "false"} aria-disabled={off ? "true" : undefined} onClick={() => choose(i)}>
                   <b>{s.name}</b>
                   {s.description ? <small>{s.description}</small> : null}
-                  <span class="ap-chips">{s.parts.map((p) => <i key={p.template}>{tname(p.template)}</i>)}</span>
+                  <span class="ap-chips">{s.parts.map((p) => <i key={p.template} data-template={p.template}>{tname(p.template)}</i>)}</span>
                 </button>
               );
             })}
@@ -56,7 +56,7 @@ export function AddPageBox({ project, opener, onClose }) {
         <div class="ap-preview">
           <h3>{starter.name}</h3>
           <div class="ap-mini">
-            {starter.parts.map((p, i) => <div class="ap-part" key={i}><b>{tname(p.template)}</b>{p.prompt ? <span>{p.prompt}</span> : null}</div>)}
+            {starter.parts.map((p, i) => <div class="ap-part" key={i} data-template={p.template}><b>{tname(p.template)}</b>{p.prompt ? <span>{p.prompt}</span> : null}</div>)}
           </div>
         </div>
       </div>

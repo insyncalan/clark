@@ -30,6 +30,9 @@ from test_report_editor import Base
 from test_server import chrome
 
 WIDTHS = (1400, 900)
+# Two templates carry the name Numbers (figures-4 and figures-3), so the Status starter's Numbers chip and part are pinned by template id
+# (figures-4, templates.js) beside the name; 'Item cards, three' is main's exact string (raid-3).
+STATUS_IDS = ["report-headline", "figures-4", "raid-3", "key-dates"]
 STARTERS = [("Blank with prompts", ["Text", "Text with image"]),
             ("Status", ["Report headline", "Numbers", "Item cards, three", "Coming dates"]),
             ("Documents", ["Text", "Files and links"]),
@@ -96,6 +99,7 @@ class Box(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#add-page-box .ap-pick h3')].map(e => e.textContent.trim())"), ["Choose a starter", "Name it"])
             got = p.js("%s.map(e => [e.querySelector('b').textContent.trim(), [...e.querySelectorAll('.ap-chips i')].map(c => c.textContent.trim())])" % CHOICES)
             self.assertEqual([tuple(g) for g in got], STARTERS)
+            self.assertEqual(p.js("[...%s[1].querySelectorAll('.ap-chips i')].map(c => c.dataset.template)" % CHOICES), STATUS_IDS, "Numbers is figures-4, not figures-3")
             self.assertEqual(p.js("%s.map(e => e.querySelector('small') ? e.querySelector('small').textContent : '')" % CHOICES), ["", "", "", GANTT_WORDS, ""])
             self.assertEqual(p.js("%s.map(e => e.getAttribute('aria-checked'))" % CHOICES), ["true", "false", "false", "false", "false"])
             self.assertEqual(p.js("document.querySelector('#add-page-name').maxLength"), 40)
@@ -118,6 +122,7 @@ class Box(Base):
             parts = p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => [e.querySelector('b').textContent.trim(), e.querySelector('span') ? e.querySelector('span').textContent : ''])")
             self.assertEqual(parts, [["Report headline", "Write the headline in one line: where the project stands this week."], ["Numbers", "Add the number and what it counts."],
                                       ["Item cards, three", ""], ["Coming dates", ""]])
+            self.assertEqual(p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => e.dataset.template)"), STATUS_IDS, "the Numbers part is the figures-4 template")
             self.type_name(p, "Mine")
             self.pick(p, 2)
             p.until("document.querySelector('.ap-preview h3').textContent.trim() === 'Documents'", "preview follows")
@@ -159,7 +164,7 @@ class Box(Base):
             self.assertEqual([s["type"] for s in json.loads(row["sections"])], ["reportheadline", "figures4", "raid3", "keydates"])
             self.toast_says(p, "Added “Supplier status” to the menu.")
             p.until("[...document.querySelectorAll('.top .tabs .tab')].map(t => t.textContent.trim()).join().includes('Existing page,Supplier status')", "tab after the others")
-            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "3 of 5 added pages")
+            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "3 of 5 added pages (Gantt counts)")
             p.until("!![...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo')", "Undo in the toast")
             p.js("[...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo').click()")
             self.until_stored(lambda: len(self.rows()) == 1, "undone")
@@ -209,7 +214,7 @@ class Box(Base):
             p.until("!" + BOX, "closed")
             self.until_stored(lambda: len(self.rows()) == 4, "fourth")
             p.until("document.querySelector('#add-page').disabled", "the button is off at 5 of 5")
-            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "5 of 5 added pages")
+            self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "5 of 5 added pages (Gantt counts)")
 
 
 if __name__ == "__main__":
