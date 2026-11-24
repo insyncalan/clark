@@ -12,7 +12,7 @@ from test_palette import Base as PalBase
 from test_server import chrome
 
 CARDS_PLACEHOLDER = "Ask a question about this project"
-CLASSIC_PLACEHOLDER = "Ask a question or give an instruction... (type / for shortcuts)"
+CLASSIC_PLACEHOLDER = "Ask a question or give an instruction... (type / for slash commands)"
 CARDS_HINTS = {"summary": "Summarise this week", "overdue": "What is overdue"}
 CLASSIC_HINTS = {"summary": "Summarise this week into a draft", "overdue": "What is overdue?"}
 LAYER = "(function(){var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s);})()"

@@ -625,6 +625,10 @@ class InThePage(PageBase):
         p = self.visit(cdp)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        # The page gets its `resize` event a frame or more after this call, and an open picker closes on `resize` (edit/cells/Pop.jsx). Measured on a runner: a click that
+        # lands just before the event finds its picker shut again (the first click "did not open it"). Two frames after the call the event has been delivered.
+        p.js("window.__framed = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__framed = 1; }))")
+        p.until("window.__framed === 1 && window.innerWidth === %d" % width, "the page took its width")
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
         return p
@@ -646,8 +650,13 @@ class InThePage(PageBase):
             self.assertIn("ID:true", names)
             self.assertIn("Owner:true", names)
             self.assertIn("Due:false", names)
+            steps = self.demo.last_step()
             p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            # The second press is made once the first one is in the store: a press made while the first save's reply is still on its way may be built on a list the
+            # reply then redraws (suspected, not measured; a loaded runner may take seconds over it). Every assert and wait below is as it was.
+            self.assertTrue(wait(lambda: self.demo.last_step() == steps + 1), "the first press reached the store")
+            p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
 

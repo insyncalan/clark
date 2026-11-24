@@ -28,6 +28,7 @@ EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
     ("tone-urgent", "white", "the Urgent tile's white letter"),
+    ("locked-fill", "brand-ink", "a locked cell"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
     ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
@@ -57,7 +58,7 @@ def contrast_ratio(hex_a, hex_b):
 
 @dataclass(frozen=True)
 class Palette:
-    tokens: dict            # token name -> hex (no #), the same 17 names as excel_colours.TOKEN_NAMES
+    tokens: dict            # token name -> hex (no #), excel_colours.TOKEN_NAMES (the workbook-only EXPORT_TOKENS are in it)
     colours: dict           # colour name -> (fill token, text token), the same as excel_colours.COLOURS
     font: str               # the office font
     warnings: list = field(default_factory=list)

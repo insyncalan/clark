@@ -113,17 +113,17 @@ class Formatting(unittest.TestCase):
 
     # ── panes, filter, header ────────────────────────────────────────────────
 
-    def test_header_and_the_id_and_title_columns_are_frozen_on_every_sheet(self):
+    def test_header_row_only_is_frozen_on_every_sheet(self):
         wb = load_workbook(self.build(self.everything()))
-        titles = {"Milestones": "Milestone", "Actions": "Description", "Risks & Issues": "Description", "Decisions": "Decision",
+        titles = {"Milestones": "Milestone", "Actions": "Title", "Risks & Issues": "Title", "Decisions": "Decision",
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
             if name == "Use cases":          # item 1160: Reference sits between ID and Use case, so the title is the third column
-                self.assertEqual(ws.freeze_panes, "D2", name)
+                self.assertEqual(ws.freeze_panes, "A2", name)
                 self.assertEqual([ws["A1"].value, ws["B1"].value, ws["C1"].value], ["ID", "Reference", title], name)
                 continue
-            self.assertEqual(ws.freeze_panes, "C2", name)
+            self.assertEqual(ws.freeze_panes, "A2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
     def test_every_data_sheet_is_in_the_looks_office_font_header_body_and_the_empty_rows(self):
@@ -187,8 +187,8 @@ class Formatting(unittest.TestCase):
                 if field in excel.WIDE:
                     self.assertEqual(width, 48)
         ws = wb["Actions"]
-        for label, field in (("Description", True), ("Latest update", True), ("Client wording", True), ("ID", False),
-                             ("Owner", False), ("Due", False), ("Priority", False), ("Client-visible", False)):
+        for label, field in (("Title", True), ("Latest update", True), ("Client Message", True), ("ID", False),
+                             ("Owner", False), ("Due", False), ("Priority", False), ("Client visible", False)):
             c = self.cell(ws, "DEMO-A-001", label)
             self.assertEqual(bool(c.alignment.wrap_text), field, label)
             self.assertEqual(c.alignment.vertical, "top", label)
@@ -218,14 +218,14 @@ class Formatting(unittest.TestCase):
         wb = load_workbook(path)
         ws = wb["Actions"]
         c = self.cell(ws, "DEMO-A-001", "Priority")
-        self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("red"))
+        self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("maroon"))
         c.value = "Low"
         wb.save(path)
         ws = load_workbook(path)["Actions"]
         c = self.cell(ws, "DEMO-A-001", "Priority")
         self.assertEqual(c.value, "Low")
         self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("grey"))
-        self.assertEqual(look_of(ws, c.column_letter, "High"), colours.hexes("amber"))
+        self.assertEqual(look_of(ws, c.column_letter, "High"), colours.hexes("red"))
 
     def test_the_words_stay_and_no_cell_carries_a_static_colour(self):
         """Colour is only ever a rule: the cell keeps its word and has no fill of its own (the sheet reads without colour)."""
@@ -244,19 +244,20 @@ class Formatting(unittest.TestCase):
         self.assertIn(f"G2:G{last}", ranges)                  # Due (the overdue rule)
 
     def test_the_colours_themselves(self):
-        """RAID follows D-12 (Urgent and High red, Medium amber, Low green); Actions follow the page's .prio pills
-        (Urgent red, High amber, Medium and Low grey); the tokens' hex."""
+        """Item 1390: RAID is Urgent maroon, High red, Medium amber, Low green; Actions are Urgent maroon, High red, Medium and Low grey;
+        the tokens' hex (maroon is 6B1D2A with white text)."""
         self.assertEqual({k: colours.PRIORITY[k] for k in ("Urgent", "High", "Medium", "Low")},
-                         {"Urgent": "red", "High": "red", "Medium": "amber", "Low": "green"})
+                         {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"})
         self.assertEqual({k: colours.ACTION_PRIORITY[k] for k in ("Urgent", "High", "Medium", "Low")},
-                         {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"})
+                         {"Urgent": "maroon", "High": "red", "Medium": "grey", "Low": "grey"})
+        self.assertEqual(colours.hexes("maroon"), ("6B1D2A", "FFFFFF"))
         self.assertIs(colours.BY_FIELD[("raid", "priority")], colours.PRIORITY)
         self.assertIs(colours.BY_FIELD[("actions", "priority")], colours.ACTION_PRIORITY)
         self.assertEqual(colours.hexes("red"), ("F4DEDB", "B3392F"))
         self.assertEqual(colours.hexes("amber"), ("FBF0D2", "8A5A12"))
         self.assertEqual(colours.hexes("green"), ("DFF1EA", "2F6E57"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
-        self.assertEqual(colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
+        self.assertEqual(colours.DECISION_STATUS, {"Pending": "blue", "Made": "green", "Withdrawn": "grey"})
 
     def test_use_case_status_is_green_amber_red_and_done_grey(self):
         """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
@@ -269,8 +270,8 @@ class Formatting(unittest.TestCase):
 
     def test_action_and_raid_status_follow_the_pages_tones(self):
         self.assertEqual(colours.BY_FIELD[("actions", "status")],
-                         {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
-        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
+                         {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
+        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Closed": "grey", "Cancelled": "grey"})
         wb = load_workbook(self.build(self.everything()))
         for sheet, label, table in (("Actions", "Status", "actions"), ("Risks & Issues", "Status", "raid")):
             ws = wb[sheet]
@@ -278,17 +279,31 @@ class Formatting(unittest.TestCase):
             for value, colour in colours.BY_FIELD[(table, "status")].items():
                 self.assertEqual(look_of(ws, col, value), colours.hexes(colour), (sheet, value))
 
+    def test_an_open_risk_takes_the_colour_of_its_priority(self):
+        """Item 1390: the Status cell of an open Risk or Issue reads the Priority cell of its own row, one rule per priority word."""
+        ws = self.sheet(self.everything(), "Risks & Issues")
+        status = [c.column_letter for c in ws[1] if c.value == "Status"][0]
+        prio = [c.column_letter for c in ws[1] if c.value == "Priority"][0]
+        found = {}
+        for cf in ws.conditional_formatting:
+            if str(cf.sqref).startswith(f"{status}2:"):
+                for rule in cf.rules:
+                    if rule.type == "expression" and rule.formula and f'${prio}2="' in rule.formula[0]:
+                        word = rule.formula[0].split(f'${prio}2="')[1].rstrip('")')
+                        found[word] = (rule.dxf.fill.bgColor.rgb[-6:], rule.dxf.font.color.rgb[-6:])
+        self.assertEqual(found, {w: colours.hexes(c) for w, c in colours.OPEN_BY_PRIORITY.items()})
+
     def test_action_priority_matches_the_pages_prio_pills(self):
-        """The Actions mapping is checked against the page's own .prio rules (app.css), so the two cannot drift."""
+        """Medium and Low are grey on the page's own .prio rules (app.css), as in the export. Urgent maroon and High red are the
+        item 1390 ruling; the page's chip follows in its own change, so the two are not compared for those two words."""
         import re
         css = (Path(__file__).resolve().parent.parent / "system" / "prototype" / "app.css").read_text(encoding="utf-8")
         family = {"status-red": "red", "status-amber": "amber", "grey-500": "grey", "grey-700": "grey"}
-        found = {}
-        for level in ("Urgent", "High", "Medium", "Low"):
+        for level in ("Medium", "Low"):
             m = re.search(r"\.prio\." + level + r"\s*\{\s*background:\s*var\(--([a-z0-9-]+)\)", css)
             self.assertIsNotNone(m, level)
-            found[level] = family[m.group(1)]
-        self.assertEqual(found, colours.ACTION_PRIORITY)
+            self.assertEqual(family[m.group(1)], colours.ACTION_PRIORITY[level], level)
+        self.assertEqual((colours.ACTION_PRIORITY["Urgent"], colours.ACTION_PRIORITY["High"]), ("maroon", "red"))
 
     def test_every_pair_reads_at_4_5_to_1(self):
         for name in colours.COLOURS:
@@ -303,7 +318,7 @@ class Formatting(unittest.TestCase):
             d.export()
             ws = load_workbook(d.path)["Milestones"]
             for state, ref in d.milestones.items():
-                c = self.cell(ws, ref, "Shown state")
+                c = self.cell(ws, ref, "State")
                 with self.subTest(state=state):
                     self.assertEqual(c.value, state)
                     self.assertEqual(look_of(ws, c.column_letter, state), colours.hexes(colours.MILESTONE_STATE[state]))
@@ -372,7 +387,7 @@ class Formatting(unittest.TestCase):
     def test_updated_is_left_as_the_stored_text(self):
         """Updated is the importer's clash check: it stays the stored UTC text, not a local time."""
         ws = self.sheet({"actions": [action(1)]}, "Actions")
-        c = self.cell(ws, "DEMO-A-001", "Updated")
+        c = self.cell(ws, "DEMO-A-001", "Last updated")
         self.assertEqual((c.value, c.data_type), ("2030-01-01 09:30:00.123", "s"))
 
     def test_the_import_reads_the_same_values_as_before(self):
@@ -416,14 +431,16 @@ class Formatting(unittest.TestCase):
         """Colour is the only difference: the same export with the colour table emptied has the same values and drop-downs."""
         rows = self.everything()
         rows["actions"] = [action(1, priority="Urgent", due_date="2030-01-01", status="Open")]
-        saved = (dict(colours.BY_FIELD), dict(colours.LATE))
+        saved = (dict(colours.BY_FIELD), dict(colours.LATE), dict(colours.OPEN_BY_PRIORITY))
         try:
             colours.BY_FIELD.clear()
             colours.LATE.clear()
+            colours.OPEN_BY_PRIORITY.clear()
             plain_book = load_workbook(self.build(rows))
         finally:
             colours.BY_FIELD.update(saved[0])
             colours.LATE.update(saved[1])
+            colours.OPEN_BY_PRIORITY.update(saved[2])
         coloured = load_workbook(self.build(rows))
         self.assertEqual(sum(len(ws.conditional_formatting) for ws in plain_book), 0)
         for name in coloured.sheetnames:

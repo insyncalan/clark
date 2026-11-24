@@ -91,9 +91,10 @@ class WordStatusCells(unittest.TestCase):
 
 
 class RichWords(unittest.TestCase):
-    def test_the_rich_words_are_exactly_these_eight(self):
-        """RICH_WORDS: the eight rich fields, spelt as the tables spell them (row 1078 made a milestone's client wording rich; item 1185 added a risk's or issue's and a milestone's Latest update; row 1195 a decision's)."""
-        self.assertEqual(set(excel.RICH_WORDS), {("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"),
+    def test_the_rich_words_are_exactly_these_eleven(self):
+        """RICH_WORDS: the eleven rich fields (row 1288: + the client wording of an action, a risk or issue and a decision), spelt as the tables spell them (row 1078 made a milestone's client wording rich; item 1185 added a risk's or issue's and a milestone's Latest update; row 1195 a decision's)."""
+        self.assertEqual(set(excel.RICH_WORDS), {("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("actions", "client_message"), ("raid", "client_message"), ("decisions", "client_message"),      # row 1288
+                                                 ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"),
                                                  ("milestones", "internal_note"), ("use_cases", "standing")})
 
     def test_every_rich_word_is_a_real_column_of_its_sheet(self):

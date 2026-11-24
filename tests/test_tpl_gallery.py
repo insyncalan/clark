@@ -29,12 +29,12 @@ class Checker(unittest.TestCase):
                            ({"v": 1, "items": {"1": {"caption": "x", "href": "https://example.org"}}}, textimage.UNKNOWN_FIELD),
                            ({"v": 1, "items": {"1": "x"}}, textimage.NOT_CONTENT),
                            ({"v": 1, "items": ["x"]}, textimage.NOT_CONTENT),
-                           ({"v": 1, "pictures": {"1": data(jpeg(pad=gallery.PICTURE_MAX), "jpeg")}}, textimage.BIG_PICTURE)):
+                           ({"v": 1, "pictures": {"1": data(jpeg(pad=gallery.V1_PICTURE_MAX), "jpeg")}}, textimage.BIG_PICTURE)):
             with self.assertRaises(store_module.Invalid) as e:
                 check(KIND, bad)
             self.assertEqual(str(e.exception), words)
         self.assertTrue(gallery.READY)
-        self.assertGreaterEqual(gallery.LIMIT, 6 * ((gallery.PICTURE_MAX + 2) // 3 * 4) + textimage.TEXT_LIMIT // 2, "six pictures fit")
+        self.assertGreaterEqual(gallery.LIMIT, 6 * ((gallery.V1_PICTURE_MAX + 2) // 3 * 4) + textimage.TEXT_LIMIT // 2, "six pictures fit")
 
     def test_published_lists_the_pictures_in_slot_order(self):
         self.assertIsNone(published(KIND, {"v": 1, "items": {"1": {"caption": "Fictional"}}}))
@@ -112,7 +112,7 @@ class InThePage(PicturePage):
             p.js(f"document.querySelector('{new} .ProseMirror').cxed.editor.commands.insertContent('Fictional caption'); true")
             p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
-            self.assertEqual(self.body(ref)["items"], {"1": {"caption": "Fictional caption"}})
+            self.assertEqual(self.body(ref)["items"], {"1": {"caption": "<p>Fictional caption</p>"}})
             self.assertEqual(self.body(ref)["pictures"], {"1": pic})
 
 

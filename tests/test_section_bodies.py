@@ -48,8 +48,8 @@ class Registry(unittest.TestCase):
         self.assertTrue(all(isinstance(n, str) for n in names))
         modules = {(n.module + "." + a.name if n.module == "clark" else n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names} | \
                   {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-        # row 1005: the one rich editor's words are cleaned here, so exactly `re` and `clark.sanitise` are allowed besides the old set, and nothing else
-        self.assertEqual(modules, {"json", "re", "unicodedata", "clark.sanitise", "clark.section_kinds", "clark.section_kinds.base"})
+        # row 1005: the one rich editor's words are cleaned here, so exactly `re` and `clark.sanitise` are allowed besides the old set, and nothing else (row 1288: + `copy`, the standard library, to flatten a rich line without touching the checked value)
+        self.assertEqual(modules, {"copy", "json", "re", "unicodedata", "clark.sanitise", "clark.section_kinds", "clark.section_kinds.base"})
         clean = ast.parse((SRC / "clark" / "sanitise.py").read_text(encoding="utf-8"))      # sanitise is pure too: the standard library only, no file, no database
         used = {n.module or "" for n in ast.walk(clean) if isinstance(n, ast.ImportFrom)} | {a.name for n in ast.walk(clean) if isinstance(n, ast.Import) for a in n.names}
         self.assertEqual(used, {"html", "html.entities", "re", "unicodedata"})

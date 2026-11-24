@@ -13,7 +13,7 @@ export const TABLE_COLUMNS = {
     { id: "prio", label: "Priority", standard: true },
     { id: "id", label: "Id", standard: true }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
     { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" }, { id: "labels", label: "Labels" },
-    { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
+    { id: "latest", label: "Latest update" }, { id: "wording", label: "Client Message" },
   ],
   // Row 1325: the Use cases page. Use case and Status are locked; the order here is the order of the columns and of the menu; Commitment, Release and On the dashboard start off.
   uc: [

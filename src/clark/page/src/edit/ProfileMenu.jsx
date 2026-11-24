@@ -19,6 +19,7 @@ import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport } from "./wordState.js";
 import { classicTheme } from "../components/Contents.jsx";
+import { version, loadVersion } from "../stores/version.js";
 import { toast } from "../stores/changes.js";
 import { ToastCard, ToastBar, startHeld, keepFocus } from "./ToastCard.jsx";
 import { actionIcon } from "../menuIcons.js";
@@ -30,7 +31,8 @@ import { closePanel, openPanel, panelOpen } from "./askPanelState.js";
 
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
-export const menuTip = (items) => `${MENU_NAME}: ${items.filter((i) => i.tip).map((i) => i.tip).join(", ")}`;
+const TIP_ORDER = ["preview", "export", "publish"];      // row 1281, Classic only: the tooltip names Preview, Export, Publish in the ticket order; the Cards theme keeps the menu's own order
+export const menuTip = (items) => `${MENU_NAME}: ${(classicTheme() ? TIP_ORDER.map((id) => items.find((i) => i.id === id && i.tip)).filter(Boolean) : items.filter((i) => i.tip)).map((i) => i.tip).join(", ")}`;
 
 // What Preview, Export or Publish did, in words (menuNote.js). The change toast is for Edit only, and this menu is in View too.
 export { note };
@@ -82,16 +84,17 @@ export async function exportExcel() {
 }
 
 export function ProfileMenu() {
-  useEffect(() => { loadProfile(); }, []);
+  useEffect(() => { loadProfile(); if (classicTheme()) loadVersion(); }, []);
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
   const pub = { id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, pre = { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") };
   const exc = { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, wrd = { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") };
-  const items = open ? (classicTheme() ? [pre, exc, wrd, pub] : [pub, pre, exc, wrd]) : [];      // row 1281, Classic only: Preview, Export to Excel, Publish…; the Cards theme keeps its order and its tooltip
+  const classic = classicTheme();
+  const items = open ? (classic ? [pre, exc, pub] : [pub, pre, exc, wrd]) : [];      // row 1281, Classic only: Preview, Export to Excel, Publish… (Export to Word is in Settings › Data and the Publish box); the Cards theme keeps its order, its Word entry and its tooltip
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", icon: actionIcon("settings") });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
-  items.push({ id: "help", name: "Help", icon: actionIcon("help") });
+  items.push({ id: "help", name: "Help", icon: actionIcon("help"), ...(classic && version.value ? { aside: `clark ver. ${version.value}` } : {}) });      // row 1281, Classic only: the running version, right-aligned on the Help line
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
@@ -101,7 +104,8 @@ export function ProfileMenu() {
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
-  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)), checked: appearance.value === m }))];
+  // Row 1281, Classic only: the three choices are one pill line (System | Light | Dark) in a row group; the Cards theme keeps its three rows.
+  const look = [{ id: "look-lab", lab: "Appearance", row: classic }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], ...(classic ? {} : { icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)) }), checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
@@ -123,7 +127,7 @@ export function ProfileMenu() {
   };
   return (
     <>
-      <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
+      <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} onOpen={classic ? loadVersion : undefined} />
       {open ? <Welcome /> : null}{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
       {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : <BarToast />}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (item 429), and one made in View (item 439) */}
     </>

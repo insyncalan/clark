@@ -234,8 +234,8 @@ class Words(unittest.TestCase):
             pages = [
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
-                    "No local folder yet.", "Choose folder", "Asking on or off",
-                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
+                    "No local folder yet.", "Choose folder", "ask clark",
+                    "Connections, model, folders, instructions and slash commands for every project", "Open All projects",      # row 1294: the one row that opens the All projects tab (the asking switch is not on this page any more)
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                     "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                     "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -327,9 +327,6 @@ class Words(unittest.TestCase):
                     "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
                     "settings and published reports are kept.",
                     "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
-                    "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                    "What is wrong, or what would you suggest?How can we reach you? (optional)", "ADDED TO THE EMAIL", "Version of clark: unknown", f"System: {system}",
-                    "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                     "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"
                 ]),
             ]
@@ -415,7 +412,7 @@ class Words(unittest.TestCase):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
         self.assertTrue(files)
         for f in files:
-            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "")     # the header's name is the server's, not text
+            text = re.sub(r"X-Clark-(Token|Project|Section|File-Name)", "", f.read_text(encoding="utf-8"))     # the headers' names are the server's, not text
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
@@ -425,7 +422,7 @@ class Words(unittest.TestCase):
         words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #225 and
         #318, after a colon or semicolon."""
         starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
-        headings = ("Version and updates", "clark version and updates")                                   # a heading in Help's list of Settings entries, not a sentence
+        headings = ("Version and updates", "clark version and updates", "clark ver. ")                  # headings in Help's list of Settings entries, not sentences; and the Help line's version label, in the words the ticket gives for it (row 1281), not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
         self.assertTrue(files)
