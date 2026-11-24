@@ -7,14 +7,13 @@ import { data, fromFile, mode } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
 import { progress, gapWords, clientRules } from "../../logic/clientReport.js";
-import { ReasonText } from "../Glance.jsx";
 
 const PILL = { g: "g", a: "a", r: "r" };
 
 // The marker's label sits above the marker; near either end it is pulled in so it never leaves the bar.
 const place = (planned) => (planned >= 88 ? " end" : planned <= 12 ? " start" : "");
 
-export function Overall({ on, tools }) {
+export function Overall({ on }) {
   const d = data.value;
   const { overall, groups } = progress(d.milestones, on, true, clientRules(d, fromFile.value));   // the client's milestones and words, as the file shows them
   const lines = groups.reduce((n, g) => n + g.lines.length, 0);
@@ -29,7 +28,7 @@ export function Overall({ on, tools }) {
             <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health</span>
             <div class="hrow">
               <span class={`pill hpill ${PILL[rag] || "n"}`}>{health || "Not set"}</span>
-              <ReasonText reason={reason} file={fromFile.value} clean={tools && tools.clean} />
+              {reason ? <span class="hreason">{reason}</span> : null}
             </div>
           </div>
         </div> : null}
