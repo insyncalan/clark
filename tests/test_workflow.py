@@ -230,9 +230,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_six_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_nine_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "6") for i in range(1, 7)})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.14.10"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
         self.assertNotIn('python-version: "3.x"', mac)
