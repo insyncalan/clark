@@ -254,24 +254,23 @@ class QuestionNeedsNoPassages(RouteBase):
         self.assertNotIn("zebrafish", unneeded)
         self.assertNotIn("tank.txt", unneeded)
 
-    def test_a_pictures_text_is_sent_only_when_the_question_matches_and_the_picture_never_is(self):
-        """Row 1616 (the first-run and Help sentence): text found in a picture goes to the provider only when the question has one of its words, and the
-        picture file itself, its bytes, never does."""
+    def test_a_pictures_text_is_treated_like_a_text_files_passage_and_the_picture_never_is_sent(self):
+        """Row 1616 AP1 (the first-run and Help sentence): text found in a picture in the folders is a passage like the text of a .txt file with the same words:
+        sent for a question that matches, not otherwise; the picture file's own bytes are never sent."""
         from clark import ask_picture, platform as pl
         reader = lambda raw: raw.decode("latin-1").split("|", 1)[-1]
         for p in (mock.patch.object(ask_picture.platform, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", reader)):
             p.start()
             self.addCleanup(p.stop)
         (self.box / "scan.png").write_bytes(b"RAWBYTESzqnever|the quarterly xylophone invoice")
+        (self.box / "note.txt").write_text("the quarterly xylophone invoice", encoding="utf-8")
         self.ix.start("ABC", [str(self.box)])
         self.assertTrue(self.ix.wait_idle(20))
-        needed = self.ask("what does the xylophone invoice say")
-        self.assertIn("quarterly xylophone invoice", needed, "control: a question with a word of the picture's text sends that text")
-        self.assertIn("scan.png", needed)
-        unneeded = self.ask("milestones")
-        self.assertNotIn("xylophone", unneeded)
-        self.assertNotIn("scan.png", unneeded)
-        for sent in (needed, unneeded):
+        for question, sent_expected in (("what does the xylophone invoice say", True), ("milestones", False)):
+            sent = self.ask(question)
+            self.assertEqual("scan.png" in sent, sent_expected, question)
+            self.assertEqual("note.txt" in sent, sent_expected, question)
+            self.assertEqual("quarterly xylophone invoice" in sent, sent_expected, question)
             self.assertNotIn("RAWBYTES", sent, "the picture file's own bytes are never sent")
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
