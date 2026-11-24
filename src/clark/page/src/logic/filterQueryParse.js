@@ -17,6 +17,7 @@
 // codes and data, and the words are chosen where they are shown.
 import { LINE_FIELDS, CLIENT_FIELDS, CLIENT_IS } from "./filterLine.js";
 import { isPublished } from "../filters.js";
+import { GROUPS } from "./board.js";
 
 export const QUALIFIERS = ["is", "has", "no"];
 export const STATES = ["open", "closed", "overdue", "quiet", "incomplete", "archived"];
@@ -29,16 +30,22 @@ export const squash = (s) => low(s).replace(/[^a-z0-9]/g, "");
  *  states?: [], text?(row)}. A line read with it knows only those fields (none of the Work items ones) and searches `text(row)` with plain words. */
 export const ownSchema = (extra) => (extra && !Array.isArray(extra) && Array.isArray(extra.fields) ? extra : null);
 
+/** Row 1304: the choices of the typed word group:, the eight of the Group by icon menu (Nothing included), by the menu's own spellings. */
+export const GROUP_CHOICES = GROUPS.map((g) => ({ id: g.id, label: g.label }));
+/** The choice a typed value names (any case), or null. */
+export const groupChoice = (v) => { const n = squash(v); return GROUP_CHOICES.find((g) => squash(g.id) === n || squash(g.label) === n) || null; };
+
 /** The fields a line may name: [{key, name, custom}], from LINE_FIELDS (all but `is`, which is a qualifier) and `extra` custom fields
  *  [{key, name, none?, of(row, ctx)}]. In the published file only the fields a client may use. With a page's own schema, its fields alone. */
 export function schemaOf(extra = []) {
   const own = ownSchema(extra);
   if (own) return { fields: own.fields.map((f) => ({ key: f.key, name: f.name, custom: true })), states: Array.isArray(own.states) ? own.states.slice() : [] };
+  const groupWord = !isPublished();                      // row 1304: the Work items line (not a page's own schema, not the published file) takes group:<choice>
   const fields = Object.keys(LINE_FIELDS).filter((k) => k !== "is" && (!isPublished() || CLIENT_FIELDS.includes(k)))
     .map((k) => ({ key: k, name: LINE_FIELDS[k].name, custom: false }));
   for (const f of extra || []) if (f && f.key && f.name) fields.push({ key: f.key, name: f.name, custom: true });
   const states = isPublished() ? STATES.filter((s) => CLIENT_IS.includes(s)) : STATES.slice();
-  return { fields, states };
+  return { fields, states, groupWord };
 }
 
 function distance(a, b) {
@@ -140,6 +147,10 @@ function read(tok, schema) {
     return { ...at, kind: "state", states: [...new Set(states)], negate, error: null };
   }
   const r = resolveField(name, schema);
+  if (schema.groupWord && squash(name) === "group" && r.unknown) {            // row 1304: group:<choice> sets the Group by choice; it filters nothing
+    const c = vals.length === 1 && !negate ? groupChoice(vals[0]) : null;
+    return c ? { ...at, kind: "group", choice: c.id, negate: false, error: null } : fail("missing-value", { field: "group" });
+  }
   if (r.ambiguous) return fail("ambiguous-field", { candidates: r.ambiguous });
   if (r.unknown) return fail("unknown-field", { suggestions: suggestFields(name, schema) });
   if (!vals.length) return fail("missing-value", { field: r.field });

@@ -4,7 +4,7 @@
 // issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
 import { LINE_FIELDS, FIELD_NOTES, NO_ME, unknownFilter, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
 import { NONE } from "../filters.js";
-import { parseQuery, schemaOf, ownSchema, resolveField, squash, colonAt } from "./filterQueryParse.js";
+import { parseQuery, schemaOf, ownSchema, resolveField, squash, colonAt, GROUP_CHOICES } from "./filterQueryParse.js";
 import { evaluateQuery } from "./filterQueryEval.js";
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
@@ -101,7 +101,8 @@ export function pieces(line, parsed, caret, extra) {
 
 // ── Saved views: the same line, however it is spaced or ordered ───────────────────────────────────────────────────────────
 
-const keyOf = (p) => p.tokens.map((t) => {
+const keyOf = (p) => p.tokens.filter((t) => t.kind !== "group").map((t) => {        // row 1304: the Group by word is not part of what a view saves
+
   if (t.error || t.kind === "text") return `"${low(t.raw.replace(/"/g, ""))}`;
   const list = (t.values || t.states || t.fields || []).map(low).sort().join(",");
   return `${t.negate ? "-" : ""}${t.kind}:${t.field || ""}:${list}${t.kind === "presence" ? (t.present ? "+" : "-") : ""}`;
@@ -168,7 +169,7 @@ export function wordAt(text, caret) {
 const noteOf = (key) => (has(FIELD_NOTES, key) ? FIELD_NOTES[key] : "");
 // Row 931: the icon (a name in components/Icon.jsx) on a field row and on the lead rows of a field; a custom field has the filter icon.
 export const FIELD_ICONS = { is: "check", type: "table", status: "half", owner: "user", priority: "flash", due: "cal", workstream: "bars",
-  usecase: "doc", milestone: "flag", client: "ext", has: "eye", no: "eyeoff" };
+  group: "group", usecase: "doc", milestone: "flag", client: "ext", has: "eye", no: "eyeoff" };
 export const iconOf = (key) => (has(FIELD_ICONS, key) ? FIELD_ICONS[key] : "filter");
 const fieldRow = (key, neg, note = noteOf(key), icon = iconOf(key)) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note, icon, close: false });
 
@@ -189,6 +190,7 @@ export function suggestions(text, caret, rows, ctx, extra) {
       const o = ownField(extra, f.key);
       if (fit(f.key, f.name)) out.push(o ? fieldRow(f.key, neg, o.note || "", o.icon || iconOf(f.key)) : fieldRow(f.key, neg));
     }
+    if (!neg && schema.groupWord && !own && fit("group", "Group") && !schema.fields.some((f) => squash(f.key) === "group")) out.push(fieldRow("group", false));
     if (!neg) for (const q of ["has", "no"]) if (fit(q)) out.push(own ? fieldRow(q, false, "") : fieldRow(q, false));   // the Work items note names owner and date: not this page's
     return out;
   }
@@ -206,6 +208,9 @@ export function suggestions(text, caret, rows, ctx, extra) {
       .map(([v, l]) => ({ kind: "value", ins: `${pre}is:${done}${v}`, label: v, note: low(l) !== v ? l : "", close: true }));
   }
   const r = resolveField(name, schema);
+  if (q === "group" && schema.groupWord && r.unknown) {          // row 1304: the eight choices of the Group by menu, one only
+    return neg || done ? [] : GROUP_CHOICES.filter((g) => !part || g.id.startsWith(part)).map((g) => ({ kind: "value", ins: `group:${g.id}`, label: g.id, note: "", close: true }));
+  }
   if (!r.field) return [];
   const k = r.field, F = schema.fields.find((f) => f.key === k);
   const out = [];
@@ -284,7 +289,7 @@ export function commitDraft(text, caret, rows, ctx, extra) {
   return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
 }
 
-const keyOfToken = (t) => (t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
+const keyOfToken = (t) => (t.kind === "group" ? "group" : t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
 
 /** The suggestions with `n` on each row that closes a word: how many items the line would show with that choice in place of the chips on the
  *  same field (row 846; the other chips still count). */
@@ -294,7 +299,7 @@ export function withCounts(options, chips, rows, ctx, extra) {
   return options.map((o) => {
     if (!o.close) return o;
     const t = parseFor(o.ins, rows, ctx, extra).tokens[0];
-    if (!t || t.error || t.kind === "text") return o;
+    if (!t || t.error || t.kind === "text" || t.kind === "group") return o;      // a group choice shows no count: it filters nothing
     const k = keyOfToken(t), keep = held.filter((h) => !(h.tok && !h.tok.error && keyOfToken(h.tok) === k)).map((h) => h.raw);
     return { ...o, n: rowsFor(rows, [...keep, o.ins].join(" "), ctx, extra).length };
   });
@@ -303,6 +308,34 @@ export function withCounts(options, chips, rows, ctx, extra) {
 /** The word a chip's remove button names: the field's name, or the whole chip for is, has and no (two is: chips must not both be "the is filter"). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  if (t && t.kind === "group") return "Group";
   if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
   return String(chip);
+}
+
+// ── Row 1304: group:<choice> ──────────────────────────────────────────────────────────────────────────────────────────────
+// The typed word that sets the Group by choice (the same eight as the icon menu). It filters nothing; the box draws it as a chip reading
+// "Group: <choice>" and the component keeps it and the icon menu in step (the state lives in stores/work.js).
+
+/** The words a chip is drawn with: "Group: Status" for the group word, the typed text for every other chip. */
+export function chipText(chip, rows, ctx, extra) {
+  const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  const g = t && t.kind === "group" ? GROUP_CHOICES.find((x) => x.id === t.choice) : null;
+  return g ? `Group: ${g.label}` : String(chip);
+}
+/** The choice the line's group word names ("" when it has none; the last one wins). */
+export function groupOf(line, rows, ctx, extra) {
+  const g = parseFor(line, rows, ctx, extra).tokens.filter((t) => t.kind === "group");
+  return g.length ? g[g.length - 1].choice : "";
+}
+/** The line with its group word set to `choice` (in the place of the first, the others gone, or at the end); "" or "nothing" takes it out. */
+export function withGroup(line, choice, rows, ctx, extra) {
+  const out = []; let put = false;
+  const word = choice && choice !== "nothing" ? `group:${choice}` : "";
+  for (const t of parseFor(line, rows, ctx, extra).tokens) {
+    if (t.kind !== "group") { out.push(t.raw); continue; }
+    if (word && !put) { out.push(word); put = true; }
+  }
+  if (word && !put) out.push(word);
+  return out.join(" ");
 }

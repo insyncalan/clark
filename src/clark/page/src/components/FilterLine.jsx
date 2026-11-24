@@ -79,6 +79,25 @@ function pickLayout(id) {
   else if (what === "lane") { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No lanes." : `${groupLabel(v)} lanes.`; }
 }
 
+// Row 1304: the typed word group:<choice> and the Group by icon menu are one state (work.group). A change of the state writes the word in the line
+// (Nothing takes it out); a change of the word (typed, or its chip removed) sets the state. The word filters nothing.
+function useGroupWord(line, rows, ctx) {
+  const g = work.value.group, tok = Q.groupOf(line, rows, ctx);
+  const seen = useRef({ g, tok });
+  useEffect(() => {
+    const s = seen.current;
+    seen.current = { g, tok };
+    if (g !== s.g) {
+      const want = g === "nothing" ? "" : g;
+      if (tok !== want) setLine(Q.withGroup(line, want, rows, ctx));
+    } else if (tok !== s.tok) {
+      if (tok && tok !== g) pickLayout(`group:${tok}`);
+      else if (!tok && g !== "nothing" && s.tok) pickLayout("group:nothing");
+      if (tok === "nothing") setLine(Q.withGroup(line, "", rows, ctx));
+    }
+  }, [g, tok]);
+}
+
 function SavedViews({ board, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const [moving, setMoving] = useState(null);             // row 1071: the id of the tab Move view is moving with the arrow keys, or null
@@ -490,7 +509,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
               const name = Q.chipName(c, rows, ctx, extra), g = glossOf(c);
               return (
                 <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
-                  onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{c}
+                  onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{Q.chipText(c, rows, ctx, extra)}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
               );
@@ -541,6 +560,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
 // The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, each chip's plain words and the owner:me note.
 export function FilterLine({ board, tools, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
+  useGroupWord(line, rows, ctx);
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
     <LineBox head={<SavedViews board={board} add={add} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
