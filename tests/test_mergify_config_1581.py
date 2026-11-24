@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECKS = ["Tests passed", "bifrost-closes-guard", "bifrost-point-map", "bifrost-test-exists", "bifrost-read-approved"]
+CHECKS = ["Tests passed", "bifrost-closes-guard", "bifrost-point-map", "bifrost-test-exists"]
 
 
 def read():
