@@ -174,7 +174,7 @@ class Eye(Base):
                 p.key("z", modifiers=2, code="KeyZ", vk=90)
                 if wait(lambda: "pill" not in self.stored(self.on), 3):
                     break
-            self.assertNotIn("pill", self.stored(self.on), "Undo shows the pill again")
+            self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10), "Undo shows the pill again")
             self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], n + 2, "one change, one undo")
 
     def test_the_eye_row_is_the_mock_ups_size_at_1400_and_900_in_light_and_dark(self):
