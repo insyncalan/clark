@@ -70,6 +70,27 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
 @media screen { .set-layout.set-win { padding-left: 20px; } }
 @media print { .set-layout.set-win { padding-left: 0; } }
+/* Row 1046 (Classic only; Cards draws no bell): the notices bell, left of search; the popup is a non-modal dialog under it. The bell is drawn only when the Classic theme layer is on (TopBar.jsx), so these rules are in the theme and not in the shell. */
+.bell-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+.tb-bell { position: relative; }
+.bell-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--brand-cyan); color: var(--pill-fg); font-size: var(--size-caption); font-weight: 700; line-height: 16px; text-align: center; }
+.bell-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 340px; max-width: calc(100vw - 24px); max-height: 70vh; overflow: auto; box-sizing: border-box; padding: 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); text-align: left; font-size: var(--size-body); }
+.bell-pop:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.bell-title { flex: 1; }
+.bell-link { all: unset; cursor: pointer; text-decoration: underline; color: inherit; font-size: var(--size-body); }
+.bell-link:focus-visible, .bell-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.bell-list { list-style: none; margin: 0; padding: 0; }
+.bell-item { padding: 8px 0; border-top: 1px solid var(--border); }
+.bell-item p { margin: 0 0 4px; }
+.bell-read { opacity: .65; }
+.bell-sev { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.bell-sev-ico { width: 16px; height: 16px; flex: none; }
+.bell-date { margin-left: auto; font-weight: 400; }
+.bell-ttl { font-weight: 600; }
+.bell-acts { display: flex; gap: 12px; align-items: center; }
+.bell-act { all: unset; cursor: pointer; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--radius-sm); }
+.bell-empty { margin: 0; }
 /* Row 1364: font colour. The six colours are design tokens (never a hex); the same classes colour the text in the editor, in the page and in the published file. */
 .rt-c-grey { color: var(--text-muted); }
 .rt-c-brand { color: var(--brand-blue); }
@@ -99,6 +120,12 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-rh-block .tpl-rh-h { color: var(--text); }
 /* Tech Debt 1507 (Milestones page, Calendar view, Classic only): Row 1355 took the Timeline / Calendar switch out of the flow at the top left, and only the Timeline reserves a row under it (the Zoom row). The Calendar's bar (Earlier, Later, Today, the title, the scale) gets the same row: it starts 30px plus the 8px row gap down, as the Timeline's controls do, keeps 8px between its items (the shared rule gave 6px) and wraps if narrow. */
 @media screen { #milestones.frame.milestones:not(.pub) .cal-bar { padding-top: calc(30px + var(--space-2)); padding-right: 0; gap: var(--space-2); } }
+/* Row 1475 (Classic only): a Work items section with a list is a column, so its foot (Show all items at the left, Review all N items at the right, one line) sits at the bottom of the card: the two footers of a half width pair are level at any list length. */
+.sec:has(> .wil) { display: flex; flex-direction: column; }
+.sec > .wil { flex: 1 1 auto; display: flex; flex-direction: column; }
+.sec > .wil > * { flex: none; }
+.sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
+.wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
@@ -213,6 +240,18 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 }
 @media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
 @media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
+
+/* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
+.toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
+.toast.refresh:first-child { margin-top: 0; }
+.refresh-lead { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; color: var(--brand-cyan); }
+
+/* Row 1046: the Critical (upgrade required) banner under the top bar. */
+.crit-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-4); background: color-mix(in srgb, var(--status-red) 12%, var(--surface)); color: var(--status-red-text); border-bottom: 1px solid var(--status-red); font-weight: 600; }
+.crit-text { flex: 1 1 24ch; min-width: 0; overflow-wrap: break-word; }
+.crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
+.crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

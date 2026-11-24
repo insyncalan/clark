@@ -233,7 +233,7 @@ class Movement(tmp.Base):
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
                 sel = json.dumps(self.box("who"))
                 p.js("document.querySelector(%s).focus()" % sel)
-                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
+                p.js("window.__k = []; addEventListener('keydown', (e) => { window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]); (window.__ke = window.__ke || []).push(e); }, true); window.__t0 = Math.round(performance.now())")
                 # The leave handler skips a focusout while the page has no focus, and a Tab with the focus elsewhere never leaves the box: wait for the page to have the focus
                 # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
                 # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
@@ -247,7 +247,7 @@ class Movement(tmp.Base):
                     if gone:
                         break
                     time.sleep(0.05)
-                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, tabDefaultPrevented: (window.__ke || []).filter(e => e.key === 'Tab').map(e => e.defaultPrevented), activeDesc: document.activeElement ? [document.activeElement.tagName, document.activeElement.id, document.activeElement.className] : null, since: Math.round(performance.now()) - window.__t0})" % sel))
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
