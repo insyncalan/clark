@@ -204,7 +204,7 @@ class View(unittest.TestCase):
         finally:
             self.cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
 
-    def test_a_500_px_image_is_centred_and_a_700_px_image_fills_at_1400_and_900(self):
+    def test_a_500_px_image_is_centred_and_a_700_px_image_keeps_its_own_width_at_1400_and_900(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme):
