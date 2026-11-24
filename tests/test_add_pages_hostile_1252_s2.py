@@ -1,4 +1,4 @@
-"""Hostile tests for row 1252 slice 2 (added_pages: step 34, rules, cap, change route, Undo). Fictional data only."""
+"""Hostile tests for row 1252 slice 2 (added_pages: its schema step, rules, cap, change route, Undo). Fictional data only."""
 import json
 import re
 import shutil
@@ -48,14 +48,14 @@ class Migration(unittest.TestCase):
         self.f = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, self.f, ignore_errors=True)
 
-    def test_step_is_34_and_last_and_schema_version_matches(self):
-        self.assertEqual(STEP, 34)
-        self.assertEqual(sm.SCHEMA_VERSION, 34)
-        self.assertEqual(sm.MIGRATIONS[-1][0], 34)
+    def test_step_is_the_last_and_schema_version_matches(self):
+        self.assertEqual(STEP, 38)      # 35 to 37 are other rows' steps; main's last is 34 until they land
+        self.assertEqual(sm.SCHEMA_VERSION, STEP)
+        self.assertEqual(sm.MIGRATIONS[-1][0], STEP)
         self.assertEqual([m[0] for m in sm.MIGRATIONS], sorted({m[0] for m in sm.MIGRATIONS}))
 
-    def test_33_file_with_gantt_switches_keeps_values_and_gets_table_and_index(self):
-        path = make_at(self.f, 33)
+    def test_file_before_the_step_with_gantt_switches_keeps_values_and_gets_table_and_index(self):
+        path = make_at(self.f, STEP - 1)
         con = sqlite3.connect(str(path))
         con.execute("UPDATE projects SET show_gantt_editor = 1, show_gantt_client = 1, gantt_tab_name = 'Plan' WHERE code = 'ABC'")
         con.commit(); con.close()
@@ -69,7 +69,7 @@ class Migration(unittest.TestCase):
         self.assertIn(("table", "added_pages"), sch)
 
     def test_step_is_idempotent_and_keeps_rows_when_run_again(self):
-        path = make_at(self.f, 34)
+        path = make_at(self.f, STEP)
         con = sqlite3.connect(str(path))
         con.execute("INSERT INTO added_pages(id,project,name,starter) VALUES ('ABC-PG-001','ABC','Keep','blank')")
         con.commit()
@@ -78,8 +78,8 @@ class Migration(unittest.TestCase):
         self.assertEqual(con.execute("SELECT name FROM added_pages").fetchall(), [("Keep",)])
         con.close()
 
-    def test_33_file_that_already_has_a_table_is_not_broken_or_emptied(self):
-        path = make_at(self.f, 33)
+    def test_file_before_the_step_that_already_has_a_table_is_not_broken_or_emptied(self):
+        path = make_at(self.f, STEP - 1)
         con = sqlite3.connect(str(path))
         con.execute(sm.ADDED_PAGES_TABLE)
         con.execute("INSERT INTO added_pages(id,project,name,starter) VALUES ('ABC-PG-001','ABC','Keep','people')")
@@ -87,7 +87,7 @@ class Migration(unittest.TestCase):
         s = open_store(path, onedrive_roots=[]); s.close()
         con = sqlite3.connect(str(path))
         self.assertEqual(con.execute("SELECT name, starter FROM added_pages").fetchall(), [("Keep", "people")])
-        self.assertEqual(con.execute("SELECT v FROM meta WHERE k='schema_version'").fetchone()[0], "34")
+        self.assertEqual(con.execute("SELECT v FROM meta WHERE k='schema_version'").fetchone()[0], str(STEP))
         con.close()
 
     def test_schema_sql_and_step_statement_are_the_same_text(self):
@@ -97,7 +97,7 @@ class Migration(unittest.TestCase):
         self.assertEqual(norm(m.group(0).rstrip(";")), norm(sm.ADDED_PAGES_TABLE))
 
     def test_table_constraints_refuse_bad_rows_even_around_the_store(self):
-        path = make_at(self.f, 34)
+        path = make_at(self.f, STEP)
         con = sqlite3.connect(str(path))
         ins = "INSERT INTO added_pages(id,project,name,starter,sort_order,client,hidden) VALUES (?,?,?,?,?,?,?)"
         good = ["ABC-PG-001", "ABC", "N", "blank", 0, 0, 0]
@@ -172,6 +172,7 @@ class Rules(Base):
         self.assertIn("日本語", self.s.read("added_pages", ref=b["ref"])["sections"])      # ensure_ascii False kept
         st, b = self.new(sections=[sec("l")])                                                # a list, not text
         self.assertEqual(st, 200, b)
+        self.change({"project": "ABC", "kind": "added_pages", "op": "delete", "id": self.rows()[0]["id"]})      # the Gantt page counts one: four added pages are the most
         st, b = self.new()                                                                   # none given
         self.assertEqual(self.s.read("added_pages", ref=b["ref"])["sections"], "[]")
 
@@ -211,12 +212,12 @@ class Limit(Base):
         return self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": c})
 
     def test_editing_a_page_at_the_cap_still_works(self):
-        refs = [self.new(name=f"P{i}")[1]["ref"] for i in range(5)]
+        refs = [self.new(name=f"P{i}")[1]["ref"] for i in range(4)]      # the prebuilt Gantt page is the fifth, hidden or shown
         self.assertEqual(self.upd(refs[2], name="Renamed", hidden=1, client=1)[0], 200)
         self.assertEqual(self.s.read("added_pages", ref=refs[2])["name"], "Renamed")
         self.assertEqual(self.new()[1]["message"], CAP)
 
-    def test_gantt_switch_already_on_set_to_on_again_at_cap_is_not_refused(self):
+    def test_gantt_switch_set_to_on_again_at_cap_is_not_refused(self):
         self.assertEqual(self.project(show_gantt_editor=1)[0], 200)
         for i in range(4):
             self.assertEqual(self.new(name=f"P{i}")[0], 200)
@@ -226,7 +227,7 @@ class Limit(Base):
         self.assertEqual(self.project(health="Green")[0] in (200, 400), True)
 
     def test_cap_is_per_project(self):
-        for i in range(5):
+        for i in range(4):
             self.new(name=f"P{i}")
         projs = [p["code"] for p in self.s.read("projects")]
         other = [c for c in projs if c != "ABC"]
@@ -236,20 +237,22 @@ class Limit(Base):
         self.assertEqual(st, 200, b)
 
     def test_remove_frees_place_and_undo_of_remove_at_cap_does_not_double_count(self):
-        refs = [self.new(name=f"P{i}")[1]["ref"] for i in range(5)]
+        refs = [self.new(name=f"P{i}")[1]["ref"] for i in range(4)]
         st, b = self.change({"project": "ABC", "kind": "added_pages", "op": "delete", "id": refs[0]})
         self.assertEqual(self.new(name="Fill")[0], 200)                 # takes the freed place
         st, back = self.undo({"project": "ABC", "apply_id": b["apply_id"]})   # restoring the removed one would be a 6th
         self.assertLessEqual(len(self.rows()), 5, (st, back))
 
     def test_undo_of_a_gantt_switch_off_at_cap_cannot_make_a_sixth(self):
+        """The Gantt page counts one whether its switch is on or off (PM ruling 24-11), so Undo of a switch never changes the count."""
         self.project(show_gantt_editor=1)
         st, b = self.project(show_gantt_editor=0)
-        for i in range(5):
+        for i in range(4):
             self.assertEqual(self.new(name=f"P{i}")[0], 200)
+        self.assertEqual(self.new(name="Fifth")[1]["message"], CAP)
         st, back = self.undo({"project": "ABC", "apply_id": b["apply_id"]})
         total = sm.added_page_count(self.s.con, "ABC")
-        self.assertLessEqual(total, 5, (st, back, "count", total))
+        self.assertEqual(total, 5, (st, back, "count", total))
 
 
 class Route(Base):

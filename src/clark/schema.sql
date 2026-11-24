@@ -331,6 +331,8 @@ CREATE TABLE IF NOT EXISTS source_folders (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   path    TEXT NOT NULL,
   sort_order INTEGER NOT NULL,
+  excluded TEXT NOT NULL DEFAULT '[]' CHECK (typeof(excluded) = 'text' AND length(excluded) <= 20000),     -- row 1365 (schema version 34): the subfolders left out, a JSON list of relative paths
+  accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1)),     -- row 1365 (schema version 34): 1 = the person pressed Accept for this folder; 0 = declined (the default)
   PRIMARY KEY (project, path)
 );
 
@@ -475,8 +477,8 @@ CREATE TABLE IF NOT EXISTS project_connectors (
   PRIMARY KEY (project_id, connector)
 );
 
--- clark: (row 1252) the pages a person adds from Settings, at most five per project (the prebuilt Gantt page, switched by projects.show_gantt_editor,
--- counts as one). `sections` is the page's sections as JSON text. The same statement as ADDED_PAGES_TABLE in store.py, which brings an older file to version 34.
+-- clark: (row 1252) the pages a person adds from Settings, at most five per project (the prebuilt Gantt page, switched by projects.show_gantt_editor, always
+-- counts as one). `sections` is the page's sections as JSON text. The same statement as ADDED_PAGES_TABLE in store.py, which brings an older file to version 38.
 CREATE TABLE IF NOT EXISTS added_pages (
   id         TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-PG-[0-9][0-9][0-9]'),
   project    TEXT NOT NULL REFERENCES projects(code),
