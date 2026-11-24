@@ -268,8 +268,8 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
-    "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
+    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
+    "Type lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
@@ -441,7 +441,7 @@ def _src(*p):
 
 
 DOCS, USE_CASES, MILESTONES = _src("edit", "DocumentsEdit.jsx"), _src("components", "UseCases.jsx"), _src("logic", "milestones.js")
-FILTER_LINE, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
+FILTER_LINE, LAYOUT_ITEMS, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("components", "layoutItems.js"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
 
 
 def _flat(x):
@@ -478,8 +478,8 @@ class HelpWordsMatchScreen(unittest.TestCase):
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):
-        self.assertIn('name: "No lanes"', FILTER_LINE)
-        self.assertIn("name: `${groupLabel(x)} lanes`", FILTER_LINE)
+        self.assertIn('name: "No lanes"', LAYOUT_ITEMS)
+        self.assertIn("name: `${groupLabel(x)} lanes`", LAYOUT_ITEMS)
         self.assertIn('Workstream', FILTER_LINE + FILTERS)
         self.assertTrue(any("choose **No lanes**, **Workstream lanes** or **Type lanes**." in s for s in ALL))
         self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
