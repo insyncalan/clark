@@ -2524,7 +2524,7 @@ DOC_FIELD_NAMES = {"title": "title", "kind": "kind", "url": "link", "date": "dat
 MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a milestone is called by its id in an Undo's words
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
-MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "client wording",
+MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "Client Message",
                          "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
@@ -2602,7 +2602,7 @@ def _field_words(entry, name):
     if f == "client_action" and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the Needed from the client of {name} is back as it was"     # row 811: the switch's own label; no value said
     if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
-        return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
+        return f"the Client Message of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the {ITEM_FIELD_NAMES[f]} of {name} is back to {to}" if to else f"the {ITEM_FIELD_NAMES[f]} of {name} is cleared again"
     if f == "client_visible":                                       # #67: the picker's Add also showed the row to the client
