@@ -62,6 +62,45 @@ class Header1543(glance.Published):
                 self.assertEqual(three["endRight"], four["endRight"], "nothing to the right of the pages moved")
                 self.assertGreater(three["lefts"][0], four["lefts"][0], "the group is shorter on its left")
 
+    def probe_file(self, js, width, dark):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, width, dark)
+            p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+            return p.js(js)
+
+    def test_published_header_no_as_at(self):
+        js = """(() => { const h = document.querySelector('header.top');
+          document.querySelector('.cm-badge').click();
+          return {head: h.textContent, menu: (document.querySelector('[role=menu]') || {textContent: ''}).textContent,
+                  boxes: h.querySelectorAll('.asat, .asat-wrap, button.asat, input[type=date]').length}; })()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(js, width, dark)
+                self.assertNotRegex(got["head"], r"(?i)as at", "no As at in the header")
+                self.assertNotRegex(got["menu"], r"(?i)as at", "no As at in the profile menu either")
+                self.assertEqual(got["boxes"], 0)
+                self.assertIn("Weekly report", got["head"], "the line under the project name stays (this fixture has no week ending date; the date text is unchanged)")
+
+    def test_published_header_switcher_and_profile_sizes(self):
+        js = """(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height), Math.round(document.querySelector("header.top").getBoundingClientRect().right - b.right)]; };
+          return {theme: r('.cm-theme'), badge: r('.cm-badge')}; })()"""
+        for width, dark in ((1400, False), (1400, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(js, width, dark)
+                self.assertEqual(got["theme"][:2], [38, 38], "the light and dark button is 38 px")
+                self.assertEqual(got["badge"][:2], [32, 32], "the profile circle is 32 px")
+                self.assertEqual(got["badge"][2], 28, "the circle ends 28 px from the bar's right edge, as the editor's")
+
+    def test_published_header_no_edit_controls(self):
+        js = """(() => { const h = document.querySelector('header.top');
+          return {n: h.querySelectorAll('.tb-ask, .tb-act, .hdr-end, .bell, [aria-label="Ask clark"], [aria-label="Client visible"]').length,
+                  btns: [...h.querySelectorAll('button')].map((b) => b.className).sort()}; })()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(js, width, dark)
+                self.assertEqual(got["n"], 0, f"no editor control in the published header: {got['btns']}")
+
 
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file
     if _name.startswith("test") and _name not in Header1543.__dict__:

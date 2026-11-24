@@ -1283,10 +1283,10 @@ class NoBrowserCalendar(unittest.TestCase):
         # Every inline date is DuePick's one panel, so the page code has no browser date field but the draft email's Reply by,
         # which is a field in a dialog, not an inline date, and the board's "Pick a due date" dialog (#102), shown when a card
         # moves into a column that needs a date: also a dialog, not an inline date (it may still show the browser's calendar
-        # over the dialog; that is raised on #7 for its own item). (Row 1253 took the published report header's "As at" date box out of Classic; the frozen Cards theme keeps it, unchanged, in components/CardsDate.jsx.) A new one must be clark's picker (edit/cells/DuePick.jsx).
+        # over the dialog; that is raised on #7 for its own item). (Row 1253 took the published report header's "As at" date box out of Classic; row 1543 took the Cards one out too.) A new one must be clark's picker (edit/cells/DuePick.jsx).
         found = sorted(str(p.relative_to(PAGE_SRC)) for p in PAGE_SRC.rglob("*") if p.suffix in (".js", ".jsx")
                        and re.search(r"type\s*[=:]\s*[\"'](date|datetime-local|month|week)[\"']|showPicker\s*\(", p.read_text(encoding="utf-8")))
-        self.assertEqual(found, ["components/CardsDate.jsx", "components/DraftEmail.jsx", "edit/Board.jsx"])
+        self.assertEqual(found, ["components/DraftEmail.jsx", "edit/Board.jsx"])
 
 
 if __name__ == "__main__":
