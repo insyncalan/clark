@@ -14,7 +14,10 @@ VIS = """(ref => { const sec = document.querySelector('[data-id="' + ref + '"]')
   const s = sec.getBoundingClientRect(), cs = getComputedStyle(sec);
   return {foot: r(foot), all: r(foot && foot.querySelector('[data-wil-all]')), rev: r(foot && foot.querySelector('[data-wil-review]')), secRight: s.right - parseFloat(cs.paddingRight),
     footScroll: foot ? foot.scrollWidth - foot.clientWidth : null, revScroll: foot ? foot.querySelector('[data-wil-review]').scrollWidth - foot.querySelector('[data-wil-review]').clientWidth : null,
-    count: foot && foot.querySelector('[data-wil-count]') ? foot.querySelector('[data-wil-count]').textContent : null}; })"""
+    count: foot && foot.querySelector('[data-wil-count]') ? foot.querySelector('[data-wil-count]').textContent : null,
+    // what a failing run must show: each part's box, line height, white-space and flex-shrink (a part squeezed to wrap onto two lines is taller than one line)
+    parts: foot ? [...foot.children].map((e) => { const c = getComputedStyle(e), b = e.getBoundingClientRect(); return {tag: e.tagName, attr: [...e.attributes].map((a) => a.name).join(' '), w: b.width, h: b.height, lh: c.lineHeight, ws: c.whiteSpace, shrink: c.flexShrink, mt: c.marginTop, pt: c.paddingTop, ai: c.alignSelf, sw: e.scrollWidth}; }) : null,
+    footAlign: foot ? getComputedStyle(foot).alignItems : null}; })"""
 
 
 def vis(p, ref):
@@ -46,6 +49,8 @@ class Edges(F.FooterOneRow):
                     self.assertLessEqual(ga["foot"]["bottom"] - ga["rev"]["top"], ga["rev"]["bottom"] - ga["rev"]["top"] + 1, f"one line high in Edit: {ga}")
                     self.assertLessEqual(abs(ga["rev"]["right"] - ga["secRight"]), 2, f"Review all is at the right edge in Edit: {ga}")
                     self.assertIsNone(gb["all"], gb)
+                    # Review all N items is one text line (it is 32px high, not 42): a squeezed button wraps onto two lines and lifts the pair's tops apart
+                    self.assertLessEqual(ga["rev"]["bottom"] - ga["rev"]["top"], 36, f"{width}: Review all N items is on one line in Edit: {ga}")
                     if width > 900:
                         self.assertEqual(ga["rev"]["top"], gb["rev"]["top"], f"the pair's footers are level in Edit: {ga} {gb}")
 
