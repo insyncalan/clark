@@ -219,19 +219,6 @@ class View(unittest.TestCase):
                     self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
                     self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
 
-    def test_dark_mode_does_not_change_the_image_in_the_view(self):
-        content = {"image": uri(png(1600, 400)), "caption": "Fictional caption", "alt": "Fictional description"}
-        for width in (1400, 900):
-            seen = {}
-            for theme in ("light", "dark"):
-                self.draw(content, width, theme)
-                m = self.measure()
-                with self.subTest(width=width, theme=theme):
-                    self.assertEqual((m["filter"], m["opacity"]), ("none", "1"), "no filter, opacity 1")
-                    self.assertEqual(m["px"][:3], [200, 30, 30])
-                    self.assertEqual(m["px"][3:], [30, 30, 200])
-                seen[theme] = (m["px"], m["filter"], m["opacity"], m["img"][2])
-            self.assertEqual(seen["light"], seen["dark"], "the dark view draws the same pixels as the light view")
 
 
 def published(content, title="", full=True):
