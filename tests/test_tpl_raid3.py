@@ -1,6 +1,6 @@
 """#96 G2, the RAID cards templates, three across (store type raid3; test_tpl_raid4.py runs the same for four across).
 
-A card is a work item's id and where its words come from (Client Message, Own words, or an action's Latest update). The checker,
+A card is a work item's id and where its words come from (Client wording, Own words, or an action's Latest update). The checker,
 the published fields (a hidden, archived, not client visible, sensitive or hidden-section item never publishes; an empty template
 stays out of the file), one change = one step = one Undo, and the page: View draws only what the file would, Edit saves each
 choice as one change. Fictional data only.
@@ -89,10 +89,10 @@ class CheckerBase:
             with self.subTest(id=bad_id):
                 self.bad(body({"id": bad_id}), "A card needs the number of a risk, issue, action or decision.")
         self.bad(body(card("ABC-001"), card("ABC-001")), "The same item is on two cards.")
-        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client Message or Own words for this card.")
+        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client wording or Own words for this card.")
         self.bad(body(card("ABC-D-001", "latest")))
         self.check(body(card("ABC-A-001", "latest")))
-        self.bad(body(card("ABC-001", "other")), "Choose Client Message, Own words or Latest update for a card.")
+        self.bad(body(card("ABC-001", "other")), "Choose Client wording, Own words or Latest update for a card.")
         self.bad(body(card("ABC-001", "own", "x" * 401)), "A card's own words can be 400 characters at most.")
         self.check(body(card("ABC-001", "own", "x" * 400)))
         self.bad(body({"id": "ABC-001", "source": "own", "own": 7}))
@@ -189,7 +189,7 @@ class Items(Api):
         self.assertNotIn("source", json.dumps(sec["cards"]))
 
     def test_a_client_card_with_no_wording_publishes_the_items_title_and_never_other_fields(self):
-        """#916: Client Message falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
+        """#916: Client wording falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
         with self.s.step("dashboard", USER) as st:
             st.update("actions", self.action, {"client_message": "", "latest_update": "LATESTWORDS", "owner": "Pat Owner"})
             st.update("raid", self.risk, {"client_message": ""})
