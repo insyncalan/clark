@@ -151,7 +151,7 @@ export function Board({ rows, today, type }) {
     if (!m.ok) { say("note", m.message); return; }
     if (m.needsDate && !afterDate) { setAsk({ kind: "date", id: row.id, move: m, row }); return; }
     if (row.kind === "decision" && m.request.changes.status === "Made" && !afterDate) { setAsk({ kind: "confirm", id: row.id, move: m, row }); return; }
-    changeItem(m.request, movedWords(m, row));
+    return changeItem(m.request, movedWords(m, row));
   }
   live.current = { byId, attempt, from, to, b };
 
@@ -332,13 +332,15 @@ export function Board({ rows, today, type }) {
   };
 
   const toned = TONED.includes(g);
+  const focusSoon = (id) => setTimeout(() => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); }, 0);     // after the redraw: the card may have moved to another column
+  const focusAfter = (id, done) => Promise.resolve(done).then(() => focusSoon(id));     // the card is drawn again in its new column once the move is read back
   const sendMenu = (id, pick) => {                    // a Move to... choice
     setMenu(null);
     const L = live.current, row = L.byId[id];
     if (!row) return;
     const here = L.cardCell[id];
     if (!here) return;
-    L.attempt(row, here, pick.lane ? { ...here, lane: { group: b.lane, key: pick.key } } : { ...here, key: pick.key });
+    focusAfter(id, L.attempt(row, here, pick.lane ? { ...here, lane: { group: b.lane, key: pick.key } } : { ...here, key: pick.key }));
   };
   const cardCell = {};
   b.lanes.forEach((ln) => ln.columns.forEach((c) => c.cards.forEach((cd) => { cardCell[cd.id] = from(cd.id, ln.key, c.key); })));
@@ -369,12 +371,12 @@ export function Board({ rows, today, type }) {
           onOpen={open} onPick={pick} onMenu={(id) => setMenu(menu === id ? null : id)}
           ask={ask && ask.id === cd.id
             ? ask.kind === "date"
-              ? <DatePicker ask={ask} today={today} onCancel={() => setAsk(null)} onSet={(date) => {
+              ? <DatePicker ask={ask} today={today} onCancel={() => { setAsk(null); focusSoon(cd.id); }} onSet={(date) => {
                   const m = dateMove(ask.move, date, today);
                   if (!m.ok) return m.message;
-                  setAsk(null); changeItem(m.request, movedWords(m, ask.row)); return "";
+                  setAsk(null); focusAfter(cd.id, changeItem(m.request, movedWords(m, ask.row))); return "";
                 }} />
-              : <Confirm onCancel={() => setAsk(null)} onYes={() => { const { move, row } = ask; setAsk(null); changeItem(move.request, movedWords(move, row)); }} />
+              : <Confirm onCancel={() => { setAsk(null); focusSoon(cd.id); }} onYes={() => { const { move, row } = ask; setAsk(null); focusAfter(cd.id, changeItem(move.request, movedWords(move, row))); }} />
             : null}>
           {menu === cd.id ? (
             <MenuPanel label={`Move ${cd.id} to`} cls="left" fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>

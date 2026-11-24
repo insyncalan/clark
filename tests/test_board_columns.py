@@ -10,7 +10,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import KEYS, click, dblclick, where  # noqa: E402
+from test_work_filters import KEYS, click, dblclick, key, where  # noqa: E402
 
 ARROWS = {"ArrowLeft": 37, "ArrowRight": 39}
 
@@ -191,6 +191,41 @@ class Columns(Base):
             click(cdp, sid, f".lane .col[data-col='{col}'] .col-b")
             self.until(cdp, sid, f"!!document.querySelector(\".col.shut[data-col='{col}']\")", "collapsed")
             self.assertEqual(cdp.js(f"document.querySelectorAll(\".col.shut[data-col='{col}'] .col-rz\").length", sid), 0)
+
+    def test_the_move_to_menu_follows_the_column_order_on_screen(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.board(cdp, sid, "status")
+                card = self.id_of("Order the laptops")            # an open action: it can go to Delayed, Closed and Cancelled
+                cdp.js("document.querySelector(\".col[data-col='Delayed'] .col-b\").focus()", sid)
+                at = "[...document.querySelectorAll('.lane:first-child .col')].map(c => c.dataset.col).indexOf('Delayed')"
+                for step in (2, 3):                               # past Pending, then past Closed
+                    alt_key(cdp, sid, "ArrowRight")
+                    self.until(cdp, sid, f"{at} === {step}", f"Delayed at place {step}")
+                self.until(cdp, sid, "(() => { const o = [...document.querySelectorAll('.lane:first-child .col')].map(c => c.dataset.col); return o.indexOf('Delayed') > o.indexOf('Closed'); })()", "Delayed moved past Closed")
+                click(cdp, sid, f"[data-move='{card}']")
+                self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
+                items = cdp.js("[...document.querySelectorAll('.ddmenu [data-to]:not([data-lane])')].map(b => b.dataset.to)", sid)
+                self.assertEqual(items, ["Closed", "Delayed", "Cancelled"], "the menu lists columns left to right, as drawn")
+
+    def test_focus_returns_to_the_card_after_the_date_box_and_after_a_move_pick(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.board(cdp, sid, "due")
+                a = self.id_of("Order the laptops")
+                self.drag(cdp, sid, a, self.cell("next_week"))
+                self.until(cdp, sid, "!!document.querySelector('.dpick')", "the date box")
+                click(cdp, sid, "[data-cancel]")
+                self.until(cdp, sid, "!document.querySelector('.dpick')", "the date box closed")
+                self.until(cdp, sid, f"document.activeElement && document.activeElement.closest('article') && document.activeElement.closest('article').dataset.id === {json.dumps(a)}", "focus is back on the card")
+                self.board(cdp, sid, "status")
+                click(cdp, sid, f"[data-move='{a}']")
+                self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
+                key(cdp, sid, "ArrowDown")
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, f"document.activeElement && document.activeElement.closest('article') && document.activeElement.closest('article').dataset.id === {json.dumps(a)}", "focus follows the card to its new column")
 
 
 if __name__ == "__main__":

@@ -76,7 +76,7 @@ export function ItemIcon({ row, pill, plain, today }) {
   const w = iconWords(row, pill, today ?? todayOf()), tone = `${toneOf(row, pill)}${isUrgent(row) ? " u" : ""}`;
   return plain
     ? <span class={`ico ${tone}`} aria-hidden="true">{kindLetter(row.kind)}</span>
-    : <span class={`ico ${tone}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}</span>;
+    : <span class={`ico ${tone}`} role="img" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}</span>;
 }
 
 // The header row, once per card. A file has no Id column (a client is not given the item number).

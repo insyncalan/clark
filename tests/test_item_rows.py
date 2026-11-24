@@ -439,6 +439,17 @@ class EditRows(unittest.TestCase):
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={gone}]')"), "View does not draw a row taken off the page")
             self.assertEqual(p.js("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[contenteditable],[data-cell]').length"), 0, "View has no Edit control")
 
+    def test_a_row_has_one_tab_stop_its_id_button_not_the_status_icon(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                p = Pg.at(self, cdp, self.s.port)
+                p.ready()
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.assertEqual(p.js("document.querySelectorAll('[data-type=raid] .wl-row .ico[tabindex]').length"), 0, "the status icon is not a tab stop")
+                self.assertGreater(p.js("document.querySelectorAll('[data-type=raid] .wl-row .idl').length"), 0)
+                self.assertEqual(p.js("document.querySelector('[data-type=raid] .wl-row .ico').getAttribute('aria-label') !== ''"), True, "its words stay for a screen reader")
+
+
     def test_the_id_opens_the_item_and_the_row_is_clickable_in_view_only_in_the_page_clark_serves(self):
         first = id_of(self.store, "Supplier delivery may slip")
         with chrome() as cdp:
