@@ -139,7 +139,7 @@ class Head(Base):
             at = p.js(measure)
             if not (0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]):
                 # macOS run 45203372794, job 137792514843: the chip was read at y=1044 in a 900 px window with scrollY=0 after all 6 tries, so the scroll was
-                # not applied (or was put back to 0) when it was measured. A person looks again: this try waits a moment for the scroll to land, bringing the chip to the middle on each look.
+                # not applied (or was put back to 0) when it was measured. A GUESS, not measured: this try waits up to 3 s for the scroll to land, bringing the chip to the middle on each look; no run shows yet that it helps.
                 seen = [at]
 
                 def looked():
