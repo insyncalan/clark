@@ -77,7 +77,7 @@ class Static(unittest.TestCase):
         entry = text[text.index('{ id: "gantt-table"'):text.index('{ id: "one-doc"')]
         self.assertIn('fit: ["full", "half"]', entry)
         self.assertIn('type: "gantttable"', entry)
-        self.assertIn("name: GANTT_TABLE_NAME", entry)
+        self.assertIn('name: "Gantt table"', entry)      # row 1262: the card name; the starting title stays GANTT_TABLE_NAME = "Table"
         self.assertIn("title: GANTT_TABLE_NAME", entry)
         self.assertIn("The plan as a table, from your Gantt lines. Only lines put in the client view show.", entry)
         self.assertIn('holds: ["Heading", "The plan table"]', entry)

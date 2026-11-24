@@ -139,6 +139,31 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c("#other .msv", "borderTopWidth"), "1px", tag)
                     self.assertNotEqual(c("#other .msv", "boxShadow"), "none", tag)
 
+    def _row_1260_ap2(self, w):
+        """Row 1260 AP2: Cards hides the has-a-line sentence by shell.css .head-sub-off; Classic hides it by rules.css #milestones .head-sub."""
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                tag = f"{scheme} {w}"
+                sid = self.load(cdp, w, scheme, None)      # Cards: no theme layer, so only the shared .head-sub-off rule can hide it
+                self.assertEqual(self.css(cdp, sid, "#ms-summary", "display"), "none", "Cards " + tag)
+                cdp.js("document.getElementById('ms-summary').classList.remove('head-sub-off')", sid)
+                self.assertNotEqual(self.css(cdp, sid, "#ms-summary", "display"), "none", "Cards without .head-sub-off " + tag)      # so it is shell.css .head-sub-off that hides it
+                sid = self.load(cdp, w, scheme, "prototype-2.0")
+                self.assertEqual(self.css(cdp, sid, "#ms-summary", "display"), "none", "Classic " + tag)
+                cdp.js("document.getElementById('ms-summary').classList.remove('head-sub-off')", sid)
+                self.assertEqual(self.css(cdp, sid, "#ms-summary", "display"), "none", "Classic without .head-sub-off " + tag)      # so it is rules.css:300 that hides it
+
+    def test_at_1400_cards_hides_the_milestones_sentence_by_head_sub_off_and_classic_by_the_milestones_head_sub_rule(self):
+        self._row_1260_ap2(1400)
+
+    def test_at_900_cards_hides_the_milestones_sentence_by_head_sub_off_and_classic_by_the_milestones_head_sub_rule(self):
+        self._row_1260_ap2(900)
+
+    def test_the_two_hiding_selectors_are_in_the_shared_css_and_the_classic_rules(self):
+        shell = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(shell, r"(?m)^\.head-sub-off \{ display: none; \}")
+        self.assertRegex(RULES, r"(?m)^#milestones \.head-sub \{ display: none; \}")
+
     def test_cards_keeps_the_milestones_card(self):
         with chrome() as cdp:
             sid = self.load(cdp, 1400, "light", None)

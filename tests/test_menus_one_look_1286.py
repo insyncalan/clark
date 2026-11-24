@@ -43,7 +43,7 @@ MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
  const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;
  const cs = e => getComputedStyle(e); const br = box.getBoundingClientRect();
- const items = [...new Set(box.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button'))].filter(ok);
+ const items = [...new Set(box.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button'))].filter(b => ok(b) && !b.closest('.ptrack'));   // the Appearance pills (Row 1281) are one pill line, not menu lines; test_profile_menu_classic_1281 pins their look
  const rows = items.map(b => {
    const icon = [...b.querySelectorAll('svg.i')].find(s => !s.closest('.ck') && ok(s)); if (!icon) return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: false};
    const ir = icon.getBoundingClientRect(); const after = [], before = [ir.left];
