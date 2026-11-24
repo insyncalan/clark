@@ -213,9 +213,10 @@ class View(unittest.TestCase):
                     self.assertEqual(round(m["img"][2]), 500, "under 600 px: its own size, not stretched")
                     self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
                     self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
-                    self.draw({"image": uri(png(700, 350)), "alt": "x", "fill": "plain", "fit": "stretch"}, width, theme)
+                    self.draw({"image": uri(png(700, 350)), "alt": "x", "fill": "plain"}, width, theme)
                     m = self.measure()
-                    self.assertLessEqual(abs(m["img"][2] - m["fig"][2]), 1, "700 px: the image width is the section width")
+                    self.assertLessEqual(abs(m["img"][2] - min(m["fig"][2], 700)), 1, "700 px: its own width, never wider than the section (row 1580 ruling: it does not fill)")
+                    self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
                     self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
 
     def test_dark_mode_does_not_change_the_image_in_the_view_or_the_editor(self):

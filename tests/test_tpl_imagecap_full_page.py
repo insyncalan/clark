@@ -376,6 +376,9 @@ class Page(unittest.TestCase):
                     for a in small_acts:
                         self.assertNotIn(a, acts, "a 700 px image is not small: no small-image controls")
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                    box = self.val("(function(){const s = document.querySelector('.fi-stage').getBoundingClientRect(), b = document.querySelector('.fi-box').getBoundingClientRect(); return [b.width, b.left - s.left, s.right - b.right, s.width];})()")
+                    self.assertAlmostEqual(box[0], min(box[3], 700), delta=1, msg="a 700 px image is drawn at its own width, never wider than the section (row 1580 ruling: it does not fill)")
+                    self.assertAlmostEqual(box[1], box[2], delta=1, msg="centred")
 
     def test_no_description_shows_the_quiet_red_note_and_a_description_removes_it(self):
         for page, width in ((1400, 1300), (900, 800)):
