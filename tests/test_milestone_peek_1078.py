@@ -1,8 +1,8 @@
 """Row 1078 (the owner's rulings, 09-11 and 10-11-2026): the milestone peek in the work item peek's format. One flat surface, no tiles: a
 header line under the title says the state, the owner and the progress (the chip reads Achieved only when the milestone is achieved, with its
 date in View and in a published file but not in Edit, where the Achieved on row has it; picking Achieved sets the progress to 100); the rows are Description, Agreed date, Forecast date, Workstream, Visible to
-client (the editor's alone) and Client wording, label left and value right with a hairline between; the name is the title, edited in place;
-Description and Client wording are on the one rich editor (#1005). A client (the Dashboard in View, a published file) sees the same peek
+client (the editor's alone) and Client Message, label left and value right with a hairline between; the name is the title, edited in place;
+Description and Client Message are on the one rich editor (#1005). A client (the Dashboard in View, a published file) sees the same peek
 read only, less the Visible to client row, and a published file never carries the editor's words.
 Run: python3 dev/run_tests.py test_milestone_peek_1078
 
@@ -25,8 +25,8 @@ from test_server import chrome  # noqa: E402
 import test_publish as tp  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-EDITOR_ROWS = ["Description", "Agreed date", "Workstream", "Use case", "Client wording"]      # row 1184: the forecast date is a chip, Latest update is a box above Details, Visible to client is the Client visible line
-CLIENT_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Client wording"]      # View and a published file keep the live rows (row 1184 changes the editor's peek only); a file draws Latest update only when it carries one
+EDITOR_ROWS = ["Description", "Agreed date", "Workstream", "Use case", "Client Message"]      # row 1184: the forecast date is a chip, Latest update is a box above Details, Visible to client is the Client visible line
+CLIENT_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Client Message"]      # View and a published file keep the live rows (row 1184 changes the editor's peek only); a file draws Latest update only when it carries one
 EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", '"data-ms-field"', "data-ms-in", "data-ms-block", "Add description", "Add workstream", "Select use case", "Add client wording", "Turn on Client visible to edit", "not shown to the client", "data-ms-wording")     # words and hooks of the editor's module alone (row 1184 adds the new ones)
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox], [role=button]"
 # Row 1180: the Details line is a fold toggle (a button) in a read only peek too; it changes nothing, so the "read only" checks leave it out.
@@ -47,7 +47,7 @@ class Sources(unittest.TestCase):
     def test_the_editor_draws_the_rows_in_the_ruled_order_with_the_name_as_the_title(self):
         src = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
         order = [m.group(1) for m in re.finditer(r'<Row name="([^"]+)"', src)]
-        self.assertEqual(order, ["Description", "Agreed date", "Achieved on", "Workstream", "Use case", "Client wording"], "row 1184: no Forecast date row (a chip), no Latest update row (a box above Details), the Client visible line after the rows")
+        self.assertEqual(order, ["Description", "Agreed date", "Achieved on", "Workstream", "Use case", "Client Message"], "row 1184: no Forecast date row (a chip), no Latest update row (a box above Details), the Client visible line after the rows")
         self.assertNotIn('<Row name="Visible to client"', src)
         head = (PAGE_SRC / "edit" / "PeekHead.jsx").read_text(encoding="utf-8")
         self.assertIn("export function PeekMilestoneTitle", head, "the name is the title, edited in place (row 1180: PeekHead.jsx)")
@@ -56,8 +56,8 @@ class Sources(unittest.TestCase):
         self.assertNotIn('<Row name="Milestone"', src, "no Milestone row: the title is the name (ruled)")
         self.assertIn('data-ms-row={k}', src, "the editor's rows are plain rows, never the four property cells (data-row)")
         self.assertNotIn('data-row={k}', src)
-        self.assertIn('<RichField field="client_message"', src, "Client wording is on the one rich editor (ruled)")
-        self.assertNotIn('field="client_message" label="Client wording" value', src, "not a plain box any more")
+        self.assertIn('<RichField field="client_message"', src, "Client Message is on the one rich editor (ruled)")
+        self.assertNotIn('field="client_message" label="Client Message" value', src, "not a plain box any more")
         self.assertIn("MilestoneTitle", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
 
     def test_the_shared_fields_are_the_same_rows_read_only_with_the_header_line(self):
@@ -169,7 +169,7 @@ class Fields(Base):
             self.assertEqual(p.js("(document.querySelector('#peek .pk-chips [data-row=state]').textContent.match(/\\d\\d-\\d\\d-\\d{4}/g) || []).length"), 0, "the Achieved date is not in the chip")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-field=actual_date]').length"), 1, "the Achieved date is in its row, once")
             p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '100%'", "the chip shows 100%")
-            self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Achieved on", "Workstream", "Use case", "Client wording"], "the Achieved on row comes with the state")
+            self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Achieved on", "Workstream", "Use case", "Client Message"], "the Achieved on row comes with the state")
             self.assertEqual(self.sent[-1][1]["changes"]["percent_complete"], 100)
 
     def test_the_use_case_row_shows_the_one_linked_directly_and_a_dash_word_when_none(self):
@@ -201,7 +201,7 @@ class Fields(Base):
             self.assertEqual(self.sent[-1][1]["place"], "peek")
             p.until("!document.querySelector('#peek .ProseMirror')", "the editor closed after the save")
             self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-rich=client_message] p')].map((e) => e.textContent)"), ["For the client"])
-            p.until("/^Client wording of ABC-M-002 changed\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the toast")
+            p.until("/^Client Message of ABC-M-002 changed\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the toast")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.saved(p, "client_message", None)
 
@@ -300,7 +300,7 @@ class Published(unittest.TestCase):
                 # a milestone with no client wording publishes no description (row 560) and has no wording to show: neither row is drawn (reader B), the others are
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-002'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-002')(document.querySelector('#peek'))", sid)))
-                self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
+                self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client Message")])
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Progress not set")
 
     def test_an_empty_owner_and_progress_in_a_files_milestone_peek_header_say_progress_not_set_with_no_bare_dash(self):
