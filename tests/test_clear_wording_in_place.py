@@ -51,7 +51,7 @@ class ClearWordingInPlace(unittest.TestCase):
                         p.js(f"{box}.click()")                              # item 1005: the one editor opens in its place
                         p.until("document.activeElement.classList.contains('ProseMirror')", f"{where}: the editor opens")
                         p.js("(() => { const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.deleteSelection(); })()")
-                        p.key("Enter", code="Enter", vk=13)
+                        p.key("Enter", modifiers=2, code="Enter", vk=13)     # Ctrl+Enter saves the Full editor
                         p.toast_is(f"Wording of {ident} changed.")
                         self.assertTrue(wait(lambda: any('"client_message": ""' in b or '"client_message":""' in b for b in p.js("window.__sent"))), f"{where}: the request carries client_message ''")
                         p.until(f"{box}.textContent.trim() === {json.dumps(title)}", f"{where}: the row stays in its section and shows the item's title")

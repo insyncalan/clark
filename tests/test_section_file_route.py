@@ -479,6 +479,22 @@ class InThePage(PageBase):
             p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 0", "Undo took it off")
             self.assertEqual(sorted(x.name for x in (self.client / "Report files").iterdir()), ["Plan v2.pdf"])
 
+    def test_choosing_a_file_keeps_the_label_and_words_typed_and_not_saved(self):
+        """Row 1288 (review): a file choice changes the section's body; the box's reset to the stored words is for a save or an Undo only."""
+        ref = self.add("onedoc")
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-add-file]')", "the Edit part drew")
+            typed = ("input[type=text]", "Typed label, not saved"), ("textarea", "Typed words, not saved")
+            for box, text in typed:
+                p.js("(function(){var e = document.querySelector(%s); e.focus(); e.value = %s; e.dispatchEvent(new Event('input', {bubbles: true}));})()" % (json.dumps(f"{sel} {box}"), json.dumps(text)))
+            p.js(f"document.querySelector('{sel} [data-add-file]').click()")
+            p.until(f"!!document.querySelector('{sel} .tpl-od-file')", "the file is chosen and drawn")
+            for box, text in typed:
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(sel + ' ' + box)}).value"), text, box)
+
     def test_one_document_and_no_client_folder_said_in_the_route_s_words(self):
         ref = self.add("onedoc")
         sel = f"[data-id={json.dumps(ref)}]"
