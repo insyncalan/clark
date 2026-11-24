@@ -9,6 +9,7 @@ from clark import publish
 import test_tpl_workitems as base
 from test_tpl_workitems import TODAY
 from test_report_editor import tearDownModule  # noqa: F401
+from test_glance_tiles import builtin_glance
 from test_server import chrome, wait
 
 OWNERS = ["Pat Demo", "Lee Demo", "Sam Demo", "Kim Demo"]
@@ -21,6 +22,7 @@ def tile_values(built):
 class Eye(base.InThePage):
     def setUp(self):
         super().setUp()
+        builtin_glance(self.store, ["ABC"])      # row 1266: the client's counts are the built-in glance's tiles
         self.ref = self.add({"mode": "all", "owner": OWNERS})
 
     def eye(self, ref, item):

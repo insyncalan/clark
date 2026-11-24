@@ -13,6 +13,7 @@ from pathlib import Path
 
 from clark import page, theme
 from test_server import chrome, wait, Running
+from test_glance_tiles import builtin_glance
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 CSS = (Path(page.__file__).parent / "shell.css").read_text(encoding="utf-8")
@@ -45,6 +46,7 @@ class Dashboard(unittest.TestCase):
     def setUpClass(cls):
         cls.store, cls.folder, _ = load_demo()
         cls.projects = cls.store.read("projects")
+        builtin_glance(cls.store, [p["code"] for p in cls.projects])      # row 1266: the page waits for the built-in glance; a new project starts with the template one
 
     @classmethod
     def tearDownClass(cls):

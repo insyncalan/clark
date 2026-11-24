@@ -47,7 +47,7 @@ class Browser:
 
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
-PAGES = (("Dashboard", "#dashboard&p=ABC", ".glance"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),
+PAGES = (("Dashboard", "#dashboard&p=ABC", ".secs > .sec"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),
          ("Settings", "#settings&p=ABC", ".set-head"), ("Use cases", "#usecases&p=ABC", ".ucpage, #usecases"), ("Gantt", "#gantt&p=ABC", "#gantt-page"))      # row 1023: the Use cases and Gantt pages too
 MARKERS = ("body::before", "bg-in")          # what the new rules are made of: a file with no brand picture holds none of it
 
