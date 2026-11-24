@@ -72,7 +72,10 @@ class Source(unittest.TestCase):
         self.assertIn(": {} }", rows)
 
     def test_the_css_gives_each_name_a_width_and_keeps_the_narrow_layouts_standard(self):
-        css = (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
+        from clark import theme
+        css = theme.css("prototype-2.0")      # the Classic theme layer: shell.css and edit.css are shared with Cards, whose page keeps its bytes (the byte pins)
+        for shared in (PAGE_SRC.parent / "shell.css", PAGE_SRC / "edit" / "edit.css"):
+            self.assertNotIn("Row 1534", shared.read_text(encoding="utf-8"), shared.name + ": the rules for the saved order are in the Classic layer only")
         for var in ("--w-ico", "--w-owner", "--w-date", "--w-prio", "--w-id"):
             self.assertIn(var + ":", css)
         self.assertRegex(css, r"@media \(min-width: 901px\) \{\s*\.irows\[data-ord\] \.wl-row, \.irows\[data-ord\] \.wl-head \{ grid-template-columns: var\(--cols-ord\); \}")

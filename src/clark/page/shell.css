@@ -2581,11 +2581,6 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .irows.is-dec { --cols: 28px minmax(0, 1fr) 160px 184px 84px 88px; }
 .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 160px 184px 84px 124px; }
 .irows.is-dec.is-file { --cols: 112px minmax(0, 1fr) 160px 184px 84px; }
-/* Row 1534 (AP5): the column widths by name, for a list drawn in the order saved on the Work items page (data-ord, --cols-ord from ItemRows.jsx). The standard order never uses them. */
-.irows { --w-ico: 28px; --w-owner: 160px; --w-date: 112px; --w-prio: 84px; --w-id: 88px; }
-.irows.is-edit { --w-id: 124px; }
-.irows.is-file { --w-ico: 112px; }
-.irows.is-dec { --w-date: 184px; }
 .irows .wl-row, .irows .wl-head { display: grid; grid-template-columns: var(--cols); gap: 0 12px; align-items: center; min-height: 40px; padding: 6px 0; }
 .irows .wl-head { min-height: 0; padding: 4px 0 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
 .irows .wl-row > *, .irows .wl-head > * { min-width: 0; }
@@ -3090,15 +3085,3 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .ask-instr-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--size-caption); }
 .ask-instr-foot .pub-msg { margin-top: 0; min-height: 0; flex: 1 1 240px; text-align: right; }
 .ask-instr-read { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-1) 0 var(--space-2); font-size: var(--size-body); }
-
-/* Row 1534 (AP5): a list in a saved column order. The cells are in that order in the page, so a screen reader reads it. Wide: the tracks follow the order. Narrow (900 px and below, and a
-   half card up to 700 px): the layouts above are built for the standard order, so each cell goes back to its standard place (--s) and the standard tracks. */
-.irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: var(--s); }
-@media (min-width: 901px) {
-  .irows[data-ord] .wl-row, .irows[data-ord] .wl-head { grid-template-columns: var(--cols-ord); }
-  .irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: 0; }
-}
-@container half (max-width: 700px) {
-  .irows[data-ord] .wl-row, .irows[data-ord] .wl-head { grid-template-columns: var(--cols); }
-  .irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: var(--s); }
-}
