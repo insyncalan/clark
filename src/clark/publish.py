@@ -93,9 +93,6 @@ PUBLISH_FIELDS = {
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
-# Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
-# the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
-WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
 RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
 LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
@@ -539,9 +536,6 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
-            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
-                for f in WORDLESS_DROPS.get(k, ()):
-                    c[f] = None
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
@@ -1065,9 +1059,7 @@ IMPORT_FOUND = "a stylesheet that imports another"
 ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
-# A run of escapes that stay as typed (a backslash, a quote: see _NOT_DECODED) is ONE match ("run"): it reads exactly as the escapes
-# one at a time would (each is a backslash and one character, left to right) and costs one step, not one per escape (#871).
-_CSS_ESCAPE = re.compile(r"(?P<run>(?:\\[\\\"'])+)|\\(?:(?P<hex>[0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(?P<eol>\r\n|[\n\r\f])|(?P<one>.))", re.S)
+_CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
 _CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
@@ -1077,19 +1069,16 @@ _NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays 
 
 
 def _css_escape(m):
-    if m.group("run"):
-        return m.group(0)             # every escape in the run stays as typed
-    if m.group("hex"):
-        n = int(m.group("hex"), 16)
+    if m.group(1):
+        n = int(m.group(1), 16)
         c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
         return m.group(0) if c in _NOT_DECODED else c
-    if m.group("eol"):
+    if m.group(2):
         return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
-    return m.group(0) if m.group("one") in _NOT_DECODED else m.group("one")
+    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
-_BACKSLASH_RUN = re.compile(r"(?:\\.)+", re.S)       # a run of backslash + one character, read as one step (#871): the same as one at a time
 _DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
 _SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
@@ -1121,8 +1110,7 @@ def _without_comments(css, gap=" "):
         if c in "\"'":
             piece = (_DQ_STRING if c == '"' else _SQ_STRING).match(css, m.start()).group(0)
         elif c == "\\":
-            run = _BACKSLASH_RUN.match(css, m.start())
-            piece = run.group(0) if run else css[m.start():m.start() + 2]      # no run: a lone backslash at the very end
+            piece = css[m.start():m.start() + 2]
         else:
             piece = "("
             ident = _IDENT_AT_END.search(tail[-24:]) if tail[-1:] in _URL_NAME_ENDS else None      # "url" is at most 24 characters even spelled with escapes; most names end otherwise
@@ -1456,9 +1444,9 @@ def read_earlier(path):
 
 
 def still_ours(path, digest):
-    """Whether the ordinary file at `path` still holds exactly the bytes whose SHA-256 is `digest`. A link there is not ours (#597)."""
+    """Whether the file at `path` still holds exactly the bytes whose SHA-256 is `digest`."""
     try:
-        return hashlib.sha256(read_plain(path)).hexdigest() == digest
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
     except OSError:
         return False
 
