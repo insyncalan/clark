@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Header**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
+     "Click the text under **Current state**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
