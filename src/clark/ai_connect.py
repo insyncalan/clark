@@ -125,6 +125,7 @@ class AiConnect:
 
     def __init__(self, data_dir, claude, chatgpt):
         self.data_dir = data_dir
+        self.owner = object()                # row 1492: the owner of the check's own requests, so Cancel and the deadline stop only those
         self.providers = {CLAUDE: claude, CHATGPT: chatgpt}
         self.lock = threading.Lock()         # a choice is read and saved as one step, so two at once can't lose one
         self.guard = threading.Lock()        # row 1492: the checks running now and what they have shown, in memory only
@@ -282,7 +283,7 @@ class AiConnect:
             event = self.running.get(name)
         if event is not None:
             event.set()
-            self.providers[name].stop()
+            self.providers[name].stop(self.owner)    # only the check's own request: a question running on it is not ended
         return 200, {"ok": True}
 
     def reason(self, name, provider, st):
@@ -341,7 +342,7 @@ class AiConnect:
             return
         self.step(name, "ask")
         started = time.monotonic()
-        got = ask.ask_provider(Pinned(provider, RECOMMENDED[name], st), ask.Request(text=TEST_QUESTION, question="", cancel=event))
+        got = ask.ask_provider(Pinned(provider, RECOMMENDED[name], st), ask.Request(text=TEST_QUESTION, question="", cancel=event, owner=self.owner))
         out["seconds"] = round(time.monotonic() - started, 1)
         if isinstance(got, ask.Reply):
             out["answered"] = True
@@ -381,7 +382,7 @@ class AiConnect:
             self.running.pop(name, None)
             self.steps.pop(name, None)
         if not finished:
-            provider.stop()                              # the request in it ends: the check has had its time
+            provider.stop(self.owner)                    # the check's own request ends (not a question running on it): the check has had its time
             code, words = ("cancelled", V_CANCELLED.format(label=provider.label)) if event.is_set() else ("slow", V_TOO_SLOW.format(label=provider.label))
         elif event.is_set() and "answered" not in out:
             code, words = "cancelled", V_CANCELLED.format(label=provider.label)

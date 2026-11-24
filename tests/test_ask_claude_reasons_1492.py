@@ -30,6 +30,14 @@ class FailureReason(unittest.TestCase):
                      b"Connection refused", b"connection closed", b"connection error"):
             self.assertEqual(ac.failure_reason(said), "network", said)
 
+    def test_a_run_that_only_mentions_a_word_is_not_read_as_that_kind(self):
+        for said in (b"I read about the network layer in your file", b"the offline mode setting is described here", b"item 401 of the plan is unauthorized spending",
+                     b"the cache entry expired yesterday", b"Order 4017 and 1401 shipped", b"set the network name to home", b"the offline tests pass"):
+            self.assertEqual(ac.failure_reason(said), "", said)
+        for said, kind in ((b"API Error: 401 Unauthorized", "expired"), (b"401 Unauthorized", "expired"), (b"Error: Unauthorized", "expired"),
+                           (b"Your session has expired", "expired"), (b"You are offline", "network"), (b"network error", "network")):
+            self.assertEqual(ac.failure_reason(said), kind, said)
+
     def test_expired_wins_over_network(self):
         self.assertEqual(ac.failure_reason(b"network error: not logged in"), "expired")
 

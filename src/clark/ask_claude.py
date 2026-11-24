@@ -427,8 +427,11 @@ class Reasoned(ask.Failure):
     reason: str = ""
 
 
-EXPIRED_TEXT = re.compile(r"(expired|invalid (api key|token|credential)|please run /login|log ?in again|not logged in|unauthori[sz]ed|\b401\b)", re.I)
-NETWORK_TEXT = re.compile(r"(ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|network|unable to connect|could not resolve|fetch failed|connection (refused|reset|error|closed)|offline)", re.I)
+EXPIRED_TEXT = re.compile(r"((token|session|credentials?|api key|login|authentication|oauth \w+) (has |is |have )?expired|expired (token|session|credentials?|api key|login|authentication)"
+                          r"|invalid (api key|token|credential)|please run /login|log ?in again|not logged in"
+                          r"|(^|error:?|http/?[\d.]*|status:?|status code:?)[ \t]*(401|unauthori[sz]ed)\b)", re.I | re.M)       # a bare word in prose is not enough: 401 and unauthorized count at a line start or after error/HTTP/status
+NETWORK_TEXT = re.compile(r"(ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|network (is |was )?(down|unreachable|unavailable|error)|network (request|connection) failed"
+                          r"|unable to connect|could not resolve|fetch failed|connection (refused|reset|error|closed)|^[\W]*offline\b|\b(you are|is|are|went) offline)", re.I | re.M)
 
 
 def reasoned(message, reason):

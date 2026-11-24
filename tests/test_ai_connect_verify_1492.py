@@ -118,7 +118,7 @@ class Limits(Base):
         status, body = self.verify("claude", limit=0.3)
         self.assertLess(time.monotonic() - started, 5)
         self.assertEqual((status, body["code"], body["message"]), (409, "slow", "Claude did not answer within 30 seconds. Press Check again."))
-        self.assertEqual(self.claude.stops, [None], "the request in it was stopped")
+        self.assertEqual(self.claude.stops, [self.connect.owner], "the check's own request was stopped, by its owner (never a stop of everything)")
         self.assertFalse(self.connect.view()["claude"]["checked"])
         self.assertEqual(self.connect.running, {}, "nothing is left running")
         # Cancel ends the whole Connect
@@ -385,6 +385,75 @@ class Command(Probe):
             self.inside.set()
             self.release.wait(10)
         return super().status()
+
+
+class Runs(Probe):
+    """Runs held on one provider, each with its owner; stop(owner) ends the runs that owner asked for, and every run when no owner is given (the real command's rule)."""
+
+    def __init__(self, name="claude", **kw):
+        super().__init__(name, **kw)
+        self.runs = []
+
+    def ask(self, request, model=None, prefer=False):
+        run = (getattr(request, "owner", None), threading.Event(), threading.Event())
+        self.runs.append(run)
+        run[2].set()                                     # started
+        run[1].wait(20)
+        return ask.Failure(ask.STOPPED) if run[1].is_set() and self.stopped(run) else "ready"
+
+    def stopped(self, run):
+        return run in getattr(self, "ended", [])
+
+    def stop(self, owner=None):
+        self.ended = getattr(self, "ended", [])
+        hit = [r for r in self.runs if owner is None or owner is r[0]]
+        for r in hit:
+            self.ended.append(r)
+            r[1].set()
+        return bool(hit)
+
+
+class OwnStop(Base):
+    """F1: the check's Cancel and its deadline end only the check's own request, never a question the person asked on the same provider."""
+
+    def held(self, name):
+        provider = Runs(name)
+        self.svc(**{("claude" if name == "claude" else "chatgpt"): provider})
+        question = threading.Thread(target=provider.ask, args=(ask.Request(text="q", question="", owner="ask"),), daemon=True)
+        question.start()
+        self.assertTrue(provider.runs[0][2].wait(10))
+        return provider, question
+
+    def test_cancel_of_the_check_does_not_stop_the_ask_run(self):
+        for name in ("claude", "chatgpt"):
+            with self.subTest(name):
+                provider, question = self.held(name)
+                got = []
+                t = threading.Thread(target=lambda: got.append(self.verify(name, limit=20)))
+                t.start()
+                deadline = time.monotonic() + 10
+                while len(provider.runs) < 2 and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(len(provider.runs), 2, "the check's request is running beside the question")
+                self.connect.cancel({"provider": name})
+                t.join(10)
+                self.assertEqual(got[0][1]["code"], "cancelled")
+                ask_run, check_run = provider.runs
+                self.assertFalse(ask_run[1].is_set(), "the Ask run was NOT stopped")
+                self.assertTrue(check_run[1].is_set(), "the check's own request was stopped")
+                ask_run[1].set()
+                question.join(10)
+
+    def test_the_deadline_of_the_check_does_not_stop_the_ask_run(self):
+        for name in ("claude", "chatgpt"):
+            with self.subTest(name):
+                provider, question = self.held(name)
+                self.assertEqual(self.verify(name, limit=0.4)[1]["code"], "slow")
+                ask_run, check_run = provider.runs
+                self.assertFalse(ask_run[1].is_set(), "the Ask run was NOT stopped")
+                self.assertTrue(check_run[1].is_set())
+                ask_run[1].set()
+                question.join(10)
 
 
 class Steps(Base):
