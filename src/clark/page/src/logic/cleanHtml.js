@@ -18,7 +18,7 @@ const ALLOWED = set("p br strong em s h1 h2 h3 ul ol li blockquote hr a input sp
 export const FONT_COLOURS = ["grey", "brand", "red", "amber", "green", "blue"];      // row 1364: a coloured span's class is rt-c-<name>
 const COLOUR_CLASSES = new Set(FONT_COLOURS.map((c) => `rt-c-${c}`));
 const VOID = set("br hr input");
-const INLINE = set("strong em s a span");
+const INLINE = set("strong em s a");
 const PARAGRAPH = set("p h1 h2 h3");
 const ENDS_PARAGRAPH = set("p h1 h2 h3 ul ol li blockquote hr");
 const DROP_WITH_CONTENT = set("script style iframe object applet form svg math template noscript noembed noframes textarea select title xmp plaintext head");
