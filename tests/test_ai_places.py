@@ -28,10 +28,10 @@ WANTED = {
     "peek.latest_update": "current", "milestone.description": "current",      # row 1005: the two peek fields that are the one rich editor now
     "textimage.text": "current",      # row 1005: the Text and picture section's text is the one rich editor now
     "movement.internal_note": "current", "glance.health_reason": "current", "linkcard.text": "current", "onedoc.text": "current", "callout.text": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
-    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is the one editor, one plain line
-    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "plain",      # row 1005: the Movement form's one-line fields
+    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "current",      # row 1288: a picture caption is the Full editor
+    "movement.who": "plain", "movement.reason": "plain", "movement.source": "plain", "raid.own_words": "current",      # row 1288: a RAID entry's Own words is the Full editor
 }
-RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "linkcard.text", "onedoc.text", "callout.text")
+RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "linkcard.text", "onedoc.text", "callout.text", "picture.caption", "raid.own_words")
 # The section title is a one-line plain field and stays out of the AI.
 LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place; row 1292: the Draft beside the ask panel is the answer's own text, so it offers no AI of its own
 

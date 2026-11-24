@@ -112,7 +112,7 @@ class InThePage(PicturePage):
             p.js(f"document.querySelector('{new} .ProseMirror').cxed.editor.commands.insertContent('Fictional caption'); true")
             p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
-            self.assertEqual(self.body(ref)["items"], {"1": {"caption": "Fictional caption"}})
+            self.assertEqual(self.body(ref)["items"], {"1": {"caption": "<p>Fictional caption</p>"}})
             self.assertEqual(self.body(ref)["pictures"], {"1": pic})
 
 
