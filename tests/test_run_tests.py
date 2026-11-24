@@ -258,7 +258,7 @@ class Classes(unittest.TestCase):
                 mock.patch.object(run_tests, "TIMES", d / "t.txt"), mock.patch.object(run_tests, "LAST", d / "l.txt", create=True), \
                 redirect_stdout(io.StringIO()):
             code = run_tests.run_all([d / "test_ok_x.py", d / "test_bad_x.py"], 2, results=str(out))
-        doc = json.loads(out.read_text())
+        doc = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual((code, doc["complete"], doc["defects"], doc["counts"]["FLAKE"]), (1, True, ["test_bad_x.py"], 0))
 
 
