@@ -138,7 +138,7 @@ class Data(unittest.TestCase):
         (self.root / "Archive" / "new.txt").write_text("new archive words", encoding="utf-8")
         (self.root / "Notes" / "b.txt").write_text("beta notes", encoding="utf-8")
         self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", folders, self.home, leave_out=left), {str(self.root): 1})
-        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", folders, self.home), {str(self.root): 2}, "control: without the list both count")
+        self.assertEqual(ask_index.changed_by_folder(self.data, "ABC", folders, self.home), {str(self.root): 4}, "control: without the list the left-out files count too (new.txt, terms.txt, cv.txt) besides b.txt")
 
     def test_a_four_argument_stale_stand_in_is_still_called_with_four_arguments_when_nothing_is_left_out(self):
         """Row 1542 (Hawkeye CHANGES): the Indexer gives `stale` the left-out lists only when there are some."""
