@@ -83,13 +83,15 @@ ROWS = "[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.data
 LINK = "document.querySelector('[data-work-all]')"
 
 
-class Page(Base):
+class PageBase(Base):
     """The real page with 55 more actions (67 items in all). The new ones are made with the due dates falling, so the order drawn is not the order made."""
+
+    EXTRA = 55
 
     def setUp(self):
         super().setUp()
         with self.store.step("dashboard", USER) as st:
-            for n in range(55):
+            for n in range(self.EXTRA):
                 st.create("actions", {"project": "ABC", "raised": "2026-10-01", "source": "demo", "owner": ME, "priority": "Low",
                                       "description": f"Extra item {n:02d}", "due_date": f"2027-{12 - n // 28:02d}-{28 - n % 28:02d}"})
 
@@ -98,6 +100,8 @@ class Page(Base):
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the rows")
         return sid
 
+
+class Page(PageBase):
     def test_the_table_draws_fifty_rows_and_the_link_opens_and_shuts_the_rest(self):
         with chrome() as cdp:
             sid = self.load(cdp)
@@ -148,6 +152,26 @@ class Page(Base):
             self.until(cdp, sid, "!!document.querySelector('#hand-bar')", "pick mode")
             self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 50", "every row")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-work-all]').length", sid), 0)
+
+
+class PageAtFiftyOne(PageBase):
+    """Row 1359: exactly 51 items on the Work items page (12 seeded and 39 more): 50 rows, Show all items, 51 rows and Show only 50, 50 rows again."""
+    EXTRA = 39
+
+    def test_51_items_draw_50_rows_then_51_with_show_only_50_then_50(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, hash_=ALL)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+                self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the rows")
+                self.assertIn("51 items", cdp.js("document.querySelector('#work').innerText", sid))
+                self.assertEqual(len(cdp.js(ROWS, sid)), 50)
+                self.assertEqual(cdp.js(LINK + ".textContent", sid), "Show all items")
+                click(cdp, sid, "[data-work-all]")
+                self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length === 51", "every row")
+                self.assertEqual(cdp.js(LINK + ".textContent", sid), "Show only 50")
+                click(cdp, sid, "[data-work-all]")
+                self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length === 50", "back to 50")
 
 
 if __name__ == "__main__":

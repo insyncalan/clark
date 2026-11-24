@@ -538,6 +538,34 @@ class Classic(Look):
                     p.js(f"{btn(25)}.click()")
                     p.until(f"document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]').textContent === 'Showing 10 of 25, scroll for the rest'", f"{mode}: closed again")
 
+    def test_a_list_of_51_items_with_most_rows_50_draws_50_rows_and_show_all_items_opens_51_and_show_only_50_shuts_to_50_at_1400_and_900(self):      # row 1359
+        for k in range(51):
+            self.demo.action(description=f"Over step {k:02d}", owner="Wil51 Demo", due_date="2030-02-01")
+        for k in range(50):
+            self.demo.action(description=f"Even step {k:02d}", owner="Wil50 Demo", due_date="2030-02-01")
+        full = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Wil51 Demo"]})
+        exact = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Wil50 Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                sec = f'[data-id="{full}"]'
+                p.until(f"!!document.querySelector('{sec} .wil-scroll')", "View drew")
+                count = lambda: p.js(f"document.querySelectorAll('{sec} .wil-table tbody tr').length")
+                word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+                self.assertEqual(count(), 51, "the list draws its rows, the box cuts them to Most rows")
+                self.assertEqual(word(), "Show all items")
+                cut = p.js(f"(() => {{ const b = document.querySelector('{sec} .wil-scroll'), r = [...b.querySelectorAll('.wil-table tbody tr')], e = b.getBoundingClientRect().bottom + 1; return [r[49].getBoundingClientRect().top < e - 8, r[50].getBoundingClientRect().top >= e - 8]; }})()")
+                self.assertEqual(cut, [True, True], "closed: the 50th row starts inside the box and the 51st starts at or under its edge")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{exact}\"] .wil-table tbody').children.length"), 50)
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{exact}\"] .wil-all-b')"), "exactly 50 items, Most rows 50: no link")
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 50'", "open reads Show only 50")
+                self.assertEqual(count(), 51)
+                self.assertEqual(p.js(f"document.querySelector('{sec} .wil-scroll').style.maxHeight"), "", "open: every row is in view")
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", "back")
+                self.assertTrue(p.js(f"document.querySelector('{sec} .wil-scroll').style.maxHeight"), "closed: the box is cut to 50 rows")
+
     def test_the_views_list_scroll_bar_is_hidden_in_view_and_in_edit_row_1308(self):
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
