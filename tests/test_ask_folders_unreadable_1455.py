@@ -18,7 +18,7 @@ from clark import ask_passages, ask_service, reach, store as st
 from test_report_editor import Base
 from test_server import chrome
 
-SENTENCE = "Your folders could not be read just now, so nothing was sent. Try again, or remove a folder in Settings."
+SENTENCE = "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings."
 
 
 class OnTheServer(tr.Base):
