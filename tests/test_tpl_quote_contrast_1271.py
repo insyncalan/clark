@@ -3,8 +3,8 @@ use the control-edge token and not grey-300.
 
 The pairs are read from the page the person gets (the Classic theme layered over the brand tokens): each colour is the computed value of the
 token or of the drawn element, so a change in either token file, or a rule that points an element at another token, moves the number.
-Floors: 4.5 for text, 3 for interface parts, and not below the mock-up's own figures (role on the panel 6.85 light and 9.45 dark; field edge on the
-surface 3.70 light and 5.29 dark). Widths 1400 and 900. Fictional data only.
+Floors: 4.5 for text, 3 for interface parts, and not below the mock-up's own figures (role on the panel 6.85 light and 8.16 dark; field edge on the
+surface 3.70 light and 5.29 dark). Mock-up figure 9.45 is the token pair; the panel paints 8.16 (PM 24-11, row 1579): the dark floor is the measured value. Widths 1400 and 900. Fictional data only.
 Run: python3 dev/run_tests.py test_tpl_quote_contrast_1271    Needs Chrome (the item 33 harness).
 """
 import json
@@ -21,8 +21,9 @@ import _tpl_notes as n
 
 Q = lambda t, by="", role="": {"quote": t, "by": by, "role": role}
 TEXT, UI = 4.5, 3.0
-# the mock-up's figures (mockups/1271-quote-template NOTES.md, Contrast), light and dark
-MOCK_ROLE = {"light": 6.85, "dark": 9.45}
+# the mock-up's figures (mockups/1271-quote-template NOTES.md, Contrast), light and dark; the dark role figure is the measured 8.16, not the mock-up's
+# 9.45: mock-up figure 9.45 is the token pair; the panel paints 8.16 (PM 24-11)
+MOCK_ROLE = {"light": 6.85, "dark": 8.16}
 MOCK_EDGE = {"light": 3.70, "dark": 5.29}
 
 
