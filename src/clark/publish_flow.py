@@ -326,13 +326,14 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None, now=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None, now=None, choose_open_files=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
         self.choose_save_file = choose_save_file or platform.choose_save_file
         self.choose_folder = choose_folder or platform.choose_folder
         self.choose_open_file = choose_open_file or platform.choose_open_file      # #96: a file for a section template
+        self._choose_open_files = choose_open_files                               # row 1593: several files (a seam for the tests)
         self.today = today or milestones.today
         self.now = now or datetime.datetime.now      # row 1143: the local date and time of an Excel export's file name
         self.by_user = by_user or getpass.getuser
@@ -788,6 +789,24 @@ class Publisher:
         """POST /api/section-file {project, section}: the system's Open dialog, the copy into the client folder's "Report files"
         folder and the step that adds the file to the section (section_files.py has the rules)."""
         return section_files.attach(self, body)
+
+    def choose_open_files(self, prompt, types=None):
+        """Row 1593: the files chosen in the Open window, as a list in the dialog's order, or None when cancelled. When the page was
+        built with a one-file dialog of its own (a test seam) that one file is the list."""
+        if self._choose_open_files is not None:
+            return self._choose_open_files(prompt, types=types)
+        if self.choose_open_file is platform.choose_open_file:
+            return platform.choose_open_files(prompt, types=types)
+        one = self.choose_open_file(prompt, types=types) if types else self.choose_open_file(prompt)
+        return [one] if one else None
+
+    def drop_section_file(self, code, section, name, data, hold=None, commit=None):
+        """POST /api/section-file-drop (row 1275): one file dropped on a Documents and links section, `name` as the page sent it
+        (a header, URL-encoded). The same rules as section_file (section_files.drop). Row 1593: with `hold` the file is copied and
+        not added yet; with `commit` (the names the holds returned) the held files are added in one step with one Undo."""
+        if commit:
+            return section_files.drop_commit(self, code, section, commit)
+        return section_files.drop(self, code, section, name, data, hold=bool(hold))
 
     def read_section_file(self, code, name):
         """GET /api/section-file?project=&name= (#1221): (status, body) for one listed file of the project (section_files.read)."""

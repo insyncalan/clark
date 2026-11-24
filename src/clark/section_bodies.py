@@ -24,12 +24,13 @@ The plug-in points (a later item changes only these, never store.py, changes.py 
 - EMPTY[type]: the body a new section of that type starts with. Chosen by the store, never taken from the request.
 - LIMITS[type]: the most bytes the stored text may take.
 - published(type, value, ctx): what a published file carries of a checked body (a dict that is merged into the section's entry),
-  or None to leave the section out. Needs publishes its shown rows; the tracker publishes nothing of its content yet (see published).
+  or None to leave the section out. Needs publishes its shown rows; the tracker publishes its size, overall, columns and groups (see published).
 
 A section template (#96) is NOT added here: each one is a module in section_kinds/ (its READY, LIMIT, EMPTY, check and
 published; the contract is section_kinds/base.py), and the tables below are built from that registry, which is filled with all
 eighteen types up front. A template's builder changes only its own module.
 """
+import copy
 import json
 import re
 import unicodedata
@@ -144,6 +145,79 @@ def _clean_rich(kind, value, strict=True):
             if strict:
                 raise Bad(RICH_TOO_LONG) from None
             out[k] = ""                      # at publish: a text that cannot be cleaned is left out, the rest of the section stays
+    return out
+
+
+# Row 1288 (part c): a line that held plain text before and is the one rich editor now (a picture's caption, a RAID card's own words).
+# Stored as clean HTML; its words, on one line, are what every checker below and every published() sees, so each limit and rule is the
+# one it always had and the file, the page and the exports carry words, never markup. Only HTML is stored as HTML; an older plain text stays plain
+# until it is changed, and is read as the same words (sanitise.flat_line) at publish. Paths: "*" is each value of an object or each item of a list.
+RICH_LINES = {"textimage": (("caption",),), "imagecap": (("caption",),), "gallery": (("items", "*", "caption"),),
+              "raid3": (("cards", "*", "own"),), "raid4": (("cards", "*", "own"),)}
+LINE_HTML_MAX = 2000                     # characters of one line's HTML once cleaned (raid3.OWN_HTML_MAX is the same number: its byte limit follows it)
+_GONE = object()
+
+
+def _line_paths(kind, value):
+    """Every place in `value` where a RICH_LINES text of `kind` sits, as a tuple of keys and indexes."""
+    found = []
+
+    def walk(node, path, rest):
+        if not rest:
+            found.append(path)
+        elif rest[0] == "*":
+            for k in (list(node) if type(node) is dict else range(len(node)) if type(node) is list else ()):
+                walk(node[k], path + (k,), rest[1:])
+        elif type(node) is dict and rest[0] in node:
+            walk(node[rest[0]], path + (rest[0],), rest[1:])
+
+    for spec in RICH_LINES.get(kind, ()):
+        walk(value, (), spec)
+    return found
+
+
+def _get(node, path):
+    for k in path:
+        try:
+            node = node[k]
+        except (KeyError, IndexError, TypeError):
+            return _GONE
+    return node
+
+
+def _flat_lines(kind, value, strict):
+    """(`value` with each rich line as its words on one line, {path: clean HTML}). strict (a save): a text over LINE_HTML_MAX or that
+    cannot be cleaned is Bad. Not strict (a publish): such a text is left out, the rest stays. A value that is not text is left for
+    the module to refuse."""
+    paths = _line_paths(kind, value)
+    if not paths:
+        return value, {}
+    flat, kept = copy.deepcopy(value), {}
+    for path in paths:
+        text = _get(value, path)
+        if not isinstance(text, str) or not sanitise.HTML_START.match(text):
+            continue                         # plain text (an older save, or a caller that sends words) is checked and stored as it always was
+        try:
+            html = re.sub(r"[\r\n]+", " ", sanitise.rich_or_plain(text))      # as _clean_rich: a line feed left in the HTML would be refused by the next check
+        except sanitise.SanitiseError:
+            if strict:
+                raise Bad(RICH_TOO_LONG) from None
+            html = ""
+        if len(html) > LINE_HTML_MAX:
+            if strict:
+                raise Bad(RICH_TOO_LONG)
+            html = ""
+        _get(flat, path[:-1])[path[-1]] = sanitise.flat_line(html)
+        if html:
+            kept[path] = html
+    return flat, kept
+
+
+def _put_lines(out, kept):
+    """`out` (what a checker built from the words) with the clean HTML back in each line the checker kept."""
+    for path, html in kept.items():
+        if isinstance(_get(out, path), str) and _get(out, path):
+            _get(out, path[:-1])[path[-1]] = html
     return out
 
 
@@ -467,14 +541,15 @@ def check(kind, body, rules, stored=None):
         raise Bad(NOT_SAVED_YET)
     if body is None or body == "":
         return ""
-    value = _clean_rich(kind, _generic(body, kind, rules))
-    kept = ()
+    flat, kept = _flat_lines(kind, _clean_rich(kind, _generic(body, kind, rules)), True)
+    kept_entries = ()
     if kind == "doclinks" and isinstance(stored, str) and stored:
         try:
-            kept = TEMPLATES[kind].kept_entries(_generic(stored, kind, rules), rules)
+            kept_entries = TEMPLATES[kind].kept_entries(_generic(stored, kind, rules), rules)
         except Bad:
-            kept = ()
-    value = checker(value, rules, kept) if kept else checker(value, rules)
+            kept_entries = ()
+    value = checker(flat, rules, kept_entries) if kept_entries else checker(flat, rules)
+    value = _put_lines(value, kept)
     if type(value) not in (dict, list):
         raise Bad(NOT_READABLE)          # a checker that hands back something else is a fault, never stored
     text = canonical(value)
@@ -509,17 +584,21 @@ def _published_tracker(value):
         lines = [x for x in (_published_tracker_line(l) for l in g["lines"]) if x]
         if lines:
             groups.append({"name": g["name"], "lines": lines})
-    if not groups:
-        return None
     o, cols = value.get("overall"), value.get("columns")
     o = o if type(o) is dict else {}
+    typed = {"actual": o.get("actual") if type(o.get("actual")) is int else None,
+             "planned": o.get("planned") if type(o.get("planned")) is int else None,
+             "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
+             "note": o.get("note") if isinstance(o.get("note"), str) else ""}
+    if groups:                                  # row 1420: with lines the overall is what the page shows, the sums of the lines (logic/tracker.js totals), never the typed figures
+        for key, name in (("actual", "achieved"), ("planned", "planned")):
+            typed[key] = sum(l[name] for g in groups for l in g["lines"] if type(l[name]) is int)
+    elif typed["actual"] is None and not typed["health"] and not typed["note"]:
+        return None                             # the page draws nothing for it (components/Tracker.jsx), so the file leaves it out
     cols = cols if type(cols) is dict else {}
     size = value.get("size")
     return {"size": size if size in TRACKER_SIZES else "medium",
-            "overall": {"actual": o.get("actual") if type(o.get("actual")) is int else None,
-                        "planned": o.get("planned") if type(o.get("planned")) is int else None,
-                        "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
-                        "note": o.get("note") if isinstance(o.get("note"), str) else ""},
+            "overall": typed,
             "columns": {k: cols.get(k) is True for k in TRACKER_COLUMNS}, "groups": groups}
 
 
@@ -531,8 +610,10 @@ def published(kind, value, ctx=None):
     DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
     tracker (#189, #930): {"size", "overall", "columns", "groups"}, `size` one of the four words (Medium when the body has none): each group that has at least one line shows, with its lines (a group with no line is
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
-    None when no group has a line. Totals are never published: the page works them out."""
+    None when no group has a line and the page would draw nothing for it. `overall` is what the page shows (row 1420): with lines the sums of
+    the lines' achieved and planned, else the typed figures; its health word and note are as typed."""
     if kind in TEMPLATES:
+        value = _flat_lines(kind, value, False)[0]            # row 1288: a caption or a card's own words go to the file as words on one line
         value = _clean_rich(kind, value, strict=False)       # cleaned AGAIN: what is stored is never trusted at publish; a text too long to clean is left out, not the whole section
         out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
         return out if isinstance(out, dict) and out else None

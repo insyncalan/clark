@@ -92,7 +92,15 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
 
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
+    "Indexing… 42%": "the folder status line while it reads, built from the counts (ask_index.line_for, #1366, #1371)",
+    "100% indexed. 242 files could not be read": "the folder status line when it is done, built from the counts (ask_index.done_line, #1366, #1371)",
+    "No files to index": "the folder status line when no file can be read (ask_index.done_line, #1371)",
+    "of a type clark can't read yet": "a reason in the list the (why) link opens (ask_index.REASON_TYPE, #1366)",
+    "is a PDF that is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG_PDF, #1366)",
+    "is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG, #1366)",
+    "is a picture and this computer cannot read pictures": "a reason in the list the (why) link opens (ask_index.REASON_PICTURE, #1366)",
+    "looks like a password or a key": "a reason in the list the (why) link opens (ask_index.REASON_SAFETY, #1366)",
+    "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
@@ -144,7 +152,7 @@ class WhatIsShownIsOnThePage(unittest.TestCase):
         """A word excused as computed must still be quoted by a shown entry, or it is stale."""
         every = json.dumps(SHOWN, ensure_ascii=False)
         for w in COMPUTED:
-            self.assertIn(w, every)
+            self.assertIn(w, re.sub(r"[\u2018\u2019]", "'", every))
 
     def test_the_check_fails_on_a_made_up_label(self):
         bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see “Widget zone”."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}

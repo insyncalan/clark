@@ -1,4 +1,4 @@
-"""Row 1005 by eye: the Movement Who agreed it / Reason / Source and the RAID Own words, on the one editor, in a real browser.
+"""Row 1005 by eye: the Movement Who agreed it / Reason / Source and the RAID Own words (row 1288: the Full editor), on the one editor, in a real browser.
 
 Run: python3 dev/run_tests.py test_p1005b_eye        (set CLARK_SHOTS_1005B=<folder> to save a screenshot of each state)
 Own words is kept at 400 characters (OWN_MAX). Over it the editor stays open, and now says so in the editor's own words (the same words
@@ -8,6 +8,7 @@ Fictional data only.
 import base64
 import json
 import os
+import sys
 import time
 import unittest
 from pathlib import Path
@@ -111,7 +112,7 @@ class Raid(PageBase):
             p.until(f"!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')", "the message goes once the text changes")
             snap(p, "raid-400", ".rce-own")
             p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored() == "w" * 399 + "x"), "400 characters save")
+            self.assertTrue(self.wait_for(lambda: self.stored() == "<p>" + "w" * 399 + "x</p>"), "400 characters save (as the editor's HTML: row 1288)")
             p.until(f"!document.querySelector({json.dumps(box)})", "closed after the save")
             # long, unbroken text stays inside the card at both widths
             self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
@@ -131,7 +132,8 @@ class Raid(PageBase):
                 self.assertLess(p.js("Math.max.apply(null, [...document.querySelectorAll(%s)].map(function(e){return e.getBoundingClientRect().height}))" % json.dumps(sel)), 60, w)
                 self.assertGreater(p.js("document.querySelector(%s).getBoundingClientRect().width" % json.dumps(f"[data-id={json.dumps(self.sec)}] .rce-own .rt")), 400, w)
 
-    def test_a_paste_with_paragraphs_is_one_plain_line_and_escape_keeps_the_old_words(self):
+    def test_a_paste_with_paragraphs_keeps_them_and_escape_keeps_the_old_words(self):
+        """Row 1288: Own words is the Full editor: pasted paragraphs stay paragraphs and are saved as HTML; Escape saves nothing."""
         self.seed("Old words")
         with chrome() as cdp:
             p, view, box = self.open_editor(cdp)
@@ -140,21 +142,46 @@ class Raid(PageBase):
             p.js("document.querySelector(%s).cxed.editor.commands.setContent('')" % json.dumps(box))
             paste(p, box, PARAS, "First paragraph of the reason.\n\nSecond paragraph, agreed on a call.\n\nThird.")
             p.until(f"document.querySelector({json.dumps(box)}).textContent.includes('Third.')", "the paste is in the editor")
-            self.assertEqual(p.js(f"document.querySelector({json.dumps(box)}).querySelectorAll('p').length"), 1, "as one line: a one-line field has no paragraphs")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(box)}).querySelectorAll('p').length"), 3, "the paragraphs stay")
             snap(p, "raid-paste", ".rce-own")
             p.key("Escape", code="Escape", vk=27)
             p.until(f"!document.querySelector({json.dumps(box)})", "Escape closed the editor")
             self.assertEqual(self.stored(), "Old words", "Escape saves nothing")
             p.until(f"document.activeElement === document.querySelector({json.dumps(view)})", "the focus is back on the field")
-            # keyboard: Enter opens, type, Cmd+Enter saves, focus returns
             p.key("Enter", code="Enter", vk=13)
             p.until(f"!!document.querySelector({json.dumps(box)})", "Enter opened it")
+            p.js("document.querySelector(%s).cxed.editor.commands.setContent('')" % json.dumps(box))
             paste(p, box, PARAS, "x")
             p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: "First paragraph of the reason. Second paragraph, agreed on a call. Third." in self.stored()), self.stored())
-            self.assertNotIn("\n", self.stored())
+            self.assertTrue(self.wait_for(lambda: self.stored() == PARAS), self.stored())
             p.until(f"document.activeElement === document.querySelector({json.dumps(view)})", "the focus is back after the save")
             snap(p, "raid-saved")
+
+    def test_own_words_is_the_full_editor_and_saves_its_html(self):
+        """Row 1288: an older plain value is shown as the same words and left alone; the toolbar and Ctrl+B are there; one Undo puts it back."""
+        self.seed("Old words")
+        with chrome() as cdp:
+            p, view, box = self.open_editor(cdp)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js(f"document.querySelector({json.dumps(view)}).click()")
+                p.until(f"document.activeElement === document.querySelector({json.dumps(box)})", "opened")
+                self.assertEqual(p.js("document.activeElement.innerText.trim()"), "Old words", f"{w}: shown as the same words")
+                self.assertTrue(p.js("!!document.querySelector('.rt-bar [aria-label=\"Bold\"]')"), f"{w}: the Full toolbar")
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"!document.querySelector({json.dumps(box)})", "closed")
+                self.assertEqual(self.stored(), "Old words", f"{w}: opening and leaving changes nothing")
+            p.js(f"document.querySelector({json.dumps(view)}).click()")
+            p.until(f"document.activeElement === document.querySelector({json.dumps(box)})", "opened")
+            p.js("document.activeElement.cxed.editor.commands.setContent('<p>x</p>'); document.activeElement.cxed.editor.commands.selectAll()")
+            p.key("b", modifiers=4 if sys.platform == "darwin" else 2, code="KeyB", vk=66)   # the editor's Mod-b: Cmd on macOS, Ctrl elsewhere
+            self.assertTrue(p.js("!!document.activeElement.querySelector('strong, b')"), "Ctrl+B makes bold")
+            p.js("document.activeElement.cxed.editor.commands.setContent(%s)" % json.dumps(PARAS))
+            p.key("Enter", modifiers=2, code="Enter", vk=13)
+            self.assertTrue(self.wait_for(lambda: self.stored() == PARAS), "saved as the editor's HTML")
+            p.until("!!document.querySelector('.toast [data-undo]')", "the Undo is offered")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.assertTrue(self.wait_for(lambda: self.stored() == "Old words"), "one Undo puts the older words back")
 
     def test_forty_items_of_long_words_stay_inside_the_page(self):
         """A card row holds three cards at most, so the forty are the items the card's item list offers."""

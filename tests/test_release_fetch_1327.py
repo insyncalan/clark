@@ -443,7 +443,8 @@ class QuietLookTest(Served2):
         for text in (up.FETCH_OFFLINE, up.FETCH_BAD, up.FETCH_CANCELLED, up.NO_LATEST):
             with self.subTest(text=text):
                 self.assertNotRegex(text.lower(), r"sign|zip|manifest|sha|/|\\")
-                self.assertNotRegex(text, r"^clark")
+                if text != up.FETCH_OFFLINE:      # Row 1327 table row 7 (comment 7016158346) is the approved offline sentence, and it begins "clark"
+                    self.assertNotRegex(text, r"^clark")
 
 
 class DownloadFlowTest(Served2):

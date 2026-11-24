@@ -63,7 +63,7 @@ APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
 MAX_REPLIES = 20
 PASSAGE_SHOWN = 600        # characters of a source passage shown beside a change that came from it
-PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
+PROJECT_SHARE = ask.BUDGET // 2      # characters of the budget the project's own data may take (row 1508: half of it, 600,000 on main); the folders get the rest
 
 
 class Started(threading.Event):
@@ -121,12 +121,16 @@ class AskService:
 
     def folders_for(self, store, code):
         """The folders a question in project `code` may read (row 1294): those for all projects first, then the project's own, at most ask_folders.MAX_FOLDERS."""
-        own = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+        own = ask_folders.readable_paths([r for r in store.read("source_folders", code) if r.get("project", code) == code])      # row 1365: a folder with a people or contract word in a name is read only after Accept
         out = []
         for p in [*ask_folders.shared_folders(self.data_dir), *own]:
             if p not in out:
                 out.append(p)
         return out[:ask_folders.MAX_FOLDERS]
+
+    def left_out_for(self, store, code):
+        """{saved folder: its stored list of left-out subfolders} for the project's own folders (row 1365). The folders for all projects have none."""
+        return {r["path"]: r.get("excluded") for r in store.read("source_folders", code) if r.get("project", code) == code}
 
     def reader(self):
         """The store, opened read-only (a write through it fails in SQLite itself)."""
@@ -315,6 +319,7 @@ class AskService:
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                cut_subs = self.left_out_for(store, code)
                 on_connectors = tuple(c for c in CONNECTORS if store.connector_allowed(c, code))      # row 1306: switch On and the project has not turned it Off
                 standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
@@ -322,16 +327,16 @@ class AskService:
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
             room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
-            if folders and self.indexer is not None and self.indexer.current(code, folders):
-                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room)
+            if folders and self.indexer is not None and self.indexer.current(code, folders) and not any(v not in (None, "", "[]", []) for v in cut_subs.values()):
+                found = ask_index.folder_data(self.data_dir, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), budget_left - used, room)      # the index knows no left-out subfolder: with one set, the folders are read directly; a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
-                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room)
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs)
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
                                         today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
-                                        max_request=ask.request_cap(window))
+                                        max_request=ask.request_cap(window), files=len(added))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -359,7 +364,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), ask_data.partial_answer(question, data.counts), *folder_notes(found),
                              *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
@@ -418,12 +423,15 @@ class AskService:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                cut_subs = self.left_out_for(store, code)
             finally:
                 store.close()
         for folder in folders:
             if Path(str(folder)).name != parts[0]:
                 continue
             path = Path(str(folder)).joinpath(*parts[1:])
+            if ask_passages.left_out_path(path, cut_subs, self.home):      # row 1365: a file in a subfolder left out is not opened either
+                continue
             try:
                 kind, _why = reach.classify(path, "read", folders, self.data_dir, self.home)
                 url = pdf_link.pdf_url(path, page, folders)

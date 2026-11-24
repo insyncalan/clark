@@ -11,7 +11,7 @@ import unittest
 import zlib
 
 from _pictures import EXIF, GOOD_JPEG, GOOD_WEBP, data, jpeg, png
-from clark.section_kinds import imagecap as fi
+from clark.section_kinds import gallery, imagecap as fi
 from clark.section_kinds.base import Bad
 from clark.section_kinds.textimage import BAD_SLOT, CAMERA_DETAILS, NOT_A_PICTURE
 
@@ -179,7 +179,7 @@ class Refusals(unittest.TestCase):
             fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
         said.append(str(e.exception))
         for words in said:
-            self.assertNotIn("picture", words.lower())
+            self.assertNotIn("picture", words.lower().replace("add a picture", ""))     # the button keeps its words
             self.assertIn("image", words)
         with self.assertRaises(Bad) as e:
             fi.check({"v": 1, "pictures": {"image": "data:image/gif;base64,R0lGODlhAQABAAAAACw="}}, None)
@@ -352,6 +352,15 @@ class Published(unittest.TestCase):
         self.assertEqual((got["caption"], got["alt"], got["fit"], got["fill"]), ("Fictional view", "Two blocks", "stretch", "plain"))
         self.assertEqual(fi.published(made(halves(40, 10)), None)["content"]["caption"], "")
 
+    def test_an_image_with_no_description_still_publishes(self):
+        body = made(halves(40, 10))
+        self.assertNotIn("alt", body, "no description was typed")
+        got = fi.published(body, None)
+        self.assertIsNotNone(got, "nothing blocks it")
+        self.assertEqual(got["content"]["alt"], "", "an empty description: read as decoration, never invented")
+        self.assertTrue(got["content"]["image"].startswith("data:image/png;base64,"), "the one image is in the published content")
+        self.assertEqual(fi.check({**body, "alt": ""}, None).get("alt", ""), "")
+
     def test_the_module_keeps_the_contract(self):
         self.assertTrue(fi.READY)
         self.assertEqual(fi.EMPTY, "")
@@ -409,8 +418,9 @@ class Limits(unittest.TestCase):
 
     def test_the_server_route_takes_what_this_type_may_send(self):
         from clark import server
-        self.assertEqual(server.IMAGE_FILE_MB * 1024 * 1024, fi.PICTURE_MAX)
-        self.assertGreater(server.ROUTE_BODY_LIMITS["/api/section-image"], fi.PICTURE_MAX * 4 // 3 + server.REQUEST_ENVELOPE)
+        self.assertEqual(server.IMAGE_FILE_MB * 1024 * 1024, gallery.PICTURE_MAX, "the route is sized for the gallery, the largest send")
+        self.assertLess(fi.PICTURE_MAX, server.IMAGE_FILE_MB * 1024 * 1024, "the Image template refuses over its own 8 MiB")
+        self.assertGreater(server.ROUTE_BODY_LIMITS["/api/section-image"], gallery.PICTURE_MAX * 4 // 3 + server.REQUEST_ENVELOPE)
         self.assertGreater(server.BODY_LIMIT, 0)
 
     def test_the_stored_body_limit_is_this_types(self):

@@ -79,12 +79,13 @@ UNDO_STOPPED_ASIDE = ("The undo couldn't start. Your data was put back as it was
                       "clark again. Ask for help if your latest changes are missing.")
 UNDO_DONE = "Version {to} has been put back. Your projects are as they were."
 CHOOSE_PROMPT = "Choose the clark update file"
-FETCH_OFFLINE = "You are offline, so clark can't look for the newest version."
+FETCH_OFFLINE = "clark could not reach the releases page. Check your connection, or use a file you downloaded."
 FETCH_BAD = "The check did not finish. Try again."
 FETCH_NOFILE = "No download for this computer was found, or the releases page gave an answer clark could not read. Try again later."
-FETCH_TOOBIG = "The download was refused because it is too big or damaged. Nothing was changed. Try again."
+# Row 1327 (the approved table, row 8): one sentence for a download that failed its check; the page titles the row "The download failed its check".
+FETCH_TOOBIG = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
 FETCH_CHECK = updates.MESSAGES["badsig"]       # a download whose signature is missing or does not verify (1.3.4 and up)
-FETCH_MISMATCH = "The download does not match what the releases page lists, so clark did not use it. Nothing was changed. Download again."
+FETCH_MISMATCH = FETCH_TOOBIG
 # A refusal of the review that runs on a downloaded file, by its code: damaged bytes say (b), a file that is not what the page lists
 # (a signature, a version, a system, a name) says (c); a failure inside this computer (space, folder) is the plain check sentence.
 REVIEW_DAMAGED = ("damaged", "incomplete", "unreadable", "toodeep", "link", "unsafe")

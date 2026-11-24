@@ -7,7 +7,9 @@ import { Icon } from "./Icon.jsx";
 import { moves } from "../stores/report.js";
 
 // The items a key can move between: every item that is not disabled.
-export const menuItemsIn = (box) => (box ? [...box.querySelectorAll("[role^=menuitem]")].filter((b) => b.getAttribute("aria-disabled") !== "true" || b.hasAttribute("data-keep")) : []);      // data-keep: a disabled row that stays reachable by the keys so its reason is read out (the client menu)
+const classicLook = () => typeof document !== "undefined" && !!document.getElementById("theme");      // row 1286: the scroll changes below are Classic only (Cards is frozen)
+
+export const menuItemsIn = (box) => (box ? [...box.querySelectorAll("[role^=menuitem]")].filter((b) => (b.getAttribute("aria-disabled") !== "true" || b.hasAttribute("data-keep")) && (!b.classList.contains("pr") || b.tabIndex === 0)) : []);      // data-keep: a disabled row that stays reachable by the keys so its reason is read out (the client menu)
 
 // Up, Down (wrapping), Home and End between `items`: true when the key was one of them (it is then used up).
 export function menuMove(e, items) {
@@ -19,7 +21,7 @@ export function menuMove(e, items) {
   else if (e.key === "End") to = items[items.length - 1];
   else return false;
   e.preventDefault(); e.stopPropagation();
-  if (to) to.focus({ preventScroll: true });
+  if (to) { to.focus({ preventScroll: true }); if (classicLook()) to.scrollIntoView({ block: "nearest" }); }
   return true;
 }
 
@@ -49,7 +51,7 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
-    const shut = () => closeRef.current("away");
+    const shut = (e) => { if (classicLook() && e && e.type === "scroll" && el.contains(e.target)) return; closeRef.current("away"); };       // the menu's own scrolling (a key moving the focus) keeps it open
     window.addEventListener("scroll", shut, true);
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
@@ -127,11 +129,27 @@ function groupedItems(items, menuId) {
       const kids = [];
       let j = i + 1;
       while (items[j] && items[j].checked !== undefined) kids.push(items[j++]);
-      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, caps: it.caps, items: kids });
+      out.push({ group: true, row: !!it.row, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, caps: it.caps, items: kids });
       i = j - 1;
     } else out.push({ item: it });
   }
   return out;
+}
+
+// Row 1281: one radio of the pill (System | Light | Dark), a menuitemradio inside a role=group (the menu pattern). The chosen one (the first when none is chosen,
+// as a stored mode outside the three) is the pill's one stop for Up and Down; Left and Right go to the next or the
+// previous radio, wrapping, and choose it (the menu stays open); Home and End choose the first or the last radio of the pill (ticket AP6); a click chooses it and closes the menu, as the three rows did.
+function pillRadio(it, stop, close, onPick) {
+  const move = (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;   // Alt+Left is the browser's Back, Ctrl+Home the page's top: not the pill's keys, so no choice and no preventDefault
+    const k = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, edge = e.key === "Home" ? 0 : e.key === "End" ? -1 : null;
+    if (!k && edge === null) return;
+    const all = [...e.currentTarget.parentNode.querySelectorAll(".pr")], to = edge !== null ? all.at(edge) : all[(all.indexOf(e.currentTarget) + k + all.length) % all.length];
+    e.preventDefault(); e.stopPropagation();
+    to.focus({ preventScroll: true });
+    onPick(to.dataset.kind);
+  };
+  return <button key={it.id} type="button" role="menuitemradio" class="pr" aria-checked={it.checked ? "true" : "false"} tabIndex={it === stop ? 0 : -1} data-kind={it.id} onKeyDown={move} onClick={() => { close("pick"); onPick(it.id); }}>{it.name}</button>;
 }
 
 // One entry of the menu: a separator, the top line, a line of words, or a command or radio item.
@@ -142,6 +160,7 @@ function entry(it, close, onPick) {
       {it.icon ? <Icon name={it.icon} cls="mi" /> : null}
       {it.checked === undefined || it.pill ? null : <span class="ck" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
       {it.pill ? <span class={`hpill ${it.pill}`}>{it.name}</span> : it.word ? <span class={`ucword rag-${it.word}`}><i class="ragdot" aria-hidden="true"></i>{it.name}</span> : it.line ? <span><b>{it.name}</b><small>{it.line}</small></span> : it.name}
+      {it.aside ? [" ", <span key="v" class="hver">{it.aside}</span>] : null}
       {it.pill && it.checked ? <Icon name="check" cls="hck" /> : null}
     </button>
   );
@@ -178,7 +197,11 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
       {(open || leaving) && menu ? (
         <MenuPanel key={gen.current} leaving={leaving} onGone={gone} label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
           {groupedItems(items, menuId).map((n) => n.group
-            ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
+            ? n.row ? <div key={n.id} class="ap" role="group" aria-labelledby={n.labelId}>
+                <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>
+                <div class="ptrack" role="presentation">{n.items.map((it) => pillRadio(it, n.items.find((x) => x.checked) || n.items[0], close, onPick))}</div>
+              </div>
+            : <div key={n.id} role="group" aria-labelledby={n.labelId}>
                 <div class={n.caps ? "lab caps" : "lab"} role="presentation" id={n.labelId}>{n.lab}</div>
                 {n.items.map((it) => entry(it, close, onPick))}
               </div>

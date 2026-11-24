@@ -5,8 +5,8 @@
 // Row 1078 (the owner's rulings): the work item peek's format. The name is the title (PeekMilestoneTitle in PeekHead.jsx, drawn in the h2 by Peek.jsx).
 // Row 1184: under it the chip row (components/PeekMilestoneChips.jsx: State, Owner, Progress, Forecast date; their popovers are msChipPop below), the
 // Latest update box (PeekMsLatest) above Details, then the rows Description, Agreed date (read only), Achieved on (an achieved milestone's alone),
-// Workstream, Use case (one link, through the use cases' own msadd and msremove), Client wording (greyed while the milestone is not shown to the client)
-// and the Client visible line. Description and Client wording are on the one rich editor (item 1005).
+// Workstream, Use case (one link, through the use cases' own msadd and msremove), Client Message (greyed while the milestone is not shown to the client)
+// and the Client visible line. Description and Client Message are on the one rich editor (item 1005).
 import { classicTheme } from "../components/Contents.jsx";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
@@ -52,27 +52,27 @@ const said = (m, field, now, text) => (now == null || now === "" ? `${field} of 
 const asHtml = (value) => { try { return richOrPlain(value || ""); } catch (e) { return "<p>" + String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } };
 function Description({ m }) {
   const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
-  return <RichField field="description" id={m.id} value={asHtml(m.description)} label="Description" empty="Add description" save={put} />;
+  return <RichField field="description" id={m.id} value={asHtml(m.description)} label="Description" empty="Add description" save={put} oneLine />;
 }
-// Client wording: on the editor while the milestone is shown to the client; greyed and not clickable while it is not (the Client visible line turns it on).
+// Client Message: on the editor while the milestone is shown to the client; greyed and not clickable while it is not (the Client visible line turns it on).
 function ClientWording({ m, on }) {
-  const put = (value) => save(m, { client_message: value }, richWords(value).trim() ? `Client wording of ${m.id} changed.` : `Client wording of ${m.id} cleared.`);
+  const put = (value) => save(m, { client_message: value }, richWords(value).trim() ? `Client Message of ${m.id} changed.` : `Client Message of ${m.id} cleared.`);
   if (!on) {
     return (
       <>
-        <span class="pk-off" data-ms-wording-off tabIndex={0} aria-disabled="true" title="Turn on Client visible to edit">{richWords(m.client_message || "").trim() || "Add client wording"}</span>
+        <span class="pk-off" data-ms-wording-off tabIndex={0} aria-disabled="true" title="Turn on Client visible to edit">{richWords(m.client_message || "").trim() || "Add client message"}</span>
         <span class="muted pk-hint" data-ms-wording-hint> not shown to the client</span>
       </>
     );
   }
-  return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client wording" empty="Add client wording" save={put} />;
+  return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client Message" empty="Add client message" save={put} />;
 }
 
 // Item 1185, row 1184: the milestone's Latest update, the work item peek's box (PeekLatest.jsx LatestBox) above Details, with its history. One change, one Undo.
 export function PeekMsLatest({ m }) {
   const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
   const shown = isOn(m);
-  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} placeholder="What changed? Add the latest update…" />;
+  return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
@@ -267,7 +267,7 @@ export function MilestoneEdit({ m }) {
         {state === "Achieved" ? <Row name="Achieved on" k="actual" icon="cal"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
         <Row name="Workstream" k="workstream" icon="board"><Workstream m={m} /></Row>
         <Row name="Use case" k="use_cases" icon="flag"><UseCase m={m} /></Row>
-        <Row name="Client wording" k="client_message" icon="doc"><ClientWording m={m} on={on} /></Row>
+        <Row name="Client Message" k="client_message" icon="doc"><ClientWording m={m} on={on} /></Row>
         <div class="pk-row" data-pk-client-row data-ms-row="visible"><dd><MsClientLine m={m} /></dd></div>
       </dl>
     </PeekDetails>
