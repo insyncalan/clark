@@ -125,9 +125,16 @@ class Editor(unittest.TestCase):
             palette = {(0x46, 0x35, 0xB8), (0x7C, 0x4D, 0xFF), (0x2F, 0x7D, 0x4A), (0x3B, 0x6F, 0xD4), (0xB7, 0x79, 0x1F), (0x9E, 0x7B, 0xFF)}
             for w in WIDTHS:
                 self.show_editor(h, w)
-                grab = ("[...document.querySelectorAll(%s)].filter(e => !e.hasAttribute('data-rt-bubble-ai')).flatMap(e => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.borderTopColor]; })")
+                # Exempt, by name: the Ask AI button (its own brand colour) and the Font colour control (row 1364; ruling 24-11 05:0x). Nothing else may carry a colour.
+                grab = ("[...document.querySelectorAll(%s)].filter(e => !e.hasAttribute('data-rt-bubble-ai') && e.getAttribute('aria-label') !== 'Font colour').flatMap(e => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.borderTopColor]; })")
                 seen = {}
                 seen["toolbar"] = h.ev(grab % json.dumps(".rt-bar .rt-btn, .rt-bar .rt-sep"))
+                # The Font colour control is the ONLY coloured control: it is named once in the bar, and with a colour chosen its underline is the only coloured edge there.
+                self.assertEqual(h.ev("document.querySelectorAll(\".rt-bar [aria-label='Font colour']\").length"), 1, f"{w}: one Font colour button")
+                h.ev("document.querySelector('.rt-bar .rt-A').setAttribute('data-colour', 'red'); true")
+                coloured = h.ev("[...document.querySelectorAll('.rt-bar .rt-btn, .rt-bar .rt-A')].filter(e => { const c = getComputedStyle(e).borderBottomColor.match(/\\d+/g).map(Number); return Math.max(...c.slice(0, 3)) - Math.min(...c.slice(0, 3)) > 60; }).map(e => e.className.split(' ')[0] + ':' + (e.getAttribute('aria-label') || e.textContent))")
+                self.assertEqual(coloured, ["rt-A:A"], f"{w}: the Font colour underline is the only coloured control: {coloured}")
+                h.ev("document.querySelector('.rt-bar .rt-A').removeAttribute('data-colour'); true")
                 h.ev("document.querySelector('.rt-bar .rt-style').click(); true")
                 self.assertTrue(h.until("!!document.querySelector('.rt-bar [role=menu]')"), f"{w}: style menu")
                 seen["style menu"] = h.ev(grab % json.dumps(".rt-bar [role=menu], .rt-bar [role=menu] [role=menuitemradio], .rt-bar [role=menu] .mi, .rt-bar [role=menu] .ck"))
