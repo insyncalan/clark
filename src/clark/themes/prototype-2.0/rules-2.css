@@ -289,3 +289,13 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
+#peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: #55677A; }
+#peek .pk-latest-client svg { width: 18px; height: 18px; color: #0A8F9C; }
+#peek .pk-lh-btn { font-size: 13px; font-weight: 600; color: var(--brand-blue); border-radius: 8px; }
+#peek .pk-lh-btn .pk-lh-car { width: 16px; height: 16px; }      /* the 16px chevron rules.css gives it (that rule's selector `.pk-lh-car svg` matches nothing: the icon is the .pk-lh-car element itself, 14px) */
+#peek .pk-lh-btn:hover { background: var(--brand-blue-tint); }
+#peek .pk-lh-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+:root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
+:root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
