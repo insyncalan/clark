@@ -847,6 +847,19 @@ def projects_route(handler):
     return handler.send(200, {"ok": True, "projects": out})
 
 
+def projects_overview_route(handler):
+    """GET /api/projects-overview (row 1299 slice 2): what the Projects overview draws, read only (overview_read.py). No parameter and no
+    body are accepted (400). It is not in SAVE_PATHS and reads no work item."""
+    if urlsplit(handler.path).query or handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    overview_read = importlib.import_module("clark.overview_read")      # server.py imports no clark module at its top (the same way as clark.brands below)
+    try:
+        body = overview_read.overview(handler.server)
+    except Busy as e:
+        return handler.send(503, {"ok": False, "message": str(e), "code": "restore_busy"})
+    return handler.send(200, body)
+
+
 def use_cases_route(handler):
     """GET /api/use-cases?project=<CODE>: the project's use cases for the Use Cases page (#163), read only. The one parameter is
     checked like data_route's; any other is refused. Without a reader (the server was given none) the route does not exist: 404
@@ -1465,7 +1478,7 @@ class BrandLibrary:
         return self._run(lambda lib: (lib.undo(self.root, self.data), {})[1])
 
 
-GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
+GET_ROUTES = {"/api/projects": projects_route, "/api/projects-overview": projects_overview_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
