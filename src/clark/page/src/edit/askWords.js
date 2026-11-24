@@ -384,6 +384,7 @@ const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 /** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
 export function READ_LINE(read) {
   if (!read || typeof read !== "object") return "";
+  if (Number.isInteger(read.left_out) && read.left_out > 0 && Number.isInteger(read.items) && read.items >= 0) return `${read.items} ${read.items === 1 ? "item" : "items"} read, ${read.left_out} left out.`;      // row 1294: a project cut to fit the limit says how many were read and how many were left out (the ruled line)
   const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
     .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
   if (!parts.length) return "";
