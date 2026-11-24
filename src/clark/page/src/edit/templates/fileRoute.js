@@ -7,8 +7,9 @@ import { zoneFetch } from "../../api.js";
 import { say } from "../../stores/changes.js";
 import { openInNewTab } from "../../router.js";
 import { fileReader } from "../../templates/DocLinks.jsx";
+import { DROP_ONE, DROP_TOO_BIG, DROP_UNREAD, DROP_MAX_BYTES } from "../../logic/docLinksWords.js";
 
-const KNOWN = [200, 400, 404, 409];
+const KNOWN = [200, 400, 404, 409];      // the drop route answers 400 for too_big and a drop it could not read, in the same shape
 
 // The words for a reply that did not add a file.
 export function fileWords(status, body) {
@@ -34,6 +35,40 @@ export async function chooseFile(id) {
   } catch (e) { status = 0; }
   if (status === 200 && body && body.ok === true) {
     if (body.cancelled) return "cancelled";
+    await reread(code);
+    say("done", typeof body.message === "string" && body.message ? body.message : "File added.", body.apply_id || null, code);
+    return "added";
+  }
+  say("problem", fileWords(status, body));
+  return "refused";
+}
+
+// Row 1275: a file dropped on the Documents and links area. `drop` is the browser's DataTransfer. Refused whole, with nothing sent,
+// when it holds more than one file or a folder, or one over 25 MB; otherwise one POST of the raw bytes (the same token header as every
+// write; the project, the section and the URL-encoded name in headers) to /api/section-file-drop, and the same toast and Undo as the file
+// window's. Resolves to "added" or "refused".
+export async function dropFile(id, drop) {
+  const code = project.value;
+  const list = Array.from((drop && drop.files) || []);
+  const items = Array.from((drop && drop.items) || []);
+  const folder = items.some((i) => { const e = typeof i.webkitGetAsEntry === "function" ? i.webkitGetAsEntry() : null; return !!e && e.isDirectory; });
+  if (list.length !== 1 || items.length > 1 || folder) { say("problem", DROP_ONE); return "refused"; }
+  const file = list[0];
+  if (file.size > DROP_MAX_BYTES) { say("problem", DROP_TOO_BIG); return "refused"; }
+  let bytes;
+  try { bytes = await file.arrayBuffer(); } catch (e) { say("problem", DROP_UNREAD); return "refused"; }
+  let status = 0, body = null;
+  try {
+    const r = await zoneFetch("/api/section-file-drop", {
+      method: "POST", cache: "no-store",
+      headers: { "X-Clark-Token": token(), "Content-Type": "application/octet-stream", "X-Clark-Project": code, "X-Clark-Section": id,
+                 "X-Clark-File-Name": encodeURIComponent(file.name) },
+      body: bytes,
+    });
+    status = r.status;
+    body = await r.json().catch(() => null);
+  } catch (e) { status = 0; }
+  if (status === 200 && body && body.ok === true) {
     await reread(code);
     say("done", typeof body.message === "string" && body.message ? body.message : "File added.", body.apply_id || null, code);
     return "added";

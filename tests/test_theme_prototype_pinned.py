@@ -48,6 +48,7 @@ LIGHT = {
         # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
         '--tile-on-bg': '#ECE9FB',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--ai-fg': '#4635b8',
         '--pill-track': '#ECEFF6',
         '--pill-on-fg': '#4F35C9',
         '--pill-on-bg': '#FFFFFF',
@@ -92,6 +93,7 @@ DARK = {
         '--set-ring': '#2B3850', '--set-win': '#151F2C', '--set-shadow': 'rgba(6, 47, 58, .18)',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
+        '--ai-fg': '#9E7BFF',
         '--pill-track': '#1C3040',
         '--pill-on-fg': '#A99BFF',
         '--pill-on-bg': '#13232E',
