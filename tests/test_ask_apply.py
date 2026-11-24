@@ -31,7 +31,7 @@ class Base(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
             self.other = st.create("actions", {"project": "XYZ", "description": "Order the badges", "owner": "Kit Moss",
                                                "raised": "2026-10-01", "source": "demo"})
-        self.action = self.demo.action(owner="Sam Lee")
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, so a plain Apply needs no extra tick (test_ask_client_tick_1416 has the client cases)
         self.ask = ask_apply.AskApply(self.path, [], USER)
         self.undo = changes.make_undo(self.path, [], USER)
 
@@ -77,7 +77,7 @@ class WorkItems(Base):
         self.assertIsNone(plan["before"])
         self.assertEqual(plan["after"]["description"], "Book the training room")
         self.assertEqual(plan["after"]["status"], "Open")                  # the store's default, not the suggestion's
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         ref = done["ref"]
         self.assertEqual(self.s.read("actions", ref=ref)["description"], "Book the training room")
         events = self.ask_events(ref)
@@ -93,7 +93,7 @@ class WorkItems(Base):
     def test_an_item_ask_clark_creates_has_the_source_added_by_ask_clark(self):      # #1009: not 'by hand'
         for kind, table, title in (("action", "actions", "Book the van"), ("milestone", "milestones", "Pilot starts")):
             plan = self.planned({"op": "new", "kind": kind, "title": title, **({"owner": "Sam Lee"} if kind == "action" else {"agreed_date": "2030-02-01"})})
-            done = self.applied(plan["offer"])
+            done = self.applied(plan["offer"], confirm=True)
             self.assertEqual(self.s.read(table, ref=done["ref"])["source"], changes.ASK_SOURCE)
             self.assertEqual(changes.ASK_SOURCE, "Added by ask clark")
         hand = self.demo.action(owner="Sam Lee")
@@ -193,7 +193,7 @@ class Milestones(Base):
     def test_create_a_milestone_and_undo(self):
         plan = self.planned({"op": "new", "kind": "milestone", "title": "Go live", "agreed_date": "2030-06-01"})
         self.assertEqual(plan["after"]["baseline_date"], "2030-06-01")
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         self.assertEqual(self.s.read("milestones", ref=done["ref"])["name"], "Go live")
         self.assertTrue(self.ask_events(done["ref"]))
         status, body = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
@@ -204,7 +204,7 @@ class Milestones(Base):
         ref = self.demo.milestone
         plan = self.planned({"op": "change", "id": ref, "current_title": "Pilot live", "forecast_date": "2030-04-01"})
         self.assertEqual((plan["before"]["forecast_date"], plan["after"]["forecast_date"]), (None, "2030-04-01"))
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         self.assertEqual(self.s.read("milestones", ref=ref)["forecast_date"], "2030-04-01")
         self.assertTrue(all(e["actor"] == "clark" for e in self.ask_events(ref)))
         status, body = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
@@ -218,7 +218,7 @@ class Milestones(Base):
         for kind, fields in (("milestones", changes.ASK_SHOWN["milestones"]), ):
             self.assertFalse({"internal_note", "movement"} & set(fields), "ASK_SHOWN leaves out owner-only columns")
         plan = self.planned({"op": "change", "id": ref, "current_title": "Pilot live", "forecast_date": "2030-04-01"})
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         status, undone = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
         self.assertEqual(status, 200, undone)
         for name, reply in (("dry run", plan), ("apply", done), ("undo", undone)):
@@ -366,9 +366,13 @@ class FromASource(Base):
         status, body = self.ask.apply(plan["offer"], "ABC")
         self.assertEqual(body["code"], "needs_confirm")
 
-    def test_a_change_from_the_report_needs_no_confirm(self):
+    def test_a_change_from_the_report_needs_no_confirm(self):      # row 1416: unless it falls under the client tick (test_ask_client_tick_1416)
         plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "status": "Closed"})
-        self.assertFalse(plan["needs_confirm"])
+        self.assertFalse(plan["needs_confirm"], "an item that is off the client report")
+        self.applied(plan["offer"])
+        visible = self.demo.action(owner="Sam Lee", client_visible=1)
+        plan = self.planned({"op": "change", "id": visible, "current_title": "Draft the cut-over plan", "priority": "High"})
+        self.assertFalse(plan["needs_confirm"], "a column the client tick does not cover, on a client-visible item")
         self.applied(plan["offer"])
 
 

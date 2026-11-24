@@ -161,6 +161,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .sec > .wil > * { flex: none; }
 .sec > .wil > .wil-foot { margin-top: auto; padding-top: var(--space-2); gap: var(--space-3); }
 .wil-foot .wil-all-b, .wil-foot .wil-review { display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--space-6); padding-top: 0; padding-bottom: 0; }
+/* Row 1615 (Classic only; the selectors are the Work items footer's own): Review all N items keeps one line and its own width, the count is the part that gives way (min-width 0, never clipped, no ellipsis; the product ruling of row 1615), and the foot lines its children up at the top so Review all sits the same distance from the top of its own foot on both cards of a pair (the feet are bottom-aligned, so their tops differ by the difference of the foot heights). */
+.wil-foot .wil-all-b, .wil-foot .wil-review { white-space: nowrap; flex: none; }
+.wil-foot [data-wil-count] { min-width: 0; }
+.wil-foot { align-items: flex-start; }
 /* Row 1281 (Classic only: the markup is drawn only when this theme is on, Cards keeps its three rows): the profile menu's Appearance as one pill line and the version on the Help line, as the approved mock-up draws them (mockups/1281-profile-menu, .pill and .ver). The label is 13px muted; the track is a 999px pill, 3px padding, 2px gap; three equal cells, 6px 4px, 14px; the chosen cell is the raised surface pill with accent text at 600; the version is 12px muted at the right end of the Help line and is cut with an ellipsis, never wrapped. */
 .ddmenu .ap { padding: 8px 20px 6px; }
 .ddmenu .ap .lab { padding: 0 0 6px; font-size: 13px; color: var(--pill-muted); font-weight: var(--weight-regular); }
@@ -331,6 +335,9 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .slash-list .slash-pill-icon { font-weight: 700; }
 @media (max-width: 900px) { .slash-list .slash-rows.slash-damaged li { grid-template-columns: 1fr max-content; } .slash-list .slash-rows.slash-damaged .slash-name { grid-column: 1 / -1; } }
 
+
+/* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
+.secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
 html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
