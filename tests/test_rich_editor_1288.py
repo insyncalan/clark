@@ -1,7 +1,7 @@
 """Row 1288: the Classic rich editor's measured values and places, by the names the ticket's Definition of done uses (computed style, 1400 and 900).
 
 Run: python3 dev/run_tests.py test_rich_editor_1288
-Covers AP1 to AP4, AP7, AP8, AP10 to AP14 (AP6, the AI menu's colours, is not here: the product has no 5B colours yet).
+Covers AP1 to AP4, AP6, AP7, AP8, AP10 to AP14 (AP6, the AI menu's colours, hover and width, is row 1586).
 AP10 to AP14 also lean on test_tpl_rich_words, test_milestone_peek_828, test_rich_storage_1288c and test_ai_places. Chrome is required: the test fails, never skips, without it.
 """
 import json
@@ -119,6 +119,51 @@ class Editor(unittest.TestCase):
                 self.assertEqual((p["r"], p["p"]), ("12px", "4px 4px 4px 4px"), f"{w}: {p}")
                 r = box(h, ".rt-bar [role=menu] [role=menuitem]")
                 self.assertEqual((r["p"], r["f"], r["r"]), ("4px 10px 4px 10px", "13.5px", "6px"), f"{w}: {r}")
+
+    def test_ai_menu_colours_and_widths_1288(self):
+        """AP6 (row 1586, mock-up 5B): the Classic AI menu's group labels, hover row, three icon colours and min-width, at 1400 and 900.
+        Dark has no ruled colours (the menu keeps the theme's tokens there), so dark is read for the width and for 'not the light hexes' only."""
+        want_icons = {"improve": [124, 77, 255], "structure": [47, 125, 74]}
+        grab = ("(() => { const q = s => document.querySelector(s), c = e => getComputedStyle(e); const menu = q('.aim');"
+                " const ic = k => { const e = q('.aim .aim-ic-' + k); return e ? c(e).color : null; };"
+                " return {mw: c(menu).minWidth, w: menu.getBoundingClientRect().width, gl: [...document.querySelectorAll('.aim .aim-gl')].map(e => c(e).color),"
+                " improve: ic('improve'), structure: ic('structure')}; })()")
+        with rp.Harness(chrome) as h:
+            for theme in ("light", "dark"):
+                for w in WIDTHS:
+                    tag = f"{theme} {w}"
+                    self.show_editor(h, w)
+                    h.theme(theme)
+                    h.select_all()
+                    self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), tag)
+                    h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                    self.assertTrue(h.until("!!document.querySelector('.aim .aim-opt')"), f"{tag}: the AI menu opens")
+                    got = h.ev(grab)
+                    self.assertEqual(got["mw"], "210px", f"{tag}: {got}")
+                    self.assertGreaterEqual(got["w"], 210, f"{tag}: {got}")
+                    self.assertTrue(got["gl"], f"{tag}: no group label")
+                    for kind in want_icons:
+                        self.assertIsNotNone(got[kind], f"{tag}: no {kind} icon")
+                    if theme == "light":
+                        for c in got["gl"]:
+                            self.assertEqual(rgb(c), [59, 111, 212], f"{tag}: group label {c}")
+                        for kind, rgbv in want_icons.items():
+                            self.assertEqual(rgb(got[kind]), rgbv, f"{tag}: {kind} icon {got[kind]}")
+                        h.ev("document.querySelector('.aim .aim-opt').focus(); true")
+                        bg = h.ev("getComputedStyle(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt')).backgroundColor")
+                        self.assertEqual(rgb(bg), [230, 238, 252], f"{tag}: the focused row draws the hover blue: {bg}")
+                    else:
+                        for c in got["gl"]:
+                            self.assertNotEqual(rgb(c), [59, 111, 212], f"{tag}: dark keeps the theme's label colour, {c}")
+                    h.ev("window.unmount(); true")
+        # Cards is frozen: its own menu rules (edit.css, outside the Classic theme files) keep the muted label and 240 px, and rules.css does not grow.
+        edit = (JS / "edit" / "edit.css").read_text()
+        self.assertRegex(edit, r"\.aim \{[^}]*min-width: 240px")
+        self.assertRegex(edit, r"\.aim-gl \{[^}]*color: var\(--text-muted\)")
+        themes = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
+        self.assertLessEqual((themes / "rules.css").stat().st_size, 131072)
+        two = (themes / "rules-2.css").read_text()
+        self.assertLess(two.index(".aim-gl { color: #3B6FD4"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:

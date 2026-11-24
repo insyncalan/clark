@@ -266,6 +266,22 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
 .crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 
+/* Row 1288 (AP6, Classic AI menu, mock-up 5B): group labels blue, the hovered or focused row light blue, the Improve, Structure and Ask icons purple, green and amber, and the menu at least 210 px wide. Dark has no ruled values yet, so it keeps the theme's own muted label and tint. */
+.aim { min-width: 210px; }
+.aim-gl { color: #3B6FD4; }
+.aim-opt:hover, .aim-opt:focus-visible { background: #e6eefc; }
+.aim-ic-improve { color: #7C4DFF; }
+.aim-ic-structure { color: #2F7D4A; }
+.aim-ic-ask { color: #B7791F; }
+:root[data-theme=dark] .aim-gl { color: var(--text-muted); }
+:root[data-theme=dark] .aim-opt:hover, :root[data-theme=dark] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+:root[data-theme=dark] .aim-ic { color: currentColor; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] .aim-gl { color: var(--text-muted); }
+  :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+  :root[data-theme=auto] .aim-ic { color: currentColor; }
+}
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
