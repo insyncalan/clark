@@ -1,10 +1,13 @@
-"""Row 1178: picking a day in the published report's date box (TopBar.jsx, AsAtDate). A picked day that matches a past report of the
+"""Row 1178, kept by row 1253: picking a day in the published report's date box. Row 1253 took the date button out of Classic; the frozen
+Cards theme keeps it (components/CardsDate.jsx), and these tests draw the Cards page (page_html with no Theme) so they fail if that button
+is removed. A picked day that matches a past report of the
 file goes to that report; any other day keeps this report and says "No report for DD-MM-YYYY."; the day already shown does nothing.
 The date box is set with the page script and a change event (no native popup). In a real browser, at 1400 and 900 px. Fictional data.
 
 Run: python3 dev/run_tests.py test_published_date_pick        (needs Chrome)
 """
 import unittest
+from unittest import mock
 
 import test_glance_page
 from _publish import PublishedFile
@@ -19,8 +22,13 @@ NOTE = "document.querySelector('.asat-note') ? document.querySelector('.asat-not
 
 
 class PickADay(PublishedFile, test_glance_page.Setup):
+    theme = None      # the Cards page is what page_html draws with no Theme; the store's setting cannot ask for it (row 1363), so theme_of is patched below
+
     def setUp(self):
         super().setUp()
+        patch = mock.patch.object(publish_module, "theme_of", lambda store: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         self.path = self.publish()
         built = publish_module.build(self.store, "ABC", "2026-10-28", EMPTY_BRANDING, past_reports=[{"week_ending": PAST_DAY, "file": PAST_FILE}])
         self.path.write_bytes(built["body"])
@@ -44,6 +52,16 @@ class PickADay(PublishedFile, test_glance_page.Setup):
             p.until("!!document.querySelector('input.asat-box')", "the date box opened")
         p.js("""((day) => { const b = document.querySelector('input.asat-box'); b.value = day;
           b.dispatchEvent(new Event('change', {bubbles: true})); })(%r)""" % day)
+
+    def test_the_cards_page_has_the_date_button_and_classic_has_none_row_1253(self):
+        with chrome() as cdp:
+            p = self.page(cdp, 1400)
+            self.assertRegex(p.js("document.querySelector('button.asat').textContent"), r"As at 28-10-2026")
+        with mock.patch.object(publish_module, "theme_of", lambda store: "prototype-2.0"):
+            classic = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, classic, 1400)
+            self.assertEqual(p.js("document.querySelectorAll('button.asat').length"), 0, "Classic has no date button")
 
     def test_a_day_with_a_past_report_goes_to_that_report(self):
         for width in (1400, 900):

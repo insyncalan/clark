@@ -119,8 +119,11 @@ export function createdLine(made, source) {
   return <><b data-pk-created>Created</b>{`${made.who ? ` by ${made.who}` : ""}${made.when ? `${made.who ? "," : ""} ${made.when}` : ""}${source ? ` · Source: ${source}` : ""}`}</>;      // the word Created is bold (NEW-WORDS 21-11 items 16-17)
 }
 
+/** The empty box's text, one for every peek (row 1548: the work item peek and the milestone peek both show it). */
+export const LATEST_PLACEHOLDER = "What changed? Add the latest update…";
+
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
-export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "What changed? Add the latest update…" }) {
+export function LatestBox({ id, now, stamp, shown, save: send, placeholder = LATEST_PLACEHOLDER }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(undefined);                       // undefined until the history is read (Classic draws its stamp then, so the name and Source do not pop in); null when it could not be read
   const d = data.value;                                                // a change anywhere replaces the data, so the stamp reads again

@@ -157,7 +157,7 @@ COVERED = [
     ('1005', 'P.1 Peek: open a work item and press `/` in the editor | One editor, with the `/` menu, the same in every place you write.',
      'test_one_editor_gate::MovedFields::test_each_moved_field_draws_the_one_editor_and_no_textarea'),
     ('1009', "P.2 Source line names where the item came from; P.3 Activity 'Updated from <file>, <date>, by <name>'",
-     'test_source_line::TheLine::test_an_import_line_keeps_its_words_and_adds_by'),
+     'test_source_line::TheLine::test_an_import_line_keeps_its_words_and_adds_no_by'),
     ('1010', 'U.2 Use cases: look at the eye on a use case row | One button reads "On the dashboard" or "Not on the dashboard", with an eye icon.',
      'test_use_case_detail::Detail::test_the_eye_is_one_button_with_its_words_and_toggles_with_one_undo'),
     ('1012', 'R.1 milestone plan picture; R.2 Health and progress bars as pictures; R.3 Gantt tab as a picture',

@@ -10,6 +10,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -156,6 +157,20 @@ class SlashPanel(Base):
             p.until("!document.querySelector('#ask-slash')", "the menu closed")
             self.assertEqual(p.js("!!document.querySelector('#ask-panel')"), True, "the panel stayed")
             self.assertEqual(p.js("document.querySelector('#ask-box').value"), "/", "the text stayed")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ask-panel')", "the second Esc closed the panel")
+
+    def test_first_escape_leaves_the_panel_open_even_with_motion_reduced(self):
+        """With reduced motion a close is instant (no leaving animation), so a panel still there after 1 s was never closed by the first Esc."""
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.type("/")
+            p.until("!!document.querySelector('#ask-slash')", "open")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ask-slash')", "the menu closed")
+            time.sleep(1)
+            self.assertEqual(p.js("!!document.querySelector('#ask-panel')"), True, "the panel stayed after the first Esc")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#ask-panel')", "the second Esc closed the panel")
 

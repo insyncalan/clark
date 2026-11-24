@@ -13,7 +13,7 @@
 Built in PR 2001 (slice 1): the index file, the background reader, status counts, PDF, Excel, PowerPoint, web pages, the secret screen before storing, refresh by size and time, left-out list. See section 4 for where each is.
 
 Next, in this order:
-1. **Page budget for PDFs** (the spike: 2,000 pages, 100 MB, 120 s for one file in the background). Today the index still uses the question limits: `pdf_reader.MAX_BYTES` 20 MB and `MAX_PAGES` 200 (`main:src/clark/pdf_reader.py:22-23`, used at `ask_index.py:318`). Keep the separate process, the time limit and the output cap; a file over a limit stays counted as `too_long`, never dropped silently.
+1. **Page budget for PDFs** (the spike: 2,000 pages, 100 MB, 120 s for one file in the background). Done (row 1368, PR 2067): the index uses its own limits, 2,000 pages, 100 MB and 120 s (`ask_index.py:39-41`, handed to the reader at `ask_index.py:418`); the question path keeps `pdf_reader.MAX_BYTES` 20 MB, `MAX_PAGES` 200 and 20 s (`pdf_reader.py:21-23`). Keep the separate process, the time limit and the output cap; a file over a limit stays counted as `too_long`, never dropped silently.
 2. **Delete the index when its project is deleted in real use.** Only the demo seed calls `ask_index.remove` (`demo_seed.py:147`); no other caller exists in `src` at the head (grep checked). `refresh` removes it when no folder is left (`ask_index.py:214`). Without this, a deleted project keeps a copy of its folder text on disk.
 3. **Scanned PDFs and pictures** through the Mac's Vision text recognition (spike: 0.16 to 0.43 s a page, 0.36 s a picture, 90 of 96 PNGs carry text). Needs the threat model item T7 below settled first.
 4. **Online-only files**: stay unread (`reach.ONLINE`, `main:src/clark/reach.py:72`: "clark never downloads one"); count them. Revisit only with the owner's decision on the cost of a download.
@@ -58,7 +58,7 @@ Residual risk accepted by this note: an indexed copy of document text exists on 
 
 1. Accept the order in section 2.
 2. Time Machine: exclude `ask-index/` from backups (needs a macOS step, not tested), or accept it is copied. (Not decided here.)
-3. Raise the PDF limits for the background run only, to the spike's numbers, once the hostile-PDF tests are done.
+3. Done: the PDF limits are raised for the background run only, to the spike's numbers: 2,000 pages, 100 MB, 120 s (`ask_index.py:39-41`); the question path keeps 200 pages, 20 MB, 20 s.
 
 ## 6. Measured on this box (Linux aarch64, 20-11-2026) and what the ticket still asks
 
@@ -85,5 +85,5 @@ What the ticket still asks that this note does not cover (quote, then status):
 7. Done-when: the ticket asks that the owner and the Head read it and that the release and priority of the build ticket are set from it. Not done; section 5 lists the decisions.
 8. The ticket's later comment, "the real-question test has been run and its result is in the design note", was waived by the owner on 19-11 18:53 (section 1). Not run.
 9. The part 2 comment says the index should be "left out of Time Machine (to check how)". Not done: `grep -rn "tmutil\|xattr" src` finds nothing and this box is not a Mac, so how to exclude (`tmutil addexclusion` or the `com.apple.metadata:com_apple_backup_excludeItem` attribute) is not checked.
-10. Part 3 recommended "up to 2,000 pages, 100 MB and 120 s for one file" with "hostile-PDF tests ... still to do". `pdf_reader.py:22-23` still has `MAX_BYTES` 20 MB and `MAX_PAGES` 200; the index reuses the question limits (section 2 item 1). No hostile-PDF numbers exist.
+10. Part 3 recommended "up to 2,000 pages, 100 MB and 120 s for one file" with "hostile-PDF tests ... still to do". `pdf_reader.py:21-23` keeps the question path's `MAX_BYTES` 20 MB, `MAX_PAGES` 200 and 20 s; the index now has its own 2,000 pages, 100 MB and 120 s (`ask_index.py:39-41`, used at `ask_index.py:418`; section 2 item 1). The hostile-PDF tests are `tests/test_ask_index_huge_pdf_1368.py`.
 11. Project delete: `grep -rn "ask_index.remove" src` at this branch's base finds only the demo seed caller; the note's T5 gap stands (section 2 item 2).

@@ -35,9 +35,9 @@ ROWS_JSX = (PAGE / "src" / "templates" / "WorkItemsList.jsx").read_text(encoding
 
 # Every rule line this row adds, as written in the Classic theme's rules.css (comments dropped, white space folded).
 GOLDEN_LINES = [
-    ".wil { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }",
-    ":root[data-theme=dark] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }",
-    "@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }",
+    ".wil, #work { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }",
+    ":root[data-theme=dark] .wil, :root[data-theme=dark] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }",
+    "@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil, :root[data-theme=auto] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }",
     ".wil-table th { font-size: calc(var(--size-caption) - 1.5px); color: var(--wil-th); }",
     ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue); }",
     ".wil-pr { border: 1px solid var(--wil-pr-bd); border-radius: 6px; background: var(--wil-pr-bg); color: var(--wil-pr-fg); font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); }",
@@ -499,6 +499,34 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
+    def test_most_rows_50_with_51_items_draws_50_rows_then_show_all_gives_51_and_show_only_50_gives_50_at_1400_and_900(self):      # row 1359
+        for k in range(51):
+            self.demo.action(description=f"Kim step {k}", owner="Kim Demo", due_date="2030-02-01")
+        ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Kim Demo"]})
+        for k in range(50):
+            self.demo.action(description=f"Joy step {k}", owner="Joy Demo", due_date="2030-02-01")
+        exact = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Joy Demo"]})      # exactly as many rows as Most rows: no cut, so no link
+        for width in (1400, 900):
+            with T.chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{exact}\"] [data-wil-count]')", f"{width}: the exact list is drawn")
+                self.assertEqual(p.js(f"[document.querySelectorAll('[data-id=\"{exact}\"] .wil-all-b').length, document.querySelectorAll('[data-id=\"{exact}\"] .wil-table tbody tr').length, document.querySelector('[data-id=\"{exact}\"] [data-wil-count]').textContent]"), [0, 50, "Showing all of 50"], width)
+                sec = f'[data-id="{ref}"]'
+                p.until(f"!!document.querySelector('{sec} .wil-all-b')", f"{width}: the link is drawn")
+                n = lambda: p.js(f"(() => {{ const b = document.querySelector('{sec} .wil-scroll'), r0 = b.getBoundingClientRect(); return [...b.querySelectorAll('.wil-table tbody tr')].filter(r => r.getBoundingClientRect().top < r0.bottom - 2).length; }})()")      # rows that start inside the box
+                word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+                foot = lambda: p.js(f"[document.querySelector('{sec} [data-wil-count]').textContent, document.querySelector('{sec} .wil-all-b').getAttribute('aria-expanded')]")      # the count words and the link's open state
+                self.assertEqual((n(), word()), (50, "Show all items"), width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 50'", f"{width}: open")
+                self.assertEqual(n(), 51, width)
+                self.assertEqual(foot(), ["Showing all of 51", "true"], width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", f"{width}: closed")
+                self.assertEqual(n(), 50, width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
+
     def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         probe = lambda sec: f"(() => {{ const s = document.querySelector('{sec}'); const v = (q) => [...s.querySelectorAll(q)].filter((e) => e.offsetParent).length; return [v('.wil-views'), v('[data-wil-line]'), v('[data-wil-add], .wil-add'), v('[data-wil-gear]')]; }})()"
@@ -894,7 +922,7 @@ class Classic(Look):
     # The values below were measured in Chrome on work-items-mockup.html at 1400 and 900.
     # Row 1409: the priority chips take the one mapping the rating matrix has (pr is Medium amber, prh High red, pru Urgent maroon), not the mock-up's grey / amber / red
     MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(252, 239, 207)", "rgb(138, 90, 0)", "rgb(252, 239, 207)", "12px", "600", "6px"],
-            "prh": ["rgb(246, 224, 221)", "rgb(163, 48, 31)", "rgb(246, 224, 221)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
+            "prh": ["rgb(244, 222, 219)", "rgb(179, 57, 47)", "rgb(244, 222, 219)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
             "tA": ["rgb(237, 233, 255)", "rgb(75, 58, 181)"], "tR": ["rgb(253, 236, 234)", "rgb(180, 35, 24)"], "tI": ["rgb(107, 31, 42)", "rgb(255, 255, 255)"],
             "tD": ["rgb(231, 246, 236)", "rgb(6, 118, 71)"], "hid": ["rgb(238, 240, 244)", "rgb(152, 162, 179)"], "add": ["rgb(152, 162, 179)", "rgb(91, 71, 216)", "6px", "dashed"]}
 
