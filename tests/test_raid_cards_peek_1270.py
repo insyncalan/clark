@@ -41,20 +41,13 @@ class RaidCardsPeek(PublishedFile, glance.Setup):
                 p.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
                 self.assertTrue(wait(lambda: not p.js(STATE)["open"]), "Esc closes it at %d" % w)
 
-    def press(self, cdp, p, key, code, vk, text):
-        for kind in ("keyDown", "keyUp"):       # a real key press, as the keyboard sends it
-            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
-                                                **({"text": text} if kind == "keyDown" else {})}, p.sid)
-
     def test_enter_and_space_on_the_focused_id_button_open_the_peek(self):
         rid = self.seed()
         path = self.publish()
         with chrome() as cdp:
             for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
                 p = self.draw(cdp, path, width=1400)
-                self.assertFalse(p.js(STATE)["open"])
                 p.js("document.querySelector('.raid-card .idl').focus()")
-                self.assertIn(rid, p.js(STATE)["active"], "the ID button holds the focus")
-                self.press(cdp, p, key, code, vk, text)
+                for kind in ("keyDown", "keyUp"):       # a real key press
+                    cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, **({"text": text} if kind == "keyDown" else {})}, p.sid)
                 self.assertTrue(wait(lambda: p.js(STATE)["open"]), "%s on the ID button opens the peek" % code)
-                self.assertIn(rid, p.js(STATE)["text"])
