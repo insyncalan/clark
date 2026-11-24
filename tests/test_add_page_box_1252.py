@@ -4,8 +4,8 @@ ACCEPTANCE VALUES (written first; sources: the issue's AP2, AP3, AP4 and the app
   Opens: the Add page button (Pages card) fires the window event clark:add-page; the box is a modal dialog titled "Add page"; Esc, Cancel or a click on the
     backdrop close it and give the focus back to the button.
   Step 1 heading "Choose a starter": five starters in order Blank with prompts, Status, Documents, Gantt, People and next steps, each a radio-style choice
-    with its template names as chips (Blank: Text, Text and Image Side by Side; Status: Report headline, Key figures, four, RAID cards, three, Key dates;
-    Documents: Text, Documents and links; Gantt: Header and Text, Gantt, Work items; People and next steps: Contacts, Checklist). Only the Gantt starter
+    with its template names as chips (Blank: Text, Text with image (the template's name, ruled 24-11); Status: Report headline, Numbers, Item cards, three, Coming dates;
+    Documents: Text, Files and links; Gantt: Header and Text, Gantt, Work items; People and next steps: Who to ask, Next steps; the template names on main since row 1262, no new words). Only the Gantt starter
     shows a description (the approved line); the others show none (no approved line yet). The first starter is chosen when the box opens.
   Step 2 heading "Name it": a one-line text box, at most 40 letters, holding the chosen starter's name until typed over.
   Preview (right column at 1400, below at 900): a heading with the chosen starter's name, then one block per part: the template's name and, where the
@@ -30,11 +30,11 @@ from test_report_editor import Base
 from test_server import chrome
 
 WIDTHS = (1400, 900)
-STARTERS = [("Blank with prompts", ["Text", "Text and Image Side by Side"]),
-            ("Status", ["Report headline", "Key figures, four", "RAID cards, three", "Key dates"]),
-            ("Documents", ["Text", "Documents and links"]),
+STARTERS = [("Blank with prompts", ["Text", "Text with image"]),
+            ("Status", ["Report headline", "Numbers", "Item cards, three", "Coming dates"]),
+            ("Documents", ["Text", "Files and links"]),
             ("Gantt", ["Header and Text", "Gantt", "Work items"]),
-            ("People and next steps", ["Contacts", "Checklist"])]
+            ("People and next steps", ["Who to ask", "Next steps"])]
 GANTT_WORDS = "A Gantt page with a header and text, a Gantt section and a Work items section."
 BOX = "document.querySelector('#add-page-box')"
 CHOICES = "[...document.querySelectorAll('#add-page-box .ap-choice')]"
@@ -64,6 +64,8 @@ class Box(Base):
         p = self.open(cdp, width)
         p.js("document.querySelector('#add-page').click()")
         p.until("!!" + BOX, "the box opened")
+        # The box takes the focus in an effect after it is drawn (Dialog.jsx). The focus goes back only for a box whose effect ran: wait for it, as a person does.
+        p.until("!!document.activeElement && document.activeElement.id === 'add-page-name'", "the focus is in the box")
         return p
 
     def pick(self, p, i):
@@ -110,12 +112,12 @@ class Box(Base):
             # the preview follows the choice: heading is the starter's name; a part shows its name and, if it has one, its approved prompt
             self.assertEqual(p.js("document.querySelector('#add-page-box .ap-preview h3').textContent.trim()"), "Blank with prompts")
             parts = p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => [e.querySelector('b').textContent.trim(), e.querySelector('span') ? e.querySelector('span').textContent : ''])")
-            self.assertEqual(parts, [["Text", "Write one or two sentences: what is this page and who is it for?"], ["Text and Image Side by Side", "Say what the reader should look at first."]])
+            self.assertEqual(parts, [["Text", "Write one or two sentences: what is this page and who is it for?"], ["Text with image", "Say what the reader should look at first."]])
             self.pick(p, 1)
             p.until("document.querySelector('#add-page-name').value === 'Status'", "the name follows the starter")
             parts = p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => [e.querySelector('b').textContent.trim(), e.querySelector('span') ? e.querySelector('span').textContent : ''])")
-            self.assertEqual(parts, [["Report headline", "Write the headline in one line: where the project stands this week."], ["Key figures, four", "Add the number and what it counts."],
-                                      ["RAID cards, three", ""], ["Key dates", ""]])
+            self.assertEqual(parts, [["Report headline", "Write the headline in one line: where the project stands this week."], ["Numbers", "Add the number and what it counts."],
+                                      ["Item cards, three", ""], ["Coming dates", ""]])
             self.type_name(p, "Mine")
             self.pick(p, 2)
             p.until("document.querySelector('.ap-preview h3').textContent.trim() === 'Documents'", "preview follows")
@@ -139,6 +141,7 @@ class Box(Base):
             p.until("!!" + BOX, "reopened")
             p.js("document.querySelector('#add-page-name').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
             p.until("!" + BOX, "Esc closed")
+            self.until_stored(lambda: p.js("document.activeElement && document.activeElement.id === 'add-page'"), "focus back on the button after Esc")
             self.assertEqual(self.rows(), [])
 
     def check_add(self, w):
@@ -160,6 +163,18 @@ class Box(Base):
             p.until("!![...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo')", "Undo in the toast")
             p.js("[...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo').click()")
             self.until_stored(lambda: len(self.rows()) == 1, "undone")
+
+    def test_blank_starter_page_starts_with_the_text_and_image_side_by_side_heading(self):
+        """AP3: the starter's list names the template 'Text with image'; the section a new page starts with has the heading 'Text and Image Side by Side'."""
+        with chrome() as cdp:
+            p = self.opened(cdp, 1400)
+            self.type_name(p, "Plain page")
+            p.js("document.querySelector('#add-page-box .ad-foot button:last-child').click()")
+            p.until("!" + BOX, "the box closed")
+            self.until_stored(lambda: len(self.rows()) == 1, "the row")
+            secs = json.loads(self.rows()[0]["sections"])
+            self.assertEqual([s["type"] for s in secs], ["text", "textimage"])
+            self.assertEqual(secs[1]["title"], "Text and Image Side by Side")
 
     def test_add_a_starter_stores_page_toast_and_undo_1400(self):
         self.check_add(1400)
