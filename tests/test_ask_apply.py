@@ -193,7 +193,7 @@ class Milestones(Base):
     def test_create_a_milestone_and_undo(self):
         plan = self.planned({"op": "new", "kind": "milestone", "title": "Go live", "agreed_date": "2030-06-01"})
         self.assertEqual(plan["after"]["baseline_date"], "2030-06-01")
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         self.assertEqual(self.s.read("milestones", ref=done["ref"])["name"], "Go live")
         self.assertTrue(self.ask_events(done["ref"]))
         status, body = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
@@ -204,7 +204,7 @@ class Milestones(Base):
         ref = self.demo.milestone
         plan = self.planned({"op": "change", "id": ref, "current_title": "Pilot live", "forecast_date": "2030-04-01"})
         self.assertEqual((plan["before"]["forecast_date"], plan["after"]["forecast_date"]), (None, "2030-04-01"))
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         self.assertEqual(self.s.read("milestones", ref=ref)["forecast_date"], "2030-04-01")
         self.assertTrue(all(e["actor"] == "clark" for e in self.ask_events(ref)))
         status, body = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
@@ -218,7 +218,7 @@ class Milestones(Base):
         for kind, fields in (("milestones", changes.ASK_SHOWN["milestones"]), ):
             self.assertFalse({"internal_note", "movement"} & set(fields), "ASK_SHOWN leaves out owner-only columns")
         plan = self.planned({"op": "change", "id": ref, "current_title": "Pilot live", "forecast_date": "2030-04-01"})
-        done = self.applied(plan["offer"])
+        done = self.applied(plan["offer"], confirm=True)
         status, undone = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
         self.assertEqual(status, 200, undone)
         for name, reply in (("dry run", plan), ("apply", done), ("undo", undone)):
