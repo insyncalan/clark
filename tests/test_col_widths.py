@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from _real_server import real_server
-from clark import __main__ as launcher, page, server as sv, use_cases_read
+from clark import __main__ as launcher, page, server as sv, theme, use_cases_read
 from clark.store import open_store
 from _new_page import reload_to_new_page_cdp
 from test_inline_edits import EMPTY_BRANDING, key, need_chrome, tearDownModule  # noqa: F401
@@ -34,13 +34,19 @@ class FakePast:
 
 
 class Widths(unittest.TestCase):
+    css = None      # the theme layer drawn over the page: None is Cards, as on main
+
+    def html(self):
+        html = page.page_html(EMPTY_BRANDING)
+        return page.layer_theme(html, self.css) if self.css else html
+
     def setUp(self):
         need_chrome()
         self.store, self.folder, _ = load_demo()
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
-        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=self.html)
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.s.httpd.past = FakePast()      # the Published reports list: three publications, no copy kept on disk
         with self.store.step("dashboard", "tester", place="menu") as step:      # the People table: two people with all four columns filled
@@ -199,6 +205,24 @@ class Widths(unittest.TestCase):
         view = (Path(page.__file__).parent / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("cgrip", view)
         self.assertNotIn("Width of the", view)
+
+
+class UseCasesWidths(Widths):
+    """Row 1104: the Use cases table (Classic draws it) has the same heading handles; at 1400 and 900, light and dark."""
+    css = theme.css("prototype-2.0")
+
+    def test_a_heading_edge_changes_the_width_and_it_is_kept(self):
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    self.check(cdp, width, scheme, "uc", "#usecases&p=TUL", "#usecases table.items", "owner", "#usecases tbody tr[data-uc]")
+
+    # the other tests of Widths run once, under Cards, in Widths
+    test_saved_widths_from_a_wide_window_do_not_crush_the_item_column_at_900 = None
+    test_saved_widths_that_fit_are_drawn_as_saved_at_1400_and_shrunk_together_at_900 = None
+    test_a_drag_writes_the_store_once_when_it_ends_and_starts_from_the_latest_width = None
+    test_the_milestones_heading_lines_up_with_the_rows = None
+    test_the_published_page_has_no_handles = None
 
 
 if __name__ == "__main__":
