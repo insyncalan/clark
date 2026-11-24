@@ -74,7 +74,7 @@ class SettingsFocusRing(unittest.TestCase):
         got = {}
         for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("fld-select", "ai-model-select", "ask-folder-path"))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, the probes on Version and updates
             cdp.js(f"location.hash = '#settings&p=TUL&s={page}'", sid)
-            self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.set-cards').getAttribute('data-page') === {json.dumps(page)} && !!document.querySelector({json.dumps(SEL[names[0]])})", sid)), f"the {page} page drew {names[0]}")
+            self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.set-cards').getAttribute('data-page') === {json.dumps(page)} && !!document.querySelector({json.dumps('#update-h' if page == 'version' else SEL[names[0]])})", sid)), f"the {page} page drew its cards")
             if page == "version":
                 cdp.js(PROBE_SELECT, sid)       # the Brand for this project choice is a select in a .fld; its card needs the brand service, which this test server has not
             for name in names:
