@@ -300,9 +300,12 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   .top-file .tab { padding-block: 8px 12px; }
   .top-file .tab:not([aria-selected="true"]) { color: color-mix(in srgb, var(--white) 92%, transparent); }
   .top-file .top-slot, .top-file .cm-wrap { order: 3; }
-  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2)); }
+  /* pending the owner answer at 08:00: 32 or 38 (the size of the light and dark button, one value; 38 also needs the bordered look of the mock-up) */
+  .top-file { --theme-btn-size: 32px; }
+  .top-file .cm-theme { width: var(--theme-btn-size); height: var(--theme-btn-size); }
+  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2)); }
 }
-@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
+@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 94.94px); } }
 /* Row 1543: the published header's profile circle is filled with the brand cyan as the editor's circle and the approved mock-up draw it, at every width (it was a slate fill with a grey ring); its size stays 32px. */
 .top-file .cm-badge { background: var(--brand-cyan); border-color: transparent; color: var(--brand-navy); }
 
