@@ -70,15 +70,21 @@ class Header1543(glance.Published):
             return p.js(js)
 
     def test_published_header_no_as_at(self):
-        js = """(() => { const h = document.querySelector('header.top');
-          document.querySelector('.cm-badge').click();
-          return {head: h.textContent, menu: (document.querySelector('[role=menu]') || {textContent: ''}).textContent,
-                  boxes: h.querySelectorAll('.asat, .asat-wrap, button.asat, input[type=date]').length}; })()"""
+        head_js = """(() => ({head: document.querySelector('header.top').textContent,
+          boxes: document.querySelectorAll('header.top .asat, header.top .asat-wrap, header.top button.asat, header.top input[type=date]').length}))()"""
         for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
             with self.subTest(width=width, dark=dark):
-                got = self.probe_file(js, width, dark)
+                path = self.publish()
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                    got = p.js(head_js)
+                    p.js("document.querySelector('.cm-badge').click()")
+                    p.until("!!document.querySelector('[role=menu]') && document.querySelector('[role=menu]').textContent.trim().length > 0", "the profile menu opened")
+                    menu = p.js("document.querySelector('[role=menu]').textContent")
+                self.assertGreater(len(menu.strip()), 0, "control: the menu was read after it drew")
                 self.assertNotRegex(got["head"], r"(?i)as at", "no As at in the header")
-                self.assertNotRegex(got["menu"], r"(?i)as at", "no As at in the profile menu either")
+                self.assertNotRegex(menu, r"(?i)as at", "no As at in the profile menu either")
                 self.assertEqual(got["boxes"], 0)
                 self.assertIn("Weekly report", got["head"], "the line under the project name stays (this fixture has no week ending date; the date text is unchanged)")
 
