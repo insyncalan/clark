@@ -48,6 +48,9 @@ class Many(base.Route):
             out.append(p)
         return out
 
+    def mark(self):
+        return self.s.con.execute("SELECT coalesce(max(rowid), 0) FROM change_log").fetchone()[0]
+
     def names(self):
         return [i["name"] for i in (self.items(self.ref) or {"items": []})["items"]]
 
@@ -106,6 +109,7 @@ class Many(base.Route):
         status, body = self.attach(self.ref)
         self.assertEqual((status, body["ok"], body["problems"]), (409, False, [f"a.exe: {SENTENCE}", f"b.zip: {SENTENCE}"]))
         self.assertEqual(self.snapshot(), written)
+        self.assertNotIn("apply_id", body, "when nothing is added there is no Undo")
 
     # AP4
     def test_the_twenty_entry_limit_holds_across_a_batch(self):
@@ -129,10 +133,12 @@ class Many(base.Route):
     # AP5
     def test_one_undo_takes_the_whole_batch_off(self):
         self.picked = self.make("A.pdf", "B.pdf", "bad.exe")
+        mark = self.mark()
         status, body = self.attach(self.ref)
         self.assertEqual(status, 200, body)
-        applies = self.s.con.execute("SELECT count(DISTINCT apply_id) FROM change_log WHERE apply_id = ?", (body["apply_id"],)).fetchone()[0]
-        self.assertEqual(applies, 1)
+        events = self.s.con.execute("SELECT apply_id FROM change_log WHERE rowid > ?", (mark,)).fetchall()
+        self.assertTrue(events, "the batch wrote events")
+        self.assertEqual({r[0] for r in events}, {body["apply_id"]}, "every event of the batch carries the one apply_id")
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual(status, 200, undone)
         self.assertEqual(self.names(), [], "every file of the batch is off the section")
@@ -143,10 +149,11 @@ class Many(base.Route):
         self.assertEqual(status, 200, body)
         self.assertEqual(body["message"], section_files.ADDED.format(name="Only.pdf"))
         # a drop: the commit is the one step
+        mark = self.mark()
         _held, _lines, reply = self.drop_batch([("D1.pdf", PDF), ("D2.pdf", PDF)])
         status, body = reply
-        applied = self.s.con.execute("SELECT count(DISTINCT apply_id) FROM change_log WHERE apply_id = ? AND tbl = 'report_sections'", (body["apply_id"],)).fetchone()[0]
-        self.assertEqual(applied, 1)
+        self.assertEqual(self.s.con.execute("SELECT count(DISTINCT apply_id) FROM change_log WHERE rowid > ?", (mark,)).fetchone()[0], 1,
+                         "the drop's commit is one apply_id over all its events")
         self.assertEqual(self.undo({"project": "ABC", "apply_id": body["apply_id"]})[0], 200)
         self.assertEqual(self.names(), ["Only.pdf"])
 
@@ -165,6 +172,28 @@ class Many(base.Route):
         held, lines, reply = self.drop_batch(files)
         self.assertEqual((len(held), lines, reply[0]), (3, [], 200), reply)
         self.assertEqual(len(self.names()), 3, "three files of nearly 25 MB are not refused whole")
+
+    def commit(self, *names):
+        return self.pub.drop_section_file("ABC", self.ref, "", b"", None, quote(json.dumps(list(names)), safe=""))
+
+    def test_a_held_file_changed_before_the_commit_is_refused_at_the_commit(self):
+        held = []
+        for name in ("Grown.pdf", "Swapped.pdf", "Linked.pdf", "Fine.pdf"):      # the holds only: nothing is committed yet
+            status, body = self.pub.drop_section_file("ABC", self.ref, quote(name, safe=""), PDF, "1")
+            self.assertEqual(status, 200, body)
+            held.append(body["held"]["name"])
+        self.assertEqual((held, self.names()), (["Grown.pdf", "Swapped.pdf", "Linked.pdf", "Fine.pdf"], []))
+        folder = self.client / "Report files"
+        with open(folder / "Grown.pdf", "r+b") as f:
+            f.truncate(section_files.MAX_FILE_BYTES + 1)           # a sparse file over 25 MB
+        (folder / "Swapped.pdf").unlink()
+        (folder / "Swapped.pdf").mkdir()                           # a directory in its place
+        (folder / "Linked.pdf").unlink()
+        (folder / "Linked.pdf").symlink_to(folder / "Fine.pdf")    # a link in its place
+        status, body = self.commit(*held)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.names(), ["Fine.pdf"], "only the file still ordinary and within 25 MB is added")
+        self.assertEqual(sorted(p.split(":")[0] for p in body["problems"]), ["Grown.pdf", "Linked.pdf", "Swapped.pdf"])
 
 
 if __name__ == "__main__":

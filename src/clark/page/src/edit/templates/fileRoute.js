@@ -64,7 +64,8 @@ export async function dropFile(id, drop) {
   const list = Array.from((drop && drop.files) || []);
   const items = Array.from((drop && drop.items) || []);
   const folder = items.some((i) => { const e = typeof i.webkitGetAsEntry === "function" ? i.webkitGetAsEntry() : null; return !!e && e.isDirectory; });
-  if (folder || list.length === 0) { say("problem", DROP_FOLDER); return "refused"; }
+  if (list.length === 0 && !folder) return "refused";          // an empty drop: nothing to add, nothing to say
+  if (folder) { say("problem", DROP_FOLDER); return "refused"; }
   if (list.length === 1) return dropOne(id, list[0]);
   return dropMany(id, list);
 }
@@ -129,7 +130,7 @@ async function dropMany(id, list) {
   const added = status === 200 && body && body.ok === true;
   if (added) {
     await reread(code);
-    say("done", typeof body.message === "string" && body.message ? body.message : "Files added.", body.apply_id || null, code);
+    say("done", typeof body.message === "string" && body.message ? body.message : `${Array.isArray(body.added) && body.added.length ? body.added.length : held.length} files added.`, body.apply_id || null, code);
     lines.push(...problemLines(body));
   } else if (held.length) {
     const more = problemLines(body);
