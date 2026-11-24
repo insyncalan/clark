@@ -1,13 +1,12 @@
 """Row 1297, layout of the ruled note in a real browser at 1400 and 900 px: after a failed open the note sits under the Open in your mail app
-button and inside the window, in the Draft email editor and in the Feedback tab. Reuses the browser harnesses of the two pages."""
+button and inside the window, in the Draft email editor (the Feedback card, which had the same note, is retired: row 1485). Reuses the browser harness of that page."""
 import json
 import unittest
 
 import test_draft_email_editor as DE
-import test_feedback_tab as FB
 from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome through the base classes above, so the tier reader sees it)
 
-LINK = {"draft": ".pk-foot a", "feedback": "a[data-feedback-mail]"}
+LINK = {"draft": ".pk-foot a"}
 
 
 class Layout:
@@ -39,18 +38,6 @@ class Draft(Layout, DE.InBrowser):
             with self.subTest(width=width):
                 self.load(width)
                 self.mount()
-                self.check(width)
-
-
-class Feedback(Layout, FB.InBrowser):
-    which = "feedback"
-
-    def test_the_note_sits_under_the_button_and_inside_the_window(self):
-        for width in (1400, 900):
-            with self.subTest(width=width):
-                self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
-                self.mount()
-                self.type("#feedback-message", "The tab is slow")
                 self.check(width)
 
 

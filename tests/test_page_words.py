@@ -313,9 +313,6 @@ class Words(unittest.TestCase):
                     "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
                     "settings and published reports are kept.",
                     "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
-                    "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                    "What is wrong, or what would you suggest?How can we reach you? (optional)", "ADDED TO THE EMAIL", "Version of clark: unknown", f"System: {system}",
-                    "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                     "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"
                 ]),
             ]

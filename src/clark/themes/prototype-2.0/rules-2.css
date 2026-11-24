@@ -55,6 +55,13 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1470 (the approved Dashboard peek mock-up, Classic only, Cards keeps today's rules): the Latest update box text is 15 px / 1.55 and the stamp under it is 12 px muted at the left, margin 6px 2px 0 (it was right-aligned in row 1257);
+   in dark the box takes the mock-up's tokens --soft 192440, --line 25324D and the stamp --muted 9AA9BD (the Theme's own dark greys differ). A focused box keeps its own look. */
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover, .pk-lbox .rt-host .ProseMirror { font-size: 15px; line-height: 1.55; }
+.pk-last { display: block; margin: 6px 2px 0; }
+:root[data-theme=dark] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); }
+:root[data-theme=dark] .pk-last { color: rgb(154, 169, 189); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .pk-lbox:not(:focus-within) { background: rgb(25, 36, 64); border-color: rgb(37, 50, 77); } :root[data-theme=auto] .pk-last { color: rgb(154, 169, 189); } }
 /* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on its own ground, 18px corners with a 1px ring (--set-ring, the mock-up's line colour) on the --set-win ground with the white cards inside, and a 0 12px 36px drop shadow in the Theme-only --set-shadow token (the shared --shadow stays 0 8px 24px for the peek and the config panel) (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
 .set-win { background: var(--set-win); box-shadow: 0 0 0 1px var(--set-ring), 0 12px 36px var(--set-shadow); border-radius: 18px; padding: var(--space-4) var(--space-4) var(--space-5); }
 .set-tile { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: var(--space-2); border-radius: 7px; background: var(--brand-blue); color: var(--set-tile-ink); }
@@ -240,6 +247,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-quotes[data-align="left"] .tpl-quote-by { align-items: flex-start; }
 /* Row 1271, Tile off (the ticket: with Tile and Heading both off the quote sits directly on the page): the panel around each quote follows the Tile switch, so with Tile off it has no grey fill and no inset. */
 .sec.no-tile .tpl-quotes .tpl-quote { background: transparent; padding: 0; }
+/* Row 1579, Tile off on Classic: the banded section fill (item 1311, .secs > .sec.band) out-ranked .sec.no-tile, so Tile off still drew a panel; one more class makes the section transparent again. */
+.secs > .sec.band.no-tile { background: transparent; }
 /* Row 1271, Edit in place (Classic only): the quote is typed in the box where View shows it, wraps and grows with its words, the name and role under it. */
 .tpl-quote-pe .tq-head { display: flex; align-items: baseline; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--size-caption); color: var(--text-muted); text-align: left; }
 .tpl-quote-pe .tq-count { margin-left: auto; white-space: nowrap; }
@@ -257,11 +266,23 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
+.ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
+.ask-warn p { margin: 0; }
+.ask-warn p + p, .ask-warn-btns + p { margin-top: 6px; }      /* the question under the warning, and the state line under the buttons */
+.ask-warn [data-ask-warn-name] { font-weight: 500; }
+.ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ask-warn-btns .btn:not(.pri) { color: var(--text); }
 /* Row 1273 (Classic only; Cards keeps its menu rules): the two prototype menus, the View menu's Group by (#viewMenuList) and Move to, and no other (the Add menu is row 1462; the use case Group by menus keep theirs). Main's Row 1286 rules give them 15px and 224px. The prototype line: 7px 10px padding, then the icon at x10 and 10px (a space-2 and 2px) from icon to words: words at x36. The tick of the item in use is on the right of the word, as in every menu (ruling 9A: no tick slot in front of the icon); main's tick rule places it. Only two heads are drawn in capitals, Group by and the card's Move to head; the words stay as they are. */
 #viewMenuList.ddmenu [role="menuitemradio"], .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) [role="menuitem"] { gap: 0; padding-left: calc(var(--space-2) + 2px); }   /* :not(#none) only lifts Move to above the Row 1286 rule that names the three menus in one :is() list */
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1289 AP7 (PM ruling): Classic peek padding equals the prototype (app.css .pk-top and .pk-scroll). The toolbar is the .pk-top: padding 10px 16px 6px 20px, full width (the peek's side padding is pulled back out by margin) and stuck at the top; everything after it is the .pk-scroll: 4px above (the toolbar's bottom margin), 24px left and right, 24px below. Cards keeps the shared frame. */
+.peek { padding: 0 24px 24px; }
+.peek .pk-tb { margin: 0 -24px 4px; padding: 10px 16px 6px 20px; top: 0; }
+/* Row 1289: the Edit words box is a band pulled out to the peek's edges by a negative side margin equal to the 24 px body inset, so it reaches the edges and no further, and its words stay in line with the content. */
+html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px; }
 /* Row 1428 (Classic only): the Report headline Edit view keeps the health pill beside the Headline and reason boxes at 900 and below (mock-up .erow: a row, gap 12px), undoing the shared stack at edit.css; Cards keeps it. */
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: row; gap: var(--space-3); } }
 /* Row 1431 (Classic only; Cards keeps its rows): the lines of the rich text Text style menu are 32px high as the prototype draws them (index.html:295, .rt-menu button min-height 32px). Height only: the 16px side padding, the radius, the size and the icons stay. */
@@ -289,6 +310,14 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .crit-btn { white-space: nowrap; font: inherit; font-weight: 600; color: var(--status-red-text); background: transparent; border: 1px solid var(--status-red); border-radius: var(--radius-sm); padding: 3px 12px; cursor: pointer; }
 .crit-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 
+/* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
+:is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
+.fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
+.fopt .c + .ftick { margin-left: var(--space-2); }
+.fchips[data-gchips] { flex: 0 0 auto; }
+/* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
+html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
