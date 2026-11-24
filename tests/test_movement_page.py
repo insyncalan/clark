@@ -161,7 +161,9 @@ class Base(unittest.TestCase):
         return p
 
     def open_movement(self, p):
-        raise unittest.SkipTest("row 1329: the Plan | Movement switch is gone, so no screen reaches Movement (edit/Movement.jsx is kept, not reached); every test that drives it through the page skips here")
+        p.until("!!document.querySelector('[data-mspv=move]')", "the Plan / Movement switch drew")
+        p.js("document.querySelector('[data-mspv=move]').click()")
+        p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
 
     def toast(self, p):
         return wait_toast(lambda: p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''"))
@@ -197,6 +199,27 @@ class Block(Base):
             self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             p.until("!!document.querySelector('#movement .mvm-card') && !!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "the choices are there (row 804: the page has no mode)")
+
+    def test_plan_movement_switch_is_in_view_and_edit_and_remembered(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('[data-mspage-switch]')", "View has the switch too (#436 row 18)")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("!!document.querySelector('[data-mspage-switch]')", "the switch is there with no mode to choose")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
+            self.assertEqual(p.js("document.querySelector('[data-mspv=plan]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("!!document.querySelector('.msv') && !document.querySelector('#movement')"), True, "Plan shows the milestones, not Movement")
+            self.assertIn("Every milestone is on the timeline", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+            p.js("document.querySelector('[data-mspv=move]').click()")
+            p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
+            self.assertEqual(p.js("!document.querySelector('.msv')"), True, "Movement replaces the Plan")
+            self.assertEqual(p.js("document.querySelector('[data-mspv=move]').getAttribute('aria-pressed')"), "true")
+            self.assertIn("never published", p.js("document.querySelector('#movement').textContent"))
+            self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+            p.js("document.querySelector('[data-mspv=plan]').click()")
+            p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "back to the Plan")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("!!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv') && !document.querySelector('#movement')", "the page keeps the switch and the Plan")
 
     def test_a_hold_that_trims_the_note_says_so_and_undo_restores_it(self):      # #603
         whole = "\n".join(["y" * 499] * 4)
@@ -332,7 +355,9 @@ class Block(Base):
         self.hold_read = threading.Event()
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.open_movement(p)
+            p.until("!!document.querySelector('[data-mspv=move]')", "the switch is there")
+            p.js("document.querySelector('[data-mspv=move]').click()")
+            p.until("!!document.querySelector('#movement')", "the block is there")
             self.assertEqual(p.js("document.querySelector('#movement [role=status]').textContent"), "Loading Movement.")
             self.fail_read = True
             self.hold_read.set()

@@ -1,10 +1,9 @@
 // The Feedback tag (#1298): a button on the right edge, a little below the middle, in Help and in Settings only (logic/feedbackTag.js says
 // where). It opens a small dialog that slides in from the right edge: the Feedback card's question, Problem / Idea / Question, the three
-// lines added automatically, Copy as text and Open in your mail app (the server hands the mailto: link to the mail app, row 1297; nothing is sent by clark). Edit parts only.
+// lines added automatically, Copy as text and Open in your mail app (a plain mailto: link; nothing is sent by clark). Edit parts only.
 // `getVersion`, `nav` and `clip` are seams for the tests; the page passes none of them.
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedbackTag.js";
-import { mailClick, MAIL_NOTE } from "./mailApi.js";   // Open in your mail app goes through the server route (row 1297), as in Settings, Feedback
 import { healthVersion } from "./Feedback.jsx";   // the same health check; it asks for no zone, so it is not a zoneFetch
 import { view, settingsPage, settingsFeedbackShown, peek, fromFile } from "../stores/report.js";
 import { helpOpen, contextOpen } from "../help/helpStore.js";
@@ -17,7 +16,6 @@ function Dialog({ ctx, onClose, clip }) {
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState(false);
-  const [mailFailed, setMailFailed] = useState(false);
   const box = useRef(null), area = useRef(null), shown = useRef(null);
   const form = { kind, message };
   const link = L.mail(form, ctx);
@@ -40,10 +38,10 @@ function Dialog({ ctx, onClose, clip }) {
       <div class="fbt-head"><h2 id="fbt-h">{L.TAG_LABELS.title}</h2><button type="button" class="fbt-x" data-fbt-close aria-label={L.TAG_LABELS.close} onClick={onClose}>&times;</button></div>
       <p class="muted small">{L.TAG_LABELS.intro}</p>
       <div role="radiogroup" aria-label={L.TAG_LABELS.kind} class="fbt-kinds">
-        {L.KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={k === kind} class={`fbt-kind${k === kind ? " on" : ""}`} data-fbt-kind={k} onClick={() => { setKind(k); setNote(""); setMailFailed(false); }}>{k}</button>)}
+        {L.KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={k === kind} class={`fbt-kind${k === kind ? " on" : ""}`} data-fbt-kind={k} onClick={() => { setKind(k); setNote(""); }}>{k}</button>)}
       </div>
       <label for="fbt-message">{L.TAG_LABELS.message}</label>
-      <textarea id="fbt-message" class="grow" rows={4} ref={area} aria-describedby={empty ? "fbt-error" : undefined} value={message} onInput={(e) => { setMessage(e.currentTarget.value); setNote(""); setEmpty(false); setRefused(false); setMailFailed(false); }} />
+      <textarea id="fbt-message" class="grow" rows={4} ref={area} aria-describedby={empty ? "fbt-error" : undefined} value={message} onInput={(e) => { setMessage(e.currentTarget.value); setNote(""); setEmpty(false); setRefused(false); }} />
       {empty ? <div class="fbt-error" id="fbt-error" role="alert">{L.EMPTY_SEND}</div> : null}
       <div class="fbt-added" id="fbt-added">
         <b>{L.TAG_LABELS.addedHead}</b>
@@ -53,10 +51,9 @@ function Dialog({ ctx, onClose, clip }) {
       <p class="muted small">{L.TAG_LABELS.mailNote}</p>
       <div class="row">
         <button type="button" class="btn" data-fbt-copy onClick={copy}>{L.TAG_LABELS.copy}</button>
-        {link.href ? <a class="btn pri" data-fbt-mail href={link.href} onClick={(e) => mailClick(e, link.href, setMailFailed)}>{L.TAG_LABELS.mail}</a>
+        {link.href ? <a class="btn pri" data-fbt-mail href={link.href}>{L.TAG_LABELS.mail}</a>
           : <a class="btn pri" data-fbt-mail role="button" tabindex="0" onClick={tryEmpty} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tryEmpty(); } }}>{L.TAG_LABELS.mail}</a>}
       </div>
-      {mailFailed ? <p class="muted" data-mail-note>{MAIL_NOTE}</p> : null}
       <div class="pub-msg" id="fbt-note" role="status" aria-live="polite">{words}</div>
       {refused ? <textarea id="fbt-shown" class="grow" rows={5} readOnly ref={shown} value={body} aria-label={L.TAG_LABELS.copy} /> : null}
     </div>

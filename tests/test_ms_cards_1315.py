@@ -2,8 +2,8 @@
 
 Run: python3 dev/run_tests.py test_ms_cards_1315
 Proof, the same kind as the Work items rows: the md5 of every style block of the Cards page, and the md5 of the rendered Milestones page DOM
-(Plan view with the timeline, the body after a milestone is opened, the Calendar view) at 1400 and 900 px. The values are those the build of main renders, with the time of day in the "last updated" line folded to HH:MM (it is shown in the local time zone of the machine, so it differs between a machine and the CI runner);
-Row 1329 (ruling 20-11): the Plan | Movement switch, its hint and the forecast sentence left the DOM, so the DOM values changed once (the style md5 did not). If a Cards change is meant, the values change here and the owner ruling that allowed it is named in the commit.
+(Plan view with the timeline, the body after a milestone is opened, the Calendar view, the Movement view) at 1400 and 900 px. The values are those the build of main renders, with the time of day in the "last updated" line folded to HH:MM (it is shown in the local time zone of the machine, so it differs between a machine and the CI runner);
+if a Cards change is meant, the values change here and the owner ruling that allowed it is named in the commit.
 """
 import hashlib
 import re
@@ -17,8 +17,8 @@ from test_server import Running, chrome, wait
 HASH = "#milestones&p=TUL"
 CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
 CARDS_DOM_MD5 = {
-    1400: {"plan": "e88326f760de32f80336e2c4136d549b", "open": "f416866be9c016dcb040044e755c91c4", "calendar": "114228c4a25dc8f9171e2953a5684a90"},
-    900: {"plan": "e88326f760de32f80336e2c4136d549b", "open": "b01527fceaf7792441640f9d2b2f771d", "calendar": "114228c4a25dc8f9171e2953a5684a90"},
+    1400: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "f880cee0281bb5a0f2ed6cbcb7c44e39", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
+    900: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "a47b575a7ad86e2e18674c92043a9ff6", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
 }
 
 
@@ -51,6 +51,11 @@ class CardsDom(BrowserBase, unittest.TestCase):
             cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
             wait(lambda: cdp.js("!!document.querySelector('.cal')", sid))
             out["calendar"] = cdp.js(grab, sid)
+            cdp.js("document.querySelector('[data-msvb=tl]') && document.querySelector('[data-msvb=tl]').click()", sid)
+            wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid))
+            cdp.js("document.querySelector('[data-mspv=move]') && document.querySelector('[data-mspv=move]').click()", sid)
+            wait(lambda: cdp.js("!document.querySelector('.mv-wrap')", sid))
+            out["move"] = cdp.js(grab, sid)
         return {k: hashlib.md5(re.sub(r"(last updated \d\d-\d\d-\d{4}) \d\d:\d\d", r"\1 HH:MM", v).encode("utf-8")).hexdigest() for k, v in out.items()}, out
 
     def test_the_rendered_milestones_dom_is_the_dom_main_renders_at_1400_and_900(self):

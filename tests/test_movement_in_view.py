@@ -27,7 +27,9 @@ FIELDS = "(() => [...document.querySelectorAll('#milestones input, #milestones t
 
 class InView(Base):
     def view_movement(self, p):
-        self.open_movement(p)
+        p.until("!!document.querySelector('[data-mspage-switch] [data-mspv=move]')", "View has the switch")
+        p.js("document.querySelector('[data-mspv=move]').click()")
+        p.until("!!document.querySelector('#movement .mvm-card')", "Movement drew in View")
 
     def test_view_has_the_switch_and_movement_with_its_choices_at_1400_and_900_light_and_dark(self):
         for width in (1400, 900):
@@ -36,7 +38,11 @@ class InView(Base):
                     self.reads.clear()
                     self.sent.clear()
                     p = self.visit(cdp, width=width, theme=theme)
+                    p.until("!!document.querySelector('[data-mspage-switch]')", "View has the switch")
+                    self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
                     self.view_movement(p)
+                    self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"), "the page is live: the hint says each move can be undone")
+                    self.assertEqual(p.js("document.querySelector('[data-mspv=move]').getAttribute('aria-pressed')"), "true")
                     self.assertEqual(p.js("document.querySelector('#movement .tag').textContent"), mv.TAG_INTERNAL)
                     self.assertEqual(p.js("document.querySelector('.mvm-sentence').textContent"), "1 of 2 open milestones are behind their agreed date; 1 overdue.")
                     self.assertEqual(p.js("[...document.querySelectorAll('.mvm-row .mvm-name')].map(e => e.textContent)"), ["Go live", "Pilot live"])
@@ -97,7 +103,7 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             cdp.js("try { localStorage.setItem('clark.msp.view', JSON.stringify('move')); } catch (e) {}", sid)
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones .msl-row')", sid)), "the Milestones page drew")
+            self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('h1')].some(h => h.textContent === 'Milestones')", sid)), "the Milestones page drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mspage-switch], [data-mspv], #movement, .mvm-card').length", sid), 0,
                              "a published file has neither the switch nor Movement")
             self.assertNotIn("never published", cdp.js("document.body.textContent", sid))

@@ -282,34 +282,6 @@ class FeedbackTagBrowser(unittest.TestCase):
             self.go(cdp, sid, "#work&p=TUL&f=mode:all")
             self.assertTrue(wait(lambda: cdp.js(f"!{DLG} && !{BAR}", sid)), where)
 
-    # ---- row 1298: the mail button uses the open-mail route (row 1297), as Settings, Feedback does
-    def test_mail_click_goes_through_mailClick(self):
-        note = "No mail app opened. Use Copy as text and paste it into your mail."
-        stub = ("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); "
-                "return Promise.resolve(new Response(JSON.stringify(%s), {status: %d})); }")
-        notes = "document.querySelectorAll('[data-mail-note]').length"
-        for cdp, sid, where in self.each():
-            self.open_help(cdp, sid)
-            cdp.js(f"{BAR}.click()", sid)
-            cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'The page is slow'); })()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fbt-mail]').hasAttribute('href')", sid)), where)
-            href = cdp.js("document.querySelector('[data-fbt-mail]').getAttribute('href')", sid)
-            hash_ = cdp.js("location.hash", sid)
-            cdp.js(stub % ('{"ok": true}', 200), sid)
-            cdp.js("document.querySelector('[data-fbt-mail]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("window.__posts.length", sid) == 1), where + ": one call to the route")
-            url, body = json.loads(cdp.js("JSON.stringify(window.__posts[0])", sid))
-            self.assertEqual(url, "/api/open-mail", where)
-            self.assertEqual(json.loads(body), {"link": href}, where)
-            self.assertEqual(cdp.js(notes, sid), 0, where + ": no note on success")
-            self.assertEqual(cdp.js("location.hash", sid), hash_, where + ": no navigation to the mailto: link")
-            cdp.js(stub % ('{"ok": false, "code": "not_opened", "message": "The mail app could not be opened."}', 503), sid)
-            cdp.js("document.querySelector('[data-fbt-mail]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js(notes, sid) == 1), where + ": the note shows on a refusal")
-            self.assertEqual(cdp.js("document.querySelector('[data-mail-note]').textContent", sid), note, where)
-            cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, ' x'); })()", sid)
-            self.assertTrue(wait(lambda: cdp.js(notes, sid) == 0), where + ": typing clears the note")
-
 
 if __name__ == "__main__":
     unittest.main()

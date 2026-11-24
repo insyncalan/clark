@@ -63,7 +63,7 @@ class NoBrowser(unittest.TestCase):
     def test_the_published_page_has_the_head_and_none_of_the_owners_parts(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
         served = page.PAGE.read_text(encoding="utf-8")
-        for text in ("ms-summary", "head-sub"):
+        for text in ("ms-summary", "head-sub", "to come", "achieved"):
             self.assertIn(text, view, text)
         for text in OWNERS_WORDS:
             self.assertNotIn(text, view, f"{text!r} is in the published page")
@@ -275,10 +275,11 @@ SEE = """(() => {
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
   const sub = q('#ms-summary'), h1 = q('#milestones h1'), add = q('#addMs'), crumbs = q('#milestones .crumbs');
-  return {crumbs: crumbs.textContent, title: h1.textContent, summary: sub ? sub.textContent : null, tag: [crumbs.tagName, h1.tagName],
-          order: r(crumbs).bottom <= r(h1).top + 1, shown: !!sub,
+  return {crumbs: crumbs.textContent, title: h1.textContent, summary: sub.textContent, tag: [crumbs.tagName, h1.tagName, sub.tagName],
+          order: r(crumbs).bottom <= r(h1).top + 1, shown: getComputedStyle(sub).display !== 'none' && r(sub).height > 0,
+          ratio: ratio(px(getComputedStyle(sub).color), back(sub)), size: parseFloat(getComputedStyle(sub).fontSize),
           add: add && {w: r(add).width, h: r(add).height, name: add.getAttribute('aria-label'), onScreen: r(add).right <= window.innerWidth && r(add).left >= 0,
-                       apart: r(add).left >= r(h1).right - 1 || r(add).top >= r(h1).bottom - 1 || r(add).bottom <= r(h1).top + 1},
+                       apart: r(add).left >= r(sub).right - 1 || r(add).top >= r(sub).bottom - 1 || r(add).bottom <= r(h1).top + 1},
           noScroll: document.documentElement.scrollWidth <= window.innerWidth,
           note: q('#mvNote') && {w: r(q('#mvNote')).width, h: r(q('#mvNote')).height, onScreen: r(q('#mvNote')).right <= window.innerWidth && r(q('#mvNote')).left >= 0},
           buttons: [...document.querySelectorAll('.mvm-actions .btn')].map((b) => ({id: b.id, onScreen: r(b).right <= window.innerWidth && r(b).left >= 0, h: r(b).height}))};
@@ -286,20 +287,21 @@ SEE = """(() => {
 
 
 class Page(Base):
-    def test_the_head_is_the_project_and_the_title_with_no_sentence_at_both_widths_in_both_themes(self):
+    def test_the_head_is_the_project_the_title_and_one_sentence_at_both_widths_in_both_themes(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit(cdp, width, theme)
-                    p.until("!!document.querySelector('#milestones h1')", "the head drew")
+                    p.until("!!document.querySelector('#ms-summary')", "the head drew")
                     p.until("!!document.querySelector('#addMs')", "View draws the button (row 823: no mode on this page)")
                     seen = p.js(SEE)
                     self.assertEqual(seen["crumbs"], "Example Programme")
                     self.assertEqual(seen["title"], "Milestones")
-                    self.assertEqual(seen["tag"], ["P", "H1"])
-                    self.assertIsNone(seen["summary"], "row 1329: the forecast sentence is not in the DOM")
+                    self.assertEqual(seen["tag"], ["P", "H1", "P"])
+                    self.assertRegex(seen["summary"], r"^.+ is agreed for \d\d-\d\d-\d{4}( and now expected \d\d-\d\d-\d{4})?\. \d+ achieved, \d+ to come\.$")
+                    self.assertIn("0 achieved, 2 to come.", seen["summary"])
                     self.assertTrue(seen["order"], "the project, then the title")
-                    self.assertFalse(seen["shown"], "no summary node")
+                    self.assertFalse(seen["shown"], "the normal 'is agreed for' sentence is hidden; its node stays for the tests")
                     self.assertTrue(seen["add"] and seen["add"]["onScreen"] and seen["add"]["apart"], "the Add milestone button sits clear of the head")
                     self.assertEqual(seen["add"]["name"], "Add milestone")
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
@@ -321,7 +323,7 @@ class Page(Base):
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.until("!!document.querySelector('#milestones h1')", "the head drew")
+            p.until("!!document.querySelector('#ms-summary')", "the head drew")
             p.until("!!document.querySelector('#addMs')", "View has Add milestone")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             self.assertEqual(self.sent, [], "nothing is sent until it is used")
@@ -340,7 +342,7 @@ class Page(Base):
             self.assertEqual((new[0]["name"], new[0]["baseline_date"], new[0]["workstream"]), ("New milestone", iso, "Build"))
             self.assertEqual(self.sent[-1][1]["place"], "report")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(new[0]["id"]), "it opens in the peek")
-            self.assertIn("New milestone", p.js("document.querySelector('#peek').textContent"))
+            self.assertIn("New milestone", p.js("document.querySelector('#ms-summary').textContent") + p.js("document.querySelector('#peek').textContent"))
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertIsNone(self.store.read("milestones", ref=new[0]["id"]))
@@ -559,9 +561,8 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid)))
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones h1')", sid)), "the head drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones h1')", sid)), "the head drew")      # row 1329: a published file is drawn with Classic, which has no sentence
             self.assertEqual(cdp.js("document.querySelector('#milestones .crumbs').textContent", sid), "Example Programme")
-            self.assertEqual(cdp.js("document.querySelectorAll('#ms-summary').length", sid), 0, "row 1329: no forecast sentence in the published file either")
             self.assertEqual(cdp.js("!!document.querySelector('#addMs')", sid), False, "a file has no Add milestone")
             self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 5, "the owner's ruling: five rows")
             self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show all 8 milestones")
