@@ -202,8 +202,8 @@ class Page(unittest.TestCase):
         self.assertNotIn("from_w", mid)
         note = self.val("document.querySelector('[data-file-note]').textContent")
         self.assertIn("1,800 px: sharp on screen, about 180 dpi if printed full width, below the 300 dpi target", note)
-        small = self.add(600, 400)
-        self.assertEqual(self.width_of(small["pictures"]["original"]), 600)
+        small = self.add(500, 300)
+        self.assertEqual(self.width_of(small["pictures"]["original"]), 500)
         self.assertIn("centred at its own size", self.val("document.querySelector('[data-file-note]').textContent"))
 
     # -- framing: whole numbers sent with the words; clark makes the framed copy --
@@ -308,13 +308,13 @@ class Page(unittest.TestCase):
         self.assertAlmostEqual(self.height(), before + 40, delta=1.5)
 
     def test_the_height_handle_on_a_small_image_goes_by_the_drawn_width(self):
-        self.add(600, 400, "bands")
+        self.add(500, 300, "bands")
         before = self.height()
-        self.assertAlmostEqual(before, 400, delta=1)                      # drawn at its own width, 600 wide
+        self.assertAlmostEqual(before, 300, delta=1)                      # drawn at its own width, 500 wide (under 600 px: small)
         self.drag("[data-height-handle]", 0, 40)
         self.until("F.body('ABC-S-1').shape === 'free'", "saved")
         self.until("!document.querySelector('.fi-bar[data-busy]')", "done")
-        self.assertAlmostEqual(self.height(), 440, delta=1.5)
+        self.assertAlmostEqual(self.height(), 340, delta=1.5)
 
     def test_the_height_has_limits_and_arrow_keys_move_it(self):
         self.add(2400, 1200, "bands")
@@ -333,12 +333,12 @@ class Page(unittest.TestCase):
 
     # -- a small image: centred at its own size, with a fill --
     def test_a_small_image_is_centred_with_a_fill_and_has_its_own_controls(self):
-        self.add(600, 400, "bands")
+        self.add(500, 300, "bands")
         acts = self.val("[...document.querySelectorAll('[role=toolbar] button')].map(b => b.dataset.act)")
         for a in ("fit-centre", "fit-stretch", "fill-blur", "fill-brand", "fill-plain"):
             self.assertIn(a, acts)
         box = self.val("(function(){const s = document.querySelector('.fi-stage').getBoundingClientRect(), b = document.querySelector('.fi-box').getBoundingClientRect(); return [s.width, b.width, b.left - s.left, s.right - b.right];})()")
-        self.assertAlmostEqual(box[1], 600, delta=1)
+        self.assertAlmostEqual(box[1], 500, delta=1)
         self.assertAlmostEqual(box[2], box[3], delta=1)
         self.assertEqual(self.val("document.querySelectorAll('.fi-bg').length"), 1, "blurred copy by default")
         self.click("[data-act=fill-brand]")
@@ -351,6 +351,79 @@ class Page(unittest.TestCase):
         self.until("!document.querySelector('.fi-bar[data-busy]')", "done")
         self.assertEqual(self.val("document.querySelectorAll('[data-act^=fill]').length"), 0, "no fill when it fills the width")
         self.assertAlmostEqual(self.val("document.querySelector('.fi-box').getBoundingClientRect().width"), 1300, delta=1)
+
+    # -- row 1580: the small-image width is 600 px; the description is only asked for; the original is kept; dark mode --
+    def test_the_small_image_rule_is_600_px_at_1400_and_900(self):
+        small_acts = ("fit-centre", "fit-stretch", "fill-blur", "fill-brand", "fill-plain")
+        for page, width in ((1400, 1300), (900, 800)):
+            for theme in ("light", "dark"):
+                with self.subTest(page=page, theme=theme):
+                    self.mount(None, "edit", width, page, theme)
+                    self.val("drop(500, 300, 'bands')", True)
+                    self.until("document.querySelector('.fi-stage') && document.querySelector('[role=toolbar]')", "the 500 px image is in")
+                    self.until("document.querySelector('.fi-pic').complete", "loaded")
+                    acts = self.val("[...document.querySelectorAll('[role=toolbar] button')].map(b => b.dataset.act)")
+                    for a in small_acts:
+                        self.assertIn(a, acts, "a 500 px image is small: it has the small-image controls")
+                    box = self.val("(function(){const s = document.querySelector('.fi-stage').getBoundingClientRect(), b = document.querySelector('.fi-box').getBoundingClientRect(); return [b.width, b.left - s.left, s.right - b.right];})()")
+                    self.assertAlmostEqual(box[0], 500, delta=1, msg="drawn at its own size")
+                    self.assertAlmostEqual(box[1], box[2], delta=1, msg="centred")
+                    self.mount(None, "edit", width, page, theme)
+                    self.val("drop(700, 400, 'bands')", True)
+                    self.until("document.querySelector('.fi-stage') && document.querySelector('[role=toolbar]')", "the 700 px image is in")
+                    self.until("document.querySelector('.fi-pic').complete", "loaded")
+                    acts = self.val("[...document.querySelectorAll('[role=toolbar] button')].map(b => b.dataset.act)")
+                    for a in small_acts:
+                        self.assertNotIn(a, acts, "a 700 px image is not small: no small-image controls")
+                    self.assertTrue(self.val("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+
+    def test_no_description_shows_the_quiet_red_note_and_a_description_removes_it(self):
+        for page, width in ((1400, 1300), (900, 800)):
+            for theme in ("light", "dark"):
+                with self.subTest(page=page, theme=theme):
+                    self.mount(None, "edit", width, page, theme)
+                    self.val("drop(2400, 1200, 'bands')", True)
+                    self.until("document.querySelector('.fi-stage') && document.querySelector('[role=toolbar]')", "the image is in")
+                    self.assertEqual(self.val("document.querySelectorAll('[data-alt-note]').length"), 1, "no description: the note shows")
+                    self.assertEqual(self.val("document.querySelector('label[for=\"tpl-ABC-S-1-alt\"]').textContent"), "Describe the image")
+                    self.val("(function(){const i = document.querySelector('#tpl-ABC-S-1-alt'); i.value = 'x'; i.dispatchEvent(new Event('blur')); return true;})()")
+                    self.until("F.body('ABC-S-1').alt === 'x'", "the description is saved")
+                    self.until("!document.querySelector('[data-alt-note]')", "one character removes the note")
+
+    def test_reset_after_a_save_and_reload_returns_the_whole_original(self):
+        for page, width in ((1400, 1300), (900, 800)):
+            for theme in ("light", "dark"):
+                with self.subTest(page=page, theme=theme):
+                    self.mount(None, "edit", width, page, theme)
+                    self.val("drop(2400, 1200, 'quad')", True)
+                    self.until("document.querySelector('.fi-stage') && document.querySelector('[role=toolbar]')", "the image is in")
+                    self.click("[data-act=crop]")
+                    self.until("document.querySelector('.fi-crop-box')", "the crop box")
+                    self.key("[data-crop-box]", "ArrowRight")
+                    self.click("[data-act=crop-apply]")
+                    self.settled(2)
+                    saved = self.body()
+                    self.assertTrue(saved.get("crop"), "the crop is saved")
+                    self.mount(saved, "edit", width, page, theme)                  # the reload: the editor opens on what was stored
+                    self.until("document.querySelector('[role=toolbar]')", "the editor is back")
+                    self.assertEqual(len(self.body()["pictures"]), 2, "the original and the framed copy are both stored")
+                    self.until("!document.querySelector('[data-act=reset]').disabled", "Reset is on")
+                    self.click("[data-act=reset]")
+                    self.until("!F.body('ABC-S-1').crop", "the crop is off")
+                    got = self.val("window.px(F.body('ABC-S-1').pictures.original)", True)
+                    self.assertEqual((got["w"], got["h"]), (2400, 1200), "the whole original is back")
+
+    def test_dark_mode_does_not_change_the_image_in_the_editor(self):
+        for page, width in ((1400, 1300), (900, 800)):
+            seen = []
+            for theme in ("light", "dark"):
+                self.mount(None, "edit", width, page, theme)
+                self.val("drop(2400, 1200, 'bands')", True)
+                self.until("document.querySelector('.fi-pic') && document.querySelector('.fi-pic').complete", "loaded")
+                m = self.val("(function(){const p = document.querySelector('.fi-pic'), c = getComputedStyle(p); return [c.filter, c.opacity, p.getBoundingClientRect().width];})()")
+                self.assertEqual(m[:2], ["none", "1"], (page, theme))
+                seen.append(m)
+            self.assertEqual(seen[0], seen[1], "dark draws the image as light does")
 
     # -- replacing and removing --
     def test_remove_takes_the_image_out_in_one_step_and_a_new_one_starts_from_no_framing(self):

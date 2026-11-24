@@ -204,6 +204,34 @@ class View(unittest.TestCase):
         finally:
             self.cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
 
+    def test_a_500_px_image_is_centred_and_a_700_px_image_fills_at_1400_and_900(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.draw({"image": uri(png(500, 250)), "alt": "x", "fill": "plain"}, width, theme)
+                    m = self.measure()
+                    self.assertEqual(round(m["img"][2]), 500, "under 600 px: its own size, not stretched")
+                    self.assertLessEqual(abs((m["img"][0] - m["fig"][0]) - (m["fig"][1] - m["img"][1])), 1, "centred: the gap each side is the same")
+                    self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
+                    self.draw({"image": uri(png(700, 350)), "alt": "x", "fill": "plain", "fit": "stretch"}, width, theme)
+                    m = self.measure()
+                    self.assertLessEqual(abs(m["img"][2] - m["fig"][2]), 1, "700 px: the image width is the section width")
+                    self.assertLessEqual(m["scroll"][0], m["scroll"][1], "no sideways scroll")
+
+    def test_dark_mode_does_not_change_the_image_in_the_view_or_the_editor(self):
+        content = {"image": uri(png(1600, 400)), "caption": "Fictional caption", "alt": "Fictional description"}
+        for width in (1400, 900):
+            seen = {}
+            for theme in ("light", "dark"):
+                self.draw(content, width, theme)
+                m = self.measure()
+                with self.subTest(width=width, theme=theme):
+                    self.assertEqual((m["filter"], m["opacity"]), ("none", "1"), "no filter, opacity 1")
+                    self.assertEqual(m["px"][:3], [200, 30, 30])
+                    self.assertEqual(m["px"][3:], [30, 30, 200])
+                seen[theme] = (m["px"], m["filter"], m["opacity"], m["img"][2])
+            self.assertEqual(seen["light"], seen["dark"], "the dark view draws the same pixels as the light view")
+
 
 def published(content, title="", full=True):
     return {"as_at": "2026-11-15", "data": {"project": {"code": "FIC", "name": "Fictional project"}, "actions": [], "raid": [], "decisions": [],
