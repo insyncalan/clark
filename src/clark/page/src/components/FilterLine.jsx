@@ -11,6 +11,7 @@ import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";      // row 1290: the grey word chip is Classic only; Cards (frozen) keeps class "fchip"
 import { actionIcon, groupIcon } from "../menuIcons.js";
 import { work, setWork, announce } from "../stores/work.js";
 import { say, sayLocalUndo } from "../stores/changes.js";
@@ -512,7 +513,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
             {chips.map((c, i) => {
               const name = Q.chipName(c, rows, ctx, extra), g = glossOf(c);
               return (
-                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
+                <span class={classicTheme() ? Q.chipClass(c, rows, ctx, extra) : "fchip"} key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
                   onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{c}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
