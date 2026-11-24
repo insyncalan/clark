@@ -625,6 +625,10 @@ class InThePage(PageBase):
         p = self.visit(cdp)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        # The page gets its `resize` event a frame or more after this call, and an open picker closes on `resize` (edit/cells/Pop.jsx). Measured on a runner: a click that
+        # lands just before the event finds its picker shut again (the first click "did not open it"). Two frames after the call the event has been delivered.
+        p.js("window.__framed = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__framed = 1; }))")
+        p.until("window.__framed === 1 && window.innerWidth === %d" % width, "the page took its width")
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
         return p
