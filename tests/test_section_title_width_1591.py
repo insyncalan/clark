@@ -121,6 +121,28 @@ class SectionTitleWidth(Look):
                 self.assertLessEqual(r["right"], k[0] + 1, f"{where}: the box ends before {k}")
             self.assertLessEqual(r["right"], r["hleft"] + r["hw"] + 1, where)
 
+    def test_the_sweep_line_under_the_title_is_as_wide_as_the_title_text_while_the_box_fills_the_row(self):
+        # Row 1408 x 1591: .sec-t is as wide as the heading row, but its ::after (the sweep line) is sized by the text copy in data-t.
+        for cdp, p, where, r in self.each():
+            got = p.js("(() => { const s = document.querySelector('[data-id=\"' + %r + '\"]'), t = s.querySelector('.sec-title'), st = s.querySelector('.sec-t'),"
+                       " g = document.createRange(); g.selectNodeContents(t); return {text: g.getBoundingClientRect().width, after: parseFloat(getComputedStyle(st, '::after').width),"
+                       " box: st.getBoundingClientRect().width, title: t.getBoundingClientRect().width, mirror: st.getAttribute('data-t'), want: t.textContent}; })()" % r["id"])
+            self.assertEqual(got["mirror"], got["want"], where)
+            self.assertAlmostEqual(got["after"], got["text"], delta=1, msg=f"{where}: line {got['after']} vs text {got['text']}")
+            self.assertGreaterEqual(got["box"], 0.8 * (r["hw"] - 8), where)
+            self.assertGreaterEqual(got["title"], 0.8 * (r["hw"] - 8), where)
+            self.assertGreater(got["box"], got["after"] + 100, where)
+
+    def test_the_copy_follows_typing(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("document.querySelector('.sec-title').focus(); document.execCommand('selectAll')")
+            p.type("Hello there")
+            self.assertEqual(p.js("document.querySelector('.sec-title').parentElement.getAttribute('data-t')"), "Hello there")
+            p.key("Escape", vk=27)
+            p.until("document.querySelector('.sec-title').parentElement.getAttribute('data-t') !== 'Hello there'", "Esc restores the copy")
+
     def test_typing_enter_and_esc_save_and_restore_as_before(self):
         with chrome() as cdp:
             p = self.visit(cdp)

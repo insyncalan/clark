@@ -322,6 +322,7 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
 .sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 .sec-t > .sec-title:focus { text-overflow: clip; }
+.sec-t:has(> .sec-title)::after { right: auto; max-width: 100%; box-sizing: border-box; overflow: hidden; text-wrap: nowrap; font: inherit; color: transparent; content: attr(data-t); }   /* the box is row-wide, the row 1408 sweep line must stay as wide as the title text: a copy of the text (data-t, Title.jsx) sizes it; height 2px, bottom and animation stay rules.css */
 /* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
 .mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
 .mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
