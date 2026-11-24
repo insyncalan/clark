@@ -118,6 +118,29 @@ class OneLineInView(Base):
             xs = {t: [b["x"] for b in p.js(ROWS % t)[0]["boxes"]] for t in ("raid", "actions")}
             self.assertEqual(xs["raid"][1:], xs["actions"][1:], "the same columns in both cards, at the same places")
 
+    def test_a_work_item_title_is_normal_weight_not_bold(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.served().port)
+            p.ready()
+            for w in (1400, 900):
+                width(cdp, p.sid, w)
+                for t in ("raid", "actions"):
+                    got = p.js("[...document.querySelectorAll('[data-type=%s] .wl-row .wl-title')].map(e => getComputedStyle(e).fontWeight)" % t)
+                    self.assertTrue(got, t)
+                    self.assertEqual(set(got), {"400"}, "the %s titles are normal weight at %d" % (t, w))
+
+    def test_the_published_file_list_titles_are_normal_weight_too(self):
+        path = self.published()
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row .wl-title').length > 0", sid)))
+            for w in (1400, 900):
+                width(cdp, sid, w)
+                got = cdp.js("[...document.querySelectorAll('.wl-row .wl-title')].map(e => getComputedStyle(e).fontWeight)", sid)
+                self.assertEqual(set(got), {"400"}, "the published list titles are normal weight at %d" % w)
+
     def test_a_long_title_is_cut_with_dots_and_its_title_attribute_holds_all_of_it(self):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.served().port)

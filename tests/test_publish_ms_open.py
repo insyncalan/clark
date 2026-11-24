@@ -60,17 +60,31 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar drew the chips")
                 chips = cdp.js("[...document.querySelectorAll('#milestones .cal-ms')].map(e => e.dataset.ms)", sid)
                 for one in chips:
-                    cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                    cdp.js("location.hash = '#milestones&p=PUB&mv=cal'", sid)      # the Calendar choice is in the address now, so closing the peek this way stays on the Calendar
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
                     cdp.js(f"document.querySelector('#milestones .cal-ms[data-ms=\"{one}\"]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the chip {one} opened {cdp.js(PEEK_ID, sid)}")
+
+    def test_row_1132_a_file_opened_with_mv_cal_shows_the_calendar_and_the_choice_survives_a_reload(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, self.path.as_uri() + "#milestones&p=PUB&mv=cal", width)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "opened on the Calendar")
+                self.assertEqual(cdp.js("document.querySelector('#milestones [data-msvb=cal]').getAttribute('aria-current')", sid), "true", "Calendar is the chosen view")
+                cdp.js("document.querySelector('#milestones [data-msvb=line]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length === 0", sid)), "the Timeline shows")
+                self.assertNotIn("mv=", cdp.js("location.hash", sid))
+                cdp.js("document.querySelector('#milestones [data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: "mv=cal" in cdp.js("location.hash", sid)), "the choice is in the address")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#milestones .cal-ms').length >= 3", "the Calendar is back after a reload")
+                self.assertEqual(cdp.js("document.querySelector('#milestones [data-msvb=cal]').getAttribute('aria-current')", sid), "true")
 
     def test_a_row_a_mark_and_a_chip_open_the_read_only_peek(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.draw(cdp, width)
                 self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row.plain, #milestones .mv-mk.plain, #milestones .mv-lab.plain').length", sid), 0, "nothing is plain text now")
-                self.assertEqual(cdp.js("document.querySelectorAll('#milestones [data-msdet]').length", sid), 0, "a file keeps no Hide details toggle")
+                self.assertEqual(cdp.js("document.querySelectorAll('#milestones [data-msdet]').length", sid), 1, "a file has the Hide details toggle, open (row 1114)")
                 cdp.js("document.querySelector('#milestones .msl-row .msl-cells').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "the row opened the peek")
                 self.assertEqual(cdp.js(f"[...document.querySelectorAll('#peek .pk-body').length ? document.querySelectorAll('#peek .pk-body') : []].reduce((n, b) => n + b.querySelectorAll({CONTROLS!r}).length, 0)", sid), 0, "read only")

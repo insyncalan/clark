@@ -212,7 +212,7 @@ class Words(unittest.TestCase):
                                   "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
                                   "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                                   "Comfortable", "Each Dashboard section is its own card, with room between them.",
-                                  "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
+                                  "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"

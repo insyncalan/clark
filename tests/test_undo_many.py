@@ -332,7 +332,7 @@ class Request(Base):
             ({"project": "ABC", "steps": [b] * (MAX_UNDO_MANY * 2 + 1)}, changes.MANY_TOO_MANY),
             ({"project": "ABC", "steps": [b], "preview": "yes"}, changes.MANY_BAD_FLAG),
             ({"project": "ABC", "steps": [b], "confirm": 1}, changes.MANY_BAD_FLAG),
-            ({"project": "ABC", "steps": [b], "table": "actions"}, "clark doesn't know 'table' in that request."),
+            ({"project": "ABC", "steps": [b], "table": "actions"}, "That change doesn't take 'table'."),
             ({"project": "abc", "steps": [b]}, changes.BAD_PROJECT),
             ({"project": "XYZ", "steps": [b]}, changes.MANY_NOT_MINE),
         )

@@ -306,6 +306,28 @@ class Editor(unittest.TestCase):
                     self.until("document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-002'", "focus is on the milestone's eye")
                     self.assertEqual(self.left_out(), [])
 
+    def check_eye_focus(self, width):
+        with chrome() as cdp:
+            self.visit(cdp, width=width)
+            order = self.js("[...document.querySelectorAll('.secs .msl-row')].map((r) => r.dataset.ms)")
+            self.assertEqual(len(order), 3)
+            self.press(order[1])
+            self.until(f"!document.querySelector(\".secs .msl-row[data-ms='{order[1]}']\")", "the row left the Dashboard")
+            self.until(f"document.activeElement && document.activeElement.dataset.msEye === '{order[2]}'", "focus moved to the next row's eye")
+            self.press(order[2])
+            self.until(f"!document.querySelector(\".secs .msl-row[data-ms='{order[2]}']\")", "the last of the two went")
+            self.until(f"document.activeElement && document.activeElement.dataset.msEye === '{order[0]}'", "no next row: the previous row's eye")
+            self.press(order[0])
+            self.until("!document.querySelector('.secs .msl-row')", "the block is replaced")
+            self.until("document.activeElement && document.activeElement.classList.contains('handle')", "no rows left: the section's handle")
+
+
+    def test_pressing_the_eye_on_the_dashboard_keeps_focus_on_a_neighbouring_eye_and_on_the_last_row_the_handle_at_1400(self):
+        self.check_eye_focus(1400)
+
+    def test_pressing_the_eye_on_the_dashboard_keeps_focus_on_a_neighbouring_eye_and_on_the_last_row_the_handle_at_900(self):
+        self.check_eye_focus(900)
+
     def test_pressing_again_includes_it_and_that_has_its_own_undo(self):
         self.store_hide("ABC-M-003")
         with chrome() as cdp:

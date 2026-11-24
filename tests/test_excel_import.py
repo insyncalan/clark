@@ -198,6 +198,16 @@ class Staging(ImportCase):
         self.assertEqual(p.changes, [])
         self.assertIn("Due must be a date", p.problems[0].message)
 
+    def test_a_due_date_in_arabic_indic_digits_is_refused(self):
+        arabic = "\u0662\u0660\u0662\u0666-\u0661\u0662-\u0660\u0664"        # 2026-12-04 in Arabic-Indic digits
+        for bad in (arabic, "\u0660\u0664-\u0661\u0662-\u0662\u0660\u0662\u0666"):
+            with self.assertRaises(ValueError, msg=bad):
+                xi.read_date(bad)
+        wbk.edit(self.path, "Actions", self.a1, due_date=arabic)
+        p = self.plan()
+        self.assertEqual(p.changes, [])
+        self.assertIn("Due must be a date", p.problems[0].message)
+
     def test_what_a_person_reads_uses_the_export_labels_and_correct_grammar(self):
         wbk.edit(self.path, "Milestones", self.demo.milestone, baseline_date=date(2030, 6, 1))
         wbk.edit(self.path, "Actions", self.a1, due_date="soon", owner=None)

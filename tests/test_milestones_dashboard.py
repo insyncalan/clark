@@ -177,6 +177,24 @@ class PublishedFile(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('.msv .msl-prog button, .msv .msl-prog a, .msv .msl-prog input').length", sid), 0,
                              "the file's progress holds no control")
 
+    def test_the_published_dashboard_draws_the_milestones_section_when_the_file_holds_milestones(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        with demo.store.step("dashboard", USER) as st:
+            mid = st.create("milestones", {"project": "ABC", "name": "Half done", "baseline_date": "2030-05-01",
+                                           "client_visible": 1, "source": "demo"})
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(demo.store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": "file://" + str(done["path"])}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.secs .msv .msl-row[data-ms=\"%s\"]')" % mid, sid)),
+                                "the file's Dashboard draws the Milestones section at %d" % width)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -92,6 +92,20 @@ class TheCard(Card):
             self.assertTrue(any(w == "undo" for w, _r in self.sent), "Undo went through the board's own /api/undo")
             self.assertFalse(any(w == "change" for w, _r in self.sent), "Apply never used the hand-edit route")
 
+    def test_apply_and_undo_from_the_keyboard_keep_focus_in_the_card(self):
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            inside = "!!document.activeElement && !!document.activeElement.closest('[data-ask-change]')"
+            p.js("(() => { const b = document.querySelector('[data-ask-apply]'); b.focus(); b.click(); })()")      # a key press on a focused button is a click that leaves focus on it
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            p.until(inside, "after Apply focus is in the card, not on the page body")
+            p.js("(() => { const b = document.querySelector('[data-ask-undo]'); b.focus(); b.click(); })()")
+            p.until("document.querySelector('[data-ask-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            p.until(inside, "after Undo focus is in the card, not on the page body")
+
     def test_an_applied_card_stays_done_with_undo_after_the_panel_is_closed_and_opened(self):
         self.says(self.close_it())
         with chrome() as cdp:

@@ -107,5 +107,12 @@ class TheWindowKeepsThem(unittest.TestCase):
         self.assertIn("if (keep) L.rememberSheets(tables)", read)
 
 
+class SheetLine(unittest.TestCase):
+    def test_the_gantt_sheet_is_counted_when_it_has_items(self):
+        r = probe("return [Q.sheetLine({items: [{table: 'gantt_lines', kind: 'new'}, {table: 'gantt_lines', kind: 'new'}, {table: 'gantt_lines', kind: 'changed'}]}), Q.sheetLine({items: []})]")
+        self.assertTrue(r[0].endswith(" · Gantt: 2 new, 1 updated"), r[0])
+        self.assertNotIn("Gantt", r[1])
+
+
 if __name__ == "__main__":
     unittest.main()

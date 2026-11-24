@@ -450,6 +450,32 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
+    def test_hunt2_the_pdf_clark_makes_has_one_foot_and_no_controls(self):
+        # hunt 2: the PDF carried the page's own foot (its number) beside the template foot (the number passed in), and the
+        # 'Hide milestone details' button, the use case sort and filter lines and the 'Open the page' link printed as text.
+        from clark import pdf_text, publish_pdf
+        data = publish_pdf.make(self.path.read_bytes(), TODAY, "portrait", number=3)
+        text = pdf_text.text_of(data)
+        self.assertIn("Publication 3 · 28-10-2026", text)
+        self.assertNotIn("Publication 1 ", text, "only the foot the PDF was asked for, not the page's own")
+        for control in ("Hide milestone details", "Open the page", "Sort by", "Group by"):
+            self.assertNotIn(control, text, control)
+
+    def test_hunt2_the_printed_timeline_cuts_off_no_month_name(self):
+        probe = """(() => { const bad = []; for (const wrap of document.querySelectorAll('.print-tab .mv-wrap')) { const w = wrap.getBoundingClientRect();
+          for (const el of wrap.querySelectorAll('.mv-month, .mv-month > span')) { const r = el.getBoundingClientRect();
+            if (el.textContent.trim() && (r.right > w.right + 1 || r.left < w.left - 1)) bad.push(el.textContent); } } return JSON.stringify(bad); })()"""
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, scheme)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                self.printed(cdp, sid)
+                time.sleep(0.6)
+                for page_width in (width, 703):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": page_width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    time.sleep(0.4)
+                    self.assertEqual(json.loads(cdp.js(probe, sid)), [], f"no month name runs past the printed box at {page_width}")
+
     def test_1065_a_file_with_a_stale_snapshot_tab_draws_only_the_tabs_the_page_has_and_a_tab_it_lacks_opens_the_first(self):
         text = self.path.read_text(encoding="utf-8")
         tabs = re.search(r'"tabs":\[[^\]]*\]', text)

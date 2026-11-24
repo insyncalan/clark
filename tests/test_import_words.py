@@ -24,7 +24,7 @@ class ImportWords(unittest.TestCase):
     def test_the_first_box_keeps_the_prototypes_rules_about_ids_and_refusals(self):
         # #655: the sentence about which sheets are read is no longer the prototype's (the person chooses); the rest of it still is
         text = re.sub(r"<[^>]+>", "", IO).replace("\n", " ")
-        for piece in ("A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
+        for piece in ("You see the changes before anything is saved. "
                       "If a row breaks a rule, nothing is imported and you are told which rows.",):
             self.assertIn(piece, quoted("pickBody"))
             self.assertIn(piece, text)
@@ -55,7 +55,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertEqual(quoted("pickBody"),
                          "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. "
                          "You choose which after you pick a file (a History sheet from an export is left alone). "
-                         "A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
+                         "Every sheet needs an ID column. A row whose ID exists updates it; a row with that column blank adds a new one. You see the changes before anything is saved. "
                          "If a row breaks a rule, nothing is imported and you are told which rows.")
         self.assertNotIn("(or RAID)", CARD)
 

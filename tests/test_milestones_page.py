@@ -313,7 +313,7 @@ class RealBrowser(BrowserBase, unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('[data-legend]')].map(e => e.dataset.legend)", sid),
-                                 ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Expected", "Today"])
+                                 ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled", "Expected", "Today"])
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.mlg-p')).visibility", sid), "hidden", "closed until hover or focus")
                 cdp.js("document.querySelector('.mlg-b').focus()", sid)
                 self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('.mlg-p')).visibility", sid) == "visible"), "opens on focus")
@@ -532,6 +532,7 @@ class Published(unittest.TestCase):
                 self.assertIn(word, legend)
             self.assertNotIn("Slipped", legend)
             self.assertNotIn("Overdue", legend)
+            self.assertNotIn("Cancelled", legend, "a published file has no Cancelled rows, so its Legend has no Cancelled entry")
             self.assertEqual(cdp.js("document.querySelectorAll('.msl-row .tag').length", sid), 0, "no Internal only tag")
             self.assertEqual(cdp.js("document.querySelector('.msv').dataset.view", sid), "line", "starts on Timeline")
             self.assertIn("Milestone timeline;", cdp.js("document.querySelector('.mv-wrap').getAttribute('aria-label')", sid))

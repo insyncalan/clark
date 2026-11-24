@@ -38,11 +38,13 @@ class Source(unittest.TestCase):
         self.assertNotIn("inset", line)
         self.assertNotIn("box-shadow", line)
 
-    def test_the_published_page_has_neither_override_and_shell_css_keeps_its_rules(self):
+    def test_the_published_page_has_no_edit_override_and_shell_css_has_the_quiet_note(self):
         view = read(PAGE / "page-view.html")
         self.assertNotIn(".hp-note { border: 1px solid", view)
         self.assertNotIn(".ucl-list .ucl-row:hover", view)
-        self.assertIn(".hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--brand-blue);", read(PAGE / "shell.css"))
+        note = next(l for l in read(PAGE / "shell.css").splitlines() if l.startswith(".hp-note {"))
+        self.assertIn("border: 1px solid var(--grey-200)", note)
+        self.assertNotIn("border-left", note)
 
 
 if __name__ == "__main__":

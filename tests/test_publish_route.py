@@ -413,6 +413,14 @@ class HostileFolderInside(unittest.TestCase):
         self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "x" / ".." / "Client" / "Sub"), str(client) + "/"))
         self.assertFalse(publish_flow.folder_inside(None, str(client / ".." / "Other"), str(client)))
 
+    def test_climbing_out_of_the_client_folder_by_dotdot_is_outside(self):
+        """`Client/Inner/../../Out` normalises to a folder beside Client: the answer is False (outside), not a refusal or an error."""
+        client = self.tmp / "Client"
+        (client / "Inner").mkdir(parents=True)
+        (self.tmp / "Out").mkdir()
+        self.assertFalse(publish_flow.folder_inside(None, str(client / "Inner" / ".." / ".." / "Out"), str(client)))
+        self.assertTrue(publish_flow.folder_inside(None, str(client / "Inner" / ".." / ".." / "Client" / "Inner"), str(client)))
+
     def test_unicode_hostile_huge_and_nul_paths_answer_false_never_raise(self):
         client = self.tmp / "Cl\u00e9ment"
         client.mkdir()

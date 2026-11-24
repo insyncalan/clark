@@ -56,5 +56,16 @@ class RaidCardTitle(PublishedFile, glance.Setup):
         self.assertEqual(sorted(c["titles"][0].strip() for c in cards), sorted(list(want) * 2))
 
 
+    def test_a_card_title_is_normal_weight_not_bold_at_both_widths(self):
+        self.seed()
+        path = self.publish()
+        with chrome() as cdp:
+            for w in (1400, 900):
+                p = self.draw(cdp, path, width=w)
+                got = p.js("[...document.querySelectorAll('.raid-card .raid-title')].map(e => getComputedStyle(e).fontWeight)")
+                self.assertEqual(len(got), 6, "six cards drawn at %d" % w)
+                self.assertEqual(set(got), {"400"}, "the card titles are normal weight at %d" % w)
+
+
 if __name__ == "__main__":
     unittest.main()

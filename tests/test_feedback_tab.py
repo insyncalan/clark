@@ -247,6 +247,18 @@ class Card(InBrowser):
         self.mount()
         self.assertGreaterEqual(self.js("document.querySelector('#feedback-contact').getBoundingClientRect().height"), 32)
 
+    def test_each_label_sits_above_its_box_and_the_boxes_are_full_width_at_1400_and_900(self):
+        # Row 1279: the labels ran inline with the boxes, no gap, small default boxes.
+        for width in (1400, 900):
+            self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+            self.mount()
+            for label_for in ("feedback-message", "feedback-contact"):
+                g = self.val("(function(){var l=document.querySelector('label[for=%s]'),b=document.getElementById('%s'),c=document.getElementById('feedback').getBoundingClientRect(),lr=l.getBoundingClientRect(),br=b.getBoundingClientRect();"
+                             "return {below: br.top >= lr.bottom, gap: br.top - lr.bottom, wide: br.width, card: c.width};})()" % (label_for, label_for))
+                self.assertTrue(g["below"], f"{width} {label_for}: box not below its label {g}")
+                self.assertGreaterEqual(g["gap"], 4, f"{width} {label_for}: gap {g}")
+                self.assertGreaterEqual(g["wide"], g["card"] * 0.8, f"{width} {label_for}: box narrow {g}")
+
     def test_the_version_is_asked_for_once_and_nothing_is_sent_by_the_card(self):
         self.mount()
         self.assertEqual(self.val("T.asked"), 1)

@@ -81,9 +81,22 @@ class Title(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_title(cdp, sid, "   ")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: self.title(cdp, sid) == was))
             self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
             self.assertEqual(sent, [], "nothing was sent")
+
+    def test_a_refused_title_keeps_its_text_and_the_box_gets_focus_back(self):
+        for how in ("Enter", "away"):
+            with self.subTest(how=how), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                text = "x" * 400
+                self.type_title(cdp, sid, text)
+                if how == "Enter":
+                    key(cdp, sid, "Enter")
+                else:
+                    cdp.js("document.querySelector('#peek [data-pk-title-in]').blur()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek [data-pk-title-in]')", sid)), "the box has focus again")
+                self.assertEqual(self.title(cdp, sid), text, "the typed text is kept")
+                self.assertEqual(sent, [], "nothing was sent")
 
     def test_enter_and_escape_keep_focus_in_the_peek_not_on_the_page_body(self):
         for keyname in ("Enter", "Escape"):

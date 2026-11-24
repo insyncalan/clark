@@ -175,6 +175,26 @@ class Arrows(unittest.TestCase):
                 self.assertEqual(self.shown(cdp, sid), target, "Up and Down in the box do not step the item")
                 self.assertEqual(cdp.js("document.querySelector('.sn-in').value", sid), "abc")
 
+    def test_an_arrow_on_the_rich_editors_toolbar_keeps_the_peek_and_the_typed_text(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                self.edit_mode(cdp, sid)
+                act = "TUL-A-001"
+                cdp.js(f"clarkPage.openPeek({json.dumps(act)})", sid)
+                self.assertTrue(wait(lambda: self.shown(cdp, sid) == act))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-rich=latest_update]')", sid)), "the Latest update is in the peek")
+                cdp.js("document.querySelector('#peek [data-rich=latest_update]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .ProseMirror')", sid), 15))
+                cdp.js("document.querySelector('#peek .ProseMirror').focus()", sid)
+                cdp.call("Input.insertText", {"text": "kept words"}, sid)
+                cdp.js("document.querySelector('#peek .rt-bar button:not([aria-haspopup])').focus()", sid)
+                for name in ("ArrowDown", "ArrowUp", "ArrowDown"):
+                    key(cdp, sid, name)
+                cdp.js("new Promise(r => setTimeout(r, 150))", sid)
+                self.assertEqual(self.shown(cdp, sid), act, "Up and Down on a toolbar button do not step the item")
+                self.assertIn("kept words", cdp.js("(document.querySelector('#peek .ProseMirror') || {textContent: ''}).textContent", sid), "the open editor and its text are still there")
+
     def test_row_776_the_words_box_is_a_floating_card_in_light_and_dark(self):
         """Row 776: the words box floats at the foot of the peek (sticky, a surface and a shadow), at 1400 and 900 px."""
         for theme in ("light", "dark"):

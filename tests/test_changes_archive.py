@@ -79,13 +79,13 @@ class Routes(unittest.TestCase):
         self.refused({"project": "ABC", "kind": "glance_tiles", "op": "archive", "id": "ABC|risks"}, changes.BAD_OP)   # a tile has no archive
         self.refused({"project": "ABC", "kind": "milestones", "op": "delete", "id": self.refs["milestones"]}, changes.BAD_OP)   # item 658: an item can be deleted; a milestone cannot
         self.refused({"project": "ABC", "kind": "actions", "op": "cancel", "id": mine}, changes.BAD_OP)
-        self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "colour": "red"}, "clark doesn't know 'colour' in that request.")
+        self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "colour": "red"}, "That change doesn't take 'colour'.")
         self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "changes": {"archived": 1}},
                      "That change doesn't take 'changes'.")
         self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "values": {"archived": 1}},
                      "That change doesn't take 'values'.")
         self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "archived": 1},
-                     "clark doesn't know 'archived' in that request.")
+                     "That change doesn't take 'archived'.")
         for ref in (None, 5, ["ABC-A-001"], {"id": mine}, "", "ABC-A-999", "XYZ-A-001"):
             self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": ref}, changes.NOT_MINE_RECORD)
         self.refused({"project": "abc", "kind": "actions", "op": "archive", "id": mine}, changes.BAD_PROJECT)

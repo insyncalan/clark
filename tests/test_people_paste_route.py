@@ -96,9 +96,9 @@ class Paste(Base):
         before, steps = self.srv.call("GET", "/api/people")[1]["people"], self.steps()
         for rows, says in (([SAM, {"name": "Li Wen", "email": "li wen@example.com"}], "Li Wen: That email can't be used"),
                            ([SAM, {"name": "Li Wen", "email": "li@example"}], "Li Wen: That email is not complete"),
-                           ([SAM, {"name": "Li Wen", "email": "jo@example.com"}], "Li Wen: That email already belongs to Jo Park"),
-                           ([SAM, {"name": "Li Wen", "email": "sam.rivers@example.com"}], "Li Wen: That email already belongs to Sam Rivers"),
-                           ([SAM, {"name": "x" * 130}], "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…: The name is too long"),
+                           ([SAM, {"name": "Li Wen", "email": "jo@example.com"}], "Li Wen couldn't be saved. Check the row and try again."),
+                           ([SAM, {"name": "Li Wen", "email": "sam.rivers@example.com"}], "Li Wen couldn't be saved. Check the row and try again."),
+                           ([SAM, {"name": "x" * 130}], "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx… couldn't be saved. Check the row and try again."),
                            ([SAM, {"name": "  "}], "A row has no name")):
             status, body = self.paste(*rows)
             self.assertEqual((status, body["ok"]), (400, False), rows)
@@ -106,6 +106,18 @@ class Paste(Base):
             self.assertTrue(body["message"].endswith("Nothing was changed."), body["message"])
         self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"], before)
         self.assertEqual(self.steps(), steps)
+
+    def test_an_unknown_key_in_a_people_request_says_the_one_sentence(self):
+        status, body = self.post({"op": "paste", "rows": [], "colour": "red"})
+        self.assertEqual((status, body["message"]), (400, "That change doesn't take 'colour'."))
+
+    def test_a_store_rule_on_one_row_says_the_row_could_not_be_saved_and_not_the_stores_text(self):
+        from unittest import mock
+        from clark.store import Invalid, Step
+        with mock.patch.object(Step, "add_person", side_effect=Invalid("the store's own text")):
+            status, body = self.paste(SAM)
+        self.assertEqual(status, 400, body)
+        self.assertEqual(body["message"], "Sam Rivers couldn't be saved. Check the row and try again. Nothing was changed.")
 
     def test_a_name_that_matches_two_people_is_refused_not_guessed(self):
         self.add("Sam Rivers", email="a@example.com")

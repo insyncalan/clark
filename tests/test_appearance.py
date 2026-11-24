@@ -65,7 +65,7 @@ class Appearance(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)"), ORDER)
                 self.assertEqual(self.in_settings(p), ["system"])
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"),
-                                 "Follows your Mac's setting.", "the chosen one's line is under the control")
+                                 "Follows your computer's setting.", "the chosen one's line is under the control")
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
@@ -247,7 +247,7 @@ class Source(unittest.TestCase):
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ('["system", "System", "Follows your Mac\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
+        for words in ('["system", "System", "Follows your computer\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
                       "<legend>Appearance</legend>"):
             self.assertIn(words, text)
         self.assertIn('lab: "Appearance"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))

@@ -94,7 +94,7 @@ class Adding(Content):
     def test_a_new_section_takes_no_body_from_the_request(self):
         for kind in TYPES:        # #929: only a text section may start with words (test_changes_text_body)
             self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), changes.NO_BODY_HERE)
-        self.refused(self.req("new", values={"type": "needs"}, body=text(BODY)), "clark doesn't know 'body' in that request.")
+        self.refused(self.req("new", values={"type": "needs"}, body=text(BODY)), "That change doesn't take 'body'.")
 
     def test_the_starting_body_comes_from_the_registry_not_the_request(self):
         with mock.patch.dict(sb.EMPTY, {"needs": text({"v": 1, "rows": []})}):

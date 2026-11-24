@@ -1,4 +1,4 @@
-"""Row 1026 (motion): four more menus fade out as they close, like the others of row 962: the Gantt Show menu (.gt-pop, the page's table layout), the Gantt table's
+"""Row 1026 (motion): three more menus fade out as they close, like the others of row 962: the Gantt Show menu (.gt-pop, the page's table layout), the Gantt table's
 right-click menu (.gt-menu), the slash Insert list of the text editor (.rt-slash). The Work items filter box (.fbox) is the published file's own and that file carries
 no fade code, so it is not in this row. Run: python3 dev/run_tests.py test_motion_menu_exit_four
 

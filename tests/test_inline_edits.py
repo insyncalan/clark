@@ -796,6 +796,27 @@ class Live(unittest.TestCase):
             self.assertEqual((self.row("raid", "TUL-007")["status"], self.row("raid", "TUL-010")["status"]), ("Cancelled", "Open"), "only the open item changed")
             self.changed_once(before, "one item, from the peek")
 
+    def test_the_peeks_status_button_is_a_tab_stop_and_its_pick_is_logged_as_the_peek(self):
+        """The peek's Status button takes Tab (the table's cells stay out of it), and a pick from it is recorded in Activity as the peek."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's picker is there")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").tabIndex", sid), 0, "Tab reaches the peek's Status button")
+            self.assertEqual(cdp.js("document.querySelector(\"#work [data-cell='TUL-007:status']\").tabIndex", sid), -1, "a table cell stays out of the Tab order")
+            self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+            click(cdp, sid, "[data-pop] [data-value=Cancelled]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
+            st = open_store(self.path, onedrive_roots=[])
+            try:
+                places = [r[0] for r in st.con.execute("SELECT place FROM item_events WHERE item_id = ?", ("TUL-007",))]
+            finally:
+                st.close()
+            self.assertIn("peek", places, places)
+
     def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
         """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; its status picker closed (row 824: the peek edits in View too). The
         published file itself is checked in test_peek.ClosedRiskPublished."""
@@ -836,6 +857,18 @@ class Live(unittest.TestCase):
             self.undo(cdp, sid, "rating", "TUL-007 is back to Red.")
             self.until(cdp, sid, "document.querySelector(\"tr[data-id='TUL-007'] .c-prio\").textContent === 'High'", "Undo draws it Red again")
             self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]])
+
+    def test_a_rating_pick_that_drops_the_row_from_a_priority_filter_keeps_focus_in_the_table(self):
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400, hash_="#work&p=TUL&f=mode:all;priority:High")
+            self.until(cdp, sid, "!!document.querySelector(\"tr[data-id='TUL-007']\")", "the Red risk is listed under Priority High")
+            click(cdp, sid, "[data-cell='TUL-007:status']")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.until(cdp, sid, "!document.querySelector(\"tr[data-id='TUL-007']\")", "the row left the filtered list")
+            self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement !== document.body && !!document.activeElement.closest('#work')", sid)),
+                            "focus stays in the Work items table, not on the page body")
 
     def test_a_rating_pick_with_two_rows_selected_changes_only_that_row(self):
         mod = 4 if sys.platform == "darwin" else 2                       # Cmd on a Mac, Ctrl elsewhere

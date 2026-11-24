@@ -56,6 +56,11 @@ class Source(unittest.TestCase):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         self.assertIn("@media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }", css)
 
+    def test_the_centring_rule_is_for_the_work_items_cell_only(self):
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, r"(?m)^\.tcell \{[^}]*align-items: center")
+        self.assertRegex(css, r"(?m)^\.c-item \.tcell \{[^}]*align-items: center")
+
     def test_both_built_pages_carry_the_rules(self):
         for name in ("page.html", "page-view.html"):
             html = (PAGE / name).read_text(encoding="utf-8")
@@ -94,6 +99,13 @@ class Fill(Setup):
         self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
         small_text = p.js("Math.min(...[...document.querySelectorAll('.glance .fig .k, .glance .fig .dd, .glance .fig .tw')].map(e => parseFloat(getComputedStyle(e).fontSize)))")
         self.assertGreaterEqual(small_text, 13)
+
+    def test_tiles_are_as_tall_as_each_other_at_1400(self):
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            hs = p.js("""(() => [...document.querySelectorAll('.glance .tcell .fig')].map(e => Math.round(e.getBoundingClientRect().height)))()""")
+        self.assertGreaterEqual(len(hs), 3)
+        self.assertEqual(len(set(hs)), 1, hs)
 
     def test_view_tiles_fill_the_row_at_1400_and_900_in_light_and_dark(self):
         for width in (1400, 900):

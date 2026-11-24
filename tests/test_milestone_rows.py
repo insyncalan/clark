@@ -441,7 +441,11 @@ class Axis(unittest.TestCase):
     def test_legend_lists_the_six_states_then_expected_and_today(self):
         editor, client = mr.legend(), mr.legend(client=True)
         self.assertEqual([e["state"] for e in editor], ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast",
-                                                         "Expected", "Today"])
+                                                         "Cancelled", "Expected", "Today"])
+        self.assertEqual([e["state"] for e in client], ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Expected", "Today"],
+                         "a published page drops Cancelled rows, so its Legend has no Cancelled entry")
+        self.assertEqual([(e["word"], e["colour"], e["means"]) for e in editor if e["state"] == "Cancelled"],
+                         [("Cancelled", "grey", "No longer going ahead")])
         self.assertEqual([e["word"] for e in client][:6], ["Achieved", "On track", "At risk", "Expected later", "Late", "Forecast"])
         self.assertEqual([e["word"] for e in editor][:6], list(ms.STATES))
         self.assertEqual({e["state"]: e["colour"] for e in editor[:6]},

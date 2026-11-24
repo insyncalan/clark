@@ -32,7 +32,8 @@ FINDINGS = r"""(() => {
     kinds[name] = (kinds[name] || 0) + 1;
     const here = el.tagName.toLowerCase() + "." + name;
     for (const part of [el, ...el.querySelectorAll("*")]) {
-      if (/^(img|picture|video|canvas|image|source|object|embed|iframe|svg)$/i.test(part.tagName)) out.push(here + " holds <" + part.tagName.toLowerCase() + ">");
+      const stateMark = part.tagName.toLowerCase() === "svg" && (part.classList.contains("ms-i") || part.classList.contains("i"));   // the Milestones section's state marks and the page's small line icons (chevrons): drawn shapes in token colours, not pictures
+      if (!stateMark && /^(img|picture|video|canvas|image|source|object|embed|iframe|svg)$/i.test(part.tagName)) out.push(here + " holds <" + part.tagName.toLowerCase() + ">");
       for (const a of part.attributes) if (bad.test(a.value)) out.push(here + " has " + a.name + " with a picture value");
       for (const pseudo of [null, "::before", "::after", "::marker", "::first-line", "::first-letter"]) {
         const s = getComputedStyle(part, pseudo);

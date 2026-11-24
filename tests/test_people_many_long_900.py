@@ -32,6 +32,7 @@ class ManyLong(base.PeopleCard):
     test_paste_from_excel_previews_adds_in_one_step_and_one_undo_takes_it_back = None
     test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button = None
     test_a_bad_row_is_named_in_plain_words_and_nothing_is_added = None
+    test_hunt14_filter_resets_when_none_need_details_and_focus_stays_after_undo = None      # counts three people; this file has 300
 
     def test_300_long_people_wrap_at_900_and_focus_returns_after_add(self):
         with chrome() as cdp:
