@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HOLDS, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_MAY_GO, PEOPLE_CONTRACT_QUESTION, PEOPLE_CONTRACT_ACCEPT, PEOPLE_CONTRACT_DECLINE, PEOPLE_CONTRACT_DECLINED, PEOPLE_CONTRACT_ACCEPTED, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { FilesAll, FilesProject } from "./FilesSettings.jsx";
@@ -136,6 +136,7 @@ function AskProject() {
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
+  const [warns, setWarns] = useState([]);                // row 1365: [{folder, accepted, items, fresh}] from the server's name-only scan
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
   const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
@@ -161,6 +162,7 @@ function AskProject() {
       const b = r.body;
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
       setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
+      setWarns(r.status === 200 && b && Array.isArray(b.warnings) ? b.warnings : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -195,11 +197,45 @@ function AskProject() {
     else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
+      const fresh = Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: true })) : [];
+      setWarns((old) => [...old.filter((w) => b.folders.includes(w.folder) && !fresh.some((f) => f.folder === w.folder)).map((w) => ({ ...w, fresh: false })), ...fresh]);
       again();
       if (b.message) setFmsg({ kind: "note", text: b.message });
-      return true;
+      return { added: b.folders };
     }
     if (b && b.code === "no_window") setTyping(true);
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1365: Leave these subfolders out. The server finds the flagged subfolders itself and saves them as left out of this folder; the page sends only the folder.
+  // The answer's warnings replace the old ones for every folder (this folder's notice goes, as nothing in it is named any more); no file or folder on disk is touched.
+  async function leaveOut(p) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersChange(code, "exclude", p);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setFolders(b.folders);
+      setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1365: Accept or Decline for one flagged folder, remembered by the server per folder (no choice is Declined). The answer's warnings replace the old ones.
+  async function answer(action, p) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersChange(code, action, p);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setFolders(b.folders);
+      setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      again();
+      return;
+    }
     setFmsg({ kind: "error", text: failure(r) });
   }
 
@@ -261,9 +297,25 @@ function AskProject() {
       ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
-          {list.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>
-          ))}
+          {list.flatMap((p, i) => {
+            const w = warns.find((x) => x.folder === p);
+            const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>;
+            if (!w) return [row];
+            const who = askProvider.value;
+            const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
+            return [row, (
+              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : p}>
+                <p>{PEOPLE_CONTRACT_HOLDS}{names}{PEOPLE_CONTRACT_MAY_GO(who)}</p>
+                <p data-ask-warn-q>{PEOPLE_CONTRACT_QUESTION(who)}</p>
+                <div class="ask-warn-btns">
+                  <button type="button" class="btn" data-ask-warn-accept aria-pressed={w.accepted ? "true" : "false"} disabled={busy} onClick={() => answer("accept", p)}>{PEOPLE_CONTRACT_ACCEPT}</button>
+                  <button type="button" class="btn" data-ask-warn-decline aria-pressed={w.accepted ? "false" : "true"} disabled={busy} onClick={() => answer("decline", p)}>{PEOPLE_CONTRACT_DECLINE}</button>
+                  {w.items.some((i) => i.dir) ? <button type="button" class="btn" data-ask-warn-leave disabled={busy} onClick={() => leaveOut(p)}>{PEOPLE_CONTRACT_LEAVE}</button> : null}
+                </div>
+                <p data-ask-warn-state>{w.accepted ? PEOPLE_CONTRACT_ACCEPTED(who) : PEOPLE_CONTRACT_DECLINED}</p>
+              </li>
+            )];
+          })}
         </ul>
       ) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
