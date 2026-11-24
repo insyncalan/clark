@@ -15,6 +15,8 @@ from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
+from test_ask_change_route import Base as RouteBase
+
 import test_docx_read as tdx
 from clark import ask_data, reach
 
@@ -195,6 +197,101 @@ class Files(Base):
             self.assertNotIn(bad, raw)
         self.assertTrue(self.found("zqfine"))
         self.assertGreaterEqual(ix.status(self.data, "P1", [self.box])["safety"], 2)
+
+
+class FirstRunAndHelpWords(unittest.TestCase):
+    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (item 6; item 10 is held)."""
+    PICTURES = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
+    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
+
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        import json
+        import re
+        page = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src"
+        words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
+        said = dict(re.findall(r'export const (CARD_[A-Z_]+) = "((?:[^"\\]|\\.)*)"', words))
+        self.assertEqual(said.get("CARD_PASSAGES"), self.SENTENCE)
+        panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertIn("W.CARD_PASSAGES", panel)
+        entries = json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        self.assertIn(self.SENTENCE, json.dumps(entries, ensure_ascii=False))
+        # item 10 (pictures read on this Mac) is held until the picture reader exists: it is in neither the card nor Help.
+        self.assertNotIn("CARD_PICTURES", said)
+        self.assertNotIn("CARD_PICTURES", panel)
+        self.assertNotIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
+
+
+class QuestionNeedsNoPassages(RouteBase):
+    """AP27 'only when they contain words from your question': a question that matches nothing in the listed folders sends no folder passage."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.box = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.box, True)
+        (self.box / "tank.txt").write_text("The zebrafish tank is cleaned on Tuesdays.", encoding="utf-8")
+        self.service.folders_for = lambda store, code: [str(self.box)]
+        from clark import ask_index
+        self.ix = ask_index.Indexer(self.service.data_dir)
+        self.addCleanup(self.ix.shutdown)
+        self.service.indexer = self.ix
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+
+    def ask(self, question):
+        self.provider.reply = "ok"
+        before = len(self.provider.sent)
+        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": question})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(len(self.provider.sent), before + 1)
+        return self.provider.sent[-1]
+
+    def test_a_question_that_needs_no_passages_sends_none(self):
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        unneeded = self.ask("milestones")
+        self.assertNotIn("zebrafish", unneeded)
+        self.assertNotIn("tank.txt", unneeded)
+
+    def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
+        self.service.indexer = None                       # no current index: the folders are read at question time
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        for question in ("milestones", "?? !!"):          # no shared word; no words at all
+            unneeded = self.ask(question)
+            self.assertNotIn("zebrafish", unneeded, question)
+            self.assertNotIn("tank.txt", unneeded, question)
+
+    def test_the_fallback_runs_when_the_index_is_not_current(self):
+        self.ix.current = lambda *a, **k: False
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed)
+        self.assertNotIn("zebrafish", self.ask("milestones"))
+
+
+class ChooseNeedMatch(unittest.TestCase):
+    def passages(self):
+        from clark import ask
+        return [ask.Passage("a", "alpha tank here"), ask.Passage("b", "beta nothing"), ask.Passage("c", "gamma ABC-R-12 row")]
+
+    def test_need_match_keeps_only_passages_sharing_a_word_or_an_id(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "the tank and ABC-R-12", need_match=True)
+        self.assertEqual([p.label for p in got], ["a", "c"])
+        self.assertEqual(left, 0, "b shares no word with the question: that is not a passage left out for size")
+
+    def test_need_match_with_no_words_keeps_none(self):
+        from clark import ask_data
+        for q in ("", None, "?? ab"):
+            got, left = ask_data.choose(self.passages(), q, need_match=True)
+            self.assertEqual((got, left), ((), 0), q)
+
+    def test_default_still_keeps_every_passage_that_fits(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "milestones")
+        self.assertEqual(([p.label for p in got], left), (["a", "b", "c"], 0))
 
 
 ARABIC = "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639"      # made-up Arabic words, right to left
@@ -577,21 +674,6 @@ class OnlineOnly(Base):
         self.assertEqual(got["/h"], {"files": [[ix.mod().ONLINE_LINE, ""]], "more": 0})
         self.assertNotIn("/i", got)
         self.assertEqual(left[f]["files"], [["a.xyz", "why"]], "the input is not changed")
-
-
-class FirstRunWords(unittest.TestCase):
-    def test_first_run_card_and_help_state_passages_go_to_claude(self):
-        """Row 1537 AP6, the card half (the Help half waits for PR 2046's Help paragraph, not on main): sentences (6) and (10), NEW-WORDS.md:2192 and :2194."""
-        from _paths import ROOT
-        base = ROOT / "src" / "clark" / "page" / "src" / "edit"
-        words, jsx = (base / "askWords.js").read_text(encoding="utf-8"), (base / "AskPanel.jsx").read_text(encoding="utf-8")
-        six = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
-        ten = "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."
-        self.assertIn(f'export const FIRST_RUN_PASSAGES = "{six}";', words)
-        self.assertIn(f'export const FIRST_RUN_PICTURES = "{ten}";', words)
-        self.assertIn("Claude, which Anthropic runs", six, "named() swaps this one for ChatGPT")
-        self.assertEqual(jsx.count("W.FIRST_RUN_PASSAGES"), 2, "the Cards card and the Classic card")
-        self.assertEqual(jsx.count("W.FIRST_RUN_PICTURES"), 2)
 
 
 class UsedLine(unittest.TestCase):

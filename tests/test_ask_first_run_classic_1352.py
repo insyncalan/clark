@@ -129,26 +129,10 @@ class ClassicWords(Classic):
             self.assertEqual(p.js(f"{li}[0].textContent"), "I read this project's work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.")
             self.assertEqual(p.js(f"{li}[1].textContent"), "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
             self.assertEqual(p.js(f"{li}[2].textContent"), "Your question and what it needs go to Claude. What will be sent? (Settings)")
-            self.assertEqual(p.js(f"{li}.length"), 5)
-            self.assertEqual(p.js(f"{li}[3].textContent"), "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.")
-            self.assertEqual(p.js(f"{li}[4].textContent"), "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out.")
             self.assertEqual(p.js("document.querySelector('#ask-first-run li a').textContent"), "What will be sent? (Settings)")
             self.assertEqual(p.js("document.querySelector('#ask-first-run p.ask-first-tip').textContent"), "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type / in the box for slash commands.")
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project's report data. Standing instructions on")
             self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on")
-
-
-class ClassicProviderNamed(Classic):
-    def test_the_passages_bullet_names_the_provider_in_use(self):
-        """Row 1537 AP6: the passages sentence names ChatGPT when that is the provider; the Mac sentence is the same for every provider."""
-        self.stub.provider = "ChatGPT"
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.key("/", code="Slash", vk=191)
-            p.until("!!document.querySelector('#ask-first-run')", "card")
-            li = "document.querySelectorAll('#ask-first-run li')"
-            self.assertEqual(p.js(f"{li}[3].textContent"), "Passages from the folders you list go to ChatGPT, which OpenAI runs, only when they contain words from your question.")
-            self.assertEqual(p.js(f"{li}[4].textContent"), "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out.")
 
 
 class FoldersSaid:
@@ -415,9 +399,7 @@ class CardsKeepsItsOwn(Classic):
             self.assertEqual(p.js(f"[...{card}.querySelectorAll('p')].map(e => e.textContent)"), [
                 "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.",
                 "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.",
-                "Your question goes to Claude, which Anthropic runs.",
-                "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.",
-                "On a Mac, text in PNG and JPG pictures is read on this Mac and never sent out."])
+                "Your question goes to Claude, which Anthropic runs."])
             self.assertEqual(p.js(f"{card}.querySelector('.ask-first-link a').textContent"), "Open the Asking card in Settings")
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Answering with Sonnet. Standing instructions on.")
 

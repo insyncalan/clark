@@ -161,7 +161,7 @@
    ],
    [
     "ask clark reads; you decide",
-    "It works from this project’s data and the source folders you list. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. What it changes can be undone."
+    "It works from this project’s data and the source folders you list. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. What it changes can be undone. Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question."
    ]
   ],
   "text": {
@@ -1441,6 +1441,14 @@
      ],
      [
       "p",
+      "The index of your source folders. When you add a source folder, clark reads the files in it once and keeps what it read in an index. The index is brought up to date when you open Settings or ask a question. Once the index is up to date, a question is answered from the index and no file is opened while you ask. It reads Word, PDF, Excel, PowerPoint, web pages, text, Markdown and CSV files. The index is one file for each project, in a folder called ask-index inside clark’s data folder; it is only a copy, and clark builds it again if it is removed. It is read in the background while clark is open, and it is brought up to date when a file in the folder is added, changed or removed. Taking a folder out of the list removes its part of the index. Nothing is sent anywhere when the index is made: a passage is sent only when you ask a question that needs it."
+     ],
+     [
+      "p",
+      "The line under each folder in **Source folders for** says how far the index has got. While it reads, it says “Indexing… 42%”. When it is done, it says “100% indexed”, and, when some files in the folder could not be read, how many: “100% indexed. 242 files could not be read”. When no file in the folder can be read, it says “No files to index”. Press **(why)** next to the line to see the files left out, by name and reason. The reasons are “of a type clark can’t read yet”, “is a PDF that is too long”, “is too long”, “is a picture and this computer cannot read pictures” and “looks like a password or a key”; a password or key itself is never shown. A file that is online only and was not opened is counted in the number that could not be read, but is not in that list. The list shows up to 200 names and then says how many more. While some files are still being read, an answer says “Still reading 120 files, so this answer may miss some.”"
+     ],
+     [
+      "p",
       "The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
      ]
     ]
@@ -1920,7 +1928,7 @@
        ],
        [
         "Asking",
-        "The Asking switch (it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
+        "The Asking switch (it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, Excel, PowerPoint, web pages, text, Markdown and CSV files, and keeps what it read in an index (see [ask clark](#ref-ask-clark)); a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
