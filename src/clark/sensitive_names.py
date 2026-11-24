@@ -11,7 +11,7 @@ import re
 import sys
 import unicodedata
 
-from clark import ask_passages
+from clark import ask_exclude, ask_passages
 
 # The one place for the word list: strong words only (a false-alarm check on real folder names: weak words such as rates, proposal, legal, performance, commercial, agreement, pricing, hr, candidate, interview are left out).
 WORDS = (
@@ -71,7 +71,7 @@ class _Budget:
         return self.left >= 0
 
 
-def _count(path, depth, budget):
+def _count(path, depth, budget, rel="", left=()):
     """Readable files under path, by name."""
     n = 0
     try:
@@ -87,15 +87,16 @@ def _count(path, depth, budget):
                 continue
             if e.is_dir(follow_symlinks=False):
                 if depth < MAX_DEPTH:
-                    n += _count(e.path, depth + 1, budget)
-            elif _readable(e.name):
+                    if not (left and ask_exclude.left_out((rel + "/" + e.name).split("/"), left)):
+                        n += _count(e.path, depth + 1, budget, rel + "/" + e.name, left)
+            elif _readable(e.name) and not (left and ask_exclude.left_out((rel + "/" + e.name).split("/"), left)):
                 n += 1
         except OSError:
             continue
     return n
 
 
-def _walk(root, rel, depth, budget, out):
+def _walk(root, rel, depth, budget, out, left=()):
     try:
         with os.scandir(os.path.join(root, rel) if rel else root) as it:
             entries = sorted(it, key=lambda e: e.name)
@@ -110,16 +111,18 @@ def _walk(root, rel, depth, budget, out):
             is_dir = e.is_dir(follow_symlinks=False)
         except OSError:
             continue
-        found = words_in(e.name)
         sub = os.path.join(rel, e.name) if rel else e.name
+        if left and ask_exclude.left_out(sub.split(os.sep), left):      # row 1365: left out by the person, no longer named
+            continue
+        found = words_in(e.name)
         if is_dir:
             if found:
-                out.append({"name": e.name, "path_rel": sub, "words": found,
-                            "readable_files": _count(e.path, 1, budget)})
+                out.append({"name": e.name, "path_rel": sub, "words": found, "dir": True,
+                            "readable_files": _count(e.path, 1, budget, sub.replace(os.sep, "/"), left)})
             elif depth < MAX_DEPTH:
-                _walk(root, sub, depth + 1, budget, out)
+                _walk(root, sub, depth + 1, budget, out, left)
         elif found and not rel:
-            out.append({"name": e.name, "path_rel": sub, "words": found,
+            out.append({"name": e.name, "path_rel": sub, "words": found, "dir": False,
                         "readable_files": 1 if _readable(e.name) else 0})
 
 
@@ -128,12 +131,19 @@ class ScanResult(list):
     truncated = False
 
 
-def scan(folder):
+def scan(folder, left_out=()):
     """[{name, path_rel, words, readable_files}] for each folder (any depth) and each top-level file named with a listed word.
 
+    A saved folder whose own name holds a listed word comes first in the list (own=True, path_rel "", dir False).
+    `left_out` (row 1365) is the folder's list of left-out subfolders (relative paths): they and what is below are not looked at or named.
     The list has a truncated attribute: True when the scan stopped at MAX_ENTRIES names."""
     out = ScanResult()
     budget = _Budget()
-    _walk(str(folder), "", 0, budget, out)
+    own = os.path.basename(os.path.normpath(str(folder)))      # row 1365: the saved folder's own name counts too, and is named in the warning
+    found = words_in(own)
+    if found:
+        out.append({"name": own, "path_rel": "", "words": found, "dir": False, "own": True,
+                    "readable_files": _count(str(folder), 1, budget, "", tuple(left_out))})
+    _walk(str(folder), "", 0, budget, out, tuple(left_out))
     out.truncated = budget.truncated
     return out

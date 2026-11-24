@@ -80,19 +80,19 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .rt-bar .rt-btn, .rt-bubble .rt-btn, .rt-link .rt-btn { height: 34px; }
 .rt-bar .rt-btn:not(.rt-style):not(.rt-more), .rt-bubble .rt-btn { min-width: 34px; }
 .rt-bar .ddmenu, .rt-slash, .rt-bubble { padding: 4px; border-radius: 12px; }
-.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]:not(.hp)), .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
+.rt-bar .ddmenu [role="menuitem"], .rt-slash .rt-opt { padding: 4px 10px; font-size: 13.5px; border-radius: 6px; }
 /* Row 1288: the editor bubble ends with Ask AI in purple words only. */
 .rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
 .rt-bar .rt-more { min-width: 40px; gap: 2px; }
 /* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
 .rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
 :is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { padding: 7px 10px; font-size: 15px; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
-:is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { padding: 7px 10px; font-size: 15px; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
+.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
 .rt-bubble { gap: 6px; }
-:is(.rt-bar, .rt-bubble) .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
+.rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible), .rt-bubble .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
 :is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
 .rt-bar .rt-btn, .rt-bubble .rt-btn { border-radius: 8px; }
 .rt-bubble .rt-bubble-ai { font-size: 13px; }
@@ -257,6 +257,13 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
+.ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
+.ask-warn p { margin: 0; }
+.ask-warn p + p, .ask-warn-btns + p { margin-top: 6px; }      /* the question under the warning, and the state line under the buttons */
+.ask-warn [data-ask-warn-name] { font-weight: 500; }
+.ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ask-warn-btns .btn:not(.pri) { color: var(--text); }
 /* Row 1273 (Classic only; Cards keeps its menu rules): the two prototype menus, the View menu's Group by (#viewMenuList) and Move to, and no other (the Add menu is row 1462; the use case Group by menus keep theirs). Main's Row 1286 rules give them 15px and 224px. The prototype line: 7px 10px padding, then the icon at x10 and 10px (a space-2 and 2px) from icon to words: words at x36. The tick of the item in use is on the right of the word, as in every menu (ruling 9A: no tick slot in front of the icon); main's tick rule places it. Only two heads are drawn in capitals, Group by and the card's Move to head; the words stay as they are. */
 #viewMenuList.ddmenu [role="menuitemradio"], .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) [role="menuitem"] { gap: 0; padding-left: calc(var(--space-2) + 2px); }   /* :not(#none) only lifts Move to above the Row 1286 rule that names the three menus in one :is() list */
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
