@@ -225,7 +225,7 @@ class ReAdd(Base):
             self.refused(self.req("new", values={"type": t}), changes.NEW_TYPE_WORDS)
 
     def test_the_new_types_are_exactly_text_the_content_types_and_the_built_ins(self):
-        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), (set(BUILT_INS) - {"usecases"}) | {"current", "gantt", "gantttable"})      # row 1234: usecases carries a view setting in its body, so it is a body type too
+        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), (set(BUILT_INS) - {"usecases", "milestones"}) | {"current", "gantt", "gantttable"})      # rows 1230, 1234: usecases and milestones carry a view setting in their body, so they are body types too
 
 
 if __name__ == "__main__":

@@ -240,7 +240,7 @@ class Refusing(TextBody):
 
     def test_a_section_of_another_type_is_still_refused_a_text_body(self):
         for row in self.rows():
-            if row["type"] in ("text", "needs", "tracker", "usecases"):
+            if row["type"] in ("text", "needs", "tracker", "usecases", "milestones"):
                 continue
             with self.subTest(type=row["type"]):
                 self.refused_body(row["id"], "<p>x</p>", changes.NO_BODY_HERE)

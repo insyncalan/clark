@@ -431,27 +431,65 @@ def _checked_tracker(value, rules):
     return out
 
 
-USECASES_N_MAX = 1000
-USECASES_ALL = "all"
-USECASES_TRACKER = ("top", "bottom", "off")
+# ── View settings {n, scroll, tracker}: the use case summary (row 1234) and the Milestones section (row 1230) ──────────────────
+# One checker and one published shape for both kinds, so the two cannot drift. n: how many rows show (a whole number from 1 to
+# VIEW_MAX_N, or "all"); scroll: whether the list scrolls; tracker: where the status tracker sits. A missing key takes its default
+# (5, false, "top"), so the stored text always has the three keys, and an empty body is the defaults. MILESTONES is not in
+# BODY_TYPES (it is no new section type); store.BODY_TYPES lists it by name.
+MILESTONES = "milestones"
+VIEW_KINDS = (USECASES, MILESTONES)
+VIEW_DEFAULTS = {"n": 5, "scroll": False, "tracker": "top"}
+VIEW_TRACKER = ("top", "bottom", "off")
+VIEW_MAX_N = 1000
+VIEW_ALL = "all"
+MS_SHAPE = "The Milestones settings hold how many milestones show, whether viewers can scroll, and where the status tracker sits."
+MS_N = f'Milestones shown must be a whole number from 1 to {VIEW_MAX_N}, or "all".'
+MS_SCROLL = "Viewers can scroll is either on or off."
+MS_TRACKER_BAD = "The status tracker sits at the top, at the bottom, or is off."
+VIEW_WORDS = {USECASES: (BAD_VALUE, BAD_VALUE, BAD_VALUE, BAD_VALUE),         # row 1234: the one existing sentence, no new words
+              MILESTONES: (MS_SHAPE, MS_N, MS_SCROLL, MS_TRACKER_BAD)}        # shape, n, scroll, tracker
 
 
-def _checked_view(value, rules):
-    """Row 1234: the use case summary's view setting, {n, scroll, tracker}: how many rows show (a whole number from 1, or "all"), whether
-    the list scrolls, and where the tracker sits. A missing key takes its default (5, false, "top"), so the stored text always has
-    the three keys; an empty body is the defaults too. Anything else is refused with the one existing sentence for a value that does
-    not fit (no new words), never quoting the value."""
-    if type(value) is not dict or set(value) - {"n", "scroll", "tracker"}:
-        raise Bad(BAD_VALUE)
-    n, scroll, tracker = value.get("n", 5), value.get("scroll", False), value.get("tracker", "top")
-    if not ((type(n) is int and 1 <= n <= USECASES_N_MAX) or n == USECASES_ALL and type(n) is str):
-        raise Bad(BAD_VALUE)
-    if type(scroll) is not bool or type(tracker) is not str or tracker not in USECASES_TRACKER:
-        raise Bad(BAD_VALUE)
-    return {"n": n, "scroll": scroll, "tracker": tracker}
+def _view_n(n):
+    return (type(n) is int and 1 <= n <= VIEW_MAX_N) or (type(n) is str and n == VIEW_ALL)
 
 
-CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked_view, **{t: m.check for t, m in TEMPLATES.items()}}
+def _view_scroll(v):
+    return type(v) is bool
+
+
+def _view_tracker(v):
+    return type(v) is str and v in VIEW_TRACKER
+
+
+def _checked_view_settings(kind):
+    """The checker for a view-settings kind (one of VIEW_KINDS): a dict with only the keys n, scroll, tracker, each missing key at
+    its default; anything else is refused with that kind's sentence (VIEW_WORDS), never quoting the value."""
+    shape, n_words, scroll_words, tracker_words = VIEW_WORDS[kind]
+
+    def check(value, rules):
+        if type(value) is not dict or set(value) - set(VIEW_DEFAULTS):
+            raise Bad(shape)
+        out = {**VIEW_DEFAULTS, **value}
+        if not _view_n(out["n"]):
+            raise Bad(n_words)
+        if not _view_scroll(out["scroll"]):
+            raise Bad(scroll_words)
+        if not _view_tracker(out["tracker"]):
+            raise Bad(tracker_words)
+        return out
+    return check
+
+
+def _published_view_settings(value):
+    """Per field: a field that is missing or not valid in what is stored publishes as its default, never as the bad one."""
+    v = value if type(value) is dict else {}
+    return {k: v[k] if k in v and ok(v[k]) else VIEW_DEFAULTS[k]
+            for k, ok in (("n", _view_n), ("scroll", _view_scroll), ("tracker", _view_tracker))}
+
+
+CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, **{k: _checked_view_settings(k) for k in VIEW_KINDS},
+            **{t: m.check for t, m in TEMPLATES.items()}}
 EMPTY = {NEEDS: "", TRACKER: "", USECASES: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
 
 
@@ -528,8 +566,8 @@ def published(kind, value, ctx=None):
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
-    if kind == USECASES:
-        return {k: value[k] for k in ("n", "scroll", "tracker")} if type(value) is dict and all(k in value for k in ("n", "scroll", "tracker")) else {}      # row 1234: flat, so the page reads a file entry as it reads a live body; {} (the defaults) never leaves the section out
+    if kind in VIEW_KINDS:
+        return _published_view_settings(value)      # flat, so the page reads a file entry as it reads a live body
     if kind != TRACKER:
         return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)

@@ -206,7 +206,7 @@ class Writing(Content):
 
     def test_the_built_in_sections_take_no_body(self):
         for row in self.rows():
-            if row["type"] in TYPES or row["type"] == "usecases" or row["type"] == "text":      # a text section takes one, through the cleaner (test_changes_text_body)      # row 1234: usecases takes one (its view setting, test_usecases_view_body)
+            if row["type"] in TYPES or row["type"] in ("usecases", "milestones") or row["type"] == "text":      # a text section takes one, through the cleaner (test_changes_text_body)      # row 1234: usecases takes one (its view setting, test_usecases_view_body)
                 continue
             with self.subTest(type=row["type"], title=row["title"]):
                 self.refused_body(row["id"], text(BODY), changes.NO_BODY_HERE)
