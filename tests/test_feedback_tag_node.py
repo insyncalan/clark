@@ -53,15 +53,9 @@ def shown(**kw):
 
 
 class Where(unittest.TestCase):
-    def test_shown_in_every_settings_page_but_the_one_with_feedback(self):
-        for page in ("", "projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "data", "claude", "logs"):
+    def test_shown_in_every_settings_page(self):
+        for page in ("", "projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "data", "claude", "logs", "version"):
             self.assertTrue(shown(view="settings", page=page), page)
-        self.assertFalse(shown(view="settings", page="version"))
-
-    def test_hidden_while_search_shows_the_feedback_card(self):
-        self.assertFalse(shown(view="settings", page="profile", feedbackCard=True))
-        self.assertTrue(shown(view="settings", page="profile", feedbackCard=False))
-        self.assertTrue(shown(helpOpen=True, view="settings", feedbackCard=True))
 
     def test_shown_in_help(self):
         self.assertTrue(shown(view="dashboard", helpOpen=True))
