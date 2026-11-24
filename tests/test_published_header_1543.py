@@ -83,14 +83,22 @@ class Header1543(glance.Published):
                 self.assertIn("Weekly report", got["head"], "the line under the project name stays (this fixture has no week ending date; the date text is unchanged)")
 
     def test_published_header_switcher_and_profile_sizes(self):
+        """AP5, at 1400 and at 900, light and dark: the switcher is a bare icon (no fill, no border), the profile circle is filled with the brand cyan."""
         js = """(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height), Math.round(document.querySelector("header.top").getBoundingClientRect().right - b.right)]; };
-          return {theme: r('.cm-theme'), badge: r('.cm-badge')}; })()"""
-        for width, dark in ((1400, False), (1400, True)):
+          const c = document.createElement('i'); c.style.background = 'var(--brand-cyan)'; document.body.appendChild(c);
+          const cs = (s) => getComputedStyle(document.querySelector(s)), cyan = getComputedStyle(c).backgroundColor, t = cs('.cm-theme');
+          return {theme: r('.cm-theme'), badge: r('.cm-badge'), cyan: cyan, badgeFill: cs('.cm-badge').backgroundColor, themeFill: t.backgroundColor,
+                  themeBorder: parseFloat(t.borderTopWidth) + parseFloat(t.borderLeftWidth)}; })()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
             with self.subTest(width=width, dark=dark):
                 got = self.probe_file(js, width, dark)
                 self.assertEqual(got["theme"][:2], [32, 32], "the light and dark button is 32 px (ticket AP5; 38 px is the editor's search button width)")
                 self.assertEqual(got["badge"][:2], [32, 32], "the profile circle is 32 px")
-                self.assertEqual(got["badge"][2], 28, "the circle ends 28 px from the bar's right edge, as the editor's")
+                self.assertEqual(got["badgeFill"], got["cyan"], "the profile circle is filled with the brand cyan")
+                self.assertIn(got["themeFill"], ("rgba(0, 0, 0, 0)", "transparent"), "the switcher is a bare icon: no fill")
+                self.assertEqual(got["themeBorder"], 0, "the switcher has no border")
+                if width == 1400:
+                    self.assertEqual(got["badge"][2], 28, "the circle ends 28 px from the bar's right edge, as the editor's")
 
     def test_published_header_no_edit_controls(self):
         js = """(() => { const h = document.querySelector('header.top');

@@ -300,7 +300,6 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   .top-file .tab { padding-block: 8px 12px; }
   .top-file .tab:not([aria-selected="true"]) { color: color-mix(in srgb, var(--white) 92%, transparent); }
   .top-file .top-slot, .top-file .cm-wrap { order: 3; }
-  /* pending the owner answer at 08:00: 32 or 38 (the size of the light and dark button, one value; 38 also needs the bordered look of the mock-up) */
   .top-file { --theme-btn-size: 32px; }
   .top-file .cm-theme { width: var(--theme-btn-size); height: var(--theme-btn-size); }
   .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2)); }
