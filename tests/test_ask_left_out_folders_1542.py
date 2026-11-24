@@ -283,6 +283,7 @@ class OnTheRoute(tr.Base):
         """What the provider got for a question that names one file's own word, so each file is asked for alone (the passage room is small)."""
         status, got = self.question("What is " + term + "?")
         self.assertEqual(status, 200, got)
+        self.answer = got
         return self.provider.sent[-1]
 
     def include(self, rel):
@@ -301,6 +302,7 @@ class OnTheRoute(tr.Base):
         self.assertEqual([(w["folder"], w["accepted"], [i["name"] for i in w["items"]]) for w in body["warnings"]], [(str(self.mine), False, ["Contract"])], "the warning names it")
         for word, term in (("FOLDERKEEP", "alphaterm"), ("CONTRACTKEEP", "charlieterm"), ("NOTESKEEP", "bravoterm")):
             self.assertNotIn(word, self.sent(term), f"{word}: nothing from the folder is sent until Accept")
+            self.assertEqual([x for x in self.answer["sources"] if x.get("file")], [], f"{term}: the answer (POST /api/ask) cites no file from the Declined folder")
         with self.store.step("dashboard", "tester", place="menu") as step:
             step.update("source_folders", f"{tr.CODE}|{self.mine}", {"accepted": 1})
         self.assertIn("CONTRACTKEEP", self.sent("charlieterm"), "after Accept it is read")
