@@ -118,11 +118,11 @@ class Data(unittest.TestCase):
         f = self.root / "Contracts"
         f.mkdir()
         (f / "c.txt").write_text("terms", encoding="utf-8")
-        both = ask_exclude.dump(["Archive", "Contracts"])
+        both = ask_exclude.dump(["Notes", "Contracts"])
         with self.store().step("dashboard", "tester", place="menu") as step:
             step.update("source_folders", f"ABC|{self.root}", {"excluded": both, "accepted": 1})
         accepted = lambda: self.store().read("source_folders", "ABC")[0]["accepted"]
-        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Archive"})
+        status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Notes"})
         self.assertEqual((status, accepted()), (200, 1), "no match: accepted unchanged")
         status, body = self.svc.change({"project": "ABC", "action": "include", "path": str(self.root), "rel": "Contracts"})
         self.assertEqual((status, body["ok"], accepted()), (200, True, 0), "a match: back to Declined in the same step")
