@@ -1,4 +1,4 @@
-"""Row 1365 (Alan 13:39 via Jarvis, approved 13:41; schema ruling WO-M17452 14:03): a saved folder with a people or contract word in a name is left out
+"""Row 1365 (row 1365 ticket rule 13:39, approved 13:41; schema ruling WO-M17452 14:03): a saved folder with a people or contract word in a name is left out
 of asking until the person presses Accept for that folder. Default Declined. Accept is remembered per folder (source_folders.accepted, step 35); Decline
 keeps it left out. Pins: the default, the per-folder memory, Decline, the fresh and the upgraded database both reading every folder as declined, the
 question's reader and the index's folder list both following the same rule. Made-up names only.

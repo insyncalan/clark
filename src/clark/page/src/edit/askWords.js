@@ -394,7 +394,7 @@ export const SLASH_HINT_CLASSIC = {
   overdue: "What is overdue?",
 };
 // Row 1365: the warning for a source folder whose names hold a people or contract word. A WARNING the person accepts or declines; no choice is Declined.
-// APPROVED WORDING (Alan 13:39 via Jarvis, approved 13:41; ruling WO-M17452 14:03); this is its one place. {provider} is Claude, or ChatGPT when
+// APPROVED WORDING (row 1365 ticket rule 13:39, approved 13:41; ruling WO-M17452 14:03); this is its one place. {provider} is Claude, or ChatGPT when
 // Claude is off and ChatGPT is on (askProvider). For ChatGPT the words "which Anthropic runs" are dropped (the ruling), and no other words are added.
 export const PEOPLE_CONTRACT_HOLDS = "This folder holds ";
 export const PEOPLE_CONTRACT_AND = " and ";
