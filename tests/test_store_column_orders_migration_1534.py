@@ -1,5 +1,4 @@
-"""Row 1534: schema step 34 (projects.column_orders). The step number is one literal (COLUMN_ORDERS_STEP); row 1365 also asks for 34 and whoever merges second
-takes the next number (this literal, SCHEMA_VERSION's line and the pins). Run: python3 dev/run_tests.py test_store_column_orders_migration_1534
+"""Row 1534: schema step 35 (projects.column_orders). The step number is one literal (COLUMN_ORDERS_STEP); row 1365 took 34, so this row is the next number (this literal, SCHEMA_VERSION's line and the pins). Run: python3 dev/run_tests.py test_store_column_orders_migration_1534
 """
 import shutil
 import sqlite3
@@ -30,7 +29,7 @@ class Migrating(unittest.TestCase):
     def test_the_numbers_have_no_gap_and_the_step_is_in_the_chain(self):
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
         self.assertIn((STEP, store_module.migrate_column_orders), store_module.MIGRATIONS)
-        self.assertEqual(STEP, 34)
+        self.assertEqual(STEP, 35)
         self.assertEqual(store_module.SCHEMA_VERSION, STEP)
 
     def test_a_file_one_step_back_gets_an_empty_order_on_every_project_and_the_new_version(self):
