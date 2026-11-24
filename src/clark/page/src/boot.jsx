@@ -21,7 +21,7 @@ export function boot(tools) {
   if (tools && tools.modeKeys) tools.modeKeys.install();      // V and E, and Cmd+Option+S for Settings (keys.js): heard from the start, not when the switch mounts (item 665)
   render(<App tools={tools} />, document.getElementById("app"));
   document.documentElement.dataset.ready = "1";
-  // The server puts this run's token in a data block after this script, and a published file (#39) has its data in one: read
+  // The server puts this run's token in a data block before this script, and a published file (#39) has its data in one: read
   // whichever is there once the whole page is parsed.
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load); else load();
 }

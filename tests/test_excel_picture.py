@@ -210,7 +210,7 @@ class InTheWorkbook(unittest.TestCase):
         self.assertLessEqual(left + 120 * 9525 + pic.MARK_MARGIN * 9525, pic.LEFT_PIXELS * 9525, "inside the two columns before the title")
         top = int(anchor.find(XDR + "from/" + XDR + "rowOff").text)
         self.assertLessEqual(top + 40 * 9525, pic.COVER_ROW_POINTS * 4 // 3 * 9525, "inside the title row")
-        ws = load_workbook(self.path)["Cover"]
+        ws = load_workbook(self.path)["Report"]
         self.assertEqual(ws.row_dimensions[1].height, pic.COVER_ROW_POINTS)
         self.assertEqual(ws["C1"].value, "Harbour Lights upgrade", "the title starts after the logo")
         self.assertIsNone(ws["A1"].value)
@@ -219,8 +219,8 @@ class InTheWorkbook(unittest.TestCase):
         (self.brand / "logo.png").write_bytes(self.png)
         self.export()
         wb = load_workbook(self.path)
-        self.assertEqual(wb.sheetnames[0], "Cover")
-        self.assertEqual(wb["Cover"]["A1"].fill.fgColor.rgb[-6:], excel.colours.TOKENS["brand-navy"], "the band is navy under the logo")
+        self.assertEqual(wb.sheetnames[0], "Report")
+        self.assertEqual(wb["Report"]["A1"].fill.fgColor.rgb[-6:], excel.colours.TOKENS["brand-navy"], "the band is navy under the logo")
 
     def test_the_same_data_and_clock_give_the_same_bytes_and_dates(self):
         (self.brand / "logo.png").write_bytes(self.png)
@@ -243,7 +243,7 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual(self.parts(z), [])
         self.assertNotIn("<drawing ", z.read("xl/worksheets/sheet1.xml").decode())
         self.assertNotIn("image/png", z.read("[Content_Types].xml").decode())
-        ws = load_workbook(self.path)["Cover"]
+        ws = load_workbook(self.path)["Report"]
         self.assertEqual(ws["A1"].value, "Harbour Lights upgrade", "no logo: the title starts at the left edge")
 
     def test_a_bad_logo_is_refused_in_words_and_the_export_goes_ahead_without_it(self):
@@ -253,7 +253,7 @@ class InTheWorkbook(unittest.TestCase):
         self.assertIn("3000 by 10 pixels", logs.output[0])
         self.assertEqual(self.parts(z), [])
         self.assertTrue(self.path.exists())
-        self.assertEqual(load_workbook(self.path).sheetnames[0], "Cover")
+        self.assertEqual(load_workbook(self.path).sheetnames[0], "Report")
 
     def test_a_sheet_with_its_own_relationships_keeps_them(self):
         (self.brand / "logo.png").write_bytes(self.png)
