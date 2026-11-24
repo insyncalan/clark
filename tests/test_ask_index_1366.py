@@ -529,7 +529,7 @@ class Library(Base):
 
 class OnlineOnly(Base):
     def test_online_only_not_opened_and_line_says_not_searched(self):
-        """Row 1537 AP4 (Alan 19-11, NEW-WORDS.md:2225-2226): the line and the files-left-out list say "Online-only files not searched", no count; the file is never opened."""
+        """Row 1537 AP4 (owner's words 19-11, NEW-WORDS.md:2225-2226): the line and the files-left-out list say "Online-only files not searched", no count; the file is never opened."""
         self.put("here.txt", "zqhere text")
         self.put("cloud.txt", "x" * 37)
         opened = []
