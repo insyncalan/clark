@@ -23,7 +23,7 @@ class Columns(unittest.TestCase):
 
     def test_a_new_file_starts_with_asking_on_for_new_projects_and_for_the_project(self):
         self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC"), self.s.ask_allowed("ABC")), (True, False, True))
-        self.assertEqual(st.SCHEMA_VERSION, 33)
+        self.assertGreaterEqual(st.SCHEMA_VERSION, 33)      # later rows add steps (row 1533: 37)
 
     def test_the_migration_step_is_the_same_step_33_and_adds_both_columns_to_an_older_file(self):
         con = sqlite3.connect(":memory:")
