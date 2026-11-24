@@ -10,6 +10,7 @@ import unittest
 from _demo import USER, DemoStore
 from clark import changes
 from test_imagecap_full_server import halves
+import test_server  # noqa: F401  (names the harness, so the tier test reads this file as a browser-tier file as run_support does)
 from test_server import Running
 
 
