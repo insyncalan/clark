@@ -51,15 +51,19 @@ class Cards(Base, unittest.TestCase):
 
 
 class DashboardKeepsBar(B.Dashboard):
-    """AP4: the Dashboard Milestones section (Classic) is not the page's strip: the page rule must not reach it, so its scroll bar stays."""
-    def test_the_section_strip_keeps_its_scroll_bar_at_1400_and_900(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, "#dashboard&p=ABC", width, False, ".msv[data-place^=sec-] .mv-wrap")
-                sw = cdp.js("getComputedStyle(document.querySelector('.msv[data-place^=sec-] .mv-wrap')).scrollbarWidth", sid)
-                self.assertEqual(sw, "auto", f"the Dashboard section keeps its bar at {width}")
-
+    """AP4: the Dashboard Milestones section (Classic) is not the page's strip: the page rule must not reach it, so its scroll bar stays.
+    The Cards half of the row is pinned by Cards.test_cards_keeps_its_bar_rule above (Cards is not touched here)."""
     test_the_section_is_not_drawn_the_page_way = None  # inherited check belongs to its own file
+
+    def test_dashboard_section_and_cards_keep_their_bar(self):
+        probe = "getComputedStyle(document.querySelector('.msv[data-place^=sec-] .mv-wrap')).scrollbarWidth"
+        for width in (1400, 900):
+            for mode in ("light", "dark"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.visit(cdp, "#dashboard&p=ABC", width, False, ".msv[data-place^=sec-] .mv-wrap")
+                    cdp.js(f"document.documentElement.dataset.theme = '{mode}'", sid)
+                    self.assertEqual(cdp.js("document.documentElement.dataset.theme", sid), mode)
+                    self.assertEqual(cdp.js(probe, sid), "auto", f"the Dashboard section keeps its bar at {width}, {mode}")
 
 
 if __name__ == "__main__":
