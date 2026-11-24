@@ -139,7 +139,7 @@ export function AddPages() {
         ))}
       </ul>
       <div class="ap-foot"><div class="ap-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, used * 20)}%` }} /></div>
-        <p class="ap-meter">{`${used} of ${MAX_ADDED_PAGES} added pages`}</p><p class="ap-cap muted">{WORDS.cap}</p></div>
+        <p class="ap-meter">{`${used} of ${MAX_ADDED_PAGES} added pages (Gantt counts)`}</p><p class="ap-cap muted">{WORDS.cap}</p></div>
       {current ? <Configure key={current.id} page={current} pages={pages} /> : null}
     </section>
   );
