@@ -260,6 +260,7 @@ class QuestionNeedsNoPassages(RouteBase):
         on the index path and on the direct folder-read path."""
         (self.box / "whole.txt").write_text("Item ABC-RISK-012 is the open one.", encoding="utf-8")
         (self.box / "piece.txt").write_text("The risky abc plan runs 012 times.", encoding="utf-8")
+        (self.box / "longer.txt").write_text("Item ABC-RISK-0125 is another one.", encoding="utf-8")
         self.ix.start("ABC", [str(self.box)])
         self.assertTrue(self.ix.wait_idle(20))
         for index_path in (True, False):
@@ -268,6 +269,7 @@ class QuestionNeedsNoPassages(RouteBase):
             sent = self.ask("what is ABC-RISK-012")
             self.assertIn("whole.txt", sent, index_path)
             self.assertNotIn("piece.txt", sent, index_path)
+            self.assertNotIn("longer.txt", sent, "ABC-RISK-012 is not inside ABC-RISK-0125")
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
         self.service.indexer = None                       # no current index: the folders are read at question time

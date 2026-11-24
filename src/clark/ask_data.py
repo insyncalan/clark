@@ -134,7 +134,7 @@ def choose(passages, question, budget=BUDGET, limit=None, *, need_match=False):
     if need_match:
         words = {w.casefold() for w in ask.WORDS.findall(ask.ID_PATTERN.sub(" ", question or ""))}      # an ID typed in the question is matched whole: its pieces (abc, 012, risk) are not words
         ids = set(ask.ID_PATTERN.findall(question or ""))
-        pos = [i for i, (_l, t) in enumerate(pairs) if any(x.casefold() in t.casefold() for x in ids) or any(w in t.casefold() for w in words)]
+        pos = [i for i, (_l, t) in enumerate(pairs) if any(re.search(r"(?<![A-Za-z0-9])" + re.escape(x) + r"(?![A-Za-z0-9])", t, re.I) for x in ids) or any(w in t.casefold() for w in words)]
     else:
         pos = list(range(len(pairs)))
     keep, _left = ask.choose([pairs[i] for i in pos], question, budget, len(passages) if limit is None else limit)
