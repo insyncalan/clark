@@ -436,7 +436,7 @@ class Applying(ImportCase):
         wbk.add_row(self.path, "Actions", owner="Sam Example")                       # no description
         p = self.plan()
         (c,) = p.changes
-        self.assertIn("Description", c.problem)
+        self.assertIn("Title", c.problem)
         p.accept(c.n)
         res = xi.apply_import(self.s, p, USER)
         self.assertFalse(res.applied)

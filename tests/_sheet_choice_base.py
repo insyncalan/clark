@@ -13,7 +13,7 @@ from clark import excel, excel_import, excel_route
 
 TABLES = excel_import.CHOICE_ORDER
 SHEET = {"actions": "Actions", "raid": "Risks & Issues", "decisions": "Decisions", "milestones": "Milestones", "use_cases": "Use cases"}
-TITLE = {"actions": "Description", "raid": "Description", "decisions": "Decision", "milestones": "Milestone", "use_cases": "Use case"}
+TITLE = {"actions": "Title", "raid": "Title", "decisions": "Decision", "milestones": "Milestone", "use_cases": "Use case"}
 EXTRA = {"raid": {"Type": "Risk"}, "decisions": {"Status": "Pending"}, "use_cases": {"Status": "On track"}}
 
 
@@ -88,7 +88,7 @@ def prepare_sheets(wb, a1, a2):
     ws.delete_rows(row)                                         # a2 is now "not in the workbook"
     for r in range(2, ws.max_row + 1):
         if ws.cell(r, 1).value == a1:
-            ws.cell(r, head["Description"]).value = "Draft the cut-over plan, version two"
+            ws.cell(r, head["Title"]).value = "Draft the cut-over plan, version two"
     for t in TABLES:
         add_row(wb[SHEET[t]], t, f"A new {t} row")
 

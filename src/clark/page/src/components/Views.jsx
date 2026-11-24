@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, showSettings } from "../stores/report.js";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -119,13 +119,13 @@ const GROUPS = [
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
-  ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
+  ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Quit"]]]],
 ];
 // Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's class is set-tile-<slug> and the Classic rules in themes/prototype-2.0/rules-2.css colour it (one fill per page); the tile and the window class are drawn in the Classic theme only, Cards draws neither
 const SET_ICON = { profile: "user", appearance: "sun", theme: "moon", projects: "board", backups: "archive", reports: "chart", folder: "ul", brand: "flag", people: "people", claude: "sparkle", data: "dl", version: "info", logs: "clock" };
 const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {
@@ -151,8 +151,6 @@ function searchCards(root, query) {
     else { for (const r of rows) r.hidden = false; if (!show) show = hit(card); }
     card.hidden = !show;
   }
-  const fb = document.getElementById("feedback-h"), card = fb && fb.closest("section, .setting");
-  settingsFeedbackShown.value = !!card && root.contains(card) && !card.hidden;   // #1298: the Feedback tag stands aside while the search shows the Feedback card
 }
 
 function SettingsSearch({ onQuery }) {
@@ -165,7 +163,7 @@ function SettingsSearch({ onQuery }) {
     const seen = window.MutationObserver ? new MutationObserver(run) : null;
     if (seen) seen.observe(root, { childList: true, subtree: true });
     onQuery(q.trim() !== "");
-    return () => { if (seen) seen.disconnect(); settingsFeedbackShown.value = false; };
+    return () => { if (seen) seen.disconnect(); };
   }, [q]);
   return (
     <div class="set-search">

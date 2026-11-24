@@ -561,7 +561,7 @@ class OnlineOnly(Base):
         self.assertEqual(opened, ["here.txt"], "the online-only file is never opened")
         c = ix.status(self.data, "P1", None)
         self.assertEqual(c["online_only"], 1)
-        self.assertIn(" Online-only files not searched. ", ix.mod().line_for(c) + " ")
+        self.assertIn(" Online-only files not searched ", ix.mod().line_for(c) + " ")
         self.assertNotRegex(ix.mod().line_for(c), r"\d+ (is|are)? ?online")
         self.assertEqual(ix.mod().left_out_line("online", 8), "Online-only files not searched", "no count in front, whatever the number")
         got = ix.mod().folder_status(self.data, "P1", [str(self.box)])[str(self.box)]
