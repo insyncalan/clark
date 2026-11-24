@@ -120,5 +120,33 @@ class MilestoneBox(Base):
                 self.saved(p, "latest_update", was)
 
 
+class DashPeekLook(unittest.TestCase):
+    """Row 1470 AP8 and AP9: the Dashboard peek (View) keeps the eye on the Client visible line, and its Latest panel is drawn with the dark tokens."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    LOOK, look, want = _B.LOOK, _B.look, _B.want
+    HOLD = _B.HOLD
+
+    def setUp(self):
+        self.fresh()
+
+    def kinds(self):
+        raid = self.data["raid"]
+        return {"action": "item=" + self.data["actions"][0]["id"], "risk": "item=" + next(r["id"] for r in raid if r.get("type") == "Risk"),
+                "issue": "item=" + next(r["id"] for r in raid if r.get("type") == "Issue"),
+                "decision": "item=" + self.data["decisions"][0]["id"], "milestone": "ms=" + self.data["milestones"][0]["id"]}
+
+    def test_client_visible_keeps_eye_in_dashboard_peek(self):
+        """AP8: at 1400 and 900 the Dashboard peek of every kind draws the Client visible line with an eye icon."""
+        for width in (1400, 900):
+            for kind, dash in self.kinds().items():
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, None, edit=False, dash=dash)
+                    wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), 15)
+                    icon = cdp.js("(b => b && [(b.querySelector('svg[data-icn]') || {dataset: {}}).dataset.icn, b.getBoundingClientRect().width > 0])(document.querySelector('#peek [data-pk-client]'))", sid)
+                    self.assertIsNotNone(icon, "the Client visible line is in the peek")
+                    self.assertIn(icon[0], ("eye", "eyeoff"), "the line keeps its eye icon")
+                    self.assertTrue(icon[1], "the line is drawn")
+
+
 if __name__ == "__main__":
     unittest.main()
