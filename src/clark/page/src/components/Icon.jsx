@@ -47,6 +47,13 @@ const ICONS = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/>',
   circleminus: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  // Row 1184: the milestone peek's five state glyphs (the peek's State chip and its popover only; the Milestones page keeps MsMark) and Overdue.
+  sForecast: '<circle cx="12" cy="12" r="9" stroke-dasharray="3 3.6"/>',
+  sTrack: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.3 2"/>',
+  sRisk: '<path d="M12 3l9.5 17h-19zM12 10v4.5M12 17.2h.01"/>',
+  sSlip: '<path d="M3.4 12a8.6 8.6 0 1 0 2.7-6.2M3 3.8v4.4h4.4M12 7.5v4.7l3 1.8"/>',
+  sOver: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sClosed: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
   archive: '<rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2"/><path d="M5.4 9.6v9.6h13.2V9.6M10.2 13.2h3.6"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);

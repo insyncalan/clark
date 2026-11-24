@@ -88,33 +88,35 @@ export function isLatestDirty() {
 }
 
 export function PeekLatest({ row }) {
+  const rec = raw(row);
+  const save = (value) => changeCell(tableOf(row), row.id, { latest_update: value },
+    { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
+    .then((reply) => { if (reply) refresh(); return reply; });
+  return <LatestBox id={row.id} now={rec && rec.latest_update ? String(rec.latest_update) : ""} stamp={rec ? stampText(rec.updated_at) : ""} shown={!!row.client} save={save} />;
+}
+
+/** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
+export function LatestBox({ id, now, stamp, shown, save: send, placeholder = "Add the latest update…" }) {
   const [open, setOpen] = useState(false);
-  const rec = raw(row), has = true;
-  const now = rec && rec.latest_update ? String(rec.latest_update) : "";
-  const stamp = rec ? stampText(rec.updated_at) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
   savedHtml = html;
   const ai = useDraftAi(), place = placeFor(keyForField("latest_update"));      // "current", for all four kinds (the field name decides, not the kind)
-  const save = (value) => (lastSave = changeCell(tableOf(row), row.id, { latest_update: value },
-    { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
-    .then((reply) => { if (reply) refresh(); return reply; }));
+  const save = (value) => (lastSave = send(value));
   return (
     <div class="pk-latest" data-pk-latest
       onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
       onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
       onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
-      {has ? <>
-        <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
-          <DraftButton ai={ai} />
-          {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
-        <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
-        <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} ai={place} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
-      </> : null}
+      <div class="pk-lab"><span id={`pk-latest-lab-${id}`}>Latest update</span>
+        <DraftButton ai={ai} />
+        {shown ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
+      <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
+      <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
-      {has && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
-      {has ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
+      {open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
+      <PeekLatestHistory key={`h-${id}`} id={id} />
     </div>
   );
 }
