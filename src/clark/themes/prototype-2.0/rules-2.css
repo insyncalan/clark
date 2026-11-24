@@ -247,6 +247,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-quotes[data-align="left"] .tpl-quote-by { align-items: flex-start; }
 /* Row 1271, Tile off (the ticket: with Tile and Heading both off the quote sits directly on the page): the panel around each quote follows the Tile switch, so with Tile off it has no grey fill and no inset. */
 .sec.no-tile .tpl-quotes .tpl-quote { background: transparent; padding: 0; }
+/* Row 1579, Tile off on Classic: the banded section fill (item 1311, .secs > .sec.band) out-ranked .sec.no-tile, so Tile off still drew a panel; one more class makes the section transparent again. */
+.secs > .sec.band.no-tile { background: transparent; }
 /* Row 1271, Edit in place (Classic only): the quote is typed in the box where View shows it, wraps and grows with its words, the name and role under it. */
 .tpl-quote-pe .tq-head { display: flex; align-items: baseline; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--size-caption); color: var(--text-muted); text-align: left; }
 .tpl-quote-pe .tq-count { margin-left: auto; white-space: nowrap; }
