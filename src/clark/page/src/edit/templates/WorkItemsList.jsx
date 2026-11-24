@@ -5,7 +5,7 @@
 import { StartPrompt } from "../StartPrompt.jsx";
 import { startOr } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
-import { MenuPanel } from "../../components/Menu.jsx";
+import { ColsPanel } from "../ColumnsMenu.jsx";      // row 1286 (B-M5b): the Columns menu, kept inside a short window
 import { Icon } from "../../components/Icon.jsx";
 import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
@@ -107,12 +107,12 @@ export function Edit({ section }) {
     onKeyDown: (e) => { if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) { e.preventDefault(); setAt(e.target.closest("th") || e.currentTarget); } },
   };
   const colMenu = at ? (
-    <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
+    <ColsPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
       {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
         <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
           <Icon name={columnIcon(c)} cls="mi" /><span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
         </button>); })}
-    </MenuPanel>
+    </ColsPanel>
   ) : null;
   const pick = (field, v) => save({ ...latest(), [field]: v });
   const commitMax = (e) => {

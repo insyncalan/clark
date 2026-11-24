@@ -7,12 +7,14 @@ import { signal } from "@preact/signals";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
-import { data } from "../stores/report.js";
+import { data, project } from "../stores/report.js";
+import { readActivity } from "./activityApi.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
 import { changeFor, tableOf } from "./itemEdit.js";
 import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 import { DraftButton, DraftPanel, useDraftAi } from "./DraftAi.jsx";
 import { richWords } from "../logic/richWords.js";
@@ -95,12 +97,45 @@ export function PeekLatest({ row }) {
   return <LatestBox id={row.id} now={rec && rec.latest_update ? String(rec.latest_update) : ""} stamp={rec ? stampText(rec.updated_at) : ""} shown={!!row.client} save={save} />;
 }
 
+// Row 1470: who wrote the update, the item's Source and the Created entry, read from the item's history (the one read the peek's tabs use).
+// Nothing is invented: a name or a Source that clark did not record is left out, the date and time are always drawn.
+const isUpdateRow = (r) => r.field === "Latest update" && r.kind !== "Created" && r.kind !== "Comment";
+export function stampParts(view) {
+  const rows = view && Array.isArray(view.rows) ? view.rows : [];
+  const up = rows.find(isUpdateRow), made = rows.slice().reverse().find((r) => r.kind === "Created");
+  const createdBy = made && made.who ? String(made.who).trim() : "";
+  let source = view && typeof view.source === "string" ? view.source.trim() : "";
+  if (createdBy && source.endsWith(" by " + createdBy)) source = source.slice(0, -(createdBy.length + 4)).trim();       // the Source line is "<words> by <who made it>": the stamp has the words alone
+  return { who: up ? String(up.who || "").trim() : "",       // no update row: nobody recorded who wrote the text, so the creator is not credited as the updater (ruling 23-11 10:25)
+     source, made: made ? { who: createdBy, when: String(made.when_text || "").split(" - ")[0] } : null };
+}
+/** "Last updated 18-11-2026 16:40 by Name · Source: words": the name and the Source only when known. */
+export function stampLine(stamp, who, source) {
+  return `Last updated ${stamp}${who ? ` by ${who}` : ""}${source ? ` · Source: ${source}` : ""}`;
+}
+/** The Created entry an item never updated shows in its Latest box: "Created by Name, 10-11-2026 09:12 · Source: words" (parts left out when unknown). */
+export function createdLine(made, source) {
+  if (!made) return "";
+  return <><b data-pk-created>Created</b>{`${made.who ? ` by ${made.who}` : ""}${made.when ? `${made.who ? "," : ""} ${made.when}` : ""}${source ? ` · Source: ${source}` : ""}`}</>;      // the word Created is bold (NEW-WORDS 21-11 items 16-17)
+}
+
 /** The empty box's text, one for every peek (row 1548: the work item peek and the milestone peek both show it). */
 export const LATEST_PLACEHOLDER = "What changed? Add the latest update…";
 
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
 export function LatestBox({ id, now, stamp, shown, save: send, placeholder = LATEST_PLACEHOLDER }) {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState(undefined);                       // undefined until the history is read (Classic draws its stamp then, so the name and Source do not pop in); null when it could not be read
+  const d = data.value;                                                // a change anywhere replaces the data, so the stamp reads again
+  useEffect(() => {
+    let live = true;
+    readActivity(project.value, id).then((r) => { if (live) setView(r.ok ? r.view : null); });
+    return () => { live = false; };
+  }, [id, d]);                                                        // eslint-disable-line react-hooks/exhaustive-deps
+  const classic = classicTheme();                                     // row 1470 is Classic only: Cards keeps its lowercase stamp and its plain empty box
+  const parts = stampParts(view);
+  const never = classic && !String(now || "").trim();
+  const created = never ? createdLine(parts.made, parts.source) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
@@ -117,10 +152,10 @@ export function LatestBox({ id, now, stamp, shown, save: send, placeholder = LAT
         {shown ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
       <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
       <div class="pk-lbox" data-pk-lbox>
-        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
+        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={created || placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
         <div class="pk-lfoot" data-pk-latest-hint data-pk-hint><span><kbd class="pk-key">⌘ Enter</kbd> to save</span></div>
       </div>
-      {stamp ? <div class="pk-last" data-pk-last>last updated {stamp}</div> : null}
+      {stamp && !never && (view !== undefined || !classic) ? <div class="pk-last" data-pk-last>{classic ? stampLine(stamp, parts.who, parts.source) : `last updated ${stamp}`}</div> : null}
       <PeekLatestHistory key={`h-${id}`} id={id} />
     </div>
   );

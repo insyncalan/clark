@@ -66,9 +66,9 @@ class SettingsBar(Base):
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode, page="version")      # the page with the most cards, so there is room to scroll
+                    self.open_settings(p, w, mode, page="claude")      # a page with room to scroll (row 1485 took a card off Version and updates, which left it too short for the 10 px past the bar)
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).position"), "sticky")
-                    self.assertEqual(self.marked(p), "Version and updates", "the open page's item is marked")
+                    self.assertEqual(self.marked(p), "Claude and AI", "the open page's item is marked")
                     # a page is short, and the list is as tall as the window: it is under the top bar only for the few pixels the page can still be scrolled after the list reaches the top bar, so scroll 10 px past that
                     p.js("window.scrollTo(0, window.scrollY + document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom + 10)")
                     self.settle(p)

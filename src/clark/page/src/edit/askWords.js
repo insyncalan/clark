@@ -26,6 +26,8 @@ export const CARD_CHANGES = "I can suggest changes. Nothing is saved until you p
 export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
 export const CARD_SENT = "Your question and what it needs go to Claude.";
 export const CARD_LINK = "What will be sent? (Settings)";
+// row 1366 AP27: the passages line, words approved in NEW-WORDS (item 6; the pictures line, item 10, is held until the picture reader exists).
+export const CARD_PASSAGES = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question.";
 export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
 export const CARD_TIP_KEY = "/";
 export const CARD_TIP_AFTER = " in the box for slash commands.";
@@ -394,3 +396,16 @@ export const SLASH_HINT_CLASSIC = {
   summary: "Summarise this week into a draft",
   overdue: "What is overdue?",
 };
+// Row 1365: the warning for a source folder whose names hold a people or contract word. A WARNING the person accepts or declines; no choice is Declined.
+// APPROVED WORDING (row 1365 ticket rule 13:39, approved 13:41; ruling WO-M17452 14:03); this is its one place. {provider} is Claude, or ChatGPT when
+// Claude is off and ChatGPT is on (askProvider). For ChatGPT the words "which Anthropic runs" are dropped (the ruling), and no other words are added.
+export const PEOPLE_CONTRACT_HOLDS = "This folder holds ";
+export const PEOPLE_CONTRACT_AND = " and ";
+export const PEOPLE_CONTRACT_MAY_GO = (who) => `. Passages from it may go to ${who === "ChatGPT" ? "ChatGPT" : "Claude, which Anthropic runs"}, and they can contain personal information.`;
+export const PEOPLE_CONTRACT_QUESTION = (who) => `Send passages from this folder to ${who === "ChatGPT" ? "ChatGPT" : "Claude"}?`;
+export const PEOPLE_CONTRACT_ACCEPT = "Accept";
+export const PEOPLE_CONTRACT_DECLINE = "Decline";
+export const PEOPLE_CONTRACT_DECLINED = "Left out of ask clark.";
+export const PEOPLE_CONTRACT_ACCEPTED = (who) => `Passages may go to ${who === "ChatGPT" ? "ChatGPT" : "Claude"}.`;
+// Kept from the first version of the notice (no new words): the button that leaves the flagged subfolders out, so the rest of the folder is read.
+export const PEOPLE_CONTRACT_LEAVE = "Leave these subfolders out";
