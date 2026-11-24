@@ -263,9 +263,17 @@ class Published(unittest.TestCase):
                 cdp.js(f"({PVIS})({json.dumps(ids[0])}).click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == ids[0]))
                 cdp.js("window.__peek1467 = document.querySelector('#peek')", sid)
-                x, y = cdp.js(f"(() => {{ const b = ({PVIS})({json.dumps(ids[1])}).getBoundingClientRect(); return [b.left + 40, b.top + b.height / 2]; }})()", sid)
-                for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
-                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+                # macOS shard 2/6 (run 45365455611) failed here at 900 px: the coordinates were read once, while the peek was still sliding in, and the raw press missed the row.
+                # So: wait until the peek and the row both rest (the same rects on two looks 150 ms apart), read the coordinates then, and where the open peek stands over the row
+                # (900 px) send the press to the row itself, as the browser would (the same as rowpress in the Unsaved class below).
+                still = f"(() => {{ const p = document.querySelector('#peek'), r = ({PVIS})({json.dumps(ids[1])}); return p && r ? JSON.stringify([p.getBoundingClientRect(), r.getBoundingClientRect()]) : ''; }})()"
+                self.assertTrue(wait(lambda: (lambda a: bool(a) and (time.sleep(0.15), a == cdp.js(still, sid))[1])(cdp.js(still, sid))), "the peek and the other row are at rest")
+                got = cdp.js(f"(() => {{ const e = ({PVIS})({json.dumps(ids[1])}), b = e.getBoundingClientRect(), x = b.left + 40, y = b.top + b.height / 2; return {{ x, y, free: e.contains(document.elementFromPoint(x, y)) }}; }})()", sid)
+                if got["free"]:
+                    for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
+                        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": got["x"], "y": got["y"], **extra}, sid)
+                else:
+                    cdp.js(f"(() => {{ const e = ({PVIS})({json.dumps(ids[1])}); for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {got['x']}, clientY: {got['y']} }})); }})()", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == ids[1]), "the peek shows the other item")
                 self.assertTrue(cdp.js("window.__peek1467 === document.querySelector('#peek')", sid), "the same peek element")
 
