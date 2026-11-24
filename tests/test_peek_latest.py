@@ -266,8 +266,14 @@ class Browser(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        if dash:                                              # row 1470: the Dashboard in View, the peek opened by its address ("item=<id>" or "ms=<id>")
+        if dash:                                              # row 1470: the Dashboard in View (or Edit when edit), the peek opened by its address ("item=<id>" or "ms=<id>")
             cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#dashboard&p={self.code}&{dash}")}, sid)
+            if edit:
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid), 20))
+                cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode", sid) == "edit"))
+            if dark:
+                cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest]')", sid), 20), "the Dashboard peek drew its Latest update")
             return sent, sid
         cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
@@ -328,6 +334,41 @@ class Browser(unittest.TestCase):
                     self.open_box(cdp, sid)
                     self.type_in(cdp, sid, "Typed in View")
                     self.assertIn("Typed in View", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "the box takes input")
+
+    def dash_kinds(self):
+        raid = self.data["raid"]
+        return {"action": f"item={OVERDUE}", "risk": "item=" + next(r["id"] for r in raid if r.get("type") == "Risk"),
+                "issue": "item=" + next(r["id"] for r in raid if r.get("type") == "Issue"),
+                "decision": "item=" + self.data["decisions"][0]["id"], "milestone": "ms=" + self.data["milestones"][0]["id"]}
+
+    def test_dash_edit_peek_has_editable_latest_box(self):
+        """Row 1470 AP2: the Dashboard in Edit (mode edit) draws the same Latest update box in a peek of every kind, and it takes typing."""
+        for width in (1400, 900):
+            for kind, dash in self.dash_kinds().items():
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, None, edit=True, dash=dash)
+                    self.assertEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the Dashboard is in Edit")
+                    self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(self.SHOWN)})", sid), "the editable Latest update box is drawn")
+                    self.open_box(cdp, sid)
+                    self.type_in(cdp, sid, "Typed in Edit")
+                    self.assertIn("Typed in Edit", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "the box takes input")
+
+    def test_latest_panel_above_details_1400_900(self):
+        """Row 1470 AP3: in the Dashboard peek of every kind, in View and in Edit, the Latest panel sits above Details; its box has a 1px border, radius 12, and its text area padding 12px 14px and min-height 84.
+        (The AP's 15px/1.55 text and var(--line) border colour are not pinned: the shipped box is 14px/1.45 and --grey-200, pinned by test_peek_latest_box_survivors_1257.)"""
+        probe = ("(() => { const q = (s) => document.querySelector(s), b = q('#peek [data-pk-lbox] .rt-view, #peek [data-pk-lbox] .ProseMirror'), box = q('#peek [data-pk-lbox]'),"
+                 " det = [...document.querySelectorAll('#peek *')].find((e) => e.children.length === 0 && /^Details$/i.test(e.textContent.trim())), c = getComputedStyle(box), t = getComputedStyle(b);"
+                 " return {above: !!det && box.getBoundingClientRect().top < det.getBoundingClientRect().top, border: c.borderTopWidth, radius: c.borderTopLeftRadius, pad: t.paddingTop + ' ' + t.paddingRight + ' ' + t.paddingBottom + ' ' + t.paddingLeft,"
+                 " min: parseFloat(t.minHeight), h: box.getBoundingClientRect().height, font: t.fontSize, lh: t.lineHeight}; })()")
+        for edit in (False, True):
+            for width in (1400, 900):
+                for kind, dash in self.dash_kinds().items():
+                    with self.subTest(edit=edit, width=width, kind=kind), chrome() as cdp:
+                        sent, sid = self.load(cdp, width, None, edit=edit, dash=dash)
+                        got = cdp.js(probe, sid)
+                        self.assertTrue(got["above"], "the Latest box is above Details")
+                        self.assertEqual((got["border"], got["radius"], got["pad"], got["min"], got["font"], got["lh"]), ("1px", "12px", "12px 14px 12px 14px", 84, "14px", "20.3px"))
+                        self.assertGreaterEqual(got["h"], 84)
 
     def test_the_overdue_bar_says_how_late_and_moves_to_friday_with_one_undo(self):
         for width in (1400, 900):
