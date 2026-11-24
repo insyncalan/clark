@@ -71,16 +71,17 @@ class MarkerEdges(unittest.TestCase):
             with mock.patch.dict(os.environ, {"CLARK_DEV": v}):
                 self.assertNotIn("DEV COPY", sv.with_boot(PAGE), repr(v))
 
-    def test_the_boot_block_goes_before_the_last_closing_body(self):
+    def test_the_boot_block_goes_straight_after_the_opening_body(self):
         page = "<html><head><title>clark</title></head><body><script>var s='</body>';</script><p>x</p></body></html>"
         out = sv.with_boot(page)
         self.assertEqual(out.count('id="clark-boot"'), 1)
-        self.assertGreater(out.index('id="clark-boot"'), out.index("<p>x</p>"))
-        self.assertTrue(out.endswith('</script></body></html>'))
+        self.assertLess(out.index('id="clark-boot"'), out.index("var s="))   # row 1604: before the page's script
+        self.assertTrue(out.startswith('<html><head><title>clark</title></head><body><script type="application/json" id="clark-boot">'))
+        self.assertTrue(out.endswith("</body></html>"))
 
-    def test_a_page_with_no_closing_body_still_gets_the_boot_block_at_the_end(self):
-        out = sv.with_boot("<html><body><p>x</p>")
-        self.assertTrue(out.startswith("<html><body><p>x</p><script"))
+    def test_a_page_with_no_body_tag_still_gets_the_boot_block_at_the_end(self):
+        out = sv.with_boot("<html><p>x</p>")
+        self.assertTrue(out.startswith("<html><p>x</p><script"))
         self.assertTrue(out.endswith("</script>"))
         self.assertEqual(out.count('id="clark-boot"'), 1)
 

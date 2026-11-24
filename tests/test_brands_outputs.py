@@ -92,7 +92,7 @@ class ExcelCover(Rig):
     def test_the_cover_band_is_the_brands_navy_and_the_other_brands_is_absent(self):
         for name, folder in (("zebra", self.zebra), ("quokka", self.quokka)):
             path, _ = self.cover_zip(folder)
-            fill = load_workbook(path)["Cover"]["A1"].fill.fgColor.rgb[-6:].upper()
+            fill = load_workbook(path)["Report"]["A1"].fill.fgColor.rgb[-6:].upper()
             self.assertEqual(fill, BRANDS[name]["navy"], name)
             raw = "".join(zipfile.ZipFile(path).read(n).decode("utf-8", "replace") for n in ("xl/styles.xml",))
             self.assertNotIn(self.other(name)["navy"], raw.upper(), name)
