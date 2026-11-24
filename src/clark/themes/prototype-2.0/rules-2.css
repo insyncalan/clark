@@ -258,6 +258,10 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1428 (Classic only): the Report headline Edit view keeps the health pill beside the Headline and reason boxes at 900 and below (mock-up .erow: a row, gap 12px), undoing the shared stack at edit.css; Cards keeps it. */
+@media (max-width: 900px) { .tpl-rh-edit { flex-direction: row; gap: var(--space-3); } }
+/* Row 1431 (Classic only; Cards keeps its rows): the lines of the rich text Text style menu are 32px high as the prototype draws them (index.html:295, .rt-menu button min-height 32px). Height only: the 16px side padding, the radius, the size and the icons stay. */
+.rt-bar .ddmenu [role="menuitemradio"] { box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }
 /* Row 1543 part 1: the published header's pages group sits where the editor's does, above 900px. The editor's bar has 28px at the sides, 22px between its parts, the tabs stretch to 10px above the bottom and end 22px before the right-hand buttons (search, ask clark, profile). The published bar reserves their width (228.94px, and 94.94px less at 1100px and below where ask clark is only an icon: the widths the editor draws, measured) and puts the switcher and the profile circle at its far end. The date (until it goes) sits in the reserved room above 1100px, and left of the pages below it, so it never moves them. */
 @media (min-width: 901px) {
   .top-file { gap: 22px; padding: 10px 28px; }
