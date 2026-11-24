@@ -312,6 +312,7 @@ FIELD_NAMES = {
                  "gantt_tab_name": "Gantt tab name", "gantt_title": "Gantt title", "gantt_hidden_columns": "Gantt columns hidden from the client", "gantt_default_rows": "Gantt rows shown", "brand": "Brand", "ask_instructions": "Standing instructions", "ask_files_off": "Files turned off for asking in this project", "ask_off": "Asking turned off in this project", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
     "app_settings": {"ask_files": "Files are used for asking", "ask_new_projects": "Asking for new projects"},
     "milestones": {"name": "Name", "status": "Status"},
+    "workstreams": {"start": "Start", "end": "End"},      # row 1417: the first and last day of a workstream; latest_update is in COMMON
     "gantt_lines": {"name": "Line", "type": "Type", "parent": "Parent", "start": "Start", "end": "End", "pct": "Done %",
                     "health": "Health", "depends": "Depends on", "baseline_start": "Baseline start", "baseline_end": "Baseline end",
                     "effort": "Effort (days)", "show": "On dashboard", "note": "Notes", "sort_order": "Place"},      # row 926
