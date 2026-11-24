@@ -1723,7 +1723,8 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             return self.send(400, error_body("bad_request"))
         head = self.headers.get
-        return self.run_route(self.post_route(route), head("X-Clark-Project") or "", head("X-Clark-Section") or "", head("X-Clark-File-Name") or "", data)
+        return self.run_route(self.post_route(route), head("X-Clark-Project") or "", head("X-Clark-Section") or "", head("X-Clark-File-Name") or "", data,
+                              head("X-Clark-Hold") or None, head("X-Clark-Commit") or None)
 
     def authorised(self):
         """Whether an API call may go ahead: the right Host, no other site's Origin (csp_local's test, #65: a page on another
