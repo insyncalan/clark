@@ -1,223 +1,268 @@
-"""The first-run setup page (row 836, step 5) in headless Chrome: every state (loading, all ready, one problem with its fix line, many
-problems, refused), Check again and the folder chooser, at 1400 and 900 pixels wide in light and dark, with no sideways scroll.
-The checks and the chooser are fakes behind the page's seams; the server's setup mode is not built yet.
-
-Run: python3 dev/run_tests.py test_setup_page
-Chrome is required: these tests fail, never skip, without it. Fixture lines are made up.
-"""
-import contextlib
+"""#836 step 5: the real setup page (src/clark/setup_page.py) and the page versions of the doctor's words. Run: python3 dev/run_tests.py test_setup_page
+No browser here (tests/test_setup_page_browser.py has it). Temporary folders only; the folder window is always a fake function."""
 import json
-import sys
+import re
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from _paths import ROOT, SRC, TOOLS
+from _paths import ROOT, SRC
+from test_server_setup import SetupRunning
 
-sys.path.insert(0, str(TOOLS))
-import build_page  # noqa: E402
-import esbuild  # noqa: E402
+from clark import doctor, launch, platform as pl, server as sv, setup_mode, setup_page
 
-from test_server import Running, chrome, wait  # noqa: E402
-
-PAGE_SRC = SRC / "clark" / "page" / "src"
-DEMO = ROOT / "tests" / "fixtures" / "setup_demo.jsx"
-READY = {"id": "python", "status": "ready", "words": "Python 3.11.4 is ready."}
-CHROME = {"id": "chrome", "status": "ready", "words": "Chrome is there, so clark opens in its own window."}
-DATA = {"id": "data", "status": "ready", "words": "Your clark data can be saved in ~/clark-data."}
-ONEDRIVE = {"id": "onedrive", "status": "fix", "words": "Your clark data is set to go in ~/OneDrive/clark, which is inside OneDrive. "
-            "OneDrive copies files while they are being written, which damages the data. Choose a folder on this computer that it doesn't sync."}
-NOCHROME = {"id": "chrome", "status": "advice", "words": "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own window."}
-MIXED = {"id": "versions", "status": "fix", "words": "These clark files are not all from the same version, so clark will not start. "
-         "Move the clark folder aside (rename it) and unzip the download again."}
-OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731
-_PAGE = {}
-
-
-def test_page_html():
-    if "html" not in _PAGE:
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "t.js"
-            done = esbuild.run(["--bundle", "--format=iife", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
-                                *build_page.preact_flags(), f"--alias:@src={PAGE_SRC}", str(DEMO), f"--outfile={out}"],
-                               cwd=tmp, capture_output=True, text=True)
-            assert done.returncode == 0, done.stderr
-            script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = (build_page.TOKENS.read_text(encoding="utf-8") + (build_page.PAGE / "shell.css").read_text(encoding="utf-8"))
-        css = css.replace("</style", "<\\/style")
-        _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8">'
-                         f'<meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title>'
-                         f'<style>\n{css}</style></head>\n<body><div id="root"></div>\n'
-                         f'<script>{script}</script>\n</body></html>\n')
-    return _PAGE["html"]
+# Every string the page itself draws, written out (the FINAL STRINGS table of the pull request). A change here is a change of words.
+WORDS = {
+    "heading": "Setting up clark",
+    "notice": "clark is being set up. Nothing is saved until the checks below pass.",
+    "check_again": "Check again",
+    "choose": "Choose a folder",
+    "waiting": "Waiting for you to choose a folder.",
+    "busy": "A folder window is already open.",
+    "ready": "Ready",
+    "fix": "To fix",
+    "advice": "Worth knowing",
+    "not checked": "Not checked",
+    "one_fix": "1 thing to fix before clark can start. Fix it, then choose Check again.",
+    "many_fix": "{n} things to fix before clark can start. Fix each one, then choose Check again.",
+    "unknown": "Some checks can't run on this computer yet, so we can't say whether clark will start. Try starting it; if it won't, tell the "
+               "clark team.",
+    "all_ready": "Everything clark needs is ready.",
+    "opening": "Everything clark needs is ready. Opening clark.",
+}
+FOLDER_PROMPT = "Choose a folder for your clark data"
+BAD_WORDS = ("Terminal", "terminal", "python3", "clark.command", "clark.doctor", "double-click", "start clark again", "run bash",
+             "–", "—", " - ", "--")
 
 
-class Setup(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.stack = contextlib.ExitStack()
-        cls.server = Running(page_html=test_page_html)
-        cls.stack.callback(cls.server.close)
-        cls.cdp = cls.stack.enter_context(chrome())
-        tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
-        cls.sid = cls.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cls.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, cls.sid)
+class Case(unittest.TestCase):
+    def setUp(self):
+        self.home = Path(tempfile.mkdtemp(prefix="clark-home-")).resolve()
+        self.addCleanup(shutil.rmtree, self.home, True)
+        self.default = self.home / "Library" / "Application Support" / "clark"
+        self.default.parent.mkdir(parents=True)
+        self.onedrive = self.home / "OneDrive - Work"
+        self.onedrive.mkdir()
+        self.good = self.home / "Elsewhere"
+        self.good.mkdir()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.stack.close()
+    def service(self, folder=None, only=None, **seams):
+        checks = doctor.CHECKS if only is None else tuple(c for c in doctor.CHECKS if doctor.check_id(c) in only)
+        return setup_mode.Setup(folder or self.default, home=self.home, on=pl.MAC, onedrive_roots=lambda: [self.onedrive], environ={},
+                                checks=checks, seams=seams)
 
-    def load(self, width=1400, theme="light"):
-        self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
-        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
-        self.assertTrue(wait(lambda: self.cdp.js("!!(window.T && window.T.logic)", self.sid)), "the test bundle ran")
-        self.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
+    def row(self, folder=None, which="python", **seams):
+        report = self.service(folder, only=(which,), **seams).report()
+        return report["checks"][0]
 
-    def js(self, expr):
-        return self.cdp.js(expr, self.sid)
 
-    def replies(self, **kw):
-        self.js(f"Object.assign(T.replies, {json.dumps(kw)})")
+class Words(unittest.TestCase):
+    def test_the_pages_own_strings_are_exactly_the_written_out_ones(self):
+        self.assertEqual(setup_page.WORDS, WORDS)
+        self.assertEqual(setup_mode.FOLDER_PROMPT, FOLDER_PROMPT)
 
-    def settle(self):
-        self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 100))", "awaitPromise": True}, self.sid)
-        self.assertTrue(wait(lambda: self.js("document.getAnimations().length === 0")), "the animations finished")
+    def test_no_dash_no_terminal_no_command_in_the_pages_strings(self):
+        for key, text in list(WORDS.items()) + [("prompt", FOLDER_PROMPT)]:
+            for bad in BAD_WORDS:
+                self.assertNotIn(bad, text, key)
 
-    def mount(self):
-        self.js("T.mount()")
-        self.settle()
+    def test_the_draft_labels_are_not_used(self):
+        page = setup_page.html()
+        for draft in ("Worth fixing", "Needs fixing", "Needs attention", "setup mode"):
+            self.assertNotIn(draft, page)
 
-    def click(self, selector):
-        self.js(f"document.querySelector({json.dumps(selector)}).click()")
-        self.settle()
+    def test_the_status_labels_are_the_doctors_without_the_colon(self):
+        for kind, label in doctor.LABELS.items():
+            self.assertEqual(setup_page.WORDS[kind], label.rstrip(":"))
 
-    def text(self, selector):
-        return self.js(f"(document.querySelector({json.dumps(selector)}) || {{}}).textContent || ''")
 
-    def present(self, selector):
-        return bool(self.js(f"!!document.querySelector({json.dumps(selector)})"))
+class PageVersions(Case):
+    """Rows 14 16 20 22 24 of the words table: the page says what a button does, never a command or a Terminal step."""
 
-    def lines(self):
-        return json.loads(self.js("JSON.stringify([...document.querySelectorAll('[data-line]')].map(e => [e.dataset.line, e.textContent]))"))
+    def test_14_the_data_folder_that_cannot_be_saved_in(self):
+        blocker = self.home / "a-file"
+        blocker.write_text("x", encoding="utf-8")
+        row = self.row(blocker / "clark", "data_folder")
+        self.assertEqual((row["status"], row["words"]),
+                         (doctor.FIX, "Your clark data can't be saved in ~/a-file/clark. Choose a different folder."))
 
-    def no_sideways_scroll(self, label):
-        self.assertTrue(self.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), label)
+    def test_14_the_refusal_of_a_chosen_folder_has_the_same_page_words(self):
+        link = self.home / "link"
+        link.symlink_to(self.good)
+        with self.assertRaises(setup_mode.Refused) as caught:
+            self.service().accept(str(link))
+        self.assertEqual(caught.exception.words, "Your clark data can't be saved in ~/link. Choose a different folder.")
 
-    def each_view(self, body):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                self.load(width, theme)
-                body()
-                self.no_sideways_scroll(f"{width} {theme}")
+    def test_14_the_good_line_is_the_doctors_own(self):
+        self.assertEqual(self.row(self.good, "data_folder")["words"], "Your clark data can be saved in ~/Elsewhere.")
 
-    def test_all_ready(self):
-        def body():
-            self.replies(checks=OK([READY, CHROME, DATA]))
-            self.mount()
-            self.assertEqual(self.text("h1"), "Setting up clark")
-            self.assertEqual(self.lines(), [[c["id"], c["words"]] for c in (READY, CHROME, DATA)])
-            self.assertEqual(self.text("#setup-ready"), "Everything is ready. Opening clark.")
-            self.assertEqual(self.js("document.querySelectorAll('.upd-l')[0].textContent"), "Ready:")
-            self.assertEqual(self.js("T.ready"), 1)
-            self.assertFalse(self.present("p.error"))
-        self.each_view(body)
+    def test_16_onedrive(self):
+        row = self.row(self.onedrive / "clark", "data_not_in_onedrive")
+        self.assertEqual((row["status"], row["words"]), (doctor.FIX, (
+            "Your clark data is set to go in ~/OneDrive - Work/clark, which is inside OneDrive. OneDrive copies files while they are "
+            "being written, which damages the data. Choose a folder on this computer that OneDrive doesn't sync. Backups can still go "
+            "to OneDrive.")))
 
-    def test_advice_does_not_stop_the_page_and_is_labelled_as_the_doctor_does(self):
-        self.load()
-        self.replies(checks=OK({"checks": [READY, NOCHROME]}))
-        self.mount()
-        self.assertEqual(self.js("document.querySelectorAll('.upd-l')[1].textContent"), "Worth knowing:")
-        self.assertTrue(self.present("#setup-ready"))
+    def test_16_the_ready_line_is_the_doctors_own(self):
+        self.assertEqual(self.row(self.good, "data_not_in_onedrive")["words"], "Your clark data isn't inside OneDrive.")
 
-    def test_one_problem_shows_its_fix_line_and_no_ready_line(self):
-        def body():
-            self.replies(checks=OK([READY, ONEDRIVE]), folder=OK({"ok": True}))
-            self.mount()
-            self.assertEqual(dict(self.lines())["onedrive"], ONEDRIVE["words"])
-            self.assertEqual(self.js("document.querySelectorAll('.upd-l')[1].textContent"), "To fix:")
-            self.assertTrue(self.present("[data-line=onedrive].error"))
-            self.assertFalse(self.present("#setup-ready"))
-            self.assertEqual(self.js("T.ready"), 0)
-            self.assertTrue(self.present("[data-again]") and self.present("[data-folder]"))
-        self.each_view(body)
+    def test_20_chrome(self):
+        found = self.row(self.good, "browser", find_chrome=lambda: "/x/Chrome")
+        self.assertEqual((found["status"], found["words"]), (doctor.READY, "Chrome is there, so clark opens in Chrome."))
+        lost = self.row(self.good, "browser", find_chrome=lambda: None)
+        self.assertEqual((lost["status"], lost["words"]), (doctor.ADVICE, "Chrome wasn't found, so clark will open in your usual "
+                                                                          "browser. Install Chrome to open clark there."))
 
-    def test_many_problems_are_all_shown_in_order(self):
-        def body():
-            self.replies(checks=OK([MIXED, ONEDRIVE, NOCHROME, DATA]))
-            self.mount()
-            self.assertEqual([i for i, _ in self.lines()], ["versions", "onedrive", "chrome", "data"])
-            self.assertEqual(int(self.js("document.querySelectorAll('p.error[data-line]').length")), 2)
-        self.each_view(body)
+    def test_22_the_port(self):
+        for kind, expect in ((launch.NOT_CLARK, "Nothing was started: clark is already open, or another program is using the "
+                                                "connection it needs. Close it, then open clark again."),
+                             (launch.OTHER_DATA, "Another copy of clark is already open with different data (this one uses "
+                                                 "~/Elsewhere). Close that copy, then choose Check again.")):
+            with self.subTest(kind=kind):
+                row = self.row(self.good, "port", health=lambda port, mark, k=kind: k, free=lambda port: True)
+                self.assertEqual((row["status"], row["words"]), (doctor.FIX, expect))
 
-    def test_loading_then_lines(self):
-        def body():
-            self.js("T.replies.checks = () => new Promise(r => { T.release = () => r({status: 200, body: [{id: 'a', status: 'ready', words: 'Fine.'}]}); })")
-            self.mount()
-            self.assertEqual(self.text("#setup-loading"), "Checking this computer.")
-            self.assertFalse(self.present("[data-again]"))
-            self.js("T.release()")
-            self.settle()
-            self.assertFalse(self.present("#setup-loading"))
-            self.assertEqual(self.lines(), [["a", "Fine."]])
-        self.each_view(body)
+    def test_22_the_second_line_with_a_terminal_command_is_not_on_the_page(self):
+        row = self.row(self.good, "port", health=lambda port, mark: launch.NOT_CLARK, free=lambda port: port != 8766)
+        self.assertNotIn("Terminal", row["words"])
+        self.assertNotIn("--port", row["words"])
 
-    def test_refused_says_so_and_check_again_asks_again(self):
-        def body():
-            self.replies(checks=OK({"code": "stale"}, 403))
-            self.mount()
-            self.assertTrue(self.text("#setup-refused").startswith("The checks could not be read."))
-            self.assertFalse(self.present("[data-line]") or self.present("[data-folder]"))
-            self.replies(checks=OK([READY]))
-            self.click("[data-again]")
-            self.assertEqual(self.lines(), [["python", READY["words"]]])
-            self.assertFalse(self.present("#setup-refused"))
-        self.each_view(body)
+    def test_22_a_bad_start_up_number(self):
+        service = setup_mode.Setup(self.good, home=self.home, on=pl.MAC, environ={"CLARK_PORT": "x"}, onedrive_roots=lambda: [],
+                                   checks=tuple(c for c in doctor.CHECKS if doctor.check_id(c) == "port"))
+        row = service.report()["checks"][0]
+        self.assertEqual(row["words"], "The start-up number (set with CLARK_PORT) must be a whole number from 1 to 65535. Change it, "
+                                       "then choose Check again.")
 
-    def test_a_list_that_is_not_the_shape_is_refused(self):
-        self.load()
-        for bad in ({"checks": "x"}, [{"id": "a", "status": "ready"}], [{"id": "a", "status": "ready", "words": 5}], [None]):
-            self.replies(checks=OK(bad))
-            self.mount()
-            self.assertTrue(self.present("#setup-refused"), json.dumps(bad))
+    def test_24_a_check_that_stops(self):
+        boom = doctor.Check("The OneDrive check for your data", True, lambda seen: 1 / 0)
+        boom = boom._replace(run=_named(boom.run, "check_data_not_in_onedrive"))
+        row = setup_mode.Setup(self.good, home=self.home, on=pl.MAC, environ={}, checks=(boom,)).report()["checks"][0]
+        self.assertEqual((row["status"], row["words"]),
+                         (doctor.NOT_CHECKED, "The OneDrive check for your data couldn't finish. Choose Check again."))
 
-    def test_check_again_runs_the_checks_again_and_the_ready_callback_fires_once(self):
-        self.load()
-        self.replies(checks=OK([ONEDRIVE]))
-        self.mount()
-        self.replies(checks=OK([READY]))
-        self.click("[data-again]")
-        self.click("[data-again]")
-        self.assertEqual(self.js("T.calls.filter(c => c === 'checks').length"), 3)
-        self.assertEqual(self.js("T.ready"), 1)
+    def test_24_a_check_that_cannot_run_here_is_the_doctors_own_line(self):
+        def not_here(seen):
+            raise pl.NotBuiltYet("x")
+        check = doctor.Check("The browser check", False, _named(not_here, "check_browser"))
+        row = setup_mode.Setup(self.good, home=self.home, on=pl.MAC, environ={}, checks=(check,)).report()["checks"][0]
+        self.assertEqual(row["words"], "The browser check can't run on this computer yet.")
 
-    def test_the_folder_chooser_rechecks_after_a_choice_and_reports_a_refusal(self):
-        self.load()
-        self.replies(checks=OK([ONEDRIVE]), folder=OK({"ok": True, "cancelled": True}))
-        self.mount()
-        self.click("[data-folder]")
-        self.assertEqual(self.text("#setup-msg"), "No folder was chosen, so nothing was changed.")
-        self.assertEqual(self.js("T.calls.filter(c => c === 'checks').length"), 1)
-        self.replies(folder=OK({"ok": False, "message": "Your clark data can't be saved in ~/Locked."}, 409))
-        self.click("[data-folder]")
-        self.assertEqual(self.text("#setup-msg"), "Your clark data can't be saved in ~/Locked.")
-        self.replies(folder=OK({"nonsense": True}, 500))
-        self.click("[data-folder]")
-        self.assertEqual(self.text("#setup-msg"), "That folder could not be chosen. Nothing was changed.")
-        self.replies(folder=OK({"ok": True}), checks=OK([READY]))
-        self.click("[data-folder]")
-        self.assertFalse(self.present("#setup-msg"))
-        self.assertTrue(self.present("#setup-ready"))
-        self.assertEqual(self.js("T.calls.filter(c => c === 'checks').length"), 2)
+    def test_the_other_rows_are_the_doctors_words_unchanged(self):
+        for which in ("python", "app_folder", "claude"):
+            doc = doctor.run_check([c for c in doctor.CHECKS if doctor.check_id(c) == which][0],
+                                   self.service(self.good, only=(which,), find_claude=lambda: "/x").seen(self.good))
+            self.assertEqual(self.row(self.good, which, find_claude=lambda: "/x")["words"], doc.words)
 
-    def test_an_answer_that_arrives_after_the_page_is_gone_does_nothing(self):
-        self.load()
-        self.js("T.replies.checks = () => new Promise(r => { T.release = () => r({status: 200, body: [{id: 'a', status: 'ready', words: 'Fine.'}]}); })")
-        self.mount()
-        self.js("T.unmount()")
-        self.js("T.release()")
-        self.settle()
-        self.assertEqual(self.js("T.ready"), 0)
-        self.assertFalse(self.present("#setup-ready") or self.present("[data-line]"))
+    def test_no_reachable_fix_or_advice_line_tells_a_person_to_use_a_terminal(self):
+        blocker = self.home / "a-file"
+        blocker.write_text("x", encoding="utf-8")
+        seen = [self.row(blocker / "clark", "data_folder"), self.row(self.onedrive / "clark", "data_not_in_onedrive"),
+                self.row(self.good, "browser", find_chrome=lambda: None), self.row(self.good, "browser", find_chrome=lambda: "/x"),
+                self.row(self.good, "port", health=lambda p, m: launch.NOT_CLARK, free=lambda p: True),
+                self.row(self.good, "port", health=lambda p, m: launch.OTHER_DATA, free=lambda p: True),
+                self.row(self.good, "app_folder")]
+        for row in seen:
+            for bad in BAD_WORDS:
+                self.assertNotIn(bad, row["words"], row["id"])
+
+    def test_the_doctors_own_lines_are_not_edited(self):
+        """The command line still has its Terminal words: only the page has its own."""
+        seen = doctor.Seen(data=str(self.onedrive / "clark"), home=self.home, on=pl.MAC, onedrive_roots=lambda: [self.onedrive])
+        self.assertIn("Terminal", doctor.check_data_not_in_onedrive(seen).words)
+        self.assertIn("start clark again", doctor.cant_save_line(seen).words)
+
+
+def _named(fn, name):
+    fn.__name__ = name
+    return fn
+
+
+class Served(Case):
+    def setUp(self):
+        super().setUp()
+        self.service_ = setup_mode.Setup(self.default, home=self.home, on=pl.MAC, onedrive_roots=lambda: [self.onedrive], environ={},
+                                         prompt=setup_mode.FOLDER_PROMPT, choose_folder=lambda p: None)
+        self.s = SetupRunning(self.service_)
+        self.addCleanup(self.s.close)
+
+    def page(self):
+        status, headers, body = self.s.ask("GET", "/")
+        self.assertEqual(status, 200)
+        return headers, body.decode("utf-8")
+
+    def test_the_real_page_is_served_at_slash_and_setup(self):
+        _, text = self.page()
+        self.assertEqual(self.s.ask("GET", "/setup")[2].decode("utf-8"), text)
+        self.assertNotIn("clark is starting.", text)
+        self.assertIn(WORDS["heading"], text)
+        self.assertIn(json.dumps({"token": sv.TOKEN}), text)
+
+    def test_the_stand_in_stays_only_for_a_setup_object_with_no_page(self):
+        bare = mock.Mock(spec=["api_checks"])
+        s = SetupRunning(bare)
+        self.addCleanup(s.close)
+        self.assertIn("clark is starting.", s.ask("GET", "/")[2].decode("utf-8"))
+
+    def test_the_prompt_is_the_approved_one_and_the_folder_route_is_wired(self):
+        self.assertEqual(setup_mode.Setup(self.default).prompt, setup_mode.FOLDER_PROMPT)
+
+    def test_every_string_of_the_page_is_in_the_table_and_the_table_is_all_in_the_page(self):
+        _, text = self.page()
+        for key, value in WORDS.items():
+            probe = value.split("{n}")[-1] if "{n}" in value else value
+            self.assertIn(json.dumps(probe)[1:-1].replace("<", "\\u003c"), text, key)
+
+    def test_plain_page_no_framework_no_outside_address_no_style_attribute_no_innerhtml(self):
+        _, text = self.page()
+        self.assertNotRegex(text, r"https?://(?!127\.0\.0\.1|localhost)")
+        self.assertNotIn(" style=", text)
+        self.assertNotIn("innerHTML", text)
+        self.assertNotIn("outerHTML", text)
+        self.assertNotIn("insertAdjacentHTML", text)
+        self.assertNotIn("eval(", text)
+        self.assertEqual(len(re.findall(r"<script(?![^>]*type=\"application/json\")", text)), 1)
+        self.assertEqual(len(re.findall(r"<style", text)), 1)
+        self.assertLess(len(text.encode("utf-8")), 20000)
+
+    def test_accessible_shape(self):
+        _, text = self.page()
+        self.assertIn('<html lang="en-GB"', text)
+        self.assertIn("<title>Setting up clark</title>", text)
+        self.assertEqual(len(re.findall(r"<h1[ >]", text)), 1)
+        self.assertIn('width=device-width', text)
+        self.assertNotRegex(text, r'tabindex="[1-9]')
+        self.assertIn('role="status"', text)
+        self.assertIn('role="alert"', text)
+        self.assertIn("prefers-color-scheme: dark", text)
+        self.assertIn("color-scheme", text)
+        self.assertIn(":focus-visible", text)
+        self.assertEqual(len(re.findall(r"<button\b", text)), 2)
+        self.assertNotIn("transition", text)
+        self.assertNotIn("animation", text)
+
+    def test_the_policy_covers_the_pages_own_blocks_and_nothing_outside(self):
+        headers, text = self.page()
+        policy = headers["Content-Security-Policy"]
+        hashes = sv.csp_hashes(text)
+        self.assertEqual(len(hashes["script"]), 1)
+        self.assertEqual(len(hashes["style"]), 1)
+        self.assertIn(hashes["script"][0], policy)
+        self.assertIn("connect-src 'self'", policy)
+
+    def test_no_other_text_of_the_page_names_a_route_the_setup_server_does_not_have(self):
+        _, text = self.page()
+        routes = set(re.findall(r"/api/[a-z/]+", text))
+        self.assertEqual(routes, {"/api/setup/checks", "/api/setup/folder", "/api/setup/done", "/api/here"})
+        self.assertLessEqual(routes, set(sv.SETUP_GET_ROUTES) | set(sv.SETUP_POST_ROUTES) | {sv.HERE_ROUTE})
+
+    def test_the_page_module_imports_nothing_that_touches_data(self):
+        src = (SRC / "clark" / "setup_page.py").read_text(encoding="utf-8")
+        for name in ("store", "changes", "publish", "movement", "milestone_moves"):
+            self.assertNotRegex(src, rf"(?m)^\s*(import|from)\s+.*\b{name}\b")
+        self.assertNotIn("/api/movement", src)
 
 
 if __name__ == "__main__":
