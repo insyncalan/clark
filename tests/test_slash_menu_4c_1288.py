@@ -25,7 +25,7 @@ def layer(h, on):
 
 
 class Slash(unittest.TestCase):
-    def open(self, h, classic, w=1400, value="<p>Some words here</p>"):
+    def show_menu(self, h, classic, w=1400, value="<p>Some words here</p>"):
         layer(h, classic)
         h.resize(w)
         h.mount(value, ai="current")
@@ -36,7 +36,7 @@ class Slash(unittest.TestCase):
     def test_classic_menu_has_the_filter_box_first_and_ask_ai_last_with_the_ticket_values(self):
         with rp.Harness(chrome) as h:
             for w in WIDTHS:
-                self.open(h, True, w, "")
+                self.show_menu(h, True, w, "")
                 where = f"{w}"
                 kids = h.ev("[...document.querySelector('.rt-slash').children].map(n => n.className + '|' + n.textContent.trim())")
                 self.assertTrue(kids[0].startswith("rt-slash-filter"), f"{where}: {kids}")
@@ -54,14 +54,14 @@ class Slash(unittest.TestCase):
 
     def test_cards_keeps_the_old_menu(self):
         with rp.Harness(chrome) as h:
-            self.open(h, False, 1400, "")
+            self.show_menu(h, False, 1400, "")
             self.assertFalse(h.ev("!!document.querySelector('.rt-slash-filter')"))
             self.assertFalse(h.ev("!!document.querySelector('.rt-slash .rt-ask')"))
             self.assertEqual(h.ev("document.querySelectorAll('.rt-slash [role=option]').length"), 8)
 
     def test_the_filter_box_shows_what_was_typed_and_the_rows_narrow(self):
         with rp.Harness(chrome) as h:
-            self.open(h, True, 1400, "")
+            self.show_menu(h, True, 1400, "")
             self.assertEqual(h.ev("document.querySelector('.rt-slash-filter').textContent"), "")
             self.assertEqual(h.ev("document.querySelector('.rt-slash-filter').getAttribute('data-ph')"), "Filter blocks\u2026")   # the ruled placeholder, not "Filter"
             self.assertEqual(h.ev("getComputedStyle(document.querySelector('.rt-slash-filter'), '::before').content"), '"Filter blocks\u2026"')
@@ -71,7 +71,7 @@ class Slash(unittest.TestCase):
 
     def test_ask_ai_opens_the_same_menu_as_the_right_click_and_closes_the_slash_menu(self):
         with rp.Harness(chrome) as h:
-            self.open(h, True, 1400, "<p>Some words here</p><p></p>")
+            self.show_menu(h, True, 1400, "<p>Some words here</p><p></p>")
             h.ev("document.querySelector('.rt-slash .rt-ask').click(); true")
             self.assertTrue(h.until("!!document.querySelector('.rt-ai [data-ai-menu]')"))
             self.assertFalse(h.ev("!!document.querySelector('.rt-slash')"))
@@ -83,7 +83,7 @@ class Slash(unittest.TestCase):
 
     def test_the_keyboard_reaches_ask_ai_with_arrow_up_and_enter(self):
         with rp.Harness(chrome) as h:
-            self.open(h, True, 1400, "<p>Some words here</p><p></p>")
+            self.show_menu(h, True, 1400, "<p>Some words here</p><p></p>")
             h.key("ArrowUp", 0, "ArrowUp", 38)
             self.assertTrue(h.until("document.querySelector('.rt-slash .rt-ask').classList.contains('on')"))
             h.key("Enter", 0, "Enter", 13)

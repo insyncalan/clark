@@ -53,7 +53,7 @@ class Contrast(unittest.TestCase):
 
 
 class Bar(unittest.TestCase):
-    def open(self, h, classic, w, th):
+    def show_bar(self, h, classic, w, th):
         layer(h, classic)
         h.resize(w)
         h.theme(th)
@@ -63,7 +63,7 @@ class Bar(unittest.TestCase):
         with rp.Harness(chrome) as h:
             for classic in (True, False):
                 for w, th in LOOKS:
-                    self.open(h, classic, w, th)
+                    self.show_bar(h, classic, w, th)
                     names = h.ev("[...document.querySelectorAll('.rt-bar .rt-btn')].map(b => b.getAttribute('aria-label') || b.textContent)")
                     where = f"classic={classic} {w} {th}: {names}"
                     if classic:
@@ -106,7 +106,7 @@ class Bar(unittest.TestCase):
 
     def test_the_drop_down_lists_quote_and_divider_and_quote_works(self):
         with rp.Harness(chrome) as h:
-            self.open(h, True, 1400, "light")
+            self.show_bar(h, True, 1400, "light")
             h.ev("document.querySelector('.rt-bar .rt-more').click(); true")
             self.assertTrue(h.until("document.querySelectorAll('.rt-bar [role=menu] [role=menuitem]').length === 2"))
             self.assertEqual(h.ev("[...document.querySelectorAll('.rt-bar [role=menu] [role=menuitem]')].map(b => b.textContent.trim())"), ["Quote", "Divider"])
@@ -117,7 +117,7 @@ class Bar(unittest.TestCase):
         with rp.Harness(chrome) as h:
             for classic in (True, False):
                 for w, th in LOOKS:
-                    self.open(h, classic, w, th)
+                    self.show_bar(h, classic, w, th)
                     h.select_all()
                     self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"))
                     got = h.ev("(b => ({t: b.textContent, c: getComputedStyle(b).color, last: b === b.parentNode.lastElementChild}))(document.querySelector('.rt-bubble [data-rt-bubble-ai]'))")
