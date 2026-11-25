@@ -8,6 +8,7 @@ import { Icon } from "./Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
 import { data, asAt } from "../stores/report.js";
+import { classicTheme } from "./Contents.jsx";
 import { printReport } from "../stores/print.js";
 import { readerName, setReaderName, removeReader, initialsOf, look, toggleLook } from "../stores/reader.js";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
@@ -112,7 +113,7 @@ export function ClientMenu() {
             {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}><Icon name={actionIcon("pastReport")} cls="mi" />{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
           </div>
-          {asAt.value ? <div class="cm-group cm-asat" role="presentation" data-row="asat"><div class="cm-note num">As at {shownDate(asAt.value)}</div></div> : null}      {/* issue 1178: the published date is at the foot of the menu, not in the bar */}
+          {asAt.value && !classicTheme() ? <div class="cm-group cm-asat" role="presentation" data-row="asat"><div class="cm-note num">As at {shownDate(asAt.value)}</div></div> : null}      {/* issue 1178: Cards only (row 1543 took the date out of the Classic header and menu) */}
         </MenuPanel>
       ) : null}
       {box ? <ProfileBox onClose={() => setBox(false)} /> : null}
