@@ -476,3 +476,5 @@ html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shado
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1572 (Classic only; Cards keeps its look): the buttons of the slash command editor page change colour at once with the theme. The shared 120ms colour fade (edit.css) would otherwise show Cancel in the light theme's grey for a moment after the dark tokens are set (a contrast reading of 2.318 in CI, most likely, not proven). Colour only; no token changes. */
+#slash-page button { transition: none; }
