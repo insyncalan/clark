@@ -127,6 +127,7 @@ class View(PublishedFile, glance.Setup):
 class Edit(PageBase):
     arr = three.PageSide.arr
     wait_for = three.PageSide.wait_for
+    set_select = three.PageSide.set_select
 
     def seed(self):
         self.demo.plant_builtin_sections()
@@ -172,6 +173,13 @@ class Edit(PageBase):
                 self.assertEqual(off, [True], "an item hidden from the client cannot be chosen in a card's item list (row 1270 DoD point 7)")
                 n = len([s for s in self.sent if s[0] == "change"])
                 self.assertEqual(n, 0, "opening Edit saves nothing")
+                sel4 = f"{q} select[aria-label='Card 4 item']"
+                before = p.js(f"document.querySelector({json.dumps(sel4)}).value")
+                self.set_select(p, sel4, hid)       # force the choice of the hidden item, as a script or a stale page could
+                self.wait_for(lambda: len([s for s in self.sent if s[0] == "change"]) > n, 1.5)
+                self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n, "choose() refuses a hidden item: no change is sent (row 1270 PM ruling, %d)" % w)
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(sel4)}).value"), before, "the select goes back to what the card held (%d)" % w)
+                self.assertNotEqual(before, hid)
 
 
 if __name__ == "__main__":
