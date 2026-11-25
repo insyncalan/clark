@@ -427,7 +427,7 @@ class SmallImage(unittest.TestCase):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": name, "windowsVirtualKeyCode": code}, self.sid)
 
     def test_the_close_button_reads_close_esc_and_is_the_white_pill(self):
-        """AP14 close (Jarvis WO-M16403; mock-up gallery-source.html:58 .lb button): visible text 'Close (Esc)', title and aria-label the same, white pill, padding 6px 14px, top 16 right 20."""
+        """AP14 close (ruled WO-M16403; mock-up gallery-source.html:58 .lb button): visible text 'Close (Esc)', title and aria-label the same, white pill, padding 6px 14px, top 16 right 20."""
         for width in (1400, 900):
             self.draw(pictures(1, size=(1600, 900)), width)
             self.js("document.querySelector('.tpl-gal-open').click()")

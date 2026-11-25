@@ -483,7 +483,7 @@ html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shado
 .tpl-gal-vframe.small.fill-blur::before { content: ""; position: absolute; inset: -24px; background: var(--gal-src) center / cover; filter: blur(24px); transform: scale(1.05); }
 .tpl-gal-large { padding: 30px; }
 .tpl-gal-large-in p { margin: 10px var(--space-1) 0; font-size: 14px; }
-.tpl-gal-x { top: 16px; right: 20px; display: inline-block; width: auto; height: auto; padding: 6px 14px; border-radius: 999px; background: rgb(255, 255, 255); font: inherit; } /* AP14 close: the mock-up's .lb button (gallery-source.html:58): white pill, padding 6px 14px, text 'Close (Esc)' (Jarvis WO-M16403) */
+.tpl-gal-x { top: 16px; right: 20px; display: inline-block; width: auto; height: auto; padding: 6px 14px; border-radius: 999px; background: rgb(255, 255, 255); font: inherit; } /* AP14 close: the mock-up's .lb button (gallery-source.html:58): white pill, padding 6px 14px, text 'Close (Esc)' */
 .tpl-gal-large::backdrop { background: rgba(6, 20, 30, .82); }
 .tpl-gal .tpl-gal-fig figcaption { margin: 8px 2px 0; font-size: 13px; color: var(--grey-700); text-align: left; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
