@@ -13,7 +13,7 @@ from clark import page, theme
 from test_ask_panel import Stub
 from test_inline_67 import size
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 import _testpage as testpage
 import test_report_editor as tre
 
@@ -127,6 +127,8 @@ class Cards(Dot):
         self.stub.hold.clear()
         with chrome() as cdp:
             p = self.at(cdp, 900)
+            # row 1614: on macOS the button was still in the bar at the first read and gone 1 s later (the narrow-header answer had not been applied yet): wait, bounded, for it to leave, then assert as before
+            wait(lambda: not p.js(IN_BAR), 10)
             in_bar = p.js(IN_BAR)
             message = "Cards at 900: the button is still in the profile menu only"
             if in_bar:

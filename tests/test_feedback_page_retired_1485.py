@@ -61,9 +61,16 @@ class Page(B.FeedbackTagBrowser):
             self.settings(cdp, sid, "version")
             cdp.js("var b = document.getElementById('set-search-box'); b.focus(); b.value = 'feedback'; b.dispatchEvent(new Event('input', { bubbles: true }))", sid)
             self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), f"{where}: the tag stays while a search for feedback is typed")
-            edge = lambda: round(json.loads(cdp.js(f"JSON.stringify({B.BAR}.getBoundingClientRect())", sid))["right"])
-            wait(lambda: edge() == cdp.js("document.documentElement.clientWidth", sid))      # the page settles (a scrollbar can come and go while the search re-renders) before the edge is read
-            self.assertEqual(edge(), cdp.js("document.documentElement.clientWidth", sid), where + ": on the right edge")
+            # the tag's right edge and the page width are read in ONE expression: two calls let a scrollbar (15 px) come or go between them
+            read = lambda: json.loads(cdp.js(f"JSON.stringify({{edge: Math.round({B.BAR}.getBoundingClientRect().right), cw: document.documentElement.clientWidth}})", sid))
+            polls = []
+
+            def settled():          # the page settles (a scrollbar can come and go while the search re-renders): edge == width on two successive reads
+                polls.append(read())
+                return len(polls) >= 2 and all(r["edge"] == r["cw"] for r in polls[-2:])
+            self.assertTrue(wait(settled, 10), f"{where}: on the right edge (last read {polls[-1] if polls else None})")
+            seen = read()
+            self.assertEqual(seen["edge"], seen["cw"], where + ": on the right edge")
             self.open_help(cdp, sid)
             self.assertEqual(cdp.js("document.querySelectorAll('#feedback-tag').length", sid), 1, where + ": 1 tag in Help")
 

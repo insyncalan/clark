@@ -7,6 +7,54 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
+/* Row 1270 (Classic only): the RAID card. */
+@media (min-width: 1400px) { .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.raid-cards { align-items: stretch; }
+.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); position: relative; display: flex; flex-direction: column; padding: 0 var(--space-4) var(--space-3); border-top: var(--space-1) solid var(--rc-edge); }
+.raid-card.rc-r { --rc-edge: var(--status-red-text); --rc-tint: var(--status-red-tint); --rc-ink: var(--status-red-text); }
+.raid-card.rc-a { --rc-edge: var(--status-amber-text); --rc-tint: var(--status-amber-tint); --rc-ink: var(--status-amber-text); }
+.raid-card.rc-g { --rc-edge: var(--status-green-text); --rc-tint: var(--status-green-tint); --rc-ink: var(--status-green-text); }
+.raid-card.rc-n { --rc-edge: var(--grey-700); --rc-tint: var(--grey-100); --rc-ink: var(--grey-700); }
+.raid-card p.raid-top { margin: 0 calc(-1 * var(--space-4)) var(--space-2); padding: var(--space-2) var(--space-4); background: var(--rc-tint); color: var(--rc-ink); }
+.raid-card .raid-title { white-space: normal; overflow: visible; text-overflow: clip; }
+.raid-rating { margin-left: auto; font-weight: var(--weight-medium); white-space: nowrap; }
+.raid-label, .raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+.raid-latest { color: var(--text); }
+.raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); }
+.raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
+.raid-card .raid-id { cursor: pointer; }
+.raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
+.raid-card .raid-id:focus-visible { outline: none; }
+.raid-card:hover { box-shadow: var(--shadow); border-color: var(--rc-edge) var(--grey-500) var(--grey-500); }
+.raid-card .raid-id:hover { text-decoration: underline; }
+.raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
+/* Row 1270 (Classic only): the RAID cards editor. */
+.rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.rce-pick, .rce-rm, .rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-pick, .rce-rm, .rce-opts button { cursor: pointer; }
+.rce-pick:disabled { opacity: 0.4; cursor: default; }
+.rce :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rce-rm { width: 36px; padding: 0; justify-self: end; align-self: start; }
+.rce-count, .rce-ck small, .rce-show legend, .rce-kind, .rce-rate { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-kind, .rce-rate { margin-right: var(--space-2); }
+.rce-ck small { display: block; }
+.rce-picker { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.rce-opts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; }
+.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; background: transparent; color: var(--text); font: inherit; overflow-wrap: anywhere; }
+.rce-opts button:hover { background: var(--brand-blue-tint); }
+.rce-show { grid-column: 1 / -1; display: grid; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
+.rce-show legend { padding: 0; }
+.rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
+.rce-f { display: grid; gap: var(--space-1); }
+.rce-across { max-width: 14rem; margin-bottom: var(--space-3); }
+.rce-none { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); }
+/* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
+.ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
+.cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
+.cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
+.cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
 /* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
 .tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
 .tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
@@ -55,6 +103,28 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1299 AP10 (project tabs, Classic only; the Cards look draws no tabs, shell.css is untouched): on the project pages of Settings one pill for each project across the top of the cards, pinned under the top bar while the page scrolls, one row that scrolls sideways when the projects do not fit, capped at 44px high at 1400 and at 900. A pill is a 999px radius, 5px 14px padding, 13.5px type; the open pill has the brand fill (--brand-navy, --white text, as a chosen segment has) and weight 600; in dark it takes the 1px inset --grey-500 ring a navy fill needs. Bare lengths: the 44px cap, the 999px radius, the 5px 14px padding, the 13.5px size, the 600 weight. */
+.set-tabs { position: sticky; top: var(--topbar); z-index: 16; min-width: 0; max-height: 44px; margin-bottom: var(--space-3); background: var(--bg); box-shadow: 0 1px 0 var(--grey-200); }
+.set-tabs ul { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); box-sizing: border-box; height: 44px; margin: 0; padding: 0; list-style: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.set-tabs li { flex: none; }
+.set-tab { all: unset; box-sizing: border-box; display: flex; align-items: center; padding: 5px 14px; border-radius: 999px; color: var(--text); font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+.set-tab:hover { color: var(--heading); background: var(--grey-50); }
+.set-tab[aria-current] { background-color: var(--brand-navy); color: var(--white); font-weight: 600; }
+:root[data-theme=dark] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+.set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+@media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
+/* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
+.brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
+/* Row 1299 (Settings, Classic only): the "Affects:" line at the head of a page says who the page changes (the project's code, All projects or You); small and muted, with room under it before the first card. */
+.set-cards > .set-affects { margin: 0 0 var(--space-3); font-size: var(--size-small); }
+/* Row 1299 (Projects overview, Classic only, S3 read only): the issue line, the two filters and the table of values; a value is a button that looks like text, amber when it is an override or something to fix. */
+.ov .ov-issues { margin: 0 0 var(--space-2); color: var(--status-amber-text); }
+.ov .ov-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.ov .ov-table { width: 100%; }
+.ov .ov-val { all: unset; box-sizing: border-box; cursor: pointer; color: var(--grey-700); text-decoration: underline; text-decoration-color: var(--grey-300); }
+.ov .ov-val.ov-amber { color: var(--status-amber-text); }
+.ov .ov-val:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* Row 1470 (the approved Dashboard peek mock-up, Classic only, Cards keeps today's rules): the Latest update box text is 15 px / 1.55 and the stamp under it is 12 px muted at the left, margin 6px 2px 0 (it was right-aligned in row 1257);
    in dark the box takes the mock-up's tokens --soft 192440, --line 25324D and the stamp --muted 9AA9BD (the Theme's own dark greys differ). A focused box keeps its own look. */
 .pk-lbox .rt-view, .pk-lbox .rt-view:hover, .pk-lbox .rt-host .ProseMirror { font-size: 15px; line-height: 1.55; }
@@ -179,7 +249,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .projects table.proj-table th, .projects table.proj-table th:first-child { font-weight: 600; color: var(--text-muted); padding: 6px 10px 6px 0; }
 .projects table.proj-table td { border-bottom: 1px solid var(--line-soft); }
 /* Row 1194 (Documents and links; Classic only, Cards keeps the rows, buttons and form it has: its markup is the old one, see templates/DocLinks.jsx). The type badges' fills, the page icon, the row of the approved mockup, the Open and Download icon buttons and the Edit form's icon row. Every rule names the list (.tpl-dl-links) or the editor's group (.tpl-files-edit), so the base rules of shell.css and edit.css, which stay as they are, lose where both apply. */
-:root { /* Row 1194 (approved mock-up, 18-11): the page icons' colours and outline are the mock's (PDF E8410C, XLS 1E9B4B, PPT E8601C, JPG 6B46C1, PNG E0358B, TXT F2A400; DOC, URL, MAIL as before; outline ink 0E2430); no exemption for contrast (ruling 19-11) beyond the named ones in test_doclinks_badge_contrast */ --badge-pdf: rgb(232, 65, 12); --badge-doc: rgb(31, 95, 191); --badge-xls: rgb(30, 155, 75); --badge-ppt: rgb(232, 96, 28); --badge-jpg: rgb(107, 70, 193); --badge-png: rgb(224, 53, 139); --badge-txt: rgb(242, 164, 0); --badge-url: rgb(91, 71, 216); --badge-mail: rgb(14, 124, 134); --badge-file: rgb(90, 107, 119); --badge-ink: rgb(14, 36, 48); }
+:root { /* Row 1194 (approved mock-up, 18-11): the page icons' colours and outline are the mock's (PDF E8410C, XLS 1E9B4B, PPT E8601C, JPG 6B46C1, PNG E0358B, TXT F2A400; DOC, URL, MAIL as before; outline ink 0E2430); no exemption for contrast now: the five fills below 4.5:1 are darkened by the Row 1546 rule further down */ --badge-pdf: rgb(232, 65, 12); --badge-doc: rgb(31, 95, 191); --badge-xls: rgb(30, 155, 75); --badge-ppt: rgb(232, 96, 28); --badge-jpg: rgb(107, 70, 193); --badge-png: rgb(224, 53, 139); --badge-txt: rgb(242, 164, 0); --badge-url: rgb(91, 71, 216); --badge-mail: rgb(14, 124, 134); --badge-file: rgb(90, 107, 119); --badge-ink: rgb(14, 36, 48); }
 .tpl-dl-links .tpl-badge { height: 41px; min-width: 41px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .tpl-badge.tpl-page { min-width: 0; width: 41px; padding: 0; background: none; }
 .tpl-badge.tpl-page svg { display: block; }
@@ -204,7 +274,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-act-g { font-size: var(--size-h3); line-height: 1; }
 .tpl-act-open::before { content: "\2197"; }
 .tpl-act-download::before { content: "\2193"; }
-.tpl-files-edit .tpl-icons { position: relative; display: flex; justify-content: flex-end; gap: 6px; margin: -56px 0 6px; pointer-events: none; }   /* item 1194: on the title's line, as in the mockup; -56 = the old -43 less the 13 px the title line grew when the title got its underline span (row 1408); measured, not a mock-up value (the mock-up gives centred on the title line, 44 px buttons, 6 px apart, flush right) */
+.tpl-files-edit .tpl-icons { position: relative; display: flex; justify-content: flex-end; gap: 6px; margin: -43px 0 6px; pointer-events: none; }   /* item 1194: on the title's line, as in the mockup; -43 again: row 1591 keeps the title box on one line, so the 13 px the title line grew when it wrapped (row 1408, which had made it -56) are gone; measured, not a mock-up value (the mock-up gives centred on the title line, 44 px buttons, 6 px apart, flush right) */
 .tpl-files-edit .tpl-icons > * { pointer-events: auto; }
 .sec:has(.tpl-files-edit) .sec-head { padding-right: 112px; }   /* code measurement, not from the mock: 2 x 44 px buttons + the 6 px gap + 18 px air keep the title clear of the icons */
 .tpl-files-edit .tpl-icons .tpl-form { position: absolute; right: 0; top: 54px; z-index: 6; width: min(340px, calc(100vw - 48px)); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }   /* width 340px and top 54px: the mock's .pop (width min(340px, 100vw - 48px), top 54px); the padding, border and shadow are tokens, not mock values */
@@ -288,6 +358,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
 .ddmenu[aria-label^="Move "][aria-label$=" to"] [role="menuitem"] { display: flex; align-items: center; }
 #viewMenuList.ddmenu .lab.caps, .ddmenu[aria-label^="Move "][aria-label$=" to"] .mh.caps.mh-card { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-regular); }   /* the prototype's .mh: .08em, no weight of its own (the head takes the menu's normal weight) */
+/* Row 1546 (Classic only; ruled 23-11): the five fills the mock-up drew below 4.5:1 with white text (PDF 4.04, XLS 3.59, PPT 3.43, PNG 4.16, TXT 2.08) keep their hue and are as light as still reaches 4.5:1 (one RGB step lighter fails). Later than the Row 1194 :root above, so these win; the same tokens colour the editor's drawn page icon (docIcons.jsx). Pinned by tests/test_doclinks_badge_contrast.py. */
+:root { --badge-pdf: rgb(218, 61, 11); --badge-xls: rgb(26, 136, 66); --badge-ppt: rgb(201, 80, 20); --badge-png: rgb(221, 37, 130); --badge-txt: rgb(160, 108, 0); }
 /* Row 1289 AP7 (PM ruling): Classic peek padding equals the prototype (app.css .pk-top and .pk-scroll). The toolbar is the .pk-top: padding 10px 16px 6px 20px, full width (the peek's side padding is pulled back out by margin) and stuck at the top; everything after it is the .pk-scroll: 4px above (the toolbar's bottom margin), 24px left and right, 24px below. Cards keeps the shared frame. */
 .peek { padding: 0 24px 24px; }
 .peek .pk-tb { margin: 0 -24px 4px; padding: 10px 16px 6px 20px; top: 0; }
@@ -304,10 +376,13 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   .top-file .tab { padding-block: 8px 12px; }
   .top-file .tab:not([aria-selected="true"]) { color: color-mix(in srgb, var(--white) 92%, transparent); }
   .top-file .top-slot, .top-file .cm-wrap { order: 3; }
-  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2)); }
+  .top-file { --theme-btn-size: 32px; }
+  .top-file .cm-theme { width: var(--theme-btn-size); height: var(--theme-btn-size); }
+  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2)); }
 }
-@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
-@media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
+@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 94.94px); } }
+/* Row 1543: the published header's profile circle is filled with the brand cyan as the editor's circle and the approved mock-up draw it, at every width (it was a slate fill with a grey ring); its size stays 32px. */
+.top-file .cm-badge { background: var(--brand-cyan); border-color: transparent; color: var(--brand-navy); }
 
 /* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
 .toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
@@ -322,6 +397,21 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1591 (Classic only; Cards keeps its own rule): in Edit the section title box fills the heading row (it was as wide as its text, about 65px), stays on one line, never breaks inside a word, and ends with an ellipsis until it is focused; focused, it scrolls so the whole text is reachable. */
+.sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
+.sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.sec-t > .sec-title:focus { text-overflow: clip; }
+.sec-t:has(> .sec-title)::after { right: auto; max-width: 100%; box-sizing: border-box; overflow: hidden; text-wrap: nowrap; font: inherit; color: transparent; content: attr(data-t); }   /* the box is row-wide, the row 1408 sweep line must stay as wide as the title text: a copy of the text (data-t, Title.jsx) sizes it; height 2px, bottom and animation stay rules.css */
+/* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
+#peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: rgb(85, 103, 122); }
+#peek .pk-latest-client svg { width: 18px; height: 18px; color: rgb(10, 143, 156); }
+#peek .pk-lh-btn { font-size: 13px; font-weight: 600; color: var(--brand-blue); border-radius: 8px; }
+#peek .pk-lh-btn .pk-lh-car { width: 16px; height: 16px; }      /* the 16px chevron rules.css gives it (that rule's selector `.pk-lh-car svg` matches nothing: the icon is the .pk-lh-car element itself, 14px) */
+#peek .pk-lh-btn:hover { background: var(--brand-blue-tint); }
+#peek .pk-lh-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+:root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
+:root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
 /* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
 .mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
 .mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
@@ -354,6 +444,30 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .tpl-gal-warn { margin: 3px 0 0; color: var(--tone-red-text); font-size: 13px; }
 .tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
 
+/* Row 1435: a slash-command file that does not read has its own row in the Settings list: the file name, the pill "Needs a fix" and the button "Fix it with AI". */
+.slash-list .slash-rows.slash-damaged li { grid-template-columns: minmax(90px, 1fr) max-content max-content; align-items: center; }
+.slash-list .slash-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: 999px; background: var(--tone-amber-tint); color: var(--status-amber-text); font-size: var(--size-caption); }
+.slash-list .slash-pill-icon { font-weight: 700; }
+@media (max-width: 900px) { .slash-list .slash-rows.slash-damaged li { grid-template-columns: 1fr max-content; } .slash-list .slash-rows.slash-damaged .slash-name { grid-column: 1 / -1; } }
+
+
+/* Row 1288 (AP6, Classic AI menu, mock-up 5B): group labels blue, the hovered or focused row light blue, the Improve, Structure and Ask icons purple, green and amber, and the menu at least 210 px wide. Dark keeps what main draws: the muted label, the blue tint, and the icon colour the row passes on (the dark currentColor rules are needed because the light icon rules above are unscoped and would otherwise colour the dark icons). */
+.aim { min-width: 210px; }
+.aim-gl { color: rgb(59, 111, 212); }
+.aim-opt:hover, .aim-opt:focus-visible { background: rgb(230, 238, 252); }
+.aim-ic-improve { color: rgb(124, 77, 255); }
+.aim-ic-structure { color: rgb(47, 125, 74); }
+.aim-ic-ask { color: rgb(183, 121, 31); }
+:root[data-theme=dark] .aim-gl { color: var(--text-muted); }
+:root[data-theme=dark] .aim-opt:hover, :root[data-theme=dark] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+:root[data-theme=dark] .aim-ic { color: currentColor; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] .aim-gl { color: var(--text-muted); }
+  :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+  :root[data-theme=auto] .aim-ic { color: currentColor; }
+}
+/* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
+.secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
 html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */

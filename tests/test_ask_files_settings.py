@@ -5,6 +5,7 @@ Ticket 1294, test 1: the cards come in the ticket's order. On the All projects t
 on a project's tab the project's source folders and standing instructions come, then Files. The switches and buttons are named for a screen
 reader. The page's fetch of /api/ask-files is replaced by the answers the server gives. Chrome is required: fails, never skips.
 """
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -34,6 +35,8 @@ window.fetch = function (url, opts) {
 ORDER = "[...document.querySelectorAll('section.setting')].map(s => s.id).filter(i => %s)"
 ALL_ORDER = ["ask-instructions-all-card", "ask-files-all", "ask-all-folders"]
 PROJECT_ORDER = ["ask-folders-card", "ask-instructions-own-card", "ask-files-project"]
+ALL_SECTIONS = ["ask-all", "ai-settings", "ask-connectors", "ask-instructions-all-card", "ask-files-all", "slash-all", "ask-all-folders", "ask-chats-all", "ask-safety", "ask-usage-all"]
+PROJECT_SECTIONS = ["ask-settings", "ask-used-all", "ask-connectors-project", "ask-folders-card", "ask-instructions-own-card", "slash-project", "ask-files-project", "ask-chats-project", "ask-usage-project"]
 
 
 class FilesCards(unittest.TestCase):
@@ -92,6 +95,36 @@ class FilesCards(unittest.TestCase):
             js("document.querySelector('[data-files-here]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('[data-files-here]').getAttribute('aria-checked')") == "false", 10))
             self.assertEqual(js("JSON.stringify(window.__f.calls.slice(-1)[0])"), '{"project":"ABC","off_here":true}')
+
+    def test_there_is_no_pictures_switch_on_either_tab_at_1400_and_900(self):
+        """Row 1294 AP4: nothing reads a picture yet, so Files for asking has no Pictures switch: the card has the one Files control and only its own words, and nothing on the tab speaks of pictures."""
+        kinds = "button, input, select, textarea, a, [role], [tabindex]"
+        card_probe = ("(function(){const c = document.querySelector('%s');"
+                      " const attrs = e => ['title', 'alt', 'placeholder', 'aria-label'].map(a => e.getAttribute(a) || '').join(' ');"
+                      " return JSON.stringify({controls: [...c.querySelectorAll('" + kinds + "')].map(e => e.tagName + '/' + (e.getAttribute('role') || '') + '/' + (e.getAttribute('aria-label') || '')),"
+                      " text: c.textContent.replace(/\\s+/g, ' ').trim(),"
+                      " names: [c, ...c.querySelectorAll('*')].map(attrs).map(x => x.trim()).filter(x => x)})})()")
+        scan = ("JSON.stringify([...document.querySelectorAll('#ask-settings, #ask-settings *')].filter(e => !/^(SCRIPT|STYLE)$/.test(e.tagName)).flatMap(e => {"
+                " const own = [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\\s+/g, ' ').trim();"
+                " const names = ['title', 'alt', 'placeholder', 'aria-label', 'value'].map(a => e.getAttribute(a) || '').join(' ').trim();"
+                " return [own, names].filter(x => /picture|image|photo|screenshot/i.test(x));}))")
+        sections = "JSON.stringify([...document.querySelectorAll('section.setting')].map(s => s.id))"
+        line = "Files: text, Markdown and CSV (5 files of 10 MB, for that question only). A project can turn these off for itself."
+        cases = (("all", "#ask-files-all", "[data-files-switch]", ALL_SECTIONS,
+                  {"controls": ["BUTTON/switch/Files", "DIV/alert/"], "text": "Files" + line, "names": ["Files"]}),
+                 ("project", "#ask-files-project", "[data-files-here]", PROJECT_SECTIONS,
+                  {"controls": ["BUTTON/switch/Files in ABC", "DIV/alert/"], "text": "Files in ABCFiles On for all projects. Turn it off here for ABC only.", "names": ["Files in ABC"]}))
+        for tab, card, switch, order, expected in cases:
+            for w in WIDTHS:
+                with self.subTest(tab=tab, width=w), chrome() as cdp:
+                    js = self.show(cdp, tab)
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    self.assertTrue(wait(lambda: js("!!document.querySelector('%s')" % switch), 10))
+                    self.assertEqual(json.loads(js(card_probe % card)), expected, "the card has the one Files control and only its own words")
+                    self.assertEqual(json.loads(js(sections)), order, "the tab has exactly these cards")
+                    for hit in json.loads(js(scan)):
+                        self.assertIn("text, Markdown and CSV", hit, "a word about pictures on the Claude tab outside the known Files line")
+                        self.assertEqual(hit, line)
 
     # The migration (schema 32 to 33): the two columns, added once, no value changed.
     def test_the_migration_keeps_an_old_file_and_a_second_run_keeps_a_set_switch(self):

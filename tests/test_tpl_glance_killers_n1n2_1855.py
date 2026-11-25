@@ -28,7 +28,7 @@ class InFlight(Editor):
 
     def hold(self, p):
         p.js(HOLD)
-        p.js("window.__gate = new Promise(function (r) { window.__open = r; })")
+        p.js("window.__gate = new Promise(function (r) { window.__open = r; }); 0")        # js() waits for a promise: the gate is opened later, so it is not the value
 
     def release(self, p):
         p.js("window.__open()")

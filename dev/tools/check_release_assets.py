@@ -1,7 +1,7 @@
 """Fail when a published GitHub release has no download attached (the v0.3.0 and v0.4.0 gap).
 
 Run by whoever verifies the release (step 20 of dev/RELEASING.md), after publishing and before saying a release is done:
-    python3 dev/tools/check_release_assets.py            # every published release
+    python3 dev/tools/check_release_assets.py            # every published release (the .sig is asked only of a tag named below)
     python3 dev/tools/check_release_assets.py v0.4.0     # one tag
     python3 dev/tools/check_release_assets.py --repo owner/name v0.4.0     # releases kept in another repository
 
@@ -12,12 +12,10 @@ named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Be
 From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
-Once RELEASE_PUBLIC_KEY in src/clark/updates.py is a real key (not the placeholder), the release must also carry
-clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that file must verify over the zip's bytes with that key
-(updates.check_signature); a missing, wrong-length or non-verifying .sig fails. With no tag on the command line, a release
-published at or before FIRST_SIGNED (the moment the key went live) is not asked for a .sig, since it could not have had one;
-a tag named on the command line always is. While the key is still the placeholder the app
-asks for no signature, so the check does not either (it says so on standard error).
+From updates.FIRST_SIGNED (1.3.4) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
+file must verify over the zip's bytes with RELEASE_PUBLIC_KEY (updates.check_signature); a missing, wrong-length or non-verifying
+.sig fails.
+1.3.3 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
 60 seconds, or an unreadable answer).
@@ -40,8 +38,6 @@ GH_TIMEOUT = 60              # seconds one `gh api` call may take before the che
 FIRST_CHECKED = (0, 1, 0)
 FIRST_FULL = (1, 2, 0)       # from this release on a release is a full release: not asked to be a pre-release, to say (Beta) or to say Beta in its text
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
-FIRST_SIGNED = ""            # when RELEASE_PUBLIC_KEY became a real key, as the UTC time GitHub uses (2026-11-05T00:00:00Z); set it in the
-                             # pull request that sets the key. Empty: every release from 0.5.0 on is asked for its .sig.
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")
 
 
@@ -90,18 +86,9 @@ def _utc(value):
     return moment.replace(tzinfo=datetime.timezone.utc) if moment.tzinfo is None else moment.astimezone(datetime.timezone.utc)
 
 
-def _published_by(published_at, limit):
-    """True only when the release was published at or before `limit`, compared as moments in UTC. Fails closed: a missing,
-    non-string or unreadable time counts as later, so the release is asked for its .sig and nothing crashes."""
-    then, bound = _utc(published_at), _utc(limit)
-    return then is not None and bound is not None and then <= bound
-
-
-def _signature_lines(r, tag, want, notes, fetch, key, named=True):
-    """The lines for a release whose .sig is missing or does not verify against the release key (none while the key is the placeholder)."""
-    if not updates.signature_required(key):
-        return []
-    if not named and FIRST_SIGNED and _published_by(r.get("published_at"), FIRST_SIGNED):
+def _signature_lines(r, tag, want, notes, fetch, key):
+    """The lines for a release whose .sig is missing or does not verify against the release key (none for 1.3.3 and older)."""
+    if not updates.signature_required(key, tag.lstrip("v")):
         return []
     sig_name = want + updates.SIGNATURE_SUFFIX
     sig, zipped = _asset(r, sig_name), _asset(r, want)
@@ -122,7 +109,7 @@ def _signature_lines(r, tag, want, notes, fetch, key, named=True):
     return []
 
 
-def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
+def _rules(r, tag, want, notes=None, fetch=None, key=None, check_sig=True):
     """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
     A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
@@ -138,7 +125,8 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
                        f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
-    out.extend(_signature_lines(r, tag, want, notes, fetch, key, named))
+    if check_sig:
+        out.extend(_signature_lines(r, tag, want, notes, fetch, key))
     body = r.get("body") or ""
     own = _zip_digest(r, want)
     if not DIGEST.search(body):
@@ -165,7 +153,7 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
     """One plain line for each published release (or the named tags) that lacks its clark-X.Y.Z-mac.zip asset, and one for each
     named tag that matches no published release. `fetch(asset)` returns an asset's bytes (None when it can't be read); `key` is a
     public key for tests (None: the one built into the app). Without `fetch` a signature is only checked to be attached."""
-    out = []
+    out, sig_noted = [], False
     published = {r.get("tag_name", "") for r in releases if not r.get("draft")}
     for tag in sorted(tags or ()):
         if tag not in published:
@@ -178,7 +166,11 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
-            out.extend(_rules(r, tag, want, notes, fetch, key, bool(tags)))
+            if not tags and notes is not None and not sig_noted and updates.signature_required(key, tag.lstrip("v")):
+                sig_noted = True
+                notes.append("The .sig of each release from 1.3.4 up was not checked: the .sig is asked only of a tag named on the "
+                             "command line (dev/RELEASING.md step 20).")
+            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line: shipped 1.3.4 to 1.3.7 have none
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
@@ -252,7 +244,7 @@ def main(argv=None):
             break
     notes = []
     if not updates.signature_required():
-        print("RELEASE_PUBLIC_KEY is still the placeholder, so no release's .sig was asked for or checked.", file=sys.stderr)
+        print("RELEASE_PUBLIC_KEY is still the placeholder, so a release from 1.3.4 up cannot pass until the real key is in.", file=sys.stderr)
     found = problems(releases, tags, notes, _download(repo))
     for line in found:
         print(line)

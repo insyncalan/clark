@@ -158,7 +158,7 @@ class Schema(Base):
         self.assertLessEqual({"ask_files", "ask_new_projects"}, have("app_settings"))
         self.assertLessEqual({"ask_off", "ask_files_off"}, have("projects"))
         self.assertIn("excluded", have("source_folders"))
-        self.assertEqual([n for n, _ in st.MIGRATIONS][-3:], [32, 33, 34])
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-6:-3], [32, 33, 34])
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")
@@ -499,7 +499,7 @@ class ServiceChoice(unittest.TestCase):
         self.ask(True, {"/made/up": "[]"})
         self.assertEqual(self.direct_calls, [])
         (a, k), = self.index_calls
-        self.assertEqual(a[3:], (self.left, self.room))
+        self.assertEqual(a[3:], (self.left, self.room, []), "the index also gets the ids named in earlier turns (none here)")
 
     def test_a_left_out_subfolder_sends_the_question_to_the_direct_reader_with_the_list_room_and_budget_left(self):
         self.ask(True, {"/made/up": '["Contract"]'})
