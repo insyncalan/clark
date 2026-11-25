@@ -1,7 +1,7 @@
 // The browser tests' way into the page (#63, #42): window.clarkPage. Only the test build (main-test.jsx) imports this file, so
 // neither the served page nor a published file carries it. `tools` is what Edit adds; Help (#82) is among them.
 import { workSelection } from "./stores/selection.js";
-import { data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
+import { switchTabs, data, show, openPeek, closePeek, setProject, setFilters, setQuery, peek, project, f } from "./stores/report.js";
 import { markChanged, changed, useClock } from "./stores/changed.js";
 import { welcomeHeld } from "./stores/profile.js";
 import { openImport, openExport } from "./edit/wordState.js";
@@ -21,6 +21,7 @@ export function install(tools) {
   window.clarkPage = Object.freeze({ show, setQuery, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
     refreshed: () => tools.notices.refreshed(),            // row 1046: the tests raise the "Database refreshed" toast as clark will
     pushNotices: (list) => tools.notices.push(list),      // row 1046: the tests push notices as clark will
+    switchTabs: (on) => { switchTabs.value = !!on; },      // row 1299 AP11: the project tabs' switch is off in the served page; the tests of a tab click turn it on
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordExport: () => openExport(),      // row 1281: the profile menu has no Export to Word; Settings › Data and the Publish box are the ways in
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay

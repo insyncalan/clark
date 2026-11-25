@@ -28,7 +28,7 @@ OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")
                         ("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")])]),
           ("Publishing", [("folder", "Folder", [("Publishing", "client-folder-h")]), ("brand", "Brand", [("Brands", "brands-h")]), ("theme", "Theme", [("Theme", "theme-settings-h")])]),
           ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")])]),
-          ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+          ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Data", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
@@ -37,7 +37,7 @@ CLASSIC_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"
                   ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
                   ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")]),
                                         ("brand", "Brand and publishing", [("Publishing", "client-folder-h"), ("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]),
-                                        ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+                                        ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Data", [("Data", "data-card-h")])]),
                   ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
 CLASSIC_PAGES = [page for _, pages in CLASSIC_GROUPS for page in pages]
 GROUPS = OLD_GROUPS      # row 1299 1a: the four groups are the Classic theme's only; these tests run with the Cards look, which keeps the five groups
