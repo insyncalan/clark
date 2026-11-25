@@ -372,6 +372,8 @@ class PageSide(PageBase):
             self.assertNotIn(ids["risk"], self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick)"), "an item is on one card only")
             before = stored()
             if self.SIZE == 3:      # three across keeps the old body (version 1), which holds no Also show choice: the checkbox is the one card's (four across)
+                self.assertEqual(p.js(f"document.querySelectorAll('{q} .rce-ck').length"), 0, "three across draws no Also show box")
+                self.assertEqual(stored(), before, "the picks are all that was saved")
                 return
             # an Also show checkbox: one change, one Undo (the action has a latest update, so its box is on)
             box = f"{q} [data-slot='1'] .rce-ck:nth-of-type(1) input"
