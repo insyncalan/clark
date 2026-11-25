@@ -69,7 +69,7 @@ export function ReadBoard({ rows, today, type }) {
   const toggleFull = () => { if (isFull) leave(false); else { full.value = true; announce.value = "Full screen on."; } };
   const colsOf = (ln) => orderedColumns(work.value, g, ln.columns);
   const setWidth = (c, w) => setWork(setColumnWidth(work.value, g, c.key, w));
-  const sayWidth = (c, w) => { announce.value = w === COL_DEFAULT ? "Column width reset." : `${c.label} column ${w} pixels wide.`; };
+  const sayWidth = (c, w) => { announce.value = `${c.label} column ${w} pixels wide.`; };
   const sepDown = (e, c) => {
     if (e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -122,12 +122,12 @@ export function ReadBoard({ rows, today, type }) {
                     data-cell="1" data-col={c.key} data-lane={ln.key == null ? "" : ln.key} data-count={c.count} aria-label={`${c.label}, ${c.count}`}>
                     <h4 class="col-h">
                       <button type="button" class="col-b" aria-expanded={shut ? "false" : "true"} aria-label={`${c.label}, ${c.count}${shut ? ", collapsed" : ""}`} data-toggle={c.key}
-                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" onKeyDown={(e) => headKey(e, c, ln)} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
+                        onKeyDown={(e) => headKey(e, c, ln)} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
                         <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><ColCount n={c.count} />
                       </button>
                       {shut ? null : <span class="col-rz" role="separator" tabIndex={0} aria-orientation="vertical" data-resize={c.key}
                         aria-label={`Resize the ${c.label} column`} aria-valuemin={COL_MIN} aria-valuemax={COL_MAX} aria-valuenow={wd || COL_DEFAULT}
-                        aria-keyshortcuts="ArrowLeft ArrowRight Home End Enter" title="Drag to resize; double-click for the usual width"
+                        title="Drag to resize; double-click for the usual width"
                         onPointerDown={(e) => sepDown(e, c)} onKeyDown={(e) => sepKey(e, c)} onDblClick={() => { setWidth(c, COL_DEFAULT); sayWidth(c, COL_DEFAULT); }} />}
                     </h4>
                     {shut ? null : (
