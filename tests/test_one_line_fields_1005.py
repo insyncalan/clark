@@ -1,6 +1,5 @@
-"""Row 1005: the Movement form's Who agreed it, Reason and Source (saved as one line of plain text) are the one-line editor: no / menu, no
-formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks, because what they save is plain words. 1400 and 900.
-(Row 1288: a picture's caption and a RAID card's Own words moved to the Full editor: tests/test_rich_storage_1288c_page.py.) Fictional data only.
+"""Row 1005: the other fields saved as one line of plain text (a picture's caption, the Movement form's Who agreed it, Reason and Source) are the one-line editor too: no / menu, no formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks,
+because what they save is plain words. 1400 and 900. Fictional data only.
 
 Run: python3 dev/run_tests.py test_one_line_fields_1005
 """

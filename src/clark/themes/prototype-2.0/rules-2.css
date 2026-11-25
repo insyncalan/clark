@@ -30,7 +30,25 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
 /* Row 1270 (Classic only): the RAID cards editor. */
+.rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.rce-pick, .rce-rm, .rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-pick, .rce-rm, .rce-opts button { cursor: pointer; }
+.rce-pick:disabled { opacity: 0.4; cursor: default; }
 .rce :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rce-rm { width: 36px; padding: 0; justify-self: end; align-self: start; }
+.rce-count, .rce-ck small, .rce-show legend, .rce-kind, .rce-rate { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-kind, .rce-rate { margin-right: var(--space-2); }
+.rce-ck small { display: block; }
+.rce-picker { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.rce-opts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; }
+.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; background: transparent; color: var(--text); font: inherit; overflow-wrap: anywhere; }
+.rce-opts button:hover { background: var(--brand-blue-tint); }
+.rce-show { grid-column: 1 / -1; display: grid; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
+.rce-show legend { padding: 0; }
+.rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
+.rce-f { display: grid; gap: var(--space-1); }
+.rce-across { max-width: 14rem; margin-bottom: var(--space-3); }
+.rce-none { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); }
 /* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
 .ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
 .cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }

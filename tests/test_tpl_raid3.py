@@ -334,60 +334,76 @@ class PageSide(PageBase):
             self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ids['sec'])}]').textContent.includes({json.dumps(QUIET)})"), False)
 
     def test_edit_saves_each_choice_as_one_change_with_one_undo(self):
+        """Row 1270: Pick an item, Cards across (four across only) and an Also show checkbox are each one change, one request, one Undo."""
         ids = self.seed()
         sec = ids["sec"]
+        q = f"[data-id={json.dumps(sec)}]"
+        stored = lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
+        changes_sent = lambda: len([s for s in self.sent if s[0] == "change"])
+        limit = 8 if self.TYPE == "raid4" else 3      # the one RAID cards card holds eight; the old three-across type holds three
+
+        def pick(p, item):
+            p.js(f"document.querySelector('{q} .rce-pick').click()")
+            p.until(f"!!document.querySelector('{q} [data-pick={json.dumps(item)}]')", "the item is offered")
+            p.js(f"document.querySelector('{q} [data-pick={json.dumps(item)}]').click()")
         with chrome() as cdp:
-            # The test focuses the words box and sends its own blur; on a focused page the box's real blur (when the card redraws) saves
-            # a second change. It counts changes, so it needs the unfocused page it was written for.
-            cdp.FOCUS_EMULATION = False
+            cdp.FOCUS_EMULATION = False      # the test counts changes, so it needs the unfocused page it was written for
             p = self.visit(cdp)
-            self.classic(p, sec)
             p.edit()
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-first')", "the first-step line is shown")
-            first = p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-first').textContent")
-            self.assertIn("Choose an item", first)
-            sel = f"[data-id={json.dumps(sec)}] select[aria-label='Card 1 item']"
-            self.set_select(p, sel, ids["risk"])
-            p.until(f"!!document.querySelector({json.dumps(f'[data-id={json.dumps(sec)}] select[aria-label=' + chr(34) + 'Card 2 item' + chr(34) + ']')})", "a second card row appears")
-            self.assertEqual(len([s for s in self.sent if s[0] == "change"]), 1, "one choice, one request")
-            stored = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
-            self.assertEqual(stored["cards"], [{"id": ids["risk"], "source": "client"}])
-            options = self.arr(p, "[...document.querySelectorAll(" + json.dumps(sel + " option") + ")].map(o => o.textContent)")
-            self.assertTrue(any("left out of the published page" in o and "Hidden rig" in o for o in options), "an item that does not publish says so")
-            self.assertEqual(len(options), len(set(options)))
-            self.assertFalse(any(ids["risk"] in o for o in self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 item\"] option')].map(o => o.textContent)")), "an item is on one card only")
-            self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 2 item']", ids["action"])
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 text\"]')", "the text source of card 2")
-            kinds = self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 text\"] option')].map(o => o.value)")
-            self.assertEqual(kinds, ["client", "own", "latest"], "an action offers its latest update")
-            kinds1 = self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] select[aria-label=\"Card 1 text\"] option')].map(o => o.value)")
-            self.assertEqual(kinds1, ["client", "own"], "a risk has none")
-            self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 2 text']", "latest")
-            self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][1]["source"] == "latest"))
-            p.until(f"document.querySelector('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 text\"]').value === 'latest'", "the select shows latest")
-            # That select shows what the test just set, so it proves nothing about the page. The page takes the saved body only after it has read the
-            # project again, and says so with the toast ("Card text changed." is new here: the two earlier changes said "Card added."). The next
-            # choice is built from the body the page holds, so it must not be made before then (the hosted Mac made it first and dropped the latest update).
-            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card text changed.'", "the page has taken the saved text source of card 2 (toast)")
-            n = len([s for s in self.sent if s[0] == "change"])
-            self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 1 text']", "own")
-            # row 1005: Own words is the one editor (RichField); two paragraphs are saved as HTML (row 1288)
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words field")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(sec)}] .rce input').length"), 0, "no plain box")
-            p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view').click()")
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror')", "the editor opened")
-            p.js(f"(function(){{ const b = document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror'); b.focus(); b.cxed.editor.commands.setContent('<p>Typed</p><p>words</p>'); }})()")
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][0].get("own") == "<p>Typed</p><p>words</p>"))
-            self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n + 2, "the source and the words are one change each")
-            final = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
-            self.assertEqual(final[1]["source"], "latest", "the words change did not undo the earlier choice of card 2")
-            # View now draws the cards
+            p.until(f"!!document.querySelector('{q} .rce-first')", "the first-step line is shown")
+            self.assertIn("Choose an item", p.js(f"document.querySelector('{q} .rce-first').textContent"))
+            self.assertEqual(p.js(f"document.querySelector('{q} .rce-count').textContent"), f"0 of {limit} picked")
+            p.js(f"document.querySelector('{q} .rce-pick').click()")
+            p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
+            offered = self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick)")
+            self.assertIn(ids["risk"], offered)
+            self.assertNotIn(ids["hidden"], offered, "an item that does not publish is not offered")
+            self.assertEqual(len(offered), len(set(offered)), "each item is offered once")
+            p.js(f"document.querySelector('{q} .rce-pick').click()")
+            pick(p, ids["risk"])
+            self.assertTrue(self.wait_for(lambda: len(stored()["cards"]) == 1), "the first pick is saved")
+            p.until(f"document.querySelector('{q} .rce-count').textContent === '1 of {limit} picked'", "the count follows")
+            self.assertEqual(changes_sent(), 1, "one pick, one request")
+            self.assertEqual(stored()["cards"][0]["id"], ids["risk"])
+            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card added.'", "the page has taken the saved pick (toast)")
+            pick(p, ids["action"])
+            self.assertTrue(self.wait_for(lambda: len(stored()["cards"]) == 2), "the second pick is saved")
+            p.until(f"document.querySelector('{q} .rce-count').textContent === '2 of {limit} picked'", "the count follows")
+            self.assertEqual(changes_sent(), 2)
+            self.assertNotIn(ids["risk"], self.arr(p, f"[...document.querySelectorAll('{q} .rce-opts button')].map(b => b.dataset.pick)"), "an item is on one card only")
+            before = stored()
+            if self.SIZE == 3:      # three across keeps the old body (version 1), which holds no Also show choice: the checkbox is the one card's (four across)
+                self.assertEqual(p.js(f"document.querySelectorAll('{q} .rce-ck').length"), 0, "three across draws no Also show box")
+                self.assertEqual(stored(), before, "the picks are all that was saved")
+                return
+            # an Also show checkbox: one change, one Undo (the action has a latest update, so its box is on)
+            box = f"{q} [data-slot='1'] .rce-ck:nth-of-type(1) input"
+            p.until(f"!!document.querySelector({json.dumps(box)}) && document.querySelector({json.dumps(box)}).checked", "the latest update is on")
+            p.js(f"document.querySelector({json.dumps(box)}).click()")
+            self.assertTrue(self.wait_for(lambda: stored()["cards"][1].get("show") == {"latest": False}), str(stored()))
+            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card changed.'", "the page has taken the saved choice (toast)")
+            self.assertEqual(changes_sent(), 3, "one checkbox, one request")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelector('.toast-text').textContent === 'Undone.'", "Undo")
+            self.assertTrue(self.wait_for(lambda: stored()["cards"] == before["cards"]), "one Undo takes back the checkbox and nothing else")
+            self.assertEqual(changes_sent(), 3, "Undo is its own step, not a second change from the page")
+            p.until(f"!!document.querySelector('{q} select[aria-label=\"Cards across\"]')", "Cards across")
+            self.assertEqual(self.arr(p, f"[...document.querySelectorAll('{q} select[aria-label=\"Cards across\"] option')].map(o => o.value)"), ["3", "4"])
+            self.set_select(p, f"{q} select[aria-label='Cards across']", "3")
+            self.assertTrue(self.wait_for(lambda: stored().get("across") == 3), str(stored()))
+            self.assertEqual(changes_sent(), 4, "Cards across, one request")
+            self.assertEqual([c["id"] for c in stored()["cards"]], [ids["risk"], ids["action"]], "the cards stay")
+            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card changed.'", "the page has taken Cards across (toast)")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelector('.toast-text').textContent === 'Undone.'", "Undo")
+            self.assertTrue(self.wait_for(lambda: stored().get("across") != 3), "one Undo takes back Cards across")
+            # the saved choice is what View draws
+            p.js(f"document.querySelector({json.dumps(box)}).click()")
+            self.assertTrue(self.wait_for(lambda: stored()["cards"][1].get("show") == {"latest": False}), str(stored()))
             p.view()
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]])
-            self.assertNotIn("Typed words", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))      # row 1270 DoD: the cards draw no own words; the typed words are saved (checked above) and View does not draw them
-            p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('LATESTWORDS')", "View draws the latest update of card 2")      # drawn with the words above, but a slow hosted Mac has drawn the card without it for a moment
-            self.assertIn("LATESTWORDS", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
+            p.until(f"document.querySelector('{q}').textContent.includes('Agree the plan')", "View draws card 2")
+            self.assertNotIn("LATESTWORDS", p.js(f"document.querySelector('{q}').textContent"), "the latest update is off on card 2")
             self.assertEqual(self.sent[-1][1]["place"], "report")
 
     def test_removing_a_card_and_undo(self):

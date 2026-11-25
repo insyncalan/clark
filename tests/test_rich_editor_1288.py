@@ -382,7 +382,7 @@ class Ap10Places(unittest.TestCase):
             text = source(rel)
             self.assertNotIn("RichField", text, f"{word}: Not rich")
             self.assertIn("<textarea", text, f"{word}: a plain box")
-        full = {"raid_own": "edit/templates/raidEdit.jsx", "caption": "edit/templates/pictureEdit.jsx", "client_message": None, "latest_update": "edit/PeekLatest.jsx",
+        full = {"caption": "edit/templates/pictureEdit.jsx", "client_message": None, "latest_update": "edit/PeekLatest.jsx",
                 "callout": "edit/templates/Callout.jsx", "textimage": None, "standing": None, "internal_note": "edit/Movement.jsx", "health_reason": "edit/GlanceEdit.jsx"}
         for field, rel in full.items():
             self.assertIn(field, by_field, field)
@@ -410,7 +410,7 @@ class Ap11Ap12Storage(rs.Base):
         """AP11: RAID own words, Picture caption and Item row Client wording are Full editors that store the editor's HTML (cleaned), and the file
         and the exports carry it: an item's wording as HTML in the file and as words in Word and the client workbook; a card's own words and a caption as
         the one line of words the file has always held."""
-        for rel, field in (("edit/templates/raidEdit.jsx", "raid_own"), ("edit/templates/pictureEdit.jsx", "caption"), ("edit/ItemRowsEdit.jsx", "client_message")):
+        for rel, field in (("edit/templates/pictureEdit.jsx", "caption"), ("edit/ItemRowsEdit.jsx", "client_message")):      # row 1270 R4: RAID cards have no own words in Edit
             self.assertIn((rel, field, False), rich_mounts(), f"{rel}: the Full editor (not oneLine)")
         for kind, make, where, file_of in rs.LINES:
             with self.subTest(kind):
@@ -434,7 +434,7 @@ class Ap12OldText(unittest.TestCase):
     def test_old_plain_text_reads_right_1288(self):
         """AP12: old saved plain text in RAID own words, Picture caption and Item row Client wording opens as paragraphs: no lost line, the < and the
         tags in it are text; at 1400 and 900."""
-        for rel in ("edit/templates/raidEdit.jsx", "edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
+        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):      # row 1270 R4: raidEdit.jsx draws no own words
             self.assertIn("richOrPlain(", source(rel), f"{rel}: an old plain value goes through richOrPlain")
         with rp.Harness(chrome) as h:
             html = h.ev(f"window.CE.richOrPlain({json.dumps(OLD_TEXT)})")
