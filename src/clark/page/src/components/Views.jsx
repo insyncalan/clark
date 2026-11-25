@@ -118,14 +118,14 @@ const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
-  ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
+  ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Data", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Quit"]]]],
 ];
 // Row 1299 slice 1a, Classic only (the Cards look keeps GROUPS above): the mock-up's four groups and page names. Theme is part of Look, Folder is part of Brand and publishing; the old slugs (s=theme, s=folder) open those pages (OLD_SLUGS)
 const GROUPS_CLASSIC = [
   ["You", [["profile", "Profile", ["Essentials", "Profile"]], ["appearance", "Look", ["Personal", "ThemeSettings"]]]],
   ["All projects", [["projects", "Projects overview", ["Projects"]], ["backups", "Backups", ["Safety"]]]],
-  ["Project settings", [["reports", "Reports and pages", ["ReviewDays", "GanttSetting"]], ["brand", "Brand and publishing", ["ClientFolder", "Brands"]], ["people", "People", ["People"]], ["claude", "ask clark", ["AskSettings"]], ["data", "Export and import", ["Data"]]]],
+  ["Project settings", [["reports", "Reports and pages", ["ReviewDays", "GanttSetting"]], ["brand", "Brand and publishing", ["ClientFolder", "Brands"]], ["people", "People", ["People"]], ["claude", "ask clark", ["AskSettings"]], ["data", "Data", ["Data"]]]],
   ["Help and about", [["version", "Version and updates", ["Update", "Quit"]], ["logs", "Logs and diagnostics", ["Diagnostics"]]]],
 ];
 const OLD_SLUGS = { folder: "brand", theme: "appearance" };

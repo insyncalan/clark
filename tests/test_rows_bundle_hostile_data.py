@@ -53,7 +53,7 @@ class WithAProject(Base):
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
-        p.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Export and import'}).click()")      # row 1024: one Settings page at a time
+        p.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Data'}).click()")      # row 1024: one Settings page at a time
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
     def test_enabled_and_each_opens_its_own_box_only(self):
