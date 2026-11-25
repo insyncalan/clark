@@ -187,6 +187,8 @@ class SectionTitleBrowser(Look):
                 t = TITLE % sid
                 p.js(f"(() => {{ const t = {t}; t.focus(); document.execCommand('selectAll'); }})()")
                 p.type("w" * 90 + " END")
+                p.key("Home", code="Home", vk=36)
+                home = p.js(f"{t}.scrollLeft")                 # a few px of padding may remain at the start
                 p.key("End", code="End", vk=35)
                 got = p.js(f"(() => {{ const t = {t}, cs = getComputedStyle(t), b = t.getBoundingClientRect(), g = getSelection().getRangeAt(0).cloneRange();"
                            " g.collapse(false); const c = g.getClientRects()[0] || g.getBoundingClientRect();"
@@ -195,7 +197,7 @@ class SectionTitleBrowser(Look):
                 self.assertTrue(got["focus"], w)
                 self.assertEqual(got["to"], "clip", f"{w}: focused, no ellipsis")
                 self.assertTrue(got["over"], w)
-                self.assertGreater(got["sl"], 0, f"{w}: the box scrolled to the end of the text")
+                self.assertGreater(got["sl"], home + 20, f"{w}: End scrolled the box to the end of the text, Home was at {home}")
                 self.assertTrue(got["caretIn"], f"{w}: the caret at the end is inside the box {got}")
                 self.assertTrue(got["text"].endswith(" END"), w)
                 p.type("!")
@@ -212,9 +214,9 @@ class SectionTitleBrowser(Look):
                 for sid in self.ids(p):
                     t = TITLE % sid
                     p.js(f"{t}.scrollIntoView({{block: 'center'}}); document.activeElement.blur()")
-                    for frac in (0.02, 0.5, 0.9):               # the row start, 50% of the row, and the empty part of the row to the right of a short title
+                    for frac in (0.02, 0.5, 0.9):               # 2%, 50% and 90% of the heading row (the box must fill it)
                         p.js("document.activeElement.blur()")
-                        r = p.js(f"(() => {{ const b = {t}.getBoundingClientRect(); return [b.left + b.width * {frac}, b.top + b.height / 2]; }})()")
+                        r = p.js(f"(() => {{ const b = {t}.closest('.sec-h').getBoundingClientRect(), k = {t}.getBoundingClientRect(); return [b.left + b.width * {frac}, k.top + k.height / 2]; }})()")      # x from the heading row, not the box: with the box as narrow as its text a point on the row misses it
                         self.click_at(p, r[0], r[1])
                         p.until(f"document.activeElement === {t}", f"{w} {sid} {frac}: the click focused that title")
 
