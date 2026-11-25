@@ -18,3 +18,16 @@ queue_rules:
     merge_method: squash
     batch_size: 3
     batch_max_wait_time: 1 minute
+
+# Row 1581 follow-up: the label alone enqueued nothing. This rule queues a PR that carries `queue`;
+# the queue_conditions above still decide when it may join.
+pull_request_rules:
+  - name: Queue PRs labelled queue
+    conditions:
+      - label = queue
+      - base = main
+      - -draft
+      - -closed
+    actions:
+      queue:
+        name: default
