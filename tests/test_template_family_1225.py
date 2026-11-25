@@ -75,14 +75,15 @@ class TemplateList(unittest.TestCase):
         self.assertEqual(self.cdp.js("JSON.stringify(T.templates.find('image-caption'))", self.sid), "null")
 
 
-# Measured on the 24 templates as built (the same at 1400 and 900, light and dark): template id -> {control: count}
-# Each entry is a View control as measured. The audit lists 18 of them as reader tools (gallery 1, work-items 2 rows and Review, gantt, gantt-table 3); the 6 work-items cell-pick pickers (row 1287) are not among them.
+# Measured on the 23 templates as built (the same at 1400 and 900, light and dark): template id -> {control: count}
+# Each entry is a View control as measured. The audit lists 20 of them as reader tools (raid-cards 2, gallery 1, work-items 2 rows and Review, gantt, gantt-table 3); the 6 work-items cell-pick pickers (row 1287) are not among them.
 # AP3's pin is 0 AUTHORING controls in View (asserted above for every template); what is listed here are reader tools (open, review, zoom, pick), a finding and not an approval.
 FINDINGS = {
     "gallery": {"button.tpl-gal-open": 1},
     "work-items": {"tr.wil-k-action": 1, "tr.wil-k-risk": 1, "button.wil-review": 1, "button.cell-pick": 6},      # 2 rows (tabindex 0, role button) + the Review button + 6 in-place pickers (row 1287 puts pickers in View on the Dashboard lists); the 5 column heads are plain th (AP3)
     "gantt": {"button.gt-ib": 7, "button.gt-zf": 1, "button.gt-wd": 1, "button.gt-tflag": 1, "div.gt-b.gt-b-phase": 1, "div.gt-b.gt-b-task": 1},
     "gantt-table": {"button": 3},
+    "raid-cards": {"button.idl.raid-id": 2},      # row 1270: the two cards' id buttons open the peek (a reader tool, as the gallery's open button); the one RAID cards template replaces raid-3 and raid-4
 }
 
 
@@ -98,8 +99,8 @@ class ViewIsEditWithoutControls(F.Family):
         for dark in (False, True):
             with self.subTest(width=width, theme="dark" if dark else "light"):
                 got = self.read(width, dark, F.READ_JS)
-                self.assertEqual(sorted(got["view"]), sorted(got["edit"]), "the same 24 templates in both")
-                self.assertEqual(len(got["view"]), 24)
+                self.assertEqual(sorted(got["view"]), sorted(got["edit"]), "the same 23 templates in both")
+                self.assertEqual(len(got["view"]), 23)
                 for tid, view in got["view"].items():
                     edit = got["edit"][tid]
                     with self.subTest(template=tid):
@@ -153,7 +154,7 @@ class TextContrast(F.Family):
         for dark in (False, True):
             with self.subTest(width=width, theme="dark" if dark else "light"):
                 got = self.read(width, dark, F.CONTRAST_JS)
-                self.assertEqual(len(got["view"]), 24)
+                self.assertEqual(len(got["view"]), 23)
                 for mode, by in got.items():
                     for tid, texts in by.items():
                         with self.subTest(mode=mode, template=tid):
