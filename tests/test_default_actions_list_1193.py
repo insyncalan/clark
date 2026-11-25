@@ -34,7 +34,7 @@ class DefaultActionsList(unittest.TestCase):
 
     def test_the_other_defaults_keep_their_types(self):
         types = [e["type"] for e in default_sections.DEFAULT_SECTIONS]
-        self.assertEqual(types, ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "workitems", "docs"])
+        self.assertEqual(types, ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "workitems", "doclinks"])
 
     def test_the_body_is_canonical_and_lists_open_actions_only(self):
         value = wi.check(json.loads(default_sections.OPEN_ACTIONS_BODY), store_module.BODY_RULES)

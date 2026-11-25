@@ -126,7 +126,7 @@ class PlainBadge(unittest.TestCase):
 
     def test_the_published_icon_is_a_plain_span_with_no_svg_and_the_editor_one_is_the_drawn_page(self):
         src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
-        plain = next(l for l in src.splitlines() if l.strip().startswith("if (fromFile.value) return"))
+        plain = next(l for l in src.splitlines() if l.strip().startswith("if (fromFile.value && label !== \"MAIL\") return"))
         self.assertIn("tpl-badge tpl-plain tpl-ic-", plain)
         self.assertNotIn("<svg", plain)
         self.assertNotIn("<img", plain)

@@ -21,12 +21,22 @@ class Base(Api):
         self.old_actions_row()
         self.old_decisions_row()
         self.old_raid_row()
+        self.old_docs_row()
 
     def old_raid_row(self):
         """row 1193-8: a new project starts with Risks and issues as a Work items list; an existing report still has the built-in raid section, which these tests are about."""
         con = sqlite3.connect(str(self.path))
         try:
             con.execute("UPDATE report_sections SET type = 'raid', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Risks and issues'")
+            con.commit()
+        finally:
+            con.close()
+
+    def old_docs_row(self):
+        """row 1194 AP13: a new project starts with Documents and links (type doclinks); an existing report still has the built-in docs section (Supporting documents), which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'docs', title = 'Supporting documents', body = '' WHERE project = 'ABC' AND type = 'doclinks' AND title = 'Documents and links'")
             con.commit()
         finally:
             con.close()

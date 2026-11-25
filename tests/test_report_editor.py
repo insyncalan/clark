@@ -37,7 +37,7 @@ from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
 TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "This week", "Next week",
-          "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
+          "Risks and issues", "Open actions", "Decisions", "Documents and links"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 11)]
 SECRET = "Server text that a person must never read"
 NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
@@ -290,8 +290,8 @@ class Modes(Base):
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
-            # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs', 'workitems'].includes(s.dataset.type))"      # rows 1193-8 to 10: a Work items list has its own tests (test_tpl_workitems)
+            # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these; row 1194 AP13: nor is Documents and links (doclinks)
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs', 'doclinks', 'workitems'].includes(s.dataset.type))"      # rows 1193-8 to 10: a Work items list has its own tests (test_tpl_workitems)
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 3, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
@@ -1557,7 +1557,7 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "doclinks"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:

@@ -111,6 +111,7 @@ class Shape(unittest.TestCase):
         self.assertEqual(entry[0]["w"], "Dashboard \u203a Edit \u203a Documents and links")
         self.assertEqual(entry[0]["go"], "dashboard+edit")
         self.assertIn("A section holds up to 20 entries.", entry[0]["s"])
+        self.assertIn("A new report starts with a Documents and links section. Reports you saved before keep their Supporting documents section.", entry[0]["s"])      # AP14, words approved 26-11
         brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
         self.assertIn("- **FR-100a:** A new report starts with a Documents and links section instead of Supporting documents.", brd)
 
@@ -215,7 +216,7 @@ class Places(unittest.TestCase):
         self.assertEqual(sorted(u for u in used if u not in self.ids and u not in BASE), [])
 
 
-# Row 1194 AP14: two lines of the "Add documents and links" entry in the approved words (Jarvis 21-11): "refused" and "https:// or mailto:" are the approved text, so the two word guards below skip exactly these lines.
+# Row 1194 AP14: two lines of the "Add documents and links" entry in the approved words (approved 21-11): "refused" and "https:// or mailto:" are the approved text, so the two word guards below skip exactly these lines.
 APPROVED_1194 = {"You can add PDF, Word, Excel, PowerPoint, JPG, PNG and TXT files. HTML, SVG, ZIP and programs are refused.",
                  "To add a link, choose the link icon, type the web address and a link description, then choose Add. A link starts with https:// or mailto:."}
 

@@ -617,6 +617,7 @@
     "w": "Dashboard › Edit › Documents and links",
     "go": "dashboard+edit",
     "s": [
+     "A new report starts with a Documents and links section. Reports you saved before keep their Supporting documents section.",
      "Choose the file icon to add a file, or drop files on the box.",
      "To add a link, choose the link icon, type the web address and a link description, then choose Add. A link starts with https:// or mailto:.",
      "You can add PDF, Word, Excel, PowerPoint, JPG, PNG and TXT files. HTML, SVG, ZIP and programs are refused.",
