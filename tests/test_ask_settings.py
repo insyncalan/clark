@@ -395,19 +395,20 @@ class Settings(unittest.TestCase):
 
     def test_accept_then_decline_send_only_the_folder_and_say_which_is_so_and_the_folder_stays_listed(self):
         """Row 1365: Accept sends {action: accept, path: the saved folder} and the notice then says 'Passages may go to Claude.'; Decline sends decline and the
-        notice says 'Left out of ask clark.'; the folder stays listed and the buttons stay (a choice can always be changed). 1400 and 900."""
+        notice says 'Left out of ask clark.'; the folder stays listed and the buttons stay (a choice can always be changed). 1400 and 900, light and dark."""
         for width in WIDTHS:
+          for scheme in ("light", "dark"):
             with chrome() as cdp:
-                js = self.warn_page(cdp, width, "light")
+                js = self.warn_page(cdp, width, scheme)
                 js("document.querySelector('[data-ask-choose]').click()")
                 self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
                 state = "document.querySelector('[data-ask-warn-state]').innerText"
                 self.assertEqual(js(state), "Left out of ask clark.")
                 js("document.querySelector('[data-ask-warn-accept]').click()")
-                self.assertTrue(wait(lambda: js(state) == "Passages may go to Claude.", 10), width)
+                self.assertTrue(wait(lambda: js(state) == "Passages may go to Claude.", 10), (width, scheme))
                 self.assertEqual(js("document.querySelector('[data-ask-warn-accept]').getAttribute('aria-pressed')"), "true")
                 js("document.querySelector('[data-ask-warn-decline]').click()")
-                self.assertTrue(wait(lambda: js(state) == "Left out of ask clark.", 10), width)
+                self.assertTrue(wait(lambda: js(state) == "Left out of ask clark.", 10), (width, scheme))
                 self.assertEqual(js("document.querySelector('[data-ask-warn-decline]').getAttribute('aria-pressed')"), "true")
                 self.assertEqual(js("window.__ask.calls.filter(c => c && (c.action === 'accept' || c.action === 'decline'))"),
                                  [{"project": "ABC", "action": "accept", "path": "/Example/Programme files"}, {"project": "ABC", "action": "decline", "path": "/Example/Programme files"}])
@@ -427,12 +428,13 @@ class Settings(unittest.TestCase):
 
     def test_leave_these_subfolders_out_is_a_third_button_that_sends_only_the_folder_and_the_notice_goes(self):
         """Row 1365 line 14: the button shows only when a flagged hit is a folder, sends {action: exclude, path: the saved folder} and nothing else, and
-        the notice goes with the answer. 1400 and 900, Classic."""
+        the notice goes with the answer. 1400 and 900, light and dark, Classic."""
         for width in WIDTHS:
+          for scheme in ("light", "dark"):
             with chrome() as cdp:
-                js = self.warn_page(cdp, width, "light", open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+                js = self.warn_page(cdp, width, scheme, open_warn=[{"folder": "/Example/Programme files", "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
                 box = "document.querySelector('[data-ask-warn]')"
-                self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline", "Leave these subfolders out"], width)
+                self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline", "Leave these subfolders out"], (width, scheme))
                 self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
                 js(f"{box}.querySelector('[data-ask-warn-leave]').click()")
                 self.assertTrue(wait(lambda: js("!document.querySelector('[data-ask-warn]')"), 10), "the notice goes")
@@ -453,19 +455,38 @@ class Settings(unittest.TestCase):
             self.assertTrue(js("!!document.querySelector('[data-ask-warn]')"))
 
     def test_warning_names_connected_provider(self):
-        """Row 1365 test 5: ChatGPT is named when it is the provider (and 'which Anthropic runs' is dropped); on open the notice is a labelled region, not an alert."""
-        with chrome() as cdp:
-            js = self.warn_page(cdp, 1400, "light", provider="ChatGPT", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Payroll", "readable_files": 1}]}])
-            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
-            box = "document.querySelector('[data-ask-warn]')"
-            self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
-            flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
-            self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), "the provider in use is named")
-            self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
-            self.assertNotIn("Claude", flat())
-            self.assertNotIn("Anthropic", flat())
-            js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
-            self.assertTrue(wait(lambda: "Passages may go to ChatGPT." in flat(), 10))
+        """Row 1365 test 5: ChatGPT is named when it is the provider (and 'which Anthropic runs' is dropped); on open the notice is a labelled region, not an alert. 1400 and 900, light and dark."""
+        for width in WIDTHS:
+          for scheme in ("light", "dark"):
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, scheme, provider="ChatGPT", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Payroll", "readable_files": 1}]}])
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
+                flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
+                self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), ("the provider in use is named", width, scheme))
+                self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
+                self.assertNotIn("Claude", flat())
+                self.assertNotIn("Anthropic", flat())
+                self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+                js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
+                self.assertTrue(wait(lambda: "Passages may go to ChatGPT." in flat(), 10))
+
+    def test_settings_project_tab_shows_warning(self):
+        """Row 1365 AP7: the same notice shows on the project's tab in Settings while the folder is saved (opened from the saved list, not from a save):
+        the matched names, the provider and Accept and Decline; a labelled region. 1400 and 900, light and dark. (The readable-file count is not drawn: AP5.)"""
+        for width in WIDTHS:
+          for scheme in ("light", "dark"):
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, scheme, open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Contract 2026", "readable_files": 12}, {"name": "Salary bands", "readable_files": 3}]}])
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings [data-ask-warn]') || !!document.querySelector('[data-ask-warn]')"), 10), (width, scheme))
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertEqual(js("location.hash"), "#settings&p=ABC&s=claude")
+                self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
+                flat = " ".join(js(f"{box}.innerText").split())
+                self.assertIn("This folder holds Contract 2026 and Salary bands. Passages from it may go to Claude", flat)
+                self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"], (width, scheme))
+                self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
 
     def test_a_folder_without_such_names_shows_no_warning(self):
         with chrome() as cdp:
