@@ -425,7 +425,8 @@ class Runner:
         env = {**os.environ, "PYTHONPATH": path, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
                "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp),   # BL-246: everything it makes lands here
                "PATH": str(self.stub) + os.pathsep + os.environ.get("PATH", ""),      # RULE 14: a test never opens a real dialog
-               "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log)}
+               "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log),
+               "CLARK_TEST": "1"}      # #1666: every test child, whatever it imports, never starts the Mac's real picture reader
         if os.name == "posix":
             env["PYTHONFAULTHANDLER"] = "1"      # row 1566: SIGABRT on a hang prints every thread's Python traceback
         t, p, out, timed_out, reader = time.time(), None, [], False, None
