@@ -158,7 +158,9 @@ class Logic(unittest.TestCase):
         self.assertEqual(run_node(f"CO.moveColumn({ids}, 'owner', -1)"), ["status", "item", "owner", "due", "prio", "id"])
         self.assertEqual(run_node(f"CO.moveColumn({ids}, 'owner', 1)"), ["status", "item", "due", "prio", "owner", "id"])
         self.assertIsNone(run_node(f"CO.moveColumn({ids}, 'id', 1)"), "the last column does not move right")
-        self.assertEqual(run_node("CO.Words.MOVED('Owner', 2, 6)"), "Owner moved to position 2 of 6")
+        # PM ruling 26-11: N and M count every drawn column (Status and Item included); the eye and Hand over controls are not columns and are not counted.
+        self.assertEqual(run_node(f"(() => {{ const to = CO.moveColumn({ids}, 'owner', -1); return CO.Words.MOVED('Owner', to.indexOf('owner') + 1, to.length); }})()"),
+                         "Owner moved to position 3 of 6")
         self.assertEqual(run_node("[CO.Words.MOVE_LEFT, CO.Words.MOVE_RIGHT, CO.Words.RESET_ORDER]"), ["Move left", "Move right", "Reset to the standard order"])
         menu = source("edit", "ColumnsMenu.jsx")
         self.assertIn("e.altKey && e.shiftKey", menu)                                                     # Alt+Shift+Left and Alt+Shift+Right move
