@@ -150,6 +150,9 @@ class MovedFields(unittest.TestCase):
             self.assertIn('<FormRow k="%s"' % k, move)
         self.assertGreaterEqual(move.count("<RichField"), 2, "the note and the form's fields")
         self.assertIn("plainLine(", move)
+        raid = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("<RichField", raid, "no own words anywhere in Edit (clark-plan #1270 acceptance: 'no own words anywhere in Edit or View'), so the RAID cards editor draws no rich field")
+        self.assertNotIn("<textarea", raid, "the editor's only text box is the picker's one-line search (type=search)")
 
     def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
         glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
