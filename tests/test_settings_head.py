@@ -31,16 +31,16 @@ OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
-NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Appearance", [("Personal", "personal-h")]),
-                       ("theme", "Theme", [("Theme", "theme-settings-h")])]),      # row 1299 1a: the mock-up's four groups, in its order
-              ("All projects", [("projects", "Projects", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
-              ("Project settings", [("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]), ("folder", "Folder", [("Publishing", "client-folder-h")]),
-                                    ("brand", "Brand", [("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]), ("claude", "ask clark", [("Asking", "ask-settings-h")]),
-                                    ("data", "Export and import", [("Data", "data-card-h")])]),
-              ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]),
-                                  ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
-GROUPS = NEW_GROUPS if '["You", [[' in VIEWS.read_text(encoding="utf-8") else OLD_GROUPS      # the menu is in four groups when Views.jsx has them
+# Row 1299 1a: the Classic theme's four groups (Views.jsx GROUPS_CLASSIC), the menu the Classic tests (window, tabs, overview) walk; (slug, menu name, cards)
+CLASSIC_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Look", [("Personal", "personal-h"), ("Theme", "theme-settings-h")])]),
+                  ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
+                  ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]),
+                                        ("brand", "Brand and publishing", [("Publishing", "client-folder-h"), ("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]),
+                                        ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+                  ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
+CLASSIC_PAGES = [page for _, pages in CLASSIC_GROUPS for page in pages]
+GROUPS = OLD_GROUPS      # row 1299 1a: the four groups are the Classic theme's only; these tests run with the Cards look, which keeps the five groups
 PAGES = [page for _, pages in GROUPS for page in pages]      # (slug, menu name, cards)
 PAGE_OF = {head: slug for slug, _, cards in PAGES for _, head in cards}      # which page a card's heading is on
 FIRST = "projects"      # the plain address is the Projects page (router.SETTINGS_PAGES[0]); the old slugs all work

@@ -155,16 +155,16 @@ class Rule(Base):
 
 class Schema(Base):
     def test_a_fresh_database_reads_every_folder_as_declined(self):
-        self.assertEqual(st.SCHEMA_VERSION, 34)
+        self.assertEqual(st.SCHEMA_VERSION, 36)      # row 1417's step 36 follows row 1534's 35 and this row's 34
         self.assertEqual(st.EXCLUDED_STEP, 34)
         self.assertIn((34, st.migrate_source_folders_1365), st.MIGRATIONS)
-        self.assertEqual([n for n, _ in st.MIGRATIONS][-2:], [33, 34], "one step for the whole row")
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-4:-2], [33, 34], "one step for the whole row")
         s = self.store()
         with s.step("dashboard", "tester", place="menu") as step:
             step.create("source_folders", {"project": "ABC", "path": str(self.flagged), "sort_order": 0})
             step.create("source_folders", {"project": "ABC", "path": str(self.plain), "sort_order": 1})
         self.assertEqual(self.accepted(), {str(self.flagged): 0, str(self.plain): 0})
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(st.SCHEMA_VERSION))
 
     def test_an_upgraded_database_reads_every_saved_folder_as_declined(self):
         s = self.store()
@@ -181,7 +181,7 @@ class Schema(Base):
         con.close()
         up = st.open_store(self.db, onedrive_roots=[])
         self.addCleanup(up.close)
-        self.assertEqual(up.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "34")
+        self.assertEqual(up.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(st.SCHEMA_VERSION))
         rows = {r["path"]: (r["accepted"], r["excluded"], r["sort_order"]) for r in up.read("source_folders", "ABC")}
         self.assertEqual(rows, {str(self.flagged): (0, "[]", 0), str(self.plain): (0, "[]", 3)}, "declined, and nothing else changed")
 

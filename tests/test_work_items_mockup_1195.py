@@ -646,13 +646,14 @@ class Classic(Look):
         for width in (1400, 900):
             with self.subTest(width=width), T.chrome() as cdp:
                 p = self.show(cdp, width)
-                for mode in ("View", "Edit"):
-                    if mode == "Edit":
-                        p.edit()
-                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", f"{mode} drew")
-                    got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
-                    self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"{mode} at {width}")
-                    self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, f"{mode}: the edge handles stay aria-hidden, no label")
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-due')", "View drew")      # row 1225 AP3: View's heads are plain th (no label, no handle)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th')].filter(h => h.hasAttribute('aria-label') && /Drag/.test(h.getAttribute('aria-label'))).length"), 0, f"View at {width}: no drag label")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .cgrip').length"), 0, f"View at {width}: no handle")
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+                got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
+                self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"Edit at {width}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, "Edit: the edge handles stay aria-hidden, no label")
 
     def test_an_empty_match_says_the_mockups_words_in_view_and_the_long_sentence_in_edit_at_1400_and_900(self):      # row 1195: WO-M8425, the words are the mock-up's
         ref = self.add({"owner": ["Nobody Demo"]})
@@ -772,56 +773,35 @@ class Classic(Look):
     def _view(self, cdp, columns):
         ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
         p = self.show(cdp, 1400)
-        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew")
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-due')", "View drew")
         self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
         return p, ref
 
     def _bodies(self):
         return self.store.con.execute("SELECT id, body FROM report_sections ORDER BY id").fetchall()
 
-    def test_view_a_real_pointer_drag_of_a_heading_moves_the_column_and_saves_nothing_in_the_document(self):      # row 1195 ruling: View too, unsaved
+    def test_view_headings_are_plain_row_1225(self):      # row 1225 AP3 (it replaces the row 1195 ruling that View's heads drag, resize and take Alt and Ctrl with an arrow)
         with T.chrome() as cdp:
             p, ref = self._view(cdp, ["owner", "due", "priority", "id"])
             before = self._bodies()
-            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
-            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').draggable"), True)
-            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
-            x0, y0 = self._where(p, ref, "id")
-            x1, y1 = self._where(p, ref, "owner")
+            ths = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th')]"
+            self.assertEqual(p.js(f"{ths}.filter(h => h.draggable || h.hasAttribute('tabindex') || h.hasAttribute('data-cw-head') || h.querySelector('.cgrip')).length"), 0, "no head drags, takes a tab stop or has a handle")
+            self.assertEqual(self._heads(p, ref), [])
+            order = p.js(f"{ths}.map(h => h.className)")
+            p.js("window.__drag = 0; document.addEventListener('dragstart', () => { window.__drag++; }, true)")
+            x0, y0 = self._where_plain(p, ref, "id")
+            x1, y1 = self._where_plain(p, ref, "owner")
             self._pointer_drag(p, x0, y0, x1, y1)
-            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag in View")
-            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "ID moved before Owner in View")
-            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
-            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
-            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "still View")
+            self.assertEqual(p.js("window.__drag"), 0, "the browser starts no drag from a View head")
+            self.assertEqual(p.js(f"{ths}.map(h => h.className)"), order, "no column moved")
+            p.js(f"{ths}.find(h => h.classList.contains('wil-c-due')).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ArrowRight', altKey: true, bubbles: true}}))")
+            self.assertEqual(p.js(f"{ths}.map(h => h.className)"), order, "Alt with an arrow moves nothing")
             self.assertEqual(self._bodies(), before, "nothing was written to the document")
-            reload_to_new_page(p.js, f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
-            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
 
-    def test_view_the_width_handle_alt_move_and_ctrl_resize_work_and_the_heading_says_so(self):      # row 1195 ruling: View too, unsaved
-        with T.chrome() as cdp:
-            p, ref = self._view(cdp, ["owner", "due", "id"])
-            before = self._bodies()
-            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
-            w = lambda c: p.js(f"{h(c)}.getBoundingClientRect().width")
-            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "a heading is a tab stop in View")
-            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
-            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"))
-            w0 = w("owner")
-            gx, gy = self._where(p, ref, "owner", "grip")
-            self._pointer_drag(p, gx, gy, gx + 40, gy)
-            self.assertTrue(wait(lambda: abs(w("owner") - (w0 + 40)) < 2), "the handle drag widened Owner in View")
-            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and moved nothing")
-            CTRL = 2
-            p.js(f"{h('due')}.focus()")
-            start = w("due")
-            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
-            self.assertTrue(wait(lambda: abs(w("due") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider in View")
-            before_w = w("due")
-            p.key("ArrowRight", 1, code="ArrowRight", vk=39)
-            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due in View")
-            self.assertLess(abs(w("due") - before_w), 1, "without resizing it")
-            self.assertEqual(self._bodies(), before, "nothing was written to the document")
+    def _where_plain(self, p, ref, c):
+        sel = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-{c}')"
+        p.js(f"{sel}.scrollIntoView({{block: 'center'}})")
+        return p.js(f"(() => {{ const r = {sel}.getBoundingClientRect(); return [r.left + 12, r.top + r.height / 2]; }})()")
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
