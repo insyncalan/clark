@@ -209,16 +209,15 @@ class LatestValues(unittest.TestCase):
                     self.assertEqual(got["key"], ["11px", "600", "5px", "5px", "5px"], got)
 
     def test_the_label_is_bold_13px_and_the_client_value_is_grey_not_green(self):
-        """Row 1285 (peek frame): the Latest update label is 13px / 700 (the mock-up's bold) and 'Shown to the client' is the muted grey, never the status green."""
+        """Row 1285 (peek frame): the Latest update label is 13px / 700 (the mock-up's bold) and 'Shown to the client' is the mock-up's muted grey #55677A (row 1576), never the status green."""
         shown = next(a["id"] for a in self.store.read("actions") if a.get("client_visible"))
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, shown, edit=True)
                 got = cdp.js("(() => { const c = s => getComputedStyle(document.querySelector(s));"
-                             " const m = document.createElement('i'); m.style.color = 'var(--text-muted)'; document.body.append(m); const muted = getComputedStyle(m).color; m.remove();"
-                             " return {size: c('#peek .pk-lab').fontSize, weight: c('#peek .pk-lab').fontWeight, client: c('#peek [data-pk-latest-client]').color, muted}; })()", sid)
+                             " return {size: c('#peek .pk-lab').fontSize, weight: c('#peek .pk-lab').fontWeight, client: c('#peek [data-pk-latest-client]').color}; })()", sid)
                 self.assertEqual((got["size"], got["weight"]), ("13px", "700"), got)
-                self.assertEqual(got["client"], got["muted"], got)
+                self.assertEqual(got["client"], "rgb(85, 103, 122)", got)       # row 1576: the mock-up's muted #55677A (was the --text-muted token)
 
 
 del _B

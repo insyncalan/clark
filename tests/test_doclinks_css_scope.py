@@ -15,9 +15,9 @@ MOCKUP = ("padding: 8px 10px 8px 14px", "border-radius: 12px", "font-size: 16px"
 SCOPED = (".tpl-dl-links .tpl-badge", ".tpl-dl-links .tpl-dl-i", ".tpl-dl-links .tpl-dl-i .tpl-name", ".tpl-dl-links .tpl-dl-i .tpl-rename",
           ".tpl-dl-links .tpl-dl-i .tpl-main")
 # The approved mock-up's tiles (.t-pdf, .t-word, .t-excel, .t-ppt, .t-img, .t-link, .t-mail, .t-file), text white on all. JPG and PNG are the mock's one image tile.
-# Row 1194 round 3: the page-icon colours are the mock's (approved 18-11): PDF E8410C, XLS 1E9B4B, PPT E8601C, JPG 6B46C1, PNG E0358B, TXT F2A400.
-PLAIN_FILL = {"PDF": ("#E8410C", "#fff"), "DOC": ("#1F5FBF", "#fff"), "XLS": ("#1E9B4B", "#fff"), "PPT": ("#E8601C", "#fff"),
-              "JPG": ("#6B46C1", "#fff"), "PNG": ("#E0358B", "#fff"), "TXT": ("#F2A400", "#fff"), "URL": ("#5B47D8", "#fff"),
+# Row 1194 round 3: the page-icon colours are the mock's (approved 18-11); row 1546 darkened PDF, XLS, PPT, PNG, TXT to 4.5:1 with white.
+PLAIN_FILL = {"PDF": ("#DA3D0B", "#fff"), "DOC": ("#1F5FBF", "#fff"), "XLS": ("#1A8842", "#fff"), "PPT": ("#C95014", "#fff"),
+              "JPG": ("#6B46C1", "#fff"), "PNG": ("#DD2582", "#fff"), "TXT": ("#A06C00", "#fff"), "URL": ("#5B47D8", "#fff"),
               "MAIL": ("#0E7C86", "#fff"), "FILE": ("#5A6B77", "#fff")}
 
 

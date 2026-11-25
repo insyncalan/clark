@@ -168,7 +168,7 @@ class WhatIsSent(Base):
         return text
 
     # row 1367 (ruling 19-11): an eye-off or report-hidden row is read for the owner; these markers are no longer held back.
-    READ_NOW = frozenset({"PUB-A-010", "PUB-A-011", "PUB-002", "PUB-D-002", "PUB-M-003", "PUB-M-004", "PUB-U-002", "PUB-W-002"})
+    READ_NOW = frozenset({"PUB-A-010", "PUB-A-011", "PUB-002", "PUB-D-002", "PUB-M-003", "PUB-M-004", "PUB-U-002", "PUB-W-002", "workstream_lead"})      # row 1417 (ruled yes, 22-11 02:38): the workstream lead is read for ask clark; it is pinned below
 
     def test_nothing_the_published_file_leaves_out_is_ever_sent(self):
         text = self.sent()
@@ -178,6 +178,14 @@ class WhatIsSent(Base):
                 continue
             for spelled in plant.spellings(marker):
                 self.assertNotIn(spelled, text, f"{where}: {marker!r}")
+
+    def test_the_workstream_lead_is_sent_on_its_workstream_line_only(self):
+        """Row 1417: the lead is the one workstream column read here that the published file leaves out; keywords and aliases stay unsent."""
+        text = self.sent()
+        marker = plant.load()["markers"]["workstream_lead"]
+        self.assertEqual(text.count(marker), 1)
+        (line,) = [x for x in text.split("\n") if marker in x]
+        self.assertIn("PUB-W-001", line)
 
     def test_the_hidden_rows_are_sent_for_the_owner(self):
         text = self.sent()

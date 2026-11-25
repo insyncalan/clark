@@ -62,6 +62,59 @@ class Header1543(glance.Published):
                 self.assertEqual(three["endRight"], four["endRight"], "nothing to the right of the pages moved")
                 self.assertGreater(three["lefts"][0], four["lefts"][0], "the group is shorter on its left")
 
+    def probe_file(self, js, width, dark):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, width, dark)
+            p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+            return p.js(js)
+
+    def test_published_header_no_as_at(self):
+        head_js = """(() => ({head: document.querySelector('header.top').textContent,
+          boxes: document.querySelectorAll('header.top .asat, header.top .asat-wrap, header.top button.asat, header.top input[type=date]').length}))()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                path = self.publish()
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                    got = p.js(head_js)
+                    p.js("document.querySelector('.cm-badge').click()")
+                    p.until("!!document.querySelector('[role=menu]') && document.querySelector('[role=menu]').textContent.trim().length > 0", "the profile menu opened")
+                    menu = p.js("document.querySelector('[role=menu]').textContent")
+                self.assertGreater(len(menu.strip()), 0, "control: the menu was read after it drew")
+                self.assertNotRegex(got["head"], r"(?i)as at", "no As at in the header")
+                self.assertNotRegex(menu, r"(?i)as at", "no As at in the profile menu either")
+                self.assertEqual(got["boxes"], 0)
+                self.assertIn("Weekly report", got["head"], "the line under the project name stays (this fixture has no week ending date; the date text is unchanged)")
+
+    def test_published_header_switcher_and_profile_sizes(self):
+        """AP5, at 1400 and at 900, light and dark: the switcher is a bare icon (no fill, no border), the profile circle is filled with the brand cyan."""
+        js = """(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height), Math.round(document.querySelector("header.top").getBoundingClientRect().right - b.right)]; };
+          const c = document.createElement('i'); c.style.background = 'var(--brand-cyan)'; document.body.appendChild(c);
+          const cs = (s) => getComputedStyle(document.querySelector(s)), cyan = getComputedStyle(c).backgroundColor, t = cs('.cm-theme');
+          return {theme: r('.cm-theme'), badge: r('.cm-badge'), cyan: cyan, badgeFill: cs('.cm-badge').backgroundColor, themeFill: t.backgroundColor,
+                  themeBorder: parseFloat(t.borderTopWidth) + parseFloat(t.borderLeftWidth)}; })()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(js, width, dark)
+                self.assertEqual(got["theme"][:2], [32, 32], "the light and dark button is 32 px (ticket AP5; 38 px is the editor's search button width)")
+                self.assertEqual(got["badge"][:2], [32, 32], "the profile circle is 32 px")
+                self.assertEqual(got["badgeFill"], got["cyan"], "the profile circle is filled with the brand cyan")
+                self.assertIn(got["themeFill"], ("rgba(0, 0, 0, 0)", "transparent"), "the switcher is a bare icon: no fill")
+                self.assertEqual(got["themeBorder"], 0, "the switcher has no border")
+                if width == 1400:
+                    self.assertEqual(got["badge"][2], 28, "the circle ends 28 px from the bar's right edge, as the editor's")
+
+    def test_published_header_no_edit_controls(self):
+        js = """(() => { const h = document.querySelector('header.top');
+          return {n: h.querySelectorAll('.tb-ask, .tb-act, .hdr-end, .bell, [aria-label="Ask clark"], [aria-label="Client visible"]').length,
+                  btns: [...h.querySelectorAll('button')].map((b) => b.className).sort()}; })()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(js, width, dark)
+                self.assertEqual(got["n"], 0, f"no editor control in the published header: {got['btns']}")
+
 
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file
     if _name.startswith("test") and _name not in Header1543.__dict__:

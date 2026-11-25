@@ -98,7 +98,7 @@ def hidden_types(sections, deleted=False):
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
 PUBLISH_FIELDS = {
-    "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
+    "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout", "column_orders"),      # row 1534: the saved column order of the work item tables (column ids only), published for everyone
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
                    "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"),
     "workstreams": ("id", "name", "status"),
@@ -1391,8 +1391,11 @@ def file_name(code, week_ending, as_at, folder=None):
     return platform.safe_name(f"{code}-report-{week_ending or as_at}.html", folder)
 
 
+ASK_WORKSTREAM_FIELDS = ("lead", "start", "end", "latest_update")      # row 1417: read for ask clark only (store.WORKSTREAM_ASK is the same four; a test pins them equal); none is in PUBLISH_FIELDS
+
+
 # ===== Reading (Store.publish_inputs: one read-only connection, one read transaction) =====
-def read_inputs(store, code, as_at=None):
+def read_inputs(store, code, as_at=None, ask=False):
     """Everything select() needs, read from the store in ONE read-only transaction (so a write can't come between two reads).
     Only the columns in PUBLISH_FIELDS (and GATES, to decide) are asked for: internal_note and movement never leave the
     database, and a row's source leaves it as its name only (select, row 1077). The SQL itself lives in store.py, the only module that touches the database."""
@@ -1401,9 +1404,11 @@ def read_inputs(store, code, as_at=None):
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
               for t in ("projects",) + KINDS + ("workstreams", "gantt_lines")}
     fields["workstreams"] += ("created",)      # row 1367: ask clark reads when a workstream began; select() keeps only PUBLISH_FIELDS, so no file changes
+    if ask:      # row 1417: the lead, the dates and the latest update, for ask clark only; the store allows the lead for this read alone
+        fields["workstreams"] += ASK_WORKSTREAM_FIELDS
     fields["projects"] += tuple(c for c in ("archived",) if c not in fields["projects"])      # #126: publish() refuses an archived project
     try:
-        got = store.publish_inputs(code, fields)
+        got = store.publish_inputs(code, fields, ask=True) if ask else store.publish_inputs(code, fields)
     except Exception as e:             # a database that can't be read: said in words, whatever sqlite called it
         raise PublishError(f"The database could not be read ({e}).") from e
     if got is None:
