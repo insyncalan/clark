@@ -1,6 +1,6 @@
-"""Row 1466 AP1 (ticket correction of 23-11-2026): the row label is exactly "Client Message" (capital M, never "Client wording") in every place the
-build draws the Client Message row, in View and Edit, at 1400 and 900, in the light and the dark theme. No new row is built: a place that draws no
-Client Message row today (a decision in View, a work item in Edit) stays without it. The other acceptance points are in test_client_message_label_1466.
+"""Row 1466 AP1 (ticket correction of 23-11-2026): the row label is exactly "Client wording" (lower-case w, never "Client Message") in every place the
+build draws the Client wording row, in View and Edit, at 1400 and 900, in the light and the dark theme. No new row is built: a place that draws no
+Client wording row today (a decision in View, a work item in Edit) stays without it. The other acceptance points are in test_client_message_label_1466.
 Run: CLARK_CHROME=/usr/local/bin/creaite-chrome python3 dev/run_tests.py test_client_message_1466
 """
 import tempfile
@@ -34,10 +34,10 @@ class Places(base.Peeks):
                         self.open_peek(cdp, sid, ref, kind)
                         labels = self.labels(cdp, sid)
                         if (mode, ref, kind) in drawn:
-                            self.assertEqual([l for l in labels if l.lower() == "client message"], ["Client Message"], labels)
+                            self.assertEqual([l for l in labels if l.lower() == "client wording"], ["Client wording"], labels)
                         else:
                             self.assertEqual([l for l in labels if "client" in l.lower()], [], labels)
-                        self.assertNotRegex(cdp.js("document.querySelector('#peek').innerText", sid), r"(?i)client wording")
+                        self.assertNotRegex(cdp.js("document.querySelector('#peek').innerText", sid), r"(?i)client message")
 
     def test_a_published_file_says_client_message_in_the_work_item_peek(self):          # Peek.jsx:136 and :404
         _plant, _pub, text = tp.made()
@@ -53,11 +53,11 @@ class Places(base.Peeks):
                         cdp.js(DARK, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
                     labels = cdp.js(LABELS, sid)
-                    self.assertEqual([l for l in labels if l.lower() == "client message"], ["Client Message"], labels)
+                    self.assertEqual([l for l in labels if l.lower() == "client wording"], ["Client wording"], labels)
 
     def test_the_row_editor_label_and_toasts_say_client_message_of(self):
         html = page.page_html(tp.EMPTY_BRANDING, view=False)
-        for words in ("`Client Message of ${", "} changed.`", "} is back as it was.`"):
+        for words in ("`Client wording of ${", "} changed.`", "} is back as it was.`"):
             with self.subTest(words=words):
                 self.assertIn(words, html)
         self.assertNotIn("`Wording of ${", html)

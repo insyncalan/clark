@@ -319,7 +319,7 @@ class Killers(Tile):
         self.claude.hold = hold
         self.addCleanup(hold.set)
         js = self.start()
-        js("window.__gate = new Promise((res) => { window.__open = res; })")
+        js("window.__gate = new Promise((res) => { window.__open = res; }); 0")        # a promise that is opened later must not be the value js() waits for
         self.rule(js, "GET", "/api/providers", "() => window.__gate.then(() => new Response(JSON.stringify(Object.assign({}, window.__prov, {docker: true})), {status: 200}))")
         js("window.dispatchEvent(new Event('focus'))")
         self.assertTrue(wait(lambda: self.calls(js, "GET", "/api/providers") == 1, 5))

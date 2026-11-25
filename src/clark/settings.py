@@ -263,6 +263,10 @@ AI_MODEL = "ai_model"
 AI_CLAUDE_OFF = "ai_claude_off"
 AI_ACCEPTED = "ai_accepted"
 AI_CHATGPT_ON = "ai_chatgpt_on"
+ASK_SIZE = "ask_size_value"
+ASK_SIZE_DEFAULT, ASK_SIZE_RANGE, ASK_SIZE_STEP = 300_000, (10_000, 500_000), 10_000      # Row 1293: Size of one question, in tokens
+ASK_SIZE_CHARS_PER_TOKEN = 4                                                               # the ruling: 4 characters to a token
+ASK_SIZE_BAD = "Size of one question must be a whole number from 10,000 to 500,000 tokens."
 AI_UNREADABLE = "Your settings couldn't be read, so the AI choice was not changed."
 
 
@@ -274,9 +278,20 @@ def ai_read(data_dir):
             "accepted": [m for m in accepted if isinstance(m, str)] if isinstance(accepted, list) else []}
 
 
+def ask_size(data_dir):
+    """Size of one question in tokens: the saved whole number from 10,000 to 500,000, else 300,000 (a bad file never changes it)."""
+    value = read(data_dir).get(ASK_SIZE)
+    return value if _whole_number_in(value, *ASK_SIZE_RANGE) else ASK_SIZE_DEFAULT
+
+
+def ask_size_chars(data_dir):
+    """The same size in characters of passages (4 to a token): what the question is cut to."""
+    return ask_size(data_dir) * ASK_SIZE_CHARS_PER_TOKEN
+
+
 @_one_at_a_time
 def ai_write(data_dir, changes):
-    """Save any of model, claude_off, chatgpt_on and accepted, leaving every other setting as it is. Raises ValueError, and writes nothing, for a
+    """Save any of model, claude_off, chatgpt_on, accepted and size, leaving every other setting as it is. Raises ValueError, and writes nothing, for a
     settings file that can't be read: it is never replaced."""
     data_dir = Path(data_dir)
     current = read(data_dir)
@@ -289,7 +304,7 @@ def ai_write(data_dir, changes):
             readable = False
         if not readable:
             raise ValueError(AI_UNREADABLE)
-    keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED, "chatgpt_on": AI_CHATGPT_ON}
+    keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED, "chatgpt_on": AI_CHATGPT_ON, "size": ASK_SIZE}
     current.update({keys[k]: v for k, v in changes.items()})
     platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")
 

@@ -20,7 +20,7 @@ def dev(html):
 class DevMarkerShape(unittest.TestCase):
     def test_ribbon_goes_right_after_the_body_tag_with_attributes(self):
         out = dev('<!doctype html><html><head><title>clark</title></head><body class="a">x</body></html>')
-        self.assertIn('<body class="a">' + sv.DEV_RIBBON + "x", out)
+        self.assertIn('<body class="a">' + sv.DEV_RIBBON + '<script type="application/json" id="clark-boot">', out)   # row 1604: the boot block follows the ribbon, ahead of the page
 
     def test_ribbon_not_put_in_the_head_or_doctype(self):
         out = dev("<!doctype html><html><head><title>clark</title></head><body>x</body></html>")
@@ -40,15 +40,16 @@ class DevMarkerShape(unittest.TestCase):
 
 
 class BootPlacement(unittest.TestCase):
-    def test_boot_goes_before_the_last_closing_body(self):
+    def test_boot_goes_straight_after_the_opening_body_not_the_last_closing_one(self):
         out = sv.with_boot("<body><script>var s='</body>';</script></body>")
-        self.assertLess(out.index("var s='</body>'"), out.index('id="clark-boot"'))
+        self.assertLess(out.index('id="clark-boot"'), out.index("var s='</body>'"))
+        self.assertTrue(out.startswith('<body><script type="application/json" id="clark-boot">'))
         self.assertTrue(out.endswith("</body>"))
 
     def test_boot_goes_in_even_when_the_page_starts_with_closing_body(self):
         out = sv.with_boot("</body>")
-        self.assertTrue(out.startswith('<script type="application/json" id="clark-boot">'))
-        self.assertTrue(out.endswith("</body>"))
+        self.assertTrue(out.endswith('</script>'))
+        self.assertEqual(out.count('id="clark-boot"'), 1)
 
 
 class HostHeader(unittest.TestCase):

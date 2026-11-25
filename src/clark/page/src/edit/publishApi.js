@@ -102,10 +102,14 @@ export const aiVerifySend = (provider) => changing("POST", "/api/providers/verif
 export const aiCancelSend = (provider) => call("POST", "/api/providers/cancel", { provider });
 export const aiProgressRead = () => call("GET", "/api/providers/progress");
 export const aiTestSend = () => call("POST", "/api/providers/test", {});      // row 1294: Test the connection asks each model that is on one short question; nothing is kept
+export const aiSizeSend = (size) => changing("POST", "/api/providers/size", { size });
 export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
+// Row 1542: Include again takes one left-out subfolder (rel, as saved) of one saved folder back; Undo takes the answer's apply_id back.
+export const askFoldersInclude = (project, path, rel) => call("POST", "/api/ask-folders", { project, action: "include", path, rel });
+export const askFoldersUndo = (project, applyId) => call("POST", "/api/ask-folders", { project, action: "undo", apply_id: applyId });
 // Row 1294: the folders for all projects (the All projects tab): the same, with scope "all" in place of a project.
 export const askFoldersAllRead = (project) => call("GET", "/api/ask-folders?scope=all" + (project ? `&project=${encodeURIComponent(project)}` : ""));
 export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });

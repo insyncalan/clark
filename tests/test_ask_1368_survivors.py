@@ -110,7 +110,7 @@ class Counts(Base):
         c = ix.status(self.data, "P1", None)
         self.assertEqual((c["indexed"], c["online_only"], c["safety"]), (1, 1, 0))
         self.assertEqual(sum(c[k] for k in ask_index.NAMES), 2)
-        self.assertIn("online only", ask_index.line_for(c))
+        self.assertIn("Online-only files not searched", ask_index.line_for(c))
         folder = ask_index._open_read(self.data, "P1").execute("SELECT v FROM meta WHERE k='folders'").fetchone()[0]
         self.assertEqual(json.loads(folder)[str(self.box)]["online_only"], 1)
         self.assertEqual(json.loads(folder)[str(self.box)]["safety"], 0)

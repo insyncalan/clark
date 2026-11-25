@@ -15,8 +15,10 @@ from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
+from test_ask_change_route import Base as RouteBase
+
 import test_docx_read as tdx
-from clark import reach
+from clark import ask_data, reach
 
 FAKE_KEY = "password = " + "hunter2" * 3
 
@@ -195,6 +197,155 @@ class Files(Base):
             self.assertNotIn(bad, raw)
         self.assertTrue(self.found("zqfine"))
         self.assertGreaterEqual(ix.status(self.data, "P1", [self.box])["safety"], 2)
+
+
+class FirstRunAndHelpWords(unittest.TestCase):
+    """AP27: the first-run card and Help say passages leave the Mac. Words approved in NEW-WORDS (items 6 and 10)."""
+    PICTURES = "On a Mac, pictures (PNG and JPG) in your folders are read on this Mac and are never sent out; text found in them is treated like any other passage from your folders."
+    SENTENCE = "Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat."
+
+    def test_first_run_card_and_help_state_passages_go_to_claude(self):
+        import json
+        import re
+        page = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src"
+        words = (page / "edit" / "askWords.js").read_text(encoding="utf-8")
+        said = dict(re.findall(r'export const (CARD_[A-Z_]+) = "((?:[^"\\]|\\.)*)"', words))
+        self.assertEqual(said.get("CARD_PASSAGES"), self.SENTENCE)
+        panel = (page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
+        self.assertIn("W.CARD_PASSAGES", panel)
+        entries = json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        self.assertIn(self.SENTENCE, json.dumps(entries, ensure_ascii=False))
+        self.assertEqual(said.get("CARD_PICTURES"), self.PICTURES)
+        self.assertIn("W.CARD_PICTURES", panel)
+        self.assertIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
+
+
+class QuestionNeedsNoPassages(RouteBase):
+    """AP27 'only when they contain words from your question': a question that matches nothing in the listed folders sends no folder passage."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.box = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.box, True)
+        (self.box / "tank.txt").write_text("The zebrafish tank is cleaned on Tuesdays.", encoding="utf-8")
+        self.service.folders_for = lambda store, code: [str(self.box)]
+        from clark import ask_index
+        self.ix = ask_index.Indexer(self.service.data_dir)
+        self.addCleanup(self.ix.shutdown)
+        self.service.indexer = self.ix
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+
+    def ask(self, question, earlier=None):
+        self.provider.reply = "ok"
+        before = len(self.provider.sent)
+        status, got = self.s.api("POST", "/api/ask", {"project": "ABC", "question": question, **({"earlier": earlier} if earlier else {})})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(len(self.provider.sent), before + 1)
+        return self.provider.sent[-1]
+
+    def test_a_question_that_needs_no_passages_sends_none(self):
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        unneeded = self.ask("milestones")
+        self.assertNotIn("zebrafish", unneeded)
+        self.assertNotIn("tank.txt", unneeded)
+
+    def test_an_id_typed_in_the_question_is_matched_whole_on_both_read_paths(self):
+        """Row 1537 AP6: an item ID typed in THIS question is one whole phrase, its pieces (abc, 012, r) are not words: a file with only a piece is not sent,
+        on the index path and on the direct folder-read path."""
+        (self.box / "whole.txt").write_text("Item ABC-R-012 is the open one.", encoding="utf-8")
+        (self.box / "piece.txt").write_text("The abc plan runs 012 times.", encoding="utf-8")
+        (self.box / "longer.txt").write_text("Item ABC-R-0125 is another one.", encoding="utf-8")
+        (self.box / "before.txt").write_text("Item XABC-R-012 is a different one.", encoding="utf-8")
+        (self.box / "small.txt").write_text("Item abc-r-012 is written in small letters.", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        for index_path in (True, False):
+            if not index_path:
+                self.service.indexer = None
+            sent = self.ask("ABC-R-012")
+            self.assertNotIn("before.txt", sent, f"{index_path}: letters before the ID make it another word")
+            self.assertIn("small.txt", sent, f"{index_path}: the match ignores case")
+            self.assertIn("whole.txt", sent, index_path)
+            self.assertNotIn("piece.txt", sent, index_path)
+            self.assertNotIn("longer.txt", sent, "ABC-R-012 is not inside ABC-R-0125")
+
+    def test_an_id_named_in_an_earlier_turn_finds_its_file_on_both_read_paths(self):
+        """Row 1537 AP2/AP6 and row 1616 AP1: a follow-up ("and who owns it?") that names no ID still finds the file of the ID the chat named, on the index path
+        and on the direct folder-read path; ABC-R-012 is not found inside ABC-R-0125."""
+        (self.box / "whole.txt").write_text("Item ABC-R-012 is the open one.", encoding="utf-8")
+        (self.box / "longer.txt").write_text("Item ABC-R-0125 is another one.", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        earlier = [{"role": "user", "text": "What is ABC-R-012?"}, {"role": "assistant", "text": "ABC-R-012 is the open one."}]
+        for index_path in (True, False):
+            if not index_path:
+                self.service.indexer = None
+            sent = self.ask("and who owns it?", earlier)
+            self.assertIn("whole.txt", sent, index_path)
+            self.assertNotIn("longer.txt", sent, index_path)
+            self.assertNotIn("longer.txt", self.ask("and who owns it?"), "control: with no earlier turn the ID is not known")
+
+    def test_a_pictures_text_is_treated_like_a_text_files_passage_and_the_picture_never_is_sent(self):
+        """Row 1616 AP1 (the first-run and Help sentence): text found in a picture in the folders is a passage like the text of a .txt file with the same words:
+        sent for a question that matches, not otherwise; the picture file's own bytes are never sent."""
+        from clark import ask_picture, platform as pl
+        reader = lambda raw: raw.decode("latin-1").split("|", 1)[-1]
+        for p in (mock.patch.object(ask_picture.platform, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", reader)):
+            p.start()
+            self.addCleanup(p.stop)
+        (self.box / "scan.png").write_bytes(b"RAWBYTESzqnever|the quarterly xylophone invoice")
+        (self.box / "note.txt").write_text("the quarterly xylophone invoice", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        for question, sent_expected in (("what does the xylophone invoice say", True), ("milestones", False)):
+            sent = self.ask(question)
+            self.assertEqual("scan.png" in sent, sent_expected, question)
+            self.assertEqual("note.txt" in sent, sent_expected, question)
+            self.assertEqual("quarterly xylophone invoice" in sent, sent_expected, question)
+            self.assertNotIn("RAWBYTES", sent, "the picture file's own bytes are never sent")
+
+    def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
+        self.service.indexer = None                       # no current index: the folders are read at question time
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed, "control: a question that needs the passage sends it")
+        for question in ("milestones", "?? !!"):          # no shared word; no words at all
+            unneeded = self.ask(question)
+            self.assertNotIn("zebrafish", unneeded, question)
+            self.assertNotIn("tank.txt", unneeded, question)
+
+    def test_the_fallback_runs_when_the_index_is_not_current(self):
+        self.ix.current = lambda *a, **k: False
+        needed = self.ask("when is the zebrafish tank cleaned")
+        self.assertIn("zebrafish tank is cleaned on Tuesdays", needed)
+        self.assertNotIn("zebrafish", self.ask("milestones"))
+
+
+class ChooseNeedMatch(unittest.TestCase):
+    def passages(self):
+        from clark import ask
+        return [ask.Passage("a", "alpha tank here"), ask.Passage("b", "beta nothing"), ask.Passage("c", "gamma ABC-R-12 row")]
+
+    def test_need_match_keeps_only_passages_sharing_a_word_or_an_id(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "the tank and ABC-R-12", need_match=True)
+        self.assertEqual([p.label for p in got], ["a", "c"])
+        self.assertEqual(left, 0, "b shares no word with the question: that is not a passage left out for size")
+
+    def test_need_match_with_no_words_keeps_none(self):
+        from clark import ask_data
+        for q in ("", None, "?? ab"):
+            got, left = ask_data.choose(self.passages(), q, need_match=True)
+            self.assertEqual((got, left), ((), 0), q)
+
+    def test_default_still_keeps_every_passage_that_fits(self):
+        from clark import ask_data
+        got, left = ask_data.choose(self.passages(), "milestones")
+        self.assertEqual(([p.label for p in got], left), (["a", "b", "c"], 0))
 
 
 ARABIC = "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639"      # made-up Arabic words, right to left
@@ -453,16 +604,49 @@ class FollowUp(Base):
         service.folders_for = lambda store, code: [str(self.box)]
         seen = []
         real = ask_index.folder_data
-        with mock.patch.object(ask_index, "folder_data", side_effect=lambda *a, **k: seen.append((a[2], real(*a, **k))) or seen[-1][1]):
+        with mock.patch.object(ask_index, "folder_data", side_effect=lambda *a, **k: seen.append(((a[2], list(a[5])), real(*a, **k))) or seen[-1][1]):
             earlier = [{"role": "user", "text": "What is ABC-12?"}, {"role": "assistant", "text": "ABC-12 is the launch."}]
             status, body = service.ask({"project": "PUB", "question": "And who owns it?", "earlier": earlier})
             self.assertEqual(status, 200, body)
             alone = real(self.data, "PUB", "And who owns it?")
         self.assertEqual(len(seen), 1, "the answer came from the index")
-        asked, found = seen[0]
-        self.assertTrue(asked.startswith("And who owns it?") and "ABC-12" in asked, asked)
+        (asked, ids), found = seen[0]
+        self.assertEqual((asked, ids), ("And who owns it?", ["ABC-12"]), "the question stays as typed; the IDs of the last turns go as extra terms")
         self.assertTrue(any("zqpriya" in p.text for p in found.passages), "the item's file passage is found")
         self.assertFalse(alone.passages, "the question alone finds nothing: the file holds none of its words")
+
+
+    def test_followup_id_is_a_quoted_phrase_outside_the_first_40_words(self):
+        """Row 1537 AP2 (Product Manager ruling 23-11): each ID is one quoted phrase; a question of 45 words still finds the ID's passage."""
+        self.put("a.txt", "Item RISK-12 is owned by zqpriya.")
+        self.put("b.txt", "Item RISK 99 is owned by zqother.")
+        ix.build(self.data, "PUB", [self.box])
+        question = " ".join(f"filler{i}" for i in range(45))
+        names = lambda got: sorted(p.file for p in got)
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", question)), [], "the question alone finds nothing")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", question, extra=["RISK-12"])), ["saved/a.txt"], "the phrase matches RISK-12 only, not RISK 99")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-12"])), ["saved/a.txt"], "an empty question with an ID still searches")
+        self.put("c.txt", "Item RISK-13 is owned by zqthird.")
+        ix.build(self.data, "PUB", [self.box])
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-12", "RISK-13"])), ["saved/a.txt", "saved/c.txt"], "every ID is a phrase, not only the first")
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["RISK-13", "RISK-12"])), ["saved/a.txt", "saved/c.txt"])
+        self.assertEqual(names(ix.mod().search(self.data, "PUB", "", extra=["", "  ", '""', "RISK-13"])), ["saved/c.txt"], "a blank ID is no phrase and breaks nothing")
+        self.assertEqual(ix.mod().search(self.data, "PUB", "", extra=["", '""']), [], "only blank IDs and no words: nothing to search")
+        with mock.patch.object(ix.mod(), "_open_read", side_effect=AssertionError("the index was opened for nothing")):
+            self.assertEqual(ix.mod().search(self.data, "PUB", "", extra=["", '""']), [], "no word and no usable ID: the index is not even opened")
+
+    def test_followup_ids_rank_the_passages_and_only_the_last_four_turns_name_them(self):
+        """Row 1537 AP2: the IDs rank the passages as well as find them; the service gives the IDs of the last four turns."""
+        self.put("a.txt", "Item RISK-12 is owned by zqpriya.")
+        ix.build(self.data, "PUB", [self.box])
+        seen = []
+        real = ask_data.choose
+        with mock.patch.object(ask_data, "choose", side_effect=lambda found, q, *a, **k: seen.append(q) or real(found, q, *a, **k)):
+            got = ix.mod().folder_data(self.data, "PUB", "who owns it", extra=["RISK-12"])
+        self.assertTrue(got.passages)
+        self.assertEqual(seen, ["who owns it RISK-12"], "the ranking sees the ID too")
+        turns = [("user", f"About ABC-{i}.") for i in range(1, 7)]
+        self.assertEqual(ask_data.ids_in_turns(turns), ["ABC-3", "ABC-4", "ABC-5", "ABC-6"], "four turns, not three or five")
 
 
 class Library(Base):
@@ -513,6 +697,37 @@ class Library(Base):
         self.assertFalse(names.banned_across(text))
         self.assertEqual(len(files), 10)
         self.assertTrue(names.banned_in(text, frozenset({names.digest("zqlibdocx")})), "the check does see a banned word in the library")
+
+
+class OnlineOnly(Base):
+    def test_online_only_not_opened_and_line_says_not_searched(self):
+        """Row 1537 AP4 (owner's words 19-11, NEW-WORDS.md:2225-2226): the line and the files-left-out list say "Online-only files not searched", no count; the file is never opened."""
+        self.put("here.txt", "zqhere text")
+        self.put("cloud.txt", "x" * 37)
+        opened = []
+        real, real_read = reach.online_only_stat, reach.read_bytes
+        with mock.patch.object(reach, "online_only_stat", lambda st: st.st_size == 37 or real(st)), \
+                mock.patch.object(reach, "read_bytes", side_effect=lambda p, *a, **k: opened.append(Path(p).name) or real_read(p, *a, **k)):
+            ix.build(self.data, "P1", [str(self.box)])
+        self.assertEqual(opened, ["here.txt"], "the online-only file is never opened")
+        c = ix.status(self.data, "P1", None)
+        self.assertEqual(c["online_only"], 1)
+        self.assertIn(" Online-only files not searched ", ix.mod().line_for(c) + " ")
+        self.assertNotRegex(ix.mod().line_for(c), r"\d+ (is|are)? ?online")
+        self.assertEqual(ix.mod().left_out_line("online", 8), "Online-only files not searched", "no count in front, whatever the number")
+        got = ix.mod().folder_status(self.data, "P1", [str(self.box)])[str(self.box)]
+        self.assertEqual(got["left"]["files"][0], ["Online-only files not searched", ""])
+
+    def test_online_line_comes_first_and_keeps_the_other_left_out_files(self):
+        """Row 1537 AP4: the online line leads the folder's list, the files and the "more" count after it stay, and only a folder with online-only files gets it."""
+        f, g = "/f", "/g"
+        left = {f: {"files": [["a.xyz", "why"]], "more": 3}, g: {"files": [["b.xyz", "why"]], "more": 0}}
+        got = ix.mod()._with_online(left, {f: {"online_only": 2}, g: {"online_only": 0}, "/h": {"online_only": 1}, "/i": 5})
+        self.assertEqual(got[f], {"files": [[ix.mod().ONLINE_LINE, ""], ["a.xyz", "why"]], "more": 3})
+        self.assertEqual(got[g], left[g])
+        self.assertEqual(got["/h"], {"files": [[ix.mod().ONLINE_LINE, ""]], "more": 0})
+        self.assertNotIn("/i", got)
+        self.assertEqual(left[f]["files"], [["a.xyz", "why"]], "the input is not changed")
 
 
 class UsedLine(unittest.TestCase):

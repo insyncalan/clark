@@ -39,7 +39,7 @@ class Followups(Cached):
         self.assertEqual((excel_route.PLANS, held["dir"].exists()), ({}, False))
 
     def test_a_new_workbook_pushes_out_a_held_file_before_a_plan_waiting_for_apply(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         self.now[0] += 1
         plan = self.check()[1]["plan"]                                                 # the oldest of all
         files = []
@@ -57,7 +57,7 @@ class Followups(Cached):
         self.assertEqual((status, done["ok"]), (200, True), done)
 
     def test_when_every_held_one_is_a_plan_the_oldest_plan_still_goes(self):
-        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.edit("Actions", self.a1, Title="Draft the cut-over plan, version two")
         plans = []
         for _ in range(excel_route.MAX_PLANS):
             self.now[0] += 1

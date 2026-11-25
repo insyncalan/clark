@@ -46,9 +46,9 @@ class SettingsBase(unittest.TestCase):
         self.until(js, "location.hash.indexOf('p=XYZ') >= 0", "the address names XYZ")
 
     def back_to_asking(self, js):
-        """A move to another project lands on the Projects page of Settings (the move carries no Settings page): open Claude and AI and the project's tab again."""
-        self.until(js, "[...document.querySelectorAll('.set-chip')].some((e) => e.textContent === 'Claude and AI')", "the Settings pages")
-        js("[...document.querySelectorAll('.set-chip')].find((e) => e.textContent === 'Claude and AI').click()")
+        """A move to another project lands on the Projects page of Settings (the move carries no Settings page): open ask clark (the Classic menu's name for the Claude and AI page, row 1299) and the project's tab again."""
+        self.until(js, "[...document.querySelectorAll('.set-chip')].some((e) => e.textContent === 'ask clark')", "the Settings pages")
+        js("[...document.querySelectorAll('.set-chip')].find((e) => e.textContent === 'ask clark').click()")
         self.until(js, "!!document.querySelector('[data-ask-tab]:not([data-ask-tab=all])')", "the project's tab")
         js("document.querySelector('[data-ask-tab]:not([data-ask-tab=all])').click()")
 

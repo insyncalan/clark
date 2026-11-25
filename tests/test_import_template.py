@@ -15,7 +15,7 @@ from pathlib import Path
 
 from _paths import SRC
 from openpyxl import load_workbook
-from clark import excel, excel_import, server as sv
+from clark import excel, excel_colours, excel_import, server as sv
 import test_publish_route as base
 from test_preview_export_route import get
 from test_settings_data_page import Card, WIDTHS
@@ -37,6 +37,7 @@ def planted_strings(store):
             found.update(v for v in row.values() if isinstance(v, str) and len(v) >= 4 and not v.isdigit())
     found.discard("")
     vocabulary = {v for _, table, cols, _ in excel.SHEETS for _, f in cols for v in (excel.choices(table, f) or [])} | {"Yes", "No"}
+    vocabulary |= {w for words in excel.colours.BY_FIELD.values() for w in words}     # item 1390: the words of the colour rules (Milestones State has no drop-down now; its At risk is a rule)
     return found - vocabulary          # the words clark itself offers in a drop-down (Open, High, At risk) are not the project's
 
 
