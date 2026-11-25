@@ -53,6 +53,18 @@ class NotBuiltYet(PlatformError, NotImplementedError):
     """This system's branch isn't written yet (Windows follows the Mac)."""
 
 
+def exclude_from_backup(folder):
+    """Row 1568 AP1: on a Mac, tell Time Machine to skip `folder` (`tmutil addexclusion`, no admin needed). The mark is on the folder itself,
+    so a recreated folder loses it: the caller runs this at every creation. Never raises (no tmutil, a failure, a timeout are all ignored);
+    never reads, writes or deletes anything of the user's."""
+    if system() != MAC:
+        return
+    try:
+        subprocess.run(["tmutil", "addexclusion", str(folder)], capture_output=True, timeout=10, check=False)
+    except Exception:
+        pass
+
+
 def system():
     """The system clark is running on: MAC, WINDOWS or another sys.platform value."""
     return sys.platform

@@ -58,6 +58,9 @@ class Base(unittest.TestCase):
         patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
         patch.start()
         self.addCleanup(patch.stop)
+        tm = mock.patch("clark.platform.exclude_from_backup")        # Row 1568: no test here runs the real tmutil
+        tm.start()
+        self.addCleanup(tm.stop)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
         self.data, self.box = self.d / "data", self.d / "saved"
