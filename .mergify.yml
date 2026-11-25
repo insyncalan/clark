@@ -15,7 +15,7 @@ queue_rules:
       - check-success = bifrost-closes-guard
       - check-success = bifrost-point-map
       - check-success = bifrost-test-exists
-    merge_method: squash
+    merge_method: merge
     batch_size: 3
     batch_max_wait_time: 1 minute
 
