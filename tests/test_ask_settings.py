@@ -340,7 +340,7 @@ class Settings(unittest.TestCase):
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-all')"), 10))
             self.assertTrue(wait(lambda: js("window.__ask.providerRead === true"), 10), "the providers route was read")
-            js("new Promise(r => setTimeout(r, 1500))")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), 10), "the card has the answer")      # the page has used the answer: the tab is left only now
             js("document.querySelector('[data-ask-tab=project]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 10))
             self.assertTrue(wait(lambda: provider in (js("(document.querySelector('#ask-notice') || {}).innerText") or ""), 10), "the page reads the provider before the notice is drawn")
