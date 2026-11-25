@@ -65,7 +65,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
       out.push(
         <optgroup label={label} key={kind}>
           {rows.map((r) => (
-            <option key={r.id} value={r.id}>{`${r.id}: ${cut(titleOf(r, kind) || "No text", 70)}${publishable(r, kind, rules) ? "" : " (left out of the published page)"}`}</option>
+            <option key={r.id} value={r.id} disabled={r.id !== current && !publishable(r, kind, rules)}>{`${r.id}: ${cut(titleOf(r, kind) || "No text", 70)}${publishable(r, kind, rules) ? "" : " (left out of the published page)"}`}</option>
           ))}
         </optgroup>,
       );

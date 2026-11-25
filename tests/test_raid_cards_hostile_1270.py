@@ -168,6 +168,8 @@ class Edit(PageBase):
                 for o in opts:
                     if hid in o:
                         self.assertIn("left out of the published page", o, "a hidden item is marked, not silently published")
+                off = p.js(f"[...document.querySelectorAll('{q} select[aria-label=\"Card 4 item\"] option')].filter(o => o.value === {json.dumps(hid)}).map(o => o.disabled)")
+                self.assertEqual(off, [True], "an item hidden from the client cannot be chosen in a card's item list (row 1270 DoD point 7)")
                 n = len([s for s in self.sent if s[0] == "change"])
                 self.assertEqual(n, 0, "opening Edit saves nothing")
 
