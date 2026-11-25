@@ -18,7 +18,7 @@ from test_settings_head import address
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 TWO = [{"code": "PUB", "name": "Harbour Bridge Programme", "open": 3}, {"code": "ABC", "name": "Second Programme", "open": 1}]
-TABS = "[...document.querySelectorAll('.set-tabs .set-tab')]"
+TABS = "[...document.querySelectorAll('.set-tabs .set-tab:not([data-all])')]"      # the project tabs; ask clark's leading All projects tab is data-all
 PROJECT_PAGES = ("reports", "brand", "people", "claude", "data")
 OTHER_PAGES = ("projects", "backups", "profile", "appearance", "version")
 
