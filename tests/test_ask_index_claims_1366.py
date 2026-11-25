@@ -18,7 +18,7 @@ from _paths import ROOT, SRC  # noqa: F401
 from test_ask_change_route import Base as RouteBase
 from test_ask_index_1366 import Base, FAKE_KEY, ix
 from test_ask_index_types_1366 import xlsx
-from clark import ask_index, ask_passages, ask_service, reach
+from clark import ask_index, ask_passages, ask_picture, ask_service, reach
 
 HELP = ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
 JSX = ROOT / "src" / "clark" / "page" / "src" / "edit" / "AskSettings.jsx"
@@ -313,6 +313,12 @@ class Rebuild(Base):
 
 class StatusLine(Base):
     """P2: the numbers add up; the words are the app's; a password or key itself is never shown."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(ask_picture, "_READER", None)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def test_the_numbers_add_up_to_the_files_in_the_folder(self):
         self.put("a.txt", "zqone")
