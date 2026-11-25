@@ -13,6 +13,7 @@ import { MAX_ADDED_PAGES } from "../logic/templates.js";
 export const ADD_PAGE_EVENT = "clark:add-page";
 const WORDS = {
   add: "A custom page for %, built from a template, then named, placed and marked client or internal",
+  meter: (n) => `${n} of ${MAX_ADDED_PAGES} added pages (Gantt counts)`,   // WORDS 2347: no approved line yet; change the text here only
   cap: `Up to ${MAX_ADDED_PAGES} added pages per project`,
   full: `You have ${MAX_ADDED_PAGES} added pages. Remove one to add another.`,
   gantt: "Hidden from you and from the client. Counts as one of the 5. Sections built in: Header and Text, Gantt, Work items.",
@@ -139,7 +140,7 @@ export function AddPages() {
         ))}
       </ul>
       <div class="ap-foot"><div class="ap-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, used * 20)}%` }} /></div>
-        <p class="ap-meter">{`${used} of ${MAX_ADDED_PAGES} added pages (Gantt counts)`}</p><p class="ap-cap muted">{WORDS.cap}</p></div>
+        <p class="ap-meter">{WORDS.meter(used)}</p><p class="ap-cap muted">{WORDS.cap}</p></div>
       {current ? <Configure key={current.id} page={current} pages={pages} /> : null}
     </section>
   );

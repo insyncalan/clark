@@ -204,6 +204,11 @@ class Rows(Base):
             p.until("!document.querySelector('#ap-gantt-remove')", "Gantt off in the menu")
             self.assertEqual(self.store.read("projects", ref="ABC")["show_gantt_editor"], 0)
             self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages (Gantt counts)", "the Gantt page still counts")
+            p.until("!![...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo')", "the toast offers Undo")
+            p.js("[...document.querySelectorAll('.toasts button')].find(b => b.textContent.trim() === 'Undo').click()")
+            p.until("!!document.querySelector('#ap-gantt-remove')", "Undo brought the Gantt back on in the menu")
+            self.assertEqual(self.store.read("projects", ref="ABC")["show_gantt_editor"], 1, "Undo put the switch back")
+            self.assertEqual(p.js("[...document.querySelectorAll('#add-pages .ap-gantt .st')].map(e => e.textContent)"), ["You: on", "Client: on"])
 
     def test_cards_shows_no_pages_card(self):
         self.s.close()
