@@ -31,7 +31,7 @@ class DataCard(Base):
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
-                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…", "Download the empty template"])  # row 1299 line 9: re-pinned, button added last
                 self.assertIn("a sheet each for actions", p.js("document.querySelector('#data-card p').textContent"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
@@ -95,6 +95,19 @@ class DataCard(Base):
             p.js("document.querySelector('[data-export-workbook]').click()")
             p.until("!!document.querySelector('.toast')", "the page said the file was saved")
             self.assertEqual(p.js("window.__asked"), 1)
+            self.assertIn("saved", p.js("document.querySelector('.toast').textContent"))
+
+    def test_C_row_1299_the_template_button_is_last_and_asks_the_template_route_once(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].pop().textContent"), "Download the empty template")
+            self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].pop().id"), "data-template")
+            p.js("window.__asked = []; const f = window.fetch; window.fetch = function (u, o) { if (String(u).indexOf('/api/export') === 0) window.__asked.push(String(u)); return f.apply(this, arguments); }")
+            p.js("document.getElementById('data-template').click()")
+            p.until("window.__asked.length > 0", "the template was asked for")
+            p.until("!!document.querySelector('.toast')", "the page said the file was saved")
+            self.assertEqual(p.js("window.__asked"), ["/api/export?template=1"])
             self.assertIn("saved", p.js("document.querySelector('.toast').textContent"))
 
     def test_C_excel_file_layout_opens_a_box_with_the_three_texts_and_sends_nothing(self):

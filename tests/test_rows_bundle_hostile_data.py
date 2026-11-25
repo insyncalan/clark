@@ -137,7 +137,7 @@ class NoProject(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
             self.assertEqual(cdp.js("JSON.stringify([...document.querySelectorAll('#data-card button')].map(b => [b.id, b.disabled]))", sid),
-                             json.dumps([["export-workbook", True], ["import-workbook", True], ["excel-layout", False], ["word-export", True], ["word-import", True]], separators=(",", ":")))
+                             json.dumps([["export-workbook", True], ["import-workbook", True], ["excel-layout", False], ["word-export", True], ["word-import", True], ["data-template", False]], separators=(",", ":")))
 
 
 if __name__ == "__main__":

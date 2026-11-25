@@ -120,7 +120,7 @@ export function CaptionField({ section, field, label, value, max, words, save, e
   );
 }
 
-// Row 1251: `sample` (Classic only) draws a sample picture (number `sampleNo` of the six) in an empty slot: drawn by the page, never saved, so it is never in a published file.
+// Row 1251: `sample` (Classic only) draws a sample picture (number `sampleNo` of the six samples, now used by the picture templates other than the gallery) in an empty slot: drawn by the page, never saved, so it is never in a published file.
 // One picture's place: the picture, or an empty frame; Add a picture (or drop one here), Change picture, Take the picture out.
 export function PictureSlot({ section, slot, image, label, longest = 1600, most = 1024 * 1024, words, emptyWords = "", sample = false, sampleNo = 0 }) {
   const input = useRef(null);
