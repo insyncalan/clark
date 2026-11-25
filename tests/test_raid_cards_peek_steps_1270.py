@@ -141,7 +141,7 @@ class PickerRows(PageBase):
         return json.loads(p.js(f"JSON.stringify({expr})"))
 
     def test_a_picker_row_says_the_kind_and_the_rating_and_the_search_finds_a_word_or_an_id(self):
-        """Ticket 1270, the picker: each row has the ID, the kind, the rating word (risk and issue) and the whole text; search by ID or any word."""
+        """Ticket 1270, the picker: each row has the ID, the kind, the rating word (risk and issue) and the whole text; search by ID or any word, at 1400 and 900."""
         ids = seed(self)
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", ids["sec"], {"body": json.dumps({"v": 2, "across": 3, "cards": []})})
@@ -150,22 +150,26 @@ class PickerRows(PageBase):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            p.js(f"document.querySelector('{q} .rce-pick').click()")
-            p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
-            row = next(r for r in rows(p) if r.startswith(ids["risk"] + "|"))
-            self.assertIn("Risk", row)
-            self.assertIn("Red Kiln", row, "the rating word, then the text")
-            self.assertIn("Kiln roof may leak", row, "the whole text")
-            act = next(r for r in rows(p) if r.startswith(ids["action"] + "|"))
-            self.assertIn("Action", act)
-            self.assertNotIn("Red", act, "an action has no rating word")
-            set_q = lambda v: p.js(f"(() => {{ const i = document.querySelector('{q} .rce-picker input'); i.value = {json.dumps(v)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
-            set_q("roof")
-            p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "a word of the text finds one item")
-            set_q(ids["action"].lower())
-            p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "an ID finds one item")
-            set_q("zzzz nothing")
-            p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 0 && document.querySelector('{q} .rce-none').textContent === 'No item matches'", "the no-match line")
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                if not p.js(f"!!document.querySelector('{q} .rce-opts')"):
+                    p.js(f"document.querySelector('{q} .rce-pick').click()")
+                p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
+                p.js(f"(() => {{ const i = document.querySelector('{q} .rce-picker input'); i.value = ''; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")      # the search of the width before is cleared
+                row = next(r for r in rows(p) if r.startswith(ids["risk"] + "|"))
+                self.assertIn("Risk", row)
+                self.assertIn("Red Kiln", row, "the rating word, then the text")
+                self.assertIn("Kiln roof may leak", row, "the whole text")
+                act = next(r for r in rows(p) if r.startswith(ids["action"] + "|"))
+                self.assertIn("Action", act)
+                self.assertNotIn("Red", act, "an action has no rating word")
+                set_q = lambda v: p.js(f"(() => {{ const i = document.querySelector('{q} .rce-picker input'); i.value = {json.dumps(v)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                set_q("roof")
+                p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "a word of the text finds one item")
+                set_q(ids["action"].lower())
+                p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "an ID finds one item")
+                set_q("zzzz nothing")
+                p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 0 && document.querySelector('{q} .rce-none').textContent === 'No item matches'", "the no-match line")
 
     def test_a_long_text_is_whole_in_the_picker_row_and_in_the_search_at_both_widths(self):
         """Ticket 1270, the picker shows the whole text: a long description is in the row, whole, and does not overflow, at 1400 and 900."""
