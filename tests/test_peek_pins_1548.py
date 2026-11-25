@@ -5,10 +5,13 @@ Run: python3 dev/run_tests.py test_peek_pins_1548
 """
 import re
 import unittest
+from unittest import mock
 
+import _testpage
 import test_peek_latest
 import test_server  # noqa: F401  (a test that drives Chrome carries this import)
 from _paths import SRC
+from clark import page, theme as themes
 import test_movement_page
 from test_server import chrome
 
@@ -21,7 +24,15 @@ _B = test_peek_latest.Browser
 
 
 class Pins(unittest.TestCase):
-    load, setUp = _B.load, _B.setUp
+    load = _B.load
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        real = _testpage.html          # Classic layered on, as the served page draws it (row 1576: the client value's colour is a Classic rule)
+        p = mock.patch.object(_testpage, "html", lambda branding=None: page.layer_theme(real(), themes.css("prototype-2.0")))
+        p.start()
+        self.addCleanup(p.stop)
     fresh, refused, kinds, action = _B.fresh, _B.refused, _B.kinds, _B.action
     HOLD = _B.HOLD
 
@@ -36,7 +47,7 @@ class Pins(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, shown, edit=True)
-                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#peek [data-pk-latest-client]')).color", sid), "rgb(71, 85, 119)")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#peek [data-pk-latest-client]')).color", sid), "rgb(85, 103, 122)")       # row 1576: #55677A
 
     def test_the_latest_placeholder_is_defined_once(self):
         self.assertIsNotNone(CONSTANT, "PeekLatest.jsx exports the placeholder constant")

@@ -104,6 +104,7 @@ class Source(unittest.TestCase):
         "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",
         "edit/AskPanel.jsx": "row 1292: the / list in the ask box completes what is typed (the ask commands), like the command palette: a list of typed matches, not a menu of actions",
         "edit/AskDraft.jsx": "row 1292: the Add to the report menu draws an icon on every line (doc to replace a section, plus for a new one); driven in test_ask_draft, where the ask answer with a draft exists",
+        "edit/templates/raidEdit.jsx": "row 1270: the Pick an item list completes what is typed (items by id and words), like the command palette: a list of typed matches, not a menu of actions",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.

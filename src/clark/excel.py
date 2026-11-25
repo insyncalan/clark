@@ -53,7 +53,8 @@ from openpyxl.packaging.custom import CustomPropertyList, StringProperty
 from openpyxl.worksheet.properties import PageSetupProperties
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.styles.differential import DifferentialStyle
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, quote_sheetname
+from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.xml.functions import fromstring, tostring
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.protection import SheetProtection
@@ -87,7 +88,7 @@ SHEETS = [
         ("ID", "id"), ("Title", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
         ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"),
-        ("Client visible", "client_visible"), ("Client Message", "client_message"), ("Milestone", "milestone"),
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
         ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Risks & Issues", "raid", [
@@ -95,14 +96,14 @@ SHEETS = [
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
         ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
-        ("Client Message", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
+        ("Client wording", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
         ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
         ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Priority", "priority"), ("Made by", "made_by"),
         ("Needed by", "needed_by"), ("Decided on", "date"), ("Reasoning", "reasoning"), ("Options considered", "options"),
         ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
-        ("Client Message", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"),
+        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"),
         ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Milestones", "milestones", [
@@ -111,7 +112,7 @@ SHEETS = [
         ("Forecast", "forecast_date"), ("Status", "status"), ("Sort order", "sort_order"), ("Progress %", "percent_complete"),
         ("Owner", "owner"), ("State", "shown_state"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client visible", "client_visible"), ("Client Message", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
         ("Open work items", "open_items"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
@@ -974,7 +975,7 @@ def gantt_status(line, today):
 def gantt_sheet_name(name, taken=()):
     """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
     clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
-    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, META_NAME, *taken}       # the sheets written after the Gantt one are named already
+    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, OLD_COVER_NAME, META_NAME, *taken}       # the sheets written after the Gantt one are named already
     if not clean or clean.lower() in {t.lower() for t in reserved}:
         clean = GANTT_DEFAULT_NAME
     return clean
@@ -1035,6 +1036,7 @@ def write_history(wb, view, pal=None):
     rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
     st = Styles(_pal(pal))
     ws = wb.create_sheet(HISTORY_NAME)
+    ws.sheet_state = "hidden"             # 1390: hidden, not very hidden, so right-click a tab > Unhide shows it; the import reads sheets by name
 
     def put(row, values, **kw):
         for i, v in enumerate(values, start=1):
@@ -1160,9 +1162,14 @@ def write_lists(wb, lists, pal=None):
 
 # ── Export ────────────────────────────────────────────────────────────────────
 
-COVER_NAME = "Cover"
+REPORT_NAME = "Report"              # row 1390: the first sheet, the Cover as it was, now the Report in the Dashboard's order
+COVER_NAME = REPORT_NAME            # the name the picture code and the older readers use
+OLD_COVER_NAME = "Cover"            # what workbooks made before row 1390 call it: never read by the import, and a Gantt tab may not take it
+SHEET_LINK_ROWS = (("Use cases", "Use cases"), ("Milestones", "Milestones"), ("Risks and issues", "Risks & Issues"),
+                   ("Actions", "Actions"), ("Decisions", "Decisions"), ("Gantt", None))      # (Dashboard section, its sheet; None: the Gantt tab's own name)
+KEY_CHIP_COLUMNS = 2                # grid columns of one chip in the colour key
 COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
-                "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells"}
+                "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells", "history": "History sheet"}
 COVER_FONT = OFFICE_FONT
 COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
 COVER_SIZE = 10                     # body text, in points
@@ -1223,14 +1230,21 @@ def _heading(pal, ws, row, first, last, text):
     ws.row_dimensions[row].height = 22
 
 
-def write_cover(wb, cover, mark=False, pal=None, wave=False):
+def sheet_links(names, gantt_name=None):
+    """The Report's table of the sheets, [(Dashboard section, sheet name)]: a section is listed only when its sheet is in the workbook (`names`)."""
+    rows = [(label, gantt_name if label == "Gantt" else sheet) for label, sheet in SHEET_LINK_ROWS]
+    return [(label, sheet) for label, sheet in rows if sheet and sheet in names]
+
+
+def write_cover(wb, cover, mark=False, pal=None, wave=False, links=None):
     """The Cover sheet, first in the workbook and the one it opens on (item 85b): a 12-column grid with the gridlines off, text
     blocks and tiles in merged cells, laid out as Option A of the signed mockup: the navy title band (the logo at its left when
     `mark`, the INTERNAL tag at its right, a subtitle line under the title), Current state, At a glance tiles side by side, the
     This week and Next week side by side, and a quiet About this export block. Excel does not fit a merged cell's height
     to its text, so every row's height is estimated from the text (excel_cover.height). Frozen below the band. The look's office
-    font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
-    ws = wb.create_sheet(COVER_NAME, 0)
+    font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it. Row 1390: this is the Report sheet; `links` is
+    [(section label, sheet name)] for its table of the sheets (each sheet name is a link to that sheet's A1, built from the workbook's own names)."""
+    ws = wb.create_sheet(REPORT_NAME, 0)
     ws.sheet_view.showGridLines = False
     for col in range(1, COVER_COLUMNS + 1):
         ws.column_dimensions[get_column_letter(col)].width = excel_picture.COVER_COL_WIDTH
@@ -1276,6 +1290,10 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
                     c.border = Border(bottom=band_edge)
                 ws.row_dimensions[row].height = excel_picture.WAVE_ROW_POINTS
             ws.freeze_panes = ws.cell(row=row + 1, column=1)
+        elif kind == "asat":                   # "Shown as at DD-MM-YYYY", only when the report is shown as at a day
+            row += 1
+            _put(pal, ws, row, 1, last, f"{excel_cover.AS_AT} {text}", _cover_font(pal, bold=True, color=ink), None, Alignment(vertical="center"))
+            ws.row_dimensions[row].height = 20
         elif kind == "heading":
             row += 2                           # a short blank row first
             ws.row_dimensions[row - 1].height = 8
@@ -1322,6 +1340,51 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
             ws.row_dimensions[rows[1]].height = 32
             ws.row_dimensions[rows[2]].height = sub
             row += 3
+        elif kind == "counts":                 # the open risks and issues by type, one grey chip each
+            row += 2
+            ws.row_dimensions[row - 1].height = 8
+            _heading(pal, ws, row, 1, last, text)
+            row += 1
+            first = 1
+            for name, n in line["counts"][:COVER_COLUMNS // 2]:
+                _put(pal, ws, row, first, first + 1, f"{name}: {n}", _cover_font(pal, color=grey_text), grey_fill,
+                     Alignment(horizontal="center", vertical="center"))
+                first += 2
+            ws.row_dimensions[row].height = 20
+        elif kind == "sheets":                 # the sections that have a sheet, each sheet name a link to its A1
+            row += 2
+            ws.row_dimensions[row - 1].height = 8
+            _heading(pal, ws, row, 1, last, text)
+            row += 1
+            for first, end, title in ((1, 6, "Dashboard section"), (7, last, "Where in this workbook")):
+                _put(pal, ws, row, first, end, title, _cover_font(pal, bold=True, color=white), navy, Alignment(vertical="center"))
+            ws.row_dimensions[row].height = 20
+            for label, name in links or ():
+                row += 1
+                _put(pal, ws, row, 1, 6, label, None, None, None, bottom=Side(style="thin", color=rule))
+                c = _put(pal, ws, row, 7, last, f"{name} sheet", _cover_font(pal, color=t["brand-blue"], underline="single"), None, None,
+                         bottom=Side(style="thin", color=rule))
+                c.hyperlink = Hyperlink(ref=c.coordinate, location=f"{quote_sheetname(name)}!A1", display=c.value)      # inside this workbook only: never an address
+                ws.row_dimensions[row].height = 18
+        elif kind == "key":                    # the colour key: the Priority and Status chips as the sheets colour them, and a locked cell
+            row += 2
+            ws.row_dimensions[row - 1].height = 8
+            _heading(pal, ws, row, 1, last, text)
+            for title, table in (("Priority (Risks & Issues)", colours.PRIORITY), ("Status (Actions)", colours.ACTION_STATUS)):
+                row += 1
+                _put(pal, ws, row, 1, 2, title, _cover_font(pal, color=grey_text), None, Alignment(wrap_text=True, vertical="center"))
+                first = 3
+                for word, colour in list(table.items())[:(COVER_COLUMNS - 2) // KEY_CHIP_COLUMNS]:
+                    fill, pen = pal.hexes(colour) if colour in pal.colours else (grey_fill, ink)
+                    _put(pal, ws, row, first, first + 1, word, _cover_font(pal, bold=True, color=pen), fill,
+                         Alignment(horizontal="center", vertical="center"))
+                    first += KEY_CHIP_COLUMNS
+                ws.row_dimensions[row].height = 28
+            row += 1
+            _put(pal, ws, row, 1, 2, "Locked cell", _cover_font(pal, color=grey_text), None, Alignment(vertical="center"))
+            _put(pal, ws, row, 3, 4, "Locked", _cover_font(pal, color=ink), Styles(pal).locked.fgColor.rgb[-6:],
+                 Alignment(horizontal="center", vertical="center"))
+            ws.row_dimensions[row].height = 20
         elif kind == "about":                  # the About this export block: a quiet grey panel
             row += 2
             ws.row_dimensions[row - 1].height = 14
@@ -1440,15 +1503,16 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
         protect_sheet(ws)
     gantt = rows_by_table.get("gantt_lines") or []
+    gantt_name = None
     if gantt:           # row 926: every line the author has, eye-off included (this is the editor's own copy); no lines, no sheet
-        write_gantt(wb, sorted(gantt, key=lambda r: (r.get("sort_order") or 0, r["id"])), {f for _, f in GANTT_SHEET_COLUMNS},
-                    gantt_tab, day(on).isoformat(), pal)
+        gantt_name = write_gantt(wb, sorted(gantt, key=lambda r: (r.get("sort_order") or 0, r["id"])), {f for _, f in GANTT_SHEET_COLUMNS},
+                                 gantt_tab, day(on).isoformat(), pal).title
     if history is not None:
         write_history(wb, history, pal)
     if lists:
         write_lists(wb, lists, pal)
     if cover:
-        write_cover(wb, cover, mark, pal, wave)
+        write_cover(wb, cover, mark, pal, wave, links=sheet_links(wb.sheetnames, gantt_name))
     if meta is not None:
         write_meta(wb, {"exporter": meta.get("exporter"), "exported_at_utc": stamp.strftime("%Y-%m-%d"),      # the day only: a real publish passes `on` = today, so the stamp is midnight and a time of day would be a false one (and would stop an unchanged re-export reusing its id)
                         "clark_version": meta.get("clark_version"), "project": project}, row_hashes, pal)
@@ -1619,7 +1683,7 @@ def download_name(name, code, when):
 
 
 def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,
-                   branding=None, warnings=None, reuse=None, exporter_name=None):
+                   branding=None, warnings=None, reuse=None, exporter_name=None, as_at=None):
     """Export one project from the store (#31): each table's rows with Store.read(kind, project), archived rows left out (as
     creaite's hide_archived), labels from item_labels and each milestone's Original date from its history. `path` defaults
     to export_name() beside clark.db; the record goes in STATE_FILE beside clark.db. Returns the path written."""
@@ -1645,7 +1709,7 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     # The Cover is worked out from what the published page shows (excel_cover.from_store), so the two can't disagree; the person
     # named as exporting and the owner are the caller's to give (Settings are not read here).
     cover = excel_cover.from_store(store, project, exported_text(on), exported_by, owner, owner_email, INTERNAL_NOTE,
-                                   day(on).isoformat())
+                                   as_at or day(on).isoformat(), show_as_at=bool(as_at))      # row 1390: "Shown as at" only when an as-at day is given
     view = history.view_for_project(store.con, project, "all", history.ROW_LIMIT)       # the one source the Activity tab shares
     rows["gantt_lines"] = [r for r in store.read("gantt_lines", project)]      # row 926: only the sheet reads these; the import does not (TABLES)
     tab = (store.read("projects", ref=project) or {}).get("gantt_tab_name")

@@ -247,6 +247,50 @@ class Dashboard(T.Dashboard):
 class Work(T.Work):
     test_peek_more_menu_icons_and_duplicate_matches_the_row_menu = test_bulk_menu_with_lines_it_cannot_offer = None
 
+    PROBE = """((html) => { const host = document.createElement('div'); host.innerHTML = html; document.body.append(host);
+        const m = host.querySelector('[data-probe]'); const got = getComputedStyle(m).minWidth; host.remove(); return got; })"""
+
+    def probe(self, html):
+        """Row 1540 AP2: the computed min-width of a bare element that carries only the classes of the rule, at 1400 and 900, light and dark."""
+        got = {}
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for look in T.LOOKS:
+                d.look(*look)
+                got[look] = d.js(f"({self.PROBE})({json.dumps(html)})")
+        return got
+
+    def test_group_by_menu_is_exactly_224_wide(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        self.assertNotRegex(css, r'\.ddmenu\[aria-label="Group by"\]\s*\{[^}]*min-width', "the old 240 Group by rule is gone")
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for look in T.LOOKS:
+                d.look(*look)
+                d.button("#viewMenu", "view menu")
+                d.frames()
+                d.js("document.querySelector('#viewMenu').click()")
+                read = "(() => { const b = [...document.querySelectorAll('#viewMenuList')].filter(e => e.getBoundingClientRect().width > 0).pop(); return b && b.getAnimations({subtree: true}).every(a => a.playState !== 'running') ? Math.round(b.getBoundingClientRect().width * 100) / 100 : null; })()"
+                d.until(f"{read} !== null", "Group by is open and still")
+                width = d.js(read)
+                d.key("Escape", "Escape", 27)
+                d.gone("#viewMenuList", "Group by")
+                self.assertEqual(width, 224, f"Group by at {look[0]} {look[1]}")
+
+    def test_ddmenu_min_width_is_200_at_1400_and_900(self):
+        for look, got in self.probe('<div class="ddmenu" data-probe></div>').items():
+            self.assertEqual(got, "200px", f"{look}")
+
+    def test_cpop_cmenu_min_width_is_200_at_1400_and_900(self):
+        for look, got in self.probe('<div class="cpop cmenu" data-probe></div>').items():
+            self.assertEqual(got, "200px", f"{look}")
+
+    def test_gantt_show_gt_pop_min_width_is_240_at_1400_and_900(self):
+        for look, got in self.probe('<div data-gantt><div class="gt-pop" data-probe></div></div>').items():
+            self.assertEqual(got, "240px", f"{look}")
+
     def test_group_by_menu_is_224_wide_at_1400_and_900(self):
         """AP3 (ruling 21-11 13:10): the open Group by menu (#viewMenuList) measures 224 wide at 1400 and at 900, light and dark."""
         with chrome() as cdp:

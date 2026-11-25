@@ -18,7 +18,7 @@ from _paths import ROOT, SRC  # noqa: F401
 from test_ask_change_route import Base as RouteBase
 from test_ask_index_1366 import Base, FAKE_KEY, ix
 from test_ask_index_types_1366 import xlsx
-from clark import ask_index, ask_passages, ask_service, reach
+from clark import ask_index, ask_passages, ask_picture, ask_service, reach
 
 HELP = ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
 JSX = ROOT / "src" / "clark" / "page" / "src" / "edit" / "AskSettings.jsx"
@@ -314,6 +314,12 @@ class Rebuild(Base):
 class StatusLine(Base):
     """P2: the numbers add up; the words are the app's; a password or key itself is never shown."""
 
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(ask_picture, "_READER", None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def test_the_numbers_add_up_to_the_files_in_the_folder(self):
         self.put("a.txt", "zqone")
         self.put("b.md", "zqtwo")
@@ -367,7 +373,7 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         self.assertEqual(none, "No files to index")
         self.assertEqual(note, "Still reading 120 files, so this answer may miss some.")
         reasons = [ask_index.REASON_TYPE, ask_index.REASON_TOO_LONG_PDF, ask_index.REASON_TOO_LONG, ask_index.REASON_PICTURE, ask_index.REASON_SAFETY]
-        self.assertEqual(quoted, [reading, done, unread, none, *reasons, note])
+        self.assertEqual(quoted, [reading, done, unread, none, *reasons, ask_index.ONLINE_LINE, note])
         self.assertIn("**(why)**", t)
 
     def test_the_status_paragraph_lists_the_reasons_the_app_gives(self):
@@ -378,8 +384,8 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
             self.assertIn("\u201c" + app + "\u201d", t, app)
         # the list holds exactly these reasons: a file that is online only is counted as not read but is not listed
         self.assertEqual(reasons, set(re.findall(r"REASON_\w+ = \"([^\"]*)\"", (SRC / "clark" / "ask_index.py").read_text(encoding="utf-8"))))
-        self.assertIn("online only and was not opened", ask_index.line_for({"indexed": 1, "online_only": 1}))
-        self.assertIn("is counted in the number that could not be read, but is not in that list", t)
+        self.assertIn(ask_index.ONLINE_LINE, ask_index.line_for({"indexed": 1, "online_only": 1}))
+        self.assertIn("A file that is online only is not opened; the line and the list say \u201c" + ask_index.ONLINE_LINE + "\u201d.", t)
         self.assertEqual(ask_index.MAX_LEFT_OUT_SHOWN, 200)
         self.assertIn("up to 200 names", t)
 

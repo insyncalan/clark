@@ -28,11 +28,11 @@ class Workstreams(unittest.TestCase):
         self.assertEqual(ask_data.KIND_WORDS["workstreams"], "workstreams")
         self.assertEqual(ask_data.LABELS["workstreams"], "report: workstreams")
         self.assertEqual(ask_data.TITLE["workstreams"], "name")
-        self.assertEqual(ask_data.SHOWN["workstreams"], ("status", "created"))
+        self.assertEqual(ask_data.SHOWN["workstreams"][:2], ("status", "created"))      # row 1417 adds the lead, dates, latest update and links after them
 
     def test_a_workstream_is_read_with_its_id_name_and_status(self):
         line = [x for x in text_of(read("workstreams?")[0]).split("\n") if "PUB-W-001" in x][0]
-        self.assertEqual(line, "PUB-W-001 Delivery | status: Active | created: 01-09-2026")
+        self.assertEqual(line, "PUB-W-001 Delivery | status: Active | created: 01-09-2026 | lead: ZQ-WS-LEAD")      # row 1417: the lead is read now
 
     def test_a_workstream_is_read_whatever_the_report_shows(self):
         def hide_all(given):
@@ -61,7 +61,8 @@ class Workstreams(unittest.TestCase):
 
     def test_the_lead_and_the_other_working_columns_are_never_read(self):
         text = text_of(read()[0])
-        for marker in ("ZQ-WS-LEAD", "ZQ-WS-KEYWORDS", "ZQ-WS-ALIASES", "ZQ-SOURCE-PATH"):
+        self.assertIn("ZQ-WS-LEAD", text)      # row 1417 (ruled yes): the lead is read for ask clark; it is still never published (test_ask_1417_workstreams)
+        for marker in ("ZQ-WS-KEYWORDS", "ZQ-WS-ALIASES", "ZQ-SOURCE-PATH"):
             self.assertNotIn(marker, text)
 
     def test_a_workstream_is_a_fact_for_the_claims_check_with_no_state(self):
@@ -108,7 +109,7 @@ class TeamOnlyAndCurrentState(unittest.TestCase):
     def test_no_team_only_column_is_a_shown_field_of_any_kind(self):
         from clark import store
         for kind, fields in ask_data.SHOWN.items():
-            self.assertEqual(set(fields) & store.NEVER_PUBLISH, set(), kind)
+            self.assertEqual(set(fields) & store.NEVER_PUBLISH, {"lead"} if kind == "workstreams" else set(), kind)      # row 1417: the lead is read here (ruled yes), never published
 
     def test_team_only_fields_are_not_read(self):
         def put(given):

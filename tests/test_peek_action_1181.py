@@ -162,7 +162,7 @@ class Action(test_peek_latest.Browser):
                 sent, sid = self.load(cdp, width, OVERDUE)
                 self.open_details(cdp, sid)
                 rows = cdp.js(ROWS_JS, sid)
-                for gone in ("Type", "Use case", "Client Message", "Last reviewed"):
+                for gone in ("Type", "Use case", "Client wording", "Last reviewed"):
                     self.assertNotIn(gone, rows, f"{gone} is not an action row")
                 self.assertEqual(rows[:3], ["Workstream", "Milestone", "Raised"], rows)
                 client = cdp.js("(() => { const c = document.querySelector('[data-pk-details-rows] [data-pk-client-row]'); const r = [...document.querySelectorAll('[data-pk-details-rows] .pk-row')]; return c ? r.indexOf(c) : -1; })()", sid)

@@ -447,6 +447,16 @@ class ThroughTheRoute(unittest.TestCase):
         with self.assertRaises(changes.Refused):
             changes._keep_pictures(section, json.dumps({"v": 2, "pictures": {"1": GOOD}}))
 
+    def test_a_v1_gallery_gets_a_words_only_v2_update_without_a_keyerror_1567(self):
+        old = Version1Stays.OLD
+        section = {"type": "gallery", "body": json.dumps(old, separators=(",", ":"))}
+        out = json.loads(changes._keep_pictures(section, json.dumps({"v": 2, "items": {"1": {"caption": "Fictional new"}}})))
+        self.assertEqual(out["pictures"], old["pictures"], "the stored pictures are kept as they were")
+        self.assertEqual(out["items"], {"1": {"caption": "Fictional new"}}, "the words are taken")
+        one = {"type": "textimage", "body": json.dumps({"v": 1, "pictures": {"image": GOOD}}, separators=(",", ":"))}
+        got = json.loads(changes._keep_pictures(one, json.dumps({"v": 2})))
+        self.assertEqual(got["pictures"]["original"], GOOD, "a v1 Image or Text and Image body: the image becomes the original, as in row 1232")
+
 
 if __name__ == "__main__":
     unittest.main()
