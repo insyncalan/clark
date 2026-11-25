@@ -47,7 +47,7 @@ class Cut(unittest.TestCase):
         self.db = plant.build_db(self.d / "clark.db")
         self.budgets = []
 
-        def fake(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None):
+        def fake(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None, extra=()):
             self.budgets.append(budget)
             chosen, left = many(question, budget)
             return ask_passages.FolderData(chosen[:max_passages], left + max(0, len(chosen) - max_passages))
