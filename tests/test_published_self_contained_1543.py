@@ -1,5 +1,5 @@
 """Row 1543, AP13 (part 3 of the search): the published report stays one self-contained file. Searching it, with the index inside
-the file, asks the network for nothing. The size is REPORTED in bytes (no pass limit, Romanoff PM ruling 23-11). Fictional data.
+the file, asks the network for nothing. The size is REPORTED in bytes (no pass limit, the PM ruling of 23-11). Fictional data.
 
 Run: python3 dev/run_tests.py test_published_self_contained_1543        (needs Chrome; run only while the machine's load is under 70)
 The size line is printed as `1543 AP13 size: <bytes> bytes (project PUB)`; the "before" figure is the same run on origin/main.
