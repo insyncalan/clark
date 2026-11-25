@@ -8,21 +8,19 @@
 # plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
 # FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
-# label `full-ci`, and by hand. macOS (the newest Python, every file, THREE shards) runs at the RELEASE GATE and on a few other
-# events, NOT on a push to main (fewer macOS runs: every merge to main used to start four macOS jobs) and not on
-# every push of a guarded pull request: on a release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull
-# request's head branch), on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
-# files), on a pull request that carries the label `full-ci` (adding or removing the label starts a new run; use it only for a
-# change that needs a Mac before the release), and by hand (macos=true). A guarded pull request that is not Mac-specific gets the
-# full Ubuntu matrix and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS
-# runner that fails to start is re-run once before anyone calls it a failure.
+# label `full-ci`, and by hand.
 #
-# 17-11-2026 (owner's order: ship without waiting for the shards, reuse the nightly macOS run, start with 1.3):
-# a release branch, and a pull request into one, runs the full Ubuntu matrix and Python 3.9 but NO macOS, so a release never waits for the
-# Mac shards. macOS runs in the nightly on main, on a Mac-specific pull request, with the label full-ci, and by hand (macos=true); a
-# red nightly is a defect for the next minor release, not a hold.
+# macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
+#  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
+#    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
+#    files), and on a pull request that carries the label `full-ci`. Nothing else asks for a Mac.
+#  - ADVISORY: the full macOS suite (the newest Python, every file, six shards) runs in the nightly on main only; a red shard shows
+#    in the run and never turns "Tests passed" red (continue-on-error, set by the plan for `schedule`).
+#  - ON DEMAND: a hand-started run with macos=true (Actions > Tests > Run workflow, or gh workflow run Tests --ref <branch> -f macos=true)
+#    adds the full macOS suite, required for that run, in place of the smoke set. Use it for a change that needs a full Mac run.
+# A macOS runner that fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix of three, so `needs.macos.result` is ONE value for the whole matrix (success only if all
+# macOS shards: one job with a matrix of six, so `needs.macos.result` is ONE value for the whole matrix (success only if all
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
@@ -39,8 +37,8 @@
 #
 # Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on the full path and for a pull request that touches a stylesheet or the page, and three on the cheap path otherwise (three took 20 minutes on a full run; six keep the slowest near ten),
 # Python 3.9 three (quick tier only; was one shard at 17 to 28 minutes). For Ubuntu (3.x and 3.9): add shards when the slowest job passes 10 minutes.
-# macOS SIX (item 1850; was three): the release run 43591747253 on three shards took the whole 60 minutes (two shards cancelled with 306 of 310 and 295 of 311 files done, the third finished at about 58), so six shards carry about half each. Before: three measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
-# with a 60-minute timeout; if the first real gate run exceeds 50 min, move to 4 shards (one line in the matrix). Every test file is in exactly one shard
+# macOS NINE (was six, 24-11: the repo is public, so macOS minutes are not billed; the plan allows 5 macOS jobs at once, the extra shards queue). SIX before (item 1850; was three): the release run 43591747253 on three shards took the whole 60 minutes (two shards cancelled with 306 of 310 and 295 of 311 files done, the third finished at about 58), so six shards carry about half each. Before: three measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
+# with a 90-minute timeout (60 until 25-11, when shards were cancelled at 60.4 to 60.9 minutes); if the first real gate run exceeds 50 min, move to 4 shards (one line in the matrix). Every test file is in exactly one shard
 # (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
 on:
@@ -53,8 +51,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 22 * * *"      # every night at 02:00 Dubai (22:00 UTC), on main only (GitHub runs a schedule on the default branch): the full Ubuntu suite and the full macOS suite (both required)
-    - cron: "0 23 * * 0"      # every Sunday at 03:00 Dubai, on main: the same full run as every night (both required)
+    - cron: "0 22 * * *"      # every night at 02:00 Dubai (22:00 UTC), on main only (GitHub runs a schedule on the default branch): the full Ubuntu suite (required) and the full macOS suite (advisory)
   merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
     types: [checks_requested]
 
@@ -107,9 +104,9 @@ jobs:
           FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; WIDE=""; NTESTS=0
           case "$EVENT" in
             merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
-            push) FULL=1; MACOS=1 ;;      # a push to main: the full Ubuntu matrix and the full macOS suite (required); a pull request runs only the Mac smoke set (17:58 order)
+            push) FULL=1; SMOKE=1 ;;      # a push to main: the full Ubuntu matrix and the Mac smoke set (required); the full macOS suite runs in the nightly only, advisory (the owner, 24-11, row 1602)
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
-            schedule) FULL=1; MACOS=1 ;;      # every nightly run on main (and the Sunday one): the full Ubuntu matrix and the full macOS suite, required (22-11 order)
+            schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (the owner, 24-11, row 1602)
           esac
           case "$BRANCH" in
             release-*|v*-release*) FULL=1; REL=1 ;;
@@ -121,6 +118,9 @@ jobs:
           case ",$LABELS," in
             *,full-ci,*) FULL=1; SMOKE=1 ;;
           esac
+          # A release branch, and a pull request into one, runs the Mac smoke set (required), not the full macOS suite (the owner, 24-11, row 1602).
+          # The full suite on a release line is still there on demand: a hand-started run with macos=true (the line above clears the smoke set then).
+          if [ -n "$REL" ]; then SMOKE=1; fi
           # A pull request that changes a guarded file is the full Ubuntu matrix without the label, and macOS only when the file is
           # Mac-specific (platform, updates, the launcher and the package files); the release gate runs macOS on everything else. A file moved away from a guarded path counts too (#593):
           # the API gives the old name as previous_filename, so both names are listed. The changed files come from the API
@@ -171,7 +171,7 @@ jobs:
           # Mac-specific files), NOT on a push to main (owner's order 08-11: Python 3.9 and macOS only on a release or a Mac-relevant PR); a guarded pull request that is not Mac-specific gets Ubuntu 3.x only (about 12 percent of the Ubuntu minutes).
           PY39=""
           case "$EVENT" in workflow_dispatch) PY39=1 ;; esac
-          if [ -n "$MACOS" ] || [ -n "$SMOKE" ] || [ -n "$REL" ]; then PY39=1; fi
+          if [ -n "$MACOS" ] || [ -n "$REL" ] || { [ -n "$SMOKE" ] && [ "$EVENT" != "push" ]; }; then PY39=1; fi
           # Ubuntu 3.x shards: four on the full path (every file, see below), six for a pull request that touches a stylesheet or the page (it reaches
           # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
           # costs a runner slot, a checkout and a setup). Fewer jobs per push means the queue clears sooner (#908 grew it from three).
@@ -292,24 +292,27 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file, three shards) when the plan says so: a release branch, a pull request
-    # that changes Mac-specific code, the full-ci label, or a hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
+    # macOS (the newest Python, every file, six shards) when the plan says so: the nightly (advisory) or a hand-started run with macos=true; a pull request
+    # never starts this job (its Mac check is the smoke set below). Required when it runs, except in the nightly.
     if: ${{ needs.plan.outputs.macos == '1' }}
-    continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}      # the Sunday full run is advisory: a red shard shows, the run stays green
+    continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}      # the nightly full run is advisory: a red shard shows, the run stays green
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
     needs: plan
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {shard: 1, shards: 6}
-          - {shard: 2, shards: 6}
-          - {shard: 3, shards: 6}
-          - {shard: 4, shards: 6}
-          - {shard: 5, shards: 6}
-          - {shard: 6, shards: 6}
+          - {shard: 1, shards: 9}
+          - {shard: 2, shards: 9}
+          - {shard: 3, shards: 9}
+          - {shard: 4, shards: 9}
+          - {shard: 5, shards: 9}
+          - {shard: 6, shards: 9}
+          - {shard: 7, shards: 9}
+          - {shard: 8, shards: 9}
+          - {shard: 9, shards: 9}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -317,7 +320,7 @@ jobs:
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.x"
+          python-version: "3.15.2"      # one pinned Python on macOS (was floating 3.x); the green macOS runs 45365455611, 45449921972, 45441941138 all ran 3.15.2
 
       - name: Find Chrome
         # The browser tests find Chrome through dev/tools/run_support.py chrome_path(): CLARK_CHROME, then the PATH, then macOS.
@@ -341,12 +344,29 @@ jobs:
           JOBS: 2
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ matrix.shards }}
+          CLARK_RESULTS: ${{ runner.temp }}/test-results.json
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
+
+      - name: Classify (DEFECT, FLAKE, SIZING)
+        # Runs when the job is cancelled at its 60-minute cap too: a results file that never completed is SIZING, not a failure.
+        if: ${{ always() }}
+        env:
+          CLARK_RESULTS: ${{ runner.temp }}/test-results.json
+          JOB_STATUS: ${{ job.status }}
+        run: python3 dev/run_tests.py --summarize "$CLARK_RESULTS" --job-status "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the classes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-classes-macos-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-results.json
+          if-no-files-found: ignore
 
   macos-smoke:
     # The Mac smoke set (17-11, the owner's order: the nightly macOS is always red, so the gate is a small stable set): only the files that test what
     # is Mac-specific (the installer, the updater, the launcher, the package, the platform paths, the doctor), one job, required when the
-    # plan asks for it (the nightly on main). A failed file is re-run alone up to twice before it counts; the full macOS suite runs on Sundays, advisory.
+    # plan asks for it (a push to main, a release branch and a pull request into one, a Mac-specific pull request, the label full-ci). A failed file is re-run alone up to twice before it counts; the full macOS suite runs in the nightly, advisory.
     if: ${{ needs.plan.outputs.smoke == '1' }}
     name: macos-latest · Mac smoke set
     needs: plan
@@ -359,7 +379,7 @@ jobs:
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.x"
+          python-version: "3.15.2"      # pinned, as in the macos job
 
       - name: Find Chrome
         run: |
@@ -404,6 +424,6 @@ jobs:
           test "$PLAN" = "success"
           test "$TESTS" = "success"
           if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
-          # a pull request never requires the macOS shards (the Mac smoke set below is its Mac check); main, release lines and the nightly do
+          # the full macOS shards are never required on a pull request, a push to main or a release line (the Mac smoke set below is the Mac check there); only a hand-started run with macos=true requires them, and the nightly is advisory (ADVISORY=1: no check here)
           if [ "$EVENT" = "pull_request" ]; then :; elif [ -n "$WANT_MACOS" ] && [ -z "$ADVISORY" ]; then test "$MACOS" = "success"; elif [ -z "$WANT_MACOS" ]; then test "$MACOS" = "skipped"; fi
           if [ -n "$WANT_SMOKE" ]; then test "$SMOKE" = "success"; else test "$SMOKE" = "skipped"; fi

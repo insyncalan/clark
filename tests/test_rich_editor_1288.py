@@ -144,6 +144,21 @@ class Editor(unittest.TestCase):
                 self.assertEqual((ask["p"], ask["f"]), ("4px 10px 4px 10px", "13.5px"), f"{w}: {ask}")
                 self.assertEqual(h.ev("document.querySelectorAll('.rt-bar [role=menu] hr, .rt-bar [role=menu] .gl, .rt-slash .gl').length"), 0, f"{w}: no group label or rule in the More, Style or slash menus other than the slash rule")
 
+    def test_slash_ask_ai_opens_the_right_click_menu_1288(self):
+        """AP9 (DoD9): the "Ask AI..." line at the foot of the "/" menu opens the same AI menu as the right-click, at 1400 and 900; the "/" menu is gone and the "/" words are not in the AI menu's text."""
+        with rp.Harness(chrome) as h:
+            for w in WIDTHS:
+                self.show_editor(h, w, value="")
+                h.type("/")
+                self.assertTrue(h.until("!!document.querySelector('.rt-slash .rt-ask')"), f"{w}: the slash menu ends with the Ask AI line")
+                self.assertEqual(h.ev("document.querySelector('.rt-slash .rt-ask').textContent"), "Ask AI\u2026", w)
+                self.assertFalse(h.ev("!!document.querySelector('[data-ai-menu]')"), f"{w}: the AI menu is not open before the line is pressed")
+                h.ev("document.querySelector('.rt-slash .rt-ask').click(); true")
+                self.assertTrue(h.until("!!document.querySelector('[data-ai-menu]')"), f"{w}: pressing Ask AI... opens the AI menu (the right-click menu)")
+                self.assertTrue(h.until("!document.querySelector('.rt-slash')"), f"{w}: the slash menu closed (it fades out)")
+                h.key("Escape", 0, "Escape", 27)
+                h.ev("window.unmount(); true")
+
     def test_ai_menu_colours_and_widths_1288(self):
         """AP6 (row 1586, mock-up 5B): the Classic AI menu's group labels, hover row, three icon colours and min-width, at 1400 and 900.
         Dark keeps what main draws (row 1586 ruling): the label is the resolved --text-muted, the hover row the resolved --brand-blue-tint, the icons the colour they inherit from their row (--text)."""

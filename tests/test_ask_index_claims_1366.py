@@ -203,6 +203,9 @@ class Question(RouteBase):
         super().setUp()
         import shutil
         import tempfile
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)       # row 1624: the never-read list is the Mac's; off a Mac the folder was refused, nothing was indexed and this class passed with no file passage sent
+        patch.start()
+        self.addCleanup(patch.stop)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
         self.box = self.d / "saved"
@@ -255,6 +258,7 @@ class Question(RouteBase):
         self.assertEqual((status, got.get("ok")), (200, True), got)
         self.assertEqual(len(self.provider.sent), 1)
         self.assertIn("zebrafish", self.provider.sent[0])
+        self.assertIn("cleaned on Tuesdays", self.provider.sent[0], "row 1624: the file that matches IS sent (without this the test passed on Linux with no file passage at all)")
         self.assertNotIn("quokka", self.provider.sent[0])
         self.assertNotIn(str(self.box), self.provider.sent[0], "no path of the folder is sent")
 

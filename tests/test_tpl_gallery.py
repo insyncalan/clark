@@ -9,6 +9,7 @@ Needs Chrome (the #33 harness) for the page tests. Fictional data only.
 import json
 import unittest
 
+from _classic_page import classic
 from _pictures import GOOD, GOOD_JPEG, GOOD_WEBP, PictureSteps, check, data, jpeg, published
 from _pictures_cases import PicturePage
 from _pictures_page import BarePage
@@ -42,6 +43,13 @@ class Checker(unittest.TestCase):
                                "pictures": {"5": GOOD_JPEG, "2": GOOD}})
         self.assertEqual(got, {"content": {"pictures": [{"image": GOOD, "caption": "", "alt": ""},
                                                         {"image": GOOD_JPEG, "caption": "Five", "alt": "A five"}]}})
+
+
+    def test_the_body_a_new_gallery_starts_with_is_taken_as_it_is(self):
+        """Row 1233 (AP19, ticket test 11): the catalogue starts a new gallery as {"v":2}; the model and the store take that empty version 2 body."""
+        self.assertEqual(gallery.check({"v": 2}, None), {"v": 2})
+        self.assertEqual(json.loads(store_module.check_section_body("gallery", '{"v":2}')), {"v": 2})
+        self.assertIsNone(gallery.published({"v": 2}, None), "no picture: nothing in the report")
 
 
 class Route(PictureSteps, Api):
@@ -114,6 +122,31 @@ class InThePage(PicturePage):
             p.saved()
             self.assertEqual(self.body(ref)["items"], {"1": {"caption": "<p>Fictional caption</p>"}})
             self.assertEqual(self.body(ref)["pictures"], {"1": pic})
+
+    def test_t11_two_half_width_galleries_pair_side_by_side_at_1400_and_stack_at_900(self):
+        """Row 1233 (AP19, ticket test 11, the page half): on the Classic page two half-width galleries share a row at 1400 and stack at 900."""
+        a = self.add({"v": 2, "pictures": {"1": GOOD}}, title="Fictional left")
+        b = self.add({"v": 2, "pictures": {"1": GOOD}}, title="Fictional right")
+        sa, sb = f"[data-id={json.dumps(a)}]", f"[data-id={json.dumps(b)}]"
+        classic(self)
+        with self.chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sa} .tpl-gal img') && !!document.querySelector('{sb} .tpl-gal img')", "both galleries drawn")
+            self.assertTrue(p.js("!!document.getElementById('theme')"), "the Classic page")
+            p.js(f"""(() => {{ const x = document.querySelector('{sa}'), y = document.querySelector('{sb}');
+              x.className = x.className.replace(/slot-\\w+/, 'slot-left'); y.className = y.className.replace(/slot-\\w+/, 'slot-right'); x.parentNode.insertBefore(x, y); return true; }})()""")
+            rect = f"(() => {{ const r = e => document.querySelector(e).getBoundingClientRect(); const x = r('{sa}'), y = r('{sb}'); return {{xl: x.left, xr: x.right, xt: x.top, xb: x.bottom, yl: y.left, yt: y.top, side: document.documentElement.scrollWidth - document.documentElement.clientWidth}}; }})()"
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until(f"window.innerWidth === {width}", "the width is set")
+                m = p.js(rect)
+                self.assertLessEqual(m["side"], 0, (width, "no sideways scroll"))
+                if width == 1400:
+                    self.assertAlmostEqual(m["xt"], m["yt"], delta=2, msg="same row")
+                    self.assertGreater(m["yl"], m["xr"] - 1, "the second sits right of the first")
+                else:
+                    self.assertGreaterEqual(m["yt"], m["xb"] - 1, "the second sits below the first")
+                    self.assertAlmostEqual(m["xl"], m["yl"], delta=2, msg="stacked: the same left edge")
 
 
 if __name__ == "__main__":
