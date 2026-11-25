@@ -260,7 +260,7 @@ class Update17To18(Rig):
         now, done = self.update_to_18()
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
-        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand", "use_cases.owner", "use_cases.owner_id", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off"))
+        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand", "column_orders", "show_board_client", "use_cases.owner", "use_cases.owner_id", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off"))
         self.assertEqual(self.base, {t: rows for t, rows in after.items() if t not in ("gantt_lines", "use_case_milestones", "install_defaults", "connector_switches", "project_connectors", "added_pages")}, "every row of every table is kept")
         for table in ("report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)

@@ -203,6 +203,18 @@ def read_suggestion(project, change, from_source=False):
     return Plan(table, op, ref, request, claims, bool(from_source) or source is not None, why)
 
 
+# Row 1416 (PM ruling 24-11): a change to an item that is on the client report needs the extra tick when it changes the title, owner, a date, the
+# status, the impact or the likelihood (these are the stored columns); a new item needs it too. Nothing else does: asking cannot reach the client words or the eye.
+CLIENT_TICK = frozenset({"description", "decision", "name", "owner", "made_by", "due_date", "date", "needed_by", "baseline_date",
+                         "forecast_date", "actual_date", "status", "impact", "likelihood"})
+
+
+def _client_tick(plan, fields, on_report):
+    """Row 1416: True when this change needs the extra tick for what a client sees: a new item (it is made on the report), or a change
+    to an item that is on the report (`on_report`, read from the data) that moves one of CLIENT_TICK. `fields` are the columns that differ."""
+    return plan.op == OP_NEW or (on_report is True and any(f in CLIENT_TICK for f in fields))
+
+
 @dataclass
 class Offer:
     project: str
@@ -210,6 +222,7 @@ class Offer:
     expect: object
     from_source: bool
     at: float
+    client: bool = False          # Row 1416: needs the extra tick because a client sees the item (see CLIENT_TICK)
     ref: object = None            # Row 1293: the item a change is about (None for a new item)
     stale: str = ""               # Row 1293: the sentence to give when another change to the same item has been saved first ("" when not)
 
@@ -256,7 +269,7 @@ class AskApply:
             if store.ask_off_here(project):      # row 1294: this project's own asking is off (the computer-wide switch was read above)
                 raise Refusal("asking_off", ASKING_OFF, 409)
             if plan.op != OP_CHANGE:
-                return
+                return None
             row = store.read(plan.table, ref=plan.ref)
             if row is None or row.get("project") != project or row.get("archived"):
                 raise Refusal("unknown_id", UNKNOWN_ID.format(ref=plan.ref))
@@ -268,6 +281,7 @@ class AskApply:
             owner = plan.claims.get("current_owner")
             if owner is not None and _fold(owner) != _fold(row.get(OWNER[plan.table])):
                 raise Refusal("wrong_owner", WRONG_OWNER.format(ref=plan.ref))
+            return row.get("client_visible") == 1      # row 1416: is the item on the client report
         finally:
             store.close()
 
@@ -317,7 +331,7 @@ class AskApply:
         `before` and `after` come from the data (changes.make_ask_change, rolled back); `fields` the shown fields that differ."""
         try:
             plan = read_suggestion(project, change, from_source)
-            self.check_data(plan)
+            on_report = self.check_data(plan)
         except Refusal as r:
             return fail(r.code, r.message, r.status)
         status, body = self.ask_change(plan.request, dry=True)
@@ -329,13 +343,14 @@ class AskApply:
         fields = [k for k in after if k != "id" and (after[k] is not None if before is None else before.get(k) != after[k])]
         if not fields:
             return fail("nothing", NOTHING)
-        offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock(),
+        client = _client_tick(plan, fields, on_report)
+        offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock(), client,
                                 plan.ref if plan.op == OP_CHANGE else None))
         out = {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
                "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
                "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None,
                "owner": _owner_shown(before, plan), "why": plan.why,
-               "needs_confirm": plan.from_source}
+               "needs_confirm": plan.from_source or client, "client": client, "from_source": plan.from_source}
         if plan.op == OP_NEW:
             said = self.duplicate_of(plan, after, earlier)
             if said:
@@ -376,7 +391,7 @@ class AskApply:
             if held.stale:                             # Row 1293: the first change to this item was saved; nothing is written for this one
                 del self.offers[offer]
                 return fail("changed", held.stale, 409)
-            if held.from_source and confirm is not True:
+            if (held.from_source or held.client) and confirm is not True:
                 return fail("needs_confirm", NEEDS_CONFIRM, 409)
             del self.offers[offer]                     # taken while it is saved, so a second Apply at the same moment finds nothing
         try:

@@ -280,7 +280,7 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; border-top: 0; }
 
 /* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
 .projects table.proj-table td.num { white-space: nowrap; }
@@ -399,7 +399,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1286 (impeccable audit B-M2 and B-M3, menus; Classic only, Cards keeps every menu rule it has). One grid for every menu: the pick menu's, an icon 17px in from the panel edge, 8px from its words. */
 .ddmenu { min-width: 200px; }
 .cpop.cmenu:not(.bmenu) { min-width: 200px; }
-.ddmenu[aria-label="Group by"] { min-width: 240px; }
 .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp), .cols-menu [role="menuitemcheckbox"] { padding-left: 16px; padding-right: 16px; }
 .ddmenu .mi { margin-right: var(--space-2); }
 .rowmenu .mi { margin-right: 0; }
@@ -624,6 +623,9 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .ask-left-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
 .ask-left-name { color: var(--text); }
+/* Row 1542 (Classic only): the subfolders left out of a saved folder, each with Include again; the list and button values are the file list's */
+.ask-left-folders h3 { margin: 8px 0 0; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }
+.ask-left-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
 .ask-change-ref { font-weight: var(--weight-medium); }
 .ask-change-title { overflow-wrap: anywhere; }

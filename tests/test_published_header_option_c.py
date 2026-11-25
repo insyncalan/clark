@@ -116,6 +116,26 @@ class InTheFile(Published):
                 self.assertEqual(p.js("document.querySelectorAll('button.asat, .asat-wrap').length"), 0, "no As at button")
                 self.assertEqual(p.js("document.querySelectorAll('header.top ~ .frame.cover, #cover.frame').length"), 0, "no frame cover")
 
+    def test_no_as_at_anywhere_in_the_header_and_week_ending_stays_row_1543(self):
+        for width, dark in CASES:
+            with self.subTest(width=width, dark=dark):
+                cdp, p = self.bar(width, dark)
+                head = p.js("document.querySelector('header.top').textContent")
+                self.assertNotRegex(head, r"(?i)as at", f"row 1543: no As at in the header: {head!r}")
+                self.assertEqual(p.js("document.querySelectorAll('header.top .asat, header.top .asat-wrap, header.top input[type=date]').length"), 0)
+                self.assertRegex(head, r"Week ending|Weekly report")
+                tabs = p.js("[...document.querySelectorAll('header.top .tab')].map(t => t.textContent.trim().replace(/\\s+/g, ' ')).length")
+                self.assertGreaterEqual(tabs, 3, "the pages are still there")
+
+    def test_the_switcher_is_32_px_and_the_profile_circle_32_px_row_1543(self):
+        for width, dark in ((1400, False), (1400, True)):
+            with self.subTest(width=width, dark=dark):
+                cdp, p = self.bar(width, dark)
+                got = p.js("""(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; };
+                  return {theme: r('.cm-theme'), badge: r('.cm-badge')}; })()""")
+                self.assertEqual(got["theme"], [32, 32], "the light and dark button is 32 px (ticket AP5)")
+                self.assertEqual(got["badge"], [32, 32], "the profile circle is 32 px")
+
     def test_no_published_chip_or_weeks_list_in_the_header(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
@@ -124,16 +144,15 @@ class InTheFile(Published):
                 self.assertNotRegex(b["barText"], r"(?i)published|past reports", "the header does not carry the published info")
                 self.assertEqual(b["chips"], 0, "no chip in the header")
 
-    def test_the_published_info_is_the_last_thing_in_the_profile_menu(self):
+    def test_the_past_reports_are_the_last_thing_in_the_profile_menu_and_no_as_at_row_1543(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 p.js("document.querySelector('.cm-badge, #client-menu-btn').click()")
                 p.until("!!document.querySelector('[role=menu]')", "the menu opened")
                 m = p.js(MENU)
-                self.assertRegex(m["kids"][-1]["text"], r"(?i)as at|publish", f"the last part of the menu says it is published: {m['kids']}")
-                self.assertGreaterEqual(m["kids"][-1]["bottom"], max(k["bottom"] for k in m["kids"]) - 0.5, "and sits at the bottom")
-                self.assertEqual(sum(1 for k in m["kids"][:-1] if "publish" in k["text"].lower() and "export" not in k["text"].lower()), 0, "said once, at the bottom")
+                self.assertGreaterEqual(m["kids"][-1]["bottom"], max(k["bottom"] for k in m["kids"]) - 0.5, "the last part sits at the bottom")
+                self.assertEqual(sum(1 for k in m["kids"] if "as at" in k["text"].lower()), 0, f"row 1543: no As at note in the menu: {m['kids']}")
 
     def test_the_client_menu_has_no_search_or_ask_clark_item(self):
         """A client file draws no search and no ask clark (the menu is Profile and Export to PDF); the menu must have drawn, and if the build adds either, at 900 they are the first two."""
