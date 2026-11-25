@@ -12,7 +12,8 @@ import unittest
 
 from clark import publish, section_bodies as sb, store as store_module
 from _publish_fixture import spellings
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 from test_report_editor import Base as PageBase
 from test_server import chrome
 
@@ -43,7 +44,7 @@ def slow_saves(test, seconds=1.0):
     test.failure = lambda req: (time.sleep(seconds), test.real_change(req))[1]
 
 
-class DataChecks(Api):
+class DataChecks(_test_changes.Api):
     TYPE = ""                # the store type
     GOOD = {}                # a filled body (the checker keeps it unchanged apart from field order and defaults)
     WORDS = ""               # words in GOOD that the file must carry

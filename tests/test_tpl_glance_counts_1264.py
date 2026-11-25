@@ -10,7 +10,7 @@ import unittest
 from _demo import USER
 from clark import glance, publish, section_bodies
 from clark.section_kinds import base, glancetemplate as gt
-from test_changes import Api
+import test_changes as _test_changes
 
 AS_AT = "2030-01-15"
 MARK = "ZQ-GLANCE-MARK"
@@ -124,7 +124,7 @@ class Absent(unittest.TestCase):                                                
         self.assertEqual((len(out["content"]["counts"]), [t["id"] for t in out["content"]["bespoke"]]), (3, ["t1"]))
 
 
-class ThroughPublish(Api):                                                            # T36-T39 (editor vs published, the file)
+class ThroughPublish(_test_changes.Api):                                                            # T36-T39 (editor vs published, the file)
     def section(self, body=None, **more):
         ref = self.ok("new", values={"type": "glancetemplate", "title": "Fictional glance"}, **more)["ref"]
         if body is not None:

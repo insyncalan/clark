@@ -6,7 +6,7 @@ import json
 
 from test_server import chrome, wait
 from test_slash_ai_1295 import AiBase, EDITOR
-from test_slash_editor_1295 import EditorStates
+import test_slash_editor_1295 as _test_slash_editor_1295
 
 TITLES = ("Pilot live", "Agree the cut-over plan", "Example Programme")
 RECORD = """(() => { window.__sent = []; const f = window.fetch.bind(window);
@@ -17,7 +17,7 @@ class SlashNoData(AiBase):
     def test_no_project_data_goes_to_the_ai_route_while_writing(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                js = EditorStates.open_at(self, cdp, width, False, EDITOR + "&new=1")
+                js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, False, EDITOR + "&new=1")
                 self.ready(js)
                 js(RECORD)
                 self.type_into(js, "#slash-ai-describe-in", "Overdue by owner sentence")

@@ -10,7 +10,8 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import changes, section_bodies as sb, store as store_module
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 
 from test_needs_content import stored_section
 
@@ -35,7 +36,7 @@ def text(value):
     return json.dumps(value)
 
 
-class Content(Api):
+class Content(_test_changes.Api):
     def make(self, kind="needs", **more):
         if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
             ref = stored_section(self.s)

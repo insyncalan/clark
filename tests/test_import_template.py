@@ -18,7 +18,8 @@ from openpyxl import load_workbook
 from clark import excel, excel_colours, excel_import, server as sv
 import test_publish_route as base
 from test_preview_export_route import get
-from test_settings_data_page import Card, WIDTHS
+from test_settings_data_page import WIDTHS
+import test_settings_data_page as _test_settings_data_page
 from test_server import chrome
 
 URL = "/api/export?template=1"
@@ -166,7 +167,7 @@ class ImportingIt(unittest.TestCase):
         self.assertEqual(self.everything(), before)
 
 
-class Page(Card):
+class Page(_test_settings_data_page.Card):
     def open_box(self, p):
         self.open_settings(p)
         self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")

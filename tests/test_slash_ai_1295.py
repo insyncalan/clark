@@ -11,7 +11,8 @@ import time
 from _paths import SRC  # noqa: F401
 from test_ai_route import Fake
 from test_server import chrome, wait
-from test_slash_editor_1295 import Base, EDITOR, EditorStates
+from test_slash_editor_1295 import Base, EDITOR
+import test_slash_editor_1295 as _test_slash_editor_1295
 
 from clark import ai_service, ask_service
 
@@ -303,14 +304,14 @@ class UndoAndStates(AiBase):
         for width, tracks in ((1400, 3), (900, 1)):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
                     self.until(js, "!!document.querySelector('#slash-ai-write')", "the AI help is on the page", 30)
                     self.until(js, "document.querySelector('#slash-ai-write').disabled === false", "the AI state is known", 30)
                     check(js, tracks)
 
     def grid(self, js, tracks):
         self.until(js, "!!document.querySelector('.slash-grid')", "the grid is drawn")
-        self.assertEqual(js(EditorStates.TRACKS), tracks)
+        self.assertEqual(js(_test_slash_editor_1295.EditorStates.TRACKS), tracks)
 
     def test_the_ai_check_verdict_shows_at_both_widths(self):
         """Row 1541 AP4 state 5: #slash-check-run shows the verdict (#slash-check with -clear, -reads, -changes) in light and dark at 1400 and 900."""

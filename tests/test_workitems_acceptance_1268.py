@@ -22,7 +22,7 @@ from _demo import USER
 from _paths import ROOT   # noqa: F401
 from openpyxl import load_workbook
 from clark import changes, docx_build, excel, excel_client, publish
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -79,7 +79,7 @@ def list_body(kinds):
     return json.dumps({"kinds": kinds, "mode": mode, "max": 50, "columns": ["id", "owner", "due", "status", "priority"]})
 
 
-class Data(Api):
+class Data(_test_changes.Api):
     """The store and the files: publish, Word, the client workbook and the client's At a glance counts."""
 
     def setUp(self):

@@ -22,7 +22,7 @@ from _paths import SRC
 import _testpage
 from clark import changes, page, publish, section_bodies, store as store_module, theme
 from clark.section_kinds import base, doclinks
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome
 
@@ -221,7 +221,7 @@ class RenameTest:
              f" el.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(key)}, bubbles: true}})); }})()")
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def make(self, title="Fictional documents", **more):
         return self.ok("new", values={"type": "doclinks", "title": title}, after=None, **more)["ref"]
 

@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_demo_dialog_place
 """
 import unittest
 
-from test_demo_banner import DemoLine
+import test_demo_banner as _test_demo_banner
 from test_page import navigate
 from test_server import chrome, wait
 
@@ -18,7 +18,7 @@ def key(cdp, sid, name, shift=False):
 
 
 class DemoDialogPlace(unittest.TestCase):
-    setUp = DemoLine.setUp
+    setUp = _test_demo_banner.DemoLine.setUp
 
     def show(self, cdp, sid):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#demo-remove')", sid), 90), "the banner")

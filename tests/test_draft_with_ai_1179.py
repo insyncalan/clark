@@ -9,7 +9,7 @@ import unittest
 from _paths import ROOT
 from _demo import USER, DemoStore  # noqa: F401
 from test_movement_page import GO_LIVE, Base
-from test_milestone_peek_828 import Fields
+import test_milestone_peek_828 as _test_milestone_peek_828
 import test_peek_latest
 from test_server import chrome, wait
 from test_work_filters import click
@@ -236,7 +236,7 @@ class Pane(unittest.TestCase):
 
 
 class MilestonePane(Base):
-    visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store, Fields.saved, Fields.toast_text)
+    visit_peek, click, undo, until_store, saved, toast_text = (_test_milestone_peek_828.Fields.visit_peek, _test_milestone_peek_828.Fields.click, _test_milestone_peek_828.Fields.undo, _test_milestone_peek_828.Fields.until_store, _test_milestone_peek_828.Fields.saved, _test_milestone_peek_828.Fields.toast_text)
     cur = GO_LIVE
 
     def test_the_milestone_peek_has_the_button_the_menu_and_the_right_click(self):

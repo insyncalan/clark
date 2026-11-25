@@ -11,7 +11,8 @@ from pathlib import Path
 from _paths import ROOT  # noqa: F401
 from test_server import chrome
 import test_theme_global_1319 as g
-from test_theme_global_1319 import Computed, NAME, SIZES, FOLDER, ratio, parse
+from test_theme_global_1319 import NAME, SIZES, FOLDER, ratio, parse
+import test_theme_global_1319 as _test_theme_global_1319
 
 from clark import page, theme
 
@@ -25,7 +26,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 BLOCK = RULES[RULES.index("/* Row 1319, primary buttons"):].split("\n/* Row 1316", 1)[0]     # rows stacked after the Row 1316 blocks are not this row's
 
 
-class PrimaryRect(Computed):
+class PrimaryRect(_test_theme_global_1319.Computed):
     def classic(self, cdp, w, scheme, html):
         sid = self.load(cdp, w, scheme, html)
         cdp.js(EXTRA, sid)

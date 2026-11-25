@@ -12,13 +12,14 @@ import time
 import _paths  # noqa: F401
 from clark import page
 from test_publish_route import EMPTY_BRANDING
-from test_gantt_e2e import Browser, E2E
+from test_gantt_e2e import Browser
+import test_gantt_e2e as _test_gantt_e2e
 from test_server import chrome
 
 BOX = "(e => { const r = document.querySelector(e).getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right), Math.round(r.top), Math.round(r.bottom)]; })"
 
 
-class HeaderAndToolbar(E2E):
+class HeaderAndToolbar(_test_gantt_e2e.E2E):
     test_the_gantt_from_settings_to_the_published_file = None      # the e2e's own flow is not run again here
 
     def setUp(self):

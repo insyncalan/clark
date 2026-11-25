@@ -6,7 +6,8 @@ Run: python3 dev/run_tests.py test_dashboard_layout_1345
 """
 import unittest
 
-from test_classic_dashboard_1345 import Dash, theme_folder
+from test_classic_dashboard_1345 import theme_folder
+import test_classic_dashboard_1345 as _test_classic_dashboard_1345
 
 MARK = "/* Row 1345 layout rows"
 
@@ -17,7 +18,7 @@ P = ("(function(){var g=function(e){return getComputedStyle(e)}, m=g(document.qu
      "line: (function(){var t=document.createElement('i'); t.style.color='var(--grey-200)'; document.body.appendChild(t); var c=g(t).color; t.remove(); return c;})(), n: cs.length};})()")
 
 
-class Layout(Dash):
+class Layout(_test_classic_dashboard_1345.Dash):
     def probe(self, width, density="compact"):
         from test_server import chrome
         with chrome() as cdp:

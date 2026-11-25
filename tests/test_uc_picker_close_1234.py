@@ -5,14 +5,15 @@ Same page, store and data as test_uc_picker_table. Widths 1400 and 900 only.
 """
 import unittest
 
-from test_uc_picker_table import Q, Table, tearDownModule  # noqa: F401
+from test_uc_picker_table import Q, tearDownModule
+import test_uc_picker_table as _test_uc_picker_table
 from test_server import chrome
 
 OPENER = "document.activeElement === document.querySelector('[data-uc-back]')"
 BEHIND = "document.querySelector('#main').inert"
 
 
-class Close(Table):
+class Close(_test_uc_picker_table.Table):
     def opened(self, p):
         self.show_picker(p)
         p.until("document.activeElement === document.querySelector('form.picker input[type=search]')", "focus in the search")

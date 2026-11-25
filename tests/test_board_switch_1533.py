@@ -17,7 +17,7 @@ from clark import changes, store as store_module
 from test_gantt_store import Base
 from test_publish_dialog import Base as PageBase
 from test_server import chrome
-from test_settings_head import Head
+import test_settings_head as _test_settings_head
 from test_store_use_case_done_migration import make_at
 
 LABEL = "Show the board to clients"
@@ -137,7 +137,7 @@ class SettingsTick(PageBase):
 
     def drawn(self, cdp, w, mode):
         p = self.page(cdp)
-        Head.open_settings(self, p, w, mode, "reports")
+        _test_settings_head.Head.open_settings(self, p, w, mode, "reports")
         p.until("!!document.getElementById('board-client')", "the board tick is drawn")
         return p
 

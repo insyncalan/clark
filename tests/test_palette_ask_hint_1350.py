@@ -10,7 +10,7 @@ import json
 import unittest
 
 from test_palette import Base
-from test_palette_ask_row_logic import AskRowLogic
+import test_palette_ask_row_logic as _test_palette_ask_row_logic
 from test_server import chrome
 
 LAYER = "if (!document.getElementById('theme')) { const s = document.createElement('style'); s.id = 'theme'; document.head.appendChild(s); } "
@@ -18,7 +18,7 @@ MAC = {"platform": "MacIntel"}
 MAC_HINTS = {"userAgentData": {"platform": "macOS"}, "platform": "MacIntel"}
 
 
-class SendKeyPick(AskRowLogic):
+class SendKeyPick(_test_palette_ask_row_logic.AskRowLogic):
     def test_the_word_follows_the_platform(self):
         cases = [MAC, MAC_HINTS, {"platform": "iPhone"}, {"platform": "Win32"}, {"platform": "Linux x86_64"}, {"userAgentData": {"platform": "Windows"}, "platform": "MacIntel"}, {"platform": "Win32 (not a Mac)"},
                  {"userAgentData": {"platform": "macOS"}, "platform": "Win32"}, {}, None]

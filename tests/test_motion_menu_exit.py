@@ -8,7 +8,8 @@ import re
 import unittest
 
 from _paths import ROOT
-from test_motion_dialogs_menus import MotionDialogsMenus as Base, MENU
+from test_motion_dialogs_menus import MENU
+import test_motion_dialogs_menus as _test_motion_dialogs_menus
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 JSX = (ROOT / "src/clark/page/src/components/Menu.jsx").read_text(encoding="utf-8")
@@ -21,7 +22,7 @@ WATCH_ANIMATIONS = """(() => { window.__menuAnims = {}; const tick = () => { for
   requestAnimationFrame(tick); }; tick(); return true; })()"""
 
 
-class MotionMenuExit(Base):
+class MotionMenuExit(_test_motion_dialogs_menus.MotionDialogsMenus):
     def test_row_922_a_menu_fades_out_and_is_gone_at_once_when_reduced(self):
         import json
         from test_server import chrome, wait
@@ -146,7 +147,7 @@ class MotionMenuExit(Base):
                 self.assertNotRegex(line, r"--dur-(view|state|layout|enter)")
 
 
-for _n in [n for n in dir(Base) if n.startswith("test_") and "row_922" not in n]:
+for _n in [n for n in dir(_test_motion_dialogs_menus.MotionDialogsMenus) if n.startswith("test_") and "row_922" not in n]:
     setattr(MotionMenuExit, _n, None)     # the inherited row 877 and 878 tests belong to their own file
 
 if __name__ == "__main__":

@@ -4,11 +4,12 @@ Run: python3 dev/run_tests.py test_import_focus_after_refusal
 import base64
 import unittest
 
-from test_settings_data_page import Card, WIDTHS
+from test_settings_data_page import WIDTHS
+import test_settings_data_page as _test_settings_data_page
 from test_server import chrome
 
 
-class FocusAfterRefusal(Card):
+class FocusAfterRefusal(_test_settings_data_page.Card):
     def test_focus_is_back_on_choose_a_file_after_a_refused_file(self):
         junk = base64.b64encode(b"this is not a workbook").decode()
         for w in WIDTHS:
@@ -26,7 +27,7 @@ class FocusAfterRefusal(Card):
                 self.settle(p, "!document.querySelector('#import-box')", "Esc closed the box")
 
 
-for _name in [n for n in dir(Card) if n.startswith("test_")]:      # only this class's own test, not the Card's
+for _name in [n for n in dir(_test_settings_data_page.Card) if n.startswith("test_")]:      # only this class's own test, not the Card's
     setattr(FocusAfterRefusal, _name, None)
 
 
