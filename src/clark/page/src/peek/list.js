@@ -1,14 +1,22 @@
 // The list the peek steps through: the rows the Work items page shows now (filters and order as drawn), as ids. A peek opened by
 // an address (a reload, a link) steps through the same list. A milestone steps through the project's milestones in their order.
-import { filterState, filterCtx, data, fromFile, asAt } from "../stores/report.js";
+import { signal, effect } from "@preact/signals";
+import { filterState, filterCtx, data, fromFile, asAt, item, peek } from "../stores/report.js";
 import { sortRows, todayIso } from "../workItems.js";
 import { applyFilters, isPublished } from "../filters.js";
 import { lineApi } from "../stores/lineSlot.js";
 import { work, itemRows, contextFor } from "../stores/work.js";
 import { boardGroup, columnsFor, cellOf, isCollapsed } from "../logic/board.js";
 
+// Row 1270: the cards of the RAID section whose card opened the peek, in the order drawn. While the peek stays on one of them, Previous and Next
+// step through these cards (not the Work items list), and the peek shows the item's Latest update and no Client wording. It is emptied when the peek closes.
+export const cardList = signal([]);
+export const fromCard = (id) => cardList.value.includes(id);
+effect(() => { if (!peek.value && cardList.peek().length) cardList.value = []; });
+
 // The order is the one drawn: grouped as the list is (a collapsed group's rows are not on the page, so not stepped through).
 export function itemIds() {
+  if (item.value && cardList.value.includes(item.value)) return cardList.value.slice();
   const today = todayIso(), w = work.value, L = lineApi.current;
   // A published file keeps the older filter bar (its Due filter has "Earlier"), so it steps with that bar's rows; the app steps with the line's.
   const old = isPublished() || fromFile.value || !L;

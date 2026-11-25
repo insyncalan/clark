@@ -1,6 +1,6 @@
 """Item 1184: what is particular to the Milestone peek (Layout A of the approved mockup). The shared frame is item 1180 (its own tests) and the model is the
 Action peek (test_peek_action_1181). This file covers the four chips and their popovers (State with its five icons, Owner, Progress with ten blocks, Forecast
-date), the Latest update above Details, and the Details rows of a milestone (Use case picker, Client Message greyed while the milestone is not shown to the client).
+date), the Latest update above Details, and the Details rows of a milestone (Use case picker, Client wording greyed while the milestone is not shown to the client).
 Run: python3 dev/run_tests.py test_peek_milestone_1184
 
 Real browser at 1400 and 900 px on the fictional demo project (ABC), the Milestones page (always Edit). ABC-M-002 "Go live" has an agreed date long past (so it
@@ -504,7 +504,7 @@ class Milestone(Base):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp, width=width)
                 rows = p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map(r => r.querySelector('dt') ? r.querySelector('dt').textContent.trim() : 'CLIENT-LINE')")
-                self.assertEqual(rows, ["Description", "Agreed date", "Workstream", "Use case", "Client Message", "CLIENT-LINE"])
+                self.assertEqual(rows, ["Description", "Agreed date", "Workstream", "Use case", "Client wording", "CLIENT-LINE"])
                 for gone in ("Priority", "Milestone", "Raised", "Forecast date", "Visible to client", "Latest update"):
                     self.assertNotIn(gone, rows)
                 self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] dt .pk-rowic svg')].map(i => i.dataset.icn)"), ["doc", "cal", "board", "flag", "doc"], "row icons as the Action peek's")
@@ -527,7 +527,7 @@ class Milestone(Base):
             p = self.visit(cdp, ms=GO_LIVE)
             got = p.js("({ d: document.querySelector('#peek [data-ms-row=description] [data-rich] .quiet').textContent, w: document.querySelector('#peek [data-ms-field=workstream]').textContent,"
                        " u: document.querySelector('#peek [data-ms-ucs]').textContent, c: document.querySelector('#peek [data-ms-row=client_message] [data-rich] .quiet').textContent })")
-            self.assertEqual(got, {"d": "Add description", "w": "Add workstream", "u": "Select use case", "c": "Add client message"})
+            self.assertEqual(got, {"d": "Add description", "w": "Add workstream", "u": "Select use case", "c": "Add client wording"})
 
     def test_the_use_case_picker_adds_changes_and_clears_one_link(self):
         a, b = self.two_use_cases()

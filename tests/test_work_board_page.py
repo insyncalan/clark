@@ -277,10 +277,9 @@ class Switch(Base):
 
     def test_the_published_page_has_no_board(self):
         view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for word in ("clark:open-peek", "work-board", "/api/change"):
+        # Row 1533: a published file now carries the read only board (shown when the author's switch is on); what it must never carry is the editor's way to change an item.
+        for word in ("clark:open-peek", "/api/change", "Move to", "data-move", "onDragStart"):
             self.assertNotIn(word, view)
-        self.assertNotIn("data-layout", view)
-        self.assertNotIn("No lanes", view)
 
 
 class GroupBy(Base):

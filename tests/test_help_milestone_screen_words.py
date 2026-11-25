@@ -24,7 +24,7 @@ class HelpNamesWhatIsThere(unittest.TestCase):
         self.assertIn("Shown to client", PAGE)
 
     def test_milestone_row_names_are_on_the_screen(self):
-        for word in ("Agreed date", "Forecast date", "Client visible", "Client Message"):
+        for word in ("Agreed date", "Forecast date", "Client visible", "Client wording"):
             self.assertIn(word, PAGE)
             self.assertIn(word, HELP)
 

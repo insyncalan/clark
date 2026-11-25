@@ -1,6 +1,5 @@
-"""Row 1005: the Movement form's Who agreed it, Reason and Source (saved as one line of plain text) are the one-line editor: no / menu, no
-formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks, because what they save is plain words. 1400 and 900.
-(Row 1288: a picture's caption and a RAID card's Own words moved to the Full editor: tests/test_rich_storage_1288c_page.py.) Fictional data only.
+"""Row 1005: the other fields saved as one line of plain text (a picture's caption, the Movement form's Who agreed it, Reason and Source) are the one-line editor too: no / menu, no formatting buttons, bubble, Cmd+B, Cmd+I, markdown input rules or pasted blocks,
+because what they save is plain words. 1400 and 900. Fictional data only.
 
 Run: python3 dev/run_tests.py test_one_line_fields_1005
 """
@@ -88,7 +87,7 @@ class HelpSaysSo(unittest.TestCase):
     def test_the_editor_controls_table_names_the_one_line_fields(self):
         from pathlib import Path
         text = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("One-line fields (the Client Message on a row, picture captions, Movement words and the Own words of risks and issues) "
+        self.assertIn("One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) "
                       "have no / menu and no formatting buttons. Enter or a click away saves.", text)
 
 
