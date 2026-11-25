@@ -25,6 +25,7 @@ TABS = "[...document.querySelectorAll('.set-tabs .set-tab:not([data-all])')]"   
 class Rigged(Base):
     """A Classic page whose project list is `listed` (`archived=True` adds the archived one, which the page never asks for)."""
     listed = LIVE
+    switch = False      # True: the page's tab switch (off in the served page, Views.jsx) is turned on through the test hook
 
     def setUp(self):
         css = theme.css("prototype-2.0")
@@ -36,6 +37,8 @@ class Rigged(Base):
         calm(p, mode)
         p.js(f"location.hash = '{address(slug, project)}'")
         p.until("!!document.querySelector('.set-nav .set-chip[aria-current]') && !!document.querySelector('.set-cards').children.length", "Settings drew")
+        if self.switch:
+            p.js("clarkPage.switchTabs(true)")
 
 
 class TabLook(Rigged):
