@@ -71,10 +71,10 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         self.assertEqual(sorted(seen), sorted(f.name for f in files), f"{n} shards: each file exactly once")
         self.assertEqual(len(seen), len(set(seen)))
 
-    def test_every_file_in_exactly_one_shard_for_1_to_6(self):
+    def test_every_file_in_exactly_one_shard_for_1_to_9(self):
         files = everything()
         self.assertGreater(len(files), 5)
-        for n in (1, 2, 3, 4, 5, 6, 9):   # 6 = Ubuntu 3.x wide, 9 = macOS (tests.yml)
+        for n in range(1, 10):   # 6 = Ubuntu 3.x wide, 9 = macOS (tests.yml)
             self.check(files, n)
 
     def test_the_quick_tier_too(self):
@@ -186,6 +186,8 @@ class Classes(unittest.TestCase):
         self.assertEqual(run_tests.classify(1, 0), "FLAKE")
         self.assertEqual(run_tests.classify(1, 1), "DEFECT")
         self.assertEqual(run_tests.classify(run_tests.TIMED_OUT, 1), "DEFECT")
+        self.assertEqual(run_tests.classify(run_tests.TIMED_OUT, 0), "SIZING")     # AP1: a TIMEOUT that passes alone is sizing, not a flake
+        self.assertEqual(run_tests.classify(run_tests.TIMED_OUT), "DEFECT")
         self.assertEqual(run_tests.classify(1), "DEFECT")          # not re-run (more than --rerun-max failed): red
 
     def rerun(self, script):
@@ -194,6 +196,56 @@ class Classes(unittest.TestCase):
         with mock.patch.object(run_tests, "log_flaky"), redirect_stdout(io.StringIO()):
             still, alone = run_tests.rerun_alone(failed, runner, 15)
         return still, alone, runner
+
+    def test_a_timeout_that_passes_alone_is_sizing_and_a_failure_that_passes_alone_is_a_flake(self):
+        hung, bad = "\nTIMEOUT: test_h.py ran over 5s (--file-timeout) and was stopped\n", "AssertionError: boom\n"
+        self.assertEqual(run_tests.first_code(hung), run_tests.TIMED_OUT)
+        self.assertEqual(run_tests.first_code(bad), 1)
+        got = run_tests.classes([("test_d.py", bad)], [("test_h.py", hung, ""), ("test_f.py", bad, "")])
+        self.assertEqual(got, (["test_d.py"], ["test_f.py"], ["test_h.py"]))
+
+    def test_run_all_counts_a_timeout_that_passes_alone_as_sizing_not_red(self):
+        d = folder({"test_slow_z.py": PASSES})
+        out, seen = BASE / "res3.json", []
+        script = {"test_slow_z.py": [(run_tests.TIMED_OUT, "\nTIMEOUT: test_slow_z.py ran over 1s\n"), (0, "")]}
+
+        class Hung:
+            def __init__(self):
+                self.dir = None
+            def run(self, f):
+                code, text = script[Path(f).name].pop(0)
+                return Path(f), code, 0.1, text
+            def osascript_calls(self):
+                return []
+            def stop(self): pass
+            def close(self): pass
+        with mock.patch.object(run_tests, "Runner", lambda *a, **k: Hung()), mock.patch.object(run_tests, "TESTS", d), \
+                mock.patch.object(run_tests, "FLAKY", d / "f.jsonl"), mock.patch.object(run_tests, "TIMES", d / "t.txt"), \
+                mock.patch.object(run_tests, "log_flaky"), mock.patch.object(run_tests, "tests_ran", lambda o: 1), \
+                redirect_stdout(io.StringIO()) as buf:
+            code = run_tests.run_all([d / "test_slow_z.py"], 1, results=str(out))
+        doc = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual((code, doc["counts"], doc["sizing"]), (0, {"DEFECT": 0, "FLAKE": 0, "SIZING": 1}, ["test_slow_z.py"]))
+        self.assertIn("SIZING 1", buf.getvalue())
+
+    def test_a_shard_summary_names_flake_defect_or_sizing(self):
+        doc = run_tests.results_doc(10, ["test_b.py"], {"test_a.py": 2}, True, sizing=["test_h.py"])
+        text = run_tests.summarize(doc, "failure")
+        self.assertIn("DEFECT 1 | FLAKE 1 | SIZING 1", text)
+        for line in ("- DEFECT (failed twice, red): test_b.py", "- FLAKE (failed, passed alone, x2): test_a.py",
+                     "- SIZING (timed out, passed alone): test_h.py"):
+            self.assertIn(line, text)
+
+    def test_a_stopped_or_failed_shard_never_prints_defect_0(self):
+        failed_once = run_tests.results_doc(300, [], {}, False, failed_first=["test_a.py"])
+        for doc in (None, run_tests.results_doc(300, [], {}, False), failed_once):
+            for status in ("cancelled", "failure", "", "skipped"):
+                self.assertNotIn("DEFECT 0", run_tests.summarize(doc, status), (doc, status))
+        self.assertIn("DEFECT 0", run_tests.summarize(run_tests.results_doc(300, [], {}, True), "success"))   # only a run that ended says 0
+
+    def test_the_summary_line_and_exit_code_are_unchanged_by_the_classification(self):
+        self.assertEqual(run_tests.summary(True, 5, 1.0), f"Python {sys.version.split()[0]}: pass, 5 tests in 1.0 s")
+        self.assertEqual(run_tests.summary(False, 5, 1.0), f"Python {sys.version.split()[0]}: FAIL, 5 tests in 1.0 s")
 
     def test_flaky_file_passes_on_the_retry_and_is_not_red(self):
         still, alone, runner = self.rerun({"test_a.py": [0]})

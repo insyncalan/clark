@@ -534,11 +534,28 @@ def rerun_alone(failed, runner, most=None):
 
 
 def classify(first_code, alone_code=None):
-    """T2: PASS (passed the first time), FLAKE (failed, then passed alone) or DEFECT (failed, then failed alone too, or was not
-    re-run). Only a DEFECT makes a shard red."""
+    """T2 (AP1): PASS (passed the first time), SIZING (the file TIMED OUT, then passed alone: the shard was too heavy, not the test
+    wrong), FLAKE (failed, then passed alone) or DEFECT (failed, then failed alone too, or was not re-run). Only a DEFECT makes a
+    shard red."""
     if first_code == 0:
         return "PASS"
-    return "FLAKE" if alone_code == 0 else "DEFECT"
+    if alone_code == 0:
+        return "SIZING" if first_code == TIMED_OUT else "FLAKE"
+    return "DEFECT"
+
+
+def first_code(out):
+    """The first run's exit code as far as the class needs it: TIMED_OUT when the output carries the runner's TIMEOUT line, else 1."""
+    return TIMED_OUT if "\nTIMEOUT: " in out else 1
+
+
+def classes(failed, alone):
+    """Class the files that failed the first time: `failed` are (name, output) still failing after the run alone, `alone` are
+    (name, first output, run-alone output) that passed alone. Returns (DEFECT names, FLAKE names, SIZING names)."""
+    defects = [n for n, _ in failed]
+    flakes = [n for n, out, _ in alone if classify(first_code(out), 0) == "FLAKE"]
+    sizing = [n for n, out, _ in alone if classify(first_code(out), 0) == "SIZING"]
+    return defects, flakes, sizing
 
 
 def flake_counts(names):
@@ -548,12 +565,13 @@ def flake_counts(names):
     return {n: max(1, seen.count(n)) for n in names}
 
 
-def results_doc(total, defects, flakes, complete, not_run=0, failed_first=()):
+def results_doc(total, defects, flakes, complete, not_run=0, failed_first=(), sizing=()):
     """The machine-readable result of one run: counts of DEFECT and FLAKE, the files, and whether the run reached its end.
     `failed_first` are files that have failed once and are not yet classified (kept while the run is going, so a cancel hides none)."""
     return {"complete": complete, "files": total, "not_run": not_run,
-            "counts": {"DEFECT": len(defects), "FLAKE": len(flakes), "SIZING": 0},
-            "defects": sorted(defects), "flakes": dict(sorted(flakes.items())), "failed_first": sorted(failed_first)}
+            "counts": {"DEFECT": len(defects), "FLAKE": len(flakes), "SIZING": len(sizing)},
+            "defects": sorted(defects), "flakes": dict(sorted(flakes.items())), "sizing": sorted(sizing),
+            "failed_first": sorted(failed_first)}
 
 
 def write_results(path, doc):
@@ -572,7 +590,7 @@ def summarize(doc, job_status=""):
     c = doc["counts"] if doc else {"DEFECT": 0, "FLAKE": 0, "SIZING": 0}
     open_files = [] if ended or not doc else doc.get("failed_first", [])
     if job_status == "cancelled" and not ended:
-        c["SIZING"] = 1
+        c["SIZING"] = max(1, c["SIZING"])
     if ended or (doc and job_status == "success"):
         defect = str(c["DEFECT"])
     elif open_files:
@@ -586,6 +604,7 @@ def summarize(doc, job_status=""):
         lines += [f"- DEFECT (failed twice, red): {n}" for n in doc["defects"]]
         lines += [f"- DEFECT or unknown (failed once, the run ended before it was re-run alone): {n}" for n in open_files]
         lines += [f"- FLAKE (failed, passed alone, x{k}): {n}" for n, k in doc["flakes"].items()]
+        lines += [f"- SIZING (timed out, passed alone): {n}" for n in doc.get("sizing", [])]
     return "\n".join(lines) + "\n"
 
 
@@ -830,10 +849,12 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
           + (f", {not_run} not run (--max-fail)" if not_run else "") + ".")
     count = sum(tests_ran(o) for o in outs.values())
     ok = not failed and not not_run and not dialogs
-    flakes = flake_counts([n for n, _, _ in alone])
-    write_results(results, results_doc(len(files), [n for n, _ in failed], flakes, True, not_run))
-    if flakes:
-        print(f"FLAKE {len(flakes)}: " + ", ".join(f"{n} x{k}" for n, k in flakes.items()) + f"; DEFECT {len(failed)}.", flush=True)
+    defects, flaked, sized = classes(failed, alone)
+    flakes = flake_counts(flaked)
+    write_results(results, results_doc(len(files), defects, flakes, True, not_run, sizing=sized))
+    if flakes or sized:
+        print(f"FLAKE {len(flakes)}: " + ", ".join(f"{n} x{k}" for n, k in flakes.items()) + f"; SIZING {len(sized)}"
+              + (": " + ", ".join(sized) if sized else "") + f"; DEFECT {len(defects)}.", flush=True)
     if dialogs:
         print("\n" + osascript_message(dialogs))
     print(summary(ok, count, time.time() - start))
