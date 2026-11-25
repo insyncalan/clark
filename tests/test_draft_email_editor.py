@@ -405,7 +405,7 @@ class Component(InBrowser):
         click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
         disabled = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').disabled"
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
-        self.js("T.reply = new Promise((ok) => { T.finish = () => ok({ok: true}); })")
+        self.js("T.reply = new Promise((ok) => { T.finish = () => ok({ok: true}); }); 0")
         self.js(click)
         self.js(click)
         self.settle()
@@ -427,7 +427,7 @@ class Component(InBrowser):
             with self.subTest(fail=fail):
                 self.js("T.sent.length = 0")
                 self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
-                self.js(f"T.reply = new Promise((ok, no) => {{ {fail}; }})")
+                self.js(f"T.reply = new Promise((ok, no) => {{ {fail}; }}); 0")
                 self.js(click)
                 self.js(click)
                 self.settle()
