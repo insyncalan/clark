@@ -6,10 +6,13 @@
 // Row 1233: the published view. The grid draws each image as framed (the file holds only the framed copy), in the one shape chosen for
 // all (4:3 when none is said, as before), two or three across (two across at half width and at 900 px), its caption under it when it has
 // one. No tool, dot, bin or red mark. Click an image (or Enter on it) to see it larger with its caption; Esc, a click outside it, or the
-// close button closes it. Same words and keys as section_kinds/gallery.py published().
+// close button closes it. Same words and keys as section_kinds/gallery.py published(). A small image (framed copy under SMALL_WIDE px wide)
+// sits centred at its own size in its tile on its fill (`fill`: "blur" the image's own blurred copy, the default, "brand" or "plain"), unless
+// its `fit` is "stretch"; the look is in the Classic theme (themes/prototype-2.0/rules-2.css), so a page without it draws the tile as before.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { contentOf, lineOf, captionOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
+import { FITS, FILLS, SMALL_WIDE } from "../logic/fullImageWords.js";
 
 export const READY = true;
 export const SLOTS = ["1", "2", "3", "4", "5", "6"];
@@ -22,7 +25,12 @@ export function shown(v) {
   const pics = picturesOf(v), items = v.items && typeof v.items === "object" && !Array.isArray(v.items) ? v.items : {};
   const list = SLOTS.filter((s) => lineOf(pics[s])).map((s) => {
     const it = items[s] && typeof items[s] === "object" ? items[s] : {};
-    return { image: pics[s], caption: captionOf(it.caption), alt: lineOf(it.alt) };
+    const one = { image: pics[s], caption: captionOf(it.caption), alt: lineOf(it.alt) };
+    if (v.v === 2) {
+      if (it.fit === "stretch") one.fit = "stretch";
+      if (it.fill === "brand" || it.fill === "plain") one.fill = it.fill;
+    }
+    return one;
   });
   if (!list.length) return null;
   const out = { pictures: list };
@@ -54,13 +62,27 @@ function Large({ p, onClose, opener }) {
     <dialog class="tpl-gal-large" ref={ref} aria-label={caption || lineOf(p.alt) || undefined} onClose={() => { if (live.current) onClose(); }}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
       <div class="tpl-gal-large-in">
-        <button type="button" class="tpl-gal-x" aria-label="Close" title="Close" onClick={onClose}>
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
-        </button>
+        <button type="button" class="tpl-gal-x" aria-label="Close (Esc)" title="Close (Esc)" onClick={onClose}>Close (Esc)</button>
         <img src={src} alt={lineOf(p.alt)} />
         {caption ? <p>{caption}</p> : null}
       </div>
     </dialog>
+  );
+}
+
+// One image in its tile. Once it has loaded, one narrower than SMALL_WIDE (and not asked to stretch) says so in its frame's class.
+function Tile({ p, src, onOpen }) {
+  const [small, setSmall] = useState(false);
+  const centred = p.fit !== "stretch";
+  const fill = FILLS.includes(p.fill) ? p.fill : FILLS[0];
+  const seen = (img) => { if (img && img.complete && img.naturalWidth) setSmall(img.naturalWidth < SMALL_WIDE); };
+  return (
+    <button type="button" class="tpl-gal-open" aria-haspopup="dialog" onClick={onOpen}>
+      <span class={`tpl-gal-frame${small && centred ? ` small fill-${fill}` : ""}`} data-fit={centred ? FITS[0] : "stretch"}
+        style={small && centred && fill === "blur" ? `--gal-src: url("${src}")` : undefined}>
+        <img src={src} alt={lineOf(p.alt)} loading="lazy" decoding="async" ref={seen} onLoad={(e) => seen(e.currentTarget)} />
+      </span>
+    </button>
   );
 }
 
@@ -79,9 +101,7 @@ export function View({ section }) {
         const caption = lineOf(p.caption);
         return (
           <figure class="tpl-fig tpl-gal-fig" key={i}>
-            <button type="button" class="tpl-gal-open" aria-haspopup="dialog" onClick={(e) => { opener.current = e.currentTarget; setOpen(i); }}>
-              <img src={safeImage(p.image)} alt={lineOf(p.alt)} loading="lazy" decoding="async" />
-            </button>
+            <Tile p={p} src={safeImage(p.image)} onOpen={(e) => { opener.current = e.currentTarget; setOpen(i); }} />
             {caption ? <figcaption>{caption}</figcaption> : null}
           </figure>
         );
