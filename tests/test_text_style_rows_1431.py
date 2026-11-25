@@ -21,7 +21,7 @@ RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(enc
 OPT = ".rt-bar [role=menu] [role=menuitemradio]"
 READ = r"""(() => { const m = [...document.querySelectorAll('.rt-bar [role=menu]')].pop(); if (!m) return null;
  const o = [...m.querySelectorAll('[role=menuitemradio]')]; const c = e => getComputedStyle(e);
- return {w: Math.round(m.getBoundingClientRect().width), rows: o.map(e => ({t: e.textContent.trim(), h: Math.round(e.getBoundingClientRect().height * 10) / 10, fs: c(e).fontSize, pl: c(e).paddingLeft, pr: c(e).paddingRight, icon: !!e.querySelector('svg'), on: e.getAttribute('aria-checked') || e.getAttribute('aria-current') || e.className}))}; })()"""
+ return {w: Math.round(m.getBoundingClientRect().width), rows: o.map(e => ({t: e.textContent.trim(), h: Math.round(e.getBoundingClientRect().height * 10) / 10, fs: c(e).fontSize, pl: c(e).paddingLeft, pr: c(e).paddingRight, fw: c(e).fontWeight, icon: !!e.querySelector('svg'), on: e.getAttribute('aria-checked') || e.getAttribute('aria-current') || e.className}))}; })()"""
 LOOKS = [(1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")]
 _patch = None
 
@@ -70,6 +70,15 @@ class Rows(unittest.TestCase):
             for r in m["rows"]:
                 self.assertEqual((r["fs"], r["pl"], r["pr"], r["icon"]), ("14px", "16px", "16px", True), f"{look}: {r['t']!r} keeps its size, side padding and icon")
             self.assertGreaterEqual(m["w"], 150, look)
+
+    def test_text_style_four_lines_same_size_no_heading_sizes_1431(self):
+        """Row 1288 AP3 (DoD3), the test the row names: the four lines of the toolbar Text style menu (Text, Heading 1, 2, 3) are drawn at one size and one weight, 14px, at 1400 and 900 in light and dark; the heading own-sizes 20/18/16 are gone from the toolbar menu."""
+        for look, m in self.read_all().items():
+            self.assertEqual(len(m["rows"]), 4, look)
+            self.assertEqual({r["fs"] for r in m["rows"]}, {"14px"}, f"{look}: the four lines are one size: {[(r['t'], r['fs']) for r in m['rows']]}")
+            self.assertEqual(len({r["fw"] for r in m["rows"]}), 1, f"{look}: the four lines are one weight: {[(r['t'], r['fw']) for r in m['rows']]}")
+        own = re.findall(r'\.rt-bar[^{}]*\.ddmenu\[aria-label\^="Text style"\][^{}]*\[data-kind="h[123]"\][^{}]*\{[^}]*font-size:\s*(?:20|18|16)px', RULES)
+        self.assertEqual(own, [], "no toolbar rule gives a heading line its own 20/18/16px size")
 
     def test_cards_page_has_no_row_1431_rule(self):
         self.assertIn("Row 1431", RULES)
