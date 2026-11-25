@@ -1,6 +1,6 @@
 """#96 G2, the RAID cards templates, three across (store type raid3; test_tpl_raid4.py runs the same for four across).
 
-A card is a work item's id and where its words come from (Client Message, Own words, or an action's Latest update). The checker,
+A card is a work item's id and where its words come from (Client wording, Own words, or an action's Latest update). The checker,
 the published fields (a hidden, archived, not client visible, sensitive or hidden-section item never publishes; an empty template
 stays out of the file), one change = one step = one Undo, and the page: View draws only what the file would, Edit saves each
 choice as one change. Fictional data only.
@@ -15,7 +15,7 @@ import unittest
 
 from _demo import USER
 from _paths import SRC
-from clark import changes, publish, section_bodies, store as store_module
+from clark import changes, publish, section_bodies, store as store_module, theme
 from clark.section_kinds import base, raid3, raid4
 from test_changes import Api
 from test_report_editor import Base as PageBase
@@ -89,10 +89,10 @@ class CheckerBase:
             with self.subTest(id=bad_id):
                 self.bad(body({"id": bad_id}), "A card needs the number of a risk, issue, action or decision.")
         self.bad(body(card("ABC-001"), card("ABC-001")), "The same item is on two cards.")
-        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client Message or Own words for this card.")
+        self.bad(body(card("ABC-001", "latest")), "Only an action has a latest update. Choose Client wording or Own words for this card.")
         self.bad(body(card("ABC-D-001", "latest")))
         self.check(body(card("ABC-A-001", "latest")))
-        self.bad(body(card("ABC-001", "other")), "Choose Client Message, Own words or Latest update for a card.")
+        self.bad(body(card("ABC-001", "other")), "Choose Client wording, Own words or Latest update for a card.")
         self.bad(body(card("ABC-001", "own", "x" * 401)), "A card's own words can be 400 characters at most.")
         self.check(body(card("ABC-001", "own", "x" * 400)))
         self.bad(body({"id": "ABC-001", "source": "own", "own": 7}))
@@ -189,7 +189,7 @@ class Items(Api):
         self.assertNotIn("source", json.dumps(sec["cards"]))
 
     def test_a_client_card_with_no_wording_publishes_the_items_title_and_never_other_fields(self):
-        """#916: Client Message falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
+        """#916: Client wording falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
         with self.s.step("dashboard", USER) as st:
             st.update("actions", self.action, {"client_message": "", "latest_update": "LATESTWORDS", "owner": "Pat Owner"})
             st.update("raid", self.risk, {"client_message": ""})
@@ -279,23 +279,49 @@ class PageSide(PageBase):
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", ids["sec"], {"body": body(*cards)})
 
+    def classic(self, p, sec):
+        """The served page draws as Cards; the card change of row 1270 is Classic only (Cards is frozen), so put the Theme mark on every new document the way the published file carries it, and reload."""
+        mark = "document.addEventListener('DOMContentLoaded', () => { if (!document.getElementById('theme')) { const s = document.createElement('style'); s.id = 'theme'; document.head.appendChild(s); } });"
+        p.cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": mark}, p.sid)
+        p.reload()
+        p.until("!!document.getElementById('theme')", "the page carries the Classic Theme mark")
+
     def card_ids(self, p, sec):
         return self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] .raid-card')].map(e => e.dataset.card)")
 
     def test_view_draws_only_the_cards_the_file_would(self):
+        """Row 1270: a card is the item's own description and latest update (no client wording, no own words), with the foot line pinned to the bottom."""
         ids = self.seed()
+        # an old saved body may still carry a client or own words choice: it is kept in the body, never drawn
         self.fill(ids, card(ids["risk"]), card(ids["hidden"], "own", "HIDDENOWN"), card(ids["action"], "latest"))
         with chrome() as cdp:
             p = self.visit(cdp)
             sec = ids["sec"]
+            self.classic(p, sec)
+            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .raid-part')", "the Classic card is drawn")
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]], "the item that is not client visible has no card")
             shown = p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent")
-            self.assertIn("We are watching the supplier.", shown)
-            self.assertIn("LATESTWORDS", shown)
+            self.assertIn("Supplier may slip", shown, "the item's own description")
+            self.assertIn("Agree the plan", shown)
+            self.assertIn("LATESTWORDS", shown, "the latest update")
+            self.assertNotIn("We are watching the supplier.", shown, "no client wording")
             self.assertNotIn("HIDDENWORDS", shown)
             self.assertNotIn("HIDDENOWN", shown)
+            self.assertNotIn("Hidden rig", shown)
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(sec)}] .quiet').length"), 0)
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(sec)}] [contenteditable], [data-id={json.dumps(sec)}] select, [data-id={json.dumps(sec)}] input').length"), 0, "View is read-only")
+            # the pinned foot line is the Classic layer's rule (Cards is unchanged): add the layer the way the published Classic page carries it
+            css = theme.css(theme.CLASSIC)
+            p.js(f"(function(){{ const s = document.createElement('style'); s.id = 'theme'; document.head.appendChild(s); const sh = new CSSStyleSheet(); sh.replaceSync({json.dumps(css)}); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sh]; }})()")      # a constructed sheet: the page's policy refuses inline style text
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                got = p.js(f"""(() => {{ const cs = [...document.querySelectorAll('[data-id={json.dumps(sec)}] .raid-card')];
+                    return cs.map(c => {{ const m = c.querySelector('.raid-meta'); const r = c.getBoundingClientRect(), q = m ? m.getBoundingClientRect() : null;
+                        return {{ top: Math.round(r.top), foot: q ? Math.round(r.bottom - q.bottom) : -1 }}; }}); }})()""")
+                self.assertEqual(len(got), 2, width)
+                self.assertTrue(all(g["foot"] >= 0 for g in got), f"every card has its foot line at {width}: {got}")
+                if got[0]["top"] == got[1]["top"]:      # side by side: the foot lines sit at the same height, whatever the card above them says
+                    self.assertEqual(got[0]["foot"], got[1]["foot"], f"the foot lines are pinned to the bottom of the row at {width}: {got}")
 
     def test_view_leaves_an_empty_template_out(self):
         ids = self.seed()
@@ -315,6 +341,7 @@ class PageSide(PageBase):
             # a second change. It counts changes, so it needs the unfocused page it was written for.
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
+            self.classic(p, sec)
             p.edit()
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-first')", "the first-step line is shown")
             first = p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-first').textContent")
@@ -358,8 +385,7 @@ class PageSide(PageBase):
             # View now draws the cards
             p.view()
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]])
-            p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('Typed words')", "View draws the words just typed")      # the page takes the saved section a moment after the field shows it; the hosted Mac drew View first
-            self.assertIn("Typed words", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
+            self.assertNotIn("Typed words", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))      # row 1270 DoD: the cards draw no own words; the typed words are saved (checked above) and View does not draw them
             p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('LATESTWORDS')", "View draws the latest update of card 2")      # drawn with the words above, but a slow hosted Mac has drawn the card without it for a moment
             self.assertIn("LATESTWORDS", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
             self.assertEqual(self.sent[-1][1]["place"], "report")

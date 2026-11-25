@@ -40,7 +40,7 @@ class Words(unittest.TestCase):
         line = next(t for t in STRINGS if t.startswith("**Dates**: Agreed (the baseline)"))
         self.assertIn("an Achieved on date, a row in Edit", line)
         rows = next(t for t in STRINGS if t.startswith("**The rows**: in Edit, Description, Agreed date"))
-        self.assertIn("Workstream, Use case and Client Message", rows)
+        self.assertIn("Workstream, Use case and Client wording", rows)
 
     def test_milestone_peek_state_buttons_edit_only_view_chip(self):
         state = next(t for t in STRINGS if t.startswith("**State**: Forecast, On track, At risk, Slipped, Overdue"))

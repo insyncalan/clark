@@ -1,8 +1,8 @@
 """Row 828 (M4, M5): the milestone peek's fields are editable in place on the Milestones page with no View mode: Name, Owner, Forecast date,
-Achieved on, State, Progress, Description, Workstream, Visible to client and Client Message. Each is one change with one Undo; a refusal
+Achieved on, State, Progress, Description, Workstream, Visible to client and Client wording. Each is one change with one Undo; a refusal
 changes nothing; the Dashboard's View and a published file keep the read-only peek. M6 (row 867, Archive in the peek) uses the work item peek's own words.
 Row 1078: the name is the title and the owner, state and progress are the header line (test_milestone_peek_1078 pins the layout); the rows
-below are plain rows (data-ms-row), and Client Message is on the rich editor like the description.
+below are plain rows (data-ms-row), and Client wording is on the rich editor like the description.
 
 Run: python3 dev/run_tests.py test_milestone_peek_828
 Without a browser: the pure rules (msPeek.js) are read from the source; the published build takes none of the new files.

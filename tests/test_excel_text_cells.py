@@ -160,7 +160,7 @@ class DataSheets(unittest.TestCase):
         self.export("-x", owner="=y", client_message="@z")
         ws = load_workbook(self.path)["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        for label, want in (("Title", "-x"), ("Owner", "=y"), ("Client Message", "@z")):
+        for label, want in (("Title", "-x"), ("Owner", "=y"), ("Client wording", "@z")):
             c = ws.cell(row=2, column=head[label])
             self.assertEqual((c.value, c.data_type, c.quotePrefix), (want, "s", True), label)
 
