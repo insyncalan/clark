@@ -57,7 +57,7 @@ class Rows(Base):
     def pages(self):
         return [(r["name"], r["sort_order"], r["client"], r["hidden"]) for r in sorted(self.store.read("added_pages", project="ABC"), key=lambda r: (r["sort_order"], r["id"]))]
 
-    def open(self, cdp, width):
+    def open_page(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 900)
         p.js("location.hash = '#settings&p=ABC&s=reports'")
@@ -79,7 +79,7 @@ class Rows(Base):
         self.add("Supplier status")
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 self.assertEqual(p.js("document.querySelector('#add-pages-h').textContent"), "Pages")
                 self.assertEqual(p.js(ROWS)[0], "Add page")
                 self.assertEqual(p.js("document.querySelector('#add-pages .set-row small').textContent"), "A custom page for Example Programme, built from a template, then named, placed and marked client or internal")
@@ -99,7 +99,7 @@ class Rows(Base):
             self.add(f"Page {n}")
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "5 of 5 added pages (Gantt counts)")
                 self.assertTrue(p.js("document.querySelector('#add-page').disabled"))
                 self.assertEqual(p.js("document.querySelector('.ap-limit').textContent"), CAP)
@@ -112,7 +112,7 @@ class Rows(Base):
     def check_configure(self, w):
         self.add("Supplier status")
         with chrome() as cdp:
-            p = self.open(cdp, w)
+            p = self.open_page(cdp, w)
             self.assertEqual(p.js("!!document.querySelector('#ap-configure')"), False)
             self.configure(p, "Supplier status")
             self.assertEqual(p.js(NAMES), list(HELP))
@@ -135,7 +135,7 @@ class Rows(Base):
     def test_name_client_hide_and_open_the_page(self):
         pid = self.add("Supplier status")
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             self.configure(p, "Supplier status")
             p.js("(() => { const i = document.querySelector('#ap-name'); i.focus(); i.value = 'Handover papers'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
             p.js("document.querySelector('#ap-name').blur()")
@@ -162,7 +162,7 @@ class Rows(Base):
         self.add("Beta page")
         self.add("Gamma page")
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             self.configure(p, "Beta page")
             self.assertEqual(p.js(STRIP)[-4:], ["Alpha page", "Beta page", "Gamma page", "Settings"])
             self.assertTrue(p.js("document.querySelector('#ap-undo').disabled"))
@@ -182,7 +182,7 @@ class Rows(Base):
     def test_remove_page_is_undone_from_the_toast_and_keeps_its_sections(self):
         self.add("Supplier status")
         with chrome() as cdp:
-            p = self.open(cdp, 900)
+            p = self.open_page(cdp, 900)
             self.configure(p, "Supplier status")
             p.js("document.querySelector('#ap-remove').click()")
             p.until("!document.querySelector('#ap-configure') && document.querySelectorAll('#add-pages .ap-page').length === 1", "removed")
@@ -197,7 +197,7 @@ class Rows(Base):
         with sqlite3.connect(str(self.store.path)) as con:
             con.execute("UPDATE projects SET show_gantt_editor = 1, show_gantt_client = 1 WHERE code = 'ABC'")
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             self.assertEqual(p.js("[...document.querySelectorAll('#add-pages .ap-gantt .st')].map(e => e.textContent)"), ["You: on", "Client: on"])
             self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "1 of 5 added pages (Gantt counts)")
             p.js("document.querySelector('#ap-gantt-remove').click()")

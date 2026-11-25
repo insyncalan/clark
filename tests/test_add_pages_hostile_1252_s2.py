@@ -92,7 +92,7 @@ class Migration(unittest.TestCase):
 
     def test_schema_sql_and_step_statement_are_the_same_text(self):
         norm = lambda t: re.sub(r"\s+", "", re.sub(r"--[^\n]*", "", t))
-        sql = (Path(sm.__file__).with_name("schema.sql")).read_text()
+        sql = (Path(sm.__file__).with_name("schema.sql")).read_text(encoding="utf-8")
         m = re.search(r"CREATE TABLE IF NOT EXISTS added_pages \(.*?\n\);", sql, re.S)
         self.assertEqual(norm(m.group(0).rstrip(";")), norm(sm.ADDED_PAGES_TABLE))
 

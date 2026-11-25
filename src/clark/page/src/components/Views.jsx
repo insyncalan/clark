@@ -117,7 +117,7 @@ export function Milestones({ tools }) {
 const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
-  ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting", "AddPages"]]]],
+  ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Quit"]]]],
 ];
@@ -131,14 +131,15 @@ const GROUPS_CLASSIC = [
 const OLD_SLUGS = { folder: "brand", theme: "appearance" };
 const AFFECTS_OF = { "You": () => "You", "All projects": () => "All projects", "Project settings": (code) => code };
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting", "AddPages"];
+const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
+const NEEDS_PROJECT_TOO = [...NEEDS_PROJECT, "AddPages"];      // row 1252: the Pages card also needs an open project
 const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", AddPages: "add-pages-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Quit: "quit-h" };
 // Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's class is set-tile-<slug> and the Classic rules in themes/prototype-2.0/rules-2.css colour it (one fill per page); the tile and the window class are drawn in the Classic theme only, Cards draws neither
 const SET_ICON = { profile: "user", appearance: "sun", theme: "moon", projects: "board", backups: "archive", reports: "chart", folder: "ul", brand: "flag", people: "people", claude: "sparkle", data: "dl", version: "info", logs: "clock" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {
-  const here = (tool) => !!(tools && tools[tool]) && (open || !NEEDS_PROJECT.includes(tool));
+  const here = (tool) => !!(tools && tools[tool]) && (open || !NEEDS_PROJECT_TOO.includes(tool));
   return (classicTheme() ? GROUPS_CLASSIC : GROUPS).map(([group, pages]) => [group, pages.map(([slug, name, list]) => [slug, name, list.filter(here)]).filter(([, , list]) => list.length)]).filter(([, pages]) => pages.length);
 }
 
