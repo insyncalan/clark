@@ -104,6 +104,16 @@ class Shape(unittest.TestCase):
         for gone in ("beside the clark files", "each keep their own data", "Use the projects you already have"):
             self.assertNotIn(gone, text)
 
+    def test_the_add_documents_and_links_entry_exists(self):
+        """Row 1194 AP14: the Help entry for the Documents and links section, placed in Edit, and the BRD line FR-100a."""
+        entry = [t for t in STEPS if t["t"] == "Add documents and links"]
+        self.assertEqual(len(entry), 1)
+        self.assertEqual(entry[0]["w"], "Dashboard \u203a Edit \u203a Documents and links")
+        self.assertEqual(entry[0]["go"], "dashboard+edit")
+        self.assertIn("A section holds up to 20 entries.", entry[0]["s"])
+        brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
+        self.assertIn("- **FR-100a:** A new report starts with a Documents and links section instead of Supporting documents.", brd)
+
     def test_three_tabs_from_one_source(self):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 
@@ -114,7 +124,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 34))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (39, 34))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -205,6 +215,11 @@ class Places(unittest.TestCase):
         self.assertEqual(sorted(u for u in used if u not in self.ids and u not in BASE), [])
 
 
+# Row 1194 AP14: two lines of the "Add documents and links" entry in the approved words (Jarvis 21-11): "refused" and "https:// or mailto:" are the approved text, so the two word guards below skip exactly these lines.
+APPROVED_1194 = {"You can add PDF, Word, Excel, PowerPoint, JPG, PNG and TXT files. HTML, SVG, ZIP and programs are refused.",
+                 "To add a link, choose the link icon, type the web address and a link description, then choose Add. A link starts with https:// or mailto:."}
+
+
 class Words(unittest.TestCase):
     JARGON = re.compile(r"\b(sweeps?|proposals?|stag(?:e|ed|ing)|vault|live server|extract(?:s|ed|ion)?|refus(?:e|ed|al)|valid|invalid|"
                         r"(?<!Progress )(?<!Status )tracker|prototype|demo|creaite|Claude(?! (?:or|and) ChatGPT)|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
@@ -213,7 +228,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(without_approved(s)) or self.PATH.search(without_approved(s)))]
+        found = [(p, s) for p, s in words() if s not in DOCKER and s not in APPROVED_1194 and (self.JARGON.search(without_approved(s)) or self.PATH.search(without_approved(s)))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
@@ -229,7 +244,7 @@ class Words(unittest.TestCase):
         self.assertEqual(shown, [])
 
     def test_no_real_looking_email_or_address(self):
-        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
+        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER and s not in APPROVED_1194 and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
 
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""
