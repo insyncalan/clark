@@ -1640,7 +1640,8 @@ class _Pipe:
                            f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
 
     def js(self, expr, session):
-        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True}, session)["result"].get("value")
+        """The value of the expression. A promise is waited for (awaitPromise), so `js("new Promise(r => setTimeout(r, 300))")` takes 300 ms (row 1622)."""
+        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True, "awaitPromise": True}, session)["result"].get("value")
 
 
 @contextlib.contextmanager
