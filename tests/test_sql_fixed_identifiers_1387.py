@@ -24,6 +24,7 @@ FIXED_NAMES = {
     ("store.py", "ACCEPTED_COLUMN"): "module constant (migrate_source_folders_1365, row 1365)",
     ("store.py", "BRAND_COLUMN"): "module constant",
     ("store.py", "THEME_COLUMN"): "module constant",
+    ("store.py", "COLUMN_ORDERS_COLUMN"): "module constant (migrate_column_orders, row 1534)",
     ("store.py", "name"): "name of GANTT_PROJECT_COLUMNS, a constant tuple",
     ("store.py", "definition"): "text of GANTT_PROJECT_COLUMNS, a constant tuple",
     ("store.py", "text"): "item of OWNER_COLUMNS, a constant tuple",
