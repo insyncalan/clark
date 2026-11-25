@@ -8,6 +8,7 @@ import { editorOn, clientOn, tabName, nameOf, requestFor, NAME_MAX } from "../ga
 import { NAME_REFUSED } from "./ganttWords.js";
 import { SettingRow, focusControl } from "./SettingRow.jsx";
 import { defaultOf } from "./settingsDefaults.js";
+import { BoardSetting } from "./BoardSetting.jsx";
 
 export function GanttSetting() {
   const p = data.value && data.value.project, now = tabName(p);
@@ -41,6 +42,7 @@ export function GanttSetting() {
     focusControl("gantt-name");
   };
   return (
+    <>
     <section class="frame setting" id="gantt-setting" aria-labelledby="gantt-setting-h">
       <h2 id="gantt-setting-h" tabIndex={-1}>Gantt</h2>
       <p class="muted">Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.</p>
@@ -61,5 +63,7 @@ export function GanttSetting() {
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } else if (e.key === "Escape") { setTyped(null); setSaid(""); } }} />
       </SettingRow>
     </section>
+    <BoardSetting />      {/* row 1533: its own card under the Gantt one, on the same Reports page */}
+    </>
   );
 }

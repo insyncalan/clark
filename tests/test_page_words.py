@@ -283,7 +283,9 @@ class Words(unittest.TestCase):
                     "Gantt",          # #926: the project's Gantt tab setting
                     "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
                     "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
-                    "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page."
+                    "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.",
+                    "Work items board", "Whether a published report lets the client switch the Work items page from the list to the board. The client can look and open a card, never change anything.",      # row 1533: the author's switch, wording approved in NEW-WORDS.md
+                    "Show the board to clients", "The list stays the first view. A printed or saved page is always the list."
                 ]),
                 ('backups', 'Backups', [
                     "Backups",            # #111: the backups card; this server has no backups to list

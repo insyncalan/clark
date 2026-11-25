@@ -868,8 +868,8 @@ class More(Base):
         self.put("a.txt", "zqon words")
         real = ask_index.reach.readable_files
 
-        def listing(folders, data_dir, reasons=None, home=None):
-            got = real(folders, data_dir, reasons, home)
+        def listing(folders, data_dir, reasons=None, home=None, cuts=None):
+            got = real(folders, data_dir, reasons, home, cuts)
             reasons[ask_index.reach.ONLINE] = 2
             return ask_index.reach.Listing(got.files, got.skipped + 3, got.stopped)
         with mock.patch.object(ask_index.reach, "readable_files", listing):

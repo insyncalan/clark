@@ -62,7 +62,7 @@ class CardBrowser(unittest.TestCase):
             self.assertLessEqual(c["r"], got["peek"]["r"] + 0.5, where)
         self.assertLessEqual(got["sideways"], 1, f"{where}: the panel does not scroll sideways")
         self.assertLessEqual(got["doc"], 1, f"{where}: the page does not scroll sideways")
-        known = {"Type", "Owner", "Made by", "Decision by", "Made on", "Reasoning", "Options considered", "Revisit", "Replaces", "Visible to client", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client Message", "Raised", "Last reviewed", "Description", "Client visible", "Rating"}
+        known = {"Type", "Owner", "Made by", "Decision by", "Made on", "Reasoning", "Options considered", "Revisit", "Replaces", "Visible to client", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client wording", "Raised", "Last reviewed", "Description", "Client visible", "Rating"}
         self.assertLessEqual(set(got["labels"]), known, f"{where}: the same labels as before (no new words)")
 
     def test_the_card_in_view_and_edit_light_and_dark_at_both_widths(self):

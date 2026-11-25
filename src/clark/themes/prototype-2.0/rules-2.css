@@ -7,6 +7,54 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
+/* Row 1270 (Classic only): the RAID card. */
+@media (min-width: 1400px) { .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.raid-cards { align-items: stretch; }
+.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); position: relative; display: flex; flex-direction: column; padding: 0 var(--space-4) var(--space-3); border-top: var(--space-1) solid var(--rc-edge); }
+.raid-card.rc-r { --rc-edge: var(--status-red-text); --rc-tint: var(--status-red-tint); --rc-ink: var(--status-red-text); }
+.raid-card.rc-a { --rc-edge: var(--status-amber-text); --rc-tint: var(--status-amber-tint); --rc-ink: var(--status-amber-text); }
+.raid-card.rc-g { --rc-edge: var(--status-green-text); --rc-tint: var(--status-green-tint); --rc-ink: var(--status-green-text); }
+.raid-card.rc-n { --rc-edge: var(--grey-700); --rc-tint: var(--grey-100); --rc-ink: var(--grey-700); }
+.raid-card p.raid-top { margin: 0 calc(-1 * var(--space-4)) var(--space-2); padding: var(--space-2) var(--space-4); background: var(--rc-tint); color: var(--rc-ink); }
+.raid-card .raid-title { white-space: normal; overflow: visible; text-overflow: clip; }
+.raid-rating { margin-left: auto; font-weight: var(--weight-medium); white-space: nowrap; }
+.raid-label, .raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+.raid-latest { color: var(--text); }
+.raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); }
+.raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
+.raid-card .raid-id { cursor: pointer; }
+.raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
+.raid-card .raid-id:focus-visible { outline: none; }
+.raid-card:hover { box-shadow: var(--shadow); border-color: var(--rc-edge) var(--grey-500) var(--grey-500); }
+.raid-card .raid-id:hover { text-decoration: underline; }
+.raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
+/* Row 1270 (Classic only): the RAID cards editor. */
+.rce-bar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.rce-pick, .rce-rm, .rce-picker input { min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-pick, .rce-rm, .rce-opts button { cursor: pointer; }
+.rce-pick:disabled { opacity: 0.4; cursor: default; }
+.rce :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rce-rm { width: 36px; padding: 0; justify-self: end; align-self: start; }
+.rce-count, .rce-ck small, .rce-show legend, .rce-kind, .rce-rate { color: var(--text-muted); font-size: var(--size-caption); }
+.rce-kind, .rce-rate { margin-right: var(--space-2); }
+.rce-ck small { display: block; }
+.rce-picker { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.rce-opts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; }
+.rce-opts button { width: 100%; min-height: 36px; text-align: left; padding: var(--space-1) var(--space-3); border: 0; background: transparent; color: var(--text); font: inherit; overflow-wrap: anywhere; }
+.rce-opts button:hover { background: var(--brand-blue-tint); }
+.rce-show { grid-column: 1 / -1; display: grid; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
+.rce-show legend { padding: 0; }
+.rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
+.rce-f { display: grid; gap: var(--space-1); }
+.rce-across { max-width: 14rem; margin-bottom: var(--space-3); }
+.rce-none { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); }
+/* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
+.ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
+.cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
+.cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
+.cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
 /* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
 .tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
 .tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
@@ -330,10 +378,13 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   .top-file .tab { padding-block: 8px 12px; }
   .top-file .tab:not([aria-selected="true"]) { color: color-mix(in srgb, var(--white) 92%, transparent); }
   .top-file .top-slot, .top-file .cm-wrap { order: 3; }
-  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2)); }
+  .top-file { --theme-btn-size: 32px; }
+  .top-file .cm-theme { width: var(--theme-btn-size); height: var(--theme-btn-size); }
+  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2)); }
 }
-@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) * 2 - var(--space-2) - 94.94px); } }
-@media (min-width: 1101px) { .top-file .asat-wrap { position: absolute; right: 112px; top: 50%; transform: translateY(-50%); } }
+@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 94.94px); } }
+/* Row 1543: the published header's profile circle is filled with the brand cyan as the editor's circle and the approved mock-up draw it, at every width (it was a slate fill with a grey ring); its size stays 32px. */
+.top-file .cm-badge { background: var(--brand-cyan); border-color: transparent; color: var(--brand-navy); }
 
 /* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
 .toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
@@ -377,6 +428,21 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 @media (max-width: 900px) { .slash-list .slash-rows.slash-damaged li { grid-template-columns: 1fr max-content; } .slash-list .slash-rows.slash-damaged .slash-name { grid-column: 1 / -1; } }
 
 
+/* Row 1288 (AP6, Classic AI menu, mock-up 5B): group labels blue, the hovered or focused row light blue, the Improve, Structure and Ask icons purple, green and amber, and the menu at least 210 px wide. Dark keeps what main draws: the muted label, the blue tint, and the icon colour the row passes on (the dark currentColor rules are needed because the light icon rules above are unscoped and would otherwise colour the dark icons). */
+.aim { min-width: 210px; }
+.aim-gl { color: rgb(59, 111, 212); }
+.aim-opt:hover, .aim-opt:focus-visible { background: rgb(230, 238, 252); }
+.aim-ic-improve { color: rgb(124, 77, 255); }
+.aim-ic-structure { color: rgb(47, 125, 74); }
+.aim-ic-ask { color: rgb(183, 121, 31); }
+:root[data-theme=dark] .aim-gl { color: var(--text-muted); }
+:root[data-theme=dark] .aim-opt:hover, :root[data-theme=dark] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+:root[data-theme=dark] .aim-ic { color: currentColor; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] .aim-gl { color: var(--text-muted); }
+  :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
+  :root[data-theme=auto] .aim-ic { color: currentColor; }
+}
 /* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
 .secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */

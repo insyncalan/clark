@@ -95,8 +95,8 @@ export function TopBar({ tools }) {
           : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
-      {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header */}
-      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
+      {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header; the Classic header has no date button (row 1543) */}
+      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), before the profile circle; empty, it takes no room */}
       {file ? tail : <div class="hdr-end">{tail}</div>}
       {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}
     </header>
