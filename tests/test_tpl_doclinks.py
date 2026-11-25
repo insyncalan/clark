@@ -962,6 +962,29 @@ class Published(PageBase):
                                         "tpl-name:_blank:noopener noreferrer", "tpl-act:_blank:noopener noreferrer"],
                                  "row 1194 read (B1): each name link and each Open link opens a new tab with rel noopener noreferrer")
 
+    def test_the_published_file_email_link_icon_is_the_bare_envelope(self):
+        """Row 1194 AP8 (slice C3, ruled 21-11): the published file draws the 41 x 41 envelope with the @ badge, not a box holding the word MAIL."""
+        ref = InThePage.add(self, [a_link(href="mailto:team@example.org", label="Team")])
+        out = tempfile.mkdtemp(prefix="clark-1194-ap8-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=USER, now="2030-01-15", branding=EMPTY_BRANDING)["path"])
+        for width, dark in ((1400, False), (900, True), (900, False), (1400, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                p = Pg(self, cdp, sid)
+                p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
+                if dark:
+                    p.js("document.documentElement.dataset.theme = 'dark'")
+                p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list is in the file")
+                sel = f"[data-id={json.dumps(ref)}] .tpl-dl-i .tpl-badge"
+                got = p.js(f"(() => {{ const b = document.querySelector('{sel}'); const s = b.querySelector('svg'); const r = s.getBoundingClientRect();"
+                           " return [s.getAttribute('role'), s.getAttribute('aria-label'), Math.round(r.width), Math.round(r.height), !!s.querySelector('circle'), b.textContent.includes('MAIL'),"
+                           " s.querySelectorAll('path').length, s.querySelector('circle').getAttribute('fill')]; })()")
+                self.assertEqual(got, ["img", "Email link", 41, 41, True, False, 1, "var(--badge-mail)"], "the bare 41 x 41 envelope with the @ badge, no MAIL word, no page")
+
     def test_the_published_page_carries_no_edit_part(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         for words in ("Add a file", "api/section-file", "tpl-form", "Choose the file", "Save card"):
