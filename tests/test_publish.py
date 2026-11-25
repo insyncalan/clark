@@ -1122,7 +1122,10 @@ class RealBrowser(unittest.TestCase):
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
             self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 0, "row 1253 (the 20-11 ruling): the bar has no As at date button")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
-            self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
+            menu = cdp.js("document.querySelector('#client-menu').textContent", sid)
+            self.assertIn("Export to PDF", menu, "the opened file's profile menu is drawn from the file")
+            self.assertNotRegex(menu, r"(?i)as at", "row 1543: no As at in the profile menu")
+            self.assertNotRegex(cdp.js("document.querySelector('header.top').textContent", sid), r"(?i)as at", "row 1543: no As at in the header")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
                 cdp.js(f"document.querySelector('[data-view={view}]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == h1), view)
