@@ -4,7 +4,7 @@ ACCEPTANCE VALUES (written first; sources: the issue's AP2, AP3, AP4 and the app
   Opens: the Add page button (Pages card) fires the window event clark:add-page; the box is a modal dialog titled "Add page"; Esc, Cancel or a click on the
     backdrop close it and give the focus back to the button.
   Step 1 heading "Choose a starter": five starters in order Blank with prompts, Status, Documents, Gantt, People and next steps, each a radio-style choice
-    with its template names as chips (Blank: Text, Text with image (the template's name, ruled 24-11); Status: Report headline, Numbers, Item cards, three, Coming dates;
+    with its template names as chips (Blank: Text, Text with image (the template's name, ruled 24-11); Status: Report headline, Numbers, RAID cards, Coming dates;
     Documents: Text, Files and links; Gantt: Header and Text, Gantt, Work items; People and next steps: Who to ask, Next steps; the template names on main since row 1262, no new words). Only the Gantt starter
     shows a description (the approved line); the others show none (no approved line yet). The first starter is chosen when the box opens.
   Step 2 heading "Name it": a one-line text box, at most 40 letters, holding the chosen starter's name until typed over.
@@ -31,10 +31,10 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 # Two templates carry the name Numbers (figures-4 and figures-3), so the Status starter's Numbers chip and part are pinned by template id
-# (figures-4, templates.js) beside the name; 'Item cards, three' is main's exact string (raid-3).
-STATUS_IDS = ["report-headline", "figures-4", "raid-3", "key-dates"]
+# (figures-4, templates.js) beside the name; the Status starter holds the RAID cards template (row 1270 replaced Item cards, three).
+STATUS_IDS = ["report-headline", "figures-4", "raid-cards", "key-dates"]
 STARTERS = [("Blank with prompts", ["Text", "Text with image"]),
-            ("Status", ["Report headline", "Numbers", "Item cards, three", "Coming dates"]),
+            ("Status", ["Report headline", "Numbers", "RAID cards", "Coming dates"]),
             ("Documents", ["Text", "Files and links"]),
             ("Gantt", ["Header and Text", "Gantt", "Work items"]),
             ("People and next steps", ["Who to ask", "Next steps"])]
@@ -121,7 +121,7 @@ class Box(Base):
             p.until("document.querySelector('#add-page-name').value === 'Status'", "the name follows the starter")
             parts = p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => [e.querySelector('b').textContent.trim(), e.querySelector('span') ? e.querySelector('span').textContent : ''])")
             self.assertEqual(parts, [["Report headline", "Write the headline in one line: where the project stands this week."], ["Numbers", "Add the number and what it counts."],
-                                      ["Item cards, three", ""], ["Coming dates", ""]])
+                                      ["RAID cards", ""], ["Coming dates", ""]])
             self.assertEqual(p.js("[...document.querySelectorAll('#add-page-box .ap-part')].map(e => e.dataset.template)"), STATUS_IDS, "the Numbers part is the figures-4 template")
             self.type_name(p, "Mine")
             self.pick(p, 2)
@@ -161,7 +161,7 @@ class Box(Base):
             row = self.rows()[-1]
             self.assertEqual((row["name"], row["starter"], row["client"], row["hidden"]), ("Supplier status", "status", 0, 0))
             self.assertGreater(row["sort_order"], self.rows()[0]["sort_order"] - 1)
-            self.assertEqual([s["type"] for s in json.loads(row["sections"])], ["reportheadline", "figures4", "raid3", "keydates"])
+            self.assertEqual([s["type"] for s in json.loads(row["sections"])], ["reportheadline", "figures4", "raid4", "keydates"])
             self.toast_says(p, "Added “Supplier status” to the menu.")
             p.until("[...document.querySelectorAll('.top .tabs .tab')].map(t => t.textContent.trim()).join().includes('Existing page,Supplier status')", "tab after the others")
             self.assertEqual(p.js("document.querySelector('.ap-meter').textContent"), "3 of 5 added pages (Gantt counts)")
