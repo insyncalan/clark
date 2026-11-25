@@ -18,7 +18,7 @@ from test_server import chrome, wait
 from clark import excel, excel_route
 
 WIDTHS = (1400, 900)
-SETTINGS_PAGES = {"data": ("Export and import", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
+SETTINGS_PAGES = {"data": ("Data", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
 USER = "Test Person"
 
 
@@ -102,7 +102,7 @@ class Card(Base):
                 self.open_settings(p)
                 self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card .row button')].map(b => b.textContent)"),
-                                 ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…"])
+                                 ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…", "Download the empty template"])
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):

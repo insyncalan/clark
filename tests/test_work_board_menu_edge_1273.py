@@ -2,17 +2,28 @@
 
 Run: python3 dev/run_tests.py test_work_board_menu_edge_1273
 """
+import tempfile
 import unittest
 
 import test_work_board_page as wb
 from test_work_board_page import setUpModule, tearDownModule  # noqa: F401  (the one shared Chrome of the board file)
 from test_work_filters import click, hover
 from test_server import chrome  # noqa: F401
+from clark import page, theme
+from _real_server import real_server
 
 WIDTHS = (1400, 900)
 
 
 class MenuEdge(wb.Base):
+    def setUp(self):
+        super().setUp()
+        self.s.close()
+        css = theme.css("prototype-2.0")  # the Classic layer, as in test_menu_caps_head_look_1273
+        self.assertTrue(css, "the Classic layer is not on")
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), seam=lambda real, which: real)
+        self.addCleanup(self.s.close)
+
     def test_the_move_to_panel_stays_inside_the_window_for_the_last_column(self):
         """With the own-column line added the panel is longer; a card in the right-most column with a menu must still open it inside the window sideways."""
         for width in WIDTHS:

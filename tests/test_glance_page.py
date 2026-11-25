@@ -232,7 +232,13 @@ class Health(Setup):
             # itself remembers that it was shown, and the wait below is the same wait with the same message.
             p.js("window.__sawUndo = false; new MutationObserver(() => { if (document.querySelector('[data-undo]')) window.__sawUndo = true; }).observe(document.body, {childList: true, subtree: true}); true")
             p.js("document.activeElement.blur()")
-            p.until("window.__sawUndo || !!document.querySelector('[data-undo]')", "the change was saved")
+            try:
+                p.until("window.__sawUndo || !!document.querySelector('[data-undo]')", "the change was saved")
+            except Exception:  # Diagnostic only (row 1584): what the page, the store and the machine hold when the wait gives up; the wait itself is unchanged
+                import os
+                import sys
+                print("DIAG saved health_reason:", repr(self.project()["health_reason"]), "sawUndo:", p.js("window.__sawUndo"), "undo now:", p.js("!!document.querySelector('[data-undo]')"), "active:", p.js("document.activeElement && document.activeElement.tagName"), "field html:", p.js("(document.querySelector('[data-reason]') || {}).innerHTML"), "load:", os.getloadavg(), file=sys.stderr)
+                raise
             self.assertEqual(self.project()["health_reason"], "<p>First line</p><p>Second line</p>")
             p.view()
             self.assertEqual(p.js("document.querySelector('[data-fig=health] .hreason').innerHTML"), "<p>First line</p><p>Second line</p>")

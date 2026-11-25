@@ -60,6 +60,9 @@ MAX_EXCEL_SECONDS = 20                   # wall clock for one workbook
 CLOCK = time.monotonic
 NAMES = ("indexed", "type", "online_only", "too_long", "safety", "picture", "not_yet")
 _WORD = re.compile(r"\w+", re.UNICODE)
+# Row 1624: the common words of a question are not searched for. A passage that shares only "the" or "is" with the question is not about it, so it is not sent.
+STOP_WORDS = frozenset("a an and are as at be been but by can could did do does for from had has have how i if in into is it its me my of on or our so than that the their them then "
+                       "there these they this to us was we were what when where which who whom why will with would you your".split())
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
 MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
@@ -485,7 +488,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS, extra=()):
     """Passages for `question`, best first (newer file first when equal). Opens no source file. `extra` (row 1537 AP2) are item IDs of earlier turns:
     each is one quoted phrase ("RISK-12"), outside the first 40 question words."""
     typed = ask.ID_PATTERN.findall(question or "")       # an item ID typed in this question is matched whole, like one of an earlier turn: its pieces are not words
-    words = _WORD.findall(ask.ID_PATTERN.sub(" ", question or ""))
+    words = [w for w in _WORD.findall(ask.ID_PATTERN.sub(" ", question or "")) if w.casefold() not in STOP_WORDS]       # row 1624: no common words
     phrases = ['"' + str(x).replace('"', "") + '"' for x in (*typed, *(extra or ())) if str(x).replace('"', "").strip()]
     if not words and not phrases:
         return []
