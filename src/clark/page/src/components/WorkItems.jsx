@@ -38,6 +38,8 @@ import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic 
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
+import { ReadBoard } from "./ReadBoard.jsx";
+import { layoutItems, pickLayoutGroup, pickLayoutLane } from "./layoutItems.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
 // The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
@@ -299,10 +301,31 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
 // The published file's Group by (the app's is in the filter line's View menu, #287): a menu button reading "Group by: Status".
 function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
+  if (board) {      // row 1533: the editor's own Group by and Swimlanes entries and words (components/layoutItems.js)
+    const lay = layoutItems(work.value, true);
+    return <Menu label={lay.label} ariaLabel={lay.label} id="group-by" btnCls="btn gb" menuLabel="Group by" left items={lay.items}
+      onPick={(id) => { const [what, v] = id.split(":"); if (what === "group") pickLayoutGroup(v); else if (what === "lane") pickLayoutLane(v); }} />;
+  }
   return (
     <Menu label={`Group by: ${groupLabel(shown)}`} ariaLabel={`Group by: ${groupLabel(shown)}`} id="group-by" btnCls="btn gb" menuLabel="Group by" left
-      items={GROUPS.filter((x) => !board || x.id !== "nothing").map((x) => ({ id: x.id, name: x.label, icon: groupIcon(x.id) }))}
-      onPick={(id) => { const lane = work.value.lane; setWork({ group: id, lane: lane === id ? null : lane }); announce.value = `Grouped by ${groupLabel(id)}.`; }} />
+      items={GROUPS.map((x) => ({ id: x.id, name: x.label, icon: groupIcon(x.id) }))}
+      onPick={(id) => pickLayoutGroup(id)} />
+  );
+}
+
+// Row 1533: the published file's Layout choice (List or Board) and the swimlanes, drawn only when the author switched the board on for the client.
+// The list is the default; the choice is the viewer's own and lives in memory (stores/work.js).
+function LayoutChoice({ board }) {
+  const w = work.value, g = boardGroup(w.group);
+  return (
+    <>
+      <div class="seg" role="group" aria-label="Layout" id="layout-seg">
+        {[["table", "List"], ["board", "Board"]].map(([v, t]) => (
+          <button type="button" key={v} data-layout={v} aria-pressed={(v === "board") === board ? "true" : "false"}
+            onClick={() => { setWork({ view: v }); announce.value = v === "board" ? `Showing the board, grouped by ${groupLabel(g)}.` : "Showing the list."; }}>{t}</button>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -323,7 +346,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
   const cs = chips(st);
   const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
   const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
-  const board = !!Board && work.value.view === "board";
+  const board = !!Board && work.value.view === "board" && !printing.value;      // row 1533: a printed or saved page is the table's print, the list
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
@@ -338,7 +361,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
           </span>
         ))}
-        {words ? <span class="fchip" data-chip="search">{`Search: ${query.value.trim()}`}
+        {words ? <span class={classicTheme() ? "fchip word" : "fchip"} data-chip="search">{`Search: ${query.value.trim()}`}
           <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
         </span> : null}
         {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
@@ -378,7 +401,10 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); if (tools && tools.HandOver) tools.HandOver.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
-  const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
+  const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type);
+  // Row 1533: a published report draws the read only board when the author switched it on (the project block carries board: 1); the editor's own board is Edit's.
+  const clientBoard = fromFile.value && !!d && !!d.project && d.project.board === 1;
+  const Board = tools ? tools.Board : clientBoard ? ReadBoard : null;
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const CM = tools && tools.columns && !fromFile.value ? tools.columns : null;     // row 1222: the columns menu; the page clark serves only
@@ -412,7 +438,7 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox /></Switches>
+                  <Switches>{clientBoard ? <LayoutChoice board={board} /> : null}<GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Eye={Eye} CW={CW} CM={CM} Bulk={tools && tools.Bulk} />
                 </>

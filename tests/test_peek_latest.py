@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from _paths import ROOT
 import _testpage as testpage
 
-from clark import activity_read, changes, sneak  # noqa: E402
+from clark import activity_read, changes, page, sneak, theme  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
@@ -175,7 +175,7 @@ class Source(unittest.TestCase):
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
-        self.assertIn("editing && forItem && tools.PeekLatest", peek)
+        self.assertIn("(editing || dashView) && forItem && tools.PeekLatest", peek, "row 1470: Edit, and a Classic Dashboard peek in View")
         self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
@@ -201,15 +201,19 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False, dash=None, kind="item", classic=False, prep=None):
+        """`classic` serves the page with the Classic theme layered (row 1470: the Dashboard View box is Classic only).
+        `dash` "view" or "edit" (row 1470): the peek is opened from the Dashboard, in that mode, for an item or (kind "milestone") a milestone."""
         self.fresh()
+        if prep:
+            prep(self.store)                                  # row 1470: a fixture made on the fresh database before the page is served
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
                 st.update("actions", item, {"latest_update": seed})
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
-        s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=(lambda: page.layer_theme(testpage.html(), theme.css("prototype-2.0"))) if classic else (lambda: testpage.html()),
                     sneak=sneak.make_read(self.store.data_for), activity=activity_read.make_read(self.store.path, self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
@@ -230,8 +234,13 @@ class Browser(unittest.TestCase):
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             cdp.js("document.querySelector('[data-view=work]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-        cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
+        if dash:
+            cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid)))
+            cdp.js(f"document.querySelector('[data-mode={dash}]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('[data-mode={dash}]').getAttribute('aria-pressed') === 'true'", sid)), "the mode is set")
+        cdp.js(f"clarkPage.openPeek({json.dumps(item)}{', ' + json.dumps(kind) if kind != 'item' else ''})", sid)
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt, #peek [data-pk-latest]')", sid), 20), cdp.js("JSON.stringify([document.body.innerText.slice(0,200), location.hash, JSON.stringify(clarkPage.peek()), !!document.querySelector('#peek'), (document.querySelector('#peek')||{}).innerText])", sid))
         return sent, sid
 
     @staticmethod

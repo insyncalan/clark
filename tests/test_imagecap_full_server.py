@@ -352,6 +352,15 @@ class Published(unittest.TestCase):
         self.assertEqual((got["caption"], got["alt"], got["fit"], got["fill"]), ("Fictional view", "Two blocks", "stretch", "plain"))
         self.assertEqual(fi.published(made(halves(40, 10)), None)["content"]["caption"], "")
 
+    def test_an_image_with_no_description_still_publishes(self):
+        body = made(halves(40, 10))
+        self.assertNotIn("alt", body, "no description was typed")
+        got = fi.published(body, None)
+        self.assertIsNotNone(got, "nothing blocks it")
+        self.assertEqual(got["content"]["alt"], "", "an empty description: read as decoration, never invented")
+        self.assertTrue(got["content"]["image"].startswith("data:image/png;base64,"), "the one image is in the published content")
+        self.assertEqual(fi.check({**body, "alt": ""}, None).get("alt", ""), "")
+
     def test_the_module_keeps_the_contract(self):
         self.assertTrue(fi.READY)
         self.assertEqual(fi.EMPTY, "")

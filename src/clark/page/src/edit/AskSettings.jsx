@@ -16,8 +16,9 @@ import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
-import { announce, LINKS } from "./indexNote.js";
-import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
+import { announce, LINKS, note, projectsNote } from "./indexNote.js";
+import { sayLocalUndo, say } from "../stores/changes.js";
+import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersInclude, askFoldersUndo, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
@@ -38,12 +39,15 @@ export const SAFETY = [
 const SAFETY_NOTE = "These are not switches.";
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
+const LEFT_OUT_HEAD = "Left out of questions";      // row 1542, as approved (NEW-WORDS.md)
+const INCLUDE_AGAIN = "Include again";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 // The status line under each folder (Row 1366): the server says what it has read ("Indexing… 42%" then "Indexed ..."). It is asked again
 // every 2 seconds while a folder is being read, and for a few more turns after a change, because the read starts just after the folder is saved.
 function useIndexLines(read, deps) {
   const [index, setIndex] = useState({});
+  const [counts, setCounts] = useState({});               // the All projects tab: {folder: [projects indexed, projects]} (row 1371)
   const [tick, setTick] = useState(0);
   const grace = useRef(0);
   useEffect(() => {
@@ -52,6 +56,7 @@ function useIndexLines(read, deps) {
       if (!live) return;
       const ix = r.status === 200 && r.body && r.body.index && typeof r.body.index === "object" ? r.body.index : {};
       setIndex(ix);
+      setCounts(r.status === 200 && r.body && r.body.projects && typeof r.body.projects === "object" ? r.body.projects : {});
       const reading = Object.keys(ix).some((k) => ix[k] && ix[k].state === "reading");
       if (reading || grace.current > 0) {
         if (!reading) grace.current -= 1;
@@ -60,7 +65,7 @@ function useIndexLines(read, deps) {
     });
     return () => { live = false; if (t) clearTimeout(t); };
   }, [tick, ...deps]);
-  return { index, again: () => { grace.current = 3; setTick((n) => n + 1); } };
+  return { index, counts, again: () => { grace.current = 3; setTick((n) => n + 1); } };
 }
 // The state the server's line stands for, for the screen-reader line (indexNote.js): "Indexing… N%" is reading, "100% indexed..." is done.
 function phaseOf(line) {
@@ -87,7 +92,15 @@ function LeftOut({ line, id, open }) {
   );
 }
 // The line is quiet text; the polite live region beside it speaks only at 0, 25, 50, 75 and 100 percent (Row 1371), not at every percent.
-function FolderLine({ line, id }) {
+// The five states the server reports besides reading and done (row 1371): the words and the link are indexNote.js's.
+function noteOf(line, count) {
+  const st = line && typeof line.state === "string" ? line.state : "";
+  if (["waiting", "updating", "paused", "failed", "cleared"].includes(st)) return note({ phase: st, changed: line.changed });
+  if (st === "done" && Array.isArray(count) && count[1] > 0 && line.line.startsWith("100% indexed")) return { text: projectsNote(count[0], count[1]), link: "" };
+  return { text: line ? line.line : "", link: "" };
+}
+// `count` is the All projects tab's [indexed, projects] for the folder; `retry` starts the read again (the failed and cleared links).
+function FolderLine({ line, id, count, retry }) {
   const [open, setOpen] = useState(false);
   const prev = useRef(null);
   const said = useRef("");
@@ -97,7 +110,9 @@ function FolderLine({ line, id }) {
   prev.current = next;
   if (!classicTheme()) return null;                  // its rules are the Classic theme's: Cards keeps the card as it was
   const why = leftOf(line) ? <> <button type="button" class="ask-left-btn" aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => setOpen(!open)}>{LINKS.why}</button></> : null;
-  return <><div class="ask-folder-line">{line ? line.line : ""}{why}</div><div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div><LeftOut line={line} id={id} open={open} /></>;
+  const n = noteOf(line, count);
+  const link = n.link && retry ? <> <button type="button" class="ask-left-btn" data-ask-index-link={n.link} onClick={retry}>{LINKS[n.link]}</button></> : null;
+  return <><div class="ask-folder-line">{n.text}{why}{link}</div><div class="ask-folder-live" role="status" aria-live="polite">{said.current}</div><LeftOut line={line} id={id} open={open} /></>;
 }
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
@@ -137,9 +152,11 @@ function AskProject() {
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
   const [warns, setWarns] = useState([]);                // row 1365: [{folder, accepted, items, fresh}] from the server's name-only scan
+  const [lefts, setLefts] = useState([]);                // row 1542: [{folder, rels}] the subfolders left out of each saved folder, as saved
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
   const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
+  const retry = async () => { await askFoldersChange(code, "reindex"); again(); };
   const [modelName, setModelName] = useState("");      // row 1351 part 2: the model asking uses, as the server names it; empty until read or when it cannot be read
 
   useEffect(() => {
@@ -163,6 +180,7 @@ function AskProject() {
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
       setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
       setWarns(r.status === 200 && b && Array.isArray(b.warnings) ? b.warnings : []);
+      setLefts(r.status === 200 && b && Array.isArray(b.left_out) ? b.left_out : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -218,6 +236,7 @@ function AskProject() {
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
+      if (Array.isArray(b.left_out)) setLefts(b.left_out);
       return;
     }
     setFmsg({ kind: "error", text: failure(r) });
@@ -234,6 +253,27 @@ function AskProject() {
       setFolders(b.folders);
       setWarns(Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: false })) : []);
       again();
+      return;
+    }
+    setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1542: Include again puts one left-out subfolder back. The toast says it and carries the one Undo; Undo asks the server to take that step back and the list is drawn from its answer.
+  async function includeAgain(folder, rel) {
+    setBusy(true);
+    setFmsg(null);
+    const r = await askFoldersInclude(code, folder, rel);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.left_out)) {
+      setLefts(b.left_out);
+      again();
+      if (b.apply_id) sayLocalUndo("done", b.message, async () => {
+        const u = await askFoldersUndo(code, b.apply_id);
+        const ub = u.body;
+        if (u.status === 200 && ub && ub.ok === true) { if (Array.isArray(ub.left_out)) setLefts(ub.left_out); again(); say("done", ub.message); }
+        else say("problem", failure(u));
+      });
       return;
     }
     setFmsg({ kind: "error", text: failure(r) });
@@ -291,7 +331,7 @@ function AskProject() {
       {shared.length && Array.isArray(folders) ? (
         <ul class="ask-folders" id="ask-folders-shared">
           {shared.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} id={"ask-left-s" + i} /></li>
+            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} id={"ask-left-s" + i} retry={retry} /></li>
           ))}
         </ul>
       ) : null}
@@ -299,7 +339,7 @@ function AskProject() {
         <ul class="ask-folders" id="ask-folders">
           {list.flatMap((p, i) => {
             const w = warns.find((x) => x.folder === p);
-            const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>;
+            const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} retry={retry} /></li>;
             if (!w) return [row];
             const who = askProvider.value;
             const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
@@ -317,6 +357,16 @@ function AskProject() {
             )];
           })}
         </ul>
+      ) : null}
+      {classic && Array.isArray(folders) && lefts.some((l) => list.includes(l.folder) && l.rels.length) ? (
+        <div class="ask-left-folders" id="ask-left-folders">
+          <h3 id="ask-left-folders-h">{LEFT_OUT_HEAD}</h3>
+          <ul class="ask-left-list" aria-labelledby="ask-left-folders-h">
+            {lefts.filter((l) => list.includes(l.folder)).flatMap((l) => l.rels.map((rel) => (
+              <li key={l.folder + "|" + rel}><span class="ask-left-name">{rel}</span> <button type="button" class="ask-left-btn" data-ask-include={rel} aria-label={`${INCLUDE_AGAIN}: ${rel}`} disabled={busy} onClick={() => includeAgain(l.folder, rel)}>{INCLUDE_AGAIN}</button></li>
+            )))}
+          </ul>
+        </div>
       ) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (
@@ -389,7 +439,8 @@ function AllFolders() {
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);
   const code = project.value;
-  const { index, again } = useIndexLines(() => askFoldersAllRead(code), [code]);
+  const { index, counts, again } = useIndexLines(() => askFoldersAllRead(code), [code]);
+  const retry = async () => { await askFoldersAllChange("reindex"); again(); };
 
   useEffect(() => {
     let live = true;
@@ -447,7 +498,7 @@ function AllFolders() {
       {list.length ? (
         <ul class="ask-folders" id="ask-all-folder-list">
           {list.map((p, i) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-a" + i} /></li>
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-a" + i} count={counts[p]} retry={retry} /></li>
           ))}
         </ul>
       ) : null}

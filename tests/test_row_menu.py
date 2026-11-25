@@ -610,8 +610,15 @@ class Menu(board.Base):
             self.shut(cdp, sid)
             cdp.js("location.hash = '#dashboard&p=ABC'", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-mode=edit]')", "the Dashboard")
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-type=actions] .wl-row')", "a Dashboard row")
+            # row 1554: on macOS the right-click found the row 1508 px down with the page at the top (the scroll had been lost), so the page is let finish
+            # switching to Edit (a row drawn before the switch can be replaced by it, and a menu opened for a row that has gone is dropped)
+            # and the row's place on the page must read the same twice, one poll apart, before it is scrolled to and clicked
+            self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows in Edit mode")
+            cdp.js("window.__rowTop = null", sid)
+            self.until(cdp, sid, "(() => { const r = document.querySelector('[data-type=actions] .wl-row'); if (!r) return false; const t = r.getBoundingClientRect().top + scrollY, same = window.__rowTop === t; window.__rowTop = t; return same; })()", "the Dashboard row to hold its place")
             self.calm(cdp, sid)
             self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
             dash = [e[1] for e in self.entries(cdp, sid)]

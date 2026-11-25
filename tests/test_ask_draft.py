@@ -12,7 +12,8 @@ import unittest
 
 import _testpage as testpage
 from clark import page, theme as themes
-from test_ask_panel import Panel, Stub
+import test_ask_panel as panel
+from test_ask_panel import Stub
 from test_server import chrome
 
 DRAFT = {"html": "<p>The pilot is on track.</p><p>Two actions are overdue.</p>", "title": "This week's summary", "sec": ""}
@@ -27,7 +28,7 @@ class DraftStub(Stub):
         return status, out
 
 
-class Draft(Panel):
+class Draft(panel.Panel):
     def setUp(self):
         super().setUp()
         self.stub = DraftStub()
@@ -378,7 +379,7 @@ def _empty_test(self):
 
 Draft.test_the_add_menu_says_empty_in_classic_only = _empty_test
 
-for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
+for _n in dir(panel.Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:
         setattr(Draft, _n, None)
 
