@@ -43,7 +43,7 @@ Not checked: multi-line js( calls, other helpers, whether each line runs in a su
 | tests/test_peek_arrows.py:249 | tests/test_peek_arrows.py:249 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 100 ms |
 | tests/test_peek_arrows.py:265 | tests/test_peek_arrows.py:265 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 100 ms |
 | tests/test_peek_arrows.py:271 | tests/test_peek_arrows.py:271 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 100 ms |
-| tests/test_plain_line_hostile.py:289 | tests/test_plain_line_hostile.py:moved/not found | no-op | moved/not found: line text is not in the current file, so no verdict (not checked) |
+| tests/test_plain_line_hostile.py:289 | tests/test_plain_line_hostile.py:removed | no-op | removed by 0945f3439, no sleep left (on 2d33e3a26 it was the 401-characters block with setTimeout 600; row 1270, 25-11 removed the whole block from main) |
 | tests/test_profile_menu_hostile_1281.py:198 | tests/test_profile_menu_hostile_1281.py:198 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 400 ms |
 | tests/test_profile_menu_hostile_1281.py:298 | tests/test_profile_menu_hostile_1281.py:298 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 300 ms |
 | tests/test_profile_menu_hostile_1281.py:323 | tests/test_profile_menu_hostile_1281.py:323 | no-op | no-op before 6762c23b0; waits now (js() awaits, tests/test_server.py:1642-1644); waits 400 ms |
