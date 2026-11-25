@@ -98,7 +98,7 @@ def hidden_types(sections, deleted=False):
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
 PUBLISH_FIELDS = {
-    "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
+    "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout", "column_orders"),      # row 1534: the saved column order of the work item tables (column ids only), published for everyone
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
                    "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"),
     "workstreams": ("id", "name", "status"),

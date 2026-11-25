@@ -103,7 +103,7 @@ class Migrating(unittest.TestCase):
                              [("ABC-U-001", None, None), ("ABC-U-002", None, None)])
         finally:
             s.close()
-        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS] + [("raid", "latest_update"), ("milestones", "latest_update"), ("app_settings", "theme"), ("app_settings", "ask_instructions"), ("projects", "ask_instructions"), ("app_settings", "ask_files"), ("app_settings", "ask_new_projects"), ("projects", "ask_files_off"), ("projects", "ask_off")])
+        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS] + [("raid", "latest_update"), ("milestones", "latest_update"), ("app_settings", "theme"), ("app_settings", "ask_instructions"), ("projects", "ask_instructions"), ("app_settings", "ask_files"), ("app_settings", "ask_new_projects"), ("projects", "ask_files_off"), ("projects", "ask_off"), ("projects", "column_orders")])
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual([c[1] for c in uc_columns(path)][-2:], list(NEW_COLUMNS))
 
@@ -196,7 +196,7 @@ class Migrating(unittest.TestCase):
         before = every_row(path)
         self.assertEqual(len(before["milestones"]), 1)
         open_store(path, onedrive_roots=[]).close()
-        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS] + [("raid", "latest_update"), ("milestones", "latest_update"), ("app_settings", "theme"), ("app_settings", "ask_instructions"), ("projects", "ask_instructions"), ("app_settings", "ask_files"), ("app_settings", "ask_new_projects"), ("projects", "ask_files_off"), ("projects", "ask_off")])
+        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS] + [("raid", "latest_update"), ("milestones", "latest_update"), ("app_settings", "theme"), ("app_settings", "ask_instructions"), ("projects", "ask_instructions"), ("app_settings", "ask_files"), ("app_settings", "ask_new_projects"), ("projects", "ask_files_off"), ("projects", "ask_off"), ("projects", "column_orders")])
         for t in before:
             if t not in ("meta",):
                 self.assertEqual(after[t], before[t], t)
