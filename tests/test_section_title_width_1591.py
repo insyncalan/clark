@@ -224,6 +224,7 @@ class SectionTitleBrowser(Look):
                     for frac in (0.02, 0.5, 0.9):               # 2%, 50% and 90% of the heading row (the box must fill it)
                         p.js("document.activeElement.blur()")
                         r = p.js(f"(() => {{ const b = {t}.closest('.sec-h').getBoundingClientRect(), k = {t}.getBoundingClientRect(); return [b.left + b.width * {frac}, k.top + k.height / 2]; }})()")      # x from the heading row, not the box: with the box as narrow as its text a point on the row misses it
+                        self.assertTrue(p.js(f"document.elementFromPoint({r[0]}, {r[1]}) === {t}"), f"{w} {sid} {frac}: the point on the heading row is on the title box")
                         self.click_at(p, r[0], r[1])
                         p.until(f"document.activeElement === {t}", f"{w} {sid} {frac}: the click focused that title")
 
