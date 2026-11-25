@@ -58,7 +58,7 @@ def grown(path):
     try:
         out = {}
         for table in ("raid", "milestones", "decisions", "projects"):      # projects: row 1294 (steps 31 and 33) adds ask_instructions, ask_files_off and ask_off, compared by every other column
-            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] not in ("latest_update", "ask_instructions", "ask_files_off", "ask_off") and not (table == "decisions" and r[1] == "priority")]      # fixed table names
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] not in ("latest_update", "ask_instructions", "ask_files_off", "ask_off", "column_orders") and not (table == "decisions" and r[1] == "priority")]      # fixed table names
             out[table] = (cols, con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY rowid").fetchall())
         return out
     finally:

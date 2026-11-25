@@ -63,6 +63,7 @@ _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
 MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
+ONLINE_LINE = "Online-only files not searched"           # row 1537 AP4: the owner's words of 19-11, NEW-WORDS.md:2225-2226; no count in front
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
 REASON_TOO_LONG_PDF = "is a PDF that is too long"          # a PDF over its page, size or time limit (the words main already had)
@@ -461,10 +462,13 @@ def build(data_dir, code, folders, home=None):
     refresh(data_dir, code, folders, home)
 
 
-def search(data_dir, code, question, limit=MAX_RESULTS):
-    """Passages for `question`, best first (newer file first when equal). Opens no source file."""
-    words = _WORD.findall(question or "")
-    if not words:
+def search(data_dir, code, question, limit=MAX_RESULTS, extra=()):
+    """Passages for `question`, best first (newer file first when equal). Opens no source file. `extra` (row 1537 AP2) are item IDs of earlier turns:
+    each is one quoted phrase ("RISK-12"), outside the first 40 question words."""
+    typed = ask.ID_PATTERN.findall(question or "")       # an item ID typed in this question is matched whole, like one of an earlier turn: its pieces are not words
+    words = _WORD.findall(ask.ID_PATTERN.sub(" ", question or ""))
+    phrases = ['"' + str(x).replace('"', "") + '"' for x in (*typed, *(extra or ())) if str(x).replace('"', "").strip()]
+    if not words and not phrases:
         return []
     db = _open_read(data_dir, code)
     if db is None:
@@ -472,7 +476,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
     try:
         if not _screen_ok(db):
             return []                                # text screened by an older screen is never given out; the next read screens it again
-        match = " OR ".join('"' + w.replace('"', "") + '"' for w in words[:40])
+        match = " OR ".join(phrases + ['"' + w.replace('"', "") + '"' for w in words[:40]])
         rows = db.execute("SELECT text, file, part, mtime FROM p WHERE p MATCH ? ORDER BY round(rank, 6), mtime DESC LIMIT ?", (match, limit)).fetchall()
     except sqlite3.Error:
         return []
@@ -521,9 +525,11 @@ def more_line(n):
 
 
 def left_out_line(reason, n):
-    """The approved sentence for `n` files left out for one reason (only "safety" so far)."""
+    """The approved sentence for `n` files left out for one reason (picture, online, safety)."""
     if reason == "picture":
         return f"{n} {_plural(n, 'is a picture', 'are pictures')} and this computer cannot read {_plural(n, 'pictures', 'them')}."
+    if reason == "online":
+        return ONLINE_LINE
     if reason == "safety":
         return f"{n} look like a password or a key and were left out." if n != 1 else "1 looks like a password or a key and was left out."
     raise ValueError(reason)
@@ -558,7 +564,7 @@ def line_for(counts, reading=None):
     if pic:
         out.append(left_out_line("picture", pic))
     if o:
-        out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
+        out.append(left_out_line("online", o))
     if long_:
         out.append(f"{long_} {_plural(long_, 'file is', 'files are')} too long.")
     if s:
@@ -599,6 +605,16 @@ def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
     return out
 
 
+def _with_online(left, saved):
+    """The files-left-out list of a folder that has online-only files starts with the line "Online-only files not searched" (row 1537 AP4; no name: they are never opened)."""
+    out = dict(left)
+    for f, c in saved.items():
+        if isinstance(c, dict) and c.get("online_only"):
+            got = out.get(f) or {"files": [], "more": 0}
+            out[f] = {"files": [[ONLINE_LINE, ""]] + list(got["files"]), "more": got["more"]}
+    return out
+
+
 def folder_status(data_dir, code, folders, live=None, busy=False, failed=False, cleared=False, changed=None):
     """{folder: {"state": ..., "line": text}} for the folders that have something to say. The states: "reading" (the folder is being read now:
     `live` is the worker's {folder: (done, total)} for the run in progress), "done", "waiting" (a run is queued or running and has not reached a folder
@@ -616,7 +632,7 @@ def folder_status(data_dir, code, folders, live=None, busy=False, failed=False, 
             saved = {}
         finally:
             db.close()
-    left = _left_by_folder(data_dir, code, folders) if saved else {}
+    left = _with_online(_left_by_folder(data_dir, code, folders) if saved else {}, saved)
     out = {}
     for f in folders or ():
         f = str(f)
@@ -733,11 +749,11 @@ def changed_by_folder(data_dir, code, folders, home=None):
     return out
 
 
-def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES):
+def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES, extra=()):
     """The passages of the index for a question, in the shape `ask_passages.folder_data` gives. Opens no source file and has no
     per-question file, byte or time limit."""
-    found = search(data_dir, code, question, max_passages * 4)
-    chosen, left = ask_data.choose(found, question, budget)
+    found = search(data_dir, code, question, max_passages * 4, extra)
+    chosen, left = ask_data.choose(found, " ".join([question, *extra]), budget)
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]

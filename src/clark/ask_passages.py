@@ -115,7 +115,7 @@ def left_out_path(path, leave_out, home=None):
     return False
 
 
-def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None):
+def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None, extra=()):
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note.
     `leave_out` (row 1365) is {saved folder: the stored list of subfolders left out (text or list)}: those are never entered or read. A
     folder whose list cannot be read is not read at all (counted in `safety`): a broken list never means "read everything"."""
@@ -205,7 +205,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
         if len(parts) > 1:
             parts = [ask.Passage(f"{label} (part {i})", p.text, file=label) for i, p in enumerate(parts, 1)]
         passages += parts
-    chosen, left = ask_data.choose(passages, question, budget, need_match=True)
+    chosen, left = ask_data.choose(passages, " ".join([question, *extra]), budget, need_match=True)      # `extra`: item IDs the chat named earlier, so a follow-up ("and who owns it?") still finds their files
     left += cut
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
