@@ -188,6 +188,19 @@ export function replaceAddress(url) {
   try { history.replaceState(history.state, "", url); } catch (e) { /* no history: the page still works */ }
 }
 
+/** Row 1299 AP11 (a Settings project tab): keep `p` in the address as the tab's project, in place. The entry is rewritten, never added, so Back steps through
+ *  pages and not tabs; nothing is drawn again. Returns true if the address changed. */
+export function retag(code) {
+  const now = parse(here());
+  const next = clean({ ...now, project: code });
+  const hash = format(next);
+  if (hash === format(now)) return false;
+  try { history.replaceState(history.state, "", hash); } catch (e) { return false; }      // no history: the tabs still work, the address stays
+  seen = hash;
+  shown = screenKey(next);
+  return true;
+}
+
 /** Step Back one entry (the browser's Back); the handler given to onPop then redraws. If `stuck` is given and nothing has moved a
  *  moment later (there was no earlier entry to go to: back() then does nothing and fires nothing), it is called once. "Nothing has
  *  moved" is no Back, Forward or navigate at all, not only the same address: closing a peek and opening the same item again within
