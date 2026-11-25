@@ -7,6 +7,36 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-edit-glancetemplate .glance .tcell.own .tpl-gt-k { padding-right: 110px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .teye { right: 30px; }
 .tpl-edit-glancetemplate .glance .tcell:not(.own):not(.health) .tgrip { right: 56px; }
+/* Row 1270 (Classic only): the RAID card. */
+@media (min-width: 1400px) { .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.raid-cards { align-items: stretch; }
+.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); position: relative; display: flex; flex-direction: column; padding: 0 var(--space-4) var(--space-3); border-top: var(--space-1) solid var(--rc-edge); }
+.raid-card.rc-r { --rc-edge: var(--status-red-text); --rc-tint: var(--status-red-tint); --rc-ink: var(--status-red-text); }
+.raid-card.rc-a { --rc-edge: var(--status-amber-text); --rc-tint: var(--status-amber-tint); --rc-ink: var(--status-amber-text); }
+.raid-card.rc-g { --rc-edge: var(--status-green-text); --rc-tint: var(--status-green-tint); --rc-ink: var(--status-green-text); }
+.raid-card.rc-n { --rc-edge: var(--grey-700); --rc-tint: var(--grey-100); --rc-ink: var(--grey-700); }
+.raid-card p.raid-top { margin: 0 calc(-1 * var(--space-4)) var(--space-2); padding: var(--space-2) var(--space-4); background: var(--rc-tint); color: var(--rc-ink); }
+.raid-card .raid-title { white-space: normal; overflow: visible; text-overflow: clip; }
+.raid-rating { margin-left: auto; font-weight: var(--weight-medium); white-space: nowrap; }
+.raid-label, .raid-part { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+.raid-latest { color: var(--text); }
+.raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); }
+.raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
+.raid-card .raid-id { cursor: pointer; }
+.raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
+.raid-card .raid-id:focus-visible { outline: none; }
+.raid-card:hover { box-shadow: var(--shadow); border-color: var(--rc-edge) var(--grey-500) var(--grey-500); }
+.raid-card .raid-id:hover { text-decoration: underline; }
+.raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
+/* Row 1270 (Classic only): the RAID cards editor. */
+.rce :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
+.ddmenu.cols-menu.cm-7b { min-width: 200px; padding: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.cols-menu.cm-7b .cm-head { margin: 4px 10px 6px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--text-muted); text-transform: none; letter-spacing: normal; }
+.cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
+.cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
+.cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
 /* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
 .tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
 .tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
