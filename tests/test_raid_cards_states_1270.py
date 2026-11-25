@@ -98,6 +98,38 @@ class RaidCardStates(PublishedFile, glance.Setup):
             self.assertEqual(after["top"], before["top"], "the rating edge stays")
             self.assertEqual(after["ul"], "underline", "the ID is underlined")
 
+    def test_focus_hover_and_selected_states_are_drawn_in_dark_at_both_widths(self):
+        ids = self.seed()
+        path = self.publish()
+        PROBE = """(v) => { const d = document.createElement('i'); d.style.color = 'var(' + v + ')'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }"""
+        with chrome() as cdp:
+            for w in (1400, 900):
+                p = self.draw(cdp, path, width=w, dark=True)
+                p.js("document.querySelector('.raid-card').scrollIntoView({block: 'center'})")
+                rest = p.js("(() => { const s = getComputedStyle(document.querySelector('.raid-card')); return { sh: s.boxShadow, left: s.borderLeftColor, out: s.outlineStyle }; })()")
+                self.assertEqual(rest["out"], "none", "no ring at rest")
+                p.js("document.querySelector('.raid-card .raid-id').focus()")
+                f = p.js("(() => { const probe = %s; const s = getComputedStyle(document.querySelector('.raid-card')); return { w: s.outlineWidth, st: s.outlineStyle, off: s.outlineOffset, col: s.outlineColor, focus: probe('--focus') }; })()" % PROBE)
+                self.assertEqual((f["w"], f["st"], f["off"]), ("2px", "solid", "2px"), f)
+                self.assertEqual(f["col"], f["focus"], "dark: the ring is the focus colour")
+                p.js("document.querySelector('.raid-card .raid-id').blur()")
+                r = p.js("(() => { const r = document.querySelector('.raid-card').getBoundingClientRect(); return [r.left + 20, r.top + r.height - 10]; })()")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, p.sid)
+                self.assertTrue(wait(lambda: p.js("getComputedStyle(document.querySelector('.raid-card')).boxShadow") != rest["sh"]), "dark: a shadow on hover at %d" % w)
+                hov = p.js("(() => { const probe = %s; const s = getComputedStyle(document.querySelector('.raid-card')); return { left: s.borderLeftColor, grey: probe('--grey-500'), ul: getComputedStyle(document.querySelector('.raid-card .raid-id')).textDecorationLine }; })()" % PROBE)
+                self.assertEqual(hov["left"], hov["grey"], "dark: the plain edges go grey-500")
+                self.assertEqual(hov["ul"], "underline", "dark: the ID is underlined")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
+                p.js("document.querySelector('.raid-card .raid-id').focus()")      # a pointer press leaves the button focused
+                p.js("document.querySelector('.raid-card .raid-id').click()")
+                self.assertTrue(wait(lambda: p.js(STATE)["open"]), "the peek opens at %d" % w)
+                sel = p.js("(() => { const probe = %s; return { sel: [...document.querySelectorAll('.raid-card')].map(c => c.classList.contains('rc-sel')), shadow: getComputedStyle(document.querySelector('.raid-card.rc-sel')).boxShadow, blue: probe('--brand-blue') }; })()" % PROBE)
+                self.assertEqual(sel["sel"], [True] + [False] * (len(ids) - 1), w)
+                self.assertIn("0px 0px 0px 2px", sel["shadow"]); self.assertIn(sel["blue"], sel["shadow"], "dark: brand blue ring")
+                p.js(ESC)
+                self.assertTrue(wait(lambda: not p.js(STATE)["open"]), "Esc closes it at %d" % w)
+                self.assertTrue(wait(lambda: p.js(STATE)["active"].startswith("idl raid-id:")), "dark: focus is back on the card's ID button at %d" % w)
+
     def test_edge_band_and_ink_contrast_light_and_dark(self):
         self.seed()
         path = self.publish()

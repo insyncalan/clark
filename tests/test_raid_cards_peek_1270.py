@@ -45,9 +45,9 @@ class RaidCardsPeek(PublishedFile, glance.Setup):
         rid = self.seed()
         path = self.publish()
         with chrome() as cdp:
-            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
-                p = self.draw(cdp, path, width=1400)
+            for w, key, code, vk, text in [(w,) + k for w in (1400, 900) for k in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " "))]:
+                p = self.draw(cdp, path, width=w)
                 p.js("document.querySelector('.raid-card .idl').focus()")
                 for kind in ("keyDown", "keyUp"):       # a real key press
                     cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, **({"text": text} if kind == "keyDown" else {})}, p.sid)
-                self.assertTrue(wait(lambda: p.js(STATE)["open"]), "%s on the ID button opens the peek" % code)
+                self.assertTrue(wait(lambda: p.js(STATE)["open"]), "%s on the ID button opens the peek at %d" % (code, w))

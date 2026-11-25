@@ -89,6 +89,20 @@ class FilePeek(PublishedFile, glance.Setup, Steps):
                 self.assertIn("RISKWORDS", shown(p)["text"])
 
 
+    def test_clicking_a_second_card_with_the_peek_open_keeps_it_open_on_the_second(self):
+        ids = seed(self)
+        path = self.publish()
+        with chrome() as cdp:
+            for w in (1400, 900):
+                p = self.draw(cdp, path, width=w)
+                self.open_card(p, ids["risk"])
+                p.js(f"document.querySelector('.raid-card[data-card={json.dumps(ids['decision'])}] .raid-id').click()")
+                self.assertTrue(wait(lambda: ids["decision"] in shown(p)["text"] and ids["risk"] not in shown(p)["text"]), f"the peek moves to the second card at {w}: {shown(p)['text'][:80]}")
+                self.assertTrue(shown(p)["open"], "the peek stays open")
+                self.assertEqual(p.js("document.querySelectorAll('.raid-card.rc-sel').length"), 1, "one selected card")
+                self.assertEqual(p.js("document.querySelector('.raid-card.rc-sel').dataset.card"), ids["decision"])
+
+
 class ViewPeek(PageBase, Steps):
     def test_the_authors_view_shows_the_latest_update_of_a_card_and_steps_through_the_cards(self):
         ids = seed(self)
