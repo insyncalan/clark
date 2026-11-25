@@ -125,11 +125,12 @@ class Settings(unittest.TestCase):
         if fake:
             js(FAKE)
             js("location.hash = '#dashboard&p=ABC'")
-            wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
+            self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10), "the dashboard drew")
             js("location.hash = '#settings&p=ABC&s=claude'")
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
         if fake:
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 20), "the folders part has its answer")
+            self.assertTrue(wait(lambda: js("window.__ask.calls.length >= 1"), 20), "the page has read the folders through the fake")
         return js
 
     def until(self, read_value, expected, what, seconds=20):
@@ -486,7 +487,8 @@ class Settings(unittest.TestCase):
         with chrome() as cdp:
             js = self.show_page(cdp, fake=True)
             js("document.querySelector('[data-ask-choose]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 10))
+            self.assertTrue(wait(lambda: js("window.__ask.folders.length") == 1, 20), "the choose was answered")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 20), "the folder is listed")
             self.assertFalse(js("!!document.querySelector('[data-ask-warn]')"))
 
     def test_cards_shows_the_same_notice_so_a_left_out_folder_has_its_two_buttons(self):
