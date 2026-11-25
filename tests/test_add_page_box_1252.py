@@ -56,7 +56,7 @@ class Box(Base):
     def rows(self):
         return sorted(self.store.read("added_pages", project="ABC"), key=lambda r: (r["sort_order"], r["id"]))
 
-    def open(self, cdp, width):
+    def open_page(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 900)
         p.js("location.hash = '#settings&p=ABC&s=reports'")
@@ -64,7 +64,7 @@ class Box(Base):
         return p
 
     def opened(self, cdp, width):
-        p = self.open(cdp, width)
+        p = self.open_page(cdp, width)
         p.js("document.querySelector('#add-page').click()")
         p.until("!!" + BOX, "the box opened")
         # The box takes the focus in an effect after it is drawn (Dialog.jsx). The focus goes back only for a box whose effect ran: wait for it, as a person does.
@@ -160,7 +160,8 @@ class Box(Base):
             self.until_stored(lambda: len(self.rows()) == 2, "the row")
             row = self.rows()[-1]
             self.assertEqual((row["name"], row["starter"], row["client"], row["hidden"]), ("Supplier status", "status", 0, 0))
-            self.assertGreater(row["sort_order"], self.rows()[0]["sort_order"] - 1)
+            # Placed after the last added page, exactly: the server numbers the places 1024 and 2048 in the order added, so the new page is second, not first.
+            self.assertEqual([(r["id"], r["name"], r["sort_order"]) for r in self.rows()], [("ABC-PG-001", "Existing page", 1024), ("ABC-PG-002", "Supplier status", 2048)])
             self.assertEqual([s["type"] for s in json.loads(row["sections"])], ["reportheadline", "figures4", "raid4", "keydates"])
             self.toast_says(p, "Added “Supplier status” to the menu.")
             p.until("[...document.querySelectorAll('.top .tabs .tab')].map(t => t.textContent.trim()).join().includes('Existing page,Supplier status')", "tab after the others")
@@ -204,6 +205,62 @@ class Box(Base):
             self.assertTrue(p.js("%s[3].getAttribute('aria-disabled') === 'true'" % CHOICES))
             self.pick(p, 3)
             self.assertEqual(p.js("%s[3].getAttribute('aria-checked')" % CHOICES), "false", "a disabled starter is not chosen")
+
+    def add_starter(self, index, name=None):
+        with chrome() as cdp:
+            p = self.opened(cdp, 1400)
+            self.pick(p, index)
+            if name is not None:
+                self.type_name(p, name)
+            p.js("document.querySelector('#add-page-box .ad-foot button:last-child').click()")
+            p.until("!" + BOX, "the box closed")
+            return p
+
+    def test_documents_starter_stores_its_two_sections(self):
+        self.add_starter(2)
+        self.until_stored(lambda: len(self.rows()) == 1, "the row")
+        row = self.rows()[0]
+        self.assertEqual((row["name"], row["starter"], row["client"], row["hidden"]), ("Documents", "documents", 0, 0))
+        self.assertEqual([(s["type"], s["title"]) for s in json.loads(row["sections"])], [("text", "New section"), ("doclinks", "Documents and links")])
+
+    def test_people_starter_stores_its_two_sections(self):
+        self.add_starter(4)
+        self.until_stored(lambda: len(self.rows()) == 1, "the row")
+        row = self.rows()[0]
+        self.assertEqual((row["name"], row["starter"], row["client"], row["hidden"]), ("People and next steps", "people", 0, 0))
+        self.assertEqual([(s["type"], s["title"]) for s in json.loads(row["sections"])], [("contacts", "Contacts"), ("checklist", "Checklist")])
+
+    def gantt_name(self):
+        with sqlite3.connect(str(self.store.path)) as con:
+            return con.execute("SELECT gantt_tab_name FROM projects WHERE code = 'ABC'").fetchone()[0]
+
+    def test_gantt_starter_with_a_typed_name_stores_it_as_the_tab_name(self):
+        before = self.gantt_name()
+        self.add_starter(3, "  Programme   plan ")
+        self.until_stored(lambda: self.gantt_on() == 1, "Gantt on")
+        self.until_stored(lambda: self.gantt_name() == "Programme plan", "the tab name, tidied")
+        self.assertNotEqual(before, "Programme plan")
+        self.assertEqual(self.rows(), [])
+
+    def test_gantt_starter_keeps_the_tab_name_when_the_name_is_left_as_gantt(self):
+        self.add_starter(3)
+        self.until_stored(lambda: self.gantt_on() == 1, "Gantt on")
+        self.assertEqual(self.gantt_name(), "Gantt")
+
+    def test_gantt_name_is_at_most_30_letters_and_the_other_starters_40(self):
+        with chrome() as cdp:
+            p = self.opened(cdp, 1400)
+            off = "document.querySelector('#add-page-box .ad-foot button:last-child').disabled"
+            self.pick(p, 3)
+            self.assertEqual(p.js("document.querySelector('#add-page-name').maxLength"), 30)
+            self.type_name(p, "x" * 31)          # a script can type past maxLength: the button still refuses it
+            self.assertTrue(p.js(off), "31 letters on the Gantt starter: Add page is off")
+            self.type_name(p, "x" * 30)
+            self.assertFalse(p.js(off), "30 letters on the Gantt starter: Add page is on")
+            self.pick(p, 0)
+            self.assertEqual(p.js("document.querySelector('#add-page-name').maxLength"), 40)
+            self.type_name(p, "x" * 40)
+            self.assertFalse(p.js(off), "40 letters on another starter: Add page is on")
 
     def test_fourth_added_page_fills_the_five_and_the_button_goes_off(self):
         for n in range(3):
