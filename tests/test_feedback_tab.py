@@ -1,8 +1,8 @@
-"""#1069 (Feedback tab): the form in Settings, its words and its mail link. Nothing here sends mail or opens an app: the card
-draws an ordinary link (a mailto: href) and the tests only read it; the clipboard is a stand-in.
+"""#1069 (Feedback mail logic, logic/feedback.js, which the Feedback tag uses): the address, the subject, the lines added and the mail link. The Settings
+Feedback card is retired (row 1485); the logic tests stay. Nothing here sends mail or opens an app.
 
 Run: python3 dev/run_tests.py test_feedback_tab
-The logic and the card run inside headless Chrome (the harness of test_draft_email_editor.py): bundled with the pinned esbuild
+The logic runs inside headless Chrome (the harness of test_draft_email_editor.py): bundled with the pinned esbuild
 into a temporary folder. Chrome is required: these tests fail, never skip, without it.
 """
 import contextlib
@@ -82,24 +82,6 @@ class InBrowser(unittest.TestCase):
     def settle(self):
         self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 150))", "awaitPromise": True}, self.sid)
 
-    def mount(self, version="1.0.7", platform="Linux x86_64"):
-        self.js(f"T.mount({lit(version)}, {lit(platform)})")
-        self.settle()
-
-    def type(self, selector, text):
-        self.js(f"(function(){{ var e = document.querySelector({lit(selector)}); e.value = {lit(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
-        self.settle()
-
-    def click(self, selector):
-        self.js(f"document.querySelector({lit(selector)}).click()")
-        self.settle()
-
-    def text(self, selector):
-        return self.js(f"(document.querySelector({lit(selector)}) || {{}}).textContent || ''")
-
-    def href(self):
-        return self.js("(document.querySelector('a[data-feedback-mail]') || {}).href || ''")
-
 
 class Logic(InBrowser):
     def test_the_address_and_the_subject(self):
@@ -156,142 +138,6 @@ class Logic(InBrowser):
     def test_the_copy_text_names_the_address_and_the_subject_first(self):
         got = self.val("T.logic.copyText({message: 'Hi', contact: ''}, {version: '1', platform: 'p'})")
         self.assertEqual(got, f"To: {ADDRESS}\nSubject: Feedback about clark\n\nHi\n\nVersion of clark: 1\nSystem: p")
-
-
-class Card(InBrowser):
-    def test_the_card_has_the_two_boxes_the_context_and_no_link_until_there_are_words(self):
-        self.mount()
-        self.assertEqual(self.text("#feedback-h"), "Feedback")
-        self.assertEqual(self.js("document.querySelectorAll('textarea#feedback-message').length"), 1)
-        self.assertEqual(self.js("document.querySelectorAll('input#feedback-contact').length"), 1)
-        self.assertEqual(self.js("!!document.querySelector('label[for=feedback-message]')"), True)
-        self.assertEqual(self.js("!!document.querySelector('label[for=feedback-contact]')"), True)
-        self.assertEqual(self.href(), "")
-        self.assertEqual(self.js("document.querySelector('button[data-feedback-copy]').disabled"), True)
-
-    def test_the_form_shows_exactly_the_context_it_adds(self):
-        self.mount("1.0.7", "MacIntel")
-        shown = self.js("Array.from(document.querySelectorAll('#feedback-context li')).map((x) => x.textContent).join('|')")
-        self.assertEqual(shown, "Version of clark: 1.0.7|System: MacIntel")
-        self.type("#feedback-message", "Broken")
-        body = unquote(self.href().split("&body=")[1])
-        self.assertTrue(body.endswith("Version of clark: 1.0.7\nSystem: MacIntel"), body)
-
-    def test_typing_makes_the_open_in_mail_link_and_the_contact_goes_in(self):
-        self.mount()
-        self.type("#feedback-message", "The tab is slow")
-        self.type("#feedback-contact", "sam@example.org")
-        href = self.href()
-        self.assertTrue(href.startswith("mailto:"), href)
-        self.assertIn("Contact%3A%20sam%40example.org", href)
-        self.assertEqual(self.text("a[data-feedback-mail]"), "Open in your mail app")
-
-    def _answer(self, status, body):
-        self.js("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); return Promise.resolve(new Response(JSON.stringify({BODY}), {status: {STATUS}})); }".replace("{BODY}", json.dumps(body)).replace("{STATUS}", str(status)))
-
-    def test_the_ruled_note_shows_under_the_button_only_when_the_open_fails_1297(self):
-        self.mount()
-        self.type("#feedback-message", "The tab is slow")
-        note = "No mail app opened. Use Copy as text and paste it into your mail."
-        self.assertEqual(self.text("[data-mail-note]"), "", "nothing before a click")
-        self._answer(200, {"ok": True})
-        self.click("a[data-feedback-mail]")
-        self.assertEqual(self.val("window.__posts.length"), 1)
-        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "hidden on success")
-        self._answer(503, {"ok": False, "code": "not_opened", "message": "The mail app could not be opened."})
-        self.click("a[data-feedback-mail]")
-        self.assertEqual(self.text("[data-mail-note]"), note)
-        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 1)
-        self._answer(200, {"ok": True})
-        self.click("a[data-feedback-mail]")
-        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "a good open clears the note")
-        self._answer(503, {"ok": False, "message": "x"})
-        self.click("a[data-feedback-mail]")
-        self.type("#feedback-message", "more")
-        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "typing clears it")
-
-    def test_copy_puts_the_whole_email_text_on_the_clipboard(self):
-        self.mount()
-        self.type("#feedback-message", "Please add a thing")
-        self.click("button[data-feedback-copy]")
-        clips = self.val("T.clips")
-        self.assertEqual(len(clips), 1)
-        self.assertTrue(clips[0].startswith(f"To: {ADDRESS}\nSubject: Feedback about clark\n\nPlease add a thing"), clips[0])
-        self.assertEqual(self.text("#feedback-note"), "Copied")
-
-    def test_a_long_text_has_no_link_and_the_copy_button_still_works(self):
-        self.mount()
-        self.type("#feedback-message", "word " * 600)
-        self.assertEqual(self.href(), "")
-        self.assertEqual(self.text("#feedback-note"), self.val("T.logic.TOO_LONG"))
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(len(self.val("T.clips")), 1)
-
-    def test_a_refused_clipboard_shows_the_text_selected_and_says_so(self):
-        self.mount()
-        self.js("T.refuse = true")
-        self.type("#feedback-message", "Hello")
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.")
-        self.assertIn("Hello", self.js("document.querySelector('#feedback-shown').value"))
-
-    def test_typing_after_a_copy_clears_the_copied_note(self):
-        self.mount()
-        self.type("#feedback-message", "Hello")
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(self.text("#feedback-note"), "Copied")
-        self.type("#feedback-contact", "me")
-        self.assertNotEqual(self.text("#feedback-note"), "Copied")
-
-    def test_a_refused_copy_text_is_selected_and_goes_away_when_you_type(self):
-        self.mount()
-        self.js("T.refuse = true")
-        self.type("#feedback-message", "Hello")
-        self.click("button[data-feedback-copy]")
-        sel = self.val("(function(){ var e = document.querySelector('#feedback-shown'); return [e.selectionStart, e.selectionEnd, e.value.length]; })()")
-        self.assertEqual(sel[0], 0)
-        self.assertEqual(sel[1], sel[2])
-        self.assertGreater(sel[2], 0)
-        self.type("#feedback-message", "Hello again")
-        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), False)
-        self.assertNotIn("did not copy", self.text("#feedback-note"))
-
-    def test_a_copy_that_works_after_a_refused_one_hides_the_shown_text(self):
-        self.mount()
-        self.js("T.refuse = true")
-        self.type("#feedback-message", "Hello")
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), True)
-        self.js("T.refuse = false")
-        self.click("button[data-feedback-copy]")
-        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), False)
-        self.assertEqual(self.text("#feedback-note"), "Copied")
-
-    def test_the_contact_box_is_at_least_32_px_tall(self):
-        self.mount()
-        self.assertGreaterEqual(self.js("document.querySelector('#feedback-contact').getBoundingClientRect().height"), 32)
-
-    def test_the_version_is_asked_for_once_and_nothing_is_sent_by_the_card(self):
-        self.mount()
-        self.assertEqual(self.val("T.asked"), 1)
-        self.type("#feedback-message", "x")
-        self.assertEqual(self.val("T.asked"), 1)
-        self.assertEqual(self.js("document.querySelectorAll('form').length"), 0)     # no form post: the link is the only way out
-
-
-class InSettings(unittest.TestCase):
-    """The card is on the Settings page after the others, with its page in the menu, and Help names it."""
-
-    def test_settings_draws_the_card_and_a_link_for_it(self):
-        views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the card is on the Version and updates page, which has the menu item
-        self.assertIn('Feedback: "feedback-h"', views)
-        self.assertIn("Feedback,", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
-
-    def test_help_names_the_card(self):
-        help_ = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("Settings › Feedback", help_)
-        self.assertIn("Asking, Feedback and Quit", help_)
 
 
 if __name__ == "__main__":

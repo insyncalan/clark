@@ -65,7 +65,7 @@ class Kept(Published):
         self.write(tracker, tbody("two"))
         got = self.sections()
         self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0, "size": "medium",
-                                        "overall": {"actual": None, "planned": None, "health": "", "note": ""},
+                                        "overall": {"actual": 0, "planned": 0, "health": "", "note": ""},
                                         "columns": {"tasks": False, "agents": False, "workflows": False},
                                         "groups": [{"name": "Plan", "lines": [{"no": "", "text": "two", "start": "", "end": "", "status": "planned",
                                                                               "weight": 0, "planned": 0, "achieved": 0, "tasks": None,
@@ -86,12 +86,58 @@ class Kept(Published):
             {"name": "Build", "lines": [{"no": "1", "text": "Site", "start": "2030-01-05", "end": "2030-02-01", "status": "late", "weight": 500, "tasks": 4}]}]}))
         got = self.sections()[tracker]
         self.assertEqual([g["name"] for g in got["groups"]], ["Build"])
-        self.assertEqual(got["overall"], {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"})
+        self.assertEqual(got["overall"], {"actual": 0, "planned": 0, "health": "atrisk", "note": "Late supplier"}, "with a line the overall is the sums of the lines (row 1420)")
         self.assertEqual(got["columns"], {"tasks": True, "agents": False, "workflows": False})
         self.assertEqual(got["groups"][0]["lines"][0]["start"], "05-01-2030")
         self.assertEqual(got["groups"][0]["lines"][0]["tasks"], 4)
         self.assertEqual(set(got), {"id", "type", "title", "beside", "size", "overall", "columns", "groups"})
         self.assertEqual(got["size"], "compact", "the size reaches the published file")
+
+    def test_a_tracker_publishes_its_overall_value_1420(self):
+        tracker = self.section("tracker")
+        lines = [{"text": "A", "planned": 400, "achieved": 250}, {"text": "B", "planned": 300, "achieved": 100}]
+        self.write(tracker, json.dumps({"overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "N"},
+                                        "groups": [{"name": "G1", "lines": lines[:1]}, {"name": "G2", "lines": lines[1:]}]}))
+        got = self.sections()[tracker]
+        self.assertEqual(got["overall"], {"actual": 350, "planned": 700, "health": "atrisk", "note": "N"}, "the sums, not the typed 625 and 700")
+        self.assertEqual(set(got), {"id", "type", "title", "beside", "size", "overall", "columns", "groups"})
+
+    def test_the_overall_field_is_absent_for_a_hidden_or_bad_tracker_1420(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"overall": {"actual": 625}, "groups": [{"name": "G", "lines": [{"text": "A", "achieved": 100}]}]}))
+        self.ok("update", id=tracker, changes={"hidden": 1})
+        self.assertNotIn(tracker, self.sections())
+        self.ok("update", id=tracker, changes={"hidden": 0})
+        self.raw(tracker, "{not json")
+        self.assertNotIn(tracker, self.sections())
+        self.raw(tracker, json.dumps({"v": 1, "overall": {"actual": 625}, "groups": [{"name": "G", "lines": [{"text": "A", "achieved": 100}]}], "extra": "x"}))
+        self.assertNotIn(tracker, self.sections(), "a body that does not check at publish is left out")
+        self.raw(tracker, json.dumps({"v": 1, "overall": {"actual": 625}, "groups": [{"name": "G", "lines": [{"text": "A", "achieved": 100}]}]}))
+        self.assertEqual(self.sections()[tracker]["overall"]["actual"], 100, "a hand-edited typed figure is not republished as written")
+
+    def test_a_just_the_bar_tracker_publishes_its_overall_and_nothing_else_changes_1420(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"overall": {"actual": 625, "planned": 700, "health": "", "note": ""}, "groups": []}))
+        got = self.sections()[tracker]
+        self.assertEqual(got["groups"], [])
+        self.assertEqual(got["overall"], {"actual": 625, "planned": 700, "health": "", "note": ""})
+        self.assertEqual(got["columns"], {"tasks": False, "agents": False, "workflows": False})
+        self.assertEqual(got["size"], "medium")
+        self.write(tracker, json.dumps({"groups": [{"name": "Empty", "lines": []}]}))
+        self.assertNotIn(tracker, self.sections(), "nothing the page would draw: left out")
+
+    def test_a_just_the_bar_tracker_with_only_a_health_or_only_a_note_is_published_1420(self):
+        only_health = sb.published("tracker", {"overall": {"health": "atrisk"}, "groups": []})
+        self.assertEqual(only_health["overall"], {"actual": None, "planned": None, "health": "atrisk", "note": ""})
+        only_note = sb.published("tracker", {"overall": {"note": "Late"}, "groups": []})
+        self.assertEqual(only_note["overall"], {"actual": None, "planned": None, "health": "", "note": "Late"})
+        self.assertIsNone(sb.published("tracker", {"overall": {"planned": 500}, "groups": []}), "a planned figure alone is not drawn by the page")
+
+    def test_the_published_overall_picks_by_name_and_skips_a_figure_that_is_not_a_number_1420(self):
+        value = {"overall": {"actual": 1, "health": "bogus", "note": 5},
+                 "groups": [{"name": "G", "lines": [{"text": "A", "status": "planned", "achieved": 250, "planned": 400}, {"text": "B", "status": "planned", "achieved": "x", "planned": None}]}]}
+        got = sb.published("tracker", value)
+        self.assertEqual(got["overall"], {"actual": 250, "planned": 400, "health": "", "note": ""}, "a health word not in the list is dropped, a figure that is not a number counts for nothing")
 
     def test_a_tracker_with_no_line_is_left_out_and_a_hidden_one_too(self):
         tracker = self.section("tracker")

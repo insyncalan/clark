@@ -251,7 +251,7 @@ class Source(unittest.TestCase):
 
 class EditFetches(unittest.TestCase):
     """item 631: a call from the editing page to clark goes through zoneFetch (api.js), which adds X-Tz; a bare fetch would skip it."""
-    BARE_OK = {"edit/Feedback.jsx"}      # the health check: it asks for no zone and the server follows none on it
+    BARE_OK = {"edit/FeedbackTag.jsx"}      # the health check: it asks for no zone and the server follows none on it
 
     def test_no_edit_file_calls_a_bare_fetch(self):
         bare = []

@@ -200,7 +200,12 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     ed.current = made;
     setH(made);
     made.editor.view.focus();                     // at once, in this step (the editor's own focus waits for a frame, and a late frame left the box open but not focused)
+    // The editor's own focus (below) runs view.focus() again in a later frame. A Tab sent before that frame moved the focus to the next field and the frame took it back
+    // (row 1556, macOS). Until that frame has run, a view.focus() only goes through while the focus is on the page body or already inside this editor.
+    const view = made.editor.view, realFocus = view.focus.bind(view);
+    view.focus = () => { const at = document.activeElement; if (!at || at === document.body || view.dom.contains(at)) realFocus(); };
     made.focus();
+    requestAnimationFrame(() => { view.focus = realFocus; });      // queued after the editor's own frame callback, so it runs after it
     return () => { made.destroy(); ed.current = null; };
   }, []);
 

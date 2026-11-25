@@ -76,7 +76,7 @@ class Sign(tre.Base):
         return p.js("""(function(){var s=document.querySelector('[data-id="ABC-S-002"]'), o=document.querySelector('[data-id="ABC-S-003"]'), t=s.querySelector('.sec-t');
           var a=getComputedStyle(t||s,'::after'), cs=getComputedStyle(s), os=getComputedStyle(o), tr=(t||s).getBoundingClientRect(), hr=s.querySelector('.sec-head').getBoundingClientRect();
           return {old:[s.classList.contains('is-changed'), !!s.querySelector('.tag.chg')], bg:cs.backgroundColor, obg:os.backgroundColor, shadow:cs.boxShadow, oshadow:os.boxShadow, sanim:cs.animationName,
-            aname:a.animationName, adur:a.animationDuration, h:a.height, bgA:a.backgroundColor, bottom:a.bottom, aw:a.width, tw:tr.width, hw:hr.width, secH:s.offsetHeight,
+            aname:a.animationName, adur:a.animationDuration, h:a.height, bgA:a.backgroundColor, bottom:a.bottom, aw:a.width, tw:(function(){var f=t&&t.querySelector('.sec-title'); if(!f) return tr.width; var g=document.createRange(); g.selectNodeContents(f); return g.getBoundingClientRect().width;})(), boxw:tr.width, hw:hr.width, secH:s.offsetHeight,
             cap:!!s.querySelector('.tag.chg'), words:s.querySelector('.sec-head').textContent, inside:tr.left>=0&&tr.right<=innerWidth&&tr.width>0,
             scroll:document.documentElement.scrollWidth<=innerWidth, flag:s.dataset.changed||null};})()""")
 
@@ -104,8 +104,9 @@ class Sign(tre.Base):
                         self.assertEqual(TE.parse_rgb(g["bgA"]), blue)
                         self.assertEqual(g["bottom"], "-4px")
                         self.assertGreaterEqual(TE.ratio(blue, surface), 3, "the line is 3:1 on the card")
-                        self.assertAlmostEqual(float(g["aw"][:-2]), g["tw"], delta=1, msg="the line is as wide as the title")
+                        self.assertAlmostEqual(float(g["aw"][:-2]), g["tw"], delta=1, msg="the line is as wide as the title text (Row 1591: the box is row-wide in Edit, the line is not)")
                         self.assertLess(g["tw"], g["hw"], "under the title text only, not the whole header")
+                        self.assertGreater(g["boxw"], g["tw"] * 3, "the title box still fills its row (Row 1591), the line does not")
                         self.assertFalse(g["cap"])
                         self.assertNotIn("Changed", g["words"])
                         self.assertTrue(g["inside"] and g["scroll"])

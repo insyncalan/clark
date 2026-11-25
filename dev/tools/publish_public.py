@@ -1283,6 +1283,30 @@ def check_branch(args, report):
         report.add("branch name", REFUSED, "only clark-public, release-X.Y.Z (digits only) and main are allowed")
 
 
+def check_release_signature(args, report):
+    """#1328: a release-X.Y.Z branch from updates.FIRST_SIGNED (1.3.4) up is refused without a .sig that verifies over the zip."""
+    if not RELEASE_BRANCH.fullmatch(args.branch):
+        return
+    sys.path[:0] = [str(REPO / "src"), str(REPO / "vendor")]
+    try:
+        from clark import updates
+    finally:
+        del sys.path[:2]
+    if tuple(int(n) for n in args.branch[len("release-"):].split(".")) < updates.FIRST_SIGNED:
+        return
+    zipped, sig = (Path(x) if x else None for x in (args.zip, args.sig))
+    if not (zipped and sig and zipped.is_file() and sig.is_file()):
+        report.add("release is signed", REFUSED, "a release from 1.3.4 up needs --zip and --sig (the zip and its .sig, "
+                   "dev/RELEASING.md step 7a): a release without its .sig is not published")
+        return
+    try:
+        updates.check_signature(zipped.read_bytes(), sig.read_bytes())
+    except (updates.UpdateError, OSError):
+        report.add("release is signed", REFUSED, "the .sig does not verify over the zip with the release key")
+        return
+    report.add("release is signed", PASS, "the .sig verifies over the zip")
+
+
 def check_target(args, repo, report, is_public):
     """Runs every target check; returns the parsed target when it is safe to talk to, else None."""
     raw = args.target or DEFAULT_PUBLIC_REMOTE
@@ -1565,6 +1589,7 @@ def _run(args, repo, tmp, run_tests, is_public, banned, main_ref, say, now):
     say("publish_public: %s to branch %s" % ("dry run" if args.dry_run else "publishing", args.branch))
 
     check_branch(args, report)
+    check_release_signature(args, report)
     target = check_target(args, repo, report, is_public)
     sha = resolve_ref(repo, args.ref, env, report)
     if sha:
@@ -1814,6 +1839,8 @@ def parse_args(argv):
     p.add_argument("ref", help="a tag or ref that is on main")
     p.add_argument("--target", help="the public repo's address (https or ssh); there is no default")
     p.add_argument("--branch", default=DEFAULT_BRANCH, help="clark-public (default), release-X.Y.Z, or main")
+    p.add_argument("--zip", help="release-X.Y.Z from 1.3.4 up: the signed release zip")
+    p.add_argument("--sig", help="release-X.Y.Z from 1.3.4 up: the zip's .sig (dev/RELEASING.md step 7a)")
     p.add_argument("--publish-main", action="store_true", help="allow --branch main")
     p.add_argument("--dry-run", action="store_true", help="check and show everything; push nothing")
     p.add_argument("--with-tests", action="store_true", help="with --dry-run: also run the tests on both Pythons")

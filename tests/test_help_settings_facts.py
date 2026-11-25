@@ -17,7 +17,7 @@ PROFILE_TASK = next(t for t in RAW["howto"]["tasks"] if t["id"] == "set-your-pro
 
 
 CARD_NAMES = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt", "Diagnostics": "Logs and diagnostics",
-              "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "ThemeSettings": "Theme", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
+              "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "ThemeSettings": "Theme", "People": "People", "AskSettings": "Asking", "Quit": "Quit"}
 
 
 def chips():
@@ -37,7 +37,7 @@ class TheSettingsTable(unittest.TestCase):
 
     def test_the_intro_lists_the_same_cards(self):
         intro = SECTION["b"][0][1]
-        listed = intro.split("): ")[1].split(", in the order")[0].replace(", Feedback and Quit", ", Feedback, Quit").split(", ")
+        listed = intro.split("): ")[1].split(", in the order")[0].replace(" and Quit", ", Quit").split(", ")
         self.assertEqual(sorted(listed), sorted(chips()))
 
     def test_the_data_row_names_the_buttons_of_the_card(self):

@@ -499,7 +499,7 @@ class ServiceChoice(unittest.TestCase):
         self.ask(True, {"/made/up": "[]"})
         self.assertEqual(self.direct_calls, [])
         (a, k), = self.index_calls
-        self.assertEqual(a[3:], (self.left, self.room))
+        self.assertEqual(a[3:], (self.left, self.room, []), "the index also gets the ids named in earlier turns (none here)")
 
     def test_a_left_out_subfolder_sends_the_question_to_the_direct_reader_with_the_list_room_and_budget_left(self):
         self.ask(True, {"/made/up": '["Contract"]'})

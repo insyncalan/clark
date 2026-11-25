@@ -1,7 +1,7 @@
 """Row 1288: the Classic rich editor's measured values and places, by the names the ticket's Definition of done uses (computed style, 1400 and 900).
 
 Run: python3 dev/run_tests.py test_rich_editor_1288
-Covers AP1 to AP4, AP7, AP8, AP10 to AP14 (AP6, the AI menu's colours, is not here: the product has no 5B colours yet).
+Covers AP1 to AP4, AP6, AP7, AP8, AP10 to AP14 (AP6, the AI menu's colours, hover and width, is row 1586).
 AP10 to AP14 also lean on test_tpl_rich_words, test_milestone_peek_828, test_rich_storage_1288c and test_ai_places. Chrome is required: the test fails, never skips, without it.
 """
 import json
@@ -19,6 +19,7 @@ import test_ai_places as tap  # noqa: E402  (the module, not its test classes)
 import test_rich_storage_1288c as rs  # noqa: E402
 from clark import excel_client, publish, sanitise, section_bodies  # noqa: E402
 
+CARDS_CSS = None
 WIDTHS = (1400, 900)
 JS = ROOT / "src" / "clark" / "page" / "src"
 BOX = ("(b => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return {w: r.width, h: r.height, mw: c.minWidth, r: c.borderTopLeftRadius,"
@@ -29,9 +30,21 @@ Q = "document.querySelector(%s)"
 
 def setUpModule():       # the Classic theme's rules are appended to the page's own CSS (as test_rich_menus_tight_1288 does), and the theme layer marks the page Classic
     orig, css = build_page.page_css, theme.css("prototype-2.0")
+    global CARDS_CSS
+    CARDS_CSS = lambda: orig(build_page.ENTRY)
     p = mock.patch.object(build_page, "page_css", lambda *a, **k: orig(build_page.ENTRY) + "\n" + css)      # the served page's CSS: it holds edit.css, where the AI menu's rules are
     p.start()
     unittest.addModuleCleanup(p.stop)
+
+
+AIM_GRAB = ("(() => { const q = s => document.querySelector(s), c = e => getComputedStyle(e); const menu = q('.aim');"
+            " const ic = k => { const e = q('.aim .aim-ic-' + k); return e ? c(e).color : null; };"
+            " return {mw: c(menu).minWidth, w: menu.getBoundingClientRect().width, gl: [...document.querySelectorAll('.aim .aim-gl')].map(e => c(e).color),"
+            " improve: ic('improve'), structure: ic('structure'), ask: ic('ask'),"
+            " rowColor: c(q('.aim .aim-opt')).color,"
+            " muted: (() => { const p = document.createElement('i'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const v = c(p).color; p.remove(); return v; })(),"
+            " tint: (() => { const p = document.createElement('i'); p.style.backgroundColor = 'var(--brand-blue-tint)'; document.body.appendChild(p); const v = c(p).backgroundColor; p.remove(); return v; })()}; })()")
+LIGHT_ICONS = {"improve": [124, 77, 255], "structure": [47, 125, 74], "ask": [183, 121, 31]}
 
 
 def layer(h):
@@ -130,6 +143,129 @@ class Editor(unittest.TestCase):
                 ask = box(h, ".rt-slash .rt-ask")
                 self.assertEqual((ask["p"], ask["f"]), ("4px 10px 4px 10px", "13.5px"), f"{w}: {ask}")
                 self.assertEqual(h.ev("document.querySelectorAll('.rt-bar [role=menu] hr, .rt-bar [role=menu] .gl, .rt-slash .gl').length"), 0, f"{w}: no group label or rule in the More, Style or slash menus other than the slash rule")
+
+    def test_ai_menu_colours_and_widths_1288(self):
+        """AP6 (row 1586, mock-up 5B): the Classic AI menu's group labels, hover row, three icon colours and min-width, at 1400 and 900.
+        Dark keeps what main draws (row 1586 ruling): the label is the resolved --text-muted, the hover row the resolved --brand-blue-tint, the icons the colour they inherit from their row (--text)."""
+        want_icons = {"improve": [124, 77, 255], "structure": [47, 125, 74], "ask": [183, 121, 31]}
+        grab = AIM_GRAB
+        bgof = "getComputedStyle(%s).backgroundColor"
+        move = lambda h, x, y: h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, h.sid)
+        with rp.Harness(chrome) as h:
+            for theme in ("light", "dark"):
+                for w in WIDTHS:
+                    tag = f"{theme} {w}"
+                    self.show_editor(h, w)
+                    h.theme(theme)
+                    h.select_all()
+                    self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), tag)
+                    h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                    self.assertTrue(h.until("!!document.querySelector('.aim .aim-opt')"), f"{tag}: the AI menu opens")
+                    got = h.ev(grab)
+                    self.assertEqual(got["mw"], "210px", f"{tag}: {got}")
+                    self.assertGreaterEqual(got["w"], 210, f"{tag}: {got}")
+                    self.assertTrue(got["gl"], f"{tag}: no group label")
+                    for kind in want_icons:
+                        self.assertIsNotNone(got[kind], f"{tag}: no {kind} icon")
+                    if theme == "light":
+                        for c in got["gl"]:
+                            self.assertEqual(rgb(c), [59, 111, 212], f"{tag}: group label {c}")
+                        for kind, rgbv in want_icons.items():
+                            self.assertEqual(rgb(got[kind]), rgbv, f"{tag}: {kind} icon {got[kind]}")
+                    # A real pointer over the LAST row (nothing focused yet), then the focused FIRST row.
+                    h.ev("document.activeElement && document.activeElement.blur(); true")
+                    r = h.ev("(() => { const e = [...document.querySelectorAll('.aim .aim-opt')].pop(); e.setAttribute('data-hov', '1'); const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()")
+                    move(h, 1, 1)
+                    move(h, r[0], r[1])
+                    self.assertTrue(h.until("document.querySelector('.aim [data-hov]').matches(':hover')"), f"{tag}: the pointer is on the last row")
+                    hov = h.ev(bgof % "document.querySelector('.aim [data-hov]')")
+                    move(h, 1, 1)
+                    h.ev("document.querySelector('.aim .aim-opt').focus(); true")
+                    foc = h.ev(bgof % "(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt'))")
+                    if theme == "light":
+                        self.assertEqual(rgb(hov), [230, 238, 252], f"{tag}: the hovered row draws the hover blue: {hov}")
+                        self.assertEqual(rgb(foc), [230, 238, 252], f"{tag}: the focused row draws the hover blue: {foc}")
+                    else:
+                        for c in got["gl"]:
+                            self.assertEqual(rgb(c), rgb(got["muted"]), f"{tag}: dark label is the resolved --text-muted {got['muted']}, got {c}")
+                            self.assertNotEqual(rgb(c), [59, 111, 212], f"{tag}: dark label {c}")
+                        self.assertEqual(rgb(hov), rgb(got["tint"]), f"{tag}: dark hover is the resolved --brand-blue-tint {got['tint']}, got {hov}")
+                        self.assertEqual(rgb(foc), rgb(got["tint"]), f"{tag}: dark focus is the resolved --brand-blue-tint {got['tint']}, got {foc}")
+                        for kind in want_icons:
+                            self.assertEqual(rgb(got[kind]), rgb(got["rowColor"]), f"{tag}: dark {kind} icon keeps the row colour {got['rowColor']}, got {got[kind]}")
+                            self.assertNotEqual(rgb(got[kind]), want_icons[kind], f"{tag}: dark {kind} icon is not the light colour")
+                    h.ev("window.unmount(); true")
+        # rules.css does not grow (the Cards page itself is read in test_ai_menu_cards_page_unchanged_1288).
+        themes = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
+        self.assertLessEqual((themes / "rules.css").stat().st_size, 131072)
+        two = (themes / "rules-2.css").read_text(encoding="utf-8")
+        self.assertLess(two.index(".aim-gl { color: rgb(59, 111, 212)"), two.index("/* Row 1314:"), "the AP6 block comes before the Row 1314 block")
+
+    def aim_auto_dark(self, w):
+        """The AI menu at width `w` with data-theme=auto and the OS dark scheme emulated: returns (values, hovered-row bg, focused-row bg)."""
+        with rp.Harness(chrome) as h:
+            h.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]}, h.sid)
+            self.show_editor(h, w)
+            h.theme("auto")
+            self.assertTrue(h.ev("matchMedia('(prefers-color-scheme: dark)').matches"), "the OS dark scheme is emulated")
+            h.select_all()
+            self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+            h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+            self.assertTrue(h.until("!!document.querySelector('.aim .aim-opt')"), f"auto-dark {w}: the AI menu opens")
+            got = h.ev(AIM_GRAB)
+            h.ev("document.activeElement && document.activeElement.blur(); true")
+            r = h.ev("(() => { const e = [...document.querySelectorAll('.aim .aim-opt')].pop(); e.setAttribute('data-hov', '1'); const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()")
+            for x, y in ((1, 1), tuple(r)):
+                h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, h.sid)
+            self.assertTrue(h.until("document.querySelector('.aim [data-hov]').matches(':hover')"), f"auto-dark {w}: the pointer is on the last row")
+            hov = h.ev("getComputedStyle(document.querySelector('.aim [data-hov]')).backgroundColor")
+            h.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, h.sid)
+            h.ev("document.querySelector('.aim .aim-opt').focus(); true")
+            foc = h.ev("getComputedStyle(document.querySelector('.aim .aim-opt:focus-visible') || document.querySelector('.aim .aim-opt')).backgroundColor")
+            return got, hov, foc
+
+    def test_ai_menu_auto_dark_icons_keep_the_row_colour_1288(self):
+        """The auto-dark `.aim-ic { color: currentColor }` rule: with the OS dark scheme the icons take the row's colour, not the light icon colours."""
+        for w in WIDTHS:
+            got, _, _ = self.aim_auto_dark(w)
+            for kind, light in LIGHT_ICONS.items():
+                self.assertEqual(rgb(got[kind]), rgb(got["rowColor"]), f"auto-dark {w}: {kind} icon {got[kind]} is not the row colour {got['rowColor']}")
+                self.assertNotEqual(rgb(got[kind]), light, f"auto-dark {w}: {kind} icon keeps the light colour")
+
+    def test_ai_menu_auto_dark_label_is_the_muted_text_1288(self):
+        """The auto-dark `.aim-gl` rule: the group labels are the resolved --text-muted, not the light blue."""
+        for w in WIDTHS:
+            got, _, _ = self.aim_auto_dark(w)
+            self.assertTrue(got["gl"])
+            for c in got["gl"]:
+                self.assertEqual(rgb(c), rgb(got["muted"]), f"auto-dark {w}: label {c}, --text-muted is {got['muted']}")
+                self.assertNotEqual(rgb(c), [59, 111, 212], f"auto-dark {w}: label keeps the light blue")
+
+    def test_ai_menu_auto_dark_hover_and_focus_are_the_blue_tint_1288(self):
+        """The auto-dark `.aim-opt:hover, :focus-visible` rule: a hovered and a focused row are the resolved --brand-blue-tint, not the light blue."""
+        for w in WIDTHS:
+            got, hov, foc = self.aim_auto_dark(w)
+            self.assertEqual(rgb(hov), rgb(got["tint"]), f"auto-dark {w}: hovered row {hov}, --brand-blue-tint is {got['tint']}")
+            self.assertEqual(rgb(foc), rgb(got["tint"]), f"auto-dark {w}: focused row {foc}, --brand-blue-tint is {got['tint']}")
+            self.assertNotEqual(rgb(hov), [230, 238, 252], f"auto-dark {w}: hover keeps the light blue")
+
+    def test_ai_menu_cards_page_unchanged_1288(self):
+        """Cards is frozen (no theme layer): the real page's menu keeps min-width 240px and the muted label, at 1400 and 900."""
+        with mock.patch.object(build_page, "page_css", lambda *a, **k: CARDS_CSS()):
+            with rp.Harness(chrome) as h:
+                for w in WIDTHS:
+                    h.resize(w)
+                    h.ev("var o = document.getElementById('theme'); if (o) o.remove(); true")
+                    h.mount("<p>Some words here</p>", ai="current")
+                    h.select_all()
+                    self.assertTrue(h.until("!!document.querySelector('.rt-bubble [data-rt-bubble-ai]')"), w)
+                    h.ev("document.querySelector('.rt-bubble [data-rt-bubble-ai]').click(); true")
+                    self.assertTrue(h.until("!!document.querySelector('.aim .aim-gl')"), f"{w}: the Cards AI menu opens with its group labels")
+                    got = h.ev(AIM_GRAB)
+                    self.assertEqual(got["mw"], "240px", f"cards {w}: {got}")
+                    for c in got["gl"]:
+                        self.assertEqual(rgb(c), rgb(got["muted"]), f"cards {w}: label {c}, --text-muted is {got['muted']}")
+                    h.ev("window.unmount(); true")
 
     def test_no_colour_in_toolbar_style_bubble_slash_1288(self):
         with rp.Harness(chrome) as h:
@@ -246,7 +382,7 @@ class Ap10Places(unittest.TestCase):
             text = source(rel)
             self.assertNotIn("RichField", text, f"{word}: Not rich")
             self.assertIn("<textarea", text, f"{word}: a plain box")
-        full = {"raid_own": "edit/templates/raidEdit.jsx", "caption": "edit/templates/pictureEdit.jsx", "client_message": None, "latest_update": "edit/PeekLatest.jsx",
+        full = {"caption": "edit/templates/pictureEdit.jsx", "client_message": None, "latest_update": "edit/PeekLatest.jsx",
                 "callout": "edit/templates/Callout.jsx", "textimage": None, "standing": None, "internal_note": "edit/Movement.jsx", "health_reason": "edit/GlanceEdit.jsx"}
         for field, rel in full.items():
             self.assertIn(field, by_field, field)
@@ -274,7 +410,7 @@ class Ap11Ap12Storage(rs.Base):
         """AP11: RAID own words, Picture caption and Item row Client wording are Full editors that store the editor's HTML (cleaned), and the file
         and the exports carry it: an item's wording as HTML in the file and as words in Word and the client workbook; a card's own words and a caption as
         the one line of words the file has always held."""
-        for rel, field in (("edit/templates/raidEdit.jsx", "raid_own"), ("edit/templates/pictureEdit.jsx", "caption"), ("edit/ItemRowsEdit.jsx", "client_message")):
+        for rel, field in (("edit/templates/pictureEdit.jsx", "caption"), ("edit/ItemRowsEdit.jsx", "client_message")):      # row 1270 R4: RAID cards have no own words in Edit
             self.assertIn((rel, field, False), rich_mounts(), f"{rel}: the Full editor (not oneLine)")
         for kind, make, where, file_of in rs.LINES:
             with self.subTest(kind):
@@ -298,7 +434,7 @@ class Ap12OldText(unittest.TestCase):
     def test_old_plain_text_reads_right_1288(self):
         """AP12: old saved plain text in RAID own words, Picture caption and Item row Client wording opens as paragraphs: no lost line, the < and the
         tags in it are text; at 1400 and 900."""
-        for rel in ("edit/templates/raidEdit.jsx", "edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
+        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):      # row 1270 R4: raidEdit.jsx draws no own words
             self.assertIn("richOrPlain(", source(rel), f"{rel}: an old plain value goes through richOrPlain")
         with rp.Harness(chrome) as h:
             html = h.ev(f"window.CE.richOrPlain({json.dumps(OLD_TEXT)})")
