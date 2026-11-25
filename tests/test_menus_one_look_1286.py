@@ -9,7 +9,7 @@ bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light an
   - every other menu keeps production: lines 14px, not the prototype's padding and radius, the icon 17px in from the edge and 8px from its words
     (the date and owner pickers are forms, not menus, and are left out)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
-  - the head of a group is plain: no capitals, no letter spacing
+  - the head of a group is plain: no capitals, no letter spacing, except the two heads Row 1273 draws in capitals (the Group by head of the View menu and the Move <id> to head of a card)
   - the panel radius: 10px on every menu, as the prototype .pop (Row menu-radius), except the Gantt Show panel .gt-pop: 12px (1197 item 10)
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
@@ -32,8 +32,10 @@ NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their mock-ups draw the tick before the word (1195 Columns, 1197 Show)
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
+TIGHT = {"text-style"}      # row 1288: the rich editor's menus are the tight ones (radius 12, padding 4, rows 4px 10px at 13.5px; test_rich_menus_tight_1288)
 GANTT_SHOW = {"gantt-show-chart"}     # the Gantt Show panel (.gt-pop under [data-gantt]): radius 12 by the measured mock-up of 1197 item 10 (comment 7022907667), by ruling; it wins over 1286's general 10px. The Work items table Show menu (gantt-show-table) is a .gt-pop outside [data-gantt], draws 10 and stays 10 here
 MIN_W = 224
+COLUMNS_7B = {"columns"}      # row 1499 (pick 7B, mock-up work-items-mockup.html:2011): the Classic Columns menu is the mock-up's own panel (200 wide, radius 12, padding 6); only its panel radius differs from the 1286 grid
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
 PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
@@ -42,7 +44,7 @@ MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
  const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;
  const cs = e => getComputedStyle(e); const br = box.getBoundingClientRect();
- const items = [...new Set(box.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button'))].filter(ok);
+ const items = [...new Set(box.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button'))].filter(b => ok(b) && !b.closest('.ptrack'));   // the Appearance pills (Row 1281) are one pill line, not menu lines; test_profile_menu_classic_1281 pins their look
  const rows = items.map(b => {
    const icon = [...b.querySelectorAll('svg.i')].find(s => !s.closest('.ck') && ok(s)); if (!icon) return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: false};
    const ir = icon.getBoundingClientRect(); const after = [], before = [ir.left];
@@ -52,21 +54,46 @@ MEASURE = r"""(root => {
    const ck = b.querySelector('.ck, .gt-ck'); const ckr = ck ? ck.getBoundingClientRect() : null;
    if (ckr && ckr.width > 0) { if (ckr.left >= ir.right - 0.5) after.push(ckr.left); else if (ckr.right <= ir.left + 0.5) before.push(ckr.left); }
    const dot = b.querySelector('.ragdot'); if (dot) { const d = dot.getBoundingClientRect(); if (d.width > 0 && d.left >= ir.right - 0.5) after.push(d.left); }      // the coloured dot of a status word is drawn before the word
+   const tn = icon.closest('.ic-r,.ic-a,.ic-g,.ic-b,.ic-n'); const tone = tn ? [...tn.classList].find(c => /^ic-[ragbn]$/.test(c)) : null;
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
    const c = cs(b);
-   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, tone, col: tone ? cs(icon).color : null, ibl: Math.round((ir.left - b.getBoundingClientRect().left) * 10) / 10, tx: after.length ? Math.round((Math.min(...after) - b.getBoundingClientRect().left) * 10) / 10 : null, ckl: ckr && ckr.width > 0 ? Math.round((ckr.left - b.getBoundingClientRect().left) * 10) / 10 : null, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + parseFloat(c.paddingLeft))) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  const bc = cs(box);
  return {w: Math.round(br.width), cls: box.className, rad: bc.borderTopLeftRadius, pad: bc.paddingTop + ' ' + bc.paddingRight + ' ' + bc.paddingBottom + ' ' + bc.paddingLeft, bord: bc.borderTopWidth + ' ' + bc.borderTopStyle + ' ' + bc.borderTopColor, line: cs(document.documentElement).getPropertyValue('--line').trim(), rows, heads}; })"""
 
 
+# Row 1286 AP4 (ruling 23-11): the mock-up menu icon tones of Group by, Add and Move to (menu-icons.css:5 on the page tokens), light then dark; amber and grey equal production's
+TONES = {"light": {"ic-r": "rgb(163, 48, 31)", "ic-a": "rgb(138, 90, 0)", "ic-g": "rgb(0, 107, 94)", "ic-b": "rgb(47, 75, 184)", "ic-n": "rgb(71, 85, 119)"},
+         "dark": {"ic-r": "rgb(255, 155, 138)", "ic-g": "rgb(79, 209, 189)", "ic-b": "rgb(157, 176, 255)"}}
+PROBE = "(t => { const e = document.createElement('i'); e.className = t; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })"
+
+
+def check_tones(test, name, look, m, probe):
+    where = f"{name} at {look[0]} {look[1]}"
+    seen = set()
+    for r in m["rows"]:
+        if not r.get("tone"):
+            continue
+        seen.add(r["tone"])
+        if name in THREE:
+            want = TONES[look[1]].get(r["tone"])
+            if want is None:      # dark amber and grey are not ruled: they stay production's
+                want = probe[r["tone"]]
+            test.assertEqual(r["col"], want, f"{where}: the {r['tone']} icon of {r['t']!r} is {r['col']}, the mock-up tone is {want}")
+        else:
+            test.assertEqual(r["col"], probe[r["tone"]], f"{where}: the {r['tone']} icon of {r['t']!r} keeps production's {probe[r['tone']]}, not the mock-up tone")
+    return seen
+
+
 def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
-    want = "12px" if name in GANTT_SHOW else "10px"      # 1197 item 10: the Gantt Show panel keeps 12; every other popover is 10
+    r1273 = name in {"view", "board-move", "board-move-lanes"}     # row 1273 changes Group by and Move to only; the Add menu is row 1462
+    want = "12px" if name in TIGHT or name in GANTT_SHOW or name in COLUMNS_7B else "10px"      # 1197 item 10: the Gantt Show panel keeps 12; row 1499 AP5: the Classic Columns panel is 12 (the 7B mock-up .ctxm); every other popover is 10
     test.assertEqual(m["rad"], want, f"{where}: the panel radius is {m['rad']}, expected {want} (the prototype popover (.pop) draws 10px, the Gantt Show panel 12px by 1197 item 10)")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
@@ -74,30 +101,45 @@ def check(test, name, look, m):
     for r in m["rows"]:
         if name in PICKERS or name in PILL_MENU:
             continue
-        test.assertEqual(r["fs"], "15px" if three else "14px", f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
-        if not three:
+        own = "14px" if name == "text-style" else None      # row 1431 replaces row 1288 AP3 for the toolbar Style menu: all four lines one size (PM M17544), 14px as the code has it; the icon sits 21px in from the edge with the 16px side padding (measured; was 15 under the 1288 4px/10px rows)
+        test.assertEqual(r["fs"], own or ("15px" if three else "13.5px" if name in TIGHT else "14px"), f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
+        if not three and name != "text-style" and "pad" in r:      # the Style menu has the prototype rows (row 1288 AP3); row 1499: a line with no icon is measured for its size only
             test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
-            test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
-            if three:
+            if r1273:
+                test.assertEqual((r["pad"].split()[:3], r["rad"]), (["7px", "10px", "7px"], "6px"), f"{where}: the line {r['t']!r} padding (top, right, bottom) and radius")
+                test.assertEqual(r["pad"].split()[3], "10px", f"{where}: the line {r['t']!r} has {r['pad'].split()[3]} of left padding, the prototype draws 7px 10px")
+                test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
+                test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, row 1273 draws 10")
+                # 7px 10px padding, [16px icon][10px gap][text]: icon at x10, text at x36 from the item's left edge; the mock's x60 includes a tick slot that ruling 9A (tick right of the word) removes
+                test.assertAlmostEqual(r["slot"], 0, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px before its icon, 9A reserves no tick slot")
+                test.assertAlmostEqual(r["ibl"], 10, delta=0.5, msg=f"{where}: the icon of {r['t']!r} is {r['ibl']}px from the item's left edge, the padding")
+                test.assertAlmostEqual(r["tx"], 36, delta=0.5, msg=f"{where}: {r['t']!r} text starts {r['tx']}px from the item's left edge, 10 + 16 + 10")
+            elif three:
+                test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
                 test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
                 test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
             else:
+                test.assertAlmostEqual(r["il"], 21 if name in TIGHT else 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
                 grid = 10 if name == "gantt-show-chart" else 8      # row 1197 item 10: the chart Show menu rows gap 10
                 test.assertAlmostEqual(r["gap"], grid, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, production's grid is {grid}")
         if r.get("side"):
             test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
-        test.assertEqual(h["tt"], "none", f"{where}: the head {h['t']!r} is in capitals")
-        test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
+        caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
+        test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")
+        if not caps:
+            test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
 
 
 class Seen:
     """Records and checks every menu a Drive reads."""
     names = set()
     leaving = None
+    live = None
+    tones = {}
 
 
 def setUpModule():
@@ -116,10 +158,20 @@ def setUpModule():
         got = orig_lines(self, root, name, minimum)
         # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
         self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
-        check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
+        m = self.js(f"({MEASURE})({json.dumps(root)})")
+        check(self.t, name, self.look_is, m)
+        probe = {t: self.js(f"({PROBE})({json.dumps(t)})") for t in ("ic-r", "ic-a", "ic-g", "ic-b", "ic-n")}
+        Seen.tones.setdefault((self.look_is[1], name in THREE), set()).update(check_tones(self.t, name, self.look_is, m, probe))
+        if name == "gantt-add-below-table" and self.look_is[0] == 1400 and Seen.live is None:     # row 1286 (PR 2092), 1400 only: the fade copy's line padding equals the live Gantt menu's (12px at the sides)
+            read = "(b => { const c = getComputedStyle(b); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; })"
+            Seen.live = self.js(f"(r => {read}([...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop().querySelector('button')))({json.dumps(root)})")
+            copy = self.js(f"(() => {{ const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const r = {read}(d.firstChild); d.remove(); return r; }})()")
+            self.t.assertEqual(copy, Seen.live, "the fade copy's line padding equals the live menu's")
+            self.t.assertEqual(Seen.live, "6px 12px 6px 12px", "the live Gantt menu keeps 12px at the sides")
         if not Seen.leaving:     # row 1463: the fade copy of a Gantt menu (body > .gt-menu.leaving, edit.css) keeps the box padding and the line padding: read its computed values from a copy on the page
             Seen.leaving = self.js("(() => { const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const b = d.firstChild, p = e => { const c = getComputedStyle(e); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }; const r = [p(d), p(b)]; d.remove(); return r; })()")
-            self.t.assertEqual(Seen.leaving, ["4px 4px 4px 4px", "6px 10px 6px 10px"], "the fading Gantt menu: box padding and line padding")
+            self.t.assertEqual(Seen.leaving[0], "4px 4px 4px 4px", "the fading Gantt menu: box padding")
+            self.t.assertEqual(Seen.leaving[1], "6px 12px 6px 12px", "the fading Gantt menu: line padding is 12px at the sides (Row 1286)")
         Seen.names.add(name)
         return got
     start(mock.patch.object(T.Drive, "lines", lines))
@@ -145,6 +197,43 @@ class Static(unittest.TestCase):
                 self.assertRegex(sel, r"#viewMenuList|#newBtnMenu|aria-label\^=", f"a 15px, 224px or 7px 10px menu rule names a menu other than the three: {sel.strip()[:90]}")
         self.assertGreaterEqual(found, 2)
 
+    def test_the_menu_grid_rule_values_are_one_grid(self):
+        # AP1 (Stage 0 21-11 09:48, line 14, one icon grid; rules.css Row 1286 block): 16px side padding on every line, 8px (--space-2) between icon and words, the tick on the right
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        rules = {sel.strip(): body for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)}
+
+        def body(start):
+            hit = [b for s, b in rules.items() if s.startswith(start)]
+            self.assertTrue(hit, f"no rule starts with {start}")
+            return hit[-1]
+        line = body('.ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp)')
+        self.assertIn("padding-left: 16px", line)
+        self.assertIn("padding-right: 16px", line)
+        self.assertIn("margin-right: var(--space-2)", body(".ddmenu .mi"))
+        self.assertIn("margin-right: 0", body(".rowmenu .mi"))
+        self.assertIn("gap: var(--space-2)", body(".menu .menu-item"))
+        tick = body('.ddmenu [role="menuitemradio"]:not(.hp) .ck')
+        for want in ("order: 1", "margin-left: auto", "margin-right: 0"):
+            self.assertIn(want, tick)
+
+    def test_production_menus_are_200_wide_and_the_use_case_group_by_is_240(self):
+        # AP5 (Stage 0 21-11 09:48, line 15, 200/240 production widths): the .ddmenu and the pick menu are 200 at least, the Use case Group by pair is 240; the three prototype menus are 224 by their own id rules
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        rules = {sel.strip(): body for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)}
+        self.assertIn("min-width: 200px", rules[".ddmenu"])
+        self.assertIn("min-width: 200px", rules[".cpop.cmenu:not(.bmenu)"])
+        self.assertNotIn('.ddmenu[aria-label="Group by"]', rules, "AP3 (ruling 21-11 13:10): the dead 240 rule for Group by is gone; #viewMenuList (224) is the one value")
+        for sel, body in rules.items():
+            if sel.startswith(".ddmenu") and "min-width" in body and "#viewMenuList" not in sel and "aria-label^=" not in sel:
+                self.assertIn(re.search(r"min-width: (\d+)px", body).group(1), ("200", "240"), f"a production menu width other than 200 or 240: {sel[:90]}")
+
+    def test_the_ap4_tone_rule_names_only_the_three_menus(self):
+        css = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / NAME / "rules-2.css").read_text(encoding="utf-8"), flags=re.S)
+        hits = [sel for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if re.search(r"\.ic-[ragbn]\b", sel)]
+        self.assertEqual(len(hits), 3)
+        for sel in hits:
+            self.assertRegex(sel, r"^\s*:is\(#viewMenuList, #newBtnMenu, \.ddmenu\[aria-label\^=\"Add \"\], \.ddmenu\[aria-label\^=\"Move \"\]\[aria-label\$=\" to\"\]\) \.ic-[rgb]\s*$")
+
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
             self.assertNotIn("Row 1286", block)
@@ -157,6 +246,66 @@ class Dashboard(T.Dashboard):
 
 class Work(T.Work):
     test_peek_more_menu_icons_and_duplicate_matches_the_row_menu = test_bulk_menu_with_lines_it_cannot_offer = None
+
+    PROBE = """((html) => { const host = document.createElement('div'); host.innerHTML = html; document.body.append(host);
+        const m = host.querySelector('[data-probe]'); const got = getComputedStyle(m).minWidth; host.remove(); return got; })"""
+
+    def probe(self, html):
+        """Row 1540 AP2: the computed min-width of a bare element that carries only the classes of the rule, at 1400 and 900, light and dark."""
+        got = {}
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for look in T.LOOKS:
+                d.look(*look)
+                got[look] = d.js(f"({self.PROBE})({json.dumps(html)})")
+        return got
+
+    def test_group_by_menu_is_exactly_224_wide(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        self.assertNotRegex(css, r'\.ddmenu\[aria-label="Group by"\]\s*\{[^}]*min-width', "the old 240 Group by rule is gone")
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for look in T.LOOKS:
+                d.look(*look)
+                d.button("#viewMenu", "view menu")
+                d.frames()
+                d.js("document.querySelector('#viewMenu').click()")
+                read = "(() => { const b = [...document.querySelectorAll('#viewMenuList')].filter(e => e.getBoundingClientRect().width > 0).pop(); return b && b.getAnimations({subtree: true}).every(a => a.playState !== 'running') ? Math.round(b.getBoundingClientRect().width * 100) / 100 : null; })()"
+                d.until(f"{read} !== null", "Group by is open and still")
+                width = d.js(read)
+                d.key("Escape", "Escape", 27)
+                d.gone("#viewMenuList", "Group by")
+                self.assertEqual(width, 224, f"Group by at {look[0]} {look[1]}")
+
+    def test_ddmenu_min_width_is_200_at_1400_and_900(self):
+        for look, got in self.probe('<div class="ddmenu" data-probe></div>').items():
+            self.assertEqual(got, "200px", f"{look}")
+
+    def test_cpop_cmenu_min_width_is_200_at_1400_and_900(self):
+        for look, got in self.probe('<div class="cpop cmenu" data-probe></div>').items():
+            self.assertEqual(got, "200px", f"{look}")
+
+    def test_gantt_show_gt_pop_min_width_is_240_at_1400_and_900(self):
+        for look, got in self.probe('<div data-gantt><div class="gt-pop" data-probe></div></div>').items():
+            self.assertEqual(got, "240px", f"{look}")
+
+    def test_group_by_menu_is_224_wide_at_1400_and_900(self):
+        """AP3 (ruling 21-11 13:10): the open Group by menu (#viewMenuList) measures 224 wide at 1400 and at 900, light and dark."""
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = T.Drive(self, cdp, sid)
+            for w, th in T.LOOKS:
+                d.look(w, th)
+                d.button("#viewMenu", "view menu")
+                d.frames()
+                d.js("document.querySelector('#viewMenu').click()")
+                d.until("(b => !!b && b.getBoundingClientRect().width > 0 && b.getAnimations({subtree: true}).every(a => a.playState === 'finished'))(document.querySelector('#viewMenuList'))", f"the Group by menu is open and still at {w} {th}")
+                got = d.js("document.querySelector('#viewMenuList').getBoundingClientRect().width")
+                self.assertEqual(round(got), 224, f"the Group by menu is {got}px wide at {w} {th}")
+                d.key("Escape", "Escape", 27)
+                d.gone("#viewMenuList", "Group by")
 
 
 class Gantt(T.Gantt):

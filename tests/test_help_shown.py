@@ -122,8 +122,8 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "publishing", "published-reports", "settings", "people", "updating-clark", "diagnostics", "feedback", "dates-and-ids", "using-help", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "the-three-starting-lists", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "publishing", "published-reports", "settings", "people", "updating-clark", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 35 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
@@ -139,7 +139,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 35))   # v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 34, 35))   # row 1193 added the three starting lists task; v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 def lacks(code, name):
@@ -268,14 +268,22 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
-    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
-    "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
+    "Indexing\u2026 42%": "the folder status line while it reads, built from the counts (ask_index.line_for, #1366, #1371)",
+    "100% indexed. 242 files could not be read": "the folder status line when it is done, built from the counts (ask_index.done_line, #1366, #1371)",
+    "No files to index": "the folder status line when no file can be read (ask_index.done_line, #1371)",
+    "of a type clark can\u2019t read yet": "a reason in the list the (why) link opens (ask_index.REASON_TYPE, #1366)",
+    "is a PDF that is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG_PDF, #1366)",
+    "is too long": "a reason in the list the (why) link opens (ask_index.REASON_TOO_LONG, #1366)",
+    "is a picture and this computer cannot read pictures": "a reason in the list the (why) link opens (ask_index.REASON_PICTURE, #1366)",
+    "looks like a password or a key": "a reason in the list the (why) link opens (ask_index.REASON_SAFETY, #1366)",
+    "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
+    "Online-only files not searched": "the folder status line and the list when a file is online only (ask_index.ONLINE_LINE, #1537)",
+    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
+    "Type lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
-    "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
@@ -442,7 +450,7 @@ def _src(*p):
 
 
 DOCS, USE_CASES, MILESTONES = _src("edit", "DocumentsEdit.jsx"), _src("components", "UseCases.jsx"), _src("logic", "milestones.js")
-FILTER_LINE, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
+FILTER_LINE, LAYOUT_ITEMS, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("components", "layoutItems.js"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
 
 
 def _flat(x):
@@ -479,16 +487,16 @@ class HelpWordsMatchScreen(unittest.TestCase):
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):
-        self.assertIn('name: "No lanes"', FILTER_LINE)
-        self.assertIn("name: `${groupLabel(x)} lanes`", FILTER_LINE)
+        self.assertIn('name: "No lanes"', LAYOUT_ITEMS)
+        self.assertIn("name: `${groupLabel(x)} lanes`", LAYOUT_ITEMS)
         self.assertIn('Workstream', FILTER_LINE + FILTERS)
         self.assertTrue(any("choose **No lanes**, **Workstream lanes** or **Type lanes**." in s for s in ALL))
         self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
 
     def test_move_to_lists(self):
-        self.assertIn("head: `Move to ${groupLabel(g)}`", BOARD)
+        self.assertIn("head: classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)      # Cards keeps the help words; Classic holds the card id (row 1273)
         self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
-        self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
+        self.assertTrue(any("choose from the **Move to** lists: first the columns, then the lanes." in s for s in ALL))
         self.assertFalse(any("**Move to…**" in s for s in ALL))
 
     def test_add_menu_words(self):

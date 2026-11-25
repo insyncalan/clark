@@ -21,7 +21,6 @@ WANT = {
     "text": {"empty": ["Write here."]},
     "text-image": {"caption": "Say what the picture shows.", "empty": ["Write here.", "Add a picture."]},
     "gallery": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
-    "image-caption": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
     "quote": {"empty": ["Write what they said.", "Say who said it."]},
     "callout": {"empty": ["Write the one thing the reader must see."]},
     "contacts": {"empty": ["Add a person."]},
@@ -66,6 +65,7 @@ class TheList(unittest.TestCase):
     def test_every_listed_id_is_a_template_in_the_library(self):
         lib = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
         for tid in WANT:
+            tid = "raid-cards" if tid in ("raid-3", "raid-4") else tid      # row 1270: the library has one RAID cards card; the starting text keeps its raid-3 and raid-4 keys
             self.assertIn(f'id: "{tid}"', lib, tid)
 
     def test_the_publish_switch_is_one_constant_that_shows_the_words_as_written(self):
@@ -93,7 +93,7 @@ class SliceTwoIsReached(unittest.TestCase):
     REACH = {
         "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
         "Table.jsx": ['<StartPrompt id="table"'],
-        "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
+        "raidEdit.jsx": ['<StartPrompt id={`raid-${base}`}'],
         "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startOr("Shown above the list", "work-items", "caption")'],
         "DocLinks.jsx": ['<StartPrompt id="docs-links"'],
         "Checklist.jsx": ['<StartPrompt id="checklist"'],
@@ -132,7 +132,7 @@ class ClassicOnly(unittest.TestCase):
     def test_every_placeholder_keeps_its_old_words_for_Cards(self):
         t = self.EDIT / "templates"
         for name, old in (("WorkItemsList.jsx", 'startOr("Shown above the list"'), ("Callout.jsx", "startOr(PROMPTS.words"), ("TextImage.jsx", 'startOr("Click to write."'),
-                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined'), ("ImageCap.jsx", 'startOr(undefined')):
+                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined')):
             self.assertIn(old, (t / name).read_text(encoding="utf-8"), name)
             self.assertNotIn("startText(", (t / name).read_text(encoding="utf-8"), name)
 

@@ -6,7 +6,9 @@ Chrome is required: these tests fail, never skip, without it (the repo has no No
 test_safety_logic.py does). Fixture data is made up. Page tests run at 1400 and 900 pixels wide, in light and dark.
 """
 import base64
+import html
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -230,79 +232,4 @@ class MovementHostile(MovementBase):
                     self.fail("%d: %s" % (n, p.js("document.querySelector('.mvm-f[data-f=reason]').outerHTML.slice(0, 400)")))
 
 
-class RaidHostile(ReportBase):
-    """The Own words of a card: more than the limit is not saved, and what is saved is one plain line."""
-    seed = PageSide.seed
-    fill = PageSide.fill
-    card_ids = PageSide.card_ids
-    wait_for = PageSide.wait_for
-    set_select = PageSide.set_select
-    arr = PageSide.arr
-    TYPE, SIZE = "raid3", 3
-
-    def stored(self, sec):
-        return json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
-
-    def own(self, p, sec, html, ctrl_enter=True, closes=False):
-        box = f"[data-id={json.dumps(sec)}] .rce-f .ProseMirror"
-        view = f"[data-id={json.dumps(sec)}] .rce-f .rt-view"
-        p.until(f"!!document.querySelector({json.dumps(view)}) || !!document.querySelector({json.dumps(box)})", "own words field")
-        if not p.js(f"!!document.querySelector({json.dumps(box)})"):
-            p.js(f"document.querySelector({json.dumps(view)}).click()")
-            p.until(f"!!document.querySelector({json.dumps(box)})", "the editor opened")
-        p.js(f"(function(){{ const b = document.querySelector({json.dumps(box)}); b.focus(); b.cxed.editor.commands.setContent({json.dumps(html)}); }})()")
-        p.key("Enter", modifiers=2, code="Enter", vk=13)
-        if closes:
-            # The store has the words before the editor closes (it closes when the reply arrives). The next step must open a new editor,
-            # not type into this closing one, whose Ctrl+Enter is ignored: that dropped the words and failed the later wait_for.
-            p.until(f"!document.querySelector({json.dumps(box)}) && !!document.querySelector({json.dumps(view)})", "the editor closed after saving")
-
-    def test_own_words_limit_script_whitespace_and_joins(self):
-        # tests/test_tpl_raid3.py drives the same page the same way
-        ids = self.seed()
-        sec = ids["sec"]
-        self.fill(ids, {"id": ids["risk"], "source": "own", "own": "old"})
-        for width, theme in ((1400, "light"), (900, "dark")):
-            with chrome() as cdp:
-                cdp.FOCUS_EMULATION = False
-                p = self.visit(cdp)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                p.js(f"document.documentElement.dataset.theme = '{theme}'")
-                p.edit()
-                p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words drawn")
-                # 400 characters in two paragraphs, joined by one space: exactly the limit, saved
-                self.own(p, sec, "<p>" + "a" * 199 + "</p><p>" + "b" * 200 + "</p>", closes=True)
-                want = "a" * 199 + " " + "b" * 200
-                self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == want), "400 characters are saved")
-                n = len([s for s in self.sent if s[0] == "change"])
-                # 401: not saved, no change sent, the old words stay
-                self.own(p, sec, "<p>" + "c" * 401 + "</p>")
-                p.js("new Promise(r => setTimeout(r, 600))")
-                self.assertEqual(self.stored(sec)[0].get("own"), want, "401 characters are not saved")
-                self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n, "and nothing is sent")
-                # a script tag typed as words is stored as text and drawn as text
-                self.own(p, sec, "<p>&lt;script&gt;window.__r=1&lt;/script&gt; \U0001F680</p>", closes=True)
-                self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == "<script>window.__r=1</script> \U0001F680"))
-                self.assertEqual(p.js("!!window.__r || document.querySelectorAll('[data-id=%s] script').length" % json.dumps(sec)), 0)
-                self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
-                # only spaces: saved as empty
-                self.own(p, sec, "<p> </p><p>&nbsp;</p>", closes=True)
-                self.assertTrue(self.wait_for(lambda: self.stored(sec) == [{"id": ids["risk"], "source": "own"}]), "only spaces are saved as no words (the store leaves an empty one out)")
-                for card in self.stored(sec):
-                    self.assertNotIn("\n", card.get("own", ""))
-            # the next width starts from the first words again
-            self.fill(ids, {"id": ids["risk"], "source": "own", "own": "old"})
-
-    def test_an_empty_own_words_card_takes_a_long_line_of_words_without_sideways_scroll(self):
-        ids = self.seed()
-        sec = ids["sec"]
-        self.fill(ids, {"id": ids["risk"], "source": "own", "own": ""})
-        with chrome() as cdp:
-            cdp.FOCUS_EMULATION = False
-            p = self.visit(cdp)
-            p.edit()
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words drawn")
-            self.assertEqual(self.stored(sec)[0].get("own", ""), "")
-            self.own(p, sec, "<p>" + " ".join(["word"] * 80) + "</p>")
-            self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == " ".join(["word"] * 80)))
-            self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
+# Row 1270: the RAID cards Edit has no Own words editor (ticket 1270 line 26: no own words anywhere in Edit or View; raid-cards.html approved 18-11 14:27); the hostile tests for what Edit has now are in test_raid_cards_hostile_1270.py.

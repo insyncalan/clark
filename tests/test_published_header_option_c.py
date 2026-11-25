@@ -1,5 +1,5 @@
 """Row 1178: the client published report's header matches the editor dashboard header option C: no 'for <client>' in the heading line
-(file and editor), the date in the header is clickable (tooltip 'Click to change date', a click opens a calendar, same date format),
+(file and editor), the report line keeps its one date as plain text (row 1253 took the clickable As at date out),
 the header is 25 percent taller than the item 1146 bar and the logo 20 percent smaller (147x22 at 1400, 120x18 at 900), no published
 chip or published-weeks list in the header (the published info is the last thing in the profile menu), search and ask clark first in the
 menu where it has them, and no View/Edit pill in the client view. In a real browser.
@@ -99,30 +99,42 @@ class InTheFile(Published):
                 hit = [x for x in b["logoBoxes"] if abs(x["h"] - want[1]) <= 1 and abs(x["w"] - want[0]) <= 1]
                 self.assertTrue(hit, f"some part of the logo (its box, icon, image or svg) is {want[0]}x{want[1]}: {b['logoBoxes']}")
 
-    def test_the_date_is_clickable_with_a_tooltip_and_the_same_format(self):
+    def test_the_report_line_has_its_one_date_as_plain_text_and_no_separate_date_button(self):      # row 1253: the 20-11 ruling took the As at button out of the client bar (it was the clickable date of row 1178)
         cdp, p = self.bar(1400, False)
         b = p.js(PROBE)
-        d = b["date"]
-        self.assertIsNotNone(d, "the date is shown in the header at 1400")
-        self.assertRegex(d["text"], r"\b28-10-2026\b", "DD-MM-YYYY, as before")
-        self.assertEqual(d["tip"], "Click to change date")
-        self.assertIsNotNone(d["control"], "the date is a control (button, link or box), not plain text")
-        self.assertTrue(d["tabbable"], "and reachable by keyboard")
+        self.assertIsNone(b["date"], "no date outside the report line")
+        self.assertEqual(p.js("document.querySelectorAll('header.top button.asat, header.top input[type=date]').length"), 0, "no date button or date box")
+        self.assertEqual(p.js("(document.querySelector('header.top .top-line').textContent.match(/\\b\\d\\d-\\d\\d-\\d{4}\\b/g) || []).length"), 1, "the report line keeps its one date")
+        self.assertEqual(p.js("document.querySelectorAll('header.top .top-line button, header.top .top-line a, header.top .top-line input').length"), 0, "plain text")
 
-    def test_a_click_on_the_date_opens_a_calendar(self):
-        cdp, p = self.bar(1400, False)
-        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 0, "no date box is there before the click")
-        before = p.js(CAL)
-        p.js("""(() => { const bar = document.querySelector('header.top'), re = /\\b\\d\\d-\\d\\d-\\d{4}\\b/;
-          const el = [...bar.querySelectorAll('*')].filter((e) => re.test(e.textContent) && ![...e.children].some((c) => re.test(c.textContent)))
-            .filter((e) => !e.closest('.top-line, .cover-line'))[0];
-          (el.closest('button, a[href], [role=button], input, [tabindex]') || el).click(); })()""")
-        wait(lambda: p.js(CAL)["native"] or p.js(CAL)["pops"] > before["pops"] or p.js(CAL)["days"] >= 28, 3)
-        after = p.js(CAL)
-        self.assertFalse(before["native"], "the date box did not hold focus before the click")
-        opened = after["native"] or after["pops"] > before["pops"] or after["days"] > before["days"]
-        self.assertTrue(opened, f"a calendar opened (before {before}, after {after})")
-        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 1, "the click put one date box on the page")
+    def test_one_bar_the_logo_once_no_frame_or_cover_and_no_as_at_button(self):      # row 1253
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                cdp, p = self.bar(width, False)
+                self.assertEqual(p.js("document.querySelectorAll('header.top, header.cover, #cover, .cover').length"), 1, "one bar and no cover band")
+                self.assertEqual(p.js("document.querySelectorAll('.logo').length"), 1, "the logo is drawn once")
+                self.assertEqual(p.js("document.querySelectorAll('button.asat, .asat-wrap').length"), 0, "no As at button")
+                self.assertEqual(p.js("document.querySelectorAll('header.top ~ .frame.cover, #cover.frame').length"), 0, "no frame cover")
+
+    def test_no_as_at_anywhere_in_the_header_and_week_ending_stays_row_1543(self):
+        for width, dark in CASES:
+            with self.subTest(width=width, dark=dark):
+                cdp, p = self.bar(width, dark)
+                head = p.js("document.querySelector('header.top').textContent")
+                self.assertNotRegex(head, r"(?i)as at", f"row 1543: no As at in the header: {head!r}")
+                self.assertEqual(p.js("document.querySelectorAll('header.top .asat, header.top .asat-wrap, header.top input[type=date]').length"), 0)
+                self.assertRegex(head, r"Week ending|Weekly report")
+                tabs = p.js("[...document.querySelectorAll('header.top .tab')].map(t => t.textContent.trim().replace(/\\s+/g, ' ')).length")
+                self.assertGreaterEqual(tabs, 3, "the pages are still there")
+
+    def test_the_switcher_is_32_px_and_the_profile_circle_32_px_row_1543(self):
+        for width, dark in ((1400, False), (1400, True)):
+            with self.subTest(width=width, dark=dark):
+                cdp, p = self.bar(width, dark)
+                got = p.js("""(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; };
+                  return {theme: r('.cm-theme'), badge: r('.cm-badge')}; })()""")
+                self.assertEqual(got["theme"], [32, 32], "the light and dark button is 32 px (ticket AP5)")
+                self.assertEqual(got["badge"], [32, 32], "the profile circle is 32 px")
 
     def test_no_published_chip_or_weeks_list_in_the_header(self):
         for width, dark in CASES:
@@ -132,16 +144,15 @@ class InTheFile(Published):
                 self.assertNotRegex(b["barText"], r"(?i)published|past reports", "the header does not carry the published info")
                 self.assertEqual(b["chips"], 0, "no chip in the header")
 
-    def test_the_published_info_is_the_last_thing_in_the_profile_menu(self):
+    def test_the_past_reports_are_the_last_thing_in_the_profile_menu_and_no_as_at_row_1543(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 p.js("document.querySelector('.cm-badge, #client-menu-btn').click()")
                 p.until("!!document.querySelector('[role=menu]')", "the menu opened")
                 m = p.js(MENU)
-                self.assertRegex(m["kids"][-1]["text"], r"(?i)as at|publish", f"the last part of the menu says it is published: {m['kids']}")
-                self.assertGreaterEqual(m["kids"][-1]["bottom"], max(k["bottom"] for k in m["kids"]) - 0.5, "and sits at the bottom")
-                self.assertEqual(sum(1 for k in m["kids"][:-1] if "publish" in k["text"].lower() and "export" not in k["text"].lower()), 0, "said once, at the bottom")
+                self.assertGreaterEqual(m["kids"][-1]["bottom"], max(k["bottom"] for k in m["kids"]) - 0.5, "the last part sits at the bottom")
+                self.assertEqual(sum(1 for k in m["kids"] if "as at" in k["text"].lower()), 0, f"row 1543: no As at note in the menu: {m['kids']}")
 
     def test_the_client_menu_has_no_search_or_ask_clark_item(self):
         """A client file draws no search and no ask clark (the menu is Profile and Export to PDF); the menu must have drawn, and if the build adds either, at 900 they are the first two."""

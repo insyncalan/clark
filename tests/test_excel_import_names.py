@@ -1,5 +1,5 @@
 """#143 (FR-70): the import reads the OLD sheet and header names (RAID, Client messaging, Baseline) and the NEW ones (Risks & Issues,
-Client wording, Agreed), alone or mixed, so a workbook exported before the rename still imports. Two names for one thing
+Client wording, Client wording, Agreed), alone or mixed, so a workbook exported before the rename still imports. Two names for one thing
 in one workbook are refused in plain words, and nothing is written."""
 import shutil
 import tempfile
@@ -95,6 +95,20 @@ class Names(NameCase):
         self.assertEqual(load_workbook(str(self.path)).sheetnames[2], "RAID")
         self.check(self.edited("Client messaging"))
 
+    def test_row_1466_the_old_header_client_wording_still_imports_and_the_new_one_is_exported(self):
+        """Row 1466: the export writes "Client wording"; a sheet headed "Client Message" (exported while row 1466 stood) still imports and puts the text in the same field."""
+        heads = [c.value for c in load_workbook(str(self.path))["Actions"][1]]
+        self.assertIn("Client wording", heads)
+        self.assertNotIn("Client Message", heads)
+        self.rename(None, Actions=("Client wording", "Client Message"), **{"RAID": ("Client wording", "Client Message")})
+        self.edit("Actions", self.a1, "Client Message", "Plan is on its way")
+        self.edit("RAID", self.r1, "Client Message", "Still watching")
+        p = self.read()
+        self.assertEqual(p.problems, [])
+        got = {(c.table, c.id): c.after for c in p.changes}
+        self.assertEqual(got[("actions", self.a1)], {"client_message": "Plan is on its way"})
+        self.assertEqual(got[("raid", self.r1)], {"client_message": "Still watching"})
+
     def test_a_workbook_with_the_new_names_imports(self):
         self.assertEqual(load_workbook(str(self.path)).sheetnames[2], "Risks & Issues")      # as exported now
         self.check(self.edited("Client wording", raid="Risks & Issues", agreed="Agreed"))
@@ -115,7 +129,7 @@ class Names(NameCase):
     def test_an_older_workbook_with_the_old_names_and_order_round_trips(self):
         wb = load_workbook(str(self.path))
         wb[excel.SHEET_OF["raid"]].title = "Risks and issues"
-        order = ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists", excel.META_NAME]      # item 1171: the export now ends with the very hidden metadata sheet
+        order = ["Report", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists", excel.META_NAME]      # item 1171: the export now ends with the very hidden metadata sheet
         wb._sheets.sort(key=lambda w: order.index(w.title))
         wb.save(str(self.path))
         self.assertEqual(load_workbook(str(self.path)).sheetnames, order)
@@ -129,7 +143,7 @@ class Names(NameCase):
     def test_the_refusal_names_the_sheets_in_the_new_order(self):
         wb = load_workbook(str(self.path))
         for ws in list(wb.worksheets):
-            if ws.title not in ("Cover", "History", "Lists"):
+            if ws.title not in ("Report", "History", "Lists"):
                 wb.remove(ws)
         wb.save(str(self.path))
         p = self.read()

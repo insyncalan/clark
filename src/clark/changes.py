@@ -44,6 +44,7 @@ from clark import people as people_rules
 from clark import store as clark_store
 from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
+from clark.section_kinds import doclinks as section_kind_doclinks
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
@@ -59,7 +60,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
-PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand",)
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand", "column_orders", "show_board_client")
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
@@ -453,6 +454,11 @@ def _checked_item_changes(fields, blank_clears=()):
         if isinstance(latest, str) and "\r" in latest:             # as before: a carriage return is a hidden character in a latest update (a milestone's description folds it into a line break)
             raise Refused(LATEST_HIDDEN_WORDS)
         latest = _rich_field(latest, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
+    wording = fields.get("client_message")                          # row 1288: the Full editor's HTML, stored cleaned as the latest update is; plain text from any other caller is checked below as it always was
+    sent_wording = isinstance(wording, str) and bool(sanitise.HTML_START.match(wording))
+    if sent_wording:
+        del fields["client_message"]
+        wording = _rich_field(wording, ITEM_TITLE_MAX, ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
@@ -464,6 +470,8 @@ def _checked_item_changes(fields, blank_clears=()):
     out.update(cleared)
     if sent_latest:
         out["latest_update"] = latest
+    if sent_wording:
+        out["client_message"] = wording or ""                       # no words in it: cleared, as a blank is
     return {**out, **flag}
 
 
@@ -512,7 +520,7 @@ def _section_body(section, body):
     try:
         if _picture_kind(section["type"]) is not None:
             return _keep_pictures(section, body)
-        return clark_store.check_section_body(section["type"], body)
+        return clark_store.check_section_body(section["type"], body, section.get("body"))
     except Invalid as e:
         raise Refused(str(e)) from None
 
@@ -574,8 +582,12 @@ def _keep_pictures(section, body):
     stored = _stored_value(section)
     if type(stored) is dict and stored.get(PICTURES):
         value[PICTURES] = stored[PICTURES]
-        if value.get("v") == 2 and stored.get("v") != 2 and "original" not in value[PICTURES]:
-            value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
+        if value.get("v") == 2 and stored.get("v") != 2:
+            if "image" in value[PICTURES]:
+                if "original" not in value[PICTURES]:
+                    value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
+            else:
+                value["v"] = 1      # row 1567: a version 1 gallery (slots "1" to "6") keeps its pictures as stored, so its words stay version 1
     return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
 
 
@@ -2012,7 +2024,12 @@ def _checked_project_changes(fields):
             raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
         if k == "brand" and (type(v) is not str or v not in brand_ids()):
             raise Refused(BAD_OP)       # #944: an id that is not generic or installed (a real string only), refused before the step opens
-        if k in ("show_gantt_editor", "show_gantt_client"):
+        if k == "column_orders":
+            try:                                                # row 1534: the store's own check, called here so the first refusal is the route's
+                out[k] = clark_store.column_orders(v)
+            except Invalid as e:
+                raise Refused(str(e)) from None
+        if k in ("show_gantt_editor", "show_gantt_client", "show_board_client"):
             out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
         if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
             raise Refused(clark_store.GANTT_BAD_ROWS)       # row 926: a real whole number from 1 to 500, or None (every row)
@@ -2060,7 +2077,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"], "brand": now["brand"],
+                             "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"], "show_board_client": now["show_board_client"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
@@ -2517,7 +2534,7 @@ DOC_FIELD_NAMES = {"title": "title", "kind": "kind", "url": "link", "date": "dat
 MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a milestone is called by its id in an Undo's words
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
-MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "client wording",
+MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "Client wording",
                          "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
@@ -2595,7 +2612,7 @@ def _field_words(entry, name):
     if f == "client_action" and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the Needed from the client of {name} is back as it was"     # row 811: the switch's own label; no value said
     if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
-        return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
+        return f"the Client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the {ITEM_FIELD_NAMES[f]} of {name} is back to {to}" if to else f"the {ITEM_FIELD_NAMES[f]} of {name} is cleared again"
     if f == "client_visible":                                       # #67: the picker's Add also showed the row to the client
@@ -2673,6 +2690,16 @@ def words(reversed_, skipped, names):
             if "the days before an item counts as not reviewed" not in seen:
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
+            continue
+        if e["field"] == "show_board_client":                       # row 1533: the board switch for the client, one line
+            if "the board view for the client" not in seen:
+                seen.add("the board view for the client")
+                put.append("the board view for the client")
+            continue
+        if e["field"] == "column_orders":                           # row 1534: the saved column order of the work item tables
+            if "the column order" not in seen:
+                seen.add("the column order")
+                put.append("the column order")
             continue
         if e["field"] == "brand":                                   # #944: the project's brand
             if "the brand" not in seen:
@@ -2827,7 +2854,7 @@ def _do_undo(store, by_user, req):
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"], "brand": now["brand"],
+                          "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"], "show_board_client": now["show_board_client"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 
@@ -3098,6 +3125,12 @@ def _do_section_file(store, by_user, req):
     stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
     the type's checker like any other body write, so the store's rules are the same as a save from the page."""
     project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    entries = req.get("entries")                    # row 1593: several files in ONE step (one apply_id, so one Undo); `entry` is the one-file form
+    if entries is not None:
+        if not isinstance(entries, list) or not entries:
+            raise Refused(NO_FILE_HERE)
+    else:
+        entries = [entry]
     if not isinstance(project, str) or store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     if clark_store.is_archived(store.con, project):
@@ -3110,13 +3143,25 @@ def _do_section_file(store, by_user, req):
         if kind is None:
             raise Refused(NO_FILE_HERE)
         text = _section_body(row, row.get("body") or "")
-        try:
-            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
-        except section_bodies.Bad as e:
-            raise Refused(str(e)) from None
+        value = json.loads(text) if text else None
+        added, left_out = [], []
+        for e in entries:
+            try:
+                value = section_bodies.TEMPLATES[kind].add_file(value, e)
+                added.append(e)
+            except section_bodies.Bad as err:
+                if len(entries) > 1 and str(err) == section_kind_doclinks.TOO_MANY:        # the files that fit are added in order, the rest are named
+                    left_out.append(e)
+                    continue
+                raise Refused(str(err)) from None
+        if not added:
+            raise Refused(section_kind_doclinks.TOO_MANY)
         st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    reply = {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+    if req.get("entries") is not None:
+        reply.update({"added": added, "left_out": [e["name"] for e in left_out]})
+    return 200, reply
 
 
 def make_section_file(path, onedrive_roots=None, by_user=None):
@@ -3425,8 +3470,8 @@ class _Dry(Exception):
 class _AskStore:
     """The store as _do_change sees it for ask clark: every read is the store's own; a step is ask clark's (see above)."""
 
-    def __init__(self, store, dry, expect, table, ref):
-        self._store, self.dry, self.expect, self.table, self.ref = store, dry, expect, table, ref
+    def __init__(self, store, dry, expect, table, ref, project):
+        self._store, self.dry, self.expect, self.table, self.ref, self.project = store, dry, expect, table, ref, project
         self.before = self.after = None
         self.committed = []                      # a mark for each step of this call that was committed
 
@@ -3445,7 +3490,7 @@ class _AskStore:
         try:
             with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
                 seen.append(st)
-                if self._store.ask_enabled() is not True:
+                if self._store.ask_allowed(self.project) is not True:      # row 1294: the computer-wide switch and the project's own asking, read again inside the step
                     raise Refused(ASK_OFF, 409, "asking_off")
                 self.before = self.shown(self.ref) if self.ref is not None else None
                 if self.expect is not None and self.before != self.expect:
@@ -3470,14 +3515,14 @@ def _do_ask(store, by_user, req, dry, expect, committed=None):
     part = req.get(ASK_PART[op])
     if not ASK_FIELDS[kind][op] or not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
         raise Refused(ASK_NOT_YET, code="not_yet")
-    if store.ask_enabled() is not True:
+    if store.ask_allowed(project) is not True:      # row 1294: the computer-wide switch and the project's own asking (an unknown project reads as off)
         raise Refused(ASK_OFF, 409, "asking_off")
     ref = req.get("id") if op == UPDATE else None
     if op == UPDATE and not _belongs(kind, ref, project):
         raise Refused(NO_MILESTONE if kind == "milestones" else NO_USE_CASE if kind == "use_cases" else ITEM_NOT_MINE)
     if expect is not None and not isinstance(expect, dict):
         raise Refused(STALE)
-    ask = _AskStore(store, dry, expect, kind, ref)
+    ask = _AskStore(store, dry, expect, kind, ref, project)
     if committed is not None:
         ask.committed = committed
     try:

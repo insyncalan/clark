@@ -55,8 +55,9 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const settingsAll = signal(false);   // row 1299 AP11: the ask clark page's leading "All projects" tab is the chosen one
+export const settingsProject = signal("");   // row 1299: see chooseSettingsProject
 export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
-export const settingsFeedbackShown = signal(false);   // Settings search is showing the Feedback card (set by the search box, Views.jsx); the Feedback tag stands aside then (#1298)
 export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
@@ -135,6 +136,8 @@ function apply(s) {
     filterText.value = s.f;
   });
   if (s.project !== project.value) {
+    settingsProject.value = "";
+    settingsAll.value = false;
     project.value = s.project;
     data.value = null;
     status.value = s.project ? "loading" : "none";
@@ -205,6 +208,21 @@ export function showSettings(page) {
   go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page || "" });
 }
 
+// Row 1299 (project tabs): the project the Settings tabs have chosen. It lives only on the Settings page: choosing a tab reads nothing again and never changes the address,
+// the top bar or the open project. "" means the open project. A different open project (the top bar, Back) puts the tabs back on it.
+// Off until the project cards read settingsProjectNow() and not the open project (Views.jsx project tabs; the overview's click follows it).
+// A signal: off in the served page; only the test build turns it on (testhook.js clarkPage.switchTabs), for the tests of a tab click.
+export const switchTabs = signal(false);
+export const settingsProjectNow = () => settingsProject.value || project.value;
+export function chooseSettingsProject(code) {
+  if (!route.isProject(code)) return;
+  settingsAll.value = false;
+  settingsProject.value = code === project.value ? "" : code;
+  if (view.value === "settings") route.retag(code);      // the address keeps the tab's project as p, this entry rewritten (AP11)
+}
+/** The ask clark page's leading "All projects" tab (row 1299 AP11): the page's Affects line says All projects; the address is not touched. */
+export function chooseSettingsAll() { settingsAll.value = true; }
+
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
 export function openWork(want) {
   // The app's filter line (installed at start-up, never in a published file) leaves out a word it cannot answer yet and keeps the line.
@@ -235,8 +253,11 @@ export function openUseCases() {
 }
 
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
+export const peekEdit = signal("");      // row 1287: the item whose peek a View-mode click on a description opened in full edit; any other open clears it
+export function openPeekEdit(id) { openPeek(id, "item"); peekEdit.value = id; }
 export function openPeek(id, kind) {
   const d = data.value;
+  peekEdit.value = "";
   if (!peek.value) openedF = filterText.value;           // the filters as they were when the peek opened: closing steps Back only if they still are
   const milestone = kind ? kind === "milestone" : known(d, id, true);
   if (d && !known(d, id, milestone)) return;               // with no data loaded there is nothing to check it against: open it

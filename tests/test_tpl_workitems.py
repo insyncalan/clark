@@ -625,6 +625,10 @@ class InThePage(PageBase):
         p = self.visit(cdp)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+        # The page gets its `resize` event a frame or more after this call, and an open picker closes on `resize` (edit/cells/Pop.jsx). Measured on a runner: a click that
+        # lands just before the event finds its picker shut again (the first click "did not open it"). Two frames after the call the event has been delivered.
+        p.js("window.__framed = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__framed = 1; }))")
+        p.until("window.__framed === 1 && window.innerWidth === %d" % width, "the page took its width")
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
         return p
@@ -646,8 +650,13 @@ class InThePage(PageBase):
             self.assertIn("ID:true", names)
             self.assertIn("Owner:true", names)
             self.assertIn("Due:false", names)
+            steps = self.demo.last_step()
             p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            # The second press is made once the first one is in the store: a press made while the first save's reply is still on its way may be built on a list the
+            # reply then redraws (suspected, not measured; a loaded runner may take seconds over it). Every assert and wait below is as it was.
+            self.assertTrue(wait(lambda: self.demo.last_step() == steps + 1), "the first press reached the store")
+            p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
 
@@ -663,8 +672,8 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0,
-                                     "View is read only: no control (a row is focusable, it opens the read only peek, row 1268; the status icon takes Tab so its tooltip is reachable: row 1145)")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(.cell-pick):not(tr[data-id]):not(li[data-id])').length"), 0,
+                                     "View has no input or select; the four values (row 1287) are picked by buttons, never the title (a row is focusable, it opens the read only peek, row 1268; the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
@@ -982,14 +991,24 @@ class InThePage(PageBase):
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip')].map(c => c.dataset.chip)"), ["type:risk", "status:Open"])
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip button')].map(b => b.getAttribute('aria-label'))"),
                                  ["Remove the Type filter", "Remove the Status filter"])
-                # an edit that leaves the line as it is saved is no change: no step, no message
+                # a draft that leaves the line as it is saved (empty, or the saved words typed again) is no change: no step, no message.
+                # The page saves 400 ms after the last key (FilterLine PAUSE), so the 700 ms wait below is a real wait for that timer
                 steps = self.demo.last_step()
-                for same in ("x", ""):
-                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                typed = lambda text: p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                changed = "!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('changed')"
+                for same in ("", "type:risk status:Open"):
+                    typed(same)
                     p.js("new Promise(r => setTimeout(r, 700))")
-                    self.assertFalse(p.js("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('changed')"), f"{same!r}: no 'changed' message for no change")
+                    self.assertFalse(p.js(changed), f"{same!r}: no 'changed' message for no change")
                     self.assertEqual(self.demo.last_step(), steps, f"{same!r}: nothing to save")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+                # a new word is a change: it is saved one step later with the message (row 1622: this was typed as "no change" before,
+                # and passed only because the old pause never waited)
+                typed("x")
+                p.until(changed, "a new word is saved and says so")
+                self.assertEqual(p.js("document.querySelector('.toast-text').textContent"), "Work items list changed.")
+                self.assertEqual(self.demo.last_step(), steps + 1, "'x': one step")
+                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["text"], ["x"])
 
     def test_taking_a_choice_off_with_the_keyboard_keeps_the_focus_in_the_filter(self):
         """The x is a button the keyboard can press; the focus then goes back to the Filter box (the Work items page's own box)."""
@@ -1239,7 +1258,7 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(.cell-pick):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
                 self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")

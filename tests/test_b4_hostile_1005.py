@@ -6,7 +6,9 @@ Move straight after typing, a pasted script and onerror, a line break kept out o
 words); a RAID card's Own words (the 400 and 401 boundary counted in emoji, saving twice quickly, Undo after a save, a paste with a script,
 10,000 characters, U+2028 and U+0085, right-to-left words, Escape after an over-long try). 1400 and 900 wide, light and dark. Made-up data only.
 """
+import html
 import json
+import re
 import time
 import unittest
 
@@ -48,129 +50,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.pl("<p>%s</p>" % NEL), "")
 
 
-class Raid(PageBase):
-    seed, stored, wait_for, open_editor, typed = (eye.Raid.__dict__[k] for k in ("seed", "stored", "wait_for", "open_editor", "typed"))
-
-    def edit_open(self, p, view, box):
-        p.js(f"document.querySelector({json.dumps(view)}).click()")
-        p.until(f"!!document.querySelector({json.dumps(box)})", "opened")
-
-    def changes(self):
-        return len([s for s in self.sent if s[0] == "change"])
-
-    def each(self, own="Old words"):
-        for width, theme in COMBOS:
-            self.seed(own)
-            with chrome() as cdp:
-                p, view, box = self.open_editor(cdp)
-                look(p, width, theme)
-                yield p, view, box
-            # report_sections rows are never deleted (Step.delete refuses them); seed() makes the next combo's section
-
-    def test_400_emoji_save_and_401_emoji_do_not(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "\U0001F680" * 401)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            p.until(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')", "401 emoji say too long")
-            self.assertEqual(self.stored(), "Old words")
-            self.typed(p, box, "\U0001F680" * 400)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored() == "\U0001F680" * 400), "400 emoji (800 UTF-16 units) are saved, or the server refused them")
-
-    def test_cmd_enter_twice_and_a_blur_after_it_save_once(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "Twice")
-            n = self.changes()
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored() == "Twice"))
-            time.sleep(0.6)
-            self.assertEqual(self.changes(), n + 1, "one save, not two")
-            self.assertFalse(p.js(f"!!document.querySelector({json.dumps(box)})"), "closed")
-
-    def test_undo_after_a_save_puts_the_old_words_back_and_the_view_shows_them(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "New words")
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored() == "New words"))
-            p.until("!!document.querySelector('.toast [data-undo]')", "an Undo is offered")
-            p.js("document.querySelector('.toast [data-undo]').click()")
-            self.assertTrue(self.wait_for(lambda: self.stored() == "Old words"), "Undo restores the old words")
-            p.until(f"document.querySelector({json.dumps(view)}).textContent.indexOf('Old words') >= 0", "the card shows the old words")
-
-    def test_a_paste_with_a_script_and_an_onerror_is_kept_as_text_only(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            eye.paste(p, box, "<p>Hi</p><img src=x onerror=\"window.__pwn=1\"><script>window.__pwn=2</script><p onclick=\"window.__pwn=3\">there</p>", "Hi there")
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: "Hi" in self.stored()))
-            time.sleep(0.5)
-            got = self.stored()
-            self.assertNotIn("<", got)
-            self.assertNotIn("onerror", got)
-            self.assertFalse(p.js("!!window.__pwn"))
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(self.sec)}] img, [data-id={json.dumps(self.sec)}] script').length"), 0)
-
-    def test_ten_thousand_characters_pasted_are_refused_in_words_and_the_page_holds(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            eye.paste(p, box, "<p>" + "word " * 2000 + "</p>", "word " * 2000)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            p.until(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')", "a message")
-            self.assertEqual(self.stored(), "Old words")
-            self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
-
-    def test_line_separators_and_next_line_never_reach_the_store(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "a%sb%sc%sd" % (LS, NEL, PS))
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored().startswith("a")), "saved")
-            got = self.stored()
-            for ch in (LS, NEL, PS, "\n"):
-                self.assertNotIn(ch, got, repr(got))
-
-    def test_a_next_line_character_between_words_is_a_space_not_nothing(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "one%stwo" % NEL)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored().startswith("one")))
-            self.assertEqual(self.stored(), "one two")
-
-    def test_right_to_left_and_emoji_words_come_back_as_typed(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            words = "\u0645\u0631\u062d\u0628\u0627 \u05e9\u05dc\u05d5\u05dd \U0001F468 \U0001F680 ok"
-            self.typed(p, box, words)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            self.assertTrue(self.wait_for(lambda: self.stored() == words), repr(self.stored()))
-
-    def test_a_joined_emoji_or_a_direction_mark_is_refused_and_the_editor_says_so_in_the_editor(self):
-        """The store refuses hidden characters. The refusal must not leave the editor open with only a toast that is gone in seconds."""
-        for p, view, box in self.each():
-            for words in ("\U0001F468\u200d\U0001F469 ok", "abc\u200fdef"):
-                self.edit_open(p, view, box) if not p.js(f"!!document.querySelector({json.dumps(box)})") else None
-                self.typed(p, box, words)
-                p.key("Enter", modifiers=2, code="Enter", vk=13)
-                time.sleep(1.0)
-                self.assertEqual(self.stored(), "Old words")
-                if p.js(f"!!document.querySelector({json.dumps(box)})"):
-                    self.assertTrue(p.js(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')"), "open with no message in the editor for " + repr(words))
-
-    def test_escape_after_an_over_long_try_keeps_the_old_words(self):
-        for p, view, box in self.each():
-            self.edit_open(p, view, box)
-            self.typed(p, box, "z" * 401)
-            p.key("Enter", modifiers=2, code="Enter", vk=13)
-            p.until(f"!!document.querySelector('[data-id={json.dumps(self.sec)}] .rt-problem')", "message")
-            p.key("Escape", code="Escape", vk=27)
-            p.until(f"!document.querySelector({json.dumps(box)})", "closed")
-            self.assertEqual(self.stored(), "Old words")
-            self.assertIn("Old words", p.js(f"document.querySelector({json.dumps(view)}).textContent"))
+# Row 1270: the RAID cards Edit has no Own words editor (ticket 1270 line 26: no own words anywhere in Edit or View; raid-cards.html approved 18-11 14:27); the hostile tests for what Edit has now are in test_raid_cards_hostile_1270.py.
 
 
 class Movement(tmp.Base):
@@ -233,7 +113,7 @@ class Movement(tmp.Base):
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
                 sel = json.dumps(self.box("who"))
                 p.js("document.querySelector(%s).focus()" % sel)
-                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
+                p.js("window.__k = []; addEventListener('keydown', (e) => { window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]); (window.__ke = window.__ke || []).push(e); }, true); window.__t0 = Math.round(performance.now())")
                 # The leave handler skips a focusout while the page has no focus, and a Tab with the focus elsewhere never leaves the box: wait for the page to have the focus
                 # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
                 # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
@@ -247,7 +127,7 @@ class Movement(tmp.Base):
                     if gone:
                         break
                     time.sleep(0.05)
-                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, tabDefaultPrevented: (window.__ke || []).filter(e => e.key === 'Tab').map(e => e.defaultPrevented), activeDesc: document.activeElement ? [document.activeElement.tagName, document.activeElement.id, document.activeElement.className] : null, since: Math.round(performance.now()) - window.__t0})" % sel))
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")

@@ -76,11 +76,11 @@ export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more 
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).
 export const COLUMNS_INTRO = "Columns, in any order (the ID column and the name or title are needed):";
 export const IMPORT_COLUMNS = [
-  ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
-  ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
-  ["Decisions", ["ID", "Decision", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Latest update", "Client-visible", "Client wording", "Use case", "Labels"]],
-  ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Latest update", "Internal note"]],
-  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
+  ["Actions", ["ID", "Title", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Risks & Issues", ["ID", "Title", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Latest update", "Client visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Decisions", ["ID", "Decision", "Status", "Priority", "Made by", "Needed by", "Decided on", "Reasoning", "Options considered", "Revisit", "Replaces", "Latest update", "Client visible", "Client wording", "Use case", "Labels"]],
+  ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Sort order", "Progress %", "Owner", "State reason", "Movement", "Achieved on", "Client visible", "Client wording", "Latest update", "Internal note"]],
+  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Sort order", "On the dashboard", "Linked milestones"]],
 ];
 
 export const PROJECT = {

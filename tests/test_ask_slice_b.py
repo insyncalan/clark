@@ -86,6 +86,16 @@ class FollowUp(unittest.TestCase):
         self.assertEqual(left, 1)
 
 
+class ChooseLimit(unittest.TestCase):
+    def test_every_passage_that_fits_the_budget_is_kept_whatever_their_number(self):
+        for n in (1, 2, 3, 7):
+            ps = [ask.Passage("l%d" % i, "text %d" % i) for i in range(n)]
+            chosen, left = ask_data.choose(ps, "text", budget=1000)
+            self.assertEqual((len(chosen), left), (n, 0), n)
+        ps = [ask.Passage("l%d" % i, "text") for i in range(3)]
+        self.assertEqual(ask_data.choose(ps, "text", budget=8)[1], 1)
+
+
 class LongChat(unittest.TestCase):
     def test_more_than_ten_turns_keep_the_newest_ten_and_say_how_many_went(self):
         turns = [("user" if i % 2 == 0 else "assistant", f"turn{i:02d}") for i in range(14)]
@@ -205,7 +215,7 @@ class CountsFromTheData(unittest.TestCase):
         given["data"] = dict(given["data"], decisions=[])
         with mock.patch.object(publish, "read_inputs", return_value=given) as read:
             got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
-        read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17")
+        read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17", ask=True)
         selected = ask_data.own_rows(given)      # row 1367: the project's own rows, not the published ones
         self.assertEqual({k: t for k, _s, t in got.counts}, {k: len(selected[k]) for k in ask_data.KIND_ORDER if selected.get(k)})
         self.assertNotIn("decisions", [k for k, _s, _t in got.counts])
@@ -214,7 +224,7 @@ class CountsFromTheData(unittest.TestCase):
     def test_no_as_at_is_handed_on_as_none(self):
         with mock.patch.object(publish, "read_inputs", return_value=plant.inputs()) as read:
             ask_data.project_data(object(), "PUB", "q")
-        read.assert_called_once_with(mock.ANY, "PUB", None)
+        read.assert_called_once_with(mock.ANY, "PUB", None, ask=True)
 
     def test_a_password_in_a_row_is_counted_in_secret(self):
         given = plant.inputs()

@@ -1,4 +1,4 @@
-"""Row 1281, Classic theme only: the profile menu lists Preview, Export to Excel, Export to Word, Publish..., and the circle's tooltip says
+"""Row 1281, Classic theme only: the profile menu lists Preview, Export to Excel, Publish... (no Export to Word), and the circle's tooltip says
 "Your menu: Preview, Export, Publish". The Cards theme (no theme layer) keeps the old order; that is pinned by test_profile_menu. 1400 and 900."""
 import sys
 import unittest
@@ -11,7 +11,7 @@ from test_server import chrome
 from clark import page, theme
 
 TIP = "Your menu: Preview, Export, Publish"
-ITEMS = ["Preview the page in a new tab", "Export to Excel", "Export to Word", "Publish…", "Published reports", "Settings", "Help"]
+ITEMS = ["Preview the page in a new tab", "Export to Excel", "Publish…", "Published reports", "Settings", "Help"]
 
 
 def classic_html():

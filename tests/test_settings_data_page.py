@@ -18,7 +18,7 @@ from test_server import chrome, wait
 from clark import excel, excel_route
 
 WIDTHS = (1400, 900)
-SETTINGS_PAGES = {"data": ("Export and import", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
+SETTINGS_PAGES = {"data": ("Data", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
 USER = "Test Person"
 
 
@@ -34,7 +34,7 @@ def workbook(rig, tmp, new_text):
     ws = wb["Actions"]
     head = {c.value: c.column for c in ws[1]}
     row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == action["id"])
-    ws.cell(row, head["Description"]).value = new_text
+    ws.cell(row, head["Title"]).value = new_text
     wb.save(str(path))
     return base64.b64encode(path.read_bytes()).decode(), action["id"], action["description"]
 

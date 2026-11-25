@@ -212,10 +212,10 @@ class Both(Base):
 
 class TheFileLock(Base):
     def test_every_setter_takes_the_one_lock_so_none_is_lost(self):
-        for setter in (settings.set_backups_kept, settings.set_profile, settings.set_backup_copy_folder, settings.ai_write):
+        for setter in (settings.set_backups_kept, settings.set_profile, settings.set_backup_copy_folder, settings.ai_write, settings.set_notices_path):
             self.assertTrue(hasattr(setter, "__wrapped__"), setter.__name__)
         source = Path(settings.__file__).read_text(encoding="utf-8")
-        self.assertEqual(source.count("platform.write_file("), 4, "a new writer needs the lock too")
+        self.assertEqual(source.count("platform.write_file("), 5, "a new writer needs the lock too")
 
     def test_two_at_once_keep_both(self):
         threads = [threading.Thread(target=settings.ai_write, args=(self.d, {"model": "fable"})), threading.Thread(target=settings.set_profile, args=(self.d, "Sam Lee", ""))]
@@ -230,9 +230,9 @@ class TheFileLock(Base):
 class TheSizes(unittest.TestCase):
     def test_chatgpt_has_its_own_limit_per_model(self):
         prov = ai_providers.ChatGPTSubscription(command=FakeProviderCommand())
-        self.assertEqual(prov.most_chars("gpt-6.1-sol"), 1_000_000)       # row 1293: 500,000 tokens at 2 characters a token
-        self.assertEqual(prov.most_chars("gpt-6-luna"), 544_000)
-        got = prov.ask(ask.Request(text="x" * 544_001, question="q"), "gpt-6-luna")
+        self.assertEqual(prov.most_chars("gpt-6.1-sol"), 2_000_000)       # row 1293: 500,000 tokens at 4 characters a token
+        self.assertEqual(prov.most_chars("gpt-6-luna"), 1_088_000)
+        got = prov.ask(ask.Request(text="x" * 1_088_001, question="q"), "gpt-6-luna")
         self.assertEqual(got, ask.Failure(ai_providers.TOO_BIG.format(model="GPT-6 Luna")))
 
 
@@ -246,6 +246,14 @@ class Words(Base):
         self.assertEqual(intro, ac.CARD_INTRO)
         for words in ("leave this computer", "go to the one you choose", "count against that plan", "No password or key is kept"):
             self.assertIn(words, intro)
+
+    def test_the_profile_line_shows_only_while_a_profile_name_is_saved(self):
+        self.assertEqual(ac.PROFILE_LINE, "Your profile name is sent to the model with each question.")
+        self.assertEqual(self.connect.get()[1]["profile_line"], "")
+        settings.set_profile(self.d, "Sam Lee", "")
+        self.assertEqual(self.connect.get()[1]["profile_line"], ac.PROFILE_LINE)
+        settings.set_profile(self.d, "", "")
+        self.assertEqual(self.connect.get()[1]["profile_line"], "")
 
     def test_no_answer_has_a_field_for_a_key_or_a_password(self):
         def fields(x):

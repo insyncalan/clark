@@ -5,6 +5,7 @@ against the approved mock-up (mockups/1261-headline-template/headline-approved.h
 Run: python3 dev/run_tests.py test_reportheadline_eye_1261
 """
 import json
+from pathlib import Path
 import unittest
 
 from _demo import USER
@@ -167,7 +168,13 @@ class Eye(Base):
             p.js(f"document.querySelector('{eye}').click()")
             self.assertTrue(wait(lambda: self.stored(self.on).get("pill") is False, 10))
             p.js("document.activeElement && document.activeElement.blur()")
-            p.key("z", modifiers=2, code="KeyZ", vk=90)
+            # Seen in one local failure on main 5529265ee: the save is silent and the page keeps its step for Undo a moment after the stored body changes (after it
+            # reads the project again), so a key pressed in that gap found nothing to undo and said so. Press again until the pill is back; a key that found
+            # nothing changes nothing. The 6 tries of 3 s are not measured.
+            for _ in range(6):
+                p.key("z", modifiers=2, code="KeyZ", vk=90)
+                if wait(lambda: "pill" not in self.stored(self.on), 3):
+                    break
             self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10), "Undo shows the pill again")
             self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], n + 2, "one change, one undo")
 
@@ -301,7 +308,7 @@ class Eye(Base):
             self.assertGreater(p.js(f"document.querySelector('[data-id=\"{self.on}\"] > .sec-head').getBoundingClientRect().width"), 50, "Cards is unchanged")
 
     def test_the_published_page_hides_the_heading_the_same_way(self):
-        css = open(page.__file__.replace("__init__.py", "") + "../themes/prototype-2.0/rules.css", encoding="utf-8").read()
+        css = "".join((Path(page.__file__).parent.parent / "themes" / "prototype-2.0" / f).read_text(encoding="utf-8") for f in ("rules.css", "rules-2.css"))
         self.assertIn('#report[data-mode="view"] .sec[data-type="reportheadline"] > .sec-head', css, "one rule for View and the published page (both draw #report in view mode)")
         self.assertLess(css.index('.sec[data-type="reportheadline"] > .sec-head'), css.index("/* Row 1314"), "Classic CSS before the Row 1314 block")
 

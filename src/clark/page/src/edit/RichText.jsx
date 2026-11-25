@@ -11,14 +11,23 @@ import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { aiClient } from "./aiShared.js";
 
 const BAR = [
-  ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
+  ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", "Font colour"],
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
-const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
+// Row 1288 (Classic only, Cards keeps its own toolbar and words): Quote and Divider share one drop-down ("1C"), the bubble ends with Ask AI..., the "/" menu ends with Ask AI... and its filter box says Filter blocks...
+const MORE = [["quote", "Quote"], ["rule", "Divider"]];
+export const ASK_AI = "Ask AI\u2026";
+const MORE_WORDS = "More blocks: Quote, Divider";
+const FILTER_WORDS = "Filter blocks\u2026";
+const BUBBLE_ALL = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", "Font colour"], ["link", "Link", "Link"]];
+// Row 1364: font colour. Words are exactly these (logged in NEW-WORDS.md); the names are also the tooltip and the aria-label of each swatch.
+const COLOUR_WORDS = [["grey", "Grey"], ["brand", "Brand"], ["red", "Red"], ["amber", "Amber"], ["green", "Green"], ["blue", "Blue"]];
+const AUTOMATIC = "Automatic";
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
   ["checklist", "Checklist"], ["quote", "Quote"], ["rule", "Divider"]];
@@ -35,6 +44,60 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
+// The font colour button and its palette (row 1364): one button (a bold A, underlined in the colour at the selection), a box of Automatic and six
+// swatches under it. Down or Enter opens it; Left, Right, Up, Down, Home and End move; Enter chooses (the text takes the focus again); Esc closes it with the focus back on the button.
+function ColourButton({ h, hold, tick, refocus }) {
+  const [open, setOpen] = useState(false);
+  const btn = useRef(null), box = useRef(null);
+  const cur = h ? h.colour() : null;
+  const items = () => (box.current ? [...box.current.querySelectorAll("button")] : []);
+  useLayoutEffect(() => {
+    if (!open || !box.current) return;
+    const b = box.current, r = b.getBoundingClientRect();
+    if (r.right > window.innerWidth - 8) b.classList.add("end");              // no room to the right: its right edge on the button's
+    const its = items();
+    (its[cur ? 1 + COLOUR_WORDS.findIndex(([n]) => n === cur) : 0] || its[0]).focus({ preventScroll: true });
+    const outside = (e) => { if (!b.contains(e.target) && !(btn.current && btn.current.contains(e.target))) setOpen(false); };
+    document.addEventListener("pointerdown", outside, true);
+    return () => document.removeEventListener("pointerdown", outside, true);
+  }, [open]);
+  const choose = (name) => { refocus(); h.run("colour", name); setOpen(false); tick((n) => n + 1); };      // refocus first: the palette's own button is about to go, and that must not count as leaving the field
+  const barKeys = (e) => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } };
+  const keys = (e) => {
+    const its = items(), i = its.indexOf(document.activeElement), last = its.length - 1;
+    let to = null;
+    if (e.key === "ArrowRight") to = (i + 1) % its.length;
+    else if (e.key === "ArrowLeft") to = (i + last) % its.length;
+    else if (e.key === "ArrowDown") to = i === 0 ? 1 : i + 4 <= last ? i + 4 : i;           // Automatic, then the grid of four a row
+    else if (e.key === "ArrowUp") to = i - 4 >= 1 ? i - 4 : 0;
+    else if (e.key === "Home") to = 0;
+    else if (e.key === "End") to = last;
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); if (btn.current) btn.current.focus(); return; }
+    else if (e.key === "Tab") { setOpen(false); return; }
+    else return;
+    e.preventDefault(); e.stopPropagation();
+    if (its[to]) its[to].focus({ preventScroll: true });
+  };
+  return (
+    <span class="rt-colour">
+      <button type="button" ref={btn} class={`rt-btn${open ? " on" : ""}`} aria-label="Font colour" title="Font colour" aria-haspopup="menu" aria-expanded={open ? "true" : "false"}
+        onMouseDown={hold} onKeyDown={barKeys} onClick={() => setOpen(!open)}><span class="rt-A" data-colour={cur || undefined}>A</span></button>
+      {open ? (
+        <div class="rt-pal" ref={box} role="menu" aria-label="Font colour" onKeyDown={keys}>
+          <button type="button" class="rt-pal-auto" role="menuitemradio" aria-checked={cur ? "false" : "true"} tabIndex={-1} onMouseDown={hold} onClick={() => choose(null)}>
+            {AUTOMATIC}<span class="rt-tick" aria-hidden="true">{cur ? "" : "✓"}</span></button>
+          <div class="rt-grid" role="presentation">
+            {COLOUR_WORDS.map(([n, w]) => (
+              <button type="button" key={n} class={`rt-sw rt-sw-${n}`} role="menuitemradio" aria-checked={cur === n ? "true" : "false"} aria-label={w} title={w} tabIndex={-1}
+                onMouseDown={hold} onClick={() => choose(n)}>A</button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 // Row 1179: with `ai` (a place) a right-click on selected text, or Shift+F10 / the Menu key, opens the AI menu of that place over the selection; no selection
 // leaves the browser's own menu. Accept puts the suggestion in place of the selection (one more edit in the open box; it is saved like any other).
 export function RichText({ value, label, onSave, onClose, oneLine = false, ai = null }) {
@@ -48,6 +111,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const [aiAt, setAiAt] = useState(null);                   // the AI menu over a selection: { x, y, text, from, to } or null
   const aiBox = useRef(null), aiOpen = useRef(false);
   const slashRef = useRef(null); slashRef.current = slash;
+  const askRef = useRef(null); askRef.current = () => askFromSlash();
+  const classic = classicTheme();
+  const askLine = () => !!ai && classicTheme();               // the "/" menu's foot line (Classic only, and only where the field has an AI place)
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
   const props = useRef({}); props.current = { onSave, onClose };
 
@@ -86,6 +152,21 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     setSlash(null);
   };
 
+  // Row 1288 (Classic, "4C"): the "Ask AI..." line at the foot of the "/" menu opens the same AI menu as the right-click. It takes the field's own text
+  // (the "/" words left out) and, on Accept, the suggestion replaces the "/" words.
+  const askFromSlash = async () => {
+    const s = slashRef.current;
+    if (!s || !ai || !ed.current) return;
+    const made = ed.current, doc = made.editor.state.doc;
+    const text = `${doc.textBetween(0, s.from, "\n", "\n")}\n${doc.textBetween(s.to, doc.content.size, "\n", "\n")}`.trim();
+    const r = slashBox.current.getBoundingClientRect();
+    aiOpen.current = true;
+    await aiClient().refresh();
+    setSlash(null);
+    if (ed.current !== made || made.editor.state.doc !== doc) { aiOpen.current = false; return; }       // the field or its words changed while the status was asked: s.from and s.to no longer mean this "/"
+    setAiAt({ x: r.left + r.width / 2, y: r.bottom + 4, text, from: s.from, to: s.to });
+  };
+
   useLayoutEffect(() => {
     const keyHook = (e) => {
       const s = slashRef.current;
@@ -95,10 +176,11 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : s.items.length - 1)) % s.items.length });
+        const n = s.items.length + (askLine() ? 1 : 0);
+        setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : n - 1)) % n });
         return true;
       }
-      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); chooseSlash(s.items[s.at][0]); return true; }
+      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); if (s.at >= s.items.length) askRef.current(); else chooseSlash(s.items[s.at][0]); return true; }
       if (e.key === "Escape") { e.preventDefault(); setSlash(null); return true; }
       return false;
     };
@@ -118,7 +200,12 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     ed.current = made;
     setH(made);
     made.editor.view.focus();                     // at once, in this step (the editor's own focus waits for a frame, and a late frame left the box open but not focused)
+    // The editor's own focus (below) runs view.focus() again in a later frame. A Tab sent before that frame moved the focus to the next field and the frame took it back
+    // (row 1556, macOS). Until that frame has run, a view.focus() only goes through while the focus is on the page body or already inside this editor.
+    const view = made.editor.view, realFocus = view.focus.bind(view);
+    view.focus = () => { const at = document.activeElement; if (!at || at === document.body || view.dom.contains(at)) realFocus(); };
     made.focus();
+    requestAnimationFrame(() => { view.focus = realFocus; });      // queued after the editor's own frame callback, so it runs after it
     return () => { made.destroy(); ed.current = null; };
   }, []);
 
@@ -197,7 +284,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (name === "link") { setLinkOpen(true); return; }
     h.run(name); tick((n) => n + 1);
   };
-  const button = ([name, glyph, words]) => (
+  const button = ([name, glyph, words]) => name === "colour" ? <ColourButton key={name} h={h} hold={hold} tick={tick} refocus={refocus} /> : (
     <button type="button" key={name} class={`rt-btn${h && h.active(name) ? " on" : ""}`} aria-label={words} title={words}
       aria-pressed={["undo", "redo", "rule", "link"].includes(name) ? undefined : (h && h.active(name) ? "true" : "false")}
       onMouseDown={hold} onClick={() => press(name)}>{glyph}</button>
@@ -209,15 +296,23 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
-  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
-  const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
+  const noColour = !classicTheme();
+  const BUBBLE = BUBBLE_ALL.filter((b) => !(noColour && b[0] === "colour"));      // row 1364: the font colour is Classic only; Cards has no palette CSS and keeps its bar as it was
+  const more = ["quote", "rule"].filter((n) => !oneLine && classic && n);
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR.filter((b) => !(classic && (b[0] === "quote" || b[0] === "rule")))).filter((b) => !(noColour && b[0] === "colour")).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
+  const moreIdx = bar.findIndex((b) => b !== "|" && b[0] === "checklist") + 1;
+ const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
+  // Row 1288: the style menu is the toolbar's first button and, in Classic, the bubble's first button (the mock-up's 3D): one menu, drawn twice.
+  const styleMenu = (btnCls) => <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls={btnCls} left
+    items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />;
 
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away} onContextMenu={onContext} onKeyDown={onKeyAi}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
-        {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {!oneLine && styleMenu("rt-btn rt-style")}
+        {bar.map((b, i) => [b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b),
+          more.length && i + 1 === moreIdx ? <Menu key="more" label="❝" ariaLabel={MORE_WORDS} tip={MORE_WORDS} btnCls="rt-btn rt-more"
+            items={MORE.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} /> : null])}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -230,15 +325,18 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
-        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{classic ? styleMenu("rt-btn rt-style rt-bubble-style") : null}{BUBBLE.map(button)}
+        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{classic ? ASK_AI : DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
+          {classic ? <div class="rt-slash-filter" data-rt-slash-filter data-ph={FILTER_WORDS}>{slash.query}</div> : null}
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
               onMouseDown={hold} onClick={() => chooseSlash(n)}><Icon name={SLASH_ICON[n] || "tline"} cls="mi" />{w}</button>
           ))}
+          {askLine() ? <><hr class="rt-slash-rule" /><button type="button" role="option" aria-selected={slash.at >= slash.items.length ? "true" : "false"} class={`rt-opt rt-ask${slash.at >= slash.items.length ? " on" : ""}`}
+            onMouseDown={hold} onClick={askFromSlash}>{ASK_AI}</button></> : null}
         </Fade>
       ) : null}
     </div>

@@ -9,10 +9,10 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   once into a folder only clark writes, then work from that copy), never the original file. The checks run in
   this order, stopping at the first failure with one plain sentence (UpdateError.message). The real reason, and up to five
   member names, are in UpdateError.detail, for the log and never for the screen:
-  the signature, only once a real release key is built into this file (or a test passes one): a detached Ed25519 signature in a
-  file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the download's own bytes, checked against that key
-  before anything inside the download is looked at; then no signature file, a wrong one or a different key refuses it. While the
-  key is still the placeholder the signature is not asked for (an unsigned download is accepted and a .sig beside it is ignored);
+  the signature, for a release from FIRST_SIGNED (1.3.4) up (or whenever a test passes a key): a detached Ed25519 signature in a
+  file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the download's own bytes, checked against the release
+  key before anything inside the download is looked at; a wrong .sig or a different key refuses it. No .sig at all is accepted (Human, row 1328: in-clark upgrades work unsigned).
+  Releases older than FIRST_SIGNED are accepted unsigned (a .sig beside them is ignored);
   every other check below still applies;
   the name and system; a regular file, not too big; opens as a zip; clark-release.json is there (else it is GitHub's whole
   source code); the shape of every member (no folders, links, encryption, odd compression or duplicate names); every member
@@ -81,20 +81,20 @@ STAMP_LENGTH = len("20261029T120000Z")
 SIGN_DOMAIN = b"clark-release-v1\0"     # put in front of the download's bytes before signing; dev/tools/sign_release.py uses this same value
 SIGNATURE_BYTES = 64                   # an Ed25519 signature is exactly this long
 SIGNATURE_SUFFIX = ".sig"
+FIRST_SIGNED = (1, 3, 4)               # the first release that must carry a verifying .sig; 1.3.3 and older are accepted unsigned
+UNSIGNED_UPGRADES_ALLOWED = True      # Human ruling (row 1328): an in-clark upgrade works when the release has NO .sig; a .sig that is there must still verify, and a wrong or short one is refused
 PLACEHOLDER_KEY = b"REPLACE-WITH-THE-RELEASE-KEY!!"[:30].ljust(32, b"!")
-# REPLACE WITH THE RELEASE KEY BEFORE THE FIRST SIGNED RELEASE: the 32-byte Ed25519 public key made offline with
-# `python3 dev/tools/sign_release.py keygen` (the private key goes straight into the Keychain, never a file). While this is still the placeholder no signature is asked for
-# (unsigned downloads are accepted; see signature_required); once a real key is set every update must be signed with it. A release-key change is a new manual install (see sign_release.py).
-RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY
+# The release key: the 32-byte Ed25519 public key made offline with `python3 dev/tools/sign_release.py keygen` (the private key lives in the
+# owner's Keychain, never in a file). From FIRST_SIGNED (1.3.4) up every update must carry a .sig that verifies against this key.
+# Its sha256 (of the 32 raw bytes) is pinned in tests/test_update_signature.py.
+RELEASE_PUBLIC_KEY = bytes.fromhex("683bc5ffab41a172e3efe524034d500378cb84dad0d9bbb50071d74432449e0c")
 
 NO_NOTES = "No notes were written for this release."
 KEPT = "Your projects, settings and published reports are kept. A copy of your data is made first."
 
 MESSAGES = {
-    "unsigned": "This update has no signature file beside it, so it can't be trusted and wasn't installed. "
-                "Download the update again from the clark releases page, together with its .sig file.",
-    "badsig": "This update's signature doesn't match, so it wasn't installed. Don't use this file. "
-              "Download it again from the clark releases page.",
+    "unsigned": "The download failed its check. It was not installed.",
+    "badsig": "The download failed its check. It was not installed.",
     "nokey": "This copy of clark can't check update files, because a part it needs for that is missing. Nothing was changed. "
              "Download the latest release from the clark releases page and use that instead.",
     "name": "That isn't a clark update. Choose the update file from the clark releases page. "
@@ -400,15 +400,24 @@ def read_signature(path):
         return b""
 
 
-def signature_required(public_key=None):
-    """False only while the key in force is the placeholder (no test key, no real key built in): then no signature is asked for."""
-    return not (public_key is None and RELEASE_PUBLIC_KEY == PLACEHOLDER_KEY)
+def signature_required(public_key=None, version=None):
+    """Whether a download of `version` (text such as "1.3.4", the one in its file name) must carry a verifying signature: yes from
+    FIRST_SIGNED up, no for 1.3.3 and older. A key given by a test always asks. With no version (a caller that does not know it
+    yet) only a real built-in key asks. A version that cannot be read asks (fail closed)."""
+    if public_key is not None:
+        return True
+    if version is None:
+        return RELEASE_PUBLIC_KEY != PLACEHOLDER_KEY
+    try:
+        return version_key(version)[:3] >= FIRST_SIGNED
+    except ValueError:
+        return True
 
 
 def check_signature(data, signature, public_key=None):
     """Refuse unless `signature` is the release key's Ed25519 signature over SIGN_DOMAIN + `data`. Raises UpdateError
     (unsigned, badsig or nokey). `public_key` is for tests; None means the key built into this file. read_release calls this
-    only when signature_required(public_key) is true; called directly with the placeholder it still raises nokey."""
+    only when signature_required(public_key, version) is true; called directly with the placeholder it still raises nokey."""
     key = RELEASE_PUBLIC_KEY if public_key is None else public_key
     if public_key is None and key == PLACEHOLDER_KEY:
         raise UpdateError("nokey", "RELEASE_PUBLIC_KEY is still the placeholder")
@@ -504,8 +513,10 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
     path = Path(path)
     version_in_name = check_name(path.name, system, chosen)
     data = read_once(path, max_zip)
-    if signature_required(public_key):
-        check_signature(data, read_signature(path), public_key)
+    if signature_required(public_key, version_in_name):
+        signature = read_signature(path)
+        if not (signature is None and UNSIGNED_UPGRADES_ALLOWED and public_key is None):      # row 1328 ruling: no .sig at all is allowed; a present .sig is always checked (a test's own key always asks)
+            check_signature(data, signature, public_key)
     digest = hashlib.sha256(data).hexdigest()
     if (member_count(data) or 0) > MAX_MEMBERS:
         raise UpdateError("damaged", "the file lists more members than an update has")
@@ -730,6 +741,18 @@ def plan(release, app_dir):
 def date_text(iso):
     year, month, day = iso.split("-")
     return f"{day}-{month}-{year}"
+
+
+def size_text(n):
+    """The size of a release as a person reads it (Row 1327, one rule for every place): under 10 MB one decimal ("4.2 MB"), 10 MB and
+    over whole ("12 MB"), never "0 MB" (the smallest is "0.1 MB"). An unknown size (not a whole number above zero) is "": no size shown.
+    Whole numbers only, rounded half up, so 9 950 000 bytes is "10 MB" and never "10.0 MB"."""
+    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:
+        return ""
+    tenths = max(1, (n + 50_000) // 100_000)
+    if tenths < 100:
+        return f"{tenths // 10}.{tenths % 10} MB"
+    return f"{(n + 500_000) // 1_000_000} MB"
 
 
 def count_text(label, items):

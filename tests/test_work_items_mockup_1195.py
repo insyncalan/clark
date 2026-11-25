@@ -35,9 +35,9 @@ ROWS_JSX = (PAGE / "src" / "templates" / "WorkItemsList.jsx").read_text(encoding
 
 # Every rule line this row adds, as written in the Classic theme's rules.css (comments dropped, white space folded).
 GOLDEN_LINES = [
-    ".wil { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }",
-    ":root[data-theme=dark] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }",
-    "@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }",
+    ".wil, #work { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }",
+    ":root[data-theme=dark] .wil, :root[data-theme=dark] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }",
+    "@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil, :root[data-theme=auto] #work { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }",
     ".wil-table th { font-size: calc(var(--size-caption) - 1.5px); color: var(--wil-th); }",
     ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue); }",
     ".wil-pr { border: 1px solid var(--wil-pr-bd); border-radius: 6px; background: var(--wil-pr-bg); color: var(--wil-pr-fg); font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); }",
@@ -499,6 +499,34 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
+    def test_most_rows_50_with_51_items_draws_50_rows_then_show_all_gives_51_and_show_only_50_gives_50_at_1400_and_900(self):      # row 1359
+        for k in range(51):
+            self.demo.action(description=f"Kim step {k}", owner="Kim Demo", due_date="2030-02-01")
+        ref = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Kim Demo"]})
+        for k in range(50):
+            self.demo.action(description=f"Joy step {k}", owner="Joy Demo", due_date="2030-02-01")
+        exact = self.add({"mode": "all", "max": 50, "columns": ["id", "owner"], "owner": ["Joy Demo"]})      # exactly as many rows as Most rows: no cut, so no link
+        for width in (1400, 900):
+            with T.chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{exact}\"] [data-wil-count]')", f"{width}: the exact list is drawn")
+                self.assertEqual(p.js(f"[document.querySelectorAll('[data-id=\"{exact}\"] .wil-all-b').length, document.querySelectorAll('[data-id=\"{exact}\"] .wil-table tbody tr').length, document.querySelector('[data-id=\"{exact}\"] [data-wil-count]').textContent]"), [0, 50, "Showing all of 50"], width)
+                sec = f'[data-id="{ref}"]'
+                p.until(f"!!document.querySelector('{sec} .wil-all-b')", f"{width}: the link is drawn")
+                n = lambda: p.js(f"(() => {{ const b = document.querySelector('{sec} .wil-scroll'), r0 = b.getBoundingClientRect(); return [...b.querySelectorAll('.wil-table tbody tr')].filter(r => r.getBoundingClientRect().top < r0.bottom - 2).length; }})()")      # rows that start inside the box
+                word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+                foot = lambda: p.js(f"[document.querySelector('{sec} [data-wil-count]').textContent, document.querySelector('{sec} .wil-all-b').getAttribute('aria-expanded')]")      # the count words and the link's open state
+                self.assertEqual((n(), word()), (50, "Show all items"), width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 50'", f"{width}: open")
+                self.assertEqual(n(), 51, width)
+                self.assertEqual(foot(), ["Showing all of 51", "true"], width)
+                p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+                p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", f"{width}: closed")
+                self.assertEqual(n(), 50, width)
+                self.assertEqual(foot(), ["Showing 50 of 51, scroll for the rest", "false"], width)
+
     def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         probe = lambda sec: f"(() => {{ const s = document.querySelector('{sec}'); const v = (q) => [...s.querySelectorAll(q)].filter((e) => e.offsetParent).length; return [v('.wil-views'), v('[data-wil-line]'), v('[data-wil-add], .wil-add'), v('[data-wil-gear]')]; }})()"
@@ -597,7 +625,12 @@ class Classic(Look):
             key("due", "ArrowRight", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
             self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
-            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.cwHead"), "due", "the heading keeps the focus")
+            # Wait, then assert the same thing: on macOS the useEffect in src/clark/edit/colWidths.jsx re-focuses the heading after the render, and the old
+            # test read the focus at once and saw None != due (macOS full runs 45081476463, 45139907189, 45203372794).
+            focus_js = "document.activeElement && document.activeElement.dataset.cwHead"
+            kept = wait(lambda: p.js(focus_js) == "due", 10)
+            state = "" if kept else " | " + json.dumps(p.js(f"({{active: document.activeElement ? [document.activeElement.tagName, document.activeElement.className, document.activeElement.id] : null, hasFocus: document.hasFocus(), heads: {h('due')}.closest('table') ? [...{h('due')}.closest('table').querySelectorAll('thead th[data-cw-head]')].map(c => c.dataset.cwHead) : null}})"))
+            self.assertEqual(p.js(focus_js), "due", "the heading keeps the focus" + state)
             key("due", "ArrowLeft", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "due", "id"]), "Alt+Left moved it back")
             key("owner", "ArrowRight", ctrlKey=True)
@@ -613,13 +646,14 @@ class Classic(Look):
         for width in (1400, 900):
             with self.subTest(width=width), T.chrome() as cdp:
                 p = self.show(cdp, width)
-                for mode in ("View", "Edit"):
-                    if mode == "Edit":
-                        p.edit()
-                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", f"{mode} drew")
-                    got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
-                    self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"{mode} at {width}")
-                    self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, f"{mode}: the edge handles stay aria-hidden, no label")
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-due')", "View drew")      # row 1225 AP3: View's heads are plain th (no label, no handle)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th')].filter(h => h.hasAttribute('aria-label') && /Drag/.test(h.getAttribute('aria-label'))).length"), 0, f"View at {width}: no drag label")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .cgrip').length"), 0, f"View at {width}: no handle")
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+                got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
+                self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"Edit at {width}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, "Edit: the edge handles stay aria-hidden, no label")
 
     def test_an_empty_match_says_the_mockups_words_in_view_and_the_long_sentence_in_edit_at_1400_and_900(self):      # row 1195: WO-M8425, the words are the mock-up's
         ref = self.add({"owner": ["Nobody Demo"]})
@@ -739,56 +773,35 @@ class Classic(Look):
     def _view(self, cdp, columns):
         ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
         p = self.show(cdp, 1400)
-        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew")
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-due')", "View drew")
         self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
         return p, ref
 
     def _bodies(self):
         return self.store.con.execute("SELECT id, body FROM report_sections ORDER BY id").fetchall()
 
-    def test_view_a_real_pointer_drag_of_a_heading_moves_the_column_and_saves_nothing_in_the_document(self):      # row 1195 ruling: View too, unsaved
+    def test_view_headings_are_plain_row_1225(self):      # row 1225 AP3 (it replaces the row 1195 ruling that View's heads drag, resize and take Alt and Ctrl with an arrow)
         with T.chrome() as cdp:
             p, ref = self._view(cdp, ["owner", "due", "priority", "id"])
             before = self._bodies()
-            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
-            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').draggable"), True)
-            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
-            x0, y0 = self._where(p, ref, "id")
-            x1, y1 = self._where(p, ref, "owner")
+            ths = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th')]"
+            self.assertEqual(p.js(f"{ths}.filter(h => h.draggable || h.hasAttribute('tabindex') || h.hasAttribute('data-cw-head') || h.querySelector('.cgrip')).length"), 0, "no head drags, takes a tab stop or has a handle")
+            self.assertEqual(self._heads(p, ref), [])
+            order = p.js(f"{ths}.map(h => h.className)")
+            p.js("window.__drag = 0; document.addEventListener('dragstart', () => { window.__drag++; }, true)")
+            x0, y0 = self._where_plain(p, ref, "id")
+            x1, y1 = self._where_plain(p, ref, "owner")
             self._pointer_drag(p, x0, y0, x1, y1)
-            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag in View")
-            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "ID moved before Owner in View")
-            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
-            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
-            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "still View")
+            self.assertEqual(p.js("window.__drag"), 0, "the browser starts no drag from a View head")
+            self.assertEqual(p.js(f"{ths}.map(h => h.className)"), order, "no column moved")
+            p.js(f"{ths}.find(h => h.classList.contains('wil-c-due')).dispatchEvent(new KeyboardEvent('keydown', {{key: 'ArrowRight', altKey: true, bubbles: true}}))")
+            self.assertEqual(p.js(f"{ths}.map(h => h.className)"), order, "Alt with an arrow moves nothing")
             self.assertEqual(self._bodies(), before, "nothing was written to the document")
-            reload_to_new_page(p.js, f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
-            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
 
-    def test_view_the_width_handle_alt_move_and_ctrl_resize_work_and_the_heading_says_so(self):      # row 1195 ruling: View too, unsaved
-        with T.chrome() as cdp:
-            p, ref = self._view(cdp, ["owner", "due", "id"])
-            before = self._bodies()
-            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
-            w = lambda c: p.js(f"{h(c)}.getBoundingClientRect().width")
-            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "a heading is a tab stop in View")
-            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
-            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"))
-            w0 = w("owner")
-            gx, gy = self._where(p, ref, "owner", "grip")
-            self._pointer_drag(p, gx, gy, gx + 40, gy)
-            self.assertTrue(wait(lambda: abs(w("owner") - (w0 + 40)) < 2), "the handle drag widened Owner in View")
-            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and moved nothing")
-            CTRL = 2
-            p.js(f"{h('due')}.focus()")
-            start = w("due")
-            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
-            self.assertTrue(wait(lambda: abs(w("due") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider in View")
-            before_w = w("due")
-            p.key("ArrowRight", 1, code="ArrowRight", vk=39)
-            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due in View")
-            self.assertLess(abs(w("due") - before_w), 1, "without resizing it")
-            self.assertEqual(self._bodies(), before, "nothing was written to the document")
+    def _where_plain(self, p, ref, c):
+        sel = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th.wil-c-{c}')"
+        p.js(f"{sel}.scrollIntoView({{block: 'center'}})")
+        return p.js(f"(() => {{ const r = {sel}.getBoundingClientRect(); return [r.left + 12, r.top + r.height / 2]; }})()")
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -894,7 +907,7 @@ class Classic(Look):
     # The values below were measured in Chrome on work-items-mockup.html at 1400 and 900.
     # Row 1409: the priority chips take the one mapping the rating matrix has (pr is Medium amber, prh High red, pru Urgent maroon), not the mock-up's grey / amber / red
     MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(252, 239, 207)", "rgb(138, 90, 0)", "rgb(252, 239, 207)", "12px", "600", "6px"],
-            "prh": ["rgb(246, 224, 221)", "rgb(163, 48, 31)", "rgb(246, 224, 221)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
+            "prh": ["rgb(244, 222, 219)", "rgb(179, 57, 47)", "rgb(244, 222, 219)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
             "tA": ["rgb(237, 233, 255)", "rgb(75, 58, 181)"], "tR": ["rgb(253, 236, 234)", "rgb(180, 35, 24)"], "tI": ["rgb(107, 31, 42)", "rgb(255, 255, 255)"],
             "tD": ["rgb(231, 246, 236)", "rgb(6, 118, 71)"], "hid": ["rgb(238, 240, 244)", "rgb(152, 162, 179)"], "add": ["rgb(152, 162, 179)", "rgb(91, 71, 216)", "6px", "dashed"]}
 

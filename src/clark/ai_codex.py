@@ -115,7 +115,7 @@ def wall(home, program, scratch, prefix=PREFIX):
         f'(allow file-write* (subpath {quote(codex)}) (regex #"^{own}") (literal "/dev/null") (literal "/dev/dtracehelper"))'))
 
 
-def arguments(path, canary="", system=None, model=None, home=None, scratch=None):
+def arguments(path, canary="", system=None, model=None, home=None, scratch=None, person=""):
     """The command line for one run: the wall, then Codex with every tool off and clark's rules as its instructions. Nothing the person typed.
     The question goes on standard input. `model` is None or one of MODELS; anything else raises ValueError."""
     if model is not None and (not isinstance(model, str) or model not in MODELS):
@@ -126,7 +126,7 @@ def arguments(path, canary="", system=None, model=None, home=None, scratch=None)
     pick = ["--model", model] if model else []
     return [SANDBOX, "-p", wall(home, str(path), scratch), str(path), "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
             "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--config", 'web_search="disabled"',
-            "--config", "base_instructions=" + json.dumps(ask.system_prompt(canary, system)), *off, *pick, "-"]
+            "--config", "base_instructions=" + json.dumps(ask.system_prompt(canary, system, person)), *off, *pick, "-"]
 
 
 def read_events(out):
@@ -197,7 +197,9 @@ class CodexCommand(ask_claude.ClaudeCommand):
 
     def _flags_ok(self, path):
         self.untested = False
+        self.timed_out = False                 # row 1492: a check that ran out of time is "took too long", not "update it"
         status, out, _code = run([str(path), "--version"], b"", self.env, self.check_limit, 4096)
+        self.timed_out = status == "slow"
         found = VERSION.match(out) if status == "ok" else None
         if not found:
             return False
@@ -205,20 +207,23 @@ class CodexCommand(ask_claude.ClaudeCommand):
             self.untested = True
             return False
         status, out, _code = run([str(path), "exec", "--help"], b"", self.env, self.check_limit, ask_claude.MAX_HELP)
+        self.timed_out = status == "slow"
         if status != "ok":
             return False
         self.model_listed = True
         return set(NEEDED_FLAGS) <= ask_claude.listed_flags(out.decode("utf-8", "replace"))
 
     def login_problem(self, path):
+        self.login_slow = False
         why = self._login_problem(path)
-        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why == NOT_SIGNED_IN else "login_unreadable")
+        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why == NOT_SIGNED_IN else "slow" if self.login_slow else "login_unreadable")
         return why
 
     def _login_problem(self, path):
         status, out, code = platform.run_stoppable([str(path), "login", "status"], b"", self.env, self.check_limit, ask_claude.MAX_AUTH,
                                                     prefix=PREFIX, tmp_names=TMP_NAMES, merge_err=True)     # it says this on standard error
         if status not in ("ok", "failed") or code is None:
+            self.login_slow = status == "slow"
             return CANT_USE
         said = out.decode("utf-8", "replace")
         if code == 0 and SIGNED_IN in said:
@@ -230,8 +235,8 @@ class CodexCommand(ask_claude.ClaudeCommand):
         self.passed = (path, ask_claude.time.monotonic()) if path is not None else None
         return {"connected": path is not None, "why": READY if path is not None else why}
 
-    def answer(self, path, text, canary="", system=None, model=None, connectors=()):    # connectors: accepted and ignored (row 1306: only the Claude provider reads account connectors)
-        args = arguments(path, canary, system, model)
+    def answer(self, path, text, canary="", system=None, model=None, connectors=(), person=""):    # connectors: accepted and ignored (row 1306: only the Claude provider reads account connectors)
+        args = arguments(path, canary, system, model, person=person)
         if not self.walled:
             args = args[args.index(str(path)):]
         status, out, _code = run(args, text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
@@ -248,4 +253,4 @@ class CodexCommand(ask_claude.ClaudeCommand):
             return ask.Failure(LIMIT_REACHED)
         if kind == "model":
             return ask.Failure(MODEL_UNAVAILABLE)
-        return reply if kind == "answer" and status == "ok" else ask.Failure(NO_ANSWER)
+        return reply if kind == "answer" and status == "ok" else ask_claude.reasoned(NO_ANSWER, ask_claude.failure_reason(out))

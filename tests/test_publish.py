@@ -36,7 +36,7 @@ from clark.store import open_store  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
 from clark.server import csp_hashes  # noqa: E402
 from _growth import assert_growth  # noqa: E402
-from test_server import _Pipe, chrome, wait as _wait  # noqa: E402  (the #33 browser harness, shared)
+from test_server import _Pipe, chrome, pause_900, wait as _wait  # noqa: E402  (the #33 browser harness, shared)
 
 
 def _icon_href(name, mime):
@@ -311,8 +311,9 @@ class Dropped(Plant):
         m = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S)
         self.assertEqual(len(csp_hashes(text)["script"]), 1, "the data can't start a script")
         self.assertNotRegex(m.group(1), r"[<>&  ]", "nothing in the block can be read as markup")
-        self.assertIn("</script><script>zq=1</script><!--   & <b>", block(text)["data"]["actions"][0]["client_message"],
-                      "and it still reads back exactly")
+        # row 1288: an action's client wording is rich now: plain text is escaped into a paragraph (no markup survives), and that still reads back exactly
+        self.assertEqual(block(text)["data"]["actions"][0]["client_message"],
+                         "<p>&lt;/script&gt;&lt;script&gt;zq=1&lt;/script&gt;&lt;!-- \u2028 &amp; &lt;b&gt;</p>", "and it still reads back exactly")
         self.assertEqual(block(text)["data"]["project"]["name"], 'Bridge & "Harbour" <Programme>')
 
     def test_rich_text_is_cleaned(self):
@@ -1040,6 +1041,7 @@ class Watching(_Pipe):
     """The test harness's pipe, keeping the events Chrome sends (it drops them, which a network test can't)."""
 
     def call(self, method, params=None, session=None):
+        pause_900(method, params)
         self.n += 1
         msg = {"id": self.n, "method": method, "params": params or {}}
         if session:
@@ -1118,9 +1120,12 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 1, "row 1178: the bar has the one date button (the old chip is gone)")
+            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 0, "row 1253 (the 20-11 ruling): the bar has no As at date button")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
-            self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
+            menu = cdp.js("document.querySelector('#client-menu').textContent", sid)
+            self.assertIn("Export to PDF", menu, "the opened file's profile menu is drawn from the file")
+            self.assertNotRegex(menu, r"(?i)as at", "row 1543: no As at in the profile menu")
+            self.assertNotRegex(cdp.js("document.querySelector('header.top').textContent", sid), r"(?i)as at", "row 1543: no As at in the header")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
                 cdp.js(f"document.querySelector('[data-view={view}]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == h1), view)

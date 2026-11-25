@@ -74,7 +74,7 @@ class Approval(Base):
     def test_a_decision_marked_made_is_not_undone_and_a_new_decision_replaces_it(self):
         with self.s.step("dashboard", "t") as st:
             ref = st.create("decisions", {"project": "ABC", "decision": "Use the shared calendar", "status": "Pending", "source": "demo"})
-        applied = self.applied(self.planned({"op": "change", "id": ref, "current_title": "Use the shared calendar", "status": "Made", "date": "2026-10-29", "made_by": "Sara Khan"})["offer"])
+        applied = self.applied(self.planned({"op": "change", "id": ref, "current_title": "Use the shared calendar", "status": "Made", "date": "2026-10-29", "made_by": "Sara Khan"})["offer"], confirm=True)
         self.assertEqual(self.s.read("decisions", ref=ref)["status"], "Made")
         status, body = self.undo({"project": "ABC", "apply_id": applied["apply_id"]})
         self.assertFalse(applied["undoable"], "the apply says itself there is no Undo for a Made decision")
@@ -87,7 +87,7 @@ class Approval(Base):
         with self.s.step("dashboard", "tester") as st:
             ref = st.create("decisions", {"project": "ABC", "decision": "Pick the venue", "made_by": "Sam Lee", "status": "Pending", "source": "demo"})
         plan = self.planned({"op": "change", "id": ref, "current_title": "Pick the venue", "status": "Made", "date": "2026-11-01"})
-        self.assertFalse(self.applied(plan["offer"])["undoable"])
+        self.assertFalse(self.applied(plan["offer"], confirm=True)["undoable"])
 
     def test_asking_cannot_make_a_new_use_case_so_that_needs_no_undo_words(self):
         status, body = self.ask.plan("ABC", {"op": "new", "kind": "use case", "title": "Book the room"})
@@ -95,7 +95,7 @@ class Approval(Base):
 
     def test_a_new_work_item_has_an_undo(self):
         plan = self.planned({"op": "new", "kind": "action", "title": "Book the training room", "owner": "Sam Lee"})
-        self.assertTrue(self.applied(plan["offer"])["undoable"])
+        self.assertTrue(self.applied(plan["offer"], confirm=True)["undoable"])
 
 
 class OnlyOffered(Base):
@@ -155,7 +155,7 @@ class Published(PublishedFile, glance.Setup):
                 self.assertEqual(got, {"btn": False, "panel": False, "label": False})
 
     def test_the_card_has_no_bullets_like_the_folders_list_in_classic(self):
-        css = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        css = ((SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8") + (SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css").read_text(encoding="utf-8"))
         self.assertIn(".ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }", css)
         self.assertLess(css.index(".ask-safety {"), css.index("/* Row 1314"))
 

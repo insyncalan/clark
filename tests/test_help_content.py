@@ -33,7 +33,8 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Ask clark to update for you' is the words box's heading (edit/SneakPeek.jsx, row 1077, the owner's words of 09-11-2026); the prototype still says Change an item with words.
 # 'Earlier chats' is the heading of the ask clark History list (edit/askWords.js HISTORY_TITLE, row 1095); the prototype has no chat history.
 # 'More actions' is the menu of a use case or milestone row and of the milestone peek (edit/RecordMore.jsx, item 1148); the prototype has no such menu.
-CHECKED_BY_HAND = set(['More actions', 'Expected or achieved', 'Add issue', 'Move to Status', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn off asking', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
+# 'Check now' and 'Install and restart' are the Update row's own buttons (logic/update.js FETCH_LABELS checkNow, install; row 1327); the prototype has neither (it does have Download).
+CHECKED_BY_HAND = set(['Check now', 'Install and restart', 'More actions', 'Expected or achieved', 'Add issue', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Source folders for', 'Turn on', 'Turn off', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Add folder', 'All use cases', 'Commitment', 'Quit clark', 'Configure', 'Configure use cases', 'Status tracker', 'Viewers can scroll the list', 'Client visible', 'Not in clark yet', 'Create it', 'Use an existing one', 'Updated to clark', 'Use a file instead'])  # 'Not in clark yet', 'Create it', 'Use an existing one': the Import box's own labels (dataCard.js:40-42), named by the Import Excel line (row 1436)   # 'Client visible': the Client visible line of the peeks (edit/PeekProps.jsx, edit/MilestonePeek.jsx), named by the milestone peek's Help lines   # row 1234: the Configure button and panel words (edit/ucConfigureWords.js, ruled 16-11), named by the Configure help line  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)   # 'Updated to clark', 'Use a file instead': the Update card's row titles (edit/Update.jsx, logic/update.js ROWS), named by the Help lines on updating (row 1327)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -55,6 +56,16 @@ def texts(o, path=""):
 
 # The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
 # about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
+# One approved sentence names the company that runs the service ("Claude"): approved wording (NEW-WORDS, row 1366 AP27 item 6), exempt as this exact text only.
+APPROVED_WORDS = ("Passages from the folders you list go to Claude, which Anthropic runs, only when they contain words from your question, also inside longer words, or an item ID from this chat.",)
+
+
+def without_approved(s):
+    for a in APPROVED_WORDS:
+        s = s.replace(a, "")
+    return s
+
+
 DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
 
 
@@ -103,7 +114,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 34))   # row 1193 added the three starting lists task; merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -202,7 +213,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
+        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(without_approved(s)) or self.PATH.search(without_approved(s)))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
@@ -286,7 +297,7 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("Profile circle › Import from Word", self.ALL)        # 1.0.8: the Data card in Settings is the way in, and Help says so
         self.assertNotIn("profile menu entry Import from Word", self.ALL)
         self.assertNotIn("bring items in from a Word file", self.ALL)
-        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        self.assertIn("**Export to Word…**", self.ALL, "Export to Word stays in Help")       # row 1281: the Data card button, by its label
         raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
         self.assertNotRegex(raw, r"(?i)profile (circle|menu)[^\n]{0,40}(choose|press) \*\*Import from Word", "no help line names the removed menu entry")
 
@@ -429,7 +440,8 @@ class HelpMatchesThePage(unittest.TestCase):
 
     def test_a_use_case_names_the_ways_back_the_page_has(self):
         detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
-        self.assertIn("data-uc-back", detail)
+        self.assertIn("data-uc-back", (self.SRC / "components" / "UseCaseLayout.jsx").read_text(encoding="utf-8"))     # row 1479: the crumb is drawn by the shared layout
+        self.assertIn("Crumb", detail)
         self.assertIn('"Escape"', detail)
         find = next(t for t in STEPS if t["id"] == "find-a-use-case")
         line = find["s"][-1]
@@ -511,7 +523,8 @@ class PeekSourceWords(unittest.TestCase):
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("**Source** (in Edit, in View and in a published file)", text)
         self.assertNotIn("**Source** (in Edit)", text)
-        self.assertIn("a published file shows only the name", text)
+        self.assertIn("It names the source and nothing else: no person.", text)      # row 1258: no \" by <name>\"
+        self.assertNotIn("ends with by and the name", text)
 
 
 class ProfileCircleWords(unittest.TestCase):
@@ -521,6 +534,34 @@ class ProfileCircleWords(unittest.TestCase):
         for claim in ("your initials go in the circle", "initials fill the circle", "your initials (a person icon"):
             self.assertNotIn(claim, text.lower(), f"Help must not say the editor's profile circle shows initials: {claim}")
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
+
+
+class MilestonesHelpLine(unittest.TestCase):
+    """Row 1329: the Milestones line of Where things are is true for both looks, and the Movement entries stay."""
+    def test_the_line_is_exact_and_the_movement_entries_stay(self):
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones. Where the page has a **Plan** and **Movement** switch, **Movement** shows slippage, for you and the team only."), 1)
+        for kept in ("handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Milestones and Movement"):
+            self.assertIn(kept, text, kept)
+
+
+class SideBySideHelp(unittest.TestCase):
+    def test_help_names_text_and_image_side_by_side_and_not_the_old_name(self):
+        """Row 1232 (AP15): the template table in Help lists the new name with its line and widths, and the old name is gone from the whole Help source."""
+        rows = []
+        def walk(x):
+            if isinstance(x, list):
+                if len(x) == 3 and all(isinstance(c, str) for c in x):
+                    rows.append(x)
+                for c in x:
+                    walk(c)
+            elif isinstance(x, dict):
+                for c in x.values():
+                    walk(c)
+        walk(SRC)
+        self.assertIn(["Text with image", "A story with a picture: a site visit, a design, a screenshot of the new system.", "Full or half"], rows)
+        self.assertNotIn("Text and image", [r[0] for r in rows])
+        self.assertNotIn('"Text and image"', json.dumps(SRC, ensure_ascii=False))
 
 
 if __name__ == "__main__":

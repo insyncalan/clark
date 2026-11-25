@@ -27,16 +27,16 @@ export const EMPTY_SEND = "Please write a line first.";
 /** True when a send (copy or mail) has nothing to send: the message is empty or only spaces. */
 export function emptySend(form) { return !text(form && form.message).trim(); }
 // Settings pages' names (Views.jsx GROUPS); "" is the first page, Projects.
-const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", theme: "Theme", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Export and import", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
+const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", theme: "Theme", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Data", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
 
 function text(x) { return x == null ? "" : String(x); }
 const kindOf = (k) => (KINDS.includes(k) ? k : DEFAULT_KIND);
 
-/** Whether the tag is drawn: Help, or a Settings page other than the one that holds the Feedback card (and not while a search shows that card); never in a published file or an as-at view. */
-export function tagShown({ view, page, helpOpen, fromFile, past, feedbackCard } = {}) {
+/** Whether the tag is drawn: Help, or any Settings page; never in a published file or an as-at view. */
+export function tagShown({ view, page, helpOpen, fromFile, past } = {}) {
   if (fromFile || past) return false;
   if (helpOpen) return true;
-  return view === "settings" && page !== "version" && !feedbackCard;   // feedbackCard: Settings search is showing the Feedback card
+  return view === "settings";
 }
 
 /** The page the user was on, in words, for the added lines. */
@@ -46,13 +46,19 @@ export function pageWords({ view, page, helpOpen } = {}) {
   return text(view);
 }
 
-/** The system in words: macOS with its version when the browser's own text gives one, else the platform as the browser names it. */
-export function systemWords(nav) {
+/** The macOS line of the server's diagnostics report ("System: macOS 14.5"): the version, or "" when the report has no such line. */
+function macVersion(report) {
+  const m = /^System: macOS(?: ([^\r\n]*))?$/m.exec(text(report));
+  return m && m[1] ? oneLine(m[1]) : "";
+}
+
+/** The system in words: on a Mac, "macOS" and the version the server's diagnostics report gives (the browser's text is frozen at 10.15.7, so it is never read for a version); no report or no System line: just "macOS". Else the platform as the browser names it. */
+export function systemWords(nav, report) {
   const n = nav || (typeof navigator !== "undefined" ? navigator : {});
   const plat = oneLine((n.userAgentData && n.userAgentData.platform) || n.platform || "");
   if (/mac/i.test(plat) || /Mac OS X/.test(n.userAgent || "")) {
-    const m = /Mac OS X (\d+)[_.](\d+)(?:[_.](\d+))?/.exec(n.userAgent || "");
-    return m ? `macOS ${m[1]}.${m[2]}${m[3] && m[3] !== "0" ? "." + m[3] : ""}` : "macOS";
+    const v = macVersion(report);
+    return v ? `macOS ${v}` : "macOS";
   }
   return plat;
 }

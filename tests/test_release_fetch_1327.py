@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from clark import platform, release_fetch as rf, server as sv, update_install as ui, updater as up, updates
+import _signing as sg
 from test_updater import Rig, Served
 from test_updates import make_zip
 
@@ -345,7 +346,7 @@ class QuietLookTest(Served2):
         self.assertEqual((200, 2), (status, len(self.asks())))
         self.assertEqual("avail", body["latest"]["state"])
 
-    def test_the_size_is_in_whole_megabytes_and_the_notes_are_whole(self):
+    def test_the_size_follows_the_one_size_rule_and_the_notes_are_whole(self):
         self.doc["assets"][0]["size"] = 38_400_000
         self.doc["body"] = "n" * 3000
         self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
@@ -353,13 +354,47 @@ class QuietLookTest(Served2):
         self.assertEqual(("38 MB", 3000), (latest["size"], len(latest["notes"])))
         self.doc["assets"][0]["size"] = 10
         self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
-        self.assertEqual("1 MB", self.up.check({})[1]["latest"]["size"])
+        self.assertEqual("0.1 MB", self.up.check({})[1]["latest"]["size"])
+        self.doc["assets"][0]["size"] = 1_700_000
+        self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+        self.assertEqual("1.7 MB", self.up.check({})[1]["latest"]["size"])
+
+    def test_check_reads_the_size_exactly_as_size_text_gives_it(self):
+        """The size the page is told is size_text of the release's byte count, no more, no less, no fallback text (Row 1327)."""
+        def check(size):
+            if size is None:
+                del self.doc["assets"][0]["size"]
+            else:
+                self.doc["assets"][0]["size"] = size
+            self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+            self.up = self.make(release_opener=self.net, spawn=lambda work: work())      # a fresh look: a failed one keeps the last answer
+            return self.up.check({})[1]
+        for size, want in ((1, "0.1 MB"), (4_200_000, "4.2 MB"), (9_949_999, "9.9 MB"), (9_950_000, "10 MB"), (10_000_000, "10 MB"),
+                           (12_000_000, "12 MB")):
+            with self.subTest(size=size):
+                body = check(size)
+                self.assertEqual(want, body["latest"]["size"])
+                self.assertEqual(updates.size_text(size), body["latest"]["size"])
+                self.assertNotIn("0 MB", body["latest"]["size"].replace("10 MB", "").replace("0.1 MB", ""))
+        for size in (0, None, "", -5):                   # the fetch refuses these, so nothing is shown ...
+            with self.subTest(size=size):
+                self.assertNotIn(" MB", json.dumps(check(size)))
+        self.doc["assets"][0]["size"] = 4_200_000
+        self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+        real = rf.latest(self.up.system, self.net)       # ... and if one ever got through, the size text is empty, not a made-up size
+        for size in (0, None, -5, "5"):
+            with self.subTest(through=size), mock.patch.object(rf, "latest", return_value=dict(real, size=size)):
+                self.up = self.make(release_opener=self.net, spawn=lambda work: work())
+                latest = self.up.check({})[1]["latest"]
+                self.assertEqual("avail", latest["state"])
+                self.assertEqual("", latest["size"])
+                self.assertNotIn(" MB", json.dumps(latest))
 
     def test_what_the_page_is_told(self):
         latest = self.up.status()[1]["latest"]
         self.assertEqual({"state", "version", "date", "size", "notes", "checked"}, set(latest))
         self.assertEqual(("avail", "0.3.2", "18-11-2026", "Faster Dashboard."), (latest["state"], latest["version"], latest["date"], latest["notes"]))
-        self.assertRegex(latest["size"], r"^\d+ MB$")
+        self.assertRegex(latest["size"], r"^\d+(\.\d)? MB$")
         self.assertRegex(latest["checked"], r"^\d\d-\d\d-\d{4} \d\d:\d\d$")
         self.assertNotIn("github", json.dumps(self.up.status()[1]))        # no address, no digest goes to the page
 
@@ -408,7 +443,8 @@ class QuietLookTest(Served2):
         for text in (up.FETCH_OFFLINE, up.FETCH_BAD, up.FETCH_CANCELLED, up.NO_LATEST):
             with self.subTest(text=text):
                 self.assertNotRegex(text.lower(), r"sign|zip|manifest|sha|/|\\")
-                self.assertNotRegex(text, r"^clark")
+                if text != up.FETCH_OFFLINE:      # Row 1327 table row 7 (comment 7016158346) is the approved offline sentence, and it begins "clark"
+                    self.assertNotRegex(text, r"^clark")
 
 
 class DownloadFlowTest(Served2):
@@ -602,6 +638,76 @@ class DownloadFlowTest(Served2):
         self.up._installing = True
         self.assertEqual("busy", self.up.download({})[1]["code"])
         self.assertEqual("busy", self.up.check({})[1]["code"])
+
+
+class SignedFromFirstSignedTest(Served2):
+    """Row 1328: the download takes the .sig from 1.3.4 up (with the key patched in), not before, and a download that fails its signature says the approved words."""
+    WORDS = "The download failed its check. It was not installed."
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.object(updates, "FIRST_SIGNED", (1, 3, 4))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def release(self, version, sig_asset=True, sig=None):
+        self.set_release(version)
+        if sig is not None:
+            self.sig = sig
+            self.net.routes[self.sig_url] = lambda req: Reply(self.sig, self.sig_url)
+        if not sig_asset:
+            self.doc["assets"] = self.doc["assets"][:1]
+            self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+        self.up.status()
+
+    def fetch_state(self):
+        self.up.download({})
+        return self.up.status()[1]["fetch"]
+
+    def test_1_3_3_is_downloaded_without_its_signature(self):
+        self.release("1.3.3", sig_asset=False)
+        self.assertEqual("ready", self.fetch_state()["state"])
+        self.assertNotIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_1_3_4_takes_its_signature_with_it(self):
+        self.release("1.3.4")
+        self.assertEqual("ready", self.fetch_state()["state"])
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_1_3_4_with_no_signature_on_the_release_still_upgrades(self):
+        """Human ruling (row 1328): the in-clark upgrade works when the release has no signature."""
+        self.release("1.3.4", sig_asset=False)
+        self.assertEqual("ready", self.fetch_state()["state"])
+
+    def test_1_3_4_with_a_wrong_signature_says_the_approved_words(self):
+        for bad in (sg.signature_for(b"other bytes"), b"x" * 64, b"short", b"x" * 200):
+            with self.subTest(len=len(bad)):
+                self.release("1.3.4", sig=bad)
+                fetch = self.fetch_state()
+                self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+                self.assertIsNone(self.up.fetched)
+
+    def test_1_3_4_asks_for_its_signature_by_the_release_version_even_with_the_placeholder_key(self):
+        self.release("1.3.4")
+        with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY):
+            self.fetch_state()
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_a_cancel_while_the_signature_comes_is_a_cancel_not_a_failed_check(self):
+        self.release("1.3.4")
+        real = rf.download
+        def download(url, *a, **k):
+            if url == self.sig_url:
+                raise rf.FetchError("cancelled", "stopped")
+            return real(url, *a, **k)
+        with mock.patch.object(rf, "download", side_effect=download):
+            self.up.download({})
+        self.assertEqual("idle", self.up.status()[1]["fetch"]["state"])
+
+    def test_1_3_4_signature_that_cannot_be_reached_is_still_offline_not_the_check(self):
+        self.release("1.3.4")
+        self.net.routes[self.sig_url] = OSError("down")
+        self.assertEqual(up.FETCH_OFFLINE, self.fetch_state()["message"])
 
 
 class RoutesTest2(Served2):

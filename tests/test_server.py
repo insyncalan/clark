@@ -11,6 +11,7 @@ import io
 import json
 import os
 import re
+import select
 import socket
 import subprocess
 import sys
@@ -353,7 +354,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)      # #273
         self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 14 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1233: one gallery picture (10 MiB, 14 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                                                  "/api/word-export": 1024,     # #111, #180; #48
@@ -364,10 +365,10 @@ class Saving(ServerTest):
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/size": 1024, "/api/providers/test": 1024, "/api/providers/verify": 1024, "/api/providers/cancel": 1024,
                                                 "/api/ask": 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024), "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
-                                                "/api/section-file": 1024,
+                                                "/api/section-file": 1024, "/api/section-file-drop": 25 * 1024 * 1024,     # row 1275: one dropped file's raw bytes
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
@@ -488,10 +489,10 @@ class Saving(ServerTest):
 
     def test_the_section_body_route_limit_is_two_largest_sections_plus_4_kb_and_change_is_16_kb(self):
         # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405); every other change keeps /api/change's 16 KB
-        from clark import section_bodies
+        from clark import section_bodies, section_kinds
         self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertEqual(sv.SECTION_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
-        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
+        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), section_kinds.raid3.MANY * section_kinds.raid3.CARD_BYTES + 64)      # row 1270: the RAID cards hold up to eight cards (raid3.LIMIT = MANY * CARD_BYTES + 64, 96864), so the largest template is 96864 bytes; every other template is within 64 KB; the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
 
@@ -1503,6 +1504,42 @@ class WaitToast(unittest.TestCase):
             wait_toast(lambda: "", 1)
 
 
+PAUSED_900 = None      # ONE switch: set to a reason text and every 900 px case is skipped with it; None lets 900 px run (tests/test_paused_900.py tests it by mock)
+
+
+_HIT_900 = [False]       # set when the running test reached a 900 px window
+_IN_TEST = [False]       # a unittest test method is running (a script that borrows this pipe, as dev/tools/argos_shots.py does, is not paused)
+
+
+def pause_900(method, params):
+    """Skip the test when it is about to set a 900 px window (a pipe class that overrides call() calls this itself).
+    A SkipTest raised inside a `with self.subTest(...)` skips only that sub-test and the test goes on, so the test is also marked here
+    (see _call_with_900_pause): whatever the rest of it then fails on (a count short by the 900 half) is the pause, not a defect."""
+    if PAUSED_900 and _IN_TEST[0] and method == "Emulation.setDeviceMetricsOverride" and (params or {}).get("width") == 900:
+        _HIT_900[0] = True
+        raise unittest.SkipTest(PAUSED_900)
+
+
+_call_test_method = unittest.TestCase._callTestMethod
+
+
+def _call_with_900_pause(self, method):
+    _HIT_900[0], _IN_TEST[0] = False, True
+    try:
+        return _call_test_method(self, method)
+    except unittest.SkipTest:
+        raise
+    except Exception:
+        if _HIT_900[0]:
+            raise unittest.SkipTest(PAUSED_900)       # it went on past a skipped 900 px half and failed on what that half would have done
+        raise
+    finally:
+        _IN_TEST[0] = False
+
+
+unittest.TestCase._callTestMethod = _call_with_900_pause
+
+
 class _Pipe:
     """Chrome's --remote-debugging-pipe (as system/prototype/run_selftest.py): JSON messages ended by a NUL byte."""
 
@@ -1514,6 +1551,21 @@ class _Pipe:
     # close-on-blur that real focus would add to) sets `cdp.FOCUS_EMULATION = False` on its own pipe before it navigates.
     FOCUS_EMULATION = True
 
+    # A macOS runner can report prefers-reduced-motion: reduce, which switches off every rule under no-preference. Tests read the app as a
+    # user with no motion setting (no-preference); a test that needs reduce emulates it itself after attach (that call passes through).
+    MOTION_EMULATION = True
+    NO_MOTION_SETTING = {"name": "prefers-reduced-motion", "value": "no-preference"}
+
+    def with_motion_default(self, params):
+        """The params of an Emulation.setEmulatedMedia call with the no-preference default added when the call does not name
+        prefers-reduced-motion itself (the features are replaced per call, so a colour-scheme-only call would drop it). A copy."""
+        params = dict(params or {})
+        features = list(params.get("features") or [])
+        if self.MOTION_EMULATION and not any(isinstance(f, dict) and f.get("name") == "prefers-reduced-motion" for f in features):
+            features.append(dict(self.NO_MOTION_SETTING))
+        params["features"] = features
+        return params
+
     NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
     NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
 
@@ -1521,6 +1573,7 @@ class _Pipe:
         """One CDP call. A Runtime.evaluate that meets a page navigating (error -32000) is asked again until NAVIGATION_WAIT passes:
         the page is between two loads, not wrong. Any other error, and any answer, comes straight back (an assertion in the page
         is a result, not an error, so it is never retried away)."""
+        pause_900(method, params)                        # every browser test sets its width here, so this one place pauses all 900 px cases
         if method == "Target.attachToTarget":
             attached = self._call_once(method, params, session)
             # A headless page starts without page focus: focus, blur and hover tests read None or a stale state (macOS runners).
@@ -1531,7 +1584,14 @@ class _Pipe:
                     self._call_once("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
                 except RuntimeError:
                     pass                    # a target without the Emulation domain simply stays as it was
+            if sid and self.MOTION_EMULATION:
+                try:
+                    self._call_once("Emulation.setEmulatedMedia", {"features": [dict(self.NO_MOTION_SETTING)]}, sid)
+                except RuntimeError:
+                    pass
             return attached
+        if method == "Emulation.setEmulatedMedia" and self.MOTION_EMULATION:
+            params = self.with_motion_default(params)
         if method != "Runtime.evaluate":
             return self._call_once(method, params, session)
         end = time.monotonic() + self.NAVIGATION_WAIT
@@ -1552,6 +1612,7 @@ class _Pipe:
         os.write(self.w, json.dumps(msg).encode() + b"\0")
         while True:
             while b"\0" not in self.buf:
+                self._stuck_check(method, params, session)
                 chunk = os.read(self.r, 1 << 16)
                 if not chunk:
                     raise RuntimeError("Chrome closed the pipe")
@@ -1565,8 +1626,22 @@ class _Pipe:
             if "method" in m:
                 self.events.append(m)
 
+    # Diagnostics only (row: settings_sidebar_1500 hit the 900 s file timeout in a blocking os_read on this pipe, run 45365455611). Chrome that never
+    # answers one call used to hang the file until the runner killed it, with no word on WHICH call. After STUCK_AFTER seconds without a byte the
+    # call fails with the method, its session and the last events instead. The limit is far above any real answer (30 s page waits are polls of
+    # many short calls), so no passing test changes. Not on Windows (select does not take pipes there): it blocks as before.
+    STUCK_AFTER = 300.0
+
+    def _stuck_check(self, method, params, session):
+        if os.name == "nt" or select.select([self.r], [], [], self.STUCK_AFTER)[0]:
+            return
+        last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
+        raise RuntimeError(f"Chrome gave no answer for {self.STUCK_AFTER:.0f} s to call {self.n} {method} (session {session!r}, params "
+                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
+
     def js(self, expr, session):
-        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True}, session)["result"].get("value")
+        """The value of the expression. A promise is waited for (awaitPromise), so `js("new Promise(r => setTimeout(r, 300))")` takes 300 ms (row 1622)."""
+        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True, "awaitPromise": True}, session)["result"].get("value")
 
 
 @contextlib.contextmanager
@@ -1590,6 +1665,36 @@ def chrome():
         remove_profile(prof)                   # not TemporaryDirectory: Chrome's helpers may still be writing (Linux)
 
 
+class PipeStuck(unittest.TestCase):
+    """A call Chrome never answers fails with the call named (no browser: a pipe nobody writes to)."""
+
+    def test_a_silent_pipe_names_the_call(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()                       # what the test writes goes here, so it never comes back as an "answer"
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 0.2
+        p.events.append({"method": "Page.frameNavigated", "params": {"x": 1}})
+        if os.name == "nt":
+            self.skipTest("select does not take pipes on Windows")
+        with self.assertRaises(RuntimeError) as cm:
+            p.call("Emulation.setEmulatedMedia", {"features": []}, "S9")
+        text = str(cm.exception)
+        for part in ("call 1", "Emulation.setEmulatedMedia", "S9", "Page.frameNavigated"):
+            self.assertIn(part, text)
+
+    def test_an_answer_in_time_is_returned(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 5
+        os.write(w, json.dumps({"id": 1, "result": {"ok": 1}}).encode() + b"\0")
+        self.assertEqual(p.call("Page.enable", {}, "S1"), {"ok": 1})
+
+
 class PipeFocus(unittest.TestCase):
     """Every page attached through the shared pipe gets focus emulation (no browser: a fake records the calls)."""
 
@@ -1606,13 +1711,14 @@ class PipeFocus(unittest.TestCase):
     def test_attaching_turns_on_focus_emulation_for_that_session(self):
         p = self.pipe()
         p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
-        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1"),
+                                  ("Emulation.setEmulatedMedia", "S1")])
 
     def test_a_pipe_switched_off_leaves_the_page_unfocused(self):
         p = self.pipe()
         p.FOCUS_EMULATION = False
         p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
-        self.assertEqual(p.sent, [("Target.attachToTarget", None)])
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setEmulatedMedia", "S1")])
 
     def test_other_calls_are_left_alone(self):
         p = self.pipe()
@@ -1631,7 +1737,7 @@ class PipeFocus(unittest.TestCase):
         p._call_once = spy
         got = p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
         self.assertEqual(got, {"sessionId": "S1"})
-        self.assertEqual(seen[-1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
+        self.assertEqual(seen[1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
 
     def test_an_attach_answer_with_no_session_gets_no_emulation_call(self):
         for answer in ({}, None, "S1", {"sessionId": ""}):
@@ -1650,6 +1756,78 @@ class PipeFocus(unittest.TestCase):
             return {"sessionId": "S1"}
         p._call_once = once
         self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
+
+    def test_attaching_sets_no_preference_motion_for_that_session(self):
+        p = self.pipe()
+        seen = []
+        once = p._call_once
+        p._call_once = lambda m, params=None, session=None: seen.append((m, params, session)) or once(m, params, session)
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(seen[-1], ("Emulation.setEmulatedMedia",
+                                    {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, "S1"))
+
+    def test_a_pipe_with_motion_emulation_off_sends_no_motion_call(self):
+        p = self.pipe()
+        p.MOTION_EMULATION = False
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+
+    def test_a_target_without_the_emulation_domain_for_motion_still_attaches(self):
+        p = self.pipe()
+
+        def once(method, params=None, session=None):
+            if method == "Emulation.setEmulatedMedia":
+                raise RuntimeError({"code": -32601, "message": "not found"})
+            return {"sessionId": "S1"}
+        p._call_once = once
+        self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
+
+
+class PipeMotionMerge(unittest.TestCase):
+    """Emulation.setEmulatedMedia through the shared pipe keeps the no-preference motion default (no browser: a fake records)."""
+
+    DEFAULT = {"name": "prefers-reduced-motion", "value": "no-preference"}
+
+    def sent_params(self, params, off=False):
+        p = _Pipe(0, 0)
+        got = []
+        p._call_once = lambda method, prm=None, session=None: got.append((method, prm, session)) or {}
+        if off:
+            p.MOTION_EMULATION = False
+        p.call("Emulation.setEmulatedMedia", params, "S1")
+        return got
+
+    def test_a_colour_scheme_call_gets_the_default_appended(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme]}),
+                         [("Emulation.setEmulatedMedia", {"features": [scheme, self.DEFAULT]}, "S1")])
+
+    def test_a_call_naming_reduced_motion_passes_through_unchanged(self):
+        reduce = {"name": "prefers-reduced-motion", "value": "reduce"}
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme, reduce]})[0][1], {"features": [scheme, reduce]})
+
+    def test_an_element_that_is_not_a_dict_names_nothing_and_stays(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        odd = ["text", None, 7]
+        self.assertEqual(self.sent_params({"features": [scheme] + odd})[0][1], {"features": [scheme] + odd + [self.DEFAULT]})
+
+    def test_an_empty_features_list_gets_the_default(self):
+        self.assertEqual(self.sent_params({"features": []})[0][1], {"features": [self.DEFAULT]})
+
+    def test_a_call_with_other_params_keeps_them(self):
+        self.assertEqual(self.sent_params({"media": "print", "features": []})[0][1], {"media": "print", "features": [self.DEFAULT]})
+
+    def test_the_callers_params_are_not_changed(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        params = {"features": [scheme]}
+        self.sent_params(params)
+        self.assertEqual(params, {"features": [{"name": "prefers-color-scheme", "value": "dark"}]})
+
+    def test_with_motion_emulation_off_nothing_is_added(self):
+        scheme = {"name": "prefers-color-scheme", "value": "dark"}
+        self.assertEqual(self.sent_params({"features": [scheme]}, off=True)[0][1], {"features": [scheme]})
+        self.assertEqual(self.sent_params({"features": []}, off=True)[0][1], {"features": []})
 
 
 if __name__ == "__main__":

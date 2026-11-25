@@ -14,7 +14,7 @@
 //   ed.run(name, arg), ed.can(name), ed.active(name)   the toolbar's commands (see COMMANDS)
 //   ed.focus(), ed.destroy()
 // Keys: Cmd or Ctrl + Enter saves (onSave), Esc cancels (onCancel). A plain profile also saves on Enter (one line).
-import { createEditor } from "tiptap";
+import { createEditor, Mark } from "tiptap";
 import { cleanHtml, href, SanitiseError } from "../logic/cleanHtml.js";
 import { toHtml, forEditor } from "./richHtml.js";
 
@@ -23,8 +23,24 @@ export { SanitiseError };
 // Left out of the vendored feature set: Markdown and the raw-HTML nodes, code, images, and the claim mark.
 const DROP = new Set(["markdown", "htmlBlock", "htmlBlockFromMarked", "htmlInline", "literal", "image", "code"]);
 
+// Row 1364: font colour. One mark, written as ONE span with a class from the fixed set (no style attribute, never a hex): the cleaner
+// (sanitise.COLOUR_CLASSES) keeps exactly these, and the page's and the published file's stylesheets draw each from a design token.
+export const COLOURS = ["grey", "brand", "red", "amber", "green", "blue"];
+const FontColour = Mark.create({
+  name: "fontColour",
+  addAttributes() { return { colour: { default: null, parseHTML: (el) => (el.getAttribute("class") || "").replace(/^rt-c-/, ""), renderHTML: () => ({}) } }; },
+  parseHTML() { return [{ tag: "span", getAttrs: (el) => (COLOURS.some((c) => el.getAttribute("class") === `rt-c-${c}`) ? null : false) }]; },
+  renderHTML({ mark }) { return ["span", { class: `rt-c-${mark.attrs.colour}` }, 0]; },
+  addCommands() {
+    return {
+      setFontColour: (colour) => ({ commands }) => COLOURS.includes(colour) && commands.setMark(this.name, { colour }),
+      unsetFontColour: () => ({ commands }) => commands.unsetMark(this.name, { extendEmptyMarkRange: true }),
+    };
+  },
+});
+
 function rich(list) {
-  return list.filter((e) => !DROP.has(e.name)).map((e) => {
+  return list.concat([FontColour]).filter((e) => !DROP.has(e.name)).map((e) => {
     if (e.name === "starterKit") {
       return e.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false, underline: false, code: false, dropcursor: false,
         gapcursor: false, link: false, trailingNode: false, horizontalRule: {}, blockquote: {}, strike: {} });
@@ -67,8 +83,9 @@ const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["h
   link: ["link"] };
 
 // Item 1005: the cleaner drops the next-line character (U+0085) as a control, which glued the words either side of it. It is a space.
+// Row 1288: so are the line and paragraph separators (U+2028, U+2029), as in the old one-line field; the store still refuses them if one arrives.
 function nelToSpace(node) {
-  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/\u0085/g, " ") };
+  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/[\u0085\u2028\u2029]/g, " ") };
   return node && node.content ? { ...node, content: node.content.map(nelToSpace) } : node;
 }
 
@@ -76,7 +93,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
   const plain = profile === "plain";
   const bare = plain || oneLine;                     // oneLine (item 1005): the rich profile's HTML in and out, but paragraphs only: no marks, no lists, no input rules, a paste is its words on one line
   const stored = html || "";
-  let initial = null, done = false;
+  let initial = null, done = false, ready = false;
   let start = "";
   if (!plain) {
     try { start = forEditor(cleanHtml(stored)); } catch (e) { start = ""; }
@@ -103,11 +120,16 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
     editorProps: { handleKeyDown: keys, transformPastedHTML: oneLine ? pasteWords : cleanPaste,
       ...(oneLine ? { transformPastedText: (text) => text.replace(/\s+/g, " ").trim() } : {}),      // text only on the clipboard (a terminal, a plain editor, Shift+paste) is one line too
       attributes: { class: "clark-ed", "aria-label": plain ? "Text" : "Rich text", "aria-multiline": plain ? "false" : "true", role: "textbox" } },
-    onUpdate: () => { if (onChange) onChange(handle); },
-    onSelectionUpdate: () => { if (onChange) onChange(handle); },
+    onUpdate: () => { if (ready && onChange) onChange(handle); },
+    onSelectionUpdate: () => { if (ready && onChange) onChange(handle); },
   });
   if (plain) editor.commands.setContent(`<p>${stored.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`, { emitUpdate: false });
+  if (oneLine && editor.state.doc.childCount > 1) {        // row 1288: One line shows an old several-paragraph text joined with one space; the stored text stays as it was until the box is edited (dirty() is measured from this joined line)
+    const joined = editor.state.doc.textBetween(0, editor.state.doc.content.size, " ", " ").replace(/\s+/g, " ").trim();
+    editor.chain().setMeta("addToHistory", false).setContent(`<p>${joined.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`, { emitUpdate: false }).run();      // not an edit: Undo must not bring the paragraphs back
+  }
   initial = editor.state.doc;
+  ready = true;
   const handle = {
     editor,
     dirty: () => !editor.state.doc.eq(initial),
@@ -125,10 +147,12 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
         if (!a) return false;
         return c.extendMarkRange("link").setLink({ href: a }).run();
       }
+      if (name === "colour") return (COLOURS.includes(arg) ? c.setFontColour(arg) : c.unsetFontColour()).run();      // no name = Automatic
       if (name === "unlink") return c.extendMarkRange("link").unsetLink().run();
       const f = COMMANDS[name];
       return f ? f(c).run() : false;
     },
+    colour: () => { const c = (editor.getAttributes("fontColour") || {}).colour; return COLOURS.includes(c) ? c : null; },      // the colour at the selection, or null (Automatic)
     linkAddress: () => (editor.getAttributes("link") || {}).href || "",
     focus: () => editor.commands.focus("end"),
     destroy() { if (!done) { done = true; editor.destroy(); } },

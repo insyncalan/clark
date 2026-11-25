@@ -60,6 +60,21 @@ class PictureRefused(ValueError):
     """The picture was not used; the message says why, in plain words."""
 
 
+DOCTYPE = re.compile(rb"<!\s*(?:doctype|entity)", re.I)
+
+
+def has_doctype(data):
+    """True if the XML bytes hold a DOCTYPE or ENTITY declaration (entity expansion, the billion laughs). A NUL byte is dropped first, so
+    UTF-16 text is seen too. Bytes in, nothing parsed: it is the check made before any parser gets the part."""
+    return DOCTYPE.search(data.replace(b"\x00", b"")) is not None
+
+
+def _parse(data, name):
+    if has_doctype(data):
+        raise PictureRefused(f"the workbook part {name} holds a DOCTYPE or entity, which clark does not read")
+    return ET.fromstring(data)
+
+
 def read_size(data, name="the picture"):
     """(width, height) from a PNG's bytes, or PictureRefused. Reads the header only."""
     if len(data) > MAX_BYTES:
@@ -253,21 +268,21 @@ def _rels_xml(items):
 
 def _cover_part(files, sheet_name):
     """The part name of the sheet called `sheet_name` (xl/worksheets/sheet1.xml), or None."""
-    wb = ET.fromstring(files["xl/workbook.xml"])
+    wb = _parse(files["xl/workbook.xml"], "xl/workbook.xml")
     rid = None
     for s in wb.iter(f"{{{NS_MAIN}}}sheet"):
         if s.get("name") == sheet_name:
             rid = s.get(f"{{{NS_REL}}}id")
     if rid is None:
         return None
-    for r in ET.fromstring(files["xl/_rels/workbook.xml.rels"]):
+    for r in _parse(files["xl/_rels/workbook.xml.rels"], "xl/_rels/workbook.xml.rels"):
         if r.get("Id") == rid:
             target = r.get("Target")
             return target.lstrip("/") if target.startswith("/") else "xl/" + target
     return None
 
 
-def embed(files, png, sheet_name="Cover", wave=None):
+def embed(files, png, sheet_name="Report", wave=None):
     """`files` ({member name: bytes} of a saved .xlsx) with the PNG `png` added to the sheet called `sheet_name`: returns
     (replacements, additions), two dicts of member name to bytes, for the caller to write. Nothing is changed in `files`. Raises
     PictureRefused if the workbook has no such sheet or is not laid out as openpyxl lays it out. `png` (the logo) and `wave` (the

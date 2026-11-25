@@ -148,9 +148,11 @@ class RichWords(unittest.TestCase):
         self.assertEqual(refused(self, KIND, {"v": 1, "html": "<p>" + "x" * (textimage.HTML_MAX + 1) + "</p>"}), textimage.LONG_HTML)
         self.assertEqual(check(KIND, {"v": 1, "html": "<p>" + "x" * 1000 + "</p>"})["html"], "<p>" + "x" * 1000 + "</p>")
 
-    def test_a_published_file_carries_the_cleaned_words_and_word_has_no_part_of_it(self):
-        from clark import docx_build
-        self.assertNotIn(KIND, docx_build.TITLES, "Word writes no section template: the new words have nowhere to leak")
+    def test_a_published_file_carries_the_cleaned_words_and_word_writes_the_section_too(self):
+        from clark import docx_build      # Row 1232 (AP17): the Word export carries Text and Image Side by Side; its words and picture are tested in test_docx_textimage
+        self.assertIn(KIND, docx_build.TITLES)
+        self.assertIn(KIND, docx_build.SIMPLE)
+        self.assertTrue(callable(docx_build.section_textimage))
 
 
 class Route(PictureSteps, Api):
@@ -250,7 +252,7 @@ class Http(unittest.TestCase):
         self.assertEqual(status, 200, got)
         self.assertIsInstance(got["apply_id"], int)
         self.assertEqual(self.post("/api/section-image", {"project": "ABC"}, token="wrong")[0], 403)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 11 * 1024 * 1024)      # row 1223: one Full width image (8 MiB) as text
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 14 * 1024 * 1024)      # row 1233: one gallery picture (10 MiB) as text
         for route in ("/api/section-image", "/api/change"):
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(sv.ROUTE_BODY_LIMITS[route] + 1)}
             status, _, raw = self.s.ask("POST", route, over, b"{}")
@@ -434,7 +436,7 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")
             p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
-            self.assertEqual(self.body(ref)["caption"], "Fictional hall")
+            self.assertEqual(self.body(ref)["caption"], "<p>Fictional hall</p>")
             p.clear_toast()
             # a picture, chosen as a file: drawn on a canvas, shrunk and sent on its own
             p.js(f"""(async () => {{
@@ -468,7 +470,7 @@ class InThePage(PageBase):
             # one Undo takes the picture back out, and keeps the words
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"!document.querySelector('{sel} .tpl-pic-slot.has-pic')", "Undo took the picture out")
-            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS), "caption": "Fictional hall"})
+            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS), "caption": "<p>Fictional hall</p>"})
             p.view()
             p.until(f"!!document.querySelector('{sel} .tpl-words')", "View draws the words")
             self.assertFalse(p.js(f"!!document.querySelector('{sel} img')"))

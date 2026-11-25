@@ -639,6 +639,25 @@ def _run(args, run=None):
     return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)
 
 
+def run_jxa(script, args=(), timeout=30, run=None, on=None):
+    """Run a JavaScript-for-Automation `script` on this Mac with the system's own osascript and return what it printed (text).
+    The script text and each of `args` are separate arguments of one argument list (never a shell); the script reads them in its
+    run(argv) function. A run that outlasts `timeout` seconds is stopped. Raises PlatformError when it fails or times out, and
+    NotBuiltYet off a Mac. Nothing is sent anywhere by this function (#1366: the picture reader)."""
+    _only_mac("Reading a picture", on)
+    argv = ["osascript", "-l", "JavaScript", "-e", script, *[str(a) for a in args]]
+    try:
+        done = (run or subprocess.run)(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
+                                       timeout=timeout, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise PlatformError("The script did not finish in time.") from None
+    except OSError:
+        raise PlatformError("The script could not be started.") from None
+    if done.returncode != 0:
+        raise PlatformError("The script failed.")
+    return done.stdout or ""
+
+
 def open_file(path, run=None, on=None):
     """Open `path` in the program the system uses for it (Finder's double-click)."""
     _only_mac("Opening a file", on)
@@ -746,6 +765,30 @@ OPEN_SCRIPT = """on run argv
   end if
   return POSIX path of (choose file with prompt (item 1 of argv))
 end run"""
+OPEN_TYPES_SCRIPT = """on run argv
+  set kinds to {}
+  repeat with i from 2 to (count of argv)
+    set end of kinds to (item i of argv)
+  end repeat
+  return POSIX path of (choose file with prompt (item 1 of argv) of type kinds)
+end run"""
+OPEN_MANY_SCRIPT = """on run argv
+  set kinds to {}
+  repeat with i from 2 to (count of argv)
+    set end of kinds to (item i of argv)
+  end repeat
+  if (count of kinds) > 0 then
+    set picked to (choose file with prompt (item 1 of argv) of type kinds with multiple selections allowed)
+  else
+    set picked to (choose file with prompt (item 1 of argv) with multiple selections allowed)
+  end if
+  set out to {}
+  repeat with f in picked
+    set end of out to POSIX path of f
+  end repeat
+  set AppleScript's text item delimiters to linefeed
+  return out as text
+end run"""
 
 
 def choose_folder(prompt, start=None, run=None, on=None):
@@ -766,11 +809,27 @@ def choose_save_file(prompt, default_name, start=None, run=None, on=None):
     return _dialog(SAVE_SCRIPT, [prompt, safe_name(default_name)] + ([str(start)] if start else []), run, "Save")
 
 
-def choose_open_file(prompt, start=None, run=None, on=None):
+def choose_open_file(prompt, start=None, run=None, on=None, types=None):
     """The system's own Open dialog, for one existing file (#96: a file for a section template). The chosen file, or None if the
-    person cancelled. clark only learns the path; nothing is read here."""
+    person cancelled. clark only learns the path; nothing is read here. `types`: file endings (no dot) the dialog offers, and
+    nothing else; with it the dialog has no start folder."""
     _only_mac("The Open dialog", on)
+    if types:
+        return _dialog(OPEN_TYPES_SCRIPT, [prompt, *types], run, "file")
     return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "file")
+
+
+def choose_open_files(prompt, run=None, on=None, types=None):
+    """Row 1593: the system's own Open dialog with several files allowed. The chosen files as a list, in the order the dialog gives
+    them, or None if the person cancelled. `types` as in choose_open_file. clark only learns the paths; nothing is read here."""
+    _only_mac("The Open dialog", on)
+    done = _run(["osascript", "-e", OPEN_MANY_SCRIPT, prompt, *(types or ())], run)
+    if done.returncode != 0:
+        if CANCELLED in (done.stderr or ""):
+            return None
+        raise PlatformError(f"The file window could not be opened. {TRY_AGAIN}")
+    picked = [Path(line) for line in (done.stdout or "").split("\n") if line.strip()]
+    return picked or None
 
 
 def _dialog(script, args, run, which):

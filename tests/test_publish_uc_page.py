@@ -27,7 +27,7 @@ PEEK_RO = ("[...document.querySelectorAll('[data-peek] *')].filter(e => e.matche
 
 class TheFilesUseCasePage(unittest.TestCase):
     def test_a_client_opens_the_page_and_sees_it_read_only(self):
-        plant, pub, text = made()
+        plant, pub, text = made(with_owner)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "r.html"
             path.write_text(text, encoding="utf-8")
@@ -58,10 +58,17 @@ class TheFilesUseCasePage(unittest.TestCase):
                     uc = pub["data"]["use_cases"][0]
                     det = js(cdp, sid, "(() => { const c = document.querySelector('[data-ucf-details]'); return c ? {labels: [...c.querySelectorAll('dt')].map(e => e.textContent), text: c.innerText, controls: c.querySelectorAll('input, textarea, select, button, a, [contenteditable=true]').length} : null; })()")
                     self.assertIsNotNone(det, "a Details card")
-                    self.assertEqual(det["labels"], ["Status"] + (["Commitment"] if uc.get("commitment") else []))
+                    # row 1479 (the 20-11 decision): Owner is shown, Last change is not, there is no History card
+                    self.assertEqual(det["labels"], ["Owner", "Status"] + (["Commitment"] if uc.get("commitment") else []))
+                    self.assertIn(OWNER, det["text"])
+                    self.assertEqual(uc["owner"], OWNER)
+                    # row 1479 (PM 22-11): 'Directly' for a milestone the use case itself is linked to, 'Through work items' for one only a step names
+                    how = js(cdp, sid, "Object.fromEntries([...document.querySelectorAll('[data-ucf] [data-ms-how]')].map(e => [e.parentElement.querySelector('[data-ms-open]').dataset.msOpen, e.textContent]))")
+                    self.assertEqual(how, {"PUB-M-001": "Through work items", "PUB-M-002": "Directly"}, "the label of how a milestone is reached, with no explanation line")
+                    self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-ucf] [data-ms-note]').length"), 0)
                     self.assertIn(uc["status"], det["text"])
                     self.assertEqual(det["controls"], 0, "the Details card is read only")
-                    for word in ("OWNER", "LAST CHANGE", "DASHBOARD"):
+                    for word in ("LAST CHANGE", "DASHBOARD"):
                         self.assertNotIn(word, det["text"].upper(), "a field the file does not carry")
                     self.assertNotIn("HISTORY", page.upper(), "no History in a published file")
                     self.assertNotIn("CHANGE STATUS", page.upper())
@@ -82,6 +89,14 @@ class TheFilesUseCasePage(unittest.TestCase):
                     self.assertTrue(js(cdp, sid, "!!document.querySelector('#peek [data-ms-head]')"), "it is the milestone peek")
                     self.assertEqual(js(cdp, sid, PEEK_RO), 0, "the milestone peek is read only")
                     self.assertTrue(js(cdp, sid, "document.documentElement.scrollWidth <= window.innerWidth"))
+
+
+OWNER = "ZQ-OWNER-1479 Placeholder Owner"
+
+
+def with_owner(plant):
+    planted(plant)
+    plant["data"]["use_cases"][0]["owner"] = OWNER
 
 
 def plant_two(plant):

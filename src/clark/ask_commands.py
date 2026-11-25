@@ -1,5 +1,5 @@
-"""#1295: where the slash commands of ask clark are kept, one small JSON file per slash command in an `ask-commands` folder (ruled: files, not the settings
-store). Unguarded; ask_commands_service.py routes to it. The rules are those of page/src/logic/askShortcuts.js, in the same words.
+"""Row 1295: where the slash commands of ask clark are kept: the store, one small JSON per slash command in an `ask-commands` folder of clark's own data folder
+(ruled 20-11: JSON in the store). Unguarded; ask_commands_service.py routes to it. The rules are those of page/src/logic/askShortcuts.js, in the same words.
 
 A file is `<name>.json` holding {name, menu, text, scope, result} (a person's own version of a built-in also has "replaces": that name; an
 AI-written one has "ai": true). read() skips a file it cannot trust and lists it, so one damaged file never hides the rest. write() checks
@@ -48,31 +48,58 @@ def name_problem(name, taken=(), self_name="", builtins=()):
     return ""
 
 
-def problems(rec, taken=(), self_name="", builtins=()):
-    """Every plain-words problem with a record's fields (empty list when it can be saved)."""
-    out = []
-    if not isinstance(rec, dict):
-        return ["That slash command could not be read."]
+def field_problems(rec, taken=(), self_name="", builtins=()):
+    """{field: [plain-words problems]} for a record's fields; a field with no problem is not in it. `rec` is a dict."""
+    out = {}
     if not rec.get("replaces"):
         p = name_problem(rec.get("name"), taken, self_name, builtins)
         if p:
-            out.append(p)
+            out["name"] = [p]
     menu, text = rec.get("menu"), rec.get("text")
     menu = menu if isinstance(menu, str) else ""
     text = text if isinstance(text, str) else ""
     if len(menu) > MENU_MAX:
-        out.append("The line in the menu can be at most %d characters." % MENU_MAX)
+        out.setdefault("menu", []).append("The line in the menu can be at most %d characters." % MENU_MAX)
     if not menu.strip():
-        out.append("Say what it does in the menu, in a few words.")
+        out.setdefault("menu", []).append("Say what it does in the menu, in a few words.")
     if len(text) > TEXT_MAX:
-        out.append("The instructions can be at most %s characters." % format(TEXT_MAX, ","))
+        out.setdefault("text", []).append("The instructions can be at most %s characters." % format(TEXT_MAX, ","))
     if not text.strip():
-        out.append("Say what it should do, in plain words.")
+        out.setdefault("text", []).append("Say what it should do, in plain words.")
     if rec.get("scope") not in SCOPES:
-        out.append("Choose where it appears.")
+        out["scope"] = ["Choose where it appears."]
     if rec.get("result") not in RESULTS:
-        out.append("Choose what you get.")
+        out["result"] = ["Choose what you get."]
     return out
+
+
+def problems(rec, taken=(), self_name="", builtins=()):
+    """Every plain-words problem with a record's fields (empty list when it can be saved)."""
+    if not isinstance(rec, dict):
+        return ["That slash command could not be read."]
+    return [m for ms in field_problems(rec, taken, self_name, builtins).values() for m in ms]
+
+
+def readable_lines(path):
+    """Row 1435: the lines of a damaged file that can be read. A line is one field of the JSON record, written as `"field": value`. The file is read as JSON; a field is kept
+    when it passes the same per-field checks read() makes (`field_problems`, the file name is the record's name, `replaces` is the name of an unlocked built-in or absent);
+    unknown fields and a JSON that is not an object count as left out. Returns (kept_lines, left_out), or None when the file is not JSON at all."""
+    p = Path(path)
+    try:
+        if p.is_symlink() or p.stat().st_size > FILE_LIMIT:
+            return None
+        rec = json.loads(p.read_text(encoding="utf-8"))
+    except ValueError:                                  # json.JSONDecodeError and UnicodeDecodeError
+        return None
+    if not isinstance(rec, dict):
+        return [], 1
+    bad = set(field_problems(rec, (), rec.get("name"), ()))
+    if rec.get("name") != p.stem:
+        bad.add("name")
+    if rec.get("replaces") is not None and (rec.get("replaces") != rec.get("name") or rec.get("name") in LOCKED):
+        bad.add("replaces")
+    keep = [k for k in FIELDS + ("replaces", "ai") if k in rec and k not in bad]
+    return ['%s: %s' % (json.dumps(k), json.dumps(rec[k], ensure_ascii=False)) for k in keep], len(rec) - len(keep)
 
 
 class AskCommands:
@@ -108,6 +135,49 @@ class AskCommands:
             except (OSError, ValueError, KeyError):         # json.JSONDecodeError and UnicodeDecodeError are ValueErrors
                 damaged.append(f.name)
         return good, damaged
+
+    def fix(self, fname):
+        """Row 1435: the local fix of a file that does not read (no AI, nothing sent). The file's bytes are saved first as `<name>.old` (cmd.json becomes cmd.old, which the *.json glob of read() never matches), then the file is
+        rewritten with the lines `readable_lines` keeps. Returns (kept, left_out). Any failure raises Refused and leaves the file as it was."""
+        if fname not in self.read()[1]:
+            raise Refused("fix")
+        target = self.folder / fname
+        try:
+            if target.is_symlink():
+                raise Refused("fix")
+            got = readable_lines(target)
+            if got is None:
+                raise Refused("fix")
+            kept, left_out = got
+            if target.with_suffix(".old").exists() or target.with_suffix(".old").is_symlink():
+                raise Refused("fix")                 # a kept original is never overwritten: a second press finds it there and changes nothing
+            old = target.read_bytes()
+            self._swap(target.with_suffix(".old"), old)
+            self._swap(target, ("{\n" + ",\n".join(" " + k for k in kept) + "\n}\n" if kept else "{}\n").encode("utf-8"))
+        except OSError:
+            raise Refused("fix")
+        return len(kept), left_out
+
+    def unfix(self, fname):
+        """Undo of fix(): the `.old` copy comes back as the file, byte for byte, and the copy is removed."""
+        copy = (self.folder / fname).with_suffix(".old")
+        try:
+            if not fname.endswith(".json") or not copy.is_file() or copy.is_symlink():
+                raise Refused("fix")
+            self._swap(self.folder / fname, copy.read_bytes())
+            copy.unlink()
+        except OSError:
+            raise Refused("fix")
+
+    def _swap(self, target, data):
+        """Writes `data` to a side file and renames it over `target`, so a stop half way leaves the old file whole."""
+        side = target.with_name(target.name + ".part")
+        try:
+            side.write_bytes(data)
+            os.replace(side, target)
+        except OSError:
+            side.unlink(missing_ok=True)
+            raise
 
     def write(self, rec, was=None):
         """Saves one slash command. `was` is the name it had when opened (a rename removes the old file after the new one is whole).

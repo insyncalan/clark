@@ -104,6 +104,7 @@ class Source(unittest.TestCase):
         "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",
         "edit/AskPanel.jsx": "row 1292: the / list in the ask box completes what is typed (the ask commands), like the command palette: a list of typed matches, not a menu of actions",
         "edit/AskDraft.jsx": "row 1292: the Add to the report menu draws an icon on every line (doc to replace a section, plus for a new one); driven in test_ask_draft, where the ask answer with a draft exists",
+        "edit/templates/raidEdit.jsx": "row 1270: the Pick an item list completes what is typed (items by id and words), like the command palette: a list of typed matches, not a menu of actions",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
@@ -114,7 +115,7 @@ class Source(unittest.TestCase):
         "Command palette (edit/Palette.jsx)": "a search over pages, items and commands by what is typed",
         "Work items filter value box (components/WorkFilters.jsx, class fbox, role=group)":
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
-        "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
+        "Native select drop-downs (edit/AiSettings.jsx, edit/ChatsSettings.jsx (how long chats are kept), edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
         "edit/UseCasesEdit.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
         "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
@@ -179,8 +180,8 @@ ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=optio
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
          " const boxes = [...document.querySelectorAll(root)].filter(ok); const box = boxes[boxes.length - 1]; if (!box) return null;"
-         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av');"
-         " return {t: b.textContent.trim().slice(0, 40), w: s ? s.getBoundingClientRect().width : 0, off: b.getAttribute('aria-disabled') === 'true'}; }); })")
+         f" return [...new Set(box.querySelectorAll({json.dumps(ITEM)}))].filter(ok).map(b => {{ const s = b.querySelector('svg.i, .av, .tk');   /* row 1499 AP2: the Classic Columns menu line is a 16px tick cell then the name, as the 1195 mock-up draws it (work-items-mockup.html:2011, no icon) */"
+         " return {t: b.textContent.trim().slice(0, 40), w: s ? s.getBoundingClientRect().width : 0, off: b.getAttribute('aria-disabled') === 'true', pill: b.classList.contains('pr')}; }); })")
 CONTEXT = ("(sel => { const el = document.querySelector(sel); const r = el.getBoundingClientRect();"
            " el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2, clientX: r.left + 30, clientY: r.top + 8})); })")
 LOOKS = [(1400, "light"), (900, "dark"), (1400, "dark"), (900, "light")]
@@ -229,6 +230,8 @@ class Drive:
         self.t.assertGreaterEqual(len(got), minimum, where)
         for g in got:
             self.t.assertTrue(g["t"], f"{where}: a line has no words")
+            if g.get("pill"):      # row 1281, Classic: Appearance is one pill line (System | Light | Dark), whose cells draw words and no icon, as the approved mock-up
+                continue
             self.t.assertGreaterEqual(g["w"], 15, f"{where}: the line {g['t']!r} (disabled: {g['off']}) draws no icon")
         self.done.add(name)
         return got

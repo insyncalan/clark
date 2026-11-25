@@ -1,4 +1,4 @@
-// Row 1223: every word and number of the Full width image template (an imagecap section with a body of version 2), in one place. Words
+// Row 1223: every word and number of the Image template (an imagecap section with a body of version 2), in one place. Words
 // are ruled. "image", never "picture", on
 // screen. Pure: no DOM, no Preact; the page's Edit and View parts and the tests read it.
 
@@ -12,15 +12,15 @@ export const FILLS = ["blur", "brand", "plain"];
 
 // Numbers: the print width (300 dpi across about 257 mm), the small-image width, the flattest and tallest a height may be.
 export const PRINT_WIDE = 3000;
-export const SMALL_WIDE = 1200;
+export const SMALL_WIDE = 600;
 export const FLATTEST = 4;               // width : height, at most
 export const TALLEST = 0.7;              // of the window's height
 export const MOST_BYTES = 3 * 1024 * 1024;   // the original and the framed copy, each, decoded (imagecap.py ORIGINAL_MAX, FRAMED_MAX)
 export const PAGE_INCHES = 257 / 25.4;   // the content width of A4 landscape
 
 export const WORDS = {
-  name: "Full width image",
-  description: "One image across the full width, framed as you choose, with an optional caption.",
+  name: "Image",
+  description: "One image, framed as you choose, with an optional caption.",
   holds: ["Image", "Caption (optional)"],
   hint: "Choose an image. Until then this section stays out of the published report.",
   choose: "Choose an image",
