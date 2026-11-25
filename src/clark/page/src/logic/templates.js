@@ -272,7 +272,7 @@ export const STARTERS = [
   { id: "status", name: "Status", parts: [
     { template: "report-headline", prompt: "Write the headline in one line: where the project stands this week." },
     { template: "figures-4", prompt: "Add the number and what it counts." },
-    { template: "raid-3", live: true },
+    { template: "raid-cards", live: true },
     { template: "key-dates", live: true }] },
   { id: "documents", name: "Documents", parts: [
     { template: "text", prompt: "Say in one line what these papers are and why the reader needs them." },
