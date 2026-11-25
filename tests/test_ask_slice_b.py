@@ -215,7 +215,7 @@ class CountsFromTheData(unittest.TestCase):
         given["data"] = dict(given["data"], decisions=[])
         with mock.patch.object(publish, "read_inputs", return_value=given) as read:
             got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
-        read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17")
+        read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17", ask=True)
         selected = ask_data.own_rows(given)      # row 1367: the project's own rows, not the published ones
         self.assertEqual({k: t for k, _s, t in got.counts}, {k: len(selected[k]) for k in ask_data.KIND_ORDER if selected.get(k)})
         self.assertNotIn("decisions", [k for k, _s, _t in got.counts])
@@ -224,7 +224,7 @@ class CountsFromTheData(unittest.TestCase):
     def test_no_as_at_is_handed_on_as_none(self):
         with mock.patch.object(publish, "read_inputs", return_value=plant.inputs()) as read:
             ask_data.project_data(object(), "PUB", "q")
-        read.assert_called_once_with(mock.ANY, "PUB", None)
+        read.assert_called_once_with(mock.ANY, "PUB", None, ask=True)
 
     def test_a_password_in_a_row_is_counted_in_secret(self):
         given = plant.inputs()

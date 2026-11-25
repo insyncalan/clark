@@ -41,14 +41,14 @@ ON = "2030-06-01"
 HEADERS = {
     "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
                    "Sort order", "Progress %", "Owner", "State", "State reason", "Movement",
-                   "Achieved on", "Client visible", "Client Message", "Latest update", "Internal note", "Open work items", "Added from", "Last updated"],
+                   "Achieved on", "Client visible", "Client wording", "Latest update", "Internal note", "Open work items", "Added from", "Last updated"],
     "Actions": ["ID", "Title", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
-                "Latest update", "Client visible", "Client Message", "Milestone", "Use case", "Labels", "Added from", "Last updated"],
+                "Latest update", "Client visible", "Client wording", "Milestone", "Use case", "Labels", "Added from", "Last updated"],
     "Risks & Issues": ["ID", "Title", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
-             "Priority", "Status", "Raised", "Closed", "Latest update", "Client visible", "Client Message", "Milestone", "Use case", "Labels",
+             "Priority", "Status", "Raised", "Closed", "Latest update", "Client visible", "Client wording", "Milestone", "Use case", "Labels",
              "Added from", "Last updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Decided on", "Reasoning", "Options considered", "Revisit",
-                  "Replaces", "Latest update", "Client visible", "Client Message", "Use case", "Labels", "Added from", "Last updated"],
+                  "Replaces", "Latest update", "Client visible", "Client wording", "Use case", "Labels", "Added from", "Last updated"],
     "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Sort order", "On the dashboard",
                   "Linked milestones", "Open work items", "Added from", "Last updated"],
 }
@@ -130,7 +130,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
+        self.assertEqual(wb.sheetnames, ["Report", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
@@ -139,9 +139,9 @@ class ExcelTests(unittest.TestCase):
         for name in ("Actions", "Risks & Issues", "Decisions", "Milestones"):
             with self.subTest(sheet=name):
                 heads = [c.value for c in wb[name][1]]
-                self.assertIn("Client Message", heads)
-                self.assertNotIn("Client wording", heads)
-        self.assertNotIn("Client Message", [c.value for c in wb["Use cases"][1]])
+                self.assertIn("Client wording", heads)
+                self.assertNotIn("Client Message", heads)
+        self.assertNotIn("Client wording", [c.value for c in wb["Use cases"][1]])
 
     def test_every_kind_is_there(self):
         types = {k: c.value for k, c in self.column(self.sheet("Risks & Issues"), "Type").items()}
@@ -240,7 +240,7 @@ class ExcelTests(unittest.TestCase):
         wb = load_workbook(self.d.path)
         self.assertEqual(wb.sheetnames[-3:-1], ["History", "Lists"])
         self.assertEqual(wb["Lists"].sheet_state, "hidden")
-        self.assertEqual(wb["History"].sheet_state, "visible")
+        self.assertEqual(wb["History"].sheet_state, "hidden")        # 1390
 
     def test_every_sheet_named_in_a_formula_exists_and_needs_no_quotes(self):
         import re

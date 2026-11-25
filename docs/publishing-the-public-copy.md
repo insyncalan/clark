@@ -96,6 +96,8 @@ Then read the result:
     gh run list -R <owner>/<repo> --workflow tests.yml --branch release-0.1.0
     gh run view <run id> -R <owner>/<repo>
 
+From release 1.3.4 up the branch name `release-X.Y.Z` also needs `--zip <the release zip>` and `--sig <its .sig>` (dev/RELEASING.md step 7a). The tool checks that the `.sig` verifies over the zip with the release key (`FIRST_SIGNED` in `src/clark/updates.py`) and refuses the push if either file is missing or the `.sig` does not verify. A release below 1.3.4 is not asked, and neither is any other branch name.
+
 If it is green, the release is clean on three systems. If it fails, fix it in the private repo, merge, and publish again to the same branch: it becomes the next snapshot on top.
 
 ## When a check refuses

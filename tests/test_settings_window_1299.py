@@ -15,7 +15,7 @@ from test_publish_dialog import Base
 from test_publish_route import Rig
 from test_server import chrome
 from test_settings_bar import calm
-from test_settings_head import PAGES, address, ratio, rgb
+from test_settings_head import CLASSIC_PAGES as PAGES, address, ratio, rgb
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")

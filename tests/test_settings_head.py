@@ -19,7 +19,7 @@ from test_server import chrome, wait
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
-CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
+CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
          ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
@@ -27,20 +27,20 @@ CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing"
 OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")]), ("people", "People", [("People", "people-h")]),
                         ("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")])]),
           ("Publishing", [("folder", "Folder", [("Publishing", "client-folder-h")]), ("brand", "Brand", [("Brands", "brands-h")]), ("theme", "Theme", [("Theme", "theme-settings-h")])]),
-          ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")])]),
+          ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")])]),
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
-NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Appearance", [("Personal", "personal-h")]),
-                       ("theme", "Theme", [("Theme", "theme-settings-h")])]),      # row 1299 1a: the mock-up's four groups, in its order
-              ("All projects", [("projects", "Projects", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
-              ("Project settings", [("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]), ("folder", "Folder", [("Publishing", "client-folder-h")]),
-                                    ("brand", "Brand", [("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]), ("claude", "ask clark", [("Asking", "ask-settings-h")]),
-                                    ("data", "Export and import", [("Data", "data-card-h")])]),
-              ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]),
-                                  ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
 VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
-GROUPS = NEW_GROUPS if '["You", [[' in VIEWS.read_text(encoding="utf-8") else OLD_GROUPS      # the menu is in four groups when Views.jsx has them
+# Row 1299 1a: the Classic theme's four groups (Views.jsx GROUPS_CLASSIC), the menu the Classic tests (window, tabs, overview) walk; (slug, menu name, cards)
+CLASSIC_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Look", [("Personal", "personal-h"), ("Theme", "theme-settings-h")])]),
+                  ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
+                  ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")]),
+                                        ("brand", "Brand and publishing", [("Publishing", "client-folder-h"), ("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]),
+                                        ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+                  ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
+CLASSIC_PAGES = [page for _, pages in CLASSIC_GROUPS for page in pages]
+GROUPS = OLD_GROUPS      # row 1299 1a: the four groups are the Classic theme's only; these tests run with the Cards look, which keeps the five groups
 PAGES = [page for _, pages in GROUPS for page in pages]      # (slug, menu name, cards)
 PAGE_OF = {head: slug for slug, _, cards in PAGES for _, head in cards}      # which page a card's heading is on
 FIRST = "projects"      # the plain address is the Projects page (router.SETTINGS_PAGES[0]); the old slugs all work
@@ -96,7 +96,10 @@ class Head(Base):
         p.until(f"[...document.querySelectorAll('.set-nav .set-chip')].some(b => b.textContent === '{name}')", f"the {name} menu item is drawn")
         p.settled(f"the {name} menu item stopped moving before it is clicked")
         self.click_chip(p, name)
-        p.until(drew, f"the {name} page drew")
+        if not wait(lambda: p.js(drew), 15):
+            # The evidence is read only after the wait failed: a passing run costs nothing extra.
+            chip = p.js("(document.querySelector('.set-chip[aria-current]')||{}).textContent")
+            self.fail(f"the {name} page drew; location.hash={p.js('location.hash')!r}; marked chip={chip!r}; heading present={p.js(heads)}; trail={self.trail(p)}")
         p.settled("the page finished drawing")
 
     def chips(self, p):

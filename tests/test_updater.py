@@ -136,9 +136,8 @@ class ReviewTest(Rig):
         self.chosen = None
         self.assertEqual((200, {"ok": True, "cancelled": True}), self.up.review({"from": "file"}))
 
-    def test_an_unsigned_or_wrongly_signed_update_is_refused_with_nothing_kept(self):
-        for label, change in (("unsigned", lambda: os.unlink(str(self.download) + ".sig")),
-                              ("badsig", lambda: Path(str(self.download) + ".sig").write_bytes(bytes(63) + b"x"))):
+    def test_a_wrongly_signed_update_is_refused_with_nothing_kept(self):      # row 1328 ruling: an update with no .sig at all is accepted
+        for label, change in (("badsig", lambda: Path(str(self.download) + ".sig").write_bytes(bytes(63) + b"x")),):
             with self.subTest(label):
                 change()
                 status, body = self.up.review({"from": "downloads"})
@@ -152,6 +151,7 @@ class ReviewTest(Rig):
 
     def test_an_unsigned_update_is_reviewed_while_the_release_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
+        mock.patch.object(updates, "FIRST_SIGNED", (1, 3, 4)).start()          # the fake download is 0.3.1, older than the first signed release
         self.addCleanup(mock.patch.stopall)
         os.unlink(str(self.download) + ".sig")
         status, body = self.up.review({"from": "downloads"})

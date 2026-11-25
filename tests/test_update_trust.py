@@ -3,7 +3,7 @@
 An update file is checked against the list of checksums INSIDE it (clark-release.json). That proves the file is whole, not that
 it is clark's: whoever builds a download can write a list that matches whatever they put in it. This test builds such a
 download, a store.py that differs from the published one and a list rewritten to match, and says what should happen: it is
-refused, because nothing ties it to the people who make clark. The refusal must be the one for the signature ("badsig" when another key signed it, "unsigned" when nothing did), not any
+refused, because nothing ties it to the people who make clark. The refusal must be the one for the signature ("badsig" when another key signed it; "unsigned" when nothing did and unsigned upgrades are switched off), not any
 error: an unrelated check that starts rejecting this file must not make the failure look cured. The control test beside them
 shows the same forged file IS read when the release key signed it, so the refusals come from the signature alone.
 Builds fake downloads in temporary folders; reads only, no network.
@@ -12,6 +12,7 @@ Run: python3 dev/run_tests.py test_update_trust
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import _signing
 from clark import updates
@@ -50,11 +51,21 @@ class ProvenanceTest(unittest.TestCase):
             updates.read_release(path, SYSTEM, "0.3.0", 2)
         self.assertEqual("badsig", caught.exception.key)
 
-    def test_a_changed_file_with_a_matching_list_and_no_signature_is_refused(self):
+    def test_a_changed_file_with_a_matching_list_and_no_signature_is_read_under_the_unsigned_ruling(self):
+        """Row 1328 ruling (allow unsigned in-clark upgrades): a download with NO .sig at all passes the signature step, so the
+        forged-but-consistent file is read; what still refuses is a wrong signature (the test above), a non-matching list (the
+        control) and the switch being turned off (below)."""
         files = listed_files()
         files["src/clark/store.py"] = b"# a different file from the one clark published\n"
-        with self.assertRaises(updates.UpdateError) as caught:
-            updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
+        release = updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
+        self.assertEqual("0.3.1", release.version)
+
+    def test_a_changed_file_with_no_signature_is_refused_when_unsigned_upgrades_are_not_allowed(self):
+        files = listed_files()
+        files["src/clark/store.py"] = b"# a different file from the one clark published\n"
+        with mock.patch.object(updates, "UNSIGNED_UPGRADES_ALLOWED", False):
+            with self.assertRaises(updates.UpdateError) as caught:
+                updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
         self.assertEqual("unsigned", caught.exception.key)
 
 if __name__ == "__main__":

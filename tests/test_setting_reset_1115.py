@@ -16,14 +16,15 @@ from clark import changes
 
 DEFAULTS = json.loads(T.read("edit", "settingsDefaults.json"))
 ROWS = ("review-days", "gantt-editor", "gantt-client", "gantt-name")
+SOURCE_ROWS = ROWS + ("board-client",)      # row 1533: the board tick has a default and a reason; its Reset is tested in test_board_switch_1533
 
 
 class Source(unittest.TestCase):
     def test_every_row_that_offers_reset_has_a_default_and_a_reason(self):
         used = set()
-        for f in ("ReviewDays.jsx", "GanttSetting.jsx"):
+        for f in ("ReviewDays.jsx", "GanttSetting.jsx", "BoardSetting.jsx"):
             used |= set(re.findall(r'defaultOf\("([a-z-]+)"\)', T.read("edit", f)))
-        self.assertEqual(used, set(ROWS), "the cards ask for exactly these defaults")
+        self.assertEqual(used, set(SOURCE_ROWS), "the cards ask for exactly these defaults")
         for id in used:
             self.assertIn(id, DEFAULTS, id + " has an entry")
             self.assertGreater(len(DEFAULTS[id]["why"].split()), 5, id + " has a written reason")

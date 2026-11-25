@@ -42,7 +42,7 @@ class Card(Base):
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(testpage.html(), css) if css else testpage.html(), seam=self.seam)
         self.addCleanup(self.s.close)
         self.demo.plant_builtin_sections()      # row 1193: a new project's report has Work items lists, these tests pin the built-in sections
-        self.action = self.demo.action(owner="Sam Lee", client_visible=1)
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, so no client tick here (test_ask_client_tick_page_1416 has it)
         self.provider = ask.StubProvider(reply="")
         self.files = ()
         self.service = ask_service.AskService(self.store.path, self.provider, [],
@@ -140,7 +140,7 @@ class TheCard(Card):
     def test_a_use_case_change_shows_in_plain_words_and_applies_with_undo(self):         # issue 729
         uc = self.demo.use_case
         with self.store.step("dashboard", USER) as st:
-            st.update("use_cases", uc, {"standing": "<p>Going <strong>well</strong></p>", "client_visible": 1})
+            st.update("use_cases", uc, {"standing": "<p>Going <strong>well</strong></p>", "client_visible": 0})
         self.says("CHANGE: " + json.dumps({"op": "change", "id": uc, "current_title": "Invoice matching", "status": "Flag",
                                             "standing": "Two files are late."}))
         with chrome() as cdp:
@@ -226,12 +226,12 @@ class TheCard(Card):
         return "CHANGE: " + json.dumps({"op": "change", "id": ref, "current_title": title, "status": "Closed", **more})
 
     def test_owner_tbc_shows_owner_tbc_as_stored(self):         # ruling 20-11 on 2035: TBC shows 'Owner: TBC'
-        tbc = self.demo.action(owner="TBC", description="Unassigned job")
+        tbc = self.demo.action(owner="TBC", description="Unassigned job", client_visible=0)
         self.owners_page([self.change_line(self.action, "Draft the cut-over plan"), self.change_line(tbc, "Unassigned job")],
                          ["named", "tbc"], ["Owner: Sam Lee", "Owner: TBC"])
 
     def test_a_blank_owner_and_a_new_item_show_no_owner(self):
-        blank = self.demo.action(description="Blank job")
+        blank = self.demo.action(description="Blank job", client_visible=0)
         self.store.con.execute("UPDATE actions SET owner = '  ' WHERE id = ?", (blank,))
         self.store.con.commit()
         uc = self.demo.use_case
@@ -283,7 +283,7 @@ class TheCard(Card):
             self.assertEqual(self.status(), "Closed")
 
     def two_cards(self):
-        self.second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        self.second = self.demo.action(owner="Kim Roe", description="Order the badges", client_visible=0)
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": self.second, "current_title": "Order the badges", "status": "Closed"}))
 
     def test_apply_all_saves_every_card_and_one_undo_puts_them_all_back(self):
@@ -321,7 +321,7 @@ class TheCard(Card):
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
     def test_apply_all_n_counts_and_applies_only_the_cards_still_offered(self):
-        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        third = self.demo.action(owner="Pat Kay", description="Book the room", client_visible=0)
         self.two_cards()
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": self.second, "current_title": "Order the badges", "status": "Closed"}),
                   "CHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"}))
@@ -341,7 +341,7 @@ class TheCard(Card):
 
     def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # row 1292 sweep: only a card that was Done is marked Undone
         self.two_cards()
-        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        third = self.demo.action(owner="Pat Kay", description="Book the room", client_visible=0)
         self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -412,7 +412,7 @@ class TheCard(Card):
 
     def test_apply_all_stops_at_the_first_asking_off(self):         # row 1292: nothing more is applied once asking is off
         self.two_cards()
-        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        third = self.demo.action(owner="Pat Kay", description="Book the room", client_visible=0)
         self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})
         calls, real = [], self.service.change_apply
 
@@ -579,7 +579,7 @@ class CardsStayAsTheyWere(Card):
     THEME = None
 
     def test_a_card_in_cards_is_the_card_main_drew_and_has_none_of_the_new_pieces(self):
-        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        second = self.demo.action(owner="Kim Roe", description="Order the badges", client_visible=0)
         self.says("CHANGE: " + json.dumps({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz", "why": "She took it on."}),
                   "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
         with chrome() as cdp:
@@ -601,7 +601,7 @@ class CardsStayAsTheyWere(Card):
                 self.assertEqual(p.js(f"document.querySelectorAll('{sel}').length"), 0, f"{sel} is Classic only")
 
     def test_a_group_line_cannot_appear_in_cards_after_applying_each(self):
-        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        second = self.demo.action(owner="Kim Roe", description="Order the badges", client_visible=0)
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
         with chrome() as cdp:
             p = self.opened(cdp)
