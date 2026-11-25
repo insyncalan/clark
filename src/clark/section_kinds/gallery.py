@@ -27,7 +27,7 @@ migrated. The fields:
   /api/section-image sets or clears an image, and only with a slot "1" to "6" (an "o" slot, or a seventh, is refused).
 
 Sizes (decided here, stated for the report file, the Word export and the backup): an image is made at most WIDTH_MAX (1,600 px) wide
-(300 dpi at two across on a full landscape page); each framed copy holds at most FRAMED_MAX (512 KiB) and each original at most
+(so the file stays light; a photo kept as a PNG ends up narrower, as its original must fit ORIGINAL_MAX); each framed copy holds at most FRAMED_MAX (512 KiB) and each original at most
 ORIGINAL_MAX (1 MiB), decoded. A picture may be sent up to PICTURE_MAX (10 MiB, the gallery's own). Six framed copies are 4.0 MiB as text, inside the 5 MiB a published report may take; the stored section
 may reach LIMIT (12.7 MB: six framed copies and six originals), which is what a backup of the project can grow by.
 
@@ -45,7 +45,7 @@ ORIGINALS = tuple("o" + s for s in SLOTS)
 KIB = 1024
 V1_PICTURE_MAX = 400 * KIB          # each of six in a version 1 body (decoded), as in 1.0.7
 PICTURE_MAX = 10 * 1024 * KIB       # bytes one image may take when it is SENT (decoded): 10 MB, the gallery's own (the Image template keeps 8 MiB); the route's limit allows its base64 (server.IMAGE_FILE_MB, a test keeps them equal)
-WIDTH_MAX = 1600                    # px: 300 dpi at two across on a full landscape page; a wider image is made this wide
+WIDTH_MAX = 1600                    # px: a wider image is made this wide, to keep the file light
 FRAMED_MAX = 512 * KIB              # bytes one framed copy may take (decoded): six in base64 are 4.0 MiB, inside the 5 MiB a published report may hold
 ORIGINAL_MAX = 1024 * KIB           # bytes one stored original may take (decoded), after a wide PNG is made smaller
 V1_LIMIT = 3 * 1024 * KIB + 256 * KIB    # what a version 1 body may take, as before (six pictures at V1_PICTURE_MAX in base64 and their words)

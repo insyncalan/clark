@@ -14,7 +14,7 @@ SAMPLE_WIDTH = 1200
 SAMPLE_HEIGHT = 675                                   # 16:9, the shape the full width image frames to
 
 # Variant 0 is the one picture (unchanged); 1 to 5 are the same scene in other soft colours and with the sun in another place, so the
-# six pictures of the gallery are six different pictures. Each: sky top, sky low, sun, far hill, near hill, near hill's foot, path, sun x.
+# six samples (now used by the picture templates other than the gallery) are six different pictures. Each: sky top, sky low, sun, far hill, near hill, near hill's foot, path, sun x.
 _PALETTES = (
     ((176, 205, 232), (232, 238, 244), (246, 226, 168), (150, 178, 170), (112, 150, 128), (96, 134, 112), (222, 214, 190), 0.78),
     ((232, 200, 190), (248, 232, 222), (250, 236, 190), (170, 160, 176), (132, 124, 150), (114, 106, 134), (226, 214, 200), 0.22),
@@ -46,7 +46,7 @@ def _pixel(x, y, w, h, pal):
 
 
 def sample_png(w=SAMPLE_WIDTH, h=SAMPLE_HEIGHT, variant=0):
-    """The sample picture as PNG bytes: the same every call. `variant` 0 to 5 (the six of the gallery)."""
+    """The sample picture as PNG bytes: the same every call. `variant` 0 to 5 (the six samples, now used by the picture templates other than the gallery)."""
     pal = _PALETTES[variant]
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
