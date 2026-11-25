@@ -1220,17 +1220,20 @@ def _gantt_sheet(self, ws):
     A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
     sheet = ws.title
     first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
-    header, ignored = {}, []
+    header, named, ignored = {}, {}, []
     for i, h in enumerate(first):
         if h is None or h is _FORMULA or not str(h).strip():
             continue
         f = GANTT_HEADERS.get(str(h).strip().lower())
         if f is None:
             ignored.append(str(h).strip())
-        elif not f.startswith("_") and f not in header:
-            header[f] = i
         elif f.startswith("_"):
             pass                                          # Days and Status: worked out
+        elif f in header:                                 # item 1390: as on every other sheet, two headings for one column refuse the workbook
+            raise Invalid(f"The {sheet} sheet has two columns for the same thing: \u201c{named[f]}\u201d and \u201c{str(h).strip()}\u201d. Keep one of "
+                          "them and import again. Nothing was changed.")
+        else:
+            header[f], named[f] = i, str(h).strip()
     if "id" not in header or "name" not in header:       # also a client copy: its title band is row 1 and its header row 4
         self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
         return
