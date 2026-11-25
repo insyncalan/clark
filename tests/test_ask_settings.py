@@ -128,6 +128,8 @@ class Settings(unittest.TestCase):
             wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
             js("location.hash = '#settings&p=ABC&s=claude'")
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
+        if fake:
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 20), "the folders part has its answer")
         return js
 
     def until(self, read_value, expected, what, seconds=20):

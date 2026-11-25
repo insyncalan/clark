@@ -29,8 +29,8 @@ OLD = {
 
 
 for _names in OLD.values():
-    _names["Client Message"] = "Client wording"       # row 1466: the heading before Client Message; every sheet that has the column
-OLD["Use cases"].pop("Client Message")                  # a use case has no Client Message column
+    _names["Client wording"] = "Client Message"       # row 1466: the heading the export wrote while Client Message stood; every sheet that has the column
+OLD["Use cases"].pop("Client wording")                  # a use case has no Client wording column
 
 
 def make_old(path):
@@ -90,12 +90,12 @@ class OldWorkbook(RoundTrip):
         got = self.s.read("decisions", ref=self.d1)
         self.assertEqual((got["options"], got["date"]), ("Old options text", "2030-03-04"), got)
 
-    def test_a_workbook_headed_client_wording_still_imports_as_the_client_message(self):
-        """Row 1390 C, row 1466: Client wording (the heading before Client Message) is read as the Client Message."""
+    def test_a_workbook_headed_client_message_still_imports_as_the_client_wording(self):
+        """Row 1390 C, row 1466: Client Message (the heading before Client wording) is read as the Client wording."""
         from test_excel_roundtrip import edit
-        self.assertIn("Client wording", self.heads("Actions"))
-        self.assertNotIn("Client Message", self.heads("Actions"))
-        edit(self.path, "Actions", self.a1, **{"Client wording": "Said under the old heading"})
+        self.assertIn("Client Message", self.heads("Actions"))
+        self.assertNotIn("Client wording", self.heads("Actions"))      # make_old put the old heading on in setUp
+        edit(self.path, "Actions", self.a1, **{"Client Message": "Said under the old heading"})
         p = self.read()
         self.assertEqual(p.problems, [])
         self.assertEqual({c.table: c.after for c in p.changes}["actions"], {"client_message": "Said under the old heading"})

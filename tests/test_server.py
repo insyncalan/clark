@@ -489,10 +489,10 @@ class Saving(ServerTest):
 
     def test_the_section_body_route_limit_is_two_largest_sections_plus_4_kb_and_change_is_16_kb(self):
         # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405); every other change keeps /api/change's 16 KB
-        from clark import section_bodies
+        from clark import section_bodies, section_kinds
         self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertEqual(sv.SECTION_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
-        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
+        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), section_kinds.raid3.MANY * section_kinds.raid3.CARD_BYTES + 64)      # row 1270: the RAID cards hold up to eight cards (raid3.LIMIT = MANY * CARD_BYTES + 64, 96864), so the largest template is 96864 bytes; every other template is within 64 KB; the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
 

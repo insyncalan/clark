@@ -284,7 +284,6 @@ COMPUTED = {
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
-    "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
