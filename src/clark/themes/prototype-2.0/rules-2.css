@@ -65,6 +65,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 .set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1299 AP12 (no project, Classic only): the Add project link where the tabs would be. */
+.set-add-project { display: inline-block; margin: 0 0 var(--space-3); font-size: var(--size-small); }
 @media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
 /* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
 .brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
