@@ -397,28 +397,6 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
-/* Row 1591 (Classic only; Cards keeps its own rule): in Edit the section title box fills the heading row (it was as wide as its text, about 65px), stays on one line, never breaks inside a word, and ends with an ellipsis until it is focused; focused, it scrolls so the whole text is reachable. */
-.sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
-.sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
-.sec-t > .sec-title:focus { text-overflow: clip; }
-.sec-t:has(> .sec-title)::after { right: auto; max-width: 100%; box-sizing: border-box; overflow: hidden; text-wrap: nowrap; font: inherit; color: transparent; content: attr(data-t); }   /* the box is row-wide, the row 1408 sweep line must stay as wide as the title text: a copy of the text (data-t, Title.jsx) sizes it; height 2px, bottom and animation stay rules.css */
-/* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
-#peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: rgb(85, 103, 122); }
-#peek .pk-latest-client svg { width: 18px; height: 18px; color: rgb(10, 143, 156); }
-#peek .pk-lh-btn { font-size: 13px; font-weight: 600; color: var(--brand-blue); border-radius: 8px; }
-#peek .pk-lh-btn .pk-lh-car { width: 16px; height: 16px; }      /* the 16px chevron rules.css gives it (that rule's selector `.pk-lh-car svg` matches nothing: the icon is the .pk-lh-car element itself, 14px) */
-#peek .pk-lh-btn:hover { background: var(--brand-blue-tint); }
-#peek .pk-lh-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-:root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
-:root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
-/* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
-.mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
-.mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
-/* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
-.fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
-.fopt .c + .ftick { margin-left: var(--space-2); }
-.fchips[data-gchips] { flex: 0 0 auto; }
 /* Row 1233 (the Image gallery's Edit page, Classic only; Cards keeps the slot list). Values read from the approved mock-up (gallery-source.html, line numbers there): the grid (50), tile and frame (51-52, 20), add tile (56, 55), empty area (55, 108), caption (55). Three across, two at half width and at 900 px. */
 .tpl-gal-tiles { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tpl-gal-tiles.c2, .slot-left .tpl-gal-tiles, .slot-right .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -444,6 +422,28 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .tpl-gal-warn { margin: 3px 0 0; color: var(--tone-red-text); font-size: 13px; }
 .tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
 
+/* Row 1591 (Classic only; Cards keeps its own rule): in Edit the section title box fills the heading row (it was as wide as its text, about 65px), stays on one line, never breaks inside a word, and ends with an ellipsis until it is focused; focused, it scrolls so the whole text is reachable. */
+.sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
+.sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.sec-t > .sec-title:focus { text-overflow: clip; }
+.sec-t:has(> .sec-title)::after { right: auto; max-width: 100%; box-sizing: border-box; overflow: hidden; text-wrap: nowrap; font: inherit; color: transparent; content: attr(data-t); }   /* the box is row-wide, the row 1408 sweep line must stay as wide as the title text: a copy of the text (data-t, Title.jsx) sizes it; height 2px, bottom and animation stay rules.css */
+/* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
+#peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: rgb(85, 103, 122); }
+#peek .pk-latest-client svg { width: 18px; height: 18px; color: rgb(10, 143, 156); }
+#peek .pk-lh-btn { font-size: 13px; font-weight: 600; color: var(--brand-blue); border-radius: 8px; }
+#peek .pk-lh-btn .pk-lh-car { width: 16px; height: 16px; }      /* the 16px chevron rules.css gives it (that rule's selector `.pk-lh-car svg` matches nothing: the icon is the .pk-lh-car element itself, 14px) */
+#peek .pk-lh-btn:hover { background: var(--brand-blue-tint); }
+#peek .pk-lh-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+:root[data-theme=dark] #peek .pk-latest-client { color: var(--text-muted); }
+:root[data-theme=dark] #peek .pk-latest-client svg { color: var(--accent-line); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #peek .pk-latest-client { color: var(--text-muted); } :root[data-theme=auto] #peek .pk-latest-client svg { color: var(--accent-line); } }
+/* Row 1532 (Milestones timeline, Classic only; Cards keeps its bar): the strip still scrolls sideways (trackpad, touch, drag, arrow keys, Earlier and Later) but draws no scroll bar, as the Work items lists do (Row 1308). */
+.mv[data-look="classic"] .mv-wrap { scrollbar-width: none; }
+.mv[data-look="classic"] .mv-wrap::-webkit-scrollbar { display: none; }
+/* Row 1304: the tick on the current Group by choice in the filter field's list (the choice rows have no icon), and the chip of the grouping beside the filter chips. */
+.fopt .ftick { margin-left: auto; color: var(--brand-blue); font-weight: var(--weight-medium); }
+.fopt .c + .ftick { margin-left: var(--space-2); }
+.fchips[data-gchips] { flex: 0 0 auto; }
 /* Row 1435: a slash-command file that does not read has its own row in the Settings list: the file name, the pill "Needs a fix" and the button "Fix it with AI". */
 .slash-list .slash-rows.slash-damaged li { grid-template-columns: minmax(90px, 1fr) max-content max-content; align-items: center; }
 .slash-list .slash-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: 999px; background: var(--tone-amber-tint); color: var(--status-amber-text); font-size: var(--size-caption); }
