@@ -23,7 +23,7 @@ APPROVED = {
 }
 LISTED = {
     "blank": ["text", "text-image"],
-    "status": ["report-headline", "figures-4", "raid-3", "key-dates"],
+    "status": ["report-headline", "figures-4", "raid-cards", "key-dates"],
     "documents": ["text", "docs-links"],
     "gantt": ["current-state", "gantt", "work-items"],
     "people": ["contacts", "checklist"],
