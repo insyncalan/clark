@@ -67,7 +67,7 @@ def refusal(path):
 
 
 # The data version this clark writes. It cannot be read from store.py (that imports clark); a test pins it equal to store.SCHEMA_VERSION.
-SCHEMA_VERSION = 36
+SCHEMA_VERSION = 37
 DB_NAME = "clark.db"      # pinned equal to __main__.DB_NAME by a test
 
 

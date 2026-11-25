@@ -19,7 +19,7 @@ from test_server import chrome, wait
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
-CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
+CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
          ("Version and updates", "update-h"), ("Brands", "brands-h"), ("Theme", "theme-settings-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
@@ -27,7 +27,7 @@ CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing"
 OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")]), ("people", "People", [("People", "people-h")]),
                         ("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")])]),
           ("Publishing", [("folder", "Folder", [("Publishing", "client-folder-h")]), ("brand", "Brand", [("Brands", "brands-h")]), ("theme", "Theme", [("Theme", "theme-settings-h")])]),
-          ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")])]),
+          ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")])]),
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")])])]
@@ -35,7 +35,7 @@ VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
 # Row 1299 1a: the Classic theme's four groups (Views.jsx GROUPS_CLASSIC), the menu the Classic tests (window, tabs, overview) walk; (slug, menu name, cards)
 CLASSIC_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Look", [("Personal", "personal-h"), ("Theme", "theme-settings-h")])]),
                   ("All projects", [("projects", "Projects overview", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
-                  ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]),
+                  ("Project settings", [("reports", "Reports and pages", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Work items board", "board-setting-h")]),
                                         ("brand", "Brand and publishing", [("Publishing", "client-folder-h"), ("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]),
                                         ("claude", "ask clark", [("Asking", "ask-settings-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
                   ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Quit", "quit-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]

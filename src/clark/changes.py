@@ -60,7 +60,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
-PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand", "column_orders")
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand", "column_orders", "show_board_client")
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
@@ -2029,7 +2029,7 @@ def _checked_project_changes(fields):
                 out[k] = clark_store.column_orders(v)
             except Invalid as e:
                 raise Refused(str(e)) from None
-        if k in ("show_gantt_editor", "show_gantt_client"):
+        if k in ("show_gantt_editor", "show_gantt_client", "show_board_client"):
             out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
         if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
             raise Refused(clark_store.GANTT_BAD_ROWS)       # row 926: a real whole number from 1 to 500, or None (every row)
@@ -2077,7 +2077,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"],
+                             "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"], "show_board_client": now["show_board_client"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
@@ -2691,6 +2691,11 @@ def words(reversed_, skipped, names):
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
             continue
+        if e["field"] == "show_board_client":                       # row 1533: the board switch for the client, one line
+            if "the board view for the client" not in seen:
+                seen.add("the board view for the client")
+                put.append("the board view for the client")
+            continue
         if e["field"] == "column_orders":                           # row 1534: the saved column order of the work item tables
             if "the column order" not in seen:
                 seen.add("the column order")
@@ -2849,7 +2854,7 @@ def _do_undo(store, by_user, req):
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"],
+                          "review_after_days": now["review_after_days"], "brand": now["brand"], "column_orders": now["column_orders"], "show_board_client": now["show_board_client"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 
