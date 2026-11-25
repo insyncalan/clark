@@ -89,7 +89,9 @@ class Allowed(Api):
         self.assertTrue(set(changes.SHOWN) <= sections - {"body"} | {"id"})
         self.assertNotIn("body", changes.SHOWN)
         for never in ("project", "id", "sort_order"):
-            self.assertFalse(any(never in fields for kind, ops in changes.CHANGE_KINDS.items() if kind != "added_pages" for fields in ops.values()), never)      # row 1252: an added page's place is the one thing a person sets, with the Move left and Move right strip
+            # row 1252: the ONE listed exception: an added page's place (sort_order) is the one thing a person sets, with the Move left and Move right strip
+            kinds = {k: ops for k, ops in changes.CHANGE_KINDS.items() if not (k == "added_pages" and never == "sort_order")}
+            self.assertFalse(any(never in fields for ops in kinds.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link", "msadd", "msremove"})      # row 1107: + msadd, msremove; #196: + bulk; #199: + handover; #485: + link
