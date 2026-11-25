@@ -121,6 +121,7 @@ class SectionTitleWidth(Look):
             for k in r["kids"]:
                 self.assertLessEqual(r["right"], k[0] + 1, f"{where}: the box ends before {k}")
             self.assertLessEqual(r["right"], r["hleft"] + r["hw"] + 1, where)
+            self.assertGreaterEqual(r["w"], 0.8 * (r["hw"] - 8), f"{where}: the box fills its half-row (not just stays inside it) {r}")
 
     def test_the_sweep_line_under_the_title_is_as_wide_as_the_title_text_while_the_box_fills_the_row(self):
         # Row 1408 x 1591: .sec-t is as wide as the heading row, but its ::after (the sweep line) is sized by the text copy in data-t.
@@ -158,6 +159,12 @@ class SectionTitleWidth(Look):
             p.type("A renamed title")
             p.key("Enter", vk=13)
             p.until("document.querySelector('.sec-title').textContent === 'A renamed title'", "Enter commits")
+            for _ in range(100):                      # Enter blurs the box, the blur saves: the store holds the new title
+                if self.titles_in_store()[0] == "A renamed title":
+                    break
+                time.sleep(0.1)
+            self.assertEqual(self.titles_in_store()[0], "A renamed title", "Enter saved the title to the store")
+            self.assertNotEqual(p.js("document.activeElement === document.querySelector('.sec-title')"), True, "Enter left the box")
 
 
 TITLE = "document.querySelector('[data-id=\"%s\"] .sec-title')"
