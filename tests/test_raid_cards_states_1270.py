@@ -86,17 +86,18 @@ class RaidCardStates(PublishedFile, glance.Setup):
         self.seed()
         path = self.publish()
         with chrome() as cdp:
-            p = self.draw(cdp, path, width=1400)
-            p.js("document.querySelector('.raid-card').scrollIntoView({block: 'center'})")
-            r = p.js("(() => { const r = document.querySelector('.raid-card').getBoundingClientRect(); return [r.left + 20, r.top + r.height - 10]; })()")
-            before = p.js("(() => { const s = getComputedStyle(document.querySelector('.raid-card')); return { sh: s.boxShadow, top: s.borderTopColor, left: s.borderLeftColor }; })()")
-            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, p.sid)
-            self.assertTrue(wait(lambda: p.js("getComputedStyle(document.querySelector('.raid-card')).boxShadow") != before["sh"]), "a shadow on hover")
-            after = p.js("""(() => { const s = getComputedStyle(document.querySelector('.raid-card')); const g = (() => { const d = document.createElement('i'); d.style.color = 'var(--grey-500)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })();
-              return { top: s.borderTopColor, left: s.borderLeftColor, bottom: s.borderBottomColor, grey: g, ul: getComputedStyle(document.querySelector('.raid-card .raid-id')).textDecorationLine }; })()""")
-            self.assertEqual((after["left"], after["bottom"]), (after["grey"], after["grey"]), "the plain edges go grey-500")
-            self.assertEqual(after["top"], before["top"], "the rating edge stays")
-            self.assertEqual(after["ul"], "underline", "the ID is underlined")
+            for w in (1400, 900):
+                p = self.draw(cdp, path, width=w)
+                p.js("document.querySelector('.raid-card').scrollIntoView({block: 'center'})")
+                r = p.js("(() => { const r = document.querySelector('.raid-card').getBoundingClientRect(); return [r.left + 20, r.top + r.height - 10]; })()")
+                before = p.js("(() => { const s = getComputedStyle(document.querySelector('.raid-card')); return { sh: s.boxShadow, top: s.borderTopColor, left: s.borderLeftColor }; })()")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, p.sid)
+                self.assertTrue(wait(lambda: p.js("getComputedStyle(document.querySelector('.raid-card')).boxShadow") != before["sh"]), "a shadow on hover at %d" % w)
+                after = p.js("""(() => { const s = getComputedStyle(document.querySelector('.raid-card')); const g = (() => { const d = document.createElement('i'); d.style.color = 'var(--grey-500)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })();
+                  return { top: s.borderTopColor, left: s.borderLeftColor, bottom: s.borderBottomColor, grey: g, ul: getComputedStyle(document.querySelector('.raid-card .raid-id')).textDecorationLine }; })()""")
+                self.assertEqual((after["left"], after["bottom"]), (after["grey"], after["grey"]), "the plain edges go grey-500 at %d" % w)
+                self.assertEqual(after["top"], before["top"], "the rating edge stays at %d" % w)
+                self.assertEqual(after["ul"], "underline", "the ID is underlined at %d" % w)
 
     def test_focus_hover_and_selected_states_are_drawn_in_dark_at_both_widths(self):
         ids = self.seed()
@@ -166,6 +167,22 @@ class RaidCardStates(PublishedFile, glance.Setup):
                     self.assertEqual(live, token, "%s uses the mock-up token at %d dark=%s" % (name, w, dark))
                     self.assertGreaterEqual(got["ratios"][name], 4.5, "%s on the card at %d dark=%s: %s" % (name, w, dark, got["ratios"]))
                 self.assertGreaterEqual(got["ratios"]["focus"], 3, "the focus ring on the card at %d dark=%s" % (w, dark))
+
+    def test_the_mock_up_edit_pairs_pass_in_light_and_dark(self):
+        """Ticket point 9, the mock-up's contrast table (gen.py PAIRS): picker field edge control-edge on surface at 3, Cards across selected
+        brand-blue-strong on brand-blue-tint at 4.5, the disabled hint text-muted on grey-50 at 4.5. Read from the page's own tokens. The page
+        draws the hint on the section's surface (Edit has no grey-50 panel), so the pair is pinned as the mock-up gives it."""
+        self.seed()
+        path = self.publish()
+        read = "(() => { " + LUM + """ const tok = (v) => { const d = document.createElement('i'); d.style.color = 'var(--' + v + ')'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+          return { edge: ratio(tok('control-edge'), tok('surface')), selected: ratio(tok('brand-blue-strong'), tok('brand-blue-tint')), hint: ratio(tok('text-muted'), tok('grey-50')) }; })()"""
+        with chrome() as cdp:
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                got = self.draw(cdp, path, width=w, dark=dark).js(read)
+                where = "at %d dark=%s: %s" % (w, dark, got)
+                self.assertGreaterEqual(got["edge"], 3, "picker field edge " + where)
+                self.assertGreaterEqual(got["selected"], 4.5, "Cards across selected " + where)
+                self.assertGreaterEqual(got["hint"], 4.5, "disabled hint on grey-50 " + where)
 
     def test_esc_returns_focus_to_the_card_and_the_file_peek_is_read_only(self):
         self.seed()

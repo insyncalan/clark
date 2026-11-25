@@ -32,7 +32,7 @@ class RaidCardsView(PublishedFile, glance.Setup):
         return p.js("""(() => { const cs = [...document.querySelectorAll('.raid-card')]; return cs.map(c => { const r = c.getBoundingClientRect(), m = c.querySelector('.raid-meta'), t = c.querySelector('.raid-title');
             return { cls: c.className, top: getComputedStyle(c).borderTopWidth, rating: (c.querySelector('.raid-rating') || {}).textContent || '', label: !!c.querySelector('.raid-label'),
               latest: (c.querySelector('.raid-latest') || {}).textContent || '', h: Math.round(r.height), foot: m ? Math.round(r.bottom - m.getBoundingClientRect().bottom) : -1,
-              cut: t.scrollHeight > t.clientHeight + 1 || getComputedStyle(t).textOverflow === 'ellipsis', ws: getComputedStyle(t).whiteSpace }; }); })()""")
+              footText: m ? m.textContent : '', cut: t.scrollHeight > t.clientHeight + 1 || getComputedStyle(t).textOverflow === 'ellipsis', ws: getComputedStyle(t).whiteSpace }; }); })()""")
 
     def test_card_look_at_both_widths(self):
         self.seed()
@@ -96,8 +96,11 @@ class RaidCardsView(PublishedFile, glance.Setup):
             st.update("report_sections", ref, {"body": json.dumps({"v": 1, "cards": [{"id": a, "source": "client"}]})})
         path = self.publish()
         with chrome() as cdp:
-            cs = self.read(self.draw(cdp, path, width=1400))
-        self.assertEqual(len(cs), 1)
-        self.assertEqual(cs[0]["rating"], "")
-        self.assertIn("rc-b", cs[0]["cls"])
-        self.assertEqual(cs[0]["latest"], "Called them.")
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                cs = self.read(self.draw(cdp, path, width=w, dark=dark))
+                self.assertEqual(len(cs), 1)
+                self.assertEqual(cs[0]["rating"], "", "an action has no rating word at %d, dark=%s" % (w, dark))
+                self.assertIn("rc-b", cs[0]["cls"])
+                self.assertEqual(cs[0]["latest"], "Called them.", "the action's body at %d, dark=%s" % (w, dark))
+                self.assertGreaterEqual(cs[0]["foot"], 0, "the action card has a foot line at %d, dark=%s" % (w, dark))
+                self.assertTrue(cs[0]["footText"].startswith("Pat") or "Pat" in cs[0]["footText"], "the foot line holds the owner at %d, dark=%s: %s" % (w, dark, cs[0]))

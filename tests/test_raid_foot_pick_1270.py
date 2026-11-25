@@ -111,13 +111,20 @@ class Edit(PageBase):
     def stored(self, sec):
         return json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
 
-    def test_picker_count_remove_and_choices(self):
+    def test_picker_count_remove_and_choices_at_1400(self):
+        self.picker_flow(1400)
+
+    def test_picker_count_remove_and_choices_at_900(self):
+        self.picker_flow(900)
+
+    def picker_flow(self, width):
         sec, made = self.seed()
         q = f"[data-id={json.dumps(sec)}]"
         click = lambda p, sel: p.js(f"document.querySelector({json.dumps(sel)}).click()")
         with chrome() as cdp:
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             p.edit()
             p.until(f"!!document.querySelector('{q} .rce-count')", "the count is there")
             self.assertEqual(p.js(f"document.querySelector('{q} .rce-count').textContent"), "2 of 8 picked")

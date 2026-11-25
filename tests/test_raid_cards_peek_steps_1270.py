@@ -21,6 +21,8 @@ PEEK = """(() => { const p = document.querySelector('#peek'); const open = !!p &
   return { open, text: open ? p.textContent : '', latest: !!(p && p.querySelector('[data-ms-row=latest_update]')), wording: !!(p && p.querySelector('[data-ms-row=client_message]')),
            latestText: p && p.querySelector('[data-ms-row=latest_update]') ? p.querySelector('[data-ms-row=latest_update]').textContent : '', prev: dis('[data-pk-prev]'), next: dis('[data-pk-next]') }; })()"""
 
+ESC_KEY = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))"
+
 
 def seed(self):
     """A risk, a decision and an action, put on the cards in that order (the Work items list orders them differently), and an item with no card."""
@@ -164,3 +166,58 @@ class PickerRows(PageBase):
             p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "an ID finds one item")
             set_q("zzzz nothing")
             p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 0 && document.querySelector('{q} .rce-none').textContent === 'No item matches'", "the no-match line")
+
+    def test_a_long_text_is_whole_in_the_picker_row_and_in_the_search_at_both_widths(self):
+        """Ticket 1270, the picker shows the whole text: a long description is in the row, whole, and does not overflow, at 1400 and 900."""
+        ids = seed(self)
+        long = "The kiln roof may leak in the wet season and ruin the stock stored under it for the whole winter, so the whole long description must show in the picker row without being cut at the end ENDMARK"
+        with self.store.step("dashboard", USER) as st:
+            st.update("report_sections", ids["sec"], {"body": json.dumps({"v": 2, "across": 3, "cards": []})})
+            big = st.create("raid", {"project": "ABC", "type": "Risk", "description": long, "raised": "2026-10-01", "source": "demo", "impact": "High", "likelihood": "High"})
+        q = f"[data-id={json.dumps(ids['sec'])}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("document.documentElement.dataset.theme = %s" % json.dumps("dark" if dark else "light"))
+                if not p.js(f"!!document.querySelector('{q} .rce-opts')"):
+                    p.js(f"document.querySelector('{q} .rce-pick').click()")
+                p.until(f"!!document.querySelector('{q} .rce-opts')", "the picker is open")
+                p.js(f"(() => {{ const i = document.querySelector('{q} .rce-picker input'); i.value = 'ENDMARK'; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                p.until(f"document.querySelectorAll('{q} .rce-opts button').length === 1", "the last word of the long text finds it")
+                got = p.js(f"(() => {{ const b = document.querySelector('{q} .rce-opts button'); return {{ id: b.dataset.pick, text: b.textContent, over: b.scrollWidth > b.clientWidth + 1, cut: getComputedStyle(b).textOverflow === 'ellipsis' || getComputedStyle(b).whiteSpace === 'nowrap' }}; }})()")
+                self.assertEqual(got["id"], big)
+                self.assertTrue(got["text"].endswith(long), "the whole text is in the row at %d dark=%s: %s" % (w, dark, got["text"]))
+                self.assertFalse(got["over"] or got["cut"], "the row is not cut or sideways at %d dark=%s: %s" % (w, dark, got))
+
+
+class EditPeek(PageBase, Steps):
+    def test_a_cards_peek_opened_in_view_is_editable_in_edit_and_an_edit_in_it_is_saved_at_both_widths(self):
+        """Ticket 1270, "Edit: the Peek is editable": Edit draws the card's form, not the card, so the author opens the card's Peek in View and switches to
+        Edit with it open; the Peek then has its edit controls, and a title typed in it is saved to the item."""
+        ids = seed(self)
+        self.s.close()
+        css = theme.css("prototype-2.0")
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), seam=self.seam)
+        self.addCleanup(self.s.close)
+        editable = "#peek .pk-title-in, #peek [data-pk-foot-in], #peek .pk-foot-in, #peek textarea, #peek input"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for n, w in enumerate((1400, 900)):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.view()
+                self.open_card(p, ids["risk"])
+                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-title-in').length"), 0, "the Peek opened from a card in View has no title box at %d" % w)
+                p.edit()
+                self.assertTrue(wait(lambda: shown(p)["open"] and ids["risk"] in shown(p)["text"]), "the card's Peek stays open in Edit at %d" % w)
+                self.assertTrue(wait(lambda: p.js(f"document.querySelectorAll({json.dumps(editable)}).length") > 0), "the Peek has edit controls in Edit at %d" % w)
+                if w == 900:
+                    self.assertLessEqual(abs(p.js("document.querySelector('#peek').getBoundingClientRect().width - document.documentElement.clientWidth")), 2, "at 900 the Peek fills the window")
+                new = f"Kiln roof edit {w}"
+                p.js("document.querySelector('#peek .pk-title-in').click()")
+                self.assertTrue(wait(lambda: p.js("!!document.querySelector('#peek textarea.pk-title-in')")), "the title opens for editing at %d" % w)
+                p.js(f"(() => {{ const t = document.querySelector('#peek textarea.pk-title-in'); t.value = {json.dumps(new)}; t.dispatchEvent(new Event('input', {{bubbles: true}})); t.blur(); }})()")
+                self.assertTrue(wait(lambda: next(r for r in self.store.read("raid", "ABC") if r["id"] == ids["risk"])["description"] == new), "the edit made in the card's Peek is saved at %d" % w)
+                p.js(ESC_KEY)
+                self.assertTrue(wait(lambda: not shown(p)["open"]), "Esc closes it at %d" % w)
