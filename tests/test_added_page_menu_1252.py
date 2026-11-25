@@ -23,7 +23,7 @@ class AddedPageTab(Base):
         self.assertEqual(status, 200, body)
         return self.store.read("added_pages", project="ABC")[-1]["id"]
 
-    def open(self, cdp, width, hash_="#dashboard&p=ABC"):
+    def open_page(self, cdp, width, hash_="#dashboard&p=ABC"):
         p = self.visit(cdp, hash_)
         size(cdp, p, width, 800)
         p.until("document.querySelectorAll('.top .tabs .tab').length >= 4", "the tabs show")
@@ -33,7 +33,7 @@ class AddedPageTab(Base):
         pid = self.add("Supplier status")
         self.add("Secret page", hidden=1)
         with chrome() as cdp:
-            p = self.open(cdp, width)
+            p = self.open_page(cdp, width)
             tabs = p.js(TABS)
             self.assertEqual(tabs[-1], "Supplier status", tabs)
             self.assertNotIn("Secret page", tabs)
@@ -56,7 +56,7 @@ class AddedPageTab(Base):
         with sqlite3.connect(str(self.store.path)) as con:
             con.execute("UPDATE projects SET show_gantt_editor = 1 WHERE code = 'ABC'")
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             tabs = p.js(TABS)
             self.assertEqual(tabs[-3:], ["Gantt", "Alpha page", "Beta page"], tabs)
 
@@ -64,9 +64,9 @@ class AddedPageTab(Base):
         pid = self.add("Supplier status")
         gone = self.add("Hidden page", hidden=1)
         with chrome() as cdp:
-            p = self.open(cdp, 1400, "#page:%s&p=ABC" % pid)
+            p = self.open_page(cdp, 1400, "#page:%s&p=ABC" % pid)
             p.until("document.body.textContent.includes('Supplier notes body text')", "the address opens the page")
-            p = self.open(cdp, 1400, "#page:%s&p=ABC" % gone)
+            p = self.open_page(cdp, 1400, "#page:%s&p=ABC" % gone)
             p.until("!!document.querySelector('#report')", "the dashboard")
             self.assertFalse(p.js("document.body.textContent.includes('Supplier notes body text')"))
 
@@ -74,7 +74,7 @@ class AddedPageTab(Base):
         """AP2: tab text 14px, white at 75%, the selected tab's underline 3px #38E0EE (the bar's height is its own test below)."""
         self.add("Supplier status")
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             got = p.js("""(() => {
               const tabs = [...document.querySelectorAll('.top .tabs .tab')];
               const t = tabs.find((x) => x.textContent.trim() === 'Supplier status'), sel = tabs.find((x) => x.getAttribute('aria-selected') === 'true');
@@ -98,7 +98,7 @@ class AddedPageTab(Base):
     def test_bar_is_85px_at_1400(self):
         """AP2 (restated by the PM, 24-11): at 1400 the bar is the shipped header's 85px (the project name over the tabs; shell.css sets --topbar 85px for .top-hdr)."""
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.open_page(cdp, 1400)
             self.assertEqual(p.js("document.querySelector('.top').getBoundingClientRect().height"), 85)
             self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim()"), "85px")
 
@@ -107,7 +107,7 @@ class AddedPageTab(Base):
         for i in range(3):
             self.add("Supplier status %d" % i)
         with chrome() as cdp:
-            p = self.open(cdp, 900)
+            p = self.open_page(cdp, 900)
             got = p.js("""(() => { const tabs = document.querySelector('.top .tabs'), cs = getComputedStyle(tabs), top = document.querySelector('.top').getBoundingClientRect();
               const r = tabs.getBoundingClientRect();
               return { ox: cs.overflowX, right: r.right, topRight: top.right, sw: document.documentElement.scrollWidth, w: window.innerWidth,
