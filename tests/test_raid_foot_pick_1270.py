@@ -155,8 +155,9 @@ class Edit(PageBase):
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
             p.edit()
-            for w in (1400, 900):
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("document.documentElement.dataset.theme = %s" % json.dumps("dark" if dark else "light"))
                 p.until(f"!!document.querySelector('{q} .rce-pick')", "the picker button")
                 if not p.js(f"!!document.querySelector('{q} input[type=search]')"):
                     p.js(f"document.querySelector('{q} .rce-pick').click()")

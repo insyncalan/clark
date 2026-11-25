@@ -146,6 +146,27 @@ class RaidCardStates(PublishedFile, glance.Setup):
             self.assertNotEqual([r["edgeColour"] for r in seen[False]], [r["edgeColour"] for r in seen[True]], "dark has its own edge colours")
             self.assertNotEqual([r["band"] for r in seen[False]], [r["band"] for r in seen[True]], "dark has its own bands")
 
+    def test_text_and_focus_contrast_light_and_dark_match_the_mock_up_tokens(self):
+        """The mock-up's pairs (NOTES.md, Contrast): the title is heading, the label, kind and foot are text-muted, the description and update are text, all on
+        the card surface at 4.5; the focus ring on the surface at 3. The live colours are read from the browser."""
+        self.seed()
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("raid", "ABC"):
+                st.update("raid", r["id"], {"latest_update": "Survey booked.", "client_message": "Words."})
+        path = self.publish()
+        read = "(() => { " + LUM + """ const tok = (v) => { const d = document.createElement('i'); d.style.color = 'var(' + v + ')'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+          const c = document.querySelector('.raid-card'), surf = getComputedStyle(c).backgroundColor, col = (s) => getComputedStyle(c.querySelector(s)).color;
+          return { surf, surfTok: tok('--surface'), pairs: { title: [col('.raid-title'), tok('--heading')], label: [col('.raid-label'), tok('--text-muted')], foot: [col('.raid-meta'), tok('--text-muted')],
+            latest: [col('.raid-latest'), tok('--text')] }, ratios: { title: ratio(col('.raid-title'), surf), label: ratio(col('.raid-label'), surf), foot: ratio(col('.raid-meta'), surf), latest: ratio(col('.raid-latest'), surf), focus: ratio(tok('--focus'), surf) } }; })()"""
+        with chrome() as cdp:
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                got = self.draw(cdp, path, width=w, dark=dark).js(read)
+                self.assertEqual(got["surf"], got["surfTok"], "the card is on the surface token")
+                for name, (live, token) in got["pairs"].items():
+                    self.assertEqual(live, token, "%s uses the mock-up token at %d dark=%s" % (name, w, dark))
+                    self.assertGreaterEqual(got["ratios"][name], 4.5, "%s on the card at %d dark=%s: %s" % (name, w, dark, got["ratios"]))
+                self.assertGreaterEqual(got["ratios"]["focus"], 3, "the focus ring on the card at %d dark=%s" % (w, dark))
+
     def test_esc_returns_focus_to_the_card_and_the_file_peek_is_read_only(self):
         self.seed()
         path = self.publish()

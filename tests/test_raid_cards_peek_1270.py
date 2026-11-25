@@ -51,3 +51,15 @@ class RaidCardsPeek(PublishedFile, glance.Setup):
                 for kind in ("keyDown", "keyUp"):       # a real key press
                     cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, **({"text": text} if kind == "keyDown" else {})}, p.sid)
                 self.assertTrue(wait(lambda: p.js(STATE)["open"]), "%s on the ID button opens the peek at %d" % (code, w))
+
+    def test_a_cards_peek_fills_the_window_at_900_light_and_dark(self):
+        """'Fills the window' is the page's client width (the window less a scrollbar gutter), from the left edge."""
+        rid = self.seed()
+        path = self.publish()
+        box = "(() => { const r = document.querySelector('#peek').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), document.documentElement.clientWidth]; })()"
+        with chrome() as cdp:
+            for dark in (False, True):
+                p = self.draw(cdp, path, width=900, dark=dark)
+                p.js("document.querySelector('.raid-card .idl').click()")
+                self.assertTrue(wait(lambda: p.js(STATE)["open"] and rid in p.js(STATE)["text"]), "the peek opens")
+                self.assertTrue(wait(lambda: (lambda b: b[0] == 0 and b[1] == b[2])(p.js(box))), "the peek spans the client width from the left at 900, dark=%s: %s" % (dark, p.js(box)))
