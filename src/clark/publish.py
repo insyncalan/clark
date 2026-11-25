@@ -627,7 +627,10 @@ def select(inputs):
             "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
     ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
     shown_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}}, as_at, live)      # row 1268: a hidden built-in section's rows reach a Work items list alone; every other template sees only what the section left in
-    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    from clark import glance as _g      # glance imports this module, so it is imported here
+    _lk = _g._list_kinds(sections)      # row 1266: the kinds a shown Work items list reaches, as add_glance reads them
+    gt_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}, **{k: built[k] for k in WORK_KINDS if not rows[k] and not any(x.get("type") == SECTION_OF_KIND[k] for x in sections) and any(x in _lk for x in _g.KINDS_OF_TILE_BY_KIND[k])}}, as_at, live)      # the At a glance template counts the kept rows of a kind that has no built-in section row at all when a shown list stands for it (a new report has the lists, not the built-in sections); a hidden built-in section still hides its tile
+    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else gt_ctx if s.get("type") == "glancetemplate" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
     for k in WORK_KINDS:
         if not rows[k]:

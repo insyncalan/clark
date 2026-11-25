@@ -333,7 +333,8 @@ class Modes(OldBase):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
-            self.assertEqual(p.js(texts), [SECTION_HINTS.get(t, "Click to write.") for t in ("Current state", "This week", "Next week")], "Edit: the text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193; row 1266: Current state has none now, this layout keeps its title)")
+            self.assertEqual(p.js(texts), ["Click to write.", SECTION_HINTS["This week"], SECTION_HINTS["Next week"]], "Edit: the text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193; row 1266: Current state has none now, this layout keeps its title)")
+            self.assertNotIn("Current state", SECTION_HINTS)      # AP4 of ticket 1266: the first text section (Header) has no hint, so the generic line shows; This week and Next week must still have theirs (a KeyError says one was lost)
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")

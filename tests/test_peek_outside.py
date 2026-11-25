@@ -65,7 +65,7 @@ class OutsideBrowser(unittest.TestCase):
                             with self.subTest(where):
                                 if view == "dashboard":
                                     cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
-                                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance, [data-gt], .secs > .sec')", sid)), f"{where}: the dashboard shows")
+                                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.secs [data-type=glancetemplate]')", sid)), f"{where}: the dashboard shows")      # row 1266: the default At a glance is the template, drawn in View and Edit (the Headline is Edit-only; no .glance any more)
                                 else:
                                     cdp.js("document.querySelector('[data-view=work]').click()", sid)
                                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))

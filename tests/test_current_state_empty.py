@@ -147,6 +147,7 @@ class Browser(unittest.TestCase):
             self.assertNotIn(LINE, cdp.js(f"{first}.textContent", sid))
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid), 15))
+            # AP4 of ticket 1266: the Header has no SECTION_HINTS entry by design, so the editor shows the generic "Click to write." and not CURRENT_STATE_PREFILL
             self.assertEqual(cdp.js(f"{first}.querySelector('[data-rich=body] .quiet').textContent", sid), "Click to write.", "Edit: no long hint on the Header (row 1266 AP4; the Classic starting text is startingText.js)")
             for t in TITLES[1:]:                                                                        # item 1193
                 one = f"document.querySelector('[data-id=\"{IDS[t]}\"]')"

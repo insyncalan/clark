@@ -313,7 +313,7 @@ class PublishedFile(unittest.TestCase):
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#report .secs > .sec').length >= 3", sid)), "the file drew its sections")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)", sid), ["Header", "This week", "Shown plan"])      # what the Classic file draws on clean main too
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)", sid), ["Header", "This week", "Shown plan"])      # row 1266: what the Classic file draws for a new project now (the Contents code is unchanged; the list follows the new default sections)
             self.assertEqual(cdp.js("!!document.querySelector('.toc') || !!document.querySelector('.toc-lines')", sid), False)
             self.assertEqual(cdp.js("document.querySelectorAll('.cnt button').length", sid), 0, "the entries are links, not buttons: a view-only file has none")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].every(a => document.getElementById(a.getAttribute('href').slice(1)))", sid), True, "each link points at a section of the file")
