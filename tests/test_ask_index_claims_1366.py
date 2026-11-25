@@ -255,6 +255,12 @@ class Question(RouteBase):
         self.assertEqual((status, got.get("ok")), (200, True), got)
         self.assertEqual(len(self.provider.sent), 1)
         self.assertIn("zebrafish", self.provider.sent[0])
+        # DIAGNOSTIC (row 1623, macOS only): print what the index holds and what was sent
+        import sqlite3, sys
+        print('DIAG box:', self.box, 'realpath:', os.path.realpath(self.box), 'service folders:', self.service.folders_for(None, 'ABC'), file=sys.stderr)
+        print('DIAG index current:', self.ix.current('ABC', [str(self.box)]), file=sys.stderr)
+        print('DIAG index rows:', sqlite3.connect(ask_index.path_for(self.service.data_dir, 'ABC')).execute('SELECT file, part, mtime FROM p').fetchall(), file=sys.stderr)
+        print('DIAG sent:', self.provider.sent[0], file=sys.stderr)
         self.assertNotIn("quokka", self.provider.sent[0])
         self.assertNotIn(str(self.box), self.provider.sent[0], "no path of the folder is sent")
 
