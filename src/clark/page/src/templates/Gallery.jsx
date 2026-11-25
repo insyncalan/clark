@@ -78,7 +78,7 @@ function Tile({ p, src, onOpen }) {
   const seen = (img) => { if (img && img.complete && img.naturalWidth) setSmall(img.naturalWidth < SMALL_WIDE); };
   return (
     <button type="button" class="tpl-gal-open" aria-haspopup="dialog" onClick={onOpen}>
-      <span class={`tpl-gal-frame${small && centred ? ` small fill-${fill}` : ""}`} data-fit={centred ? FITS[0] : "stretch"}
+      <span class={`tpl-gal-vframe${small && centred ? ` small fill-${fill}` : ""}`} data-fit={centred ? FITS[0] : "stretch"}
         style={small && centred && fill === "blur" ? `--gal-src: url("${src}")` : undefined}>
         <img src={src} alt={lineOf(p.alt)} loading="lazy" decoding="async" ref={seen} onLoad={(e) => seen(e.currentTarget)} />
       </span>

@@ -326,8 +326,8 @@ if __name__ == "__main__":
 
 
 class SmallImage(unittest.TestCase):
-    """Row 1233 s7 (R3, comment 7085957249): in the published view an image under 1,200 px wide is centred at its own size in its tile on its
-    fill, never enlarged; one of 1,200 px or more fills the tile (cover). The large view's values (comment 7022644457 row 14)."""
+    """Row 1233 s7 (R3, comment 7085957249): in the published view an image under 600 px wide is centred at its own size in its tile on its
+    fill, never enlarged; one of 600 px or more fills the tile (cover). The large view's values (comment 7022644457 row 14)."""
 
     @classmethod
     def setUpClass(cls):
@@ -340,27 +340,27 @@ class SmallImage(unittest.TestCase):
     js, draw = View.js, View.draw
 
     def tile(self, i=0):
-        return self.js(f"""(function(){{var f=document.querySelectorAll('.tpl-gal-frame')[{i}], im=f.querySelector('img'), fr=f.getBoundingClientRect(), r=im.getBoundingClientRect();
+        return self.js(f"""(function(){{var f=document.querySelectorAll('.tpl-gal-vframe')[{i}], im=f.querySelector('img'), fr=f.getBoundingClientRect(), r=im.getBoundingClientRect();
           return {{cls:f.className, w:r.width, h:r.height, nat:im.naturalWidth, fw:fr.width, fh:fr.height, dx:(r.left+r.width/2)-(fr.left+fr.width/2), dy:(r.top+r.height/2)-(fr.top+fr.height/2),
                    bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit}};}})()""")
 
     def waitclass(self, i, small):
         self.assertTrue(wait(lambda: ("small" in self.tile(i)["cls"].split()) == small), "the frame says whether it is small")
 
-    def test_an_image_under_1200_wide_is_centred_at_its_own_size_on_a_blurred_fill_at_1400_and_900(self):
+    def test_an_image_under_600_wide_is_centred_at_its_own_size_on_a_blurred_fill_at_1400_and_900(self):
         for width in (1400, 900):
-            self.draw(pictures(1, size=(800, 600)), width)
+            self.draw(pictures(1, size=(500, 375)), width)
             self.waitclass(0, True)
             t = self.tile()
             with self.subTest(width=width):
-                self.assertEqual((round(t["w"]), round(t["h"])), (800 if width == 1400 else round(min(800, t["fw"])), round(t["h"])), "its own size, never enlarged")
+                self.assertEqual((round(t["w"]), round(t["h"])), (500 if width == 1400 else round(min(500, t["fw"])), round(t["h"])), "its own size, never enlarged")
                 self.assertLess(t["w"], t["fw"] + 1)
                 self.assertLessEqual(abs(t["dx"]), 1, "centred across")
                 self.assertLessEqual(abs(t["dy"]), 1, "centred down")
                 self.assertIn("blur(24px)", t["blur"], "the image's own blurred copy behind it")
                 self.assertEqual(t["fit"], "contain")
 
-    def test_an_image_of_1200_or_more_fills_the_tile_and_is_not_marked_small(self):
+    def test_an_image_of_600_or_more_fills_the_tile_and_is_not_marked_small(self):
         self.draw(pictures(2, size=(1200, 900)), 1400)
         self.waitclass(0, False)
         t = self.tile()
