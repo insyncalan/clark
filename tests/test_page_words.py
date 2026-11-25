@@ -294,7 +294,7 @@ class Words(unittest.TestCase):
                 ]),
                 ('data', 'Data', [
                     "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                    "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
+                    "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…", "Download the empty template",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ]),
                 ('claude', ASK_PAGE, [
