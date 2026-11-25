@@ -136,7 +136,6 @@ class Refusals(Api):
         self.refused(self.req("new", values={"type": "tracker", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
         self.refused(self.req("new", values={"type": "needs"}), changes.NEW_TYPE_WORDS)      # item 1158: no new Needs from you section
         self.refused(self.req("new", values={"type": "glance"}), changes.NEW_TYPE_WORDS)      # rows 1193-8 to 10: a built-in the report already has (a new project has no raid, actions or decisions section now, so those can be added)
-        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", id="ABC-S-001"), "That change doesn't take 'id'.")
         self.refused(self.req("new", changes={"title": "x"}), "That change doesn't take 'changes'.")
@@ -941,7 +940,7 @@ class OlderProject(Api):
         return self.ok(op, project=self.code, **more)
 
     def test_each_first_change_seeds_the_defaults_in_its_own_step_and_undo_takes_back_only_the_change_and_the_seed_stays(self):
-        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems")]    # publish leaves "docs" out, and a Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions)
+        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems", "doclinks")]    # publish leaves "docs" out, and a Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions)
         no_this_week = [t for t in defaults if t != "This week"]
         cases = (                                   # op, what it asks (S-005 is This week, S-008 Open actions), sections and published after
             ("new", {"values": {"title": "Only me"}}, 11, defaults + ["Only me"]),

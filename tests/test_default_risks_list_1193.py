@@ -50,7 +50,7 @@ class DefaultRisksList(unittest.TestCase):
 
     def test_the_other_rows_are_unchanged(self):
         types = [r["type"] for r in order.in_order(self.s.read("report_sections", "ABC"))]
-        self.assertEqual(types[:6] + types[7:], ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "docs"])
+        self.assertEqual(types[:6] + types[7:], ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "doclinks"])
 
     def test_every_other_default_body_is_still_empty(self):
         self.assertEqual([e.get("body", "") for e in default_sections.DEFAULT_SECTIONS if e["title"] not in ("Risks and issues", "Open actions", "Decisions")], [""] * 7)

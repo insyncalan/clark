@@ -18,7 +18,7 @@ TEN = (
     ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 8, 9 and 10 of item 1193
-    ("docs", "Supporting documents", 0))
+    ("doclinks", "Documents and links", 0))      # row 1194 AP13: the old docs section is for saved reports
 
 
 class Base(unittest.TestCase):
@@ -90,7 +90,7 @@ class Seed(Base):
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
-        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
+        self.assertTrue(all(s["type"] in NINE + ("workitems", "doclinks") for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
         self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
