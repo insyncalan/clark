@@ -488,6 +488,33 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"], (width, scheme))
                 self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
 
+    def test_notice_buttons_take_focus_in_reading_order_and_the_text_wraps_inside_the_card(self):
+        """Row 1365 AP11: Accept, Decline and Leave these subfolders out are focused one after the other in that order, none is skipped, the button row stays inside the card
+        and the card never clips or overflows its text. 1400 and 900, light and dark."""
+        for width in WIDTHS:
+          for scheme in ("light", "dark"):
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, scheme, open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Contract 2026", "readable_files": 12, "dir": True}, {"name": "Salary bands", "readable_files": 3, "dir": True}]}])
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertTrue(wait(lambda: js(f"!!{box}"), 10))
+                order = js(f"[...{box}.querySelectorAll('button')].map(b => {{ b.focus(); return [b.innerText, document.activeElement === b, b.tabIndex >= 0]; }})")
+                self.assertEqual(order, [["Accept", True, True], ["Decline", True, True], ["Leave these subfolders out", True, True]], (width, scheme))
+                self.assertTrue(js(f"{box}.scrollWidth <= {box}.clientWidth + 1 && {box}.getBoundingClientRect().right <= innerWidth"), (width, scheme))
+                self.assertTrue(js(f"[...{box}.querySelectorAll('button')].every(b => b.getBoundingClientRect().right <= {box}.getBoundingClientRect().right + 1)"), (width, scheme))
+
+    def test_notice_region_and_buttons_have_accessible_names_in_the_browsers_own_tree(self):
+        """Row 1365 AP12: the browser's accessibility tree (not the page's attributes) gives the notice the role region named by its folder and the three
+        buttons the names Accept, Decline and Leave these subfolders out. 1400 and 900."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
+                cdp.call("Accessibility.enable", {}, self.sid)
+                nodes = cdp.call("Accessibility.getFullAXTree", {}, self.sid)["nodes"]
+                seen = {(n.get("role", {}).get("value"), n.get("name", {}).get("value")) for n in nodes if not n.get("ignored")}
+                for want in (("region", "/Example/Programme files"), ("button", "Accept"), ("button", "Decline"), ("button", "Leave these subfolders out")):
+                    self.assertIn(want, seen, (width, want))
+
     def test_a_folder_without_such_names_shows_no_warning(self):
         with chrome() as cdp:
             js = self.show_page(cdp, fake=True)
