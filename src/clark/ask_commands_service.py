@@ -3,7 +3,8 @@
 Rules and files are ask_commands.py's. There are two folders: the commands for all projects (`ask-commands` in clark's data folder) and a project's
 own (`ask-commands/<CODE>`); a project's command with the same name wins in that project (the page does that). GET /api/ask-commands?project=CODE
 answers (200, {ok, all, project, damaged, max, builtins}). POST takes {scope: "all" | "project", project?, action: "save" | "remove" | "reset", ...}:
-save {record, was?}, remove {name}, reset {name}. A text that looks like a password or a key is refused before anything is written (the one screen of
+save {record, was?}, remove {name}, reset {name}, fix {name: a file name from `damaged`} (row 1435: a local repair, the old file kept as `<name>.old`; the
+answer has `fixed: {kept, left_out}`), unfix {name} (Undo of the fix). A text that looks like a password or a key is refused before anything is written (the one screen of
 ask.py), so it is never kept to be sent. Every answer is (status, {ok, ...}) with a plain `message`; a refusal also has a stable `code`.
 Nothing here asks a model or changes a report: a slash command is text, and what it asks is screened as any typed question is.
 """
@@ -16,7 +17,7 @@ from clark import ask, ask_commands as ac
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 # The built-in names (page/src/edit/askSlash.js COMMANDS; a test pins that the two lists are the same).
 BUILTIN_NAMES = ("check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new")
-ACTIONS = ("save", "remove", "reset")
+ACTIONS = ("save", "remove", "reset", "fix", "unfix")
 
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was changed.",
@@ -25,6 +26,8 @@ MESSAGES = {
     "saved": "Saved.",
     "removed": "Removed.",
     "reset": "Back to the built-in.",
+    "fixed": "Fixed: %d lines kept, %d left out. The old file is kept.",       # approved, row 1435 (words log of 24-11 21:1x)
+    "cant_fix": "Could not fix the file. The old file is kept.",
     "cant_save": "That could not be saved. Wait a moment and try again; if it keeps happening, close clark and start it again. Nothing was changed.",
 }
 
@@ -82,6 +85,14 @@ class AskCommandsService:
         with self.lock:
             files = self.files(scope, project)
             try:
+                if action == "fix":
+                    kept, left = files.fix(body["name"])
+                    status, out = self.answer(project, MESSAGES["fixed"] % (kept, left))
+                    out["fixed"] = {"kept": kept, "left_out": left}
+                    return status, out
+                if action == "unfix":
+                    files.unfix(body["name"])
+                    return self.answer(project, "")
                 if action == "save":
                     files.write(rec, body.get("was") or None)
                 elif action == "remove":
@@ -89,6 +100,8 @@ class AskCommandsService:
                 else:
                     files.reset(body["name"])
             except ac.Refused as e:
+                if action in ("fix", "unfix"):
+                    return self.fail("cant_fix", status=409)
                 return self.fail("refused", str(e), 400)
             except OSError:
                 return self.fail("cant_save", status=409)

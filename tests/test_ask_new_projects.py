@@ -23,7 +23,7 @@ class Columns(unittest.TestCase):
 
     def test_a_new_file_starts_with_asking_on_for_new_projects_and_for_the_project(self):
         self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC"), self.s.ask_allowed("ABC")), (True, False, True))
-        self.assertEqual(st.SCHEMA_VERSION, 34)      # row 1365 adds step 34 after this row's step 33
+        self.assertEqual(st.SCHEMA_VERSION, 35)      # row 1365 added step 34 after this row's step 33; row 1534 adds step 35
 
     def test_the_migration_step_is_the_same_step_33_and_adds_both_columns_to_an_older_file(self):
         con = sqlite3.connect(":memory:")
@@ -88,6 +88,38 @@ class Columns(unittest.TestCase):
                 return getattr(real, name)
         with mock.patch.object(self.s, "con", Locked()):
             self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_off_here("ABC")), (False, True))
+
+    def test_the_starting_value_starts_at_exactly_1_and_reads_as_on_only_when_exactly_1(self):
+        """Row 1418, AP2: the column's own starting value is 1, the CHECK keeps it to 0 or 1, and only a stored exactly 1 reads as on."""
+        self.s.con.execute("DELETE FROM app_settings")
+        self.s.con.execute("INSERT INTO app_settings (id) VALUES (1)")      # a row that names no value: the column's own starting value
+        self.assertEqual(self.s.con.execute("SELECT ask_new_projects FROM app_settings").fetchone()[0], 1)
+        self.assertTrue(self.s.ask_new_projects_on())
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.s.con.execute("UPDATE app_settings SET ask_new_projects = 2")
+        real = self.s.con
+
+        class Says:
+            """The one read answers `value` whatever the file holds: a value the CHECK would never let in."""
+            def __init__(self, value):
+                self.value = value
+
+            def execute(self, sql, *args):
+                if sql.startswith("SELECT ask_new_projects"):
+                    return real.execute("SELECT %s" % self.value)
+                return real.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(real, name)
+        for value, expect in (("1", True), ("0", False), ("2", False), ("-1", False)):
+            with mock.patch.object(self.s, "con", Says(value)):
+                self.assertEqual(self.s.ask_new_projects_on(), expect, "a stored %s" % value)
+
+    def test_a_missing_app_settings_row_reads_the_starting_value_as_off(self):
+        """Row 1418, AP2: with no app_settings row the starting value reads as off, so a project made now never starts with asking on by mistake."""
+        self.assertTrue(self.s.ask_new_projects_on())
+        self.s.con.execute("DELETE FROM app_settings")
+        self.assertEqual((self.s.ask_new_projects_on(), self.s.ask_allowed("ABC")), (False, False))
 
     def test_the_history_names_the_starting_value(self):
         self.assertEqual(history.FIELD_NAMES["app_settings"]["ask_new_projects"], "Asking for new projects")
@@ -269,7 +301,7 @@ class TheChangesPath(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
-        self.action = self.demo.action(owner="Sam Lee")
+        self.action = self.demo.action(owner="Sam Lee", client_visible=0)      # row 1416: off the client report, no client tick
         self.ask = ask_apply.AskApply(self.s.path, [], USER)
         self.change = changes.make_ask_change(self.s.path, [], USER)
         self.said = {"op": "change", "status": "Closed", "id": self.action, "current_title": "Draft the cut-over plan", "current_owner": "Sam Lee"}
