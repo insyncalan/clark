@@ -204,7 +204,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-act-g { font-size: var(--size-h3); line-height: 1; }
 .tpl-act-open::before { content: "\2197"; }
 .tpl-act-download::before { content: "\2193"; }
-.tpl-files-edit .tpl-icons { position: relative; display: flex; justify-content: flex-end; gap: 6px; margin: -56px 0 6px; pointer-events: none; }   /* item 1194: on the title's line, as in the mockup; -56 = the old -43 less the 13 px the title line grew when the title got its underline span (row 1408); measured, not a mock-up value (the mock-up gives centred on the title line, 44 px buttons, 6 px apart, flush right) */
+.tpl-files-edit .tpl-icons { position: relative; display: flex; justify-content: flex-end; gap: 6px; margin: -43px 0 6px; pointer-events: none; }   /* item 1194: on the title's line, as in the mockup; -43 again: row 1591 keeps the title box on one line, so the 13 px the title line grew when it wrapped (row 1408, which had made it -56) are gone; measured, not a mock-up value (the mock-up gives centred on the title line, 44 px buttons, 6 px apart, flush right) */
 .tpl-files-edit .tpl-icons > * { pointer-events: auto; }
 .sec:has(.tpl-files-edit) .sec-head { padding-right: 112px; }   /* code measurement, not from the mock: 2 x 44 px buttons + the 6 px gap + 18 px air keep the title clear of the icons */
 .tpl-files-edit .tpl-icons .tpl-form { position: absolute; right: 0; top: 54px; z-index: 6; width: min(340px, calc(100vw - 48px)); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }   /* width 340px and top 54px: the mock's .pop (width min(340px, 100vw - 48px), top 54px); the padding, border and shadow are tokens, not mock values */
@@ -324,6 +324,11 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1591 (Classic only; Cards keeps its own rule): in Edit the section title box fills the heading row (it was as wide as its text, about 65px), stays on one line, never breaks inside a word, and ends with an ellipsis until it is focused; focused, it scrolls so the whole text is reachable. */
+.sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
+.sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.sec-t > .sec-title:focus { text-overflow: clip; }
+.sec-t:has(> .sec-title)::after { right: auto; max-width: 100%; box-sizing: border-box; overflow: hidden; text-wrap: nowrap; font: inherit; color: transparent; content: attr(data-t); }   /* the box is row-wide, the row 1408 sweep line must stay as wide as the title text: a copy of the text (data-t, Title.jsx) sizes it; height 2px, bottom and animation stay rules.css */
 /* Row 1576: the two live-only elements of the peek's Latest update drawn in the mock-up's style (its .lu / .hint 12px muted note, its .cv.on eye, its .spt link). Bare values: measured from the mock-up (Row 1576 spec table AP1 to AP4). Light uses the mock-up's hex; dark uses the live dark tokens (the mock-up has no dark theme). The label has no hover. */
 #peek .pk-latest-client { gap: 8px; font-size: 12px; font-weight: 500; color: rgb(85, 103, 122); }
 #peek .pk-latest-client svg { width: 18px; height: 18px; color: rgb(10, 143, 156); }
