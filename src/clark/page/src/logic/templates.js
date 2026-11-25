@@ -259,3 +259,48 @@ export function plan(sections, id, after, beside = false) {
   // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
   return { ok: true, requests: [{ op: "new", values: { type: t.type, title: startTitle(t), ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }
+
+// ===== Row 1252: the page starters of Settings > Add page (Classic only) =====
+// A starter is a short list of templates with the approved prompt line of each part. A part with no prompt (`live`) fills itself from the project's own rows, so it is never empty.
+// The Gantt starter is the project's prebuilt Gantt page (the project's Gantt switch): its three sections are built into that page and are never stored on an added page.
+export const MAX_ADDED_PAGES = 5;
+export const HAND_NEVER = ["gantt", "gantttable", "workitems"];      // a section added by hand to an added page is never one of these (the store refuses them too)
+export const STARTERS = [
+  { id: "blank", name: "Blank with prompts", parts: [
+    { template: "text", prompt: "Write one or two sentences: what is this page and who is it for?" },
+    { template: "text-image", prompt: "Say what the reader should look at first." }] },
+  { id: "status", name: "Status", parts: [
+    { template: "report-headline", prompt: "Write the headline in one line: where the project stands this week." },
+    { template: "figures-4", prompt: "Add the number and what it counts." },
+    { template: "raid-cards", live: true },
+    { template: "key-dates", live: true }] },
+  { id: "documents", name: "Documents", parts: [
+    { template: "text", prompt: "Say in one line what these papers are and why the reader needs them." },
+    { template: "docs-links", prompt: "Add the file or link and say what it is." }] },
+  { id: "gantt", name: "Gantt", description: "A Gantt page with a header and text, a Gantt section and a Work items section.", parts: [
+    { template: "current-state", prompt: "Say in one line what this plan covers and the dates it runs over." },
+    { template: "gantt", live: true },
+    { template: "work-items", live: true }] },
+  { id: "people", name: "People and next steps", parts: [
+    { template: "contacts", prompt: "Add a name, a role and how to reach them." },
+    { template: "checklist", prompt: "Write the next step and who does it." }] },
+];
+/** The templates a person may add by hand to an added page: the ready ones, never a Gantt or a Work items section. */
+export const handTemplates = () => TEMPLATES.filter((t) => t.ready && ACCEPTS.types.includes(t.type) && !HAND_NEVER.includes(t.type));
+/** The sections a new page of this starter holds, as the store keeps them ({id, type, title, body, beside}); the Gantt starter holds none (its page is built in). */
+export function startSections(starterId) {
+  const st = STARTERS.find((s) => s.id === starterId);
+  if (!st || starterId === "gantt") return [];
+  return st.parts.map((p, i) => { const t = TEMPLATES.find((x) => x.id === p.template); return { id: `${t.type}-${i + 1}`, type: t.type, title: t.title, body: t.start || t.body || "", beside: 0 }; });
+}
+/** The prompt line of a section on a page of this starter: the i-th section of a type takes the i-th part of that type; a section added by hand takes its template's description. */
+export function promptFor(starterId, sections, id) {
+  const at = sections.findIndex((s) => s.id === id);
+  if (at < 0) return "";
+  const type = sections[at].type, nth = sections.slice(0, at + 1).filter((s) => s.type === type).length - 1;
+  const st = STARTERS.find((s) => s.id === starterId);
+  const parts = st ? st.parts.filter((p) => { const t = TEMPLATES.find((x) => x.id === p.template); return t && t.type === type; }) : [];
+  if (parts[nth] && parts[nth].prompt) return parts[nth].prompt;
+  const t = TEMPLATES.find((x) => x.type === type && !HAND_NEVER.includes(x.type));
+  return t ? t.description : "";
+}
