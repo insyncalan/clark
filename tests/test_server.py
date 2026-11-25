@@ -1610,9 +1610,11 @@ class _Pipe:
         if session:
             msg["sessionId"] = session
         os.write(self.w, json.dumps(msg).encode() + b"\0")
+        began = time.monotonic()
         while True:
+            self._deadline_check(began, method, session)
             while b"\0" not in self.buf:
-                self._stuck_check(method, params, session)
+                self._stuck_check(method, params, session, began)
                 chunk = os.read(self.r, 1 << 16)
                 if not chunk:
                     raise RuntimeError("Chrome closed the pipe")
@@ -1631,10 +1633,24 @@ class _Pipe:
     # call fails with the method, its session and the last events instead. The limit is far above any real answer (30 s page waits are polls of
     # many short calls), so no passing test changes. Not on Windows (select does not take pipes there): it blocks as before.
     STUCK_AFTER = 300.0
+    # The silence guard above never fires while Chrome keeps sending events that are not the answer (each event resets it), so a call could
+    # still wait for ever. CALL_DEADLINE is the whole time one call may wait for its own answer, events or not; far above any real answer.
+    CALL_DEADLINE = 600.0
 
-    def _stuck_check(self, method, params, session):
-        if os.name == "nt" or select.select([self.r], [], [], self.STUCK_AFTER)[0]:
+    def _deadline_check(self, began, method, session):
+        if time.monotonic() - began > self.CALL_DEADLINE:
+            last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
+            raise RuntimeError(f"Chrome gave no answer to call {self.n} {method} (session {session!r}) in {self.CALL_DEADLINE:.0f} s, "
+                               f"though bytes kept coming; last events {last}")
+
+    def _stuck_check(self, method, params, session, began=None):
+        wait = self.STUCK_AFTER
+        if began is not None:
+            wait = max(0.0, min(wait, began + self.CALL_DEADLINE - time.monotonic()))
+        if os.name == "nt" or select.select([self.r], [], [], wait)[0]:
             return
+        if began is not None:
+            self._deadline_check(began, method, session)
         last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
         raise RuntimeError(f"Chrome gave no answer for {self.STUCK_AFTER:.0f} s to call {self.n} {method} (session {session!r}, params "
                            f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
@@ -1683,6 +1699,32 @@ class PipeStuck(unittest.TestCase):
         text = str(cm.exception)
         for part in ("call 1", "Emulation.setEmulatedMedia", "S9", "Page.frameNavigated"):
             self.assertIn(part, text)
+
+    def test_events_that_never_answer_hit_the_call_deadline(self):
+        if os.name == "nt":
+            self.skipTest("select does not take pipes on Windows")
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 5
+        p.CALL_DEADLINE = 0.3
+        stop = threading.Event()
+        self.addCleanup(stop.set)
+
+        def chatter():
+            while not stop.is_set():
+                try:
+                    os.write(w, json.dumps({"method": "Page.frameNavigated", "params": {}}).encode() + b"\0")
+                except OSError:
+                    return
+                time.sleep(0.02)
+        threading.Thread(target=chatter, daemon=True).start()
+        with self.assertRaises(RuntimeError) as cm:
+            p.call("Page.enable", {}, "S7")
+        for part in ("call 1", "Page.enable", "S7", "kept coming"):
+            self.assertIn(part, str(cm.exception))
 
     def test_an_answer_in_time_is_returned(self):
         r, w = os.pipe()
