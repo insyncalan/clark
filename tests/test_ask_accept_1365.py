@@ -155,7 +155,7 @@ class Rule(Base):
 
 class Schema(Base):
     def test_a_fresh_database_reads_every_folder_as_declined(self):
-        self.assertEqual(st.SCHEMA_VERSION, 35)      # row 1534's step 35 follows this row's 34
+        self.assertEqual(st.SCHEMA_VERSION, 36)      # row 1417's step 36 follows row 1534's 35 and this row's 34
         self.assertEqual(st.EXCLUDED_STEP, 34)
         self.assertIn((34, st.migrate_source_folders_1365), st.MIGRATIONS)
         self.assertEqual([n for n, _ in st.MIGRATIONS][-3:-1], [33, 34], "one step for the whole row")

@@ -42,7 +42,7 @@ def with_sections(inputs, *extra):
     return inputs
 
 
-NEW_WORKSTREAM_COLUMNS = re.compile(r",NULL,NULL,NULL\);$")      # row 1417 (step 34): start, end and latest_update are the last three columns, NULL in an older file; only these are cut from a workstreams row
+NEW_WORKSTREAM_COLUMNS = re.compile(r",NULL,NULL,NULL\);$")      # row 1417 (step 36): start, end and latest_update are the last three columns, NULL in an older file; only these are cut from a workstreams row
 
 
 def others(path):
