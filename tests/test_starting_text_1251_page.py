@@ -15,7 +15,7 @@ CASES = [
     ("text", "Fictional plain", ["Write here."]),
     ("text", "Header", ["Say where the project stands."]),
     ("textimage", "Fictional ti", ["Write here.", "Add a picture.", "Say what the picture shows."]),
-    ("gallery", "Fictional gal", ["Add a picture.", None]),
+    ("gallery", "Fictional gal", ["Choose images, or drop them here (up to six)", None]),
     ("imagecap", "Fictional cap", ["Add a picture.", None]),
     ("quote", "Fictional quote", ["Write what they said.", "Say who said it."]),
     ("callout", "Fictional callout", ["Write the one thing the reader must see."]),
@@ -69,7 +69,7 @@ class Page(Base):
                 self.assertNotIn(w, body, f"View shows {w!r}")
 
     def test_gallery_caption_prompt_shows_only_under_a_picture(self):
-        # an empty Gallery has no caption field, so its caption words are not drawn; the picture prompt is
+        # an empty Gallery has no caption field, so its caption words are not drawn; the empty area's words (row 1233) are
         ref = self.make("gallery", "Fictional gal empty")
         sel = f"[data-id={json.dumps(ref)}]"
         with chrome() as cdp:
@@ -77,7 +77,7 @@ class Page(Base):
             p.edit()
             p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
             text = p.js(f"{SEEN}({json.dumps(sel)})")
-            self.assertIn("Add a picture.", text)
+            self.assertIn("Choose images, or drop them here (up to six)", text)
             self.assertNotIn("Say what the picture shows.", text)
 
     def test_plan_summary_prompts_sit_under_the_empty_paragraph_and_list_item(self):
