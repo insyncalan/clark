@@ -101,6 +101,7 @@ COMPUTED = {
     "is a picture and this computer cannot read pictures": "a reason in the list the (why) link opens (ask_index.REASON_PICTURE, #1366)",
     "looks like a password or a key": "a reason in the list the (why) link opens (ask_index.REASON_SAFETY, #1366)",
     "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
+    "Online-only files not searched": "the folder status line and the list when a file is online only (ask_index.ONLINE_LINE, #1537)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",

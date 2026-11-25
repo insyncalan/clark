@@ -300,7 +300,8 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
-        budget = ask.budget_for(window)
+        size = None if settings.ask_size(self.data_dir) == settings.ASK_SIZE_DEFAULT else settings.ask_size_chars(self.data_dir)      # Row 1293: the person's Size of one question (Settings), in characters; None while it is the default (ask.BUDGET)
+        budget = ask.budget_for(window, size)
         budget_left = max(0, budget - sum(len(p.text) for p in added))      # Row 1367 (#2045 CHANGES): a file added to the question keeps its room, in characters and in passages, before the project and the folders take theirs
         with self.lock:
             try:
@@ -314,7 +315,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget_left),
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE if size is None else size // 2, budget_left),
                                                   limit=max(0, ask.MAX_PASSAGES - len(added)))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
@@ -328,15 +329,15 @@ class AskService:
         try:
             room = max(0, ask.MAX_PASSAGES - len(added) - len(data.passages))
             if folders and self.indexer is not None and self.indexer.current(code, folders) and not any(v not in (None, "", "[]", []) for v in cut_subs.values()):
-                found = ask_index.folder_data(self.data_dir, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), budget_left - used, room)      # the index knows no left-out subfolder: with one set, the folders are read directly; a follow-up ("and who owns it?") also looks for the item IDs the chat named
+                found = ask_index.folder_data(self.data_dir, code, question, budget_left - used, room, ask_data.ids_in_turns(earlier))      # the index knows no left-out subfolder: with one set, the folders are read directly; a follow-up ("and who owns it?") also looks for the item IDs the chat named
             else:
-                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs)
+                found = ask_passages.folder_data(folders, self.data_dir, question, budget_left - used, self.home, room, cut_subs, ask_data.ids_in_turns(earlier))
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
                                         today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
-                                        max_request=ask.request_cap(window), files=len(added))
+                                        max_request=ask.request_cap(window, size), files=len(added), budget=budget)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -364,7 +365,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), ask.left_out_text(request.left_out), *ask_data.left_out_lines(data.counts), ask_data.partial_answer(question, data.counts), *folder_notes(found),
+                             left_out_note(found.left_out), ask.left_out_text(request.left_out), ask_words.read_left_out(data.counts), *ask_data.left_out_lines(data.counts), ask_data.partial_answer(question, data.counts), *folder_notes(found),
                              *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
