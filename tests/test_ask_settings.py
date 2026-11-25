@@ -111,7 +111,7 @@ class Settings(unittest.TestCase):
     def theme(self):
         """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules-2.css), so its test layers the Classic theme; the rest stay as they were."""
         name = self._testMethodName
-        return "prototype-2.0" if any(k in name for k in ("amber", "accept", "decline", "provider", "saved_notice", "leave_these", "leave_out")) else None
+        return "prototype-2.0" if any(k in name for k in ("amber", "accept", "decline", "provider", "saved_notice", "leave_these", "leave_out", "warning", "notice_buttons", "notice_region")) else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
@@ -373,7 +373,7 @@ class Settings(unittest.TestCase):
                     self.assertTrue(js(f"Math.abs({box}.getBoundingClientRect().width - {box}.parentElement.getBoundingClientRect().width) < 2"), "full width")
                     text = js(f"{box}.innerText")
                     flat = text.replace("\n", " ")
-                    self.assertIn("This folder holds Contract 2026 and Salary bands. Passages from it may go to Claude, which Anthropic runs, and they can contain personal information.", flat)
+                    self.assertIn("This folder holds Contract 2026 (12 readable files) and Salary bands (3 readable files). Passages from it may go to Claude, which Anthropic runs, and they can contain personal information.", flat)
                     self.assertIn("Send passages from this folder to Claude?", flat)
                     self.assertIn("Left out of ask clark.", flat, "no choice is Declined")
                     self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"])
@@ -465,16 +465,32 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
                 flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
                 self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), ("the provider in use is named", width, scheme))
-                self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
+                self.assertIn("This folder holds Payroll (1 readable file). Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
                 self.assertNotIn("Claude", flat())
                 self.assertNotIn("Anthropic", flat())
                 self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
                 js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
                 self.assertTrue(wait(lambda: "Passages may go to ChatGPT." in flat(), 10))
 
+    def test_warning_shown_on_save_lists_folders_and_counts(self):
+        """Row 1365 AP5: on save the notice lists every matched folder name with its number of readable files ("<N> readable files", "1 readable file", 0 as "0 readable files"), the name in weight 500. 1400 and 900, light and dark."""
+        for width in WIDTHS:
+            for scheme in ("light", "dark"):
+                with chrome() as cdp:
+                    js = self.warn_page(cdp, width, scheme)
+                    js("window.__ask.warn = [{folder: '/Example/Programme files', accepted: false, items: [{name: 'Contract 2026', readable_files: 12}, {name: 'Salary bands', readable_files: 1}, {name: 'Staff', readable_files: 0}]}]")
+                    js("document.querySelector('[data-ask-choose]').click()")
+                    self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10), (width, scheme))
+                    box = "document.querySelector('[data-ask-warn]')"
+                    self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-name]')].map(n => n.innerText)"), ["Contract 2026", "Salary bands", "Staff"])
+                    self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-count]')].map(n => n.innerText.trim())"), ["(12 readable files)", "(1 readable file)", "(0 readable files)"])
+                    flat = " ".join(js(f"{box}.innerText").split())
+                    self.assertIn("This folder holds Contract 2026 (12 readable files) and Salary bands (1 readable file) and Staff (0 readable files). Passages", flat)
+                    self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+
     def test_settings_project_tab_shows_warning(self):
         """Row 1365 AP7: the same notice shows on the project's tab in Settings while the folder is saved (opened from the saved list, not from a save):
-        the matched names, the provider and Accept and Decline; a labelled region. 1400 and 900, light and dark. (The readable-file count is not drawn: AP5.)"""
+        the matched names, the provider and Accept and Decline; a labelled region. 1400 and 900, light and dark. Each matched name carries its readable-file count (AP5)."""
         for width in WIDTHS:
           for scheme in ("light", "dark"):
             with chrome() as cdp:
@@ -484,7 +500,7 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("location.hash"), "#settings&p=ABC&s=claude")
                 self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
                 flat = " ".join(js(f"{box}.innerText").split())
-                self.assertIn("This folder holds Contract 2026 and Salary bands. Passages from it may go to Claude", flat)
+                self.assertIn("This folder holds Contract 2026 (12 readable files) and Salary bands (3 readable files). Passages from it may go to Claude", flat)
                 self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"], (width, scheme))
                 self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
 
@@ -501,19 +517,24 @@ class Settings(unittest.TestCase):
                 self.assertEqual(order, [["Accept", True, True], ["Decline", True, True], ["Leave these subfolders out", True, True]], (width, scheme))
                 self.assertTrue(js(f"{box}.scrollWidth <= {box}.clientWidth + 1 && {box}.getBoundingClientRect().right <= innerWidth"), (width, scheme))
                 self.assertTrue(js(f"[...{box}.querySelectorAll('button')].every(b => b.getBoundingClientRect().right <= {box}.getBoundingClientRect().right + 1)"), (width, scheme))
+                row = f"{box}.querySelector('.ask-warn-btns')"
+                self.assertEqual(js(f"getComputedStyle({row}).flexWrap"), "wrap", (width, scheme))
+                js(f"{box}.style.width = '160px'")
+                self.assertTrue(js(f"new Set([...{row}.querySelectorAll('button')].map(b => Math.round(b.getBoundingClientRect().top))).size > 1"), "a narrow card wraps the buttons onto more lines")
+                self.assertTrue(js(f"{box}.scrollWidth <= {box}.clientWidth + 1"), "and nothing overflows")
 
     def test_notice_region_and_buttons_have_accessible_names_in_the_browsers_own_tree(self):
         """Row 1365 AP12: the browser's accessibility tree (not the page's attributes) gives the notice the role region named by its folder and the three
-        buttons the names Accept, Decline and Leave these subfolders out. 1400 and 900."""
-        for width in WIDTHS:
+        buttons the names Accept, Decline and Leave these subfolders out. 1400 and 900, light and dark."""
+        for width, scheme in [(w, c) for w in WIDTHS for c in ("light", "dark")]:
             with chrome() as cdp:
-                js = self.warn_page(cdp, width, "light", open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
+                js = self.warn_page(cdp, width, scheme, open_warn=[{"folder": "/Example/Programme files", "accepted": False, "items": [{"name": "Contract", "readable_files": 2, "dir": True}]}])
                 self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10))
                 cdp.call("Accessibility.enable", {}, self.sid)
                 nodes = cdp.call("Accessibility.getFullAXTree", {}, self.sid)["nodes"]
                 seen = {(n.get("role", {}).get("value"), n.get("name", {}).get("value")) for n in nodes if not n.get("ignored")}
                 for want in (("region", "/Example/Programme files"), ("button", "Accept"), ("button", "Decline"), ("button", "Leave these subfolders out")):
-                    self.assertIn(want, seen, (width, want))
+                    self.assertIn(want, seen, (width, scheme, want))
 
     def test_a_folder_without_such_names_shows_no_warning(self):
         with chrome() as cdp:
