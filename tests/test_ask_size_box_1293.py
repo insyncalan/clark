@@ -179,6 +179,26 @@ class OnThePage(unittest.TestCase):
                 self.assertTrue(wait(lambda: settings.ask_size(self.d) == 300_000, 10))
                 self.assertTrue(wait(lambda: not js("!!document.querySelector('[data-ai-size-default]')"), 10))
 
+    ENTER = "document.querySelector('#ai-size').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))"
+
+    def test_enter_saves_the_size_and_a_refused_one_is_put_back_at_1400_and_900(self):
+        """Row 1571 (item 1): Enter in the box saves it without leaving the box; a refused value says the refusal and the saved one is put back."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                settings.ai_write(self.d, {"size": 300_000})
+                js = self.show(cdp, width)
+                js("(() => { const e = document.querySelector('#ai-size'); e.focus(); e.value = '5000'; })()")
+                js(self.ENTER)
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-msg]').innerText") == REFUSAL, 10), "Enter refused 5000")
+                self.assertTrue(wait(lambda: js("document.querySelector('#ai-size').value") == "300000", 10), "the saved value is put back")
+                self.assertEqual(settings.ask_size(self.d), 300_000)
+                js("(() => { const e = document.querySelector('#ai-size'); e.focus(); e.value = '40000'; })()")
+                js(self.ENTER)
+                self.assertTrue(wait(lambda: settings.ask_size(self.d) == 40_000, 10), "Enter saved 40000")
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-size]').innerText") == LINE.format(t=40_000, c=160_000), 10))
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-msg]').innerText") == "Size of one question is saved.", 10))
+                self.assertTrue(js("document.activeElement === document.querySelector('#ai-size')"), "saved without leaving the box")
+
 
 if __name__ == "__main__":
     unittest.main()
