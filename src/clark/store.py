@@ -39,7 +39,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 35          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 36          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables; 36 (row 1417): workstreams.start, workstreams.end and workstreams.latest_update.. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -201,6 +201,7 @@ def attach_freshness(con, data, days, cache=None):
                             "not_reviewed": f["not_reviewed"]}
 
 
+WORKSTREAM_ASK = ("lead", "start", "end", "latest_update")      # row 1417: the workstreams columns ask clark reads beyond the published ones
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
@@ -3299,6 +3300,21 @@ def migrate_column_orders(con):
         con.execute("ALTER TABLE projects ADD COLUMN " + COLUMN_ORDERS_COLUMN)
 
 
+WORKSTREAM_COLUMNS_STEP = 36        # row 1417's step number (after row 1365's 34 and row 1534's 35), written once here and used by MIGRATIONS
+WORKSTREAM_COLUMNS = ("start TEXT", "end TEXT", "latest_update TEXT")      # the same text as schema.sql's three columns; links are rows in the links table, no column
+
+
+def migrate_workstream_columns(con):
+    """Schema version 36 (row 1417): workstreams.start, workstreams.end (both dates, DATE_FIELDS) and workstreams.latest_update, read by ask
+    clark and never published. Each is added at the end of the table, empty on every row already there, so no table is made again; a column
+    already there (a new database, or a second run) is skipped, and so is a missing table. Runs inside the caller's transaction and does not
+    touch the version (the runner does). It is step 36 in MIGRATIONS."""
+    have = columns(con, "workstreams")
+    for column in WORKSTREAM_COLUMNS:
+        if have and column.split()[0] not in have:
+            con.execute("ALTER TABLE workstreams ADD COLUMN " + column)      # fixed text, never a person's value
+
+
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
@@ -3312,7 +3328,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
               (INSTALL_DEFAULTS_STEP, migrate_install_defaults), (ASK_INSTRUCTIONS_STEP, migrate_ask_instructions),
               (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files),
-              (EXCLUDED_STEP, migrate_source_folders_1365), (COLUMN_ORDERS_STEP, migrate_column_orders))
+              (EXCLUDED_STEP, migrate_source_folders_1365), (COLUMN_ORDERS_STEP, migrate_column_orders),
+              (WORKSTREAM_COLUMNS_STEP, migrate_workstream_columns))
 
 
 def migration_plan(version, table=None):
@@ -3832,25 +3849,30 @@ class Store:
         """Row 906: true when the project's section rows were once made (the seed, a new one) whatever has been deleted since."""
         return sections_were_made(self.con, code)
 
-    def publish_inputs(self, code, fields):
+    def publish_inputs(self, code, fields, ask=False):
         """What clark.publish needs to make a report for project `code`: one project's rows with only the columns in `fields`
         ({table: columns}; every name is checked against the table's own columns, never taken as given), the links, labels,
         hidden rows, sections, label rules and the milestone dates' history, all read from ONE read-only connection in ONE
         transaction, so a write can't come between two reads. None when there is no such project (#39; a clark addition: creaite
-        has no published page of its own data)."""
+        has no published page of its own data).
+        Row 1417: `ask` (ask clark's read, never a published file) also allows the workstreams' lead, skips a workstreams column an older file
+        has not got yet, and adds "ask_links": the links that have a workstream at one end."""
         con = connect(self.path, readonly=True)
         try:
             con.execute("BEGIN")
             try:
                 def pick(table):
                     have = set(columns(con, table))
-                    bad = [c for c in fields[table] if c not in have]
+                    wanted = fields[table]
+                    if ask and table == "workstreams":      # row 1417: a file not yet at this step reads without the new columns
+                        wanted = tuple(c for c in wanted if c in have or c not in WORKSTREAM_ASK)
+                    bad = [c for c in wanted if c not in have]
                     if bad:
                         raise Invalid(f"unknown field(s) for {table}: {', '.join(bad)}")
-                    never = [c for c in fields[table] if c in NEVER_PUBLISH]
+                    never = [c for c in wanted if c in NEVER_PUBLISH and not (ask and (table, c) == ("workstreams", "lead"))]
                     if never:
                         raise Invalid(f"{', '.join(never)} is never read for a published file")
-                    return ", ".join(dict.fromkeys(fields[table]))
+                    return ", ".join(dict.fromkeys(wanted))
 
                 picked_columns = pick("projects")
                 p = con.execute(f"SELECT {picked_columns} FROM projects WHERE code = ?", (code,)).fetchone()
@@ -3879,7 +3901,13 @@ class Store:
                     if r["item_id"] in labelled:
                         data["labels"].setdefault(r["item_id"], []).append(r["label"])
                 mine = {r["id"] for r in data["milestones"]}
+                extra = {}
+                if ask:
+                    extra["ask_links"] = [dict(r) for r in con.execute(
+                        "SELECT from_item, to_item FROM links WHERE from_item LIKE ? OR to_item LIKE ? ORDER BY from_item, to_item",
+                        (code + "-W-%", code + "-W-%"))]
                 return {
+                    **extra,
                     "data": data,
                     "hidden": [r["item_id"] for r in con.execute("SELECT item_id FROM report_hidden WHERE project = ?", (code,))],
                     "sections": [dict(r) for r in con.execute(
