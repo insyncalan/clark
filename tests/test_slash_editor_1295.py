@@ -207,11 +207,11 @@ class AskingOff(Base):
         self.s.httpd.app_settings.change_ask({"enabled": False})
         with chrome() as cdp:
             js = self.editor(cdp)
-            self.until(js, "!!document.querySelector('#slash-off')", "the editor says so")
-            self.assertEqual(js("document.querySelector('#slash-off').innerText"), self.OFF)
+            self.until(js, "((document.querySelector('#slash-off') || {}).innerText) === %r" % self.OFF, "the editor says so")
+            self.assertEqual(js("(document.querySelector('#slash-off') || {}).innerText"), self.OFF)
             js = self.settings(cdp)
-            self.until(js, "!!document.querySelector('#slash-project #slash-off')", "the list says so")
-            self.assertEqual(js("document.querySelector('#slash-project #slash-off').innerText"), self.OFF)
+            self.until(js, "((document.querySelector('#slash-project #slash-off') || {}).innerText) === %r" % self.OFF, "the list says so")
+            self.assertEqual(js("(document.querySelector('#slash-project #slash-off') || {}).innerText"), self.OFF)
 
     def test_with_asking_on_neither_says_it(self):
         self.turn_on()
@@ -400,6 +400,100 @@ class Editor(Base):
         with chrome() as cdp:
             js = self.editor(cdp, EDITOR + "&name=history")
             self.assertEqual(js("document.querySelectorAll('#sl-text').length"), 0)
+
+    def test_one_undo_per_change(self):
+        """Row 1541 AP3: Remove gives one #slash-undo and a restore uses it up (the AI result Undo and the typed-edit clearing are in test_slash_ai_1295)."""
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&new=1")
+            self.until(js, "!!document.querySelector('#sl-name')", "the form opens")
+            self.type_into(js, "#sl-name", "monday")
+            self.type_into(js, "#sl-menu", "Monday summary")
+            self.type_into(js, "#sl-text", "Group the overdue items by owner.")
+            self.until(js, "!document.querySelector('#slash-save').disabled", "Save is on")
+            self.click(js, "#slash-save")
+            self.until(js, "!!document.querySelector('.slash-side [data-pick=monday]')", "saved")
+            self.click(js, "#slash-remove")
+            self.until(js, "!!document.querySelector('#slash-undo')", "one Undo appears")
+            self.assertEqual(js("document.querySelectorAll('#slash-undo').length"), 1)
+            self.assertEqual(js("document.querySelectorAll('#slash-ai-undo').length"), 0)
+            self.click(js, "#slash-undo")
+            self.until(js, "!!document.querySelector('.slash-side [data-pick=monday]')", "restored")
+            self.assertEqual(js("document.querySelectorAll('#slash-undo').length"), 0)   # the one step is used up
+
+    def test_ask_words_do_not_say_shortcuts(self):
+        """Row 1541 AP1: both askWords.js lines say slash commands, the first with its leading space."""
+        words = (SRC / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn('export const CARD_TIP_AFTER = " in the box for slash commands.";', words)
+        self.assertIn("(type / for slash commands)", words)
+        self.assertNotIn("for shortcuts", words)
+
+class EditorStates(Base):
+    """Row 1541 AP4: each state of the editor, light and dark, at 1400 and 900: the state's own element, and the grid's tracks (3 at 1400, 1 at 900)."""
+    TRACKS = "getComputedStyle(document.querySelector('.slash-grid')).gridTemplateColumns.split(' ').filter(Boolean).length"
+
+    def open_at(self, cdp, width, dark, path):
+        sid = navigate(cdp, self.s.port, "")
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}{path}"}, sid)
+        js = lambda e: cdp.js(e, sid)          # noqa: E731
+        self.until(js, "!!document.querySelector('#slash-page')", "the editor page is on", 30)
+        if dark:
+            js("document.documentElement.setAttribute('data-theme', 'dark')")
+        return js
+
+    def each(self, check, path=EDITOR):
+        for width, tracks in ((1400, 3), (900, 1)):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    js = self.open_at(cdp, width, dark, path)
+                    check(js, tracks)
+
+    def grid(self, js, tracks):
+        self.until(js, "!!document.querySelector('.slash-grid')", "the grid is drawn")
+        self.assertEqual(js(self.TRACKS), tracks)
+
+    def test_editor_light_and_dark_at_both_widths(self):
+        def list_state(js, tracks):
+            self.until(js, "!!document.querySelector('.slash-side button')", "the list")
+            self.grid(js, tracks)
+            self.assertTrue(js("document.querySelector('.slash-side').offsetHeight > 0"))
+
+        def card_state(js, tracks):
+            self.until(js, "!!document.querySelector('.slash-edit-card')", "the card")
+            self.grid(js, tracks)
+            self.assertTrue(js("document.querySelector('#slash-ai') !== null && document.querySelector('#slash-ai').offsetHeight > 0"))
+            self.click(js, "#slash-help")
+            self.until(js, "!!document.querySelector('#slash-pop')", "the placeholders popup")
+            self.assertTrue(js("document.querySelector('#slash-pop').offsetHeight > 0"))
+
+        def error_state(js, tracks):
+            self.until(js, "!!document.querySelector('#sl-menu')", "the form")
+            self.type_into(js, "#sl-menu", "m" * 71)
+            self.until(js, "!!document.querySelector('.slash-err')", "an inline error")
+            self.grid(js, tracks)
+            self.assertTrue(js("!!document.querySelector('#slash-check')"))
+
+        self.each(list_state)
+        self.each(card_state, EDITOR + "&new=1")
+        self.each(error_state, EDITOR + "&new=1")
+
+    def test_editor_off_and_unreadable_states_at_both_widths(self):
+        self.s.httpd.app_settings.change_ask({"enabled": False})
+
+        def off(js, tracks):
+            self.until(js, "!!document.querySelector('#slash-off')", "off is said")
+            self.grid(js, tracks)
+            self.assertTrue(js("document.querySelector('#slash-off').offsetHeight > 0"))
+
+        self.each(off)
+        self.s.httpd.ask_commands = None
+
+        def note(js, tracks):
+            self.until(js, "!!document.querySelector('#slash-note')", "the note is shown")
+            self.assertTrue(js("document.querySelector('#slash-note').offsetHeight > 0"))
+            self.assertTrue(js("document.querySelector('.slash-grid') === null"))
+
+        self.each(note)
 
 
 

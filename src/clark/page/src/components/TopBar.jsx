@@ -15,6 +15,7 @@ export function TopBar({ tools }) {
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
+  const Bell = tools && tools.Bell && !fromFile.value && classicTheme() ? tools.Bell : null;     // row 1046: the notices bell, left of search; the editor only and Classic only (Cards is frozen: it draws no bell), a published page carries nothing from notices
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   const HeaderDate = tools && tools.HeaderDate && !fromFile.value ? tools.HeaderDate : null;     // item 1177: the week as a button that opens the calendar (the editor only)
   const row = useRef(null);
@@ -69,6 +70,7 @@ export function TopBar({ tools }) {
   const tail = (<>
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
+      {Bell ? <Bell /> : null}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
@@ -93,8 +95,8 @@ export function TopBar({ tools }) {
           : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
-      {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header */}
-      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
+      {file && asAt.value && !classicTheme() ? <CardsDate /> : null}      {/* Cards only: the date button of a client's header; the Classic header has no date button (row 1543) */}
+      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), before the profile circle; empty, it takes no room */}
       {file ? tail : <div class="hdr-end">{tail}</div>}
       {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}
     </header>

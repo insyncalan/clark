@@ -784,6 +784,21 @@ class MockupLook(InThePage):
              " off: cs(up, 'opacity'), head: ic.map(b => [cs(b, 'borderTopWidth'), cs(b.querySelector('svg'), 'strokeWidth'), cs(b, 'color'), cs(b, 'borderTopColor'), Math.round(R(b).top + R(b).height / 2 - (R(head).top + R(head).height / 2))]),"
              " gap: Math.round(R(list).top - R(ic[0]).top), allowed: [cs(al, 'fontSize'), cs(al, 'padding'), cs(al, 'borderTopLeftRadius')], hint: cs(hint, 'fontSize'), font: svg.getAttribute('font-family'), step: [Math.round(R(dn).left - R(up).left), Math.round(R(rm).left - R(dn).left)], facts: Math.round(R(fx).height * 10) / 10}; })()")
 
+    def test_the_icon_buttons_sit_on_the_title_line_with_the_margin_43(self):
+        # Row 1591: the title box is one line (no wrap), so .tpl-icons keeps margin-top -43px; the buttons' centre is within 2 px of the title box's centre.
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                got = p.js("(() => { const s = document.querySelector(%s), t = s.querySelector('.sec-title').getBoundingClientRect(), ic = s.querySelector('.tpl-icons'),"
+                           " b = ic.querySelector('button').getBoundingClientRect(); return {margin: getComputedStyle(ic).marginTop, off: (b.top + b.height / 2) - (t.top + t.height / 2), titleH: t.height}; })()" % json.dumps(sel))
+                print("ICONS", w, got)
+                self.assertEqual(got["margin"], "-43px", w)
+                self.assertLessEqual(abs(got["off"]), 2, f"icon buttons vs title line at {w}: {got}")
+
     def test_edit_matches_the_mockup_sizes_spacing_and_icon_colours(self):
         ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
         sel = f"[data-id={json.dumps(ref)}]"

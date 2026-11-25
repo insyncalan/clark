@@ -282,7 +282,7 @@ def _cover_part(files, sheet_name):
     return None
 
 
-def embed(files, png, sheet_name="Cover", wave=None):
+def embed(files, png, sheet_name="Report", wave=None):
     """`files` ({member name: bytes} of a saved .xlsx) with the PNG `png` added to the sheet called `sheet_name`: returns
     (replacements, additions), two dicts of member name to bytes, for the caller to write. Nothing is changed in `files`. Raises
     PictureRefused if the workbook has no such sheet or is not laid out as openpyxl lays it out. `png` (the logo) and `wave` (the

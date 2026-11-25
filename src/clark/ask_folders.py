@@ -12,14 +12,14 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform, reach
+from clark import ask_exclude, platform, reach, sensitive_names
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 PATH_LIMIT = 1000
 MAX_FOLDERS = 20
 SHARED_FILE = "ask_folders_all.json"      # row 1294: the folders for all projects, kept beside the data (a list of full paths, in the order they were added)
-ACTIONS = ("add", "remove", "undo", "choose")
+ACTIONS = ("add", "remove", "undo", "choose", "reindex", "exclude", "include", "accept", "decline")      # "reindex": the status line's Try again and Index again (row 1371) read the folders again; nothing is saved
 PICK_PROMPT = "Choose a folder asking may read"
 WIDE_PLACES = ("/Volumes", "/private/var", "/var", "/private/var/folders", "/private/tmp", "/tmp")   # other disks, and the system's working files (a teammate: LOW)
 
@@ -52,6 +52,26 @@ MESSAGES = {
     "removed": "Removed. Asking no longer reads that folder.",
     "undone": "Undone.",
 }
+
+
+def read_ok(path, excluded=None, accepted=0):
+    """Row 1365: whether asking may read a saved folder. A folder with a people or contract word in a name (sensitive_names, names only: the folder's own name,
+    and the names inside it, the subfolders the person left out not counted) is read only when the person pressed Accept for it (`accepted` is exactly 1); with no
+    choice it is Declined. A name scan that stopped at its limit (truncated) counts as flagged: it fails closed. A left-out list that cannot be read is passed on as
+    before (True): the reader (ask_passages) sends nothing from that folder and counts it as skipped for safety, which a False here would hide. A folder with no such name is read as before."""
+    if accepted == 1 and type(accepted) is int:
+        return True
+    try:
+        gone = ask_exclude.parse(excluded)
+    except ValueError:
+        return True
+    found = sensitive_names.scan(path, gone)
+    return not (found or found.truncated)
+
+
+def readable_paths(rows):
+    """The paths, in sort order, of the saved-folder rows (store.read("source_folders", code)) that asking may read (read_ok): the one rule every reader uses."""
+    return [r["path"] for r in sorted(rows, key=lambda r: (r.get("sort_order") or 0, r["path"])) if read_ok(r["path"], r.get("excluded"), r.get("accepted", 0))]
 
 
 def same_folder(a, b):
@@ -90,6 +110,8 @@ class AskFolders:
         self.choose_folder = choose_folder or platform.choose_folder      # the system's folder window (a seam for tests)
         self.lock = threading.Lock()
         self.indexer = indexer                                # ask_index.Indexer or None: the background reader of the saved folders (Row 1366)
+        if indexer is not None and getattr(indexer, "leave_out", None) is None:
+            indexer.leave_out = self.left_map                 # row 1542: the background reader never reads a subfolder the person left out
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -97,9 +119,59 @@ class AskFolders:
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
 
+    def warned(self, folders, left=None, accepted=None):
+        """Row 1365 S2: [{folder, accepted, items: [{name, readable_files, dir}]}] for each folder whose names hold a people or contract word (S1 scan, names only).
+        `left` is {folder: stored list of left-out subfolders}: those are not named. A list that cannot be read leaves the folder unscanned (the reader refuses and counts it). A scan that stopped at its limit is flagged.
+        `accepted` is {folder: 0 or 1}: 1 only after the person pressed Accept for that folder; a folder not in it is Declined."""
+        out = []
+        for f in folders:
+            try:
+                gone = ask_exclude.parse((left or {}).get(f))
+            except ValueError:
+                continue
+            found = sensitive_names.scan(f, gone)
+            items = [{"name": h["name"], "readable_files": h["readable_files"], "dir": h["dir"]} for h in found]
+            if found.truncated and not items:              # a scan that stopped at its limit fails closed: flagged, named by the folder's own name
+                items = [{"name": os.path.basename(os.path.normpath(f)) or f, "readable_files": 0, "dir": False}]
+            if items:
+                out.append({"folder": f, "accepted": (accepted or {}).get(f) == 1, "items": items, **({"truncated": True} if found.truncated else {})})
+        return out
+
     def listed(self, store, code):
         rows = store.read("source_folders", code)
         return [r["path"] for r in sorted(rows, key=lambda r: (r.get("sort_order") or 0, r["path"]))]
+
+    def left_out(self, store, code):
+        """{saved folder: stored list of left-out subfolders} (row 1365)."""
+        return {r["path"]: r.get("excluded") for r in store.read("source_folders", code)}
+
+    def left_list(self, store, code):
+        """Row 1542: [{folder, rels}] for each saved folder with subfolders left out, rels as they were saved (relative, never absolute). A list that cannot be read is not shown."""
+        out = []
+        for f, raw in self.left_out(store, code).items():
+            try:
+                rels = ask_exclude.parse(raw)
+            except ValueError:
+                continue
+            if rels:
+                out.append({"folder": f, "rels": rels})
+        return out
+
+    def left_map(self, code):
+        """{saved folder: stored left-out list} for project `code`, opened and closed here: what the background index reader is given (row 1542). Raises Invalid when the data cannot be opened."""
+        store = self.store()
+        try:
+            return self.left_out(store, code)
+        finally:
+            store.close()
+
+    def accepted_of(self, store, code):
+        """{saved folder: 1 when the person pressed Accept for it, else 0} (row 1365; 0 is Declined, the default)."""
+        return {r["path"]: r.get("accepted", 0) for r in store.read("source_folders", code)}
+
+    def warnings_now(self, store, code):
+        now = self.listed(store, code)
+        return self.warned(now, self.left_out(store, code), self.accepted_of(store, code))
 
     # ----- GET -----
     def read(self, code):
@@ -113,9 +185,10 @@ class AskFolders:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                out = {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
+                out = {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir),
+                       "warnings": self.warnings_now(store, code), "left_out": self.left_list(store, code)}
                 if self.indexer is not None:
-                    out["index"] = self.indexer.status_for(code, [*out["shared"], *out["folders"]])
+                    out["index"] = self.indexer.status_for(code, [*out["shared"], *readable_paths(store.read("source_folders", code))])      # a folder left out is not indexed
                 return 200, out
             finally:
                 store.close()
@@ -123,7 +196,7 @@ class AskFolders:
     # ----- POST -----
     def change(self, body):
         status, out = self._change(body)
-        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove", "undo"):
+        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove", "undo", "reindex", "exclude", "include", "accept", "decline"):
             self.reindex([body["project"]])
         return status, out
 
@@ -135,14 +208,14 @@ class AskFolders:
             return 400, self.fail("bad_project_code")
         if action not in ACTIONS:
             return 400, self.fail("bad_action")
-        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action == "choose" else {"project", "action", "path"}
+        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action in ("choose", "reindex") else {"project", "action", "path", "rel"} if action == "include" else {"project", "action", "path"}   # exclude takes the saved folder's path, like remove; include also the left-out subfolder
         if set(body) - allowed or (allowed - {"project", "action"}) - set(body):
             return 400, self.fail("bad_request")
         if action == "undo":
             asked = body["apply_id"]
             if type(asked) is not int or not 1 <= asked < 2 ** 63:
                 return 400, self.fail("no_undo")
-        elif action == "choose":
+        elif action in ("choose", "reindex"):
             asked = None
         else:
             asked = body["path"]
@@ -159,10 +232,18 @@ class AskFolders:
                     return 404, self.fail("project_not_found")
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
+                if action == "reindex":
+                    return 200, {"ok": True, "folders": self.listed(store, code)}
                 if action == "undo":
                     return self.undo(store, code, asked)
                 if action == "remove":
                     return self.remove(store, code, asked)
+                if action == "exclude":
+                    return self.exclude(store, code, asked)
+                if action == "include":
+                    return self.include(store, code, asked, body["rel"])
+                if action in ("accept", "decline"):
+                    return self.choose_provider(store, code, asked, 1 if action == "accept" else 0)
                 if action == "choose":
                     return self.choose(store, code)
                 return self.add(store, code, asked)
@@ -174,7 +255,27 @@ class AskFolders:
         out = {"ok": True, "folders": shared_folders(self.data_dir)}
         if self.indexer is not None and isinstance(code, str) and PROJECT_CODE.fullmatch(code):
             out["index"] = self.indexer.status_for(code, self.all_folders(code))
+            out["projects"] = self.indexed_counts(out["folders"])
         return 200, out
+
+    def indexed_counts(self, shared):
+        """{folder for all projects: [projects where its index is finished, projects that use it]} over the projects that are not archived (row 1371:
+        the All projects line "Indexed for N of N projects"). Reads only; it starts no read."""
+        try:
+            store = self.store()
+            try:
+                codes = [r["code"] for r in store.read("projects") if not r.get("archived")]
+            finally:
+                store.close()
+            out = {p: [0, len(codes)] for p in shared}
+            for c in codes:
+                got = self.indexer.peek(c, self.all_folders(c))
+                for p in shared:
+                    if got.get(p, {}).get("state") == "done":
+                        out[p][0] += 1
+            return out
+        except Exception:                                   # noqa: BLE001 a count that cannot be made is left out; the line shows the folder's own state
+            return {}
 
     def all_folders(self, code):
         """What asking reads in project `code`: the folders for all projects, then the project's own (as ask_service.folders_for)."""
@@ -184,7 +285,7 @@ class AskFolders:
         except Invalid:
             return list(shared_folders(self.data_dir))
         try:
-            own = self.listed(store, code)
+            own = readable_paths(store.read("source_folders", code))      # row 1365: a folder the person has not accepted is not read
         finally:
             store.close()
         for p in [*shared_folders(self.data_dir), *own]:
@@ -208,6 +309,25 @@ class AskFolders:
         except Exception:                                   # noqa: BLE001 the folder change is saved; the read is only a copy
             pass
 
+    def start_missing(self):
+        """At launch: start the background read for every project that has a saved folder but no index file yet (a first start after an update, a deleted index).
+        A project whose index exists is left to the poll and the question, which carry on or refresh it. Never raises, never waits."""
+        if self.indexer is None:
+            return
+        try:
+            from clark import ask_index
+            store = self.store()
+            try:
+                codes = [r["code"] for r in store.read("projects") if not r.get("archived")]
+            finally:
+                store.close()
+            for c in codes:
+                folders = self.all_folders(c)
+                if folders and not ask_index.path_for(self.data_dir, c).exists():
+                    self.indexer.start(c, folders)
+        except Exception:                                   # noqa: BLE001 the read is only a copy; the poll and the question start it later
+            pass
+
     def save_shared(self, folders):
         """One atomic write of the list; False when it can't be written. No folder on disk is touched."""
         target = self.data_dir / SHARED_FILE
@@ -221,7 +341,7 @@ class AskFolders:
 
     def change_all(self, body):
         status, out = self._change_all(body)
-        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove"):
+        if status == 200 and isinstance(out, dict) and out.get("ok") and isinstance(body, dict) and body.get("action") in ("add", "choose", "remove", "reindex"):
             self.reindex(None)
         return status, out
 
@@ -230,16 +350,18 @@ class AskFolders:
         if not isinstance(body, dict) or body.get("scope") != "all":
             return 400, self.fail("bad_request")
         action = body.get("action")
-        if action not in ("add", "remove", "choose"):
+        if action not in ("add", "remove", "choose", "reindex"):
             return 400, self.fail("bad_action")
-        need = {"scope", "action"} if action == "choose" else {"scope", "action", "path"}
+        need = {"scope", "action"} if action in ("choose", "reindex") else {"scope", "action", "path"}
         if set(body) != need:
             return 400, self.fail("bad_request")
-        asked = None if action == "choose" else body["path"]
-        if action != "choose" and (not isinstance(asked, str) or not asked or len(asked) > PATH_LIMIT or any(odd_character(c) for c in asked)):
+        asked = None if action in ("choose", "reindex") else body["path"]
+        if action not in ("choose", "reindex") and (not isinstance(asked, str) or not asked or len(asked) > PATH_LIMIT or any(odd_character(c) for c in asked)):
             return 400, self.fail("not_a_path")
         with self.lock:
             now = shared_folders(self.data_dir)
+            if action == "reindex":
+                return 200, {"ok": True, "folders": now}
             if action == "choose":
                 start = now[-1] if now else next(iter(self.onedrive_roots), None)
                 try:
@@ -319,7 +441,8 @@ class AskFolders:
         step = self.save(store, lambda st: st.create("source_folders", {"project": code, "path": real, "sort_order": order}))
         if step is False:
             return 409, self.fail("cant_save")
-        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step}
+        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step,
+                     "warnings": self.warned([real])}      # a folder just added has no Accept: it is Declined
 
     def choose(self, store, code):
         """The system's folder window, then the same checks and the same one step as an added folder. Cancelled: nothing changes."""
@@ -348,6 +471,68 @@ class AskFolders:
             return 409, self.fail("cant_save")
         return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["removed"], "apply_id": step}
 
+    def exclude(self, store, code, typed):
+        """Row 1365: leave out the subfolders the name scan flagged in one saved folder (the server finds them: the page sends only the folder).
+        Each is added to the folder's list (at most ask_exclude.MAX_LEFT_OUT); a folder not in the list, or a list that cannot be read, changes nothing.
+        One store step, so one Undo. Nothing on disk is touched."""
+        now = self.listed(store, code)
+        target = typed if typed in now else os.path.realpath(typed) if typed.startswith("/") else None
+        if target not in now:
+            return 409, self.fail("not_in_list")
+        try:
+            have = ask_exclude.parse(self.left_out(store, code).get(target))
+        except ValueError:
+            return 409, self.fail("cant_save")
+        found = [h["path_rel"].replace(os.sep, "/") for h in sensitive_names.scan(target, have) if h["dir"]]
+        new = sorted(set(have) | {r for r in map(ask_exclude.clean, found) if r})
+        if new == sorted(have):
+            return 200, {"ok": True, "folders": now, "warnings": self.warnings_now(store, code)}
+        if len(new) > ask_exclude.MAX_LEFT_OUT:
+            return 409, self.fail("cant_save")
+        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", {"excluded": ask_exclude.dump(new)}))
+        if step is False:
+            return 409, self.fail("cant_save")
+        return 200, {"ok": True, "folders": now, "apply_id": step, "warnings": self.warnings_now(store, code), "left_out": self.left_list(store, code)}
+
+    def include(self, store, code, typed, rel):
+        """Row 1542: Include again. Takes one left-out subfolder of one saved folder out of its list, so the next index run and the next question read it. One store step,
+        so one Undo. A folder not in the list, or a subfolder not in its left-out list, changes nothing. Nothing on disk is touched."""
+        now = self.listed(store, code)
+        target = typed if typed in now else os.path.realpath(typed) if typed.startswith("/") else None
+        if target not in now:
+            return 409, self.fail("not_in_list")
+        try:
+            have = ask_exclude.parse(self.left_out(store, code).get(target))
+        except ValueError:
+            return 409, self.fail("cant_save")
+        want = ask_exclude.clean(rel) if isinstance(rel, str) else None
+        if want is None or want not in have:
+            return 409, self.fail("not_in_list")
+        rest = [r for r in have if r != want]
+        fields = {"excluded": ask_exclude.dump(rest)}
+        if self.accepted_of(store, code).get(target) == 1:         # row 1542 AP5: a name on the 1365 list (or one inside) coming back sets the folder back to Declined in the same step
+            found = sensitive_names.scan(target, rest)
+            if found.truncated or any(i["path_rel"] == want or i["path_rel"].startswith(want + "/") for i in found):
+                fields["accepted"] = 0
+        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", fields))
+        if step is False:
+            return 409, self.fail("cant_save")
+        return 200, {"ok": True, "folders": now, "message": MESSAGES["added"], "apply_id": step, "warnings": self.warnings_now(store, code), "left_out": self.left_list(store, code)}
+
+    def choose_provider(self, store, code, typed, value):
+        """Row 1365: Accept (1) or Decline (0) for one saved folder, remembered in source_folders.accepted. Only a folder in the project's list; one store step, so one
+        Undo. The answer carries the warnings as they stand now. Nothing on disk is touched."""
+        now = self.listed(store, code)
+        target = typed if typed in now else os.path.realpath(typed) if typed.startswith("/") else None
+        if target not in now:
+            return 409, self.fail("not_in_list")
+        if self.accepted_of(store, code).get(target) == value:
+            return 200, {"ok": True, "folders": now, "warnings": self.warnings_now(store, code)}
+        step = self.save(store, lambda st: st.update("source_folders", f"{code}|{target}", {"accepted": value}))
+        if step is False:
+            return 409, self.fail("cant_save")
+        return 200, {"ok": True, "folders": now, "apply_id": step, "warnings": self.warnings_now(store, code)}
+
     def undo(self, store, code, step):
         rows = store.step_rows(step)
         mine = rows and all(r["table"] == "source_folders" and str(r["key"]).startswith(code + "|") and r["via"] == "dashboard"
@@ -360,4 +545,4 @@ class AskFolders:
             return 409, self.fail("no_undo")
         if not done.get("reversed"):
             return 409, self.fail("cant_save")
-        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["undone"]}
+        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["undone"], "left_out": self.left_list(store, code)}

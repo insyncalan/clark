@@ -16,6 +16,7 @@ from test_server import Running, chrome, wait
 
 HASH = "#milestones&p=TUL"
 CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
+# row 1466 was reversed by the owner on PR 2255: the opened milestone peek says Client wording again, so the pinned "open" hashes are the old ones.
 CARDS_DOM_MD5 = {
     1400: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "f880cee0281bb5a0f2ed6cbcb7c44e39", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
     900: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "a47b575a7ad86e2e18674c92043a9ff6", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
@@ -59,7 +60,7 @@ class CardsDom(BrowserBase, unittest.TestCase):
             out["move"] = cdp.js(grab, sid)
         return {k: hashlib.md5(re.sub(r"(last updated \d\d-\d\d-\d{4}) \d\d:\d\d", r"\1 HH:MM", v).encode("utf-8")).hexdigest() for k, v in out.items()}, out
 
-    def test_the_rendered_milestones_dom_is_the_dom_main_renders_at_1400_and_900(self):
+    def test_the_rendered_milestones_dom_is_the_pinned_dom_at_1400_and_900(self):
         got = {width: self.capture(width)[0] for width in (1400, 900)}
         self.assertEqual(got, CARDS_DOM_MD5)
 

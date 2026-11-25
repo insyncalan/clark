@@ -11,6 +11,7 @@ import io
 import json
 import os
 import re
+import select
 import socket
 import subprocess
 import sys
@@ -364,10 +365,10 @@ class Saving(ServerTest):
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/ask-files": 1024, "/api/ask-new-projects": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/size": 1024, "/api/providers/test": 1024, "/api/providers/verify": 1024, "/api/providers/cancel": 1024,
                                                 "/api/ask": 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024), "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
-                                                "/api/section-file": 1024,
+                                                "/api/section-file": 1024, "/api/section-file-drop": 25 * 1024 * 1024,     # row 1275: one dropped file's raw bytes
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
@@ -488,10 +489,10 @@ class Saving(ServerTest):
 
     def test_the_section_body_route_limit_is_two_largest_sections_plus_4_kb_and_change_is_16_kb(self):
         # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405); every other change keeps /api/change's 16 KB
-        from clark import section_bodies
+        from clark import section_bodies, section_kinds
         self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertEqual(sv.SECTION_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
-        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
+        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), section_kinds.raid3.MANY * section_kinds.raid3.CARD_BYTES + 64)      # row 1270: the RAID cards hold up to eight cards (raid3.LIMIT = MANY * CARD_BYTES + 64, 96864), so the largest template is 96864 bytes; every other template is within 64 KB; the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
 
@@ -1611,6 +1612,7 @@ class _Pipe:
         os.write(self.w, json.dumps(msg).encode() + b"\0")
         while True:
             while b"\0" not in self.buf:
+                self._stuck_check(method, params, session)
                 chunk = os.read(self.r, 1 << 16)
                 if not chunk:
                     raise RuntimeError("Chrome closed the pipe")
@@ -1624,8 +1626,22 @@ class _Pipe:
             if "method" in m:
                 self.events.append(m)
 
+    # Diagnostics only (row: settings_sidebar_1500 hit the 900 s file timeout in a blocking os_read on this pipe, run 45365455611). Chrome that never
+    # answers one call used to hang the file until the runner killed it, with no word on WHICH call. After STUCK_AFTER seconds without a byte the
+    # call fails with the method, its session and the last events instead. The limit is far above any real answer (30 s page waits are polls of
+    # many short calls), so no passing test changes. Not on Windows (select does not take pipes there): it blocks as before.
+    STUCK_AFTER = 300.0
+
+    def _stuck_check(self, method, params, session):
+        if os.name == "nt" or select.select([self.r], [], [], self.STUCK_AFTER)[0]:
+            return
+        last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
+        raise RuntimeError(f"Chrome gave no answer for {self.STUCK_AFTER:.0f} s to call {self.n} {method} (session {session!r}, params "
+                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
+
     def js(self, expr, session):
-        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True}, session)["result"].get("value")
+        """The value of the expression. A promise is waited for (awaitPromise), so `js("new Promise(r => setTimeout(r, 300))")` takes 300 ms (row 1622)."""
+        return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True, "awaitPromise": True}, session)["result"].get("value")
 
 
 @contextlib.contextmanager
@@ -1647,6 +1663,36 @@ def chrome():
             os.close(from_r)
     finally:
         remove_profile(prof)                   # not TemporaryDirectory: Chrome's helpers may still be writing (Linux)
+
+
+class PipeStuck(unittest.TestCase):
+    """A call Chrome never answers fails with the call named (no browser: a pipe nobody writes to)."""
+
+    def test_a_silent_pipe_names_the_call(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()                       # what the test writes goes here, so it never comes back as an "answer"
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 0.2
+        p.events.append({"method": "Page.frameNavigated", "params": {"x": 1}})
+        if os.name == "nt":
+            self.skipTest("select does not take pipes on Windows")
+        with self.assertRaises(RuntimeError) as cm:
+            p.call("Emulation.setEmulatedMedia", {"features": []}, "S9")
+        text = str(cm.exception)
+        for part in ("call 1", "Emulation.setEmulatedMedia", "S9", "Page.frameNavigated"):
+            self.assertIn(part, text)
+
+    def test_an_answer_in_time_is_returned(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 5
+        os.write(w, json.dumps({"id": 1, "result": {"ok": 1}}).encode() + b"\0")
+        self.assertEqual(p.call("Page.enable", {}, "S1"), {"ok": 1})
 
 
 class PipeFocus(unittest.TestCase):

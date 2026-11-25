@@ -69,9 +69,18 @@ class Frame(unittest.TestCase):
         self.assertEqual(node("F.aspectOf(%s, {shape: 'free', ratio: 1.5})" % json.dumps(INFO)), 1.5)
 
     def test_a_small_image_keeps_its_own_width(self):
-        out = node("F.outSize({w: 600, h: 400}, {shape: '16:9'})")
-        self.assertEqual(out["w"], 600, "drawn as wide as it was before the shape cut some of it away")
+        out = node("F.outSize({w: 500, h: 300}, {shape: '16:9'})")
+        self.assertEqual(out["w"], 500, "drawn as wide as it was before the shape cut some of it away")
         self.assertEqual(node("F.outSize({w: 2400, h: 1200}, {})"), {"w": 2400, "h": 1200})
+
+    def test_the_small_width_is_600_so_599_is_small_and_600_is_not(self):
+        self.assertEqual(node("F.SMALL_WIDE"), 600)
+        self.assertEqual(node("F.outSize({w: 599, h: 200}, {shape: '16:9'})")["w"], 599, "599 is small: kept at its own width")
+        self.assertLess(node("F.outSize({w: 600, h: 200}, {shape: '16:9'})")["w"], 600, "600 is not small: the shape cuts it")
+        self.assertLess(node("F.outSize({w: 1199, h: 400}, {shape: '16:9'})")["w"], 1199, "1,199 is not small")
+        self.assertIn("centred at its own size", node("F.fileNote({w: 599, h: 400}, 599)"))
+        self.assertNotIn("centred at its own size", node("F.fileNote({w: 600, h: 400}, 600)"))
+        self.assertNotIn("centred at its own size", node("F.fileNote({w: 1199, h: 800}, 1199)"))
 
     def test_height_limits_and_free_starts_from_the_height_it_has(self):
         self.assertEqual(node("F.ratioLimits(1000, 800)"), {"lo": 1000 / 560, "hi": 4})

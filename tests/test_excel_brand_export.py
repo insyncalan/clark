@@ -81,13 +81,13 @@ class WithABrand(Rig):
         path, w = self.export(self.brand(text))
         wb, cells = harvest(path)
         self.assertEqual(w, [])
-        self.assertEqual(wb.sheetnames[0], "Cover")
+        self.assertEqual(wb.sheetnames[0], "Report")
         for name in DATA_SHEETS:
             head = wb[name]["A1"]
             self.assertEqual((rgb(head.fill.fgColor), head.font.name), (navy, font), name)
         hist, lists = wb["History"]["A2"], wb["Lists"]["A1"]
         self.assertEqual((rgb(hist.fill.fgColor), hist.font.name, rgb(lists.fill.fgColor), lists.font.name), (navy, font, navy, font))
-        band = wb["Cover"]["A1"]
+        band = wb["Report"]["A1"]
         self.assertEqual((rgb(band.fill.fgColor), band.font.name), (navy, font))
         self.assertEqual({c[2] for c in cells.values() if c[2]}, {font})                # every cell, every sheet, one font
         self.assertTrue(DARK_ONLY_VALUES.isdisjoint({v for c in cells.values() for v in c[:2] + c[3:] if v}))
@@ -98,7 +98,7 @@ class WithABrand(Rig):
         with self.demo.store.step("dashboard", {"name": "Sam Example", "email": "sam.example@example.com"}) as st:
             st.update("report_sections", sec["id"], {"body": '{"health":{"shown":true},"v":1}'})
         wb, cells = self.check(BRAND_ONE, "0B2545", "0A7C74", "Segoe UI")
-        bars = {c[3] for (sheet, _), c in cells.items() if sheet == "Cover" and c[3]}
+        bars = {c[3] for (sheet, _), c in cells.items() if sheet == "Report" and c[3]}
         self.assertTrue(bars)
         self.assertTrue(bars <= {base.TOKENS["status-red"], base.TOKENS["status-amber-text"], "046B5F", "B8C4D0"}, bars)                                       # the tile bars: the status tokens, or this brand's grey-300
 
@@ -106,7 +106,7 @@ class WithABrand(Rig):
         path, _ = self.export(self.brand(BRAND_ONE, logo=True))
         wb = load_workbook(str(path))
         self.assertTrue(all(ws.protection.sheet for ws in wb.worksheets))
-        self.assertTrue(wb["Cover"]["A1"].protection.locked)
+        self.assertTrue(wb["Report"]["A1"].protection.locked)
 
     def test_brand_two_like(self):
         self.check(BRAND_TWO, "1B1F3B", "7A1FA2", "Georgia")
@@ -128,7 +128,7 @@ class WithABrand(Rig):
         path, _ = self.export(self.brand(BRAND_ONE, logo=True))
         with zipfile.ZipFile(path) as z:
             self.assertIn("xl/media/image1.png", z.namelist())
-        self.assertEqual(rgb(load_workbook(path)["Cover"]["A1"].fill.fgColor), "0B2545")
+        self.assertEqual(rgb(load_workbook(path)["Report"]["A1"].fill.fgColor), "0B2545")
 
     def test_a_bad_colour_falls_back_for_that_token_with_a_warning(self):
         d = self.brand(":root { --brand-navy: rgb(1, 2, 3); --grey-100: #E0EEFF; }")
@@ -159,7 +159,7 @@ class WithNoBrand(Rig):
             self.assertEqual(w, [])
             self.assertEqual(wb["Actions"]["A1"].font.name, excel.OFFICE_FONT)
             self.assertEqual((rgb(wb["Actions"]["A1"].fill.fgColor), rgb(wb["Actions"]["A1"].font.color)), (base.HEADER_FILL, base.HEADER_TEXT))
-            self.assertEqual(rgb(wb["Cover"]["A1"].fill.fgColor), base.TOKENS["brand-navy"])
+            self.assertEqual(rgb(wb["Report"]["A1"].fill.fgColor), base.TOKENS["brand-navy"])
             self.assertEqual({c[2] for c in cells.values() if c[2]}, {excel.OFFICE_FONT})
 
     def test_a_brand_free_workbook_equals_one_made_with_the_module_defaults(self):
@@ -255,7 +255,7 @@ class CoverGutter(unittest.TestCase):
         from openpyxl import Workbook
         wb = Workbook()
         excel.write_cover(wb, [{"kind": "pair", "text": "", "left": {"title": "This week", "text": "A"}, "right": {"title": "Next week", "text": "B"}}])
-        ws = wb["Cover"]
+        ws = wb["Report"]
         spans = sorted((r.min_col, r.max_col) for r in ws.merged_cells.ranges)
         self.assertEqual(spans, [(1, 5), (1, 5), (8, 12), (8, 12)])
         for col in (6, 7):

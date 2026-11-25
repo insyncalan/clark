@@ -193,7 +193,86 @@ class InThePage(PageBase):
                 self.assertEqual(p.js(f"document.querySelectorAll({json.dumps(sec + ' script, ' + sec + ' img, ' + sec + ' [onerror], ' + sec + ' [onclick], ' + sec + ' [style]')}).length"), 0, kind)
                 self.assertEqual(p.js(f"[...document.querySelectorAll({json.dumps(sec + ' a')})].some(a => /^javascript:/i.test(a.getAttribute('href') || ''))"), False, kind)
 
+    def test_link_card_and_one_document_words_are_a_plain_box_with_the_old_words_and_save_lines(self):
+        """Row 1288: Not rich. The box holds the words as plain lines (old html as its text), saves them as `text` with no `html`, and leaves
+        stored words alone when they are not touched."""
+        refs = {"linkcard": self.add("linkcard", html="<p>Kept <strong>words</strong></p><p>Second</p>"), "onedoc": self.add("onedoc", text=LEGACY)}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for kind, ref in refs.items():
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector({json.dumps(sec + ' textarea')})", f"{kind} has a plain box")
+                self.assertEqual(p.js(f"document.querySelectorAll({json.dumps(sec + ' [data-rich], ' + sec + ' .ProseMirror')}).length"), 0, "no rich field")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(refs['linkcard'] and '[data-id=' + json.dumps(refs['linkcard']) + '] textarea')}).value"), "Kept words\nSecond")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps('[data-id=' + json.dumps(refs['onedoc']) + '] textarea')}).value"), "\n".join(LEGACY))
+            for kind, ref in refs.items():
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.js(f"(() => {{ const t = document.querySelector({json.dumps(sec + ' textarea')}); t.value = 'ZQ one\\nZQ two'; t.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                self.assertTrue(wait(lambda: "ZQ two" in self.store.read("report_sections", ref=ref)["body"], 15), kind)
+                got = json.loads(self.store.read("report_sections", ref=ref)["body"])
+                self.assertEqual(got["text"], ["ZQ one", "ZQ two"], kind)
+                self.assertNotIn("html", got, kind)
+
+    def test_the_words_box_saves_exactly_the_limit_and_refuses_one_over_at_1400_and_900(self):
+        """Row 1288: the limits are the store's: 3 paragraphs of 400 (Link preview), 6 of 600 (One document); one more paragraph or character is refused, nothing saved."""
+        refs = {"linkcard": (self.add("linkcard", text=LEGACY), 3, 400), "onedoc": (self.add("onedoc", text=LEGACY), 6, 600)}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for width, ch in ((1400, "a"), (900, "b")):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for kind, (ref, lines, each) in refs.items():
+                    sec = f"[data-id={json.dumps(ref)}]"
+                    p.until(f"!!document.querySelector({json.dumps(sec + ' textarea')})", f"{kind} has a plain box")
+                    fill = lambda v: p.js(f"(() => {{ const t = document.querySelector({json.dumps(sec + ' textarea')}); t.value = {json.dumps(v)}; t.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                    for over in ("\n".join([ch * each] * (lines + 1)), "\n".join([ch * each] * (lines - 1) + [ch * (each + 1)])):
+                        before = self.store.read("report_sections", ref=ref)["body"]
+                        fill(over)
+                        p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                        p.until(f"!!document.querySelector({json.dumps(sec + ' [role=alert]')})", f"{kind} refuses one over at {width}")
+                        self.assertIn(f"{lines} paragraphs of {each} characters at most", p.js(f"document.querySelector({json.dumps(sec + ' [role=alert]')}).textContent"))
+                        self.assertEqual(self.store.read("report_sections", ref=ref)["body"], before, f"{kind}: nothing saved")
+                    ok = [ch * each] * lines
+                    fill("\n".join(ok))
+                    p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                    self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=ref)["body"]).get("text") == ok, 15), f"{kind}: exactly the limit saves at {width}")
+
+    def test_old_html_words_stay_exactly_as_stored_until_the_box_is_typed_in_and_old_lines_with_markup_read_as_text(self):
+        """Row 1288 (review): a save that does not touch the words (a new title, a new label) keeps the stored html byte for byte, so the
+        published page and the exports of an old card read as before; old lines with markup characters show as text in the box; emptying the box
+        saves no words and no html."""
+        old_html = "<p>Kept <strong>words</strong> and <a href=\"https://example.org/x\">a link</a></p><p>Second</p>"
+        refs = {"linkcard": self.add("linkcard", html=old_html), "onedoc": self.add("onedoc", html=old_html)}
+        lines = self.add("linkcard", title="Fictional lines", text=LEGACY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            field = {"linkcard": "title", "onedoc": "label"}
+            for kind, ref in refs.items():
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector({json.dumps(sec + ' textarea')})", f"{kind} has a plain box")
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(sec + ' textarea')}).value"), "Kept words and a link\nSecond", kind)
+                before = self.store.read("report_sections", ref=ref)["body"]
+                kept_html = json.loads(before)["html"]           # as the server's cleaner stored it
+                p.js(f"(() => {{ const t = document.querySelector({json.dumps(sec + ' input[id$=-' + field[kind] + ']')}); t.value = 'ZQ changed'; t.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+                p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+                self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=ref)["body"]).get(field[kind]) == "ZQ changed", 15), kind)
+                got = json.loads(self.store.read("report_sections", ref=ref)["body"])
+                self.assertEqual(got["html"], kept_html, f"{kind}: the old html is untouched by a save of something else")
+                self.assertFalse(got.get("text"), kind)
+                self.assertNotEqual(self.store.read("report_sections", ref=ref)["body"], before)
+            sec = f"[data-id={json.dumps(lines)}]"
+            p.until(f"!!document.querySelector({json.dumps(sec + ' textarea')})", "the old lines' box")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(sec + ' textarea')}).value"), "\n".join(LEGACY), "markup characters in an old line are text")
+            p.js(f"(() => {{ const t = document.querySelector({json.dumps(sec + ' textarea')}); t.value = ''; t.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+            p.js(f"document.querySelector({json.dumps(sec + ' [data-save] button')}).click()")
+            self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=lines)["body"]).get("text") == [], 15), "emptied")
+            self.assertNotIn("html", json.loads(self.store.read("report_sections", ref=lines)["body"]))
+
     def test_edit_opens_the_one_editor_with_the_old_lines_and_saves_html(self):
+        KINDS = {"callout": globals()["KINDS"]["callout"]}          # row 1288: the card and file words are Not rich (the test above)
         refs = {k: self.add(k, **{KINDS[k][1]: LEGACY}) for k in KINDS}
         with chrome() as cdp:
             p = self.visit(cdp)

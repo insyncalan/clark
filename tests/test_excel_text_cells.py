@@ -160,7 +160,7 @@ class DataSheets(unittest.TestCase):
         self.export("-x", owner="=y", client_message="@z")
         ws = load_workbook(self.path)["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        for label, want in (("Description", "-x"), ("Owner", "=y"), ("Client wording", "@z")):
+        for label, want in (("Title", "-x"), ("Owner", "=y"), ("Client wording", "@z")):
             c = ws.cell(row=2, column=head[label])
             self.assertEqual((c.value, c.data_type, c.quotePrefix), (want, "s", True), label)
 
@@ -237,7 +237,7 @@ class TheCover(unittest.TestCase):
                 self.addCleanup(shutil.rmtree, path.parent, True)
                 ws = excel.write_cover(wb, cover.lines(project, sections, [], datetime(2030, 6, 1, 9, 0)))
                 wb.save(path)
-                seen = {c.value: c for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+                seen = {c.value: c for row in load_workbook(path)["Report"].iter_rows() for c in row if c.value}
                 for want in (lead + "Name", lead + "Now."):
                     self.assertIn(want, seen)
                     self.assertEqual((seen[want].data_type, seen[want].quotePrefix), ("s", True), want)
@@ -255,7 +255,7 @@ class TheCover(unittest.TestCase):
         self.addCleanup(shutil.rmtree, path.parent, True)
         excel.write_cover(wb, cover.lines(project, [{"type": "current", "title": "'=Section"}], [], datetime(2030, 6, 1, 9, 0)))
         wb.save(path)
-        seen = {c.value for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+        seen = {c.value for row in load_workbook(path)["Report"].iter_rows() for c in row if c.value}
         for want in ("'=Name", "\u25a0  '=Section", "'+Now."):
             self.assertIn(want, seen)
         self.assertFalse([v for v in seen if isinstance(v, str) and v.startswith("''")])
@@ -307,7 +307,7 @@ class RoundTrip(unittest.TestCase):
     def test_the_text_in_the_file_is_the_text_in_the_store(self):
         ws = load_workbook(self.path)["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        by_id = {ws.cell(row=r, column=head["ID"]).value: ws.cell(row=r, column=head["Description"]) for r in range(2, ws.max_row + 1)}
+        by_id = {ws.cell(row=r, column=head["ID"]).value: ws.cell(row=r, column=head["Title"]) for r in range(2, ws.max_row + 1)}
         for item_id, text in zip(self.ids, self.TEXTS):
             self.assertEqual(by_id[item_id].value, excel.to_cell("description", text))
             self.assertEqual(by_id[item_id].data_type, "s")

@@ -232,8 +232,11 @@ class Health(Setup):
             p.key("Enter", 0, "Enter", 13)
             p.type("Second line")
             p.until("document.querySelector('[data-reason] .ProseMirror').textContent.includes('Second line')", "the second line is in the editor before it is left")
+            # The change toast goes after 5 seconds (stores/toastClock.js); a runner so loaded that the poll misses it would read "no toast". A latch set by the page
+            # itself remembers that it was shown, and the wait below is the same wait with the same message.
+            p.js("window.__sawUndo = false; new MutationObserver(() => { if (document.querySelector('[data-undo]')) window.__sawUndo = true; }).observe(document.body, {childList: true, subtree: true}); true")
             p.js("document.activeElement.blur()")
-            p.saved()
+            p.until("window.__sawUndo || !!document.querySelector('[data-undo]')", "the change was saved")
             self.assertEqual(self.project()["health_reason"], "<p>First line</p><p>Second line</p>")
             p.view()
             self.assertEqual(p.js("document.querySelector('[data-fig=health] .hreason').innerHTML"), "<p>First line</p><p>Second line</p>")

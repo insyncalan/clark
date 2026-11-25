@@ -26,7 +26,7 @@ def hint(key, name="SLASH_HINT"):
 
 class AskWords1350(unittest.TestCase):
     def test_placeholder(self):
-        self.assertEqual(const("PLACEHOLDER_CLASSIC"), "Ask a question or give an instruction... (type / for shortcuts)")
+        self.assertEqual(const("PLACEHOLDER_CLASSIC"), "Ask a question or give an instruction... (type / for slash commands)")
         self.assertEqual(const("PLACEHOLDER"), "Ask a question about this project")
 
     def test_summary_hint(self):

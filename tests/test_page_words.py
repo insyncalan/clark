@@ -32,6 +32,20 @@ WENT_WRONG = "Something went wrong"
 # #318: a clause that starts with the product name, at the start of a string or after a full stop, colon or semicolon. A word must
 # follow it: an event name like "clark:open" is not a sentence.
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
+# approved label, NEW-WORDS.md :1600 (approved 20-11); a label, not a sentence. Exempt only as a whole string literal, nothing broader.
+APPROVED_LABELS = ("clark default",)
+
+
+def is_approved_label(line, start):
+    """True when the match at start is exactly an approved label as a whole string literal: quote, label, the same quote."""
+    return any(line.startswith(q + label + q, start) for label in APPROVED_LABELS for q in "\"'`")
+
+
+def starts_with_product_name(line):
+    """True when the line has a clause that starts with the product name and is not exactly an approved label."""
+    return any(not is_approved_label(line, m.start()) for m in SENTENCE_STARTS_WITH_PRODUCT_NAME.finditer(line))
+
+
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
 # item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
@@ -65,9 +79,9 @@ def lines(cdp, sid):
 
 
 # row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
-FOUR_GROUPS = '["You", [[' in (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")      # row 1299 1a: the Settings menu is in four groups when Views.jsx has them
-GROUP_NAMES = ("You", "All projects", "Project settings", "Help and about") if FOUR_GROUPS else ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
-ASK_PAGE = "ask clark" if FOUR_GROUPS else "Claude and AI"
+# row 1299 1a: these tests run with the Cards look, which keeps the five groups; the Classic four-group menu is pinned by test_settings_groups_1299a and test_help_pr_a
+GROUP_NAMES = ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+ASK_PAGE = "Claude and AI"
 
 
 def group_names_as_written(got):
@@ -214,14 +228,14 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
+            menu = (
                     ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
-                    "No local folder yet.", "Choose folder", "Asking on or off",
-                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
+                    "No local folder yet.", "Choose folder", "ask clark",
+                    "Connections, model, folders, instructions and slash commands for every project", "Open All projects",      # row 1294: the one row that opens the All projects tab (the asking switch is not on this page any more)
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                     "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                     "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -269,7 +283,9 @@ class Words(unittest.TestCase):
                     "Gantt",          # #926: the project's Gantt tab setting
                     "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
                     "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
-                    "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page."
+                    "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.",
+                    "Work items board", "Whether a published report lets the client switch the Work items page from the list to the board. The client can look and open a card, never change anything.",      # row 1533: the author's switch, wording approved in NEW-WORDS.md
+                    "Show the board to clients", "The list stays the first view. A printed or saved page is always the list."
                 ]),
                 ('backups', 'Backups', [
                     "Backups",            # #111: the backups card; this server has no backups to list
@@ -313,9 +329,6 @@ class Words(unittest.TestCase):
                     "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
                     "settings and published reports are kept.",
                     "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
-                    "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                    "What is wrong, or what would you suggest?How can we reach you? (optional)", "ADDED TO THE EMAIL", "Version of clark: unknown", f"System: {system}",
-                    "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                     "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"
                 ]),
             ]
@@ -401,7 +414,7 @@ class Words(unittest.TestCase):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
         self.assertTrue(files)
         for f in files:
-            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "")     # the header's name is the server's, not text
+            text = re.sub(r"X-Clark-(Token|Project|Section|File-Name)", "", f.read_text(encoding="utf-8"))     # the headers' names are the server's, not text
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
@@ -422,6 +435,8 @@ class Words(unittest.TestCase):
                 for m in starts.finditer(line):
                     if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
                         continue
+                    if is_approved_label(line, m.start()):
+                        continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
     def test_help_shows_no_real_looking_version_as_an_example(self):
@@ -438,6 +453,16 @@ class Words(unittest.TestCase):
             self.assertIsNotNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(caught), caught)
         for passed in ("note, because clark does x", "after a while, clark does x", "dispatch('clark:open')", "note: the clark folder", "note: clark."):
             self.assertIsNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(passed), passed)
+
+    def test_only_the_exact_approved_label_clark_default_is_exempt_from_the_product_name_rule(self):
+        """#318: the one exemption is the whole string literal "clark default" (NEW-WORDS.md :1600); anything broader is still flagged."""
+        for label in ('"clark default"', "'clark default'", "`clark default`", 'x ? "clark default" : b'):
+            self.assertFalse(starts_with_product_name(label), label)
+        for flagged in ('"clark is ready"', '"clark defaults are on"', '"clark default is ready"', '"clark default x"', '" clark default x"',
+                        '"clark default."', '"clark default" + " clark is ready"', '"Done. clark default"', '"clark default x"', '"clark d x"',
+                        '"clark default\'', "'clark default\"", '"clark  default"', '"Clark default"'):
+            self.assertTrue(starts_with_product_name(flagged), flagged)
+        self.assertEqual(APPROVED_LABELS, ("clark default",))
 
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""

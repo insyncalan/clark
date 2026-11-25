@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _growth import GROWTH_FLOOR, NEAR_CAP, NEAR_LIMIT
 from _paths import ROOT, SRC, TOOLS
 
 import sys
@@ -160,9 +161,19 @@ class Words(unittest.TestCase):
         self.assertEqual(self.say("is:qqqqqqqq"), ["Unknown state 'qqqqqqqq'."])
 
     def test_a_very_long_field_name_is_answered_at_once(self):
-        out = run_node(f"(() => {{ const t = Date.now(); const m = Q.parseFor({lit('x' * 200000 + ':1')}, {lit(ROWS)}, {lit(CTX)}).errors.map(Q.messageOf); return [m.length, Date.now() - t < 300]; }})()")
-        self.assertEqual(out[0], 1)
-        self.assertTrue(out[1])
+        """No wall-clock limit: a slow node start under load must not fail it. The 200000-character field name is timed in CPU time against a
+        plain word of the same size in the same node run (best of 3 each), and may cost at most NEAR_LIMIT times that (the baseline raised to
+        a floor); a quadratic parse is thousands of times over."""
+        probe = (f"(() => {{ const rows = {lit(ROWS)}, ctx = {lit(CTX)}; const best = (line) => {{ let b = Infinity, m = null;"
+                 f" for (let i = 0; i < 3; i++) {{ const c = process.cpuUsage(); m = Q.parseFor(line, rows, ctx).errors.map(Q.messageOf);"
+                 f" const u = process.cpuUsage(c); b = Math.min(b, (u.user + u.system) / 1e6); }} return [m.length, b]; }};"
+                 f" const hostile = best({lit('x' * 200000 + ':1')}), plain = best({lit('x' * 200000)}); return [hostile[0], hostile[1], plain[1]]; }})()")
+        count, spent, plain = run_node(probe)
+        msg = "a 200000-character field name: %.3f CPU s against a plain word of the same size %.3f CPU s" % (spent, plain)
+        print(msg)
+        self.assertEqual(count, 1, msg)
+        self.assertLessEqual(spent, NEAR_LIMIT * max(plain, GROWTH_FLOOR), msg)
+        self.assertLessEqual(spent, NEAR_CAP, msg + " (over the absolute cap)")
 
     def test_the_page_cannot_answer_some_states_yet(self):
         self.assertEqual(len(self.say("is:needed")), 1)                  # an error (the token filters nothing), with no approved sentence

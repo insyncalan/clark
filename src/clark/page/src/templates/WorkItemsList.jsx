@@ -103,10 +103,10 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord,
   );
 }
 
-// Row 1199: the link under the table when the filter lists more rows than Most rows. Shown only on the page clark serves (View and Edit).
+// Row 1199: the link when the filter lists more rows than Most rows. Shown only on the page clark serves (View and Edit). Row 1475: it sits at the left of the foot (Foot), on the line of Review all N items.
 export function ShowAll({ list, all, onToggle }) {
   if (!list.more) return null;
-  return <p class="wil-all"><button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button></p>;
+  return <button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button>;
 }
 
 // Row 1268: the rows scroll inside a box as tall as the first Most rows (measured from the drawn rows, as the mock-up's fitScroll does), so
@@ -130,23 +130,27 @@ export function Scroller({ max, count, children, all }) {
 
 // Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them (View and Edit, never a published file), the link when there are more rows than Most rows; open, the box
 // shows every row and the link reads "Show only N". The Cards page gets the Scroller alone, exactly as before.
-const openLists = signal({});      // row 1195: the lists whose Show all items is open, by section id, so the Foot reads Showing N of N
+export const openLists = signal({});      // row 1195: the lists whose Show all items is open, by section id, so the Foot reads Showing N of N
 export function Listing({ max, count, sid, children }) {
   const all = !!openLists.value[sid];
   const setAll = (v) => { openLists.value = { ...openLists.value, [sid]: v }; };
   const on = classicTheme() && !fromFile.value && count > max;      // the served page only, as the Foot is: a published file has no link
-  return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
+  return <Scroller max={max} count={count} all={on && all}>{children}</Scroller>;      // row 1475: the link is in the Foot, on one line with Review all N items
 }
 
-// The foot under the rows (the served page only): "Showing N of M" in Edit, and the link to the Work items page on the same filter.
+// The foot under the rows (the served page only): row 1475, ONE line: Show all items at the left (Classic, when the filter lists more than Most rows), "Showing N of M" (Edit and Classic View) and the link to the Work items page on the same filter at the right.
 export function Foot({ section, total, max, edit, nameOf }) {
-  const open = !!openLists.value[section.id] && classicTheme() && !fromFile.value;
+  const served = classicTheme() && !fromFile.value;
+  const open = !!openLists.value[section.id] && served;
+  const more = served && max > 0 && total > max;
   const filter = filterOf(section);
-  if (!filter || !total) return null;
+  if (!total || (!filter && !more)) return null;
+  const toggle = () => { openLists.value = { ...openLists.value, [section.id]: !open }; };
   return (
     <div class="wil-foot" data-wil-foot="">
-      {edit || (classicTheme() && !fromFile.value) ? <span data-wil-count="">{footWords(total, max, open, classicTheme())}</span> : <span></span>}
-      <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button>
+      {more ? <ShowAll list={{ more: true, max }} all={open} onToggle={toggle} /> : null}
+      {filter && (edit || served) ? <span data-wil-count="">{footWords(total, max, open, classicTheme())}</span> : <span></span>}
+      {filter ? <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button> : null}
     </div>
   );
 }
@@ -157,14 +161,7 @@ export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
-// Row 1195 (Classic, the served View): the headings drag, move (Alt with an arrow) and resize (Ctrl with an arrow) as in Edit, kept on this computer and never saved in the document.
-// The hooks are the Edit part's (edit/colWidths.jsx), handed over by edit/templates/WorkItemsList.jsx when the page clark serves loads it; a published file has none of that code, so it has no handles.
-export const colTools = { current: null };
-
-function Live({ draw, hooks, id }) {
-  const cw = hooks.useColWidths(`wil-${id}`, true), ord = hooks.useColOrder(`wil-${id}`);
-  return draw(cw, ord);
-}
+// Row 1225: View draws plain headings (no drag, no grip, no tab stop); only Edit has the width and order tools (edit/colWidths.jsx).
 
 export function View({ section, data, pick }) {
   const now = today();
@@ -178,5 +175,5 @@ export function View({ section, data, pick }) {
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
-  return !fromFile.value && classicTheme() && colTools.current ? <Live draw={draw} hooks={colTools.current} id={section.id} /> : draw(undefined, undefined);
+  return draw(undefined, undefined);
 }

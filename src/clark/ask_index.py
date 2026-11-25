@@ -32,7 +32,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_exclude, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
@@ -63,6 +63,7 @@ _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
 MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
+ONLINE_LINE = "Online-only files not searched"           # row 1537 AP4: the owner's words of 19-11, NEW-WORDS.md:2225-2226; no count in front
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
 REASON_TOO_LONG_PDF = "is a PDF that is too long"          # a PDF over its page, size or time limit (the words main already had)
@@ -182,7 +183,7 @@ def _excel_groups(raw, truncated):
             lines, header = [], None
             for n, row in enumerate(ws.iter_rows(values_only=True)):
                 if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
-                    break
+                    raise TooLong("too many rows or cells")      # never cut silently: the file is listed "too long to read" and none of it is indexed
                 if CLOCK() - began > MAX_EXCEL_SECONDS:
                     raise TooLong("too slow")
                 cells += len(row)
@@ -247,6 +248,22 @@ def _unusable(folders, data_dir, home):
     return usable, bad
 
 
+def _cuts(folders, leave_out):
+    """Row 1542: (usable folders, the folders whose left-out list cannot be read, {folder: the test the walk is given}). A folder whose list cannot be read is not indexed at all
+    (the same fail-closed rule as the question's reader): a broken list never means "index everything"."""
+    use, broken, cuts = [], [], {}
+    for f in folders:
+        try:
+            rels = ask_exclude.parse((leave_out or {}).get(f))
+        except ValueError:
+            broken.append(f)
+            continue
+        use.append(f)
+        if rels:
+            cuts[f] = ask_passages._gone(rels)
+    return use, broken, cuts
+
+
 def _open_read(data_dir, code):
     """The index for a reader (a question, the Settings poll): None when there is none or it cannot be opened now (a refresh holds it locked)."""
     try:
@@ -268,12 +285,15 @@ def _set(db, k, v):
     db.execute("INSERT OR REPLACE INTO meta VALUES(?, ?)", (k, v if isinstance(v, str) else json.dumps(v)))
 
 
-def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
+def refresh(data_dir, code, folders, home=None, stop=None, progress=None, leave_out=None):
     """Bring the index up to date with `folders`; reads again only the files whose size or modified time changed.
     `stop` (a threading.Event) ends it early (False is returned, the index is not marked complete); `progress(folder, done, total)` is
-    called after each file. Returns True when it ran to the end."""
+    called after each file. Returns True when it ran to the end.
+    `leave_out` (row 1542) is {saved folder: the stored list of subfolders the person left out}: nothing under them is read, and what an earlier run kept from them is dropped."""
     listed = sorted(str(f) for f in folders or ())
     usable, bad = _unusable(folders, data_dir, home)
+    usable, broken, cuts = _cuts(usable, leave_out)
+    bad = [*bad, *broken]
     per = {str(f): {**dict.fromkeys(NAMES, 0), "safety": 1} for f in bad}
     if not usable:
         remove(data_dir, code)               # no folder left: no copy of its text stays
@@ -289,12 +309,12 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
         return True
     db = _open(data_dir, code)
     try:
-        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress)
+        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress, cuts)
     finally:
         db.close()                               # also when a read fails half way: no connection is left open by the worker
 
 
-def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress):
+def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress, cuts=None):
     _set(db, "complete", "0")
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
@@ -306,7 +326,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     stopped_listing = False
     for folder in usable:
         reasons = {}
-        listing = reach.readable_files([folder], data_dir, reasons, home)
+        listing = reach.readable_files([folder], data_dir, reasons, home, {folder: cuts[folder]} if cuts and folder in cuts else None)
         stopped_listing = stopped_listing or bool(listing.stopped)
         roots = reach.roots([folder], home)
         c = dict.fromkeys(NAMES, 0)
@@ -434,8 +454,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
         state = "safety"
     except TooLong:
         state = "too_long"
-    except (docx_read.WordRefused, ask_picture.PictureUnreadable, ValueError, UnicodeError):
-        # damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
+    except (docx_read.WordRefused, ask_picture.PictureUnreadable, ValueError, UnicodeError, OSError):
+        # a read error on this one file (OSError) leaves only this file out, so the pass goes on and the files already read stay; damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
         state = "type"
     if state == "indexed":
         every = "\n".join("\n".join(lines) for _n, lines in groups)
@@ -461,10 +481,13 @@ def build(data_dir, code, folders, home=None):
     refresh(data_dir, code, folders, home)
 
 
-def search(data_dir, code, question, limit=MAX_RESULTS):
-    """Passages for `question`, best first (newer file first when equal). Opens no source file."""
-    words = _WORD.findall(question or "")
-    if not words:
+def search(data_dir, code, question, limit=MAX_RESULTS, extra=()):
+    """Passages for `question`, best first (newer file first when equal). Opens no source file. `extra` (row 1537 AP2) are item IDs of earlier turns:
+    each is one quoted phrase ("RISK-12"), outside the first 40 question words."""
+    typed = ask.ID_PATTERN.findall(question or "")       # an item ID typed in this question is matched whole, like one of an earlier turn: its pieces are not words
+    words = _WORD.findall(ask.ID_PATTERN.sub(" ", question or ""))
+    phrases = ['"' + str(x).replace('"', "") + '"' for x in (*typed, *(extra or ())) if str(x).replace('"', "").strip()]
+    if not words and not phrases:
         return []
     db = _open_read(data_dir, code)
     if db is None:
@@ -472,7 +495,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
     try:
         if not _screen_ok(db):
             return []                                # text screened by an older screen is never given out; the next read screens it again
-        match = " OR ".join('"' + w.replace('"', "") + '"' for w in words[:40])
+        match = " OR ".join(phrases + ['"' + w.replace('"', "") + '"' for w in words[:40]])
         rows = db.execute("SELECT text, file, part, mtime FROM p WHERE p MATCH ? ORDER BY round(rank, 6), mtime DESC LIMIT ?", (match, limit)).fetchall()
     except sqlite3.Error:
         return []
@@ -521,9 +544,11 @@ def more_line(n):
 
 
 def left_out_line(reason, n):
-    """The approved sentence for `n` files left out for one reason (only "safety" so far)."""
+    """The approved sentence for `n` files left out for one reason (picture, online, safety)."""
     if reason == "picture":
         return f"{n} {_plural(n, 'is a picture', 'are pictures')} and this computer cannot read {_plural(n, 'pictures', 'them')}."
+    if reason == "online":
+        return ONLINE_LINE
     if reason == "safety":
         return f"{n} look like a password or a key and were left out." if n != 1 else "1 looks like a password or a key and was left out."
     raise ValueError(reason)
@@ -558,7 +583,7 @@ def line_for(counts, reading=None):
     if pic:
         out.append(left_out_line("picture", pic))
     if o:
-        out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
+        out.append(left_out_line("online", o))
     if long_:
         out.append(f"{long_} {_plural(long_, 'file is', 'files are')} too long.")
     if s:
@@ -599,11 +624,25 @@ def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
     return out
 
 
-def folder_status(data_dir, code, folders, live=None):
-    """{folder: {"state": "reading" | "done", "line": text}} for the folders that have something to say. `live` is the worker's
-    {folder: (done, total)} for the run in progress; a folder with no index yet and no run says nothing."""
+def _with_online(left, saved):
+    """The files-left-out list of a folder that has online-only files starts with the line "Online-only files not searched" (row 1537 AP4; no name: they are never opened)."""
+    out = dict(left)
+    for f, c in saved.items():
+        if isinstance(c, dict) and c.get("online_only"):
+            got = out.get(f) or {"files": [], "more": 0}
+            out[f] = {"files": [[ONLINE_LINE, ""]] + list(got["files"]), "more": got["more"]}
+    return out
+
+
+def folder_status(data_dir, code, folders, live=None, busy=False, failed=False, cleared=False, changed=None):
+    """{folder: {"state": ..., "line": text}} for the folders that have something to say. The states: "reading" (the folder is being read now:
+    `live` is the worker's {folder: (done, total)} for the run in progress), "done", "waiting" (a run is queued or running and has not reached a folder
+    that has no index yet), "updating" (the same for a folder that has one: `changed` is {folder: n files that differ}, the count is in "changed"),
+    "paused" (the index of the folder was not finished and no run is going), "failed" (the last run failed) and "cleared" (the index was deleted).
+    `busy`, `failed` and `cleared` are the worker's word for the project. A folder with no index yet and no run says nothing."""
     saved = {}
     db = _open_read(data_dir, code)
+    has_index = db is not None
     if db is not None:
         try:
             row = db.execute("SELECT v FROM meta WHERE k='folders'").fetchone()
@@ -612,16 +651,27 @@ def folder_status(data_dir, code, folders, live=None):
             saved = {}
         finally:
             db.close()
-    left = _left_by_folder(data_dir, code, folders) if saved else {}
+    left = _with_online(_left_by_folder(data_dir, code, folders) if saved else {}, saved)
     out = {}
     for f in folders or ():
         f = str(f)
         if live and f in live:
             out[f] = {"state": "reading", "line": line_for(None, live[f])}
+        elif failed:
+            out[f] = {"state": "failed", "line": "Could not index this folder."}
+        elif cleared:
+            out[f] = {"state": "cleared", "line": "Not indexed."}
+        elif busy and f not in saved:
+            out[f] = {"state": "waiting", "line": "Waiting to index"}
+        elif busy and (changed or {}).get(f):
+            n = changed[f]
+            out[f] = {"state": "updating", "line": f"Updating\u2026 {n} {_plural(n, 'file', 'files')} changed", "changed": n}
         elif f in saved:
             out[f] = {"state": "done", "line": done_line(saved[f])}
             if left.get(f):
                 out[f]["left"] = left[f]
+        elif has_index:
+            out[f] = {"state": "paused", "line": "Indexing paused. It carries on when clark is open"}
     return out
 
 
@@ -639,7 +689,7 @@ def current(data_dir, code, folders):
         db.close()
 
 
-def stale(data_dir, code, folders, home=None):
+def stale(data_dir, code, folders, home=None, leave_out=None):
     """True when the files now in `folders` differ from the ones the index holds: a file new, gone (or no longer readable), or with another
     size or modified time. Lists the folders the way `refresh` does and reads no file. A file changed to the same size AND the same modified
     time cannot be seen this way (no content hash: that would mean reading every file on every question)."""
@@ -655,11 +705,12 @@ def stale(data_dir, code, folders, home=None):
     finally:
         db.close()
     usable, _bad = _unusable(folders, data_dir, home)
+    usable, _broken, cuts = _cuts(usable, leave_out)
     names = _prefixes(_all_roots(usable, home))
     seen = set()
     try:
         for folder in usable:
-            listing = reach.readable_files([folder], data_dir, None, home)
+            listing = reach.readable_files([folder], data_dir, None, home, {folder: cuts[folder]} if folder in cuts else None)
             roots = reach.roots([folder], home)
             for path in listing.files:
                 if not str(path).lower().endswith(TRACKED_TYPES):
@@ -679,11 +730,51 @@ def stale(data_dir, code, folders, home=None):
     return bool(set(kept) - seen)
 
 
-def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES):
+def changed_by_folder(data_dir, code, folders, home=None, leave_out=None):
+    """{folder: n} for the saved folders whose files differ from the ones the index holds (a file new, gone, or with another size or modified time).
+    The same listing as `stale`, which only says whether there is a change; this counts them, for the "Updating… N files changed" line. Reads no file."""
+    db = _open_read(data_dir, code)
+    if db is None:
+        return {}
+    try:
+        kept = {r[0]: (r[1], r[2]) for r in db.execute("SELECT label, size, mtime_ns FROM files")}
+    except sqlite3.Error:
+        return {}
+    finally:
+        db.close()
+    usable, _bad = _unusable(folders, data_dir, home)
+    usable, _broken, cuts = _cuts(usable, leave_out)           # row 1542: what the person left out is not counted as changed
+    names = _prefixes(_all_roots(usable, home))
+    out, seen = {}, set()
+    try:
+        for folder in usable:
+            listing = reach.readable_files([folder], data_dir, None, home, {folder: cuts[folder]} if folder in cuts else None)
+            roots = reach.roots([folder], home)
+            for path in listing.files:
+                if not str(path).lower().endswith(TRACKED_TYPES):
+                    continue
+                root = next((r for r in roots if reach.inside(path, r)), None)
+                label = ask_passages._label(root, path, names.get(root)) if root is not None else None
+                if label is None:
+                    continue
+                st = os.stat(path)
+                if kept.get(label) != (st.st_size, st.st_mtime_ns):
+                    out[str(folder)] = out.get(str(folder), 0) + 1
+                seen.add(label)
+            for label in set(kept) - seen:
+                if any(label.startswith(names.get(r, "") + "/") for r in roots):
+                    out[str(folder)] = out.get(str(folder), 0) + 1
+                    seen.add(label)
+    except OSError:
+        return out
+    return out
+
+
+def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES, extra=()):
     """The passages of the index for a question, in the shape `ask_passages.folder_data` gives. Opens no source file and has no
     per-question file, byte or time limit."""
-    found = search(data_dir, code, question, max_passages * 4)
-    chosen, left = ask_data.choose(found, question, budget)
+    found = search(data_dir, code, question, max_passages * 4, extra)
+    chosen, left = ask_data.choose(found, " ".join([question, *extra]), budget)
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]
@@ -695,10 +786,11 @@ class Indexer:
     """One background thread that keeps the indexes up to date. `start(code, folders)` queues a run (the newest request for a project
     replaces an older one still waiting); `busy` counts runs queued or running; `shutdown()` stops the run at the next file and ends the thread."""
 
-    def __init__(self, data_dir, home=None, refresh_fn=None, allowed=None):
+    def __init__(self, data_dir, home=None, refresh_fn=None, allowed=None, leave_out=None):
         self.data_dir = Path(data_dir)
         self.allowed = allowed               # None, or a function that says whether asking is On: while it is Off no index is built and none is kept
         self.home = home
+        self.leave_out = leave_out           # None, or a function code -> {saved folder: stored left-out list} (row 1542); set by the owner of the saved folders
         self.refresh = refresh_fn or refresh
         self.wake = threading.Condition()
         self.queue = {}                      # code -> folders, in the order asked
@@ -706,6 +798,9 @@ class Indexer:
         self.busy = 0
         self.checked = {}                    # code -> when the Settings poll last looked for changed files
         self.resumed = {}                    # code -> when an unfinished index was last started again
+        self.failed = set()                  # projects whose last run failed: the line says so until a read is started again (row 1371)
+        self.seen = set()                    # projects whose index the Settings line has shown as done: if the file is gone later, it was cleared
+        self.cleared = set()                 # projects whose index was cleared: the line says so and the read starts only when asked
         self.stop = threading.Event()
         self.thread = None
 
@@ -728,6 +823,8 @@ class Indexer:
             if code not in self.queue:
                 self.busy += 1
             self.queue[code] = list(folders)
+            self.failed.discard(code)
+            self.cleared.discard(code)
             if self.thread is None or not self.thread.is_alive():
                 self.thread = threading.Thread(target=self._work, name="ask-index", daemon=True)
                 self.thread.start()
@@ -755,16 +852,38 @@ class Indexer:
                     os.nice(10)
                 except (OSError, AttributeError):
                     pass
-                self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t))
+                cut = self._cut(code)
+                self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t), **({"leave_out": cut} if cut else {}))
                 if not self._on():
                     remove(self.data_dir, code)      # asking was turned Off while it ran
             except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the next start tries again
-                pass
+                self.failed.add(code)
             finally:
                 with self.wake:
                     self.live.pop(code, None)
                     self.busy -= 1
                     self.wake.notify_all()
+
+    def _cut(self, code):
+        """{saved folder: stored left-out list} for the project, only the folders that have something left out; {} when none or no source. A source that fails stops the run (it never reads everything)."""
+        if self.leave_out is None:
+            return {}
+        return {f: raw for f, raw in self.leave_out(code).items() if raw not in (None, "", "[]", [])}
+
+    def _changed(self, code, folders):
+        try:
+            cut = self._cut(code)
+        except Exception:                    # noqa: BLE001 a list that cannot be read: no count is shown
+            return None
+        return changed_by_folder(self.data_dir, code, folders, self.home, **({"leave_out": cut} if cut else {}))
+
+    def _stale(self, code, folders):
+        """`stale` with the left-out lists given only when there are any (a plain call otherwise); a list that cannot be read counts as changed, so the run starts and stops there."""
+        try:
+            cut = self._cut(code)
+        except Exception:                    # noqa: BLE001 a left-out list that cannot be read
+            return True
+        return stale(self.data_dir, code, folders, self.home, **({"leave_out": cut} if cut else {}))
 
     def _note(self, code, folder, done, total):
         with self.wake:
@@ -774,6 +893,7 @@ class Indexer:
     def status_for(self, code, folders):
         if not self._on():
             remove(self.data_dir, code)
+            self.seen.discard(code)
             return {}
         with self.wake:
             live = dict(self.live[code]) if code in self.live else None
@@ -781,6 +901,12 @@ class Indexer:
             due = idle and time.monotonic() - self.checked.get(code, -STALE_POLL_SECONDS) >= STALE_POLL_SECONDS
             if due:
                 self.checked[code] = time.monotonic()
+            failed = idle and code in self.failed
+            gone = idle and code in self.seen and folders and not path_for(self.data_dir, code).exists()
+            if gone:
+                self.cleared.add(code)
+        if failed or gone or code in self.cleared:
+            due = False                              # a failed or cleared index is read again when asked (the line's link), not by the poll
         if due and folders and not path_for(self.data_dir, code).exists():
             self.start(code, folders)               # the index file is gone: build it again, so the line and the next question have it
             with self.wake:
@@ -789,11 +915,26 @@ class Indexer:
             self.resume(code, folders)              # a first pass that was stopped or failed: carry on, so the index does not stay half made
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
-        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
+        elif due and current(self.data_dir, code, folders) and self._stale(code, folders):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
-        return folder_status(self.data_dir, code, folders, live)
+        with self.wake:
+            busy = code in self.queue or code in self.live
+            failed = not busy and code in self.failed
+            cleared = not busy and code in self.cleared
+        changed = self._changed(code, folders) if busy and folders else None
+        out = folder_status(self.data_dir, code, folders, live, busy=busy, failed=failed, cleared=cleared, changed=changed)
+        if any(v["state"] == "done" for v in out.values()):
+            self.seen.add(code)
+        return out
+
+    def peek(self, code, folders):
+        """The same lines as `status_for`, without starting or changing anything: for counting how many projects are indexed."""
+        with self.wake:
+            live = dict(self.live[code]) if code in self.live else None
+            busy = code in self.queue or code in self.live
+        return folder_status(self.data_dir, code, folders, live, busy=busy)
 
     def resume(self, code, folders):
         """Start the read again for an index that is not finished (its first pass was stopped or failed). At most once every
@@ -827,7 +968,7 @@ class Indexer:
             if folders:
                 self.resume(code, folders)          # the first pass was stopped or failed: carry on in the background; this question reads the folders
             return False
-        if stale(self.data_dir, code, folders, self.home):
+        if self._stale(code, folders):
             self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
             return False
         return True

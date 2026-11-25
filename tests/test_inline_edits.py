@@ -271,8 +271,17 @@ def hold_still(cdp, sid, look, seconds=5):
     return seen[-1]
 
 
+def settle_motion(cdp, sid, selector, seconds=5):
+    """Wait (bounded) until no finite animation or transition is still running on the element or one around it (issue 1552: a peek slides in for half a second, and two looks in a row can agree mid-slide)."""
+    running = ("(() => { const e = document.querySelector(" + json.dumps(selector) + "); if (!e) return 0;"
+               " return document.getAnimations().filter(a => a.playState === 'running' && a.effect && a.effect.target && a.effect.target.contains && a.effect.target.contains(e)"
+               " && isFinite(a.effect.getComputedTiming().endTime)).length; })()")
+    assert wait(lambda: cdp.js(running, sid) == 0, seconds), f"a slide around {selector} was still running after {seconds} s"
+
+
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
+    settle_motion(cdp, sid, selector)
     where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"
     box = hold_still(cdp, sid, where)      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
     assert box, f"{selector} is not on the page"

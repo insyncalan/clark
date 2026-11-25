@@ -217,7 +217,7 @@ class CardsMenu(Base):
                 self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [data-cols-standard]')}).length"), 1, "the standard foot is still there")
                 self.assertEqual(js(f"document.querySelector({json.dumps(MENU + ' [data-col-name=Status]')}).getAttribute('aria-disabled')"), "true", "Status still greyed")
                 self.assertEqual(js(f"[...document.querySelectorAll({json.dumps(ITEMS)})].map((b) => b.dataset.colName).join()"), ",".join(WORK_ALL))
-        self.assertEqual(got, CARDS_MD5, "the rendered Cards DOM is the one origin/main renders")
+        self.assertEqual(got, CARDS_MD5, "the rendered Cards DOM (Client wording label, row 1466)")
 
 
 if __name__ == "__main__":

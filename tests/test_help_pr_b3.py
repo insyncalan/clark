@@ -105,20 +105,20 @@ class ExcelCells(unittest.TestCase):
     def test_the_cover_step(self):
         step = GUIDES["send-the-workbook-out"]["steps"][4]["d"]
         for sentence in (
-            "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for.",
+            "Open the file. It opens on the Report sheet: a title band with the project name, tagged INTERNAL, and under it the same line the Dashboard header shows (with Shown as at and the date when the report is shown as at a day).",
             "Then come the sections the published page shows, in the report’s order: the Header, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words.",
             "A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs.",
         ):
             self.assertIn(sentence, step)
         cv, ex = py("excel_cover.py"), py("excel.py")
         self.assertIn('SUBTITLE_KIND', cv)
-        self.assertIn('parts.append(f"Week ending {long_date(week)}")', cv)
-        self.assertIn('parts.append(f"for {client}")', cv)
+        self.assertIn('parts.append(f"Week ending {show_date(week)}")', cv)      # row 1390: the Dashboard's header line, DD-MM-YYYY
+        self.assertNotIn('parts.append(f"for {client}")', cv)                    # row 1178: the client is not named on the subtitle
         self.assertIn('title["tag"] = INTERNAL_TAG', cv)
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)
         self.assertIn('shown = [s for s in sections or [] if not s.get("hidden")]', cv)
         self.assertLess(cv.index('_line("about", ABOUT)'), cv.index('_line("ids", IDS)'))
-        self.assertIn("ws = wb.create_sheet(COVER_NAME, 0)", ex)
+        self.assertIn("ws = wb.create_sheet(REPORT_NAME, 0)", ex)      # row 1390: the Cover sheet is the Report sheet, still first
         self.assertIn("a quiet About this export block", ex)
 
     def test_the_tab_order_and_the_page_words_already_say_risks_and_issues_with_an_ampersand(self):

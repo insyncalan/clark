@@ -19,8 +19,7 @@ NAMES = {                                      # id -> the name on the card (the
     "figures-4": "Numbers",
     "figures-3": "Numbers",
     "gallery": "Picture grid",
-    "raid-3": "Item cards, three",
-    "raid-4": "Item cards, four",
+    "raid-cards": "RAID cards",      # row 1270: ONE library card replaces Item cards, three and Item cards, four (the spec change moves with the test)
     "work-items": "Work items",
     "docs-links": "Files and links",
     "callout": "Must-see note",
