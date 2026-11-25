@@ -31,6 +31,10 @@ class TimeMachine(unittest.TestCase):
         self.make()
         self.assertEqual(self.calls(), [["tmutil", "addexclusion", str(self.d / "ask-index")]])
 
+    def test_the_call_is_pinned_to_its_10_second_timeout(self):
+        self.make()
+        self.assertEqual(self.run_.call_args.kwargs["timeout"], 10)
+
     def test_called_again_when_the_folder_is_recreated_but_not_for_a_new_file(self):
         self.make()
         ask_index._open(self.d, "P2").close()                    # a new file in the same folder: the mark is still there
