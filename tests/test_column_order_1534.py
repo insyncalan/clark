@@ -30,7 +30,6 @@ JS = PAGE_SRC / "logic" / "tableColumns.js"
 ENTRY = ROOT / "tests" / "fixtures" / "colorder_node.js"
 _BUNDLE = {}
 
-
 def bundle():
     if "code" not in _BUNDLE:
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,7 +40,6 @@ def bundle():
             assert done.returncode == 0, done.stderr
             _BUNDLE["code"] = out.read_text(encoding="utf-8")
     return _BUNDLE["code"]
-
 
 def run_node(probe, before=""):
     """Run `probe` (a JS expression) with the bundled logic as CO; `before` runs first (a blocked store, for one). The result comes back as JSON."""
@@ -55,10 +53,8 @@ def run_node(probe, before=""):
         assert done.returncode == 0, done.stderr
         return json.loads(done.stdout)
 
-
 def source(*parts):
     return PAGE_SRC.joinpath(*parts).read_text(encoding="utf-8")
-
 
 class Saved(unittest.TestCase):
     def setUp(self):
@@ -133,7 +129,6 @@ class Saved(unittest.TestCase):
         work = text[text.index("work: ["):text.index("uc: [")]
         self.assertEqual(tuple(re.findall(r'id: "([a-z]+)"', work)), store_module.WORK_COLUMN_IDS)
 
-
 class Logic(unittest.TestCase):
     """The pure logic, bundled from the page source and run in node. The Chrome flows are not run here."""
 
@@ -161,11 +156,16 @@ class Logic(unittest.TestCase):
         # PM ruling 26-11: N and M count every drawn column (Status and Item included); the eye and Hand over controls are not columns and are not counted.
         self.assertEqual(run_node(f"(() => {{ const to = CO.moveColumn({ids}, 'owner', -1); return CO.Words.MOVED('Owner', to.indexOf('owner') + 1, to.length); }})()"),
                          "Owner moved to position 3 of 6")
-        self.assertEqual(run_node("[CO.Words.MOVE_LEFT, CO.Words.MOVE_RIGHT, CO.Words.RESET_ORDER]"), ["Move left", "Move right", "Reset to the standard order"])
+
+        for gone in ("MOVE_LEFT", "MOVE_RIGHT", "RESET_ORDER"):
+            self.assertNotIn(gone, run_node("Object.keys(CO.Words)"), "the row 1499 pick 7B ruling: the menu has no Move or Reset words")
         menu = source("edit", "ColumnsMenu.jsx")
         self.assertIn("e.altKey && e.shiftKey", menu)                                                     # Alt+Shift+Left and Alt+Shift+Right move
         self.assertIn("W.MOVED(labelOfId(id), to.indexOf(id) + 1, to.length)", menu)                      # the announcement names the column and its new place
-        self.assertEqual(menu.count("step(fromId,"), 2, "the menu's Move left and Move right use the key's own step")
+        # Row 1499 pick 7B (ruled): the Classic Work items menu is a heading and tick lines only: no Move left, Move right or Reset item, in either menu
+        for gone in ("moveItems", "data-move-left", "data-move-right", "data-order-reset", "resetOrder", "standardOrder", "W.MOVE_", "W.RESET_ORDER", "fromId"):
+            self.assertNotIn(gone, menu)
+        self.assertNotIn('role="menuitem"', menu.split("const menu = at && classic")[1].split(") : at ?")[0], "the Classic menu has tick lines (menuitemcheckbox) only")
         widths = source("edit", "colWidths.jsx")
         self.assertIn("e.shiftKey", widths.split("const onKey")[1].split("addEventListener")[0], "Alt+Left and Alt+Right still resize: Shift is left to moving")
 
@@ -197,7 +197,6 @@ class Logic(unittest.TestCase):
         self.assertEqual(names(["status", "item", "due", "owner"])[:4], ["status", "item", "due", "owner"])
         self.assertEqual(names(["item", "owner", "due", "prio", "id"])[0], "status")
         self.assertEqual(menu.count("{listed."), 2, "both menus (Classic and Cards) list the columns in the table's order")
-        self.assertIn("W.RESET_ORDER", menu)
         # "Reset to the standard order": the standard list is saved as nothing, so the type's key goes and the table follows the standard again
         std = json.dumps(["status", "item", "owner", "due", "prio", "id"])
         self.assertEqual(run_node(f"CO.withOrder({{risks: ['status', 'item', 'due', 'owner']}}, 'risk', {std})"), {})
@@ -214,7 +213,6 @@ class Logic(unittest.TestCase):
             with self.subTest(saved=bad):
                 self.assertEqual(run_node(f"CO.inOrder(['status', 'item', 'owner', 'due'], CO.savedOrder({bad}, 'risk'))", blocked), ["status", "item", "owner", "due"])
         self.assertEqual(run_node("CO.withOrder('not json', 'risk', ['status', 'item', 'due', 'owner'])", blocked), {"risks": ["status", "item", "due", "owner"]})
-
 
     def test_column_click_still_sorts(self):
         """A click or short press on a heading is not a drag: the heading's own handlers stay, and only a press that travels 5 px or more moves a column. The real click is a Chrome flow and is NOT run here."""
@@ -237,17 +235,12 @@ class Logic(unittest.TestCase):
         self.assertIsNone(run_node("CO.moveColumn(['status', 'item', 'owner', 'due'], 'owner', 0)"))
         self.assertIsNone(run_node("CO.moveColumn(['status', 'item', 'owner', 'due'], 'owner', null, 'owner')"))
 
-    def test_reset_to_standard_order(self):
-        """'Reset to the standard order' saves the standard list, which is stored as nothing, so the table follows the standard again; it does nothing when no order is saved."""
+    def test_standard_list_is_stored_as_nothing(self):
+        """Saving the standard list (a drag back to the standard place) saves the standard list, which is stored as nothing, so the table follows the standard again; it does nothing when no order is saved."""
         std = json.dumps(["status", "item", "owner", "due", "prio", "id"])
         self.assertEqual(run_node(f"CO.withOrder({{risks: ['status', 'item', 'due', 'owner', 'prio', 'id']}}, 'risk', {std})"), {}, "the standard list leaves no key")
         self.assertEqual(run_node(f"CO.withOrder({{risks: ['status', 'item', 'id'], actions: ['status', 'item', 'due']}}, 'risk', {std})"), {"actions": ["status", "item", "due"]},
                          "another table keeps its own order")
-        self.assertEqual(run_node("CO.Words.RESET_ORDER"), "Reset to the standard order")
-        menu = source("edit", "ColumnsMenu.jsx")
-        self.assertIn("const resetOrder = () => { if (savedOrder(co, type).length) saveOrder(standardOrder(), W.RESET_ORDER); };", menu)
-        self.assertIn("const standardOrder = () => defsOf(table).map((c) => c.id).filter((id) => ordered.includes(id));", menu, "the standard is the table's own list of columns")
-        self.assertIn('data-order-reset="" tabIndex={-1} aria-disabled={savedOrder(co, type).length ? undefined : "true"} onClick={resetOrder}', menu)
         # and in the file: a saved order, then the standard one, is stored as nothing
         demo = DemoStore()
         self.addCleanup(demo.close)
@@ -267,7 +260,6 @@ class Logic(unittest.TestCase):
         self.assertIn("named && named.silent", changes_js, "change() still honours {silent: true}")
         code = "\n".join(l for l in (menu + source("logic", "columnsWords.js") + source("logic", "columnOrderWords.js")).splitlines() if not l.lstrip().startswith("//"))
         self.assertNotIn("Column moved", re.sub(r"//[^\n]*", "", code), "no string of the dropped toast (a comment may name it)")
-
 
 if __name__ == "__main__":
     unittest.main()

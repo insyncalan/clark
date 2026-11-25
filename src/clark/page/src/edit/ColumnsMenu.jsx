@@ -11,7 +11,7 @@ import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { classicTheme } from "../components/Contents.jsx";
-import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds, movable, savedOrder, shownOrder, menuLines, moveColumn, withOrder } from "../logic/tableColumns.js";
+import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds, movable, shownOrder, menuLines, moveColumn, withOrder } from "../logic/tableColumns.js";
 import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
 
@@ -79,8 +79,6 @@ export function useColumns(table, css = false, type = "all") {
     const el = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${id}"]`);      // the heading keeps the focus, so the next key moves it again
     if (el && el.focus) el.focus({ preventScroll: true });
   };
-  const standardOrder = () => defsOf(table).map((c) => c.id).filter((id) => ordered.includes(id));
-  const resetOrder = () => { if (savedOrder(co, type).length) saveOrder(standardOrder(), W.RESET_ORDER); };
   // A drag of a heading (pointer: a mouse, a pen or a finger): a press that moves less than 5 px is a click and does what it did; a drag shows the drop place, a drop on another heading of the same row moves the
   // column there, a drop anywhere else or Esc cancels. The Status and the Item are not dragged and nothing is dropped in front of them.
   const headProps = (id) => {
@@ -121,15 +119,6 @@ export function useColumns(table, css = false, type = "all") {
       },
     };
   };
-  const from = at && at.closest ? at.closest("[data-col]") : null, fromId = from ? from.getAttribute("data-col") : null;      // the heading the menu was opened from: "Move left" and "Move right" move that column
-  const moveItems = () => (canMove ? (
-    <>
-      <div class="sep" role="separator"></div>
-      <button type="button" role="menuitem" data-move-left="" tabIndex={-1} aria-disabled={fromId && moveColumn(ordered, fromId, -1) ? undefined : "true"} onClick={() => { if (fromId) step(fromId, -1); }}>{W.MOVE_LEFT}</button>
-      <button type="button" role="menuitem" data-move-right="" tabIndex={-1} aria-disabled={fromId && moveColumn(ordered, fromId, 1) ? undefined : "true"} onClick={() => { if (fromId) step(fromId, 1); }}>{W.MOVE_RIGHT}</button>
-      <button type="button" role="menuitem" data-order-reset="" tabIndex={-1} aria-disabled={savedOrder(co, type).length ? undefined : "true"} onClick={resetOrder}>{W.RESET_ORDER}</button>
-    </>
-  ) : null);
   const set = (next) => { writeChoice(table, code, next); setMem({ ...mem, [code]: next }); };
   const close = (how) => { const a = at; setAt(null); if (how === "esc" && a && a.isConnected) { if (!a.matches("button, [tabindex]")) a.setAttribute("tabindex", "-1"); a.focus({ preventScroll: true }); } };
   const open = (el) => setAt(el);
@@ -160,7 +149,6 @@ export function useColumns(table, css = false, type = "all") {
           </button>
         );
       })}
-      {moveItems()}
     </ColsPanel>
   ) : at ? (
     <ColsPanel label={W.UNRULED_MENU_LABEL} cls="cols-menu" anchor={at} fixed="start" boxRef={classicTheme() ? undefined : box} onClose={close}>
@@ -177,7 +165,6 @@ export function useColumns(table, css = false, type = "all") {
       })}
       <div class="sep" role="separator"></div>
       <button type="button" role="menuitem" data-cols-standard="" tabIndex={-1} onClick={() => { set(standardIds(table)); announce.value = W.UNRULED_ANNOUNCE_STANDARD; }}><Icon name={actionIcon("columnsStandard")} cls="mi" />{W.UNRULED_STANDARD}</button>
-      {moveItems()}
     </ColsPanel>
   ) : null;
   return { shown: ordered, headProps, has: (id) => shown.includes(id), rowProps, button, menu };
