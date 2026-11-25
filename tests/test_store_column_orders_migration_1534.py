@@ -33,7 +33,7 @@ class Migrating(unittest.TestCase):
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
         self.assertIn((STEP, store_module.migrate_column_orders), store_module.MIGRATIONS)
         self.assertEqual(STEP, 35)
-        self.assertEqual(store_module.SCHEMA_VERSION, STEP + 2)      # row 1417 is step 36 and row 1533 step 37 on top of this one
+        self.assertEqual(store_module.SCHEMA_VERSION, STEP + 3)      # row 1417 is step 36, row 1533 step 37 and row 1252 step 38 on top of this one
 
     def test_a_file_one_step_back_gets_an_empty_order_on_every_project_and_the_new_version(self):
         path = make_at(self.dir, STEP - 1)
