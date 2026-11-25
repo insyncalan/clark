@@ -287,15 +287,16 @@ class Work(T.Work):
                 d.check("new-tile", "document.querySelector('#newBtn').click()", "[role=menu]", 2)
                 d.button("#viewMenu", "view menu")
                 d.check("view", "document.querySelector('#viewMenu').click()", "#viewMenuList", 8)
-        with chrome() as cdp:
-            sid = self.visit(cdp)
-            self.board(cdp, sid, group="status", lane=None)
-            d = T.Drive(self, cdp, sid)
-            for w, th in T.LOOKS:
-                d.look(w, th)
-                d.button("[data-move]", "a card's Move to button")
-                d.check("board-move", "document.querySelectorAll('[data-move]')[0].click()", "[role=menu][aria-label^='Move ']", 1)
-        self.assertEqual(Seen.bare, {"new-tile", "view", "board-move"})
+        for lane, name in ((None, "board-move"), ("type", "board-move-lanes")):
+            with chrome() as cdp:
+                sid = self.visit(cdp)
+                self.board(cdp, sid, group="status", lane=lane)
+                d = T.Drive(self, cdp, sid)
+                for w, th in T.LOOKS:
+                    d.look(w, th)
+                    d.button("[data-move]", "a card's Move to button")
+                    d.check(name, "document.querySelectorAll('[data-move]')[0].click()", "[role=menu][aria-label^='Move ']", 1)
+        self.assertEqual(Seen.bare, {"new-tile", "view", "board-move", "board-move-lanes"})
 
     def test_group_by_menu_is_224_wide_at_1400_and_900(self):
         """AP3 (ruling 21-11 13:10): the open Group by menu (#viewMenuList) measures 224 wide at 1400 and at 900, light and dark."""
