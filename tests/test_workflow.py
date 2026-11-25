@@ -230,11 +230,13 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_six_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_nine_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "6") for i in range(1, 7)})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
         self.assertRegex(mac, r"runs-on: macos-latest")
-        self.assertIn('python-version: "3.x"', mac)
+        self.assertIn('python-version: "3.15.2"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
+        self.assertNotIn('python-version: "3.x"', mac)
+        self.assertNotIn('python-version: "3.x"', self.jobs["macos-smoke"])
         self.assertNotIn("--quick", mac)
         self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the nightly run
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
@@ -242,6 +244,34 @@ class Workflow(unittest.TestCase):
         self.assertIn("fail-fast: false", mac)
         self.assertIn("SHARD: ${{ matrix.shard }}", mac)
         self.assertIn("SHARDS: ${{ matrix.shards }}", mac)
+        # T2: the classes are summarised even when the job is cancelled at the cap, and kept as an artifact
+        self.assertIn("--summarize", mac)
+        self.assertIn("--job-status", mac)
+        self.assertIn("if: ${{ always() }}", mac)
+        self.assertIn("actions/upload-artifact@", mac)
+
+    def test_the_macos_job_pins_python_3_15_2(self):
+        for job in ("macos", "macos-smoke"):
+            self.assertIn('python-version: "3.15.2"', self.jobs[job], job)
+            self.assertNotIn('python-version: "3.x"', self.jobs[job], job)
+
+    def test_the_macos_job_pins_python_3_15_2_for_shards_1_to_9(self):
+        mac = self.jobs["macos"]
+        self.assertEqual(sorted(int(i) for i, _ in re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), list(range(1, 10)))
+        self.assertEqual(mac.count("python-version:"), 1)        # one setup step, so every one of the nine shards runs the pinned Python
+        self.assertIn('python-version: "3.15.2"', mac)
+
+    def test_the_tests_passed_gate_line_is_unchanged_by_the_classification(self):
+        passed = self.jobs["passed"]
+        for word in ("DEFECT", "FLAKE", "SIZING", "summarize", "test-classes", "CLARK_RESULTS"):
+            self.assertNotIn(word, passed)                       # the gate reads job results only, never the classes
+        self.assertIn('test "$PLAN" = "success"', passed)
+        self.assertIn('test "$TESTS" = "success"', passed)
+        self.assertIn('name: Tests passed', passed)
+        mac = self.jobs["macos"]                                 # the summary steps cannot make the job result differ from the tests' own
+        self.assertEqual(mac.count("if: ${{ always() }}"), 2)
+        self.assertNotIn("continue-on-error: true", mac)
+        self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
 
     def test_chrome_is_found_as_creaite_finds_it(self):
         for job in ("tests", "tests-py39", "macos"):
