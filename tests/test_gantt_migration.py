@@ -101,7 +101,7 @@ class Migrating(unittest.TestCase):
             s.close()
         after = every_row(path, NEW_COLUMNS + ("brand", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "column_orders", "show_board_client"))      # row 1294 (step 31): the standing instructions, in two tables; #94; row 1269 (step 27)4: layout 20 adds brand after these; item 1185 (layout 25) adds latest_update to raid and milestones
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
-        self.assertEqual(set(after) - set(before) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors"}, {"gantt_lines"})      # row 1107 (layout 24) adds the other, row 1300 (layout 30) install_defaults
+        self.assertEqual(set(after) - set(before) - {"use_case_milestones", "install_defaults", "connector_switches", "project_connectors", "added_pages"}, {"gantt_lines"})      # row 1107 (layout 24) adds the other, row 1300 (layout 30) install_defaults
         self.assertEqual(after["gantt_lines"], [])
 
     def test_a_safety_copy_is_taken_before_the_step_runs_and_it_is_the_old_layout(self):

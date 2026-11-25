@@ -41,6 +41,32 @@ class Classic(Base, unittest.TestCase):
                 self.assertTrue(p["moved"], f"scrollLeft moves at {w}")
         self.assertTrue(seen, "the strip is wider than its box at least once, so scrolling was exercised")
 
+    def test_wheel_and_arrow_keys_still_scroll(self):
+        """AP2: a 200 px wheel moves the strip right, ArrowRight moves it right, ArrowLeft moves it back left (the strip is zoomed wide first)."""
+        import time
+        key = lambda cdp, sid, name, code: [cdp.call("Input.dispatchKeyEvent", {"type": t, "key": name, "code": name, "windowsVirtualKeyCode": code}, sid) for t in ("rawKeyDown", "keyUp")]
+        left = "document.querySelector('.mv-wrap').scrollLeft"
+        for cdp, sid, w in self.every():
+            cdp.js("document.querySelector('[data-grip]').focus()", sid)
+            key(cdp, sid, "End", 35)
+            time.sleep(0.5)
+            wide = cdp.js("(() => { const e = document.querySelector('.mv-wrap'); e.scrollLeft = 0; return [e.scrollWidth > e.clientWidth, e.tabIndex]; })()", sid)
+            self.assertEqual(wide, [True, 0], f"the zoomed strip is wider than its box and focusable at {w}")
+            at = cdp.js("(() => { const r = document.querySelector('.mv-wrap').getBoundingClientRect(); return [r.left + 100, r.top + 40]; })()", sid)
+            before = cdp.js(left, sid)
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": at[0], "y": at[1], "deltaX": 200, "deltaY": 0}, sid)
+            time.sleep(0.6)
+            self.assertGreater(cdp.js(left, sid), before, f"a 200 px wheel moves the strip at {w}")
+            cdp.js("document.querySelector('.mv-wrap').focus()", sid)
+            before = cdp.js(left, sid)
+            key(cdp, sid, "ArrowRight", 39)
+            time.sleep(0.6)
+            right = cdp.js(left, sid)
+            self.assertGreater(right, before, f"ArrowRight at {w}")
+            key(cdp, sid, "ArrowLeft", 37)
+            time.sleep(0.6)
+            self.assertLess(cdp.js(left, sid), right, f"ArrowLeft goes back at {w}")
+
 
 class Cards(Base, unittest.TestCase):
     THEME = "cards"

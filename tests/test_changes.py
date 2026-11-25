@@ -89,7 +89,9 @@ class Allowed(Api):
         self.assertTrue(set(changes.SHOWN) <= sections - {"body"} | {"id"})
         self.assertNotIn("body", changes.SHOWN)
         for never in ("project", "id", "sort_order"):
-            self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
+            # row 1252: the ONE listed exception: an added page's place (sort_order) is the one thing a person sets, with the Move left and Move right strip
+            kinds = {k: ops for k, ops in changes.CHANGE_KINDS.items() if not (k == "added_pages" and never == "sort_order")}
+            self.assertFalse(any(never in fields for ops in kinds.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link", "msadd", "msremove"})      # row 1107: + msadd, msremove; #196: + bulk; #199: + handover; #485: + link
@@ -98,7 +100,7 @@ class Allowed(Api):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
         report_hidden (test_changes_hidden). The records can be archived and restored (#126), and the work items also updated
         (#68), and so are a project's health, an existing use case's fields (#164) and the milestones (#136), never given other ops."""
-        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", "gantt_lines", *changes.ARCHIVABLE})
+        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", "gantt_lines", "added_pages", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())

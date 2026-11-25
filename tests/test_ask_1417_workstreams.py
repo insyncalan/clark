@@ -94,7 +94,7 @@ class Migration(unittest.TestCase):
         st.migrate_workstream_columns(con)      # a second run skips what is there
         self.assertTrue({"start", "end", "latest_update"} <= set(st.columns(con, "workstreams")))
         self.assertEqual(tuple(con.execute('SELECT start, "end", latest_update FROM workstreams').fetchone()), (None, None, None))
-        self.assertEqual(st.SCHEMA_VERSION, 37)
+        self.assertEqual(st.SCHEMA_VERSION, 38)
         self.assertEqual(st.WORKSTREAM_COLUMNS_STEP, 36)
         self.assertIn((36, st.migrate_workstream_columns), st.MIGRATIONS)
         for name in ("start", "end"):
