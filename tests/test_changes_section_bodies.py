@@ -93,7 +93,7 @@ class Adding(Content):
                 self.assertNotIn(ref, self.ids_now())
 
     def test_every_other_type_is_still_refused(self):
-        for bad in ("glance", "docs", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), and "glance" stands in as a built-in the default report already has
+        for bad in ("glance", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), and "glance" stands in as a built-in the default report already has
             with self.subTest(type=bad):
                 self.refused(self.req("new", values={"type": bad, "title": "x"}), changes.NEW_TYPE_WORDS)
 
@@ -206,7 +206,7 @@ class Writing(Content):
 
     def test_the_built_in_sections_take_no_body(self):
         for row in self.rows():
-            if row["type"] in TYPES or row["type"] in ("usecases", "milestones") or row["type"] in ("text", "workitems"):      # a text section takes one, through the cleaner (test_changes_text_body)      # row 1234, row 1230: usecases and milestones take one (their view setting, test_usecases_view_body, test_milestones_view_body)
+            if row["type"] in TYPES or row["type"] in ("usecases", "milestones") or row["type"] in ("text", "workitems", "doclinks"):      # row 1194 AP13: a new report seeds a Documents and links section, which takes a body of its own; a text section takes one, through the cleaner (test_changes_text_body)      # row 1234, row 1230: usecases and milestones take one (their view setting, test_usecases_view_body, test_milestones_view_body)
                 continue
             with self.subTest(type=row["type"], title=row["title"]):
                 self.refused_body(row["id"], text(BODY), changes.NO_BODY_HERE)

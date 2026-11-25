@@ -30,5 +30,5 @@ DEFAULT_SECTIONS = (
     {"type": "workitems", "title": "Risks and issues", "body": RISKS_AND_ISSUES_LIST},   # row 1193-8: a Work items list on a saved filter; new projects only, an existing report keeps its raid section
     {"type": "workitems", "title": "Open actions", "body": OPEN_ACTIONS_BODY},   # row 1193-9
     {"type": "workitems", "title": "Decisions", "body": DECISIONS_LIST},   # row 10 of item 1193: a Work items list on the saved view Decisions (new projects only; existing reports keep their built-in)
-    {"type": "docs", "title": "Supporting documents"},
+    {"type": "doclinks", "title": "Documents and links"},   # row 1194 AP13: new projects only; a saved report keeps its "Supporting documents" (docs) section as it is, no conversion, no migration
 )

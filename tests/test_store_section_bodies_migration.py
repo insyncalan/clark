@@ -24,7 +24,7 @@ from test_store_migration import make_v1, version
 
 # The default sections as a file before this step knows them: the Work items lists (row 1193) are a type the check of that file refuses.
 OLD_DEFAULTS = [dict(s, type={"Risks and issues": "raid", "Open actions": "actions", "Decisions": "decisions"}.get(s["title"], s["type"]), body="")
-                if s["type"] == "workitems" else s for s in store_module.DEFAULT_SECTIONS]
+                if s["type"] == "workitems" else dict(s, type="docs", title="Supporting documents") if s["type"] == "doclinks" else s for s in store_module.DEFAULT_SECTIONS]   # row 1194 AP13: a file of the older version seeds the old docs section
 
 STEP = 4                                            # this step's number
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
