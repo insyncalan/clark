@@ -18,7 +18,7 @@ from test_server import chrome, wait
 from clark import excel, excel_route
 
 WIDTHS = (1400, 900)
-SETTINGS_PAGES = {"data": ("Export and import", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
+SETTINGS_PAGES = {"data": ("Data", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
 USER = "Test Person"
 
 

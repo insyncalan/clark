@@ -229,7 +229,7 @@ class Words(unittest.TestCase):
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
             menu = (
-                    ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+                    ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Data",
                      "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
@@ -292,7 +292,7 @@ class Words(unittest.TestCase):
                     "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                     "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
                 ]),
-                ('data', 'Export and import', [
+                ('data', 'Data', [
                     "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                     "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
