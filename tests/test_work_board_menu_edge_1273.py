@@ -20,6 +20,7 @@ class MenuEdge(wb.Base):
         super().setUp()
         self.s.close()
         css = theme.css("prototype-2.0")  # the Classic layer, as in test_menu_caps_head_look_1273
+        self.assertTrue(css, "the Classic layer is not on")
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), seam=lambda real, which: real)
         self.addCleanup(self.s.close)
 
