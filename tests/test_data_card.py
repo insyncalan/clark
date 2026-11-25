@@ -21,7 +21,7 @@ class DataCard(Base):
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('.set-chip')", "the Settings menu drew")
-        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Export and import').click()")      # row 1024: the Data card is on the Export and import page
+        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Data').click()")      # row 1024: the Data card is on the Data page
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
     def test_C_the_card_its_words_and_the_export_and_import_buttons(self):

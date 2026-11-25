@@ -113,7 +113,7 @@ class TypedFilter(unittest.TestCase):
         self.assertIn('FIELDS.filter((f) => f !== "client" && f !== "reviewed")', flt)
         self.assertIn("a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone.", self.FIND)
         self.assertIn("map[r.id] = [r.id, words, who, richWords(r.latest_update), richWords(r.client_message), r.use_case]", code("clientView.js"))
-        self.assertIn("finds words in the ID, the description, the owner, the latest update, the Client Message and the use case", self.FIND)
+        self.assertIn("finds words in the ID, the description, the owner, the latest update, the Client wording and the use case", self.FIND)
         self.assertIn("a published file keeps the type and Open / Closed / All", wi)
         self.assertIn("**Clear all** removes the filters and the search but keeps the type and Open, Closed or All.", self.FIND)
 
@@ -133,12 +133,14 @@ class SettingsChips(unittest.TestCase):
 
     def test_the_menu_names_and_order_are_the_pages(self):
         views = code("components", "Views.jsx")
-        groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
-        names = re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
-        four = '\n  ["You", [[' in groups      # row 1299 1a: the menu is in four groups when Views.jsx has them
-        self.assertEqual(names, ["Profile", "Appearance", "Theme", "Projects", "Backups", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Version and updates", "Logs and diagnostics"] if four else
-                         ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
-        self.assertEqual(re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), ["You", "All projects", "Project settings", "Help and about"] if four else ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
+        def menu(const):      # (group names, page names) of one GROUPS constant in Views.jsx
+            groups = re.search(r"const " + const + r" = \[(.*?)\n\];", views, re.S).group(1)
+            return re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
+        # row 1299 1a: the Cards look keeps its five groups, Classic has the mock-up's four; both are pinned exactly, neither is accepted for the other
+        self.assertEqual(menu("GROUPS"), (["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"],
+                         ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Data", "Claude and AI", "Logs and diagnostics", "Version and updates"]))
+        self.assertEqual(menu("GROUPS_CLASSIC"), (["You", "All projects", "Project settings", "Help and about"],
+                         ["Profile", "Look", "Projects overview", "Backups", "Reports and pages", "Brand and publishing", "People", "ask clark", "Data", "Version and updates", "Logs and diagnostics"]))
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
         self.assertIn('<nav class="set-bar"', views)

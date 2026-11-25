@@ -9,16 +9,19 @@ THE WORKBOOK THE IMPORT READS (the one the export, #37, writes; its sheet names 
   read (#143): the sheet "Risks & Issues", "Risks and issues" or "RAID"; the headers "Client messaging" or "Client wording", "Baseline" or "Agreed".
   Two sheets or two columns that mean the same thing refuse the whole workbook, in words.
 - Row 1 is the header. A header is the export's label for the column (excel.COLUMN_OF: Agreed, Achieved on, % complete, Client
-  wording, State set by you ...), or a database column name (schema.sql, as `store.columns()` lists them): id, project, description,
+  wording, Progress % ...), or a database column name (schema.sql, as `store.columns()` lists them): id, project, description,
   due_date and so on; case, spaces and hyphens do not matter ("Due date" reads as due_date). "Labels" is read too, on actions,
-  RAID items and decisions. The export's worked-out columns (Original, Shown state) are never read. A column the table does not
+  RAID items and decisions. The export's worked-out columns (Original, State) are never read.
+  Item 1390: the headings the export had before it followed the page still import: Description (Title), Client-visible, Source, Updated,
+  Date, Options, % complete, Order, Shown state and a use case's or Gantt line's On dashboard. A milestone's State is worked out, so
+  the older State and State set by you columns are not read: a milestone's state cannot be set from Excel. A column the table does not
   have is ignored and said so. A column that is absent is not compared; a column that is present but blank is a cleared value. The id
   column must be there, or the sheet is skipped and reported.
 - Dates are real Excel dates, shown DD-MM-YYYY. Text dates DD-MM-YYYY (or with / or .) and YYYY-MM-DD are read too (YYYY-MM-DD
   may be followed by a space or T and a time, HH:MM, HH:MM:SS or with a fraction, and nothing else).
-  Yes/No (or 1/0) for client_visible, active and state_set.
+  Yes/No (or 1/0) for client_visible and active.
 - Columns the import never changes: id, project, source, updated_at, archived, closed, state_set, and a RAID item's priority.
-  The writer works these out (state_set follows from State). `updated_at` is used only to spot a clash.
+  `updated_at` is used only to spot a clash.
 
 THE EXPORT'S RECORD (excel.STATE_FILE, beside clark.db; read with excel.load_state):
 - It holds, per workbook, the SHA-256 of what the export wrote ("hash"), of what was last imported ("imported_hash"), and a
@@ -132,13 +135,19 @@ SHEET_TABLES["raid"] = "raid"                      # the oldest name, written ou
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message", "client message": "client_message",
                   "baseline": "baseline_date", "agreed": "baseline_date",
-                  "updated": "updated_at", "order": "sort_order", "% complete": "percent_complete",   # row 1390 B: the headings renamed to Last updated, Sort order, Progress %
-                  "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
+                  "shown as": "ref",      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
+                  # item 1390: the headings before the export followed the page; an older workbook still imports
+                  "client-visible": "client_visible", "on dashboard": "client_visible",     # Client visible; a use case's On the dashboard
+                  "source": "source", "updated": "updated_at",                              # Added from, Last updated (never changed by an import)
+                  "options": "options", "date": "date", "description": "description",         # Options considered, Decided on, Title
+                  "% complete": "percent_complete", "order": "sort_order",                  # Progress %, Sort order
+                  "shown state": "shown_state"}                                              # State (worked out, never read back)
+# item 1390: the Gantt sheet's headings before the export followed the page.
+GANTT_ALIASES = {"on dashboard": "show"}
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
 GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
 WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
-GANTT_HEADERS = {label.lower(): f for label, f in excel.GANTT_SHEET_COLUMNS}      # the export's own labels (Days and Status are worked out: never read)
-GANTT_HEADERS["on dashboard"] = "show"           # row 1390 B: the Gantt sheet's old heading for "On the dashboard" still imports
+GANTT_HEADERS = {**GANTT_ALIASES, **{label.lower(): f for label, f in excel.GANTT_SHEET_COLUMNS}}      # the export's own labels and the older ones (Days and Status are worked out: never read)
 GANTT_TEXT = {"name": 200, "owner": 200, "workstream": 200, "deliverable": 500, "note": 2000}     # the data layer's limits (store.GANTT_TEXT_LIMITS)
 WORDS = {"actions": "action", "raid": "RAID item", "decisions": "decision", "milestones": "milestone",
          "use_cases": "use case", GANTT: "line"}
@@ -203,7 +212,7 @@ def milestone_ids(text, refs=None):
 
 
 def _label(table, f):
-    """A column as the person sees it: the export's header label (Due, Agreed, Client Message ...)."""
+    """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
     for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
         if field_ == f:
             return label
@@ -1211,17 +1220,20 @@ def _gantt_sheet(self, ws):
     A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
     sheet = ws.title
     first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
-    header, ignored = {}, []
+    header, named, ignored = {}, {}, []
     for i, h in enumerate(first):
         if h is None or h is _FORMULA or not str(h).strip():
             continue
         f = GANTT_HEADERS.get(str(h).strip().lower())
         if f is None:
             ignored.append(str(h).strip())
-        elif not f.startswith("_") and f not in header:
-            header[f] = i
         elif f.startswith("_"):
             pass                                          # Days and Status: worked out
+        elif f in header:                                 # item 1390: as on every other sheet, two headings for one column refuse the workbook
+            raise Invalid(f"The {sheet} sheet has two columns for the same thing: \u201c{named[f]}\u201d and \u201c{str(h).strip()}\u201d. Keep one of "
+                          "them and import again. Nothing was changed.")
+        else:
+            header[f], named[f] = i, str(h).strip()
     if "id" not in header or "name" not in header:       # also a client copy: its title band is row 1 and its header row 4
         self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
         return
@@ -1299,6 +1311,11 @@ def _gantt_sheet(self, ws):
 _Reader.gantt_sheet = _gantt_sheet
 
 
+# item 1390: the two Milestones columns an older export wrote (State set by you; the mock-up calls them State chosen and Chosen by you):
+# the import no longer reads them and does not mention them either.
+OLD_STATE_COLUMNS = {"state_set", "state_set_by_you", "state_chosen", "chosen_by_you"}
+
+
 def header_map(first_row, table, cols, sheet):
     """(header, named, ignored) for a sheet's first row: header[column] = its position, named[column] = the heading as written,
     ignored = headings the import does not know. read_workbook and list_sheets read the heading row the same way (issue 737)."""
@@ -1312,8 +1329,8 @@ def header_map(first_row, table, cols, sheet):
         if h is None or h is _FORMULA or not str(h).strip():
             continue
         k = labels.get(str(h).strip().lower()) or _key(h)       # the export's label first, then a column name
-        if k in excel.DERIVED:
-            continue                                  # worked out by the export (Original, Shown state): never read back
+        if k in excel.DERIVED or k in OLD_STATE_COLUMNS:
+            continue                                  # worked out by the export (Original, State), or an old state column: never read, said nowhere
         if k in cols and k in header:
             raise Invalid(f"The {sheet} sheet has two columns for the same thing: “{named[k]}” and “{str(h).strip()}”. Keep one of "
                           "them and import again. Nothing was changed.")

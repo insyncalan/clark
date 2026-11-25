@@ -14,7 +14,7 @@ import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
 import { closesPeek } from "../peek/outside.js";
-import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
+import { itemIds, milestoneIds, around, placeIn, fromCard } from "../peek/list.js";
 import { holdScroll } from "../core/holdScroll.js";
 import { Icon } from "./Icon.jsx";
 import { classicTheme } from "./Contents.jsx";
@@ -102,7 +102,7 @@ function ItemChips({ row, tools, editing }) {
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39; reached with is:archived, item 1067): the same rows, read only.
 // `slim` (row 1180, the live peek): the Type row and the four cells are the chip row above and the project is in the ID line, so they are not repeated; the rest sits in the collapsible Details.
-export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, ClientLine = null, clientName }) {
+export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, ClientLine = null, clientName, rich = null }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
@@ -132,9 +132,9 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}
-      {Wording ? <Row name="Client Message" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
-      {!editing && fromFile.value && row.client_message ? <Row name="Client Message" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}      {/* row 1288: the file's wording is clean HTML (publish.clean_html). item 1111: a published file's peek draws the Client Message the file carries, read only and only when there is some */}
-      {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
+      {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
+      {!editing && fromFile.value && row.client_message && !fromCard(row.id) ? <Row name="Client wording" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
+      {!editing && (fromFile.value || fromCard(row.id)) && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={latestHtml(row, rich)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed" icon={slim ? "clock" : undefined}>{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
@@ -172,6 +172,8 @@ export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head
 // A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (the editing index: richOrPlain,
 // the cleaner), so the cleaner is never in the published bundle (tests: "the cleaner is not in a published file").
 const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools && tools.richOf ? tools.richOf(value) : "");
+// Row 1270: an item's Latest update as the peek draws it. A published file's is already clean; the author's View draws what is stored as the editor shows it (CleanProse cleans it again).
+const latestHtml = (row, rich) => (fromFile.value ? String(row.latest_update || "") : rich ? rich(row.latest_update || "") : "");      // the cleaner comes in as tools.richOf (the editing index), never imported here: the published bundle holds no editor code
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
 function MilestoneFields({ m, tools }) {
@@ -189,7 +191,7 @@ function MilestoneFields({ m, tools }) {
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
         <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
-        {wording || !fromFile.value ? <Row name="Client Message" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
+        {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
         {latest ? <Row name="Latest update" ms="latest_update"><Rich html={latest} /></Row> : null}      {/* item 1185: a published file's milestone shows its latest update when it carries one (the live editor's peek has its own box) */}
       </dl>
       </PeekDetails>
@@ -400,12 +402,12 @@ export function Peek({ tools }) {
       <div>
           {Latest && row ? <Latest key={row.id} row={row} /> : MsLatest && m ? <MsLatest key={m.id} m={m} /> : null}      {/* item 1181: the Latest update sits above the Details */}
           {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
-            {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
-              {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
-              {row.client_message ? <Row name="Client Message" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}
+            {!editing && (fromFile.value || fromCard(row.id)) && ((row.client_message && !fromCard(row.id)) || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
+              {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={latestHtml(row, tools && tools.richOf)} /></Row> : null}
+              {row.client_message && !fromCard(row.id) ? <Row name="Client wording" ms="client_message"><Rich html={String(row.client_message)} /></Row> : null}
             </dl> : null}
             <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} onFile={fromFile.value} />
-          </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
+          </> : row ? <ItemFields row={row} editing={editing} slim rich={tools && tools.richOf} clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
         </div>
       {History && (row || m) ? <History key={p.id} id={p.id} /> : null}

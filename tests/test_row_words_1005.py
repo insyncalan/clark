@@ -122,7 +122,7 @@ class RowWords(unittest.TestCase):
                     self.assertEqual(p.js("document.activeElement.innerText.trim()"), words, f"{where}: the older plain words are shown as they were")
                     self.put(p, html)
                     self.save(p)
-                    p.toast_is(f"Client Message of {ident} changed.")
+                    p.toast_is(f"Client wording of {ident} changed.")
                     sent = [json.loads(b) for b in p.js("window.__sent") if "client_message" in b]
                     self.assertEqual(sent[-1]["changes"], {"client_message": html}, where)
                     self.assertEqual(self.stored(table, ident), html, where)
@@ -201,7 +201,7 @@ class RowWords(unittest.TestCase):
             self.open_editor(p, row)
             self.type(p, "")
             self.save(p)
-            p.toast_is(f"Client Message of {ident} changed.")
+            p.toast_is(f"Client wording of {ident} changed.")
             self.assertEqual(self.stored("actions", ident), "")
             p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes('Agree the cut-over plan')", "the title shows")
 

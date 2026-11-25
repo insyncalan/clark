@@ -207,11 +207,11 @@ class AskingOff(Base):
         self.s.httpd.app_settings.change_ask({"enabled": False})
         with chrome() as cdp:
             js = self.editor(cdp)
-            self.until(js, "!!document.querySelector('#slash-off')", "the editor says so")
-            self.assertEqual(js("document.querySelector('#slash-off').innerText"), self.OFF)
+            self.until(js, "((document.querySelector('#slash-off') || {}).innerText) === %r" % self.OFF, "the editor says so")
+            self.assertEqual(js("(document.querySelector('#slash-off') || {}).innerText"), self.OFF)
             js = self.settings(cdp)
-            self.until(js, "!!document.querySelector('#slash-project #slash-off')", "the list says so")
-            self.assertEqual(js("document.querySelector('#slash-project #slash-off').innerText"), self.OFF)
+            self.until(js, "((document.querySelector('#slash-project #slash-off') || {}).innerText) === %r" % self.OFF, "the list says so")
+            self.assertEqual(js("(document.querySelector('#slash-project #slash-off') || {}).innerText"), self.OFF)
 
     def test_with_asking_on_neither_says_it(self):
         self.turn_on()

@@ -399,7 +399,6 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1286 (impeccable audit B-M2 and B-M3, menus; Classic only, Cards keeps every menu rule it has). One grid for every menu: the pick menu's, an icon 17px in from the panel edge, 8px from its words. */
 .ddmenu { min-width: 200px; }
 .cpop.cmenu:not(.bmenu) { min-width: 200px; }
-.ddmenu[aria-label="Group by"] { min-width: 240px; }
 .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp), .cols-menu [role="menuitemcheckbox"] { padding-left: 16px; padding-right: 16px; }
 .ddmenu .mi { margin-right: var(--space-2); }
 .rowmenu .mi { margin-right: 0; }
@@ -624,6 +623,9 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .ask-left-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
 .ask-left-name { color: var(--text); }
+/* Row 1542 (Classic only): the subfolders left out of a saved folder, each with Include again; the list and button values are the file list's */
+.ask-left-folders h3 { margin: 8px 0 0; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }
+.ask-left-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
 /* Row 1292 (Classic only; Cards keeps its style block as it is): the change cards of the ask panel. Each card lists the field, the old value struck through and the new value marked, then one line of Why; Apply and Not now sit side by side. */
 .ask-change-ref { font-weight: var(--weight-medium); }
 .ask-change-title { overflow-wrap: anywhere; }

@@ -161,14 +161,7 @@ export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
-// Row 1195 (Classic, the served View): the headings drag, move (Alt with an arrow) and resize (Ctrl with an arrow) as in Edit, kept on this computer and never saved in the document.
-// The hooks are the Edit part's (edit/colWidths.jsx), handed over by edit/templates/WorkItemsList.jsx when the page clark serves loads it; a published file has none of that code, so it has no handles.
-export const colTools = { current: null };
-
-function Live({ draw, hooks, id }) {
-  const cw = hooks.useColWidths(`wil-${id}`, true), ord = hooks.useColOrder(`wil-${id}`);
-  return draw(cw, ord);
-}
+// Row 1225: View draws plain headings (no drag, no grip, no tab stop); only Edit has the width and order tools (edit/colWidths.jsx).
 
 export function View({ section, data, pick }) {
   const now = today();
@@ -182,5 +175,5 @@ export function View({ section, data, pick }) {
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
-  return !fromFile.value && classicTheme() && colTools.current ? <Live draw={draw} hooks={colTools.current} id={section.id} /> : draw(undefined, undefined);
+  return draw(undefined, undefined);
 }

@@ -277,13 +277,13 @@ COMPUTED = {
     "is a picture and this computer cannot read pictures": "a reason in the list the (why) link opens (ask_index.REASON_PICTURE, #1366)",
     "looks like a password or a key": "a reason in the list the (why) link opens (ask_index.REASON_SAFETY, #1366)",
     "Still reading 120 files, so this answer may miss some": "the answer note, built from the count (ask_index.answer_note, #1366)",
-    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
-    "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
+    "Online-only files not searched": "the folder status line and the list when a file is online only (ask_index.ONLINE_LINE, #1537)",
+    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
+    "Type lanes": "a Swimlanes choice, built from the group's word (components/layoutItems.js)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
-    "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
@@ -450,7 +450,7 @@ def _src(*p):
 
 
 DOCS, USE_CASES, MILESTONES = _src("edit", "DocumentsEdit.jsx"), _src("components", "UseCases.jsx"), _src("logic", "milestones.js")
-FILTER_LINE, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
+FILTER_LINE, LAYOUT_ITEMS, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("components", "layoutItems.js"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
 
 
 def _flat(x):
@@ -487,8 +487,8 @@ class HelpWordsMatchScreen(unittest.TestCase):
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):
-        self.assertIn('name: "No lanes"', FILTER_LINE)
-        self.assertIn("name: `${groupLabel(x)} lanes`", FILTER_LINE)
+        self.assertIn('name: "No lanes"', LAYOUT_ITEMS)
+        self.assertIn("name: `${groupLabel(x)} lanes`", LAYOUT_ITEMS)
         self.assertIn('Workstream', FILTER_LINE + FILTERS)
         self.assertTrue(any("choose **No lanes**, **Workstream lanes** or **Type lanes**." in s for s in ALL))
         self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))

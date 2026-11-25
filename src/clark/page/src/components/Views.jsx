@@ -2,12 +2,12 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, showSettings } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, showSettings, token, settingsProject, chooseSettingsProject, settingsAll, chooseSettingsAll, switchTabs } from "../stores/report.js";
+import { classicTheme } from "./Contents.jsx";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 import { Icon } from "./Icon.jsx";
-import { classicTheme } from "./Contents.jsx";
 
 // The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, always still (no shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
@@ -118,19 +118,29 @@ const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
-  ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
+  ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Data", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Quit"]]]],
 ];
+// Row 1299 slice 1a, Classic only (the Cards look keeps GROUPS above): the mock-up's four groups and page names. Theme is part of Look, Folder is part of Brand and publishing; the old slugs (s=theme, s=folder) open those pages (OLD_SLUGS)
+const GROUPS_CLASSIC = [
+  ["You", [["profile", "Profile", ["Essentials", "Profile"]], ["appearance", "Look", ["Personal", "ThemeSettings"]]]],
+  ["All projects", [["projects", "Projects overview", ["Projects"]], ["backups", "Backups", ["Safety"]]]],
+  ["Project settings", [["reports", "Reports and pages", ["ReviewDays", "GanttSetting"]], ["brand", "Brand and publishing", ["ClientFolder", "Brands"]], ["people", "People", ["People"]], ["claude", "ask clark", ["AskSettings"]], ["data", "Data", ["Data"]]]],
+  ["Help and about", [["version", "Version and updates", ["Update", "Quit"]], ["logs", "Logs and diagnostics", ["Diagnostics"]]]],
+];
+const OLD_SLUGS = { folder: "brand", theme: "appearance" };
+const AFFECTS_OF = { "You": () => "You", "All projects": () => "All projects", "Project settings": (code) => code };
+const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
+const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Quit: "quit-h" };
 // Row 1299 slice 1b (W4): the glyph in each menu entry's tile, one per page (the page's own icons, components/Icon.jsx); the tile's class is set-tile-<slug> and the Classic rules in themes/prototype-2.0/rules-2.css colour it (one fill per page); the tile and the window class are drawn in the Classic theme only, Cards draws neither
 const SET_ICON = { profile: "user", appearance: "sun", theme: "moon", projects: "board", backups: "archive", reports: "chart", folder: "ul", brand: "flag", people: "people", claude: "sparkle", data: "dl", version: "info", logs: "clock" };
-const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
-const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
-function pagesOf(tools, open) {
+function pagesOf(tools, open, none) {
   const here = (tool) => !!(tools && tools[tool]) && (open || !NEEDS_PROJECT.includes(tool));
-  return GROUPS.map(([group, pages]) => [group, pages.map(([slug, name, list]) => [slug, name, list.filter(here)]).filter(([, , list]) => list.length)]).filter(([, pages]) => pages.length);
+  const kept = (slug) => !(none && classicTheme() && PROJECT_PAGES.includes(slug));      // row 1299 AP12: with no project the per-project pages are not in the menu
+  return (classicTheme() ? GROUPS_CLASSIC : GROUPS).map(([group, pages]) => [group, pages.filter(([slug]) => kept(slug)).map(([slug, name, list]) => [slug, name, list.filter(here)]).filter(([, , list]) => list.length)]).filter(([, pages]) => pages.length);
 }
 
 function focusFirstHead(tool) {
@@ -201,17 +211,58 @@ function SettingsHead({ groups, page, searching, setSearching }) {
   );
 }
 
+// Row 1299 (project tabs, Classic only): across the top of the project pages, one tab for each project, pinned while the page scrolls. The tab is the project
+// open in the app (the address's `p`); a click on another sets the Settings-only project (stores/report.js settingsProject): no page read, the address and the top bar stay. Pages that hold one project's settings only; All projects and You pages have none.
+export const PROJECT_PAGES = ["reports", "brand", "people", "claude", "data"];
+// Off until the project cards (client folder, review days, brand, people, ask clark, data) read settingsProjectNow() and not the open project: a click on another tab
+// would say "Affects: HAR" while the controls still edit the open project. With it off the other tabs are drawn but cannot be chosen.
+
+function ProjectTabs({ current, lead }) {
+  const [list, setList] = useState([]);
+  useEffect(() => {
+    let live = true;
+    globalThis.fetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
+      .then((r) => r.json().then((b) => (r.ok && b.ok && Array.isArray(b.projects) ? b.projects : [])))
+      .then((rows) => { if (live) setList(rows); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+  if (!list.length) return null;      // no projects, or the list not read: no bar
+  return (
+    <nav class="set-tabs" aria-label="Projects">
+      <ul>
+        {lead ? <li><button type="button" class="set-tab" data-all="1" aria-current={settingsAll.value ? "page" : undefined} onClick={chooseSettingsAll}>All projects</button></li> : null}
+        {list.map((p) => (
+          <li key={p.code}><button type="button" class="set-tab" aria-current={!settingsAll.value && p.code === current ? "page" : undefined} aria-disabled={p.code !== current && !switchTabs.value ? "true" : undefined} onClick={() => { if (p.code === current || switchTabs.value) chooseSettingsProject(p.code); }}>{p.name || p.code}</button></li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+// Row 1299 AP12: the Add project link (no project): the Projects page, with the Add project button given the focus.
+function addProject(e) {
+  e.preventDefault();
+  showSettings("projects");
+  setTimeout(() => { const b = document.getElementById("npBtn"); if (b) b.focus(); }, 0);
+}
+
 export function Settings({ tools }) {
   const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const [searching, setSearching] = useState(false);
-  const groups = pagesOf(tools, open);
+  const none = projectsState.value === "ready" && !projects.value.length;      // row 1299 AP12: the project list was read and holds no project
+  const groups = pagesOf(tools, open, none);
   const all = groups.flatMap(([, pages]) => pages);
-  const page = all.find(([slug]) => slug === (settingsPage.value || "projects")) || all[0] || ["", "", []];
+  const page = all.find(([slug]) => slug === (classicTheme() && OLD_SLUGS[settingsPage.value] || settingsPage.value || "projects")) || all[0] || ["", "", []];
   const shown = searching ? all.flatMap(([, , list]) => list) : page[2];
+  const group = (groups.find(([, pages]) => pages.includes(page)) || [])[0], scope = AFFECTS_OF[group], affects = !searching && scope && classicTheme() ? (page[0] === "claude" && settingsAll.value ? "All projects" : scope(settingsProject.value || project.value)) : "";
   return (
     <div class={classicTheme() ? "set-layout set-win" : "set-layout"}>
       <SettingsHead groups={groups} page={page} searching={searching} setSearching={setSearching} />
       <div class="set-cards" data-page={searching ? undefined : page[0]}>
+        {affects ? <p class="set-affects muted">Affects: {affects}</p> : null}
+        {classicTheme() && !searching && open && PROJECT_PAGES.includes(page[0]) ? <ProjectTabs current={settingsProject.value || project.value} lead={page[0] === "claude"} /> : null}
+        {classicTheme() && !searching && none ? <a class="set-add-project" href="#settings" onClick={addProject}>Add project</a> : null}
         {shown.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}
       </div>
     </div>

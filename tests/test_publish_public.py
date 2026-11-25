@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 import _paths  # noqa: F401  (puts dev/tools/ on the path)
+import _signing
 import ci_scan
 import publish_public as pp
 from _growth import assert_growth
@@ -605,6 +606,27 @@ class ThePublish(Base):
         code, out = self.go("--branch", "release-0.1.0")
         self.assertEqual(code, 0, out)
         self.assertEqual(self.heads(), ["refs/heads/release-0.1.0"])
+
+    def test_a_release_from_1_3_4_up_is_refused_without_a_verifying_sig(self):          # #1328 AP2
+        self.make_private(GOOD)
+        _signing.trust_test_key(self)
+        zipped = self.tmp / "clark-1.3.4-mac.zip"
+        zipped.write_bytes(b"zip bytes")
+        sig = _signing.sign_file(zipped)
+        other = self.tmp / "other.sig"
+        other.write_bytes(_signing.signature_for(b"other bytes"))
+        for flags in ((), ("--zip", str(zipped)), ("--sig", str(sig)), ("--zip", str(zipped), "--sig", str(other)),
+                      ("--zip", str(zipped), "--sig", str(self.tmp / "none.sig"))):
+            with self.subTest(flags):
+                self.assertIn("REFUSED  release is signed", self.refused("--branch", "release-1.3.4", *flags))
+        code, out = self.go("--branch", "release-1.3.4", "--zip", str(zipped), "--sig", str(sig))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.heads(), ["refs/heads/release-1.3.4"])
+
+    def test_a_release_before_1_3_4_needs_no_sig(self):
+        self.make_private(GOOD)
+        code, out = self.go("--branch", "release-1.3.3")
+        self.assertEqual(code, 0, out)
 
     def test_other_branch_names_are_refused(self):
         self.make_private(GOOD)

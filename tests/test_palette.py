@@ -190,6 +190,8 @@ class Results(Base):
             for w in (1400, 900):
                 p.width(w)
                 p.show()
+                # the project list is read from the server after the page has drawn: a slow runner opens the palette before it is in
+                p.until("!!document.querySelector('#palette .pal-row[data-kind=\"Project\"]')", "the projects are listed")
                 rows = p.rows()
                 kinds = [r[0] for r in rows]
                 self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"], f"at {w} px")
