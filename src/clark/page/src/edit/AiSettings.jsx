@@ -43,7 +43,7 @@ function ConnectCard() {
   const back = useRef("");                                // selector of the control to refocus once the card has redrawn
   const busyNow = useRef(false);
   const readable = (b) => b && b.ok === true && b.claude && b.chatgpt && Array.isArray(b.models);
-  useEffect(() => { if (conn && conn.active) askProvider.value = conn.active; }, [conn && conn.active]);
+  useLayoutEffect(() => { if (conn && conn.active) askProvider.value = conn.active; }, [conn && conn.active]);   // in the same commit that draws the card: a plain effect runs after the paint, and leaving the tab first lost the answer
   useEffect(() => {
     let live = true;
     aiConnectRead().then((r) => { if (live) setConn(r.status === 404 ? "later" : r.status === 200 && readable(r.body) ? r.body : "unavailable"); });
