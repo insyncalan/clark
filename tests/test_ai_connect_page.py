@@ -103,7 +103,9 @@ class Card(unittest.TestCase):
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10), "ChatGPT offers gpt-6.1-sol after Connect")
             self.pick(js, "gpt-6.1-sol")
             self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10), "the drop-down shows gpt-6.1-sol")
-            self.assertEqual(settings.ai_read(self.d)["model"], "gpt-6.1-sol")
+            saved = settings.ai_read(self.d)
+            where = self.d / settings.FILE
+            self.assertEqual(saved["model"], "gpt-6.1-sol", "read back: %r, chatgpt_on=%r, claude_off=%r, file %s, file existed=%r" % (saved["model"], saved["chatgpt_on"], saved["claude_off"], where, where.exists()))
             self.tab(js, "project")
             self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10), "the project tab's asking words name ChatGPT")
             self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))

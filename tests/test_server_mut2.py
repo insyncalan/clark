@@ -48,6 +48,7 @@ class BootPlacement(unittest.TestCase):
 
     def test_boot_goes_in_even_when_the_page_starts_with_closing_body(self):
         out = sv.with_boot("</body>")
+        self.assertTrue(out.startswith('</body><script type="application/json" id="clark-boot">'))   # row 1604: a page with no opening <body> gets the block after the whole page (at = len(html)), never before it
         self.assertTrue(out.endswith('</script>'))
         self.assertEqual(out.count('id="clark-boot"'), 1)
 

@@ -82,6 +82,23 @@ class TheRunnerStubsOsascript(unittest.TestCase):
         self.assertEqual(self.runner.osascript_calls(), [])
 
 
+class TheRunnerSetsClarkTest(unittest.TestCase):
+    """#1666 AP1b: dev/run_tests.py gives every test child CLARK_TEST=1, even when the caller's environment has none."""
+    CHILD = ("import os, unittest\nclass T(unittest.TestCase):\n    def test_flag(self):\n"
+             "        self.assertEqual(os.environ.get('CLARK_TEST'), '1')\n")
+
+    def test_a_child_sees_clark_test_1_though_the_caller_has_none_or_another_value(self):
+        for before in (None, "0", ""):
+            env = {k: v for k, v in os.environ.items() if k != "CLARK_TEST"}
+            if before is not None:
+                env["CLARK_TEST"] = before
+            with mock.patch.dict(os.environ, env, clear=True):
+                runner = run_tests.Runner(timeout=60)
+                self.addCleanup(runner.close)
+                _, code, _, out = runner.run(tiny(self.CHILD))
+            self.assertEqual(code, 0, f"caller CLARK_TEST={before!r}: {out}")
+
+
 class ARunWithADialogCallFails(unittest.TestCase):
     def run_all(self, text, results=""):
         out = io.StringIO()

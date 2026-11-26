@@ -3,8 +3,11 @@
 Importing this module also puts src/, dev/tools/ and vendor/ on sys.path (as dev/run_tests.py does), so a test that
 imports it first also runs under plain `python3 -m unittest discover -s tests`.
 """
+import os
 import sys
 from pathlib import Path
+
+os.environ["CLARK_TEST"] = "1"      # #1366: src/clark/ask_vision_mac.register() then registers no real picture reader (no osascript by accident)
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
