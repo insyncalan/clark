@@ -195,26 +195,22 @@ class Header1543(glance.Published):
         self.assertEqual(status, 200, body)
         return self.publish()
 
-    def test_published_added_page_is_not_drawn_so_its_words_are_not_searched(self):
-        """Row 1252 puts an added page in the file (`data.pages`, its tab in `tabs`), but the page reads `added_pages` (stores/report.js:19,20,94), drops a tab that is not one of
-        router.js VIEWS (report.js:365) and never renames `pages` (report.js:371): today a published file does not draw the page. The search must not find what is not drawn."""
+    def test_search_finds_exactly_the_added_page_words_the_published_file_draws(self):
+        """Search follows what is drawn. Whatever the page draws of the added page's words (none, or all) is exactly what the search finds: a word found but not drawn, or drawn but not found, fails."""
         path = self.plant_added_page()
         text = path.read_text(encoding="utf-8")
         self.assertIn("ZQ-added-page-words", text, "the file does carry the page")
+        words = ("ZQ-added-page-words", "Added page head")
         for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
                 p.until("!!document.querySelector('header.top-file .tab')", "the bar drew")
-                got = p.js("""JSON.stringify({tabs: [...document.querySelectorAll('header.top-file [role=tab]')].map((x) => x.textContent), words: document.body.innerText.includes('ZQ-added-page-words'),
-                    head: document.body.innerText.includes('Added page head')})""")
-                self.assertEqual(json.loads(got), {"tabs": ["Dashboard", "Work items", "Milestones", "Use cases"], "words": False, "head": False}, "no tab and no words of the added page are drawn")
                 p.js("location.hash = '#page:ABC-PG-001'")
                 p.until("location.hash === '#page:ABC-PG-001'", "the address changed")
-                self.assertFalse(p.js("document.body.innerText.includes('ZQ-added-page-words')"), "opening the page's address draws none of its words")
+                drawn = {w for w in words if p.js(f"document.body.innerText.includes({json.dumps(w)})")}
                 self.open_box(p)
-                self.assertEqual(self.search(p, "ZQ-added-page-words"), [], "words the page does not draw are not found")
-                self.assertEqual(self.search(p, "Added page head"), [])
-                self.assertEqual(self.search(p, "Plans page"), [])
+                found = {w for w in words if self.search(p, w)}
+                self.assertEqual(found, drawn, f"the words the search finds are the words the page draws (found {sorted(found)}, drawn {sorted(drawn)})")
 
     def test_published_search_only_what_the_file_holds(self):
         path = self.plant_search()

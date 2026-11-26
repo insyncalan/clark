@@ -241,12 +241,13 @@ class OnlyWhatTheViewDraws(unittest.TestCase):
         self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].view", data), "page:P1")
         self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].kind", data), "Site page")
 
-    def test_a_published_files_pages_are_not_read_because_the_page_does_not_draw_them(self):
-        """A published file holds the added pages as `data.pages`; the page reads `added_pages` and drops their tabs (stores/report.js:19,20,94,365,371), so none of it is drawn."""
-        sec = {"id": "P1-S-1", "type": "text", "title": "Added page head", "body": "<p>ZQ-undrawn-page-words</p>"}
-        data = {"pages": [{"id": "P1", "name": "Site page", "sections": [sec]}]}
-        self.assertEqual((ids("ZQ-undrawn-page-words", data), ids("Added page head", data), ids("Site page", data)), ([], [], []))
-        self.assertEqual(run("idx.length", data), 0)
+    def test_search_reads_added_pages_the_view_reads_and_gives_hits_for_their_words(self):
+        """The search reads `added_pages`, the key the view reads (stores/report.js:19,20,94): the text section's title and body words are found, with the page's view and name."""
+        sec = {"id": "P1-S-1", "type": "text", "title": "Added page head", "body": "<p>ZQ-page-words</p>"}
+        data = {"added_pages": [{"id": "P1", "name": "Site page", "sections": [sec]}]}
+        self.assertEqual((ids("ZQ-page-words", data), ids("Added page head", data)), (["P1-S-1"], ["P1-S-1"]))
+        self.assertEqual(run("RS.searchReport(idx, 'ZQ-page-words')[0].view", data), "page:P1")
+        self.assertEqual(run("RS.searchReport(idx, 'ZQ-page-words')[0].kind", data), "Site page")
 
     def test_a_quote_or_callout_without_its_heading_does_not_find_its_title_and_the_switch_is_no_word(self):
         for kind, content in (("quote", {"quotes": [{"quote": "Q", "by": "", "role": ""}]}), ("callout", {"tone": "info", "title": "T", "paras": ["P"], "category": "C", "colour": "plain", "icon": "none"})):
