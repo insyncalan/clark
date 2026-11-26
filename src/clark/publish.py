@@ -126,7 +126,7 @@ GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "wo
          "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),   # item 1158: the needs-from-you flag is no longer read here
          "decisions": ("client_visible", "archived"), "use_cases": ("client_visible", "archived"),
          "gantt_lines": ("show", "project"),      # row 926: a line with show 0 is dropped before anything is copied
-         "projects": ("show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand")}     # row 926: decide whether the Gantt tab is in the file and what it is called; none is copied as a project field
+         "projects": ("show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand", "show_board_client")}     # row 926: decide whether the Gantt tab is in the file and what it is called; none is copied as a project field
 ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
          "use_cases": "sort_order, id"}
 CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
