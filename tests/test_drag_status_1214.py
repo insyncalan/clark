@@ -12,8 +12,10 @@ import unittest
 import test_report_editor as tre
 from test_server import chrome
 
-IDS = tre.IDS
-T = dict(zip(IDS, tre.TITLES))                 # id -> title, the order the demo store gives
+IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]      # row 1266: the eleven starting sections, in the order the demo store gives
+TITLES = ["Headline", "At a glance", "Header", "This week", "Next week", "Milestones", "Use cases", "Risks and issues", "Open actions", "Decisions", "Documents"]
+T = dict(zip(IDS, TITLES))                      # id -> title
+M = IDS[5]                                      # Milestones: a full-width section that is not half of a pair
 LINE = "document.querySelector('[data-drag-line]')"
 SAY = "(document.querySelector('[data-drag-say]') || {}).textContent || ''"
 
@@ -76,9 +78,9 @@ class DragStatus(tre.Base):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
                 x, y = self.edge(p, IDS[1], "top")
-                self.hold(p, IDS[3], x, y, f'Release to put "{T[IDS[3]]}" above "{T[IDS[1]]}".')
+                self.hold(p, M, x, y, f'Release to put "{T[M]}" above "{T[IDS[1]]}".')
                 self.check_line(p)
-                self.release_and_hear(p, x, y, f'Moved "{T[IDS[3]]}" above "{T[IDS[1]]}".')
+                self.release_and_hear(p, x, y, f'Moved "{T[M]}" above "{T[IDS[1]]}".')
 
     def test_below(self):
         for width in (1400, 900):
@@ -91,15 +93,15 @@ class DragStatus(tre.Base):
     def test_beside(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            r = p.rect(IDS[3])
+            r = p.rect(M)
             x, y = r["left"] + (r["right"] - r["left"]) * 0.2, (r["top"] + r["bottom"]) / 2
-            self.hold(p, IDS[0], x, y, f'Release to put "{T[IDS[0]]}" beside "{T[IDS[3]]}", half width each.')
-            self.release_and_hear(p, x, y, f'Moved "{T[IDS[0]]}" beside "{T[IDS[3]]}", half width each.')
+            self.hold(p, IDS[0], x, y, f'Release to put "{T[IDS[0]]}" beside "{T[M]}", half width each.')
+            self.release_and_hear(p, x, y, f'Moved "{T[IDS[0]]}" beside "{T[M]}", half width each.')
 
     def test_no_beside_at_900_where_a_pair_stacks(self):
         with chrome() as cdp:
             p = self.at(cdp, 900)
-            r = p.rect(IDS[3])
+            r = p.rect(M)
             x, y = r["left"] + (r["right"] - r["left"]) * 0.2, r["top"] + (r["bottom"] - r["top"]) * 0.4
             hx, hy, _ = p.box(f'[data-id="{IDS[0]}"] [data-drag]')
             p.mouse("mousePressed", hx, hy, 1)
@@ -114,13 +116,13 @@ class DragStatus(tre.Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
-                six, seven = IDS[4], IDS[5]                              # This week sits beside Next week
+                six, seven = M, IDS[4]                              # This week sits beside Next week
                 x, y = self.edge(p, seven, "bottom")
                 self.hold(p, seven, x, y, f'Release to make "{T[seven]}" full width.')
                 self.release_and_hear(p, x, y, f'"{T[seven]}" is now full width.')
 
     def test_a_toast_that_is_not_a_drop_is_still_polite(self):
-        for width, ref in ((1400, IDS[3]), (900, IDS[4])):      # each width leaves out a section of its own: the store keeps the first one's change
+        for width, ref in ((1400, M), (900, IDS[6])):      # each width leaves out a section of its own: the store keeps the first one's change
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
                 p.menu(ref, "hide")
@@ -133,20 +135,20 @@ class DragStatus(tre.Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
-                hx, hy, _ = p.box(f'[data-id="{IDS[3]}"] [data-drag]')
-                line = f'Release to leave "{T[IDS[3]]}" where it is.'
-                self.hold(p, IDS[3], hx + 12, hy + 12, line)
-                self.release_and_hear(p, hx + 12, hy + 12, f'"{T[IDS[3]]}" stays where it is.', sends=0)
+                hx, hy, _ = p.box(f'[data-id="{M}"] [data-drag]')
+                line = f'Release to leave "{T[M]}" where it is.'
+                self.hold(p, M, hx + 12, hy + 12, line)
+                self.release_and_hear(p, hx + 12, hy + 12, f'"{T[M]}" stays where it is.', sends=0)
 
     def test_the_line_follows_the_target_and_esc_says_nothing(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
             x, y = self.edge(p, IDS[1], "top")
             x2, y2 = self.edge(p, IDS[7], "top")                       # both measured before the drag: the preview then moves the sections
-            self.hold(p, IDS[3], x, y, f'Release to put "{T[IDS[3]]}" above "{T[IDS[1]]}".')
+            self.hold(p, M, x, y, f'Release to put "{T[M]}" above "{T[IDS[1]]}".')
             for step in range(1, 5):
                 p.mouse("mouseMoved", x + (x2 - x) * step / 4, y + (y2 - y) * step / 4, 1)
-            p.until(f"({LINE}).textContent === {json.dumps(f'Release to put {chr(34)}{T[IDS[3]]}{chr(34)} above {chr(34)}{T[IDS[7]]}{chr(34)}.')}", "the line changed with the target")
+            p.until(f"({LINE}).textContent === {json.dumps(f'Release to put {chr(34)}{T[M]}{chr(34)} above {chr(34)}{T[IDS[7]]}{chr(34)}.')}", "the line changed with the target")
             p.key("Escape", code="Escape", vk=27)
             p.mouse("mouseReleased", x2, y2, 0)
             p.until(f"!{LINE}", "the line goes at Esc")
@@ -156,7 +158,7 @@ class DragStatus(tre.Base):
     def test_a_click_with_no_travel_draws_no_line(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            hx, hy, _ = p.box(f'[data-id="{IDS[3]}"] [data-drag]')
+            hx, hy, _ = p.box(f'[data-id="{M}"] [data-drag]')
             p.mouse("mousePressed", hx, hy, 1)
             p.mouse("mouseMoved", hx + 1, hy, 1)
             self.assertIsNone(p.js(f"{LINE}"))

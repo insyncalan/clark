@@ -28,6 +28,8 @@ class AsAtPage(Base):
         with s.step("dashboard", USER) as st:
             st.update("actions", self.a, {"description": NEW})
             st.update("projects", "ABC", {"health": "At risk", "health_reason": "ZQ a reason given later"})
+            head = [x for x in s.read("report_sections", "ABC") if x["type"] == "reportheadline"][0]["id"]
+            st.update("report_sections", head, {"body": '{"health":"at_risk","v":1}'})      # row 1266: the health is the Headline pill now (its own stored body), so the later step sets it there too
             self.r = st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ a risk raised later", "raised": "2020-02-10",
                                         "source": "demo", "impact": "High", "likelihood": "High", "owner": "Pat Demo"})
         self.move("2020-02-10 10:00:00", only_after="2020-01-11")
@@ -67,14 +69,17 @@ class AsAtPage(Base):
             text = self.main_text(p)
             self.assertNotIn(NEW, text)
             self.assertNotIn("ZQ a risk raised later", text)
-            self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "0", "due 25-01-2020: not overdue on 20-01-2020")
-            self.assertEqual(p.js("document.querySelector('[data-fig=risks] .v').textContent"), "0")
-            self.assertNotIn("At risk", p.js("document.querySelector('[data-fig=health]').textContent"))
+            self.assertEqual(p.js("document.querySelector('[data-tile=overdue] .v').textContent"), "0", "due 25-01-2020: not overdue on 20-01-2020")
+            self.assertIsNone(p.js("document.querySelector('[data-tile=risks]')"), "no risk was raised on 20-01-2020: the template draws no Risks tile")      # row 1266: the template leaves out a tile with nothing to count
+            self.assertNotIn("ZQ a reason given later", self.main_text(p))      # row 1266: the health is in the Headline now, and the milestone legend has its own 0 At risk
+            self.assertNotIn("At risk", p.js("((document.querySelector('[data-type=reportheadline]') || {}).textContent || '')"), "the Headline pill is not At risk on 20-01-2020")      # row 1266: the old [data-fig=health] check, on the Headline pill
             p.js("document.querySelector('#as-at-back').click()")
             p.until("!document.querySelector('#as-at-banner') && !!document.querySelector('[data-mode=edit]')", "Back to now")
-            p.until("document.querySelector('[data-fig=overdue] .v') && document.querySelector('[data-fig=overdue] .v').textContent === '1'", "now: overdue")
+            p.until("document.querySelector('[data-tile=overdue] .v') && document.querySelector('[data-tile=overdue] .v').textContent === '1'", "now: overdue")
             self.assertFalse(p.js("document.querySelector('#report').hasAttribute('inert')"))
-            self.assertIn("At risk", p.js("document.querySelector('[data-fig=health]').textContent"))
+            self.assertIn("At risk", p.js("((document.querySelector('[data-type=reportheadline]') || {}).textContent || '')"), "the Headline pill is At risk now")      # row 1266: the old [data-fig=health] check, on the Headline pill
+            self.assertEqual(p.js("document.querySelector('[data-tile=risks] .v').textContent"), "1", "now: the risk raised later is counted (the as-at page had no Risks tile)")      # row 1266: restores the old Risks 0 check's other half
+            self.assertIn("At risk", self.main_text(p))
         self.assertEqual([r["description"] for r in self.store.read("actions", "ABC") if r["id"] == self.a], [NEW], "nothing was written")
 
     def test_another_page_leaves_the_past(self):

@@ -482,6 +482,8 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
   :root[data-theme=auto] .aim-ic { color: currentColor; }
 }
+/* Row 1266: the Milestones legend ("At risk" in amber, 4.16:1) sits straight on the brand picture; with Milestones fourth in the new default order it is on screen, so it gets the surface behind it (the contrast on the worst picture: not measured (1634 p7)). Classic only. */
+.msl-bar .mlg-row { background: var(--surface); padding: 2px var(--space-2); border-radius: var(--radius-sm); }
 /* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
 .secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */

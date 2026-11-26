@@ -10,8 +10,8 @@ from test_classic_dashboard_1345 import Dash, theme_folder
 
 MARK = "/* Row 1345 layout rows"
 
-P = ("(function(){var g=function(e){return getComputedStyle(e)}, m=g(document.querySelector('main')), s=g(document.querySelector('#report .secs > .sec:not(.is-hidden)')),"
-     "h=g(document.querySelector('#report .secs > .sec:not(.is-hidden) .sec-h')), cs=[...document.querySelectorAll('.glance[data-glance] > .tcell')].filter(e => e.offsetWidth > 0), out=[];"
+P = ("(function(){var g=function(e){return getComputedStyle(e)}, m=g(document.querySelector('main')), s=g(document.querySelector('#report .secs > .sec[data-id=ABC-S-003]')),"
+     "h=g(document.querySelector('#report .secs > .sec[data-id=ABC-S-003] .sec-h')), cs=[...document.querySelectorAll('.glance[data-glance] > .tcell')].filter(e => e.offsetWidth > 0), out=[];"
      "return {main: [m.paddingTop, m.paddingRight, m.paddingBottom, m.paddingLeft], head: [h.fontSize, h.lineHeight, h.fontWeight], sec: [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft],"
      "cells: cs.map(function(e){var c=g(e); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft, c.marginRight, c.marginLeft, c.borderRightWidth, c.borderRightStyle, c.borderRightColor, c.borderLeftWidth];}),"
      "line: (function(){var t=document.createElement('i'); t.style.color='var(--grey-200)'; document.body.appendChild(t); var c=g(t).color; t.remove(); return c;})(), n: cs.length};})()")

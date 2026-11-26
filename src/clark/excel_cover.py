@@ -164,7 +164,7 @@ def _tile(t):
             "detail": cut(detail, 2000), "colour": colour or None}
 
 
-def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", as_at=None, counts=None, history=False):
+def lines(project, sections, tiles, exported, by=None, owner=None, email=None, internal="", published=None, as_at=None, counts=None, history=False):
     """The Cover as a list of {"kind", "text", ...}.
 
     project  the project row: "name" (or "code"), "current_state" (HTML), "week_ending" and "client_name"; read only
@@ -176,7 +176,9 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
              itself is not on the Cover.
     as_at    (row 1390) the day the report is shown as at, only when one is used: the line "Shown as at DD-MM-YYYY" under the title band
     counts   (row 1390) [(type, n)] open risks and issues by type (raid_counts): a "counts" line after the sections, none when empty
-    history  (row 1390) True for the editor export, which has a hidden History sheet: a last "history" line says how to unhide it"""
+    history  (row 1390) True for the editor export, which has a hidden History sheet: a last "history" line says how to unhide it
+    published what publish.select gave (row 1266 AP11): a glance template section is read from it the way the Word report and the client
+             workbook read it (glance_print.read), so the Cover shows the tiles the template shows and no Health tile when it is off."""
     name = str(project.get("name") or project.get("code") or "").strip()
     title = _line("title", cut(name, 200))
     if internal:
@@ -196,6 +198,14 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
                 out += [_line("heading", cut(sec.get("title") or "Current state", 200))] + body
         elif kind == "glance":
             part = [_tile(t) for t in tiles or [] if not t.get("hidden")]
+            if part:
+                out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
+        elif kind == "glancetemplate" and published is not None:
+            from clark import glance_print
+            got = glance_print.read(published, sec)
+            part = [_tile({"tile": t["key"], "title": t["label"], "value": t["figure"], "detail": t["note"], "reason": t["note"],
+                           "colour": t["colour"], "pill": {"colour": t["colour"]}})
+                    for t in ([got["health_row"]] if got["health_row"] else []) + got["tiles"]]
             if part:
                 out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
         elif kind == "tracker":              # row 1420: one line, the overall achieved figure of the published entry; nothing when it has none
@@ -243,5 +253,5 @@ def from_store(store, code, exported, by=None, owner=None, email=None, internal=
                              deleted=inputs.get("sections_deleted"))
     tiles = glance.tiles(inputs["data"], today, for_client=True, kept=kept)
     sections = [dict(s, hidden=0) for s in shown["sections"]]
-    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal,
+    return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal, published=shown,
                  as_at=today if show_as_at else None, counts=raid_counts(shown), history=True)
