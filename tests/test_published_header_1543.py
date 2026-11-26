@@ -359,9 +359,172 @@ class More1543:
                 self.assertLessEqual(len(cols), 2, f"{n}: red is only the Gantt's Today line, two pixels wide")
 
 
-for _cls in (Late1543, More1543):
+# Row 1543 AP4 (slice 6, review ruling 'no late days on any client surface'): the published Work items page has no Overdue group and no Overdue
+# Due-filter option; an open item whose date has passed is in the group "Earlier" and is still drawn. The editor keeps both.
+class Overdue1543:
+    def plant_overdue_item(self):
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+
+    def published_work(self, cdp, path, width, dark):
+        p = self.draw(cdp, path, width, dark)
+        p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+        p.js("document.querySelector('header.top-file [data-view=work]').click()")
+        p.until("!!document.querySelector('#work-list') && !!document.querySelector('#group-by')", "the published Work items drew")
+        return p
+
+    def test_published_work_items_have_no_overdue_group_or_filter_option(self):
+        self.plant_overdue_item()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.published_work(cdp, path, width, dark)
+                p.js("document.querySelector('[data-show=all]') && document.querySelector('[data-show=all]').click()")
+                p.js("document.querySelector('#group-by').click()")
+                p.until("!!document.querySelector('[role=menuitem][data-kind=due]')", "the Group by menu opened")
+                p.js("document.querySelector('[role=menuitem][data-kind=due]').click()")
+                p.until("[...document.querySelectorAll('tr.grp th')].some((t) => /Earlier/.test(t.textContent))", "the Due groups drew, the passed date in Earlier")
+                heads = p.js("[...document.querySelectorAll('tr.grp th')].map((t) => t.textContent)")
+                self.assertTrue(any(h.startswith("Earlier") for h in heads), f"the open item whose date passed is in Earlier: {heads}")
+                self.assertGreater(p.js("document.querySelectorAll('#work tr[data-id]').length"), 0, "control: the rows are drawn")
+                self.assertTrue(p.js("document.querySelector('#work').textContent.includes('Chase the supplier file')"), "control: the item is still drawn")
+                p.js("document.querySelector('[data-fb=due]').click()")
+                p.until("!!document.querySelector('#fbox-due input')", "the Due filter opened")
+                menu = p.js("document.querySelector('#fbox-due').textContent")
+                self.assertIn("Due in 7 days", menu, "control: the Due filter offers its options")
+                self.assertEqual(p.js("document.querySelectorAll('#fbox-due input[value=overdue]').length"), 0, "no Overdue option")
+                self.assertNotRegex(menu, r"(?i)overdue")
+                self.assertNotRegex(p.js("document.querySelector('#work').textContent"), r"(?i)overdue", "no Overdue text anywhere on the Work items page")
+
+    def test_published_remembered_overdue_filter_is_no_filter(self):
+        self.plant_overdue_item()
+        path = self.publish()
+        keep = "localStorage.setItem('clark.work.ABC', JSON.stringify({v: 1, type: 'all', mode: 'all', filters: {due: ['overdue']}, not: {}, group: 'workstream'}))"
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                p.js(keep)
+                p.js("window.__before = 1; location.hash = '#work'; location.reload()")
+                p.until("!window.__before && !!document.querySelector('#work-list') && document.querySelectorAll('#work tr[data-id]').length > 0", "the Work items drew with the remembered choice")
+                self.assertEqual(p.js("document.querySelectorAll('[data-chip=due]').length"), 0, "no Due chip")
+                self.assertTrue(p.js("document.querySelector('#work').textContent.includes('Chase the supplier file')"), "the item is drawn: the choice is no filter")
+                self.assertNotRegex(p.js("document.querySelector('#work').textContent"), r"(?i)overdue")
+
+    def test_editor_work_items_keep_the_overdue_group(self):
+        self.plant_overdue_item()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark, hash_="#work&p=ABC", settings=True)      # settings=True: the page is not waited for as a Dashboard
+                p.until("document.documentElement.dataset.ready === '1'", "the editor opened")
+                p.js("localStorage.setItem('clark.work.v1', JSON.stringify({ABC: {view: 'table', group: 'due', lane: null, collapsed: []}}))")
+                p.js("location.reload()")
+                p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('tbody[data-group]')", "the editor's Work items drew")
+                if dark:
+                    p.js("document.documentElement.dataset.theme = 'dark'")
+                p.until("[...document.querySelectorAll('tbody[data-group]')].some((t) => t.dataset.group === 'overdue')", "the Overdue group drew")
+                # the editor's Due filter (filters.js options) still lists Overdue: pinned in test_work_filters (labels Overdue, Due in 7 days, No date, Later), run with this file
+                self.assertIn("Overdue", p.js("[...document.querySelectorAll('thead[data-group]')].map((t) => t.textContent).join('|')"), "the Overdue group is drawn with its heading")
+
+
+# Row 1543 AP4d (PM ruling rom-rul-1543-ap4d-0920): on a published file the Milestones timeline keeps the slip (the ghost ring, the dashed line,
+# "+N days", the Slipped diamond) and loses its red; the editor draws them red as before.
+TIMELINE_PROBE = """(() => {
+  const root = document.querySelector('.mv') || document.querySelector('[data-ms]').parentElement;
+  const probe = document.createElement('i'); document.body.appendChild(probe);
+  const tok = (n) => { probe.style.color = `var(${n})`; return getComputedStyle(probe).color; };
+  const red = [tok('--status-red'), tok('--status-red-text')], amber = [tok('--status-amber'), tok('--status-amber-text')];
+  const hsl = (c) => { const m = c.match(/[\\d.]+/g); if (!m || m.length < 3 || (m.length > 3 && +m[3] === 0)) return null; const [r, g, b] = m.slice(0, 3).map((x) => x / 255);
+    const hi = Math.max(r, g, b), lo = Math.min(r, g, b), d = hi - lo, l = (hi + lo) / 2; if (!d) return {h: 0, s: 0};
+    const s = d / (1 - Math.abs(2 * l - 1)); let h = hi === r ? ((g - b) / d) % 6 : hi === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; return {h, s}; };
+  const bad = (c) => { if (red.includes(c) || amber.includes(c)) return 'token'; const x = hsl(c); if (!x || x.s <= 0.25) return ''; return (x.h >= 345 || x.h <= 15) ? 'red hue' : (x.h >= 30 && x.h <= 50) ? 'amber hue' : ''; };
+  const sets = {
+    slip: [[...root.querySelectorAll('[data-slip]')], ['color']],
+    conn: [[...root.querySelectorAll('.mv-conn')], ['borderTopColor']],
+    ghost: [[...root.querySelectorAll('.mv-ghost')], ['borderTopColor', 'borderLeftColor']],
+    diamond: [[...root.querySelectorAll('.mv-mk svg path')].filter((e) => /M10 2\\.5l7\\.5/.test(e.getAttribute('d') || '')), ['stroke']],
+    legend: [[...document.querySelectorAll('.mlg-ghost')], ['borderTopColor']],
+    cal: [[...document.querySelectorAll('.cal-ms.ghost')], ['borderTopColor', 'color']],
+  };
+  const out = {hits: [], n: {}, red: 0, slips: [...root.querySelectorAll('[data-slip]')].map((e) => e.textContent), widths: [...root.querySelectorAll('.mv-ghost, .mv-conn')].map((e) => e.getBoundingClientRect().width),
+               slipText: sets.slip[0].length ? getComputedStyle(sets.slip[0][0]).color : null, redText: red[1], redStroke: red[0], diamondStroke: sets.diamond[0].length ? getComputedStyle(sets.diamond[0][0]).stroke : null};
+  for (const [k, [els, props]] of Object.entries(sets)) { out.n[k] = els.length;
+    for (const e of els) { const c = getComputedStyle(e); for (const p of props) { const v = c[p], w = bad(v); if (w) out.hits.push(k + ' ' + p + ' ' + v + ' ' + w); if (red.includes(v)) out.red++; } } }
+  return out;
+})()"""
+
+
+class Timeline1543:
+    def timeline(self, cdp, path, width, dark, edit=False):
+        if edit:
+            p = self.show(cdp, width, dark, hash_="#milestones&p=ABC", settings=True)
+            p.until("document.querySelectorAll('.mv-mk').length > 0", "the editor's timeline drew")
+        else:
+            p = self.draw(cdp, path, width, dark)
+            p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+            p.js("document.querySelector('header.top-file [data-view=milestones]').click()")
+            p.until("document.querySelectorAll('.mv-mk').length > 0", "the published timeline drew")
+        p.until("document.getAnimations().every((a) => a.playState === 'finished')", "settled")
+        return p
+
+    def test_published_timeline_keeps_the_slip_and_drops_the_red(self):
+        """PM rulings rom-rul-1543-ap4d-0920 and the scope ruling: no red and no amber computed colour on the slip text, dashed line, ghost ring,
+        Slipped diamond (timeline), the legend's ghost ring and the calendar's ghost chip in a published file; each is still drawn; the editor stays red."""
+        self.plant_late()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    p = self.timeline(cdp, path, width, dark)
+                    got = p.js(TIMELINE_PROBE)
+                    p.js("[...document.querySelectorAll('button')].find((b) => /^\\s*Calendar\\s*$/.test(b.textContent)).click()")
+                    p.until("document.querySelectorAll('.cal-ms.ghost').length > 0", "the calendar drew its ghost chip")
+                    cal = p.js(TIMELINE_PROBE)
+                    p.js("document.querySelector('header.top-file [data-view=dashboard]').click()")      # the Dashboard's own timeline section (the other label layout)
+                    p.until("document.querySelectorAll('.mv-lab2').length > 0", "the Dashboard's timeline section drew")
+                    dash = p.js(TIMELINE_PROBE)
+                self.assertGreaterEqual(sum(got["n"][k] for k in ("slip", "conn", "ghost", "diamond")), 4, f"control: the elements were found {got['n']}")
+                for k in ("slip", "conn", "ghost", "diamond"):
+                    self.assertGreaterEqual(got["n"][k], 1, f"{k} is still drawn")
+                self.assertEqual(got["n"]["slip"], got["n"]["ghost"], "one +N days for each ghost")
+                self.assertEqual(got["n"]["conn"], got["n"]["ghost"], "one dashed line for each ghost")
+                self.assertTrue(all(t.startswith("+") for t in got["slips"]), f"+N days is still said: {got['slips']}")
+                self.assertTrue(all(w > 0 for w in got["widths"]), "the ghost and the line have a size")
+                self.assertEqual(got["hits"], [], "no red or amber computed colour in the published timeline")
+                self.assertGreaterEqual(dash["n"]["slip"], 1, "control: the Dashboard's timeline shows +N days")
+                self.assertEqual(dash["hits"], [], "no red or amber on the Dashboard's timeline slip")
+                self.assertGreaterEqual(cal["n"]["cal"], 1, "control: the calendar's ghost chip is drawn")
+                self.assertEqual(cal["hits"], [], "no red or amber on the calendar's ghost chip")
+                if got["n"]["legend"]:
+                    self.assertEqual([h for h in got["hits"] if h.startswith("legend")], [], "no red on the legend's ghost ring")
+                with chrome() as cdp:
+                    e = self.timeline(cdp, None, width, dark, edit=True)
+                    ed = e.js(TIMELINE_PROBE)
+                    self.assertGreaterEqual(ed["n"]["ghost"], 1, "control: the editor draws the ghost")
+                    self.assertGreaterEqual(ed["red"], 1, "the editor's timeline is still red")
+                    self.assertEqual(ed["slipText"], ed["redText"], "the editor's +N days is the red text colour")
+                    self.assertEqual(ed["diamondStroke"], ed["redStroke"], "the editor's Slipped diamond is red")
+
+    def test_published_timeline_pictures(self):
+        import base64
+        import os
+        out = os.environ.get("CLARK_SHOT_DIR")
+        if not out:
+            self.skipTest("CLARK_SHOT_DIR not set: the by-eye pictures are made on request")
+        self.plant_late()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with chrome() as cdp:
+                p = self.timeline(cdp, path, width, dark)
+                p.js("document.querySelector('.mv') && document.querySelector('.mv').scrollIntoView()")
+                data = cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]
+                os.makedirs(out, exist_ok=True)
+                with open(os.path.join(out, f"timeline-{width}{'-dark' if dark else ''}.png"), "wb") as f:
+                    f.write(base64.b64decode(data))
+
+
+for _cls in (Late1543, More1543, Overdue1543, Timeline1543):
     for _name in dir(_cls):
-        if _name.startswith(("test", "plant_", "pages", "peek_")):
+        if _name.startswith(("test", "plant_", "pages", "peek_", "published_work", "timeline")):
             setattr(Header1543, _name, getattr(_cls, _name))
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file
     if _name.startswith("test") and _name not in Header1543.__dict__:

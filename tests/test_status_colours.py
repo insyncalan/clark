@@ -167,11 +167,11 @@ class WordUrgent(Base):
         cells = re.findall(r"<w:tc>(?:(?!</w:tc>).)*</w:tc>", doc, re.S)
         maroon = [c for c in cells if MAROON in c]
         self.assertTrue(maroon)
-        status = next(c for c in maroon if "Overdue" in c)      # the Urgent late action keeps its status word on the maroon cell
+        status = next(c for c in maroon if "Open" in c)      # row 1543 AP4 (review ruling): a passed date reads Open in the client Word copy      # the Urgent late action keeps its status word on the maroon cell
         self.assertIn('w:fill="6B1D2A"', status)
         self.assertIn("FFFFFF", status, "white words on the maroon")
         self.assertIn("<w:b/>", status)
-        self.assertIn("(overdue)", doc, "overdue is also in the due column")
+        self.assertNotIn("(overdue)", doc, "row 1543 AP4: no overdue word in the due column either; the due cell is the plain date")
 
 
 class FileWordAndWordCopy(Base):

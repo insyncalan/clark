@@ -28,6 +28,7 @@ from test_work_items import bundled, page_target
 SRC = ROOT / "src" / "clark" / "page" / "src"
 SAFE = ["type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone", "is"]
 SAFE_IS = ["open", "closed", "overdue"]
+OFFERED_IS = ["open", "closed"]      # row 1543 AP4 (review ruling, no late days on any client surface): the file does not offer is:overdue
 NOT_THE_CLIENTS = ["client:shown", "client:internal", "-client:yes", "client:no", "no:client", "is:quiet", "is:incomplete",
                    "is:needed", "is:archived", "-is:quiet", "is:open,quiet", "owner:me", "owner:me,Ana", "IS:QUIET", "CLIENT:internal"]
 
@@ -90,8 +91,8 @@ class ClientLine(unittest.TestCase):
         self.assertTrue(offered, "something is offered")
         self.assertFalse(offered - set(SAFE) - {"no"}, offered)
         self.assertNotIn("client", offered)
-        self.assertEqual([s["label"] for s in self.val("P.fl.suggest('is:', ROWS, CTX)")], SAFE_IS)
-        self.assertEqual([o[0] for o in self.val("P.fl.offers('is', ROWS, CTX)")], SAFE_IS)
+        self.assertEqual([s["label"] for s in self.val("P.fl.suggest('is:', ROWS, CTX)")], OFFERED_IS)
+        self.assertEqual([o[0] for o in self.val("P.fl.offers('is', ROWS, CTX)")], OFFERED_IS)
         self.assertEqual([s["label"] for s in self.val("P.fl.suggest('no:', ROWS, CTX)")], [k for k in SAFE if k not in ("type", "status", "is", "client")])
         self.assertNotIn("me", [o[0] for o in self.val("P.fl.offers('owner', ROWS, CTX)")], "there is no signed-in name in a client's file")
         said = self.val("P.fl.parse('nonsense:x', ROWS, CTX).errors[0].msg")

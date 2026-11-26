@@ -288,8 +288,6 @@ class StatusWordInTheFileThePdfAndWord(Base):
                 word.update({r[0]: r[-1] for r in b["rows"][1:]})
         ids = {title: r["id"] for title, r in by_title.items()}
         for title, expected in EXPECT.items():
-            if title == "Cut-over plan to be agreed":      # row 1543 AP4 is the published page only: the Word copy still says Overdue (reported, not changed)
-                expected = "Overdue"
             self.assertEqual(word.get(ids[title]), expected, f"{title}: the Word copy's word is the page's word")
 
 
@@ -305,7 +303,7 @@ class WordCopyCarriesTheWord(unittest.TestCase):
         self.assertTrue(actions and raid)
         for row in actions:
             self.assertTrue(row[-1].strip(), "an action's Status is a word in the Word copy")
-            self.assertIn("(overdue)", row[4], "a late action says overdue in words")
+            self.assertRegex(row[4].strip(), r"^\d{2}-\d{2}-\d{4}$", "row 1543 AP4 (review ruling, no late days on any client surface): a late action's due cell is the plain date, no '(overdue)'")
         for row in raid:
             self.assertTrue(row[-1].strip() and row[4].strip(), "a risk's Status and Priority are words in the Word copy")
 

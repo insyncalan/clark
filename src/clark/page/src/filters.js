@@ -73,7 +73,7 @@ let published = false;
 export function setPublished(on) { published = !!on; }
 export function isPublished() { return published; }
 export function fieldList() { return published ? FIELDS.filter((f) => f !== "client" && f !== "reviewed") : FIELDS; }
-export function dueBuckets() { return published ? [...DUE, ["past", "Earlier"]] : DUE; }
+export function dueBuckets() { return published ? [...DUE.filter((d) => d[0] !== "overdue"), ["past", "Earlier"]] : DUE; }      // row 1543 AP4: a published file's Due filter does not offer Overdue
 
 export function offeredFields(rows, state) {
   if (published) return fieldList();
@@ -225,6 +225,7 @@ export function setType(state, type) { const s = copy(state); if (TYPES.some((t)
 export function setFilter(state, field, values, not) {
   if (!fieldList().includes(field)) return state;
   const s = copy(state), list = [...new Set(values)];
+  if (published && field === "due") { const keep = list.filter((v) => v !== "overdue"); list.length = 0; list.push(...keep); }      // row 1543 AP4: a remembered or typed "overdue" in a published file is no filter
   if (list.length) { s.filters[field] = list; if (not) s.not[field] = true; else delete s.not[field]; }
   else { delete s.filters[field]; delete s.not[field]; }
   return s;

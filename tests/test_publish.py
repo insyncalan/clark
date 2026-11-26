@@ -1179,7 +1179,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones')", sid)))
             milestones = cdp.js("document.querySelector('#milestones').textContent", sid)
             dom = cdp.js("document.documentElement.outerHTML", sid)
-        self.assertEqual(tiles, ["health", "overdue", "risks"], "the file draws the At a glance tiles; their numbers are checked in test_publish_glance")
+        self.assertEqual(tiles, ["health", "risks"], "the file draws the At a glance tiles; their numbers are checked in test_publish_glance")
         self.assertIn("5 items", work, "the list says how many it holds: the kept rows only")
         self.assertIn("ZQ-KEEP-MILESTONE-1", milestones)
         self.assertNotIn("ZQ-FLAG-OFF-MILESTONE", milestones)

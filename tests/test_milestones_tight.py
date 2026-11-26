@@ -45,7 +45,7 @@ LOOK = r"""(() => {
   return {wrap: wrap ? wrap.getBoundingClientRect().height : null, rows,
     tog: tog ? box(tog) : null, leg: leg ? box(leg) : null, bar: bar ? box(bar) : null,
     barKids: bar ? [...bar.children].map((c) => c.className) : null,
-    slipColour: slipEl ? getComputedStyle(slipEl).color : null, redText: prim('--status-red-text', 'color'), bodyColour: getComputedStyle(document.body).color,
+    slipColour: slipEl ? getComputedStyle(slipEl).color : null, redText: prim('--status-red-text', 'color'), mutedText: prim('--text-muted', 'color'), bodyColour: getComputedStyle(document.body).color,
     colours: {green: probe('--status-green'), red: probe('--status-red'), amber: probe('--status-amber'), surface: probe('--surface')},
     slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent; }),   // what is seen: the screen-reader-only words are left out
     labH: [...document.querySelectorAll('.mv-lab')].map((e) => e.getBoundingClientRect().height),
@@ -79,7 +79,11 @@ class Both(unittest.TestCase):
         self.assertTrue(got["slips"], f"{where}: the demo has a slipped milestone")
         for s in got["slips"]:
             self.assertRegex(s, r"^\+\d+ days?$", where)
-        self.assertEqual(got["slipColour"], got["redText"], f"{where}: the late '+N days' text is the red text colour")
+        if published:      # row 1543 AP4d (PM ruling rom-rul-1543-ap4d-0920): a published file keeps '+N days' and draws it muted, not red
+            self.assertEqual(got["slipColour"], got["mutedText"], f"{where}: the '+N days' text is the muted text colour in a published file")
+            self.assertNotEqual(got["slipColour"], got["redText"], f"{where}: and not red")
+        else:
+            self.assertEqual(got["slipColour"], got["redText"], f"{where}: the late '+N days' text is the red text colour")
         self.assertNotEqual(got["slipColour"], got["bodyColour"], f"{where}: the late text is not the body colour")
         for r in got["rows"]:
             if r["late"]:
