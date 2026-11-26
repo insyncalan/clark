@@ -497,6 +497,18 @@ class Workflow(unittest.TestCase):
                 self.assertFalse(self.gate_passes(EVENT="pull_request", **{one: result}), f"{one} {result}")
             self.assertFalse(self.gate_passes(**{one: "success"}), f"{one} ran outside a pull request")
 
+    def test_a_moved_test_file_is_one_of_the_named_tests(self):
+        """Found in the second read of 5b4fdff4: git reports a moved file as R, so with --diff-filter=AM a renamed test file was not
+        listed and never ran. The workflow's own git command runs here on a fixture with a moved test file."""
+        from _pr_fixture import PrFixture
+        command = re.search(r"< <\((git diff [^)]*)\)", self.jobs["named"]).group(1)
+        with PrFixture() as pr:
+            pr.git("mv", "tests/test_mod.py", "tests/test_moved.py")
+            pr.commit("move a test file")
+            pr.git("update-ref", "refs/remotes/origin/main", pr.base)
+            out = subprocess.run(["bash", "-c", command], cwd=pr.dir, env=dict(pr.env, BASE="main"), capture_output=True, text=True)
+        self.assertEqual((out.returncode, out.stdout.split()), (0, ["tests/test_moved.py"]), out.stderr)
+
     def test_the_nightly_is_never_cancelled_and_hands_over_refreshed_shard_times_and_flaky_classes(self):
         """Bifrost 2.0, P12, boxes 6 and 7: the nightly has a concurrency group of its own, runs the quarantined files too, and its last job builds
         dev/tools/shard_times.txt from the real times of the shards and uploads it. Every Ubuntu job uploads its DEFECT and FLAKE classes, which
