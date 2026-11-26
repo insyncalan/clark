@@ -125,6 +125,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("v0.1-release", docs)
         plan = self.jobs["plan"]
         self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
+        self.assertIn("release-*|v*-release*|cut-v*) FULL=1; REL=1 ;;", plan)      # row 1602: a cut branch (cut-v1.3.13) runs the Mac smoke set on a hand-started run, as a release-* branch does
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)

@@ -109,7 +109,7 @@ jobs:
             schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (the owner, 24-11, row 1602)
           esac
           case "$BRANCH" in
-            release-*|v*-release*) FULL=1; REL=1 ;;
+            release-*|v*-release*|cut-v*) FULL=1; REL=1 ;;
           esac
           # A pull request that TARGETS a release branch is part of the release line too (its base, not only its head branch).
           case "$BASE_REF" in
