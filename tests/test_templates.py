@@ -504,7 +504,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 24, "sketched": 23, "radios": 24, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width", "Half width"],
+            self.assertEqual(got, {"cards": 24, "sketched": 24, "radios": 24, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width", "Half width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
