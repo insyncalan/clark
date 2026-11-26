@@ -1,6 +1,7 @@
 // The page: the top bar and the open view. `tools` is what Edit adds (edit/index.js); the published page passes none.
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { view, status, tabs, shownTabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES } from "../stores/report.js";
+import { isPageView } from "../router.js";
+import { addedPage, view, status, tabs, shownTabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES, titleOf } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { AsAtBanner } from "./AsAtBanner.jsx";
 import { printing } from "../stores/print.js";
@@ -14,6 +15,7 @@ import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
 import { GanttView } from "../gantt/components/GanttView.jsx";
 
+const AddedPage = ({ tools }) => <Dashboard tools={tools} page={addedPage.value} />;      // row 1252: an added page draws its own sections as the Dashboard does
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, gantt: GanttView, settings: Settings };
 
 // The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
@@ -25,7 +27,7 @@ function PrintStack({ tools }) {
       <div class="print-head"><b>{name}</b> <span>{publishedLine(asAt.value)}</span></div>
       {printTabs(tabs.value).map((v) => {
         const Tab = PAGES[v];
-        return <section class="print-tab" key={v}><h2 class="print-tab-title">{TITLES[v]}</h2><Tab tools={tools} /></section>;
+        return <section class="print-tab" key={v}><h2 class="print-tab-title">{titleOf(v)}</h2><Tab tools={tools} /></section>;
       })}
     </div>
   );
@@ -60,7 +62,8 @@ export function App({ tools: given }) {
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
-  const own = (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
+  const own = isPageView(view.value) && shownTabs.value.includes(view.value) && addedPage.value ? AddedPage :      // row 1252
+     (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
   const Published = view.value === "published" && !fromFile.value && tools && tools.PublishedPage;      // row 1087: the Published reports page is the editor's; a published file never has it
   const Page = Published ? Published : view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const CritBanner = !fromFile.value && tools && tools.CriticalBanner && classicTheme() ? tools.CriticalBanner : null;      // row 1046: a critical notice (upgrade required) also shows a banner until it is read; the editor only, Classic only (as the bell)

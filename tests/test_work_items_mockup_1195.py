@@ -625,7 +625,7 @@ class Classic(Look):
             key("due", "ArrowRight", altKey=True)
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
             self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
-            # Wait, then assert the same thing: on macOS the useEffect in src/clark/edit/colWidths.jsx re-focuses the heading after the render, and the old
+            # Wait, then assert the same thing: on macOS the useEffect in src/clark/page/src/edit/colWidths.jsx re-focuses the heading after the render, and the old
             # test read the focus at once and saw None != due (macOS full runs 45081476463, 45139907189, 45203372794).
             focus_js = "document.activeElement && document.activeElement.dataset.cwHead"
             kept = wait(lambda: p.js(focus_js) == "due", 10)
@@ -1017,6 +1017,63 @@ class Classic(Look):
                     self.assertGreater(len(got), 8, got)
                     for what, r in got:
                         self.assertGreaterEqual(r, 4.5, f"{what} at {width} dark={dark}: {r:.2f}")
+
+
+    # Row 1660 (PM ruling 26-11 02:14): the mock-up has no dark (ruling of 18-11), so dark is pinned to the PRODUCTION tokens, not to a drawing.
+    # Each triple is (selector, computed property, token expression); the same expression is resolved on a probe in the page, so a dark colour that is not the token fails.
+    DARK_TOKENS = [
+        (".wil-table th", "color", "var(--text-muted)"),
+        ('.wil-table .wil-pr[data-pri="Low"]:not(.wil-off .wil-pr)', "backgroundColor", "var(--pri-low-bg)"),
+        ('.wil-table .wil-pr[data-pri="Low"]:not(.wil-off .wil-pr)', "color", "var(--pri-low-fg)"),
+        ('.wil-table .wil-pr[data-pri="Low"]:not(.wil-off .wil-pr)', "borderTopColor", "var(--pri-low-bg)"),
+        ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "backgroundColor", "var(--pri-medium-bg)"),
+        ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "color", "var(--pri-medium-fg)"),
+        ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "borderTopColor", "var(--pri-medium-bg)"),
+        ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "backgroundColor", "var(--pri-high-bg)"),
+        ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "color", "var(--pri-high-fg)"),
+        ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "borderTopColor", "var(--pri-high-bg)"),
+        ('.wil-table .wil-pr[data-pri="Urgent"]:not(.wil-off .wil-pr)', "backgroundColor", "var(--pri-urgent-bg)"),
+        ('.wil-table .wil-pr[data-pri="Urgent"]:not(.wil-off .wil-pr)', "color", "var(--pri-urgent-fg)"),
+        ('.wil-table .wil-pr[data-pri="Urgent"]:not(.wil-off .wil-pr)', "borderTopColor", "var(--pri-urgent-bg)"),
+        (".wil-table tr.wil-k-action:not(.wil-off) .ico", "backgroundColor", "var(--brand-blue-tint)"),
+        (".wil-table tr.wil-k-action:not(.wil-off) .ico", "color", "var(--status-blue-text)"),
+        (".wil-table tr.wil-k-risk:not(.wil-off) .ico", "backgroundColor", "var(--tone-red-tint)"),
+        (".wil-table tr.wil-k-risk:not(.wil-off) .ico", "color", "var(--tone-red-text)"),
+        (".wil-views .vnew", "color", "var(--brand-blue)"),
+        (".wil-views .vtab em", "color", "var(--text-muted)"),
+    ]
+    DARK_PROBE = ("(() => { const out = []; const pairs = PAIRS; const sec = document.querySelector('SEC');"
+                  "for (const [s, prop, tok] of pairs) { const els = [...sec.querySelectorAll(s)].filter((e) => e.offsetParent); const pr = document.createElement('i');"
+                  "sec.appendChild(pr); pr.style.color = tok; const want = getComputedStyle(pr).color; pr.remove();"
+                  "out.push([s, prop, els.length, els.filter((e) => getComputedStyle(e)[prop] !== want).length, want, els.filter((e) => getComputedStyle(e)[prop] !== want).map((e) => e.outerHTML.slice(0, 120) + getComputedStyle(e)[prop])]); } return JSON.stringify(out); })()")
+
+    def test_dark_colours_are_the_production_tokens_in_view_and_edit_at_both_widths(self):
+        self.demo.action(description="Tidy the shared folder", owner="Pat Demo", due_date="2030-01-14", priority="Low")      # a Low chip, so every level is drawn
+        ref = self.add(self.LIST)
+        pairs = json.dumps(self.DARK_TOKENS)
+        for width in (1400, 900):
+            for mode in ("view", "edit"):
+                with T.chrome() as cdp:
+                    p = self.show(cdp, width, True)
+                    sec = f'[data-id="{ref}"]'
+                    if mode == "edit":
+                        p.edit()
+                    p.until(f"!!document.querySelector('{sec} .wil-table td.wil-c-id')", "drew")
+                    got = json.loads(p.js(self.DARK_PROBE.replace("PAIRS", pairs).replace("SEC", sec)))
+                    seen = {(s, prop): n for s, prop, n, bad, want, why in got}
+                    for s, prop, n, bad, want, why in got:
+                        self.assertEqual(bad, 0, f"{s} {prop} at {width} {mode} dark is not {want}: {why}")
+                    for key in ((".wil-table th", "color"), ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="Low"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="Urgent"]:not(.wil-off .wil-pr)', "color"),
+                                (".wil-table tr.wil-k-action:not(.wil-off) .ico", "color"), (".wil-table tr.wil-k-risk:not(.wil-off) .ico", "color")):
+                        self.assertGreater(seen[key], 0, f"{key} was not on the page at {width} {mode}, so nothing was compared")
+                    if mode == "edit":
+                        self.assertGreater(seen[(".wil-views .vtab em", "color")], 0, f"the tab count was not on the page at {width}")
+
+    def test_the_dark_rules_are_tokens_only_never_a_colour_literal(self):      # row 1660: the lines the mock-up cannot show
+        lines = [l for l in RULES.splitlines() if ("data-theme=dark]" in l or "data-theme=auto]" in l) and ".wil" in l]
+        self.assertGreaterEqual(len(lines), 3)
+        for line in lines:
+            self.assertNotRegex(line, r"rgba?\(|#[0-9a-fA-F]{3,8}\b", line[:80])
 
 
 class Cards(Look):
