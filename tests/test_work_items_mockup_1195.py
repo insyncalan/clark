@@ -1019,7 +1019,7 @@ class Classic(Look):
                         self.assertGreaterEqual(r, 4.5, f"{what} at {width} dark={dark}: {r:.2f}")
 
 
-    # Row 1660 (PM ruling Romanoff 26-11 02:14): the mock-up has no dark (Alan 18-11), so dark is pinned to the PRODUCTION tokens, not to a drawing.
+    # Row 1660 (PM ruling 26-11 02:14): the mock-up has no dark (ruling of 18-11), so dark is pinned to the PRODUCTION tokens, not to a drawing.
     # Each triple is (selector, computed property, token expression); the same expression is resolved on a probe in the page, so a dark colour that is not the token fails.
     DARK_TOKENS = [
         (".wil-table th", "color", "var(--text-muted)"),
