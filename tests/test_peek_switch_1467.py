@@ -29,6 +29,28 @@ STATE = ("(() => { const p = document.querySelector('#peek'); return { id: p && 
          " tag: window.__peek1467 === p }; })()")
 
 
+def first(selector):
+    """The JS for the first visible element that `selector` finds."""
+    return f"[...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null)"
+
+
+def rowpress(cdp, sid, el):
+    """A real mouse click (move, press, release) on the left part of the element the JS `el` gives, once the peek rests (#1692: Switch.press and
+    Switch.mouse share this guard with Unsaved.rowpress). At 900 px the open peek can stand over the point: then no mouse can reach the element,
+    so the press is sent to the element itself, as the browser would."""
+    probe = (f"(() => {{ const e = {el}, b = e.getBoundingClientRect(), x = b.left + Math.min(b.width / 2, 120), y = b.top + b.height / 2;"
+             " return { x, y, top: b.top, free: e.contains(document.elementFromPoint(x, y)) }; })()")
+    still = "(p => p ? JSON.stringify(p.getBoundingClientRect()) : '')(document.querySelector('#peek'))"
+    wait(lambda: (lambda a: (time.sleep(0.15), a == cdp.js(still, sid))[1])(cdp.js(still, sid)))      # the peek slides in: click once it rests
+    got = cdp.js(probe, sid)
+    if not got["free"]:
+        cdp.js(f"(() => {{ const e = {el}; for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {got['x']}, clientY: {got['y']} }})); }})()", sid)
+        return
+    x, y = got["x"], got["y"]
+    for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
+        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+
+
 class Switch(base.Peeks):
     def ready(self, cdp, width):
         sid = self.dashboard_in_view(cdp, width, self.store, self.code)
@@ -36,11 +58,8 @@ class Switch(base.Peeks):
         return sid
 
     def press(self, cdp, sid, ref):
-        """A real mouse click on the middle of the row's title."""
-        x, y = cdp.js(f"(() => {{ const r = {VIS}({json.dumps(ref)}), t = r.querySelector('.wil-c-title, .wl-title') || r, b = t.getBoundingClientRect(); return [b.left + Math.min(b.width / 2, 120), b.top + b.height / 2]; }})()", sid)
-        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
-        cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
-        cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+        """A real mouse click on the middle of the row's title (guarded like rowpress: the peek rests first, then elementFromPoint)."""
+        rowpress(cdp, sid, f"(r => r.querySelector('.wil-c-title, .wl-title') || r)({VIS}({json.dumps(ref)}))")
 
     def place(self, cdp, sid, ref):
         """Scroll so that the row is about a third down the window (a person has scrolled to it)."""
@@ -184,10 +203,9 @@ class Switch(base.Peeks):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').dataset.peek", sid) == ms[1]))
 
     def mouse(self, cdp, sid, selector):
-        """A real mouse click (move, press, release) on the middle of the first visible element that `selector` finds."""
-        x, y = cdp.js(f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null), b = e.getBoundingClientRect(); return [b.left + Math.min(b.width / 2, 120), b.top + b.height / 2]; }})()", sid)
-        for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
-            cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+        """A real mouse click (move, press, release) on the first visible element that `selector` finds, guarded like rowpress (#1692: at 900 px the
+        press was read while the peek still slid in, so it landed on the peek)."""
+        rowpress(cdp, sid, first(selector))
 
     def test_a_real_click_on_a_milestone_row_keeps_the_open_peek_and_switches_it_row_1467(self):
         """The keep rule `.msl-row`: a real press on another milestone's row (its cells) is not a click outside; the same peek element shows that milestone."""
@@ -305,17 +323,7 @@ class Unsaved(test_peek_latest.Browser):
     # Row 1467 (read changes): the ask works for every kind of opener, not the Work items rows alone: a milestone row, a use case page work item.
     def rowpress(self, cdp, sid, selector):
         """A real mouse click (move, press, release) on the left part of the first visible element `selector` finds (at 900 px the peek stands over the row's middle)."""
-        probe = (f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null), b = e.getBoundingClientRect(), x = b.left + Math.min(b.width / 2, 120), y = b.top + b.height / 2;"
-                 " return { x, y, top: b.top, free: e.contains(document.elementFromPoint(x, y)) }; })()")
-        still = "(p => p ? JSON.stringify(p.getBoundingClientRect()) : '')(document.querySelector('#peek'))"
-        wait(lambda: (lambda a: (time.sleep(0.15), a == cdp.js(still, sid))[1])(cdp.js(still, sid)))      # the peek slides in: click once it rests
-        got = cdp.js(probe, sid)
-        if not got["free"]:                       # at 900 px the open peek stands over the whole list: no mouse can reach the row, so the press is sent to the row itself, as the browser would
-            cdp.js(f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null); for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {got['x']}, clientY: {got['y']} }})); }})()", sid)
-            return
-        x, y = got["x"], got["y"]
-        for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
-            cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+        rowpress(cdp, sid, first(selector))
 
     def ms_peek(self, cdp, width):
         sent, sid = self.load(cdp, width, OVERDUE)
