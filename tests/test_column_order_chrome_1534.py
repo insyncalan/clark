@@ -7,7 +7,6 @@ Run: python3 dev/run_tests.py test_column_order_chrome_1534
 import json
 import shutil
 import sqlite3
-import time
 import unittest
 from unittest import mock
 
@@ -91,13 +90,32 @@ class Base(unittest.TestCase):
         return js(f"(() => {{ const b = document.querySelector(\"#work th[data-col='{col}']\").getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
 
     def drag(self, cdp, sid, js, src, dst, release=True):
-        (x0, y0), (x1, y1) = self.centre(js, src), self.centre(js, dst)
+        (x0, y0), (x1, y1) = self.centre(js, src), (dst if isinstance(dst, (list, tuple)) else self.centre(js, dst))
         self.mouse(cdp, sid, "mouseMoved", x0, y0)
         self.mouse(cdp, sid, "mousePressed", x0, y0, button="left", buttons=1, clickCount=1)
         for i in range(1, 9):
             self.mouse(cdp, sid, "mouseMoved", x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8, buttons=1)
         if release:
             self.mouse(cdp, sid, "mouseReleased", x1, y1, button="left", clickCount=1)
+
+    def frames(self, js):
+        """settle condition: two animation frames have run since now (a no-change check reads the page after the page had its turn)."""
+        js("window.__frames = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__frames = 1; }))")
+        self.assertTrue(wait(lambda: js("window.__frames === 1"), 5), "two frames ran")
+
+    def quiet(self, js):
+        """settle condition: no drag mark is left on any heading, then two frames."""
+        self.assertTrue(wait(lambda: js("document.querySelectorAll('#work th.col-dragging, #work th.col-drop-before, #work th.col-drop-after').length === 0"), 5), "the drag marks are gone")
+        self.frames(js)
+
+    def below(self, js):
+        """a point inside the first body row (off the header row)."""
+        return js("(() => { const b = document.querySelector('#work tbody tr[data-id] td[data-col]').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()")
+
+    def esc(self, cdp, sid):
+        common = {"key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}
+        cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **common}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
     def click(self, cdp, sid, js, col):
         x, y = self.centre(js, col)
@@ -119,7 +137,7 @@ class Base(unittest.TestCase):
         seen = []
 
         def still():
-            seen.append(js(f"JSON.stringify(document.querySelector({json.dumps(MENU)}).getBoundingClientRect())")); time.sleep(.1)
+            seen.append(js(f"JSON.stringify(document.querySelector({json.dumps(MENU)}).getBoundingClientRect())"))
             return len(seen) > 1 and seen[-1] == seen[-2]
         self.assertTrue(wait(still, 5), "the menu stops moving")
 
@@ -151,7 +169,7 @@ class Moves(Base):
                     self.assertEqual(js("document.querySelectorAll('#work th[aria-sort]').length"), 0, "the drop did not sort")
                     saved = self.saved()
                     self.click(cdp, sid, js, "due")
-                    time.sleep(.4)
+                    self.quiet(js)
                     self.assertEqual(js(HEADS), want, "a plain click moves nothing")
                     self.assertEqual(self.saved(), saved, "and saves nothing")
                     self.assertEqual(js("document.querySelectorAll('#work th.col-dragging, #work th.col-drop-before, #work th.col-drop-after').length"), 0)
@@ -194,7 +212,7 @@ class Moves(Base):
                     was = js(W)
                     self.drag(cdp, sid, js, "prio", "owner")
                     self.assertTrue(wait(lambda: js(HEADS)[2] == "prio", 5))
-                    time.sleep(.4)
+                    self.quiet(js)
                     now = js(W)
                     self.assertEqual(set(now), set(was))
                     for col in was:
@@ -202,7 +220,7 @@ class Moves(Base):
                     js("document.querySelector(\"#work th[data-col='due']\").focus()")
                     self.arrow(cdp, sid, "ArrowLeft")
                     self.assertTrue(wait(lambda: js(HEADS)[3] == "due", 5))
-                    time.sleep(.4)
+                    self.quiet(js)
                     again = js(W)
                     for col in was:
                         self.assertLessEqual(abs(again[col] - was[col]), 1, f"{col} kept its width after a key move: {was} -> {again}")
@@ -259,19 +277,46 @@ class Moves(Base):
                     self.assertEqual(js("document.querySelectorAll('#work th[data-move]').length"), 0)
                     js("document.querySelector(\"#work th[data-col='owner']\").focus()")
                     self.arrow(cdp, sid, "ArrowRight")
-                    time.sleep(.4)
+                    self.frames(js)
                     self.assertEqual(js(UNIQ), STANDARD)
                     self.assertEqual(self.saved(), {"actions": SAVED})
 
-    def test_dropping_off_the_header_or_in_front_of_status_or_item_changes_nothing(self):
+    def test_a_drop_off_the_header_row_or_on_status_or_item_is_cancelled_and_nothing_is_saved(self):
+        """Status and Item are not drop targets: no drop bar, the drop cancels, the order stays whole and nothing is saved."""
         self.serve()
-        with chrome() as cdp:
-            sid, js = self.opened(cdp, 1400, "light")
-            self.drag(cdp, sid, js, "prio", "item")
-            time.sleep(.5)
-            self.assertEqual(js(HEADS)[:2], ["status", "item"])
-            # Status and Item are not draggable
-            self.assertEqual(js("[...document.querySelectorAll('#work th[data-move]')].map((e) => e.dataset.col).filter((c) => c === 'status' || c === 'item')"), [])
+        for w in WIDTHS:
+            for scheme in SCHEMES:
+                for name in ("off the header row", "Status", "Item"):
+                    with self.subTest(width=w, scheme=scheme, drop=name), chrome() as cdp:
+                        sid, js = self.opened(cdp, w, scheme)
+                        self.assertEqual(self.saved(), {})
+                        dst = self.below(js) if name.startswith("off") else self.centre(js, name.lower())
+                        self.drag(cdp, sid, js, "prio", dst, release=False)
+                        self.assertTrue(js("!!document.querySelector('#work th.col-dragging')"), "the drag is in progress")
+                        self.assertEqual(js("document.querySelectorAll('#work th.col-drop-before, #work th.col-drop-after').length"), 0, "no drop bar is drawn")
+                        self.mouse(cdp, sid, "mouseReleased", *dst, button="left", clickCount=1)
+                        self.quiet(js)
+                        self.assertEqual(js(HEADS), STANDARD, "the full order is unchanged")
+                        self.assertEqual(js(ROW), STANDARD, "the cells are unchanged")
+                        self.assertEqual(self.saved(), {}, "nothing was saved")
+                        self.assertEqual(js("[...document.querySelectorAll('#work th[data-move]')].map((e) => e.dataset.col).filter((c) => c === 'status' || c === 'item')"), [], "Status and Item are not draggable")
+
+    def test_esc_cancels_a_drag_in_progress(self):
+        self.serve()
+        for w in WIDTHS:
+            for scheme in SCHEMES:
+                with self.subTest(width=w, scheme=scheme), chrome() as cdp:
+                    sid, js = self.opened(cdp, w, scheme)
+                    self.drag(cdp, sid, js, "prio", "owner", release=False)
+                    self.assertTrue(js("!!document.querySelector('#work th.col-dragging') && !!document.querySelector('#work th.col-drop-before')"), "the bar is drawn while dragging")
+                    self.esc(cdp, sid)
+                    self.quiet(js)
+                    self.assertEqual(js("document.querySelectorAll('#work th.col-dragging, #work th.col-drop-before, #work th.col-drop-after').length"), 0, "the bar and the dragging mark are gone")
+                    self.mouse(cdp, sid, "mouseReleased", *self.centre(js, "owner"), button="left", clickCount=1)      # the button comes up later: still nothing
+                    self.quiet(js)
+                    self.assertEqual(js(HEADS), STANDARD, "no move")
+                    self.assertEqual(js(ROW), STANDARD)
+                    self.assertEqual(self.saved(), {}, "no save")
 
     def test_alt_shift_arrows_move_and_announce_the_position_of_all_drawn_columns(self):
         self.serve({"actions": SAVED})
@@ -288,7 +333,7 @@ class Moves(Base):
                     self.assertEqual(js(LIVE), "Owner moved to position 3 of 6")
                     self.assertEqual(js("document.activeElement.dataset.col"), "owner", "the heading keeps the focus")
                     self.arrow(cdp, sid, "ArrowLeft")                       # already as far left as it may go: Status and Item stay first
-                    time.sleep(.4)
+                    self.frames(js)
                     self.assertEqual(js(HEADS), want)
                     self.arrow(cdp, sid, "ArrowRight")
                     self.assertTrue(wait(lambda: js(HEADS) == SAVED, 5))
@@ -303,7 +348,7 @@ class Moves(Base):
             for col in ("status", "item"):
                 js(f"document.querySelector(\"#work th[data-col='{col}']\").focus()")
                 self.arrow(cdp, sid, "ArrowRight")
-            time.sleep(.4)
+            self.frames(js)
             self.assertEqual(js(HEADS), STANDARD)
             self.assertEqual(self.saved(), {})
 
@@ -318,7 +363,7 @@ class Moves(Base):
                     js("document.querySelector(\"#work th[data-col='owner']\").focus()")
                     self.arrow(cdp, sid, "ArrowRight")
                     self.drag(cdp, sid, js, "prio", "owner")
-                    time.sleep(.4)
+                    self.quiet(js)
                     self.assertEqual(js(HEADS), STANDARD)
                     self.menu(cdp, sid, js, "owner")
             

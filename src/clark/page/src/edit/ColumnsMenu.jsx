@@ -96,7 +96,7 @@ export function useColumns(table, css = false, type = "all") {
         let moving = false, before;
         const heads = () => Array.from(row.querySelectorAll("th[data-col]"));
         const clear = () => heads().forEach((t) => { t.classList.remove("col-dragging", "col-drop-before", "col-drop-after"); });
-        const target = (m) => { const el = document.elementFromPoint(m.clientX, m.clientY), t = el && el.closest ? el.closest("th[data-col]") : null; return t && t.parentElement === row ? t : null; };
+        const target = (m) => { const el = document.elementFromPoint(m.clientX, m.clientY), t = el && el.closest ? el.closest("th[data-col]") : null; return t && t.parentElement === row && t.getAttribute("data-col") !== "status" && t.getAttribute("data-col") !== "item" ? t : null; };      // the Status and the Item are not drop targets: no bar, the drop cancels
         const move = (m) => {
           if (!moving && Math.hypot(m.clientX - x0, m.clientY - y0) < 5) return;
           moving = true; clear(); th.classList.add("col-dragging"); before = undefined;
