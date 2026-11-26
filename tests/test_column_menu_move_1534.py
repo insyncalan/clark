@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _new_page import reload_to_new_page_cdp
 from clark import publish
 from clark.store import open_store
 from test_client_page_filters import open_page
@@ -71,7 +72,7 @@ class MenuMove(Base):
                 js(f"document.querySelector({json.dumps(ITEM + '[data-colmenu-move=right]')}).click()")
                 want = ["status", "item", "due", "owner", "prio", "id"]
                 self.assertTrue(wait(lambda: self.saved().get("actions") == want, 5), f"saved with the project: {self.saved()}")
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid, what="the page reloaded after the move")      # waits for the NEW document (test_reload_waits)
                 self.assertTrue(wait(lambda: js(HEADS) == want, 20), "the saved order is drawn again after a reload")
             out = Path(tempfile.mkdtemp(prefix="clark-cmm-"))
             self.addCleanup(shutil.rmtree, str(out), True)
