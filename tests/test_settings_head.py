@@ -14,7 +14,7 @@ import unittest
 from _paths import ROOT
 from test_appearance import scheme
 from test_publish_dialog import Base
-from test_server import chrome, wait
+from test_server import chrome, restore_done, wait
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
@@ -95,11 +95,13 @@ class Head(Base):
         drew = f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}"
         p.until(f"[...document.querySelectorAll('.set-nav .set-chip')].some(b => b.textContent === '{name}')", f"the {name} menu item is drawn")
         p.settled(f"the {name} menu item stopped moving before it is clicked")
+        restore_done(p)      # router.js restore() would put the page back to its place under a chip press that lands after the page moved
         self.click_chip(p, name)
         if not wait(lambda: p.js(drew), 15):
             # The evidence is read only after the wait failed: a passing run costs nothing extra.
             chip = p.js("(document.querySelector('.set-chip[aria-current]')||{}).textContent")
-            self.fail(f"the {name} page drew; location.hash={p.js('location.hash')!r}; marked chip={chip!r}; heading present={p.js(heads)}; trail={self.trail(p)}")
+            drawn = p.js("(document.querySelector('.set-cards') || {dataset: {}}).dataset.page")
+            self.fail(f"the {name} page drew; the page actually drawn={drawn!r}; location.hash={p.js('location.hash')!r}; marked chip={chip!r}; heading present={p.js(heads)}; trail={self.trail(p)}")
         p.settled("the page finished drawing")
 
     def chips(self, p):
