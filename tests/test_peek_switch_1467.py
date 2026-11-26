@@ -34,22 +34,30 @@ def first(selector):
     return f"[...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null)"
 
 
-def rowpress(cdp, sid, el):
+def rowevents(cdp, sid, el, x, y):
+    """The press sent to the element the JS `el` gives through its own events (pointer and mouse, down and up, then click) at x, y: what the
+    browser would send it, for a point that no mouse can reach because the open peek stands over it."""
+    cdp.js(f"(() => {{ const e = {el}; for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {x}, clientY: {y} }})); }})()", sid)
+
+
+def rowpress(cdp, sid, el, real_only=False):
     """A real mouse click (move, press, release) on the left part of the element the JS `el` gives, once the peek rests (#1692: Switch.press and
-    Switch.mouse share this guard with Unsaved.rowpress). At 900 px the open peek can stand over the point: then no mouse can reach the element,
-    so the press is sent to the element itself, as the browser would."""
+    Switch.mouse share this guard with Unsaved.rowpress). When the resting peek stands over that point no mouse can reach the element: then the
+    press goes to the element through its own events (rowevents), or, with real_only, nothing is sent. Returns None after a real click, else the
+    probe: the point and what covers it ('hit')."""
     probe = (f"(() => {{ const e = {el}, b = e.getBoundingClientRect(), x = b.left + Math.min(b.width / 2, 120), y = b.top + b.height / 2;"
-             " return { x, y, top: b.top, free: e.contains(document.elementFromPoint(x, y)) }; })()")
+             " const h = document.elementFromPoint(x, y); return { x, y, top: b.top, free: e.contains(h), hit: h ? h.tagName + (h.id ? '#' + h.id : '') + (h.className && typeof h.className === 'string' ? '.' + h.className.trim().split(/\\s+/).join('.') : '') : null }; })()")
     still = "(p => p ? JSON.stringify(p.getBoundingClientRect()) : '')(document.querySelector('#peek'))"
     wait(lambda: (lambda a: (time.sleep(0.15), a == cdp.js(still, sid))[1])(cdp.js(still, sid)))      # the peek slides in: click once it rests
     got = cdp.js(probe, sid)
     if not got["free"]:
-        cdp.js(f"(() => {{ const e = {el}; for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {got['x']}, clientY: {got['y']} }})); }})()", sid)
-        return
+        if not real_only:
+            rowevents(cdp, sid, el, got["x"], got["y"])
+        return got
     x, y = got["x"], got["y"]
     for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
         cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
-
+    return None
 
 class Switch(base.Peeks):
     def ready(self, cdp, width):
@@ -202,10 +210,17 @@ class Switch(base.Peeks):
                 cdp.js(f"document.querySelector('.msl-row[data-ms={ms[1]}] .msl-cells').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').dataset.peek", sid) == ms[1]))
 
-    def mouse(self, cdp, sid, selector):
-        """A real mouse click (move, press, release) on the first visible element that `selector` finds, guarded like rowpress (#1692: at 900 px the
-        press was read while the peek still slid in, so it landed on the peek)."""
-        rowpress(cdp, sid, first(selector))
+    def mouse(self, cdp, sid, selector, width, peek_open=True):
+        """The press on the first visible element that `selector` finds, once the peek rests (#1692: the press was read while the 900 px peek still
+        slid in). It is a real mouse click (move, press, release), and the test fails if the resting peek covers the point: no JS stands in
+        for the mouse. The one exception: at 900 px an open peek covers the whole list by design (v1.3), so no mouse can reach a row; then the
+        test asserts that the point is covered at rest, and sends the press through the row's own events, as the browser would."""
+        got = rowpress(cdp, sid, first(selector), real_only=True)
+        if width == 900 and peek_open:
+            self.assertIsNotNone(got, f"900 px: the resting peek covers {selector} (the 1.3 design), so a real mouse cannot reach it")
+            rowevents(cdp, sid, first(selector), got["x"], got["y"])
+        else:
+            self.assertIsNone(got, f"{width} px: a real mouse can reach {selector}: at rest the point is covered by {got and got['hit']}")
 
     def test_a_real_click_on_a_milestone_row_keeps_the_open_peek_and_switches_it_row_1467(self):
         """The keep rule `.msl-row`: a real press on another milestone's row (its cells) is not a click outside; the same peek element shows that milestone."""
@@ -217,7 +232,7 @@ class Switch(base.Peeks):
                 self.assertGreaterEqual(len(ms), 2, "the Milestones list shows two milestones")
                 self.open_peek(cdp, sid, ms[0], "milestone")
                 cdp.js("window.__peek1467 = document.querySelector('#peek'); window.__closed1467 = 0; new MutationObserver(() => { if (!document.querySelector('#peek')) window.__closed1467++; }).observe(document.body, { childList: true, subtree: true })", sid)
-                self.mouse(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells")
+                self.mouse(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells", width)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == ms[1]), "the peek shows the other milestone")
                 self.assertTrue(cdp.js("window.__peek1467 === document.querySelector('#peek')", sid), "the same peek element: never closed and reopened")
                 self.assertEqual(cdp.js("window.__closed1467", sid), 0)
@@ -240,10 +255,10 @@ class Switch(base.Peeks):
                     cdp.js("history.back()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-ucd]')", sid)))
                 self.assertGreaterEqual(len(items), 2, "a use case page lists two work items")
-                self.mouse(cdp, sid, f"[data-item={items[0]}]")
+                self.mouse(cdp, sid, f"[data-item={items[0]}]", width, peek_open=False)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == items[0]), "the peek opened on the first item")
                 cdp.js("window.__peek1467 = document.querySelector('#peek'); window.__closed1467 = 0; new MutationObserver(() => { if (!document.querySelector('#peek')) window.__closed1467++; }).observe(document.body, { childList: true, subtree: true })", sid)
-                self.mouse(cdp, sid, f"[data-item={items[1]}]")
+                self.mouse(cdp, sid, f"[data-item={items[1]}]", width)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == items[1]), "the peek shows the other item")
                 self.assertTrue(cdp.js("window.__peek1467 === document.querySelector('#peek')", sid), "the same peek element: never closed and reopened")
                 self.assertEqual(cdp.js("window.__closed1467", sid), 0)
