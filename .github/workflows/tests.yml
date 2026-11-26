@@ -14,13 +14,13 @@
 #  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
 #    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
 #    files), and on a pull request that carries the label `full-ci`. Nothing else asks for a Mac.
-#  - ADVISORY: the full macOS suite (the newest Python, every file, six shards) runs in the nightly on main only; a red shard shows
+#  - ADVISORY: the full macOS suite (the newest Python, every file, nine shards) runs in the nightly on main only; a red shard shows
 #    in the run and never turns "Tests passed" red (continue-on-error, set by the plan for `schedule`).
 #  - ON DEMAND: a hand-started run with macos=true (Actions > Tests > Run workflow, or gh workflow run Tests --ref <branch> -f macos=true)
 #    adds the full macOS suite, required for that run, in place of the smoke set. Use it for a change that needs a full Mac run.
 # A macOS runner that fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix of six, so `needs.macos.result` is ONE value for the whole matrix (success only if all
+# macOS shards: one job with a matrix of nine, so `needs.macos.result` is ONE value for the whole matrix (success only if all
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
@@ -292,7 +292,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file, six shards) when the plan says so: the nightly (advisory) or a hand-started run with macos=true; a pull request
+    # macOS (the newest Python, every file, nine shards) when the plan says so: the nightly (advisory) or a hand-started run with macos=true; a pull request
     # never starts this job (its Mac check is the smoke set below). Required when it runs, except in the nightly.
     if: ${{ needs.plan.outputs.macos == '1' }}
     continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}      # the nightly full run is advisory: a red shard shows, the run stays green
@@ -348,7 +348,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
       - name: Classify (DEFECT, FLAKE, SIZING)
-        # Runs when the job is cancelled at its 60-minute cap too: a results file that never completed is SIZING, not a failure.
+        # Runs when the job is cancelled at its 90-minute cap too: a results file that never completed is SIZING, not a failure.
         if: ${{ always() }}
         env:
           CLARK_RESULTS: ${{ runner.temp }}/test-results.json

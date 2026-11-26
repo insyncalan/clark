@@ -532,6 +532,27 @@ def gantt_for_client(d, code, project_name, for_section=False):
 
 
 
+PAGE_TAB = "page:"                  # row 1252: an added page's tab in the file is this and the page's id
+
+
+def client_pages(rows, code):
+    """The added pages the file carries (row 1252): of this project, shown to the client (`client` exactly the whole number 1) and not hidden from the
+    menu (`hidden` exactly 0), in the menu's order. Each is {"id", "name", "sections"}: the name as one plain line, the sections as the page keeps them
+    with their ids made apart (page id, a dash, section id) and no Gantt, Gantt table or Work items section (only the prebuilt Gantt page holds those)."""
+    out = []
+    for r in sorted(rows or (), key=lambda r: (r["sort_order"] if type(r.get("sort_order")) is int else 0, str(r.get("id")))):
+        if r.get("project") != code or type(r.get("client")) is not int or r["client"] != 1 or type(r.get("hidden")) is not int or r["hidden"] != 0 or not isinstance(r.get("id"), str):
+            continue
+        try:
+            kept = json.loads(r.get("sections") or "[]")
+        except ValueError:
+            kept = []
+        secs = [{**s, "id": r["id"] + "-" + s["id"]} for s in kept if isinstance(s, dict) and isinstance(s.get("id"), str) and s.get("type") in SECTION_TYPES
+                and s["type"] not in ("gantt", "gantttable", "workitems")] if isinstance(kept, list) else []
+        out.append({"id": r["id"], "name": " ".join(reason_text(r.get("name")).split())[:40], "sections": secs})
+    return out
+
+
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
     label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
@@ -601,8 +622,9 @@ def select(inputs):
     if type(project.get("show_board_client")) is int and project["show_board_client"] == 1:      # row 1533: the author's switch for the client's Board choice, exactly the whole number 1; absent or 0 draws no board
         proj["board"] = 1
     out["project"] = proj
+    on_pages = client_pages(inputs.get("added_pages"), code)          # row 1252: the added pages that are in the file, each with its sections (ids made apart from the Dashboard's)
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
-        s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
+        s.get("type") == "docs" and not s.get("hidden") for s in sections + [x for p in on_pages for x in p["sections"]]) else []          # #74: carried only with a section to draw them
 
     gantt = gantt_for_client(d, code, proj["name"])               # row 926: decided here, from the rows as read, before anything of it is copied
     table = gantt or gantt_for_client(d, code, proj["name"], for_section=True)      # row 1068: a Gantt table section needs an eye-on line, not the tab's switch
@@ -630,7 +652,7 @@ def select(inputs):
     from clark import glance as _g      # glance imports this module, so it is imported here
     _lk = _g._list_kinds(sections)      # row 1266: the kinds a shown Work items list reaches, as add_glance reads them
     gt_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}, **{k: built[k] for k in WORK_KINDS if not rows[k] and not any(x.get("type") == SECTION_OF_KIND[k] for x in sections) and any(x in _lk for x in _g.KINDS_OF_TILE_BY_KIND[k])}}, as_at, live)      # the At a glance template counts the kept rows of a kind that has no built-in section row at all when a shown list stands for it (a new report has the lists, not the built-in sections); a hidden built-in section still hides its tile
-    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else gt_ctx if s.get("type") == "glancetemplate" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else gt_ctx if s.get("type") == "glancetemplate" else shown_ctx) for s in sections + [x for p in on_pages for x in p["sections"]] if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
     for k in WORK_KINDS:
         if not rows[k]:
@@ -639,23 +661,29 @@ def select(inputs):
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
                              or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
                              or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
-    rowed = [x for x in sections if x.get("type") != section_bodies.NEEDS]      # item 1158: the editor drops a stored Needs section before it reads rows, so the sections either side of one pair as they do there
-    i = 0
-    while i < len(rowed):
-        if rowed[i].get("beside") and i + 1 < len(rowed):
-            if all(not out_of_file(x) for x in rowed[i:i + 2]):
-                pairs.add(rowed[i]["id"])
+    def draw(listed):
+        """The sections of `listed` as the file carries them: the ones out of the file left out, and a row of two only where both halves show."""
+        rowed = [x for x in listed if x.get("type") != section_bodies.NEEDS]      # item 1158: the editor drops a stored Needs section before it reads rows, so the sections either side of one pair as they do there
+        pairs, i = set(), 0                # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
+        while i < len(rowed):
+            if rowed[i].get("beside") and i + 1 < len(rowed):
+                if all(not out_of_file(x) for x in rowed[i:i + 2]):
+                    pairs.add(rowed[i]["id"])
+                i += 1
             i += 1
-        i += 1
-    for s in sections:
-        if out_of_file(s):
-            continue
-        c = {"id": s["id"], "type": s["type"], "title": s.get("title") or "", "beside": 1 if s["id"] in pairs else 0}
-        if s["type"] == "text":
-            c["body"] = clean_html(s.get("body"))
-        elif s["type"] in section_bodies.CHECKERS:
-            c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
-        shown.append(c)
+        made = []
+        for s in listed:
+            if out_of_file(s):
+                continue
+            c = {"id": s["id"], "type": s["type"], "title": s.get("title") or "", "beside": 1 if s["id"] in pairs else 0}
+            if s["type"] == "text":
+                c["body"] = clean_html(s.get("body"))
+            elif s["type"] in section_bodies.CHECKERS:
+                c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
+            made.append(c)
+        return made
+    shown = draw(sections)
+    pages = [{"id": p["id"], "name": p["name"], "sections": draw(p["sections"])} for p in on_pages]
     if table and not gantt and any(s["type"] == "gantttable" for s in shown):
         out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
@@ -668,6 +696,10 @@ def select(inputs):
         tabs.append("usecases")
     if gantt:
         tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
+    pages = [p for p in pages if p["sections"]]                 # row 1252: a page with nothing to draw is no tab, as the Gantt tab needs a line
+    if pages:
+        out["pages"] = pages
+        tabs += [PAGE_TAB + p["id"] for p in pages]             # row 1252: after Gantt, in the menu's order (the Settings tab is not in a published file)
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 

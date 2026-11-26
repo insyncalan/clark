@@ -1,24 +1,20 @@
 """Row 1286 (PR 1993), hostile pass on the NEW logic only: ColsPanel (ColumnsMenu.jsx, the Classic placement of the Columns menu, one microtask after MenuPanel)
-and the three AP4 icon-tone selectors (rules-2.css). Fictional data only.
+Fictional data only. (The three AP4 icon-tone selectors were removed with row 1540 AP3.)
 
 Run: python3 dev/run_tests.py test_columns_menu_hostile_1286
 Real page in headless Chrome (Classic): absurd window heights (1, 8, 20, 50, 5000), the heading at the foot of the window, ten quick open and close rounds, a
-second window size between opens; and a probe page with the theme CSS for the selectors (odd aria-labels).
+second window size between opens.
 """
 import json
-import tempfile
 import time
 import unittest
-from pathlib import Path
 
 import _testpage as testpage
 import test_tpl_workitems as base
-from _paths import ROOT
 
-import build_page  # noqa: E402
 from clark import page, theme as themes
 from test_report_editor import tearDownModule  # noqa: F401
-from test_server import chrome, wait
+from test_server import chrome
 
 MEASURE = """(() => { const el = document.querySelector('.cols-menu'); if (!el) return null; const r = el.getBoundingClientRect(), c = getComputedStyle(el);
  const bar = document.querySelector('.top'), bb = bar ? bar.getBoundingClientRect().bottom : 0;
@@ -142,46 +138,6 @@ class ColsPanelHostile(base.InThePage):
                        "return {inside:b.top>=m.top-1&&b.bottom<=m.bottom+1,top:b.top,bottom:b.bottom,mt:m.top,mb:m.bottom,tag:a.textContent}})()")
             self.assertTrue(vis["inside"], f"the last row has the focus but is out of sight: {vis}")
 
-
-
-class Selectors(unittest.TestCase):
-    """The AP4 tone selectors, on a probe page with the real theme CSS: odd aria-labels."""
-    NAME = "prototype-2.0"
-    # (aria-label, id, class, red tone wanted)
-    CASES = [
-        ("Add a work item", None, "ddmenu", True), ("Add ", None, "ddmenu", True), ("Add", None, "ddmenu", False), ("Address book", None, "ddmenu", False),
-        ("add a work item", None, "ddmenu", False), ("ADD A", None, "ddmenu", False), (" Add a", None, "ddmenu", False), ("Add a", None, "ddmenu", False),
-        ("Move item to", None, "ddmenu", True), ("Move to", None, "ddmenu", True), ("Move  to", None, "ddmenu", True), ("Move item to…", None, "ddmenu", False),
-        ("Move item to ", None, "ddmenu", False), ("Move due date", None, "ddmenu", False), ("Move X to" + "x" * 5000 + " to", None, "ddmenu", True),
-        ("Add \u0000 a", None, "ddmenu", True), ("Add \U0001f600", None, "ddmenu", True), ("Move ‮ to", None, "ddmenu", True),
-        ("Add a milestone to use case", None, "cpop", False), ("Add a", None, "", False), ("Group by", "viewMenuList", "ddmenu", True), ("Group by", "viewMenuList", "", True),
-        ("Group by", None, "ddmenu", False), ("x", "newBtnMenu", "", True), ("x", "newBtnMenu2", "ddmenu", False),
-    ]
-
-    def test_selectors_match_only_what_they_name(self):
-        rules = "".join((ROOT / "src" / "clark" / "themes" / self.NAME / f).read_text(encoding="utf-8") for f in ("rules.css", "rules-2.css"))
-        parts = []
-        for i, (label, ident, cls, _want) in enumerate(self.CASES):
-            attrs = f' id="{ident}"' if ident else ""
-            attrs += f' class="{cls}"' if cls else ""
-            lab = label.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
-            parts.append(f'<div{attrs} aria-label="{lab}" data-case="{i}"><i class="ic-r" data-probe="{i}r"></i><i class="ic-g" data-probe="{i}g"></i><i class="ic-b" data-probe="{i}b"></i></div>')
-        # duplicate ids on a probe page are legal for the CSS test; give each its own container so the tones are read per case
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "page.html"
-            path.write_text(f'<!doctype html><meta charset=utf-8><style>{build_page.page_css()}</style><style>{themes.css(self.NAME)}</style><body>{"".join(parts)}<i class="ic-r" data-probe="outr"></i><i class="ic-g" data-probe="outg"></i><i class="ic-b" data-probe="outb"></i></body>', encoding="utf-8")
-            with chrome() as cdp:
-                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
-                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-                cdp.call("Page.enable", {}, sid)
-                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-probe]').length", sid) == len(self.CASES) * 3 + 3))
-                got = cdp.js("(function(){var o={};document.querySelectorAll('[data-probe]').forEach(function(e){o[e.dataset.probe]=getComputedStyle(e).color});return o})()", sid)
-        prod = {"r": got["outr"], "g": got["outg"], "b": got["outb"]}
-        for i, (label, ident, cls, want) in enumerate(self.CASES):
-            with self.subTest(label=label[:30], ident=ident, cls=cls):
-                for t in "rgb":
-                    self.assertEqual(got[f"{i}{t}"] != prod[t], want, t)
 
 
 for _name in dir(base.InThePage):      # the Work items tests of the base class are run by their own file, not again here
