@@ -135,15 +135,15 @@ class Word(unittest.TestCase):
         d.update(status=status, needed_by=needed_by, date=date)
         return self.list_table(p)[1][2]
 
-    def test_a_row_due_yesterday_says_yesterday(self):
+    def test_a_row_due_yesterday_has_the_date_alone(self):      # review ruling: a passed date gets no relative word, Yesterday included
         p = with_list(["PUB-A-002"], columns=("id", "due"))
         p["as_at"] = "2026-11-07"                       # PUB-A-002 is due 2026-11-06
-        self.assertEqual(self.list_table(p)[1][2], "06-11-2026 Yesterday")
+        self.assertEqual(self.list_table(p)[1][2], "06-11-2026")
         p["as_at"] = "2026-11-08"
         self.assertEqual(self.list_table(p)[1][2], "06-11-2026")      # row 1543 AP4b: was "06-11-2026 2 days late"
 
-    def test_a_pending_decision_due_yesterday_says_yesterday(self):
-        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026 Yesterday")
+    def test_a_pending_decision_due_yesterday_has_the_date_alone(self):      # review ruling: no Yesterday on a passed date
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026")
 
     def test_a_pending_decision_late_by_days_has_the_date_alone(self):      # row 1543 AP4b: was "06-11-2026 4 days late"
         self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-10"), "06-11-2026")

@@ -709,15 +709,9 @@ WORK_COLUMNS = {"type": ("Type", 1000), "id": ("ID", 1200), "owner": ("Owner", 1
 WORK_DEFAULT = ("type", "id", "owner", "due", "priority")
 
 
-def _late_words(iso, ctx):
-    """Row 1268, row 1543 AP4b: the word beside a passed date in the Work items list. Yesterday stays as a date label for a due date that is
-    yesterday; the N days late count is gone from the client copy (it is "" for any older date)."""
-    n = (ctx.today - date.fromisoformat(str(iso)[:10])).days
-    return "Yesterday" if n == 1 else ""
-
-
-def _list_due(iso, late, ctx, extra=()):
-    return word_cell((_date(iso) + (" " + _late_words(iso, ctx) if late else "")).strip() if iso else "", ctx, extra=extra)
+def _list_due(iso, ctx, extra=()):
+    """Row 1543 AP4b: a due date in the Work items list is the date alone, passed or not (no relative word beside a passed date)."""
+    return word_cell(_date(iso) if iso else "", ctx, extra=extra)
 
 
 def section_workitems(published, ctx, title, sec):
@@ -734,10 +728,9 @@ def section_workitems(published, ctx, title, sec):
         if t == "decisions":
             pending = r.get("status") == "Pending"
             when = _date(r.get("needed_by") if pending else r.get("date")) if (r.get("needed_by") if pending else r.get("date")) else ""
-            late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
             cells = {"type": word_cell("Decision", ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "decision"), ctx), None),
                      "owner": word_cell(r.get("made_by"), ctx), "priority": word_cell(None, ctx), "workstream": word_cell(None, ctx), "milestone": word_cell(None, ctx),
-                     "due": word_cell((when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else "")).strip(), ctx), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
+                     "due": word_cell(when, ctx), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
             body = text_paras(_words(r, "client_message", "description"), ctx)
@@ -747,7 +740,7 @@ def section_workitems(published, ctx, title, sec):
             cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (body, None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
-                     "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
+                     "due": _list_due(r.get("due_date"), ctx), "status": _status_cell(r, kind, ctx)}
         rows.append([cells[c] for c in order])
     if not rows:
         return ""

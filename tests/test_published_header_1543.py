@@ -330,7 +330,10 @@ class More1543:
             self.assertIn(word, said, f"control: {word} is in the copy")
         for row in (a_old, a_urg, a_yes, a_five):
             self.assertIn(row, said, f"control: the work item {row} is listed")
-        self.assertIn("27-10-2026 Yesterday", said, "the one kept word: a due date that is yesterday says Yesterday")
+        self.assertNotRegex(said.replace("Due yesterday step", ""), r"(?i)yesterday", "a passed due date has no relative word, Yesterday included")
+        due_cells = {"".join(t.text or "" for t in c.iter("{%s}t" % NS["w"])) for c in doc.iter("{%s}tc" % NS["w"])}
+        self.assertIn("27-10-2026", due_cells, "the item due yesterday has its due cell as the plain date alone")
+        self.assertNotIn("27-10-2026 Yesterday", said)
         self.assertIn("23-10-2026", said, "control: the date from five days ago is shown, as a date alone")
         self.assertIn("Open", said, "the accepted word for a passed action")
         self.assertTrue(alts, "control: the pictures have alt text")
