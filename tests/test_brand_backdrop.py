@@ -373,16 +373,28 @@ PILLS = """(() => {
     const layers = []; for (let n = el; n && n.nodeType === 1; n = n.parentElement) layers.push(parse(getComputedStyle(n).backgroundColor));
     let bg = {r: 255, g: 255, b: 255, a: 1}; for (let i = layers.length - 1; i >= 0; i--) bg = over(layers[i], bg);
     const fg = over(parse(cs.color), bg), a = lum(fg), b = lum(bg);
-    out.push({t: el.textContent.trim().slice(0, 30), cls: el.className, fg: cs.color, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)});
+    const hex = (c) => '#' + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+    out.push({t: el.textContent.trim().slice(0, 30), cls: el.className, fg: hex(fg), bg: hex(bg), ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)});
   }
   return out; })()"""
 
 
 class DashboardPills(Rig):
     """Row 1266 AP12: the pill text on the new default Dashboard (the Headline's health pill, in each of its health states, in View and in
-    Edit, and the status pills of its work lists) is at least 4.5:1 against the pill's own background, from the computed colours, in
-    light and dark, at 1400 and 900. A new Headline stores no body and so draws nothing in View until a health is chosen; its Edit pill is
-    drawn from the start."""
+    Edit, and the priority chips, .wil-pr, of its work lists) is at least 4.5:1 against the pill's own background, from the computed
+    colours, in light and dark, at 1400 and 900, on the page the app serves: the Classic theme layered under the brand. The status word of
+    a work list row (.wil-st) is a half-circle and a plain word (shell.css gives it no background), not a pill; this page's lists draw none
+    and the selector does not take it. Each look and width must show all eight pill texts itself.
+    A new Headline stores no body and so draws nothing in View until a health is chosen; its Edit pill is drawn from the start."""
+
+    PILL_TEXTS = {"On track", "At risk", "Off track", "Not set", "Low", "Medium", "High", "Urgent"}      # every health pill and every priority chip
+
+    def setUp(self):
+        super().setUp()
+        from clark import theme
+        css = theme.css(theme.CLASSIC)
+        self.assertTrue(css, "the Classic theme's CSS was read")
+        self.s.httpd.page_html = lambda: page.layer_theme(branded(self.root), css)      # as the app: the Theme's block, then the brand's
 
     def headline(self):
         return next(r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline")
@@ -391,19 +403,20 @@ class DashboardPills(Rig):
         p.until("!!document.querySelector('main .hpill')", f"the Headline's pill drew ({label})")
         steady(p)
         got = p.js(PILLS)
+        self.assertTrue(p.js("!!document.getElementById('theme')"), f"the page is the Classic one ({label})")
         self.assertTrue(any("hpill" in g["cls"] for g in got), f"the Headline pill is measured ({label}): {got}")
         for g in got:
-            print(f"pill {label} {scheme} {width}: {g['t']!r} {g['cls']} {g['fg']} {g['ratio']:.2f}:1", flush=True)
+            print(f"pill {label} {scheme} {width}: {g['t']!r} {g['cls']} {g['fg']} on {g['bg']} {g['ratio']:.2f}:1", flush=True)
             self.assertGreaterEqual(g["ratio"], 4.5, f"pill {g['t']!r} ({g['cls']}) in {label}, {scheme}, {width}: {g['ratio']:.2f}:1")
         return got
 
     def test_the_new_default_dashboard_pill_text_keeps_4_5_to_1_in_light_and_dark(self):
         ref = self.headline()
-        seen = set()
         for level in ("Low", "Medium", "High", "Urgent"):      # the Open actions list draws a priority chip for each rated row
             self.demo.action(description="Fictional " + level + " action", priority=level, owner="Sam Lee")
         for scheme in ("light", "dark"):
             for width in (1400, 900):
+                seen = set()        # per look and width: a pill missing in dark or at 900 is not made up for by another load
                 with self.subTest(scheme=scheme, width=width, mode="edit"), self.chrome() as cdp:
                     p = self.load_app(cdp, "#dashboard&p=ABC", ".sec", width, scheme)
                     p.edit()
@@ -418,7 +431,8 @@ class DashboardPills(Rig):
                         seen.update(g["t"] for g in got)
                 with self.store.step("dashboard", USER) as st:
                     st.update("report_sections", ref, {"body": ""})
-        self.assertTrue({"On track", "At risk", "Off track", "Not set", "Low", "Medium", "High", "Urgent"} <= seen, f"every health pill and every priority chip was measured: {seen}")
+                with self.subTest(scheme=scheme, width=width, what="every pill text"):
+                    self.assertEqual(self.PILL_TEXTS - seen, set(), f"every health pill and every priority chip was measured in {scheme} at {width}: {sorted(seen)}")
 
 
 def data_tokens(png):
