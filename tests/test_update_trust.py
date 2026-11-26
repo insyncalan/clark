@@ -51,13 +51,22 @@ class ProvenanceTest(unittest.TestCase):
             updates.read_release(path, SYSTEM, "0.3.0", 2)
         self.assertEqual("badsig", caught.exception.key)
 
-    def test_a_changed_file_with_a_matching_list_and_no_signature_is_read_under_the_unsigned_ruling(self):
-        """Row 1328 ruling (allow unsigned in-clark upgrades): a download with NO .sig at all passes the signature step, so the
-        forged-but-consistent file is read; what still refuses is a wrong signature (the test above), a non-matching list (the
-        control) and the switch being turned off (below)."""
+    def test_a_changed_file_with_a_matching_list_and_no_signature_is_refused_from_the_first_signed_release(self):
+        """Row 1328 (answer of 26-11): from the first signed release on (here every version: trust_test_key) a download with NO
+        .sig is refused as unsigned, so the forged-but-consistent file is not read."""
         files = listed_files()
         files["src/clark/store.py"] = b"# a different file from the one clark published\n"
-        release = updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
+        with self.assertRaises(updates.UpdateError) as caught:
+            updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
+        self.assertEqual("unsigned", caught.exception.key)
+
+    def test_a_changed_file_with_no_signature_is_still_read_under_the_first_signed_release(self):
+        """What is left open on purpose: under the first signed release (1.4.0 as shipped; 0.3.2 here) a missing .sig is allowed,
+        so the forged-but-consistent file with no .sig is read there."""
+        files = listed_files()
+        files["src/clark/store.py"] = b"# a different file from the one clark published\n"
+        with mock.patch.object(updates, "FIRST_SIGNED", (0, 3, 2)):
+            release = updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
         self.assertEqual("0.3.1", release.version)
 
     def test_a_changed_file_with_no_signature_is_refused_when_unsigned_upgrades_are_not_allowed(self):

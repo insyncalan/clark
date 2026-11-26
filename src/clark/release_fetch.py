@@ -158,7 +158,8 @@ def latest(system, opener=real_opener, timeout=TIMEOUT):
 
 def _sig_url(assets, name):
     """The address of the release's signature file for the download, when the release has one on an allowed address, else None.
-    It is fetched by updater.py only for a release that must carry one (updates.signature_required: from 1.4.0 up)."""
+    updater.py fetches it for a release that must carry one (updates.signature_required: from 1.4.0 up) and, while a real release key
+    is built in, for any older release that lists one (row 1328: a signature that is there is always checked)."""
     for asset in assets:
         if isinstance(asset, dict) and asset.get("name") == name:
             url = asset.get("browser_download_url")
