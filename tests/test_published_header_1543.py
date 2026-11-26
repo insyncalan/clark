@@ -219,17 +219,25 @@ class Ap7:      # mixed into Header1543 below
                         p.until("document.getAnimations().every(a => a.playState === 'finished')", "settled")
                         items = p.js(labels)
                         p.js(HIDE)
-                        w, h, rows = pics.decode(base64.b64decode(cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]))
+                        shot = lambda: pics.decode(base64.b64decode(cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]))
+                        w, h, rows = shot()      # as drawn: the picture with its fade
+                        # positive control: the picture really reaches the labels' boxes. With the fade taken off (in the test only) the picture is drawn behind the labels; with no picture the same pixels are the plain bar. They must differ, so a blank background cannot pass.
+                        p.js("document.querySelector('header.top').style.setProperty('--image-fade', 'linear-gradient(#000, #000)')")
+                        _, _, full = shot()
+                        p.js("document.querySelector('header.top').style.setProperty('--image-cover', 'none')")
+                        _, _, plain = shot()
                     self.assertGreaterEqual(len(items), 3, "control: the page labels were read")
                     for it in items:
                         self.assertTrue(it["rects"], f"control: {it['t']!r} has a drawn label")
                         r, g, b, a = colour(it["fg"])
-                        low = 99.0
+                        low, moved = 99.0, 0
                         for q in it["rects"]:
                             for y in range(int(q["y"]), min(h, int(q["y"] + q["h"]) + 1), 2):
                                 for x in range(int(q["x"]), min(w, int(q["x"] + q["w"]) + 1), 2):
                                     bg = rows[y][x]
+                                    moved += max(abs(i - j) for i, j in zip(full[y][x][:3], plain[y][x][:3])) > 8
                                     low = min(low, ratio([a * c + (1 - a) * k for c, k in zip((r, g, b), bg)], bg))
+                        self.assertGreater(moved, 10, f"control: the picture would sit behind {it['t']!r} (without the fade), so the 4.5 to 1 is measured over a picture, not a blank bar")
                         self.assertGreaterEqual(low, 4.5, f"{it['t']!r} is {low:.2f}:1 over the picture")
 
     def probe_menu(self, dark):
