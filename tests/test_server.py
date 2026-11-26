@@ -1543,8 +1543,9 @@ unittest.TestCase._callTestMethod = _call_with_900_pause
 class _Pipe:
     """Chrome's --remote-debugging-pipe (as system/prototype/run_selftest.py): JSON messages ended by a NUL byte."""
 
-    def __init__(self, w, r):
+    def __init__(self, w, r, proc=None):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
+        self.proc = proc                       # Chrome's process, only to name its state in a failure message (row 1625)
         self.events = []                       # every message that is not the answer to a call (page events), in order
 
     # Pages attached through this pipe get focus emulation. A test whose page behaviour assumes an UNFOCUSED page (a field's blur-save or
@@ -1617,7 +1618,7 @@ class _Pipe:
                 self._stuck_check(method, params, session, began)
                 chunk = os.read(self.r, 1 << 16)
                 if not chunk:
-                    raise RuntimeError("Chrome closed the pipe")
+                    raise RuntimeError(f"Chrome closed the pipe; {self.machine_state()}")
                 self.buf += chunk
             raw, self.buf = self.buf.split(b"\0", 1)
             m = json.loads(raw)
@@ -1637,6 +1638,27 @@ class _Pipe:
     # still wait for ever. CALL_DEADLINE is the whole time one call may wait for its own answer, events or not; far above any real answer.
     CALL_DEADLINE = 600.0
 
+    def machine_state(self):
+        """Words for a failure message, row 1625: Chrome's proc.poll() (None = still running, else its exit code or minus the signal),
+        how many Chrome processes the machine has, and its load. Message text only: it changes no wait and no limit."""
+        poll = "unknown (no process given)"
+        if self.proc is not None:
+            try:
+                poll = repr(self.proc.poll())
+            except Exception as e:
+                poll = f"unreadable ({e!r})"
+        count = "not counted"
+        try:
+            out = subprocess.run(["ps", "-A", "-o", "comm="], capture_output=True, text=True, timeout=10).stdout
+            count = str(sum(1 for line in out.splitlines() if "chrome" in line.lower()))
+        except Exception as e:
+            count = f"not counted ({e!r})"
+        try:
+            load = ", ".join(f"{x:.2f}" for x in os.getloadavg())
+        except (AttributeError, OSError):
+            load = "not available"
+        return f"proc.poll {poll}; Chrome processes {count}; load {load}"
+
     def _deadline_check(self, began, method, session):
         if time.monotonic() - began > self.CALL_DEADLINE:
             last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
@@ -1653,7 +1675,7 @@ class _Pipe:
             self._deadline_check(began, method, session)
         last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
         raise RuntimeError(f"Chrome gave no answer for {self.STUCK_AFTER:.0f} s to call {self.n} {method} (session {session!r}, params "
-                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
+                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}; {self.machine_state()}")
 
     def js(self, expr, session):
         """The value of the expression. A promise is waited for (awaitPromise), so `js("new Promise(r => setTimeout(r, 300))")` takes 300 ms (row 1622)."""
@@ -1672,7 +1694,7 @@ def chrome():
         os.close(to_r)
         os.close(from_w)
         try:
-            yield _Pipe(to_w, from_r)
+            yield _Pipe(to_w, from_r, proc)
         finally:
             stop_chrome(proc)                  # asked, waited for, killed if need be, reaped
             os.close(to_w)
@@ -1699,6 +1721,29 @@ class PipeStuck(unittest.TestCase):
         text = str(cm.exception)
         for part in ("call 1", "Emulation.setEmulatedMedia", "S9", "Page.frameNavigated"):
             self.assertIn(part, text)
+
+    def test_the_stall_and_the_closed_pipe_name_the_machine_state_1625(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        if os.name != "nt":
+            p.STUCK_AFTER = 0.2
+            with self.assertRaises(RuntimeError) as cm:
+                p.call("Page.enable", {}, "S3")
+            for part in ("proc.poll", "Chrome processes", "load"):
+                self.assertIn(part, str(cm.exception))
+            self.assertEqual(p.STUCK_AFTER, 0.2)
+        r2, w2 = os.pipe()
+        os.close(w2)                                     # nobody can write: read returns no bytes
+        self.addCleanup(os.close, r2)
+        closed = _Pipe(sink_w, r2)
+        with self.assertRaises(RuntimeError) as cm:
+            closed.call("Page.enable", {}, "S3")
+        for part in ("Chrome closed the pipe", "proc.poll", "Chrome processes", "load"):
+            self.assertIn(part, str(cm.exception))
+        self.assertEqual((_Pipe.STUCK_AFTER, _Pipe.CALL_DEADLINE), (300.0, 600.0))
 
     def test_events_that_never_answer_hit_the_call_deadline(self):
         if os.name == "nt":

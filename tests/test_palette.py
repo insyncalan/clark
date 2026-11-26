@@ -54,6 +54,11 @@ class Pg:
                 raise
         self.t.assertTrue(wait(ask, seconds), what)
 
+    def projects_drawn(self):
+        """Wait (never sleep) until the open bar has drawn its Project group: the projects answer can arrive after the bar opens."""
+        self.t.assertTrue(wait(lambda: self.js("!!document.querySelector('#palette .pal-row[data-kind=\"Project\"]')"), 20),
+                          "waited up to 20 s for the Project group to be drawn in the bar (the projects answer)")
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -324,23 +329,29 @@ class Results(Base):
 class Enter(Base):
     def run_first(self, p, text):
         p.show()
+        p.projects_drawn()
         p.find(text)
         p.key("Enter", 0, "Enter", 13)
         p.until("!document.querySelector('#palette')", "the palette closed on Enter")
 
     def test_enter_runs_a_page_a_project_an_item_and_a_milestone(self):
         with chrome() as cdp:
-            p = self.visit(cdp)
-            self.run_first(p, "milestones")
-            p.until("location.hash.indexOf('#milestones') === 0", "the Milestones page opened")
-            self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Milestones")
-            self.run_first(p, "second")
-            p.until("location.hash.indexOf('p=DEF') > 0", "the other project opened")
-            p.until("document.querySelector('#project-name').textContent === 'Second Programme'", "its name is in the top bar")
-            self.run_first(p, "def-a-001")
-            p.until("location.hash.indexOf('item=DEF-A-001') > 0", "the item's peek address")
-            self.run_first(p, "pilot")
-            p.until("location.hash.indexOf('ms=DEF-M-001') > 0", "the milestone's peek address")
+            for w in (1400, 900):
+                self.one_width(cdp, w)
+
+    def one_width(self, cdp, w):
+        p = self.visit(cdp)
+        p.width(w)
+        self.run_first(p, "milestones")
+        p.until("location.hash.indexOf('#milestones') === 0", "the Milestones page opened")
+        self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Milestones")
+        self.run_first(p, "second")
+        p.until("location.hash.indexOf('p=DEF') > 0", "the other project opened")
+        p.until("document.querySelector('#project-name').textContent === 'Second Programme'", "its name is in the top bar")
+        self.run_first(p, "def-a-001")
+        p.until("location.hash.indexOf('item=DEF-A-001') > 0", "the item's peek address")
+        self.run_first(p, "pilot")
+        p.until("location.hash.indexOf('ms=DEF-M-001') > 0", "the milestone's peek address")
 
     def test_enter_on_the_commands_calls_what_the_menu_calls(self):
         with chrome() as cdp:
