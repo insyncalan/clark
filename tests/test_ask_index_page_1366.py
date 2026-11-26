@@ -128,7 +128,9 @@ class Page(Fixture):
         self.assertTrue(self.ix.wait_idle(10))
         probe = ("(() => { const out = {}; for (const [k, sel] of [['shared', '#ask-folders-shared'], ['own', '#ask-folders']]) { const li = document.querySelector(sel + ' li'); "
                  "const n = li.querySelector('.folder-now'); const l = li.querySelector('.ask-folder-line'); const ln = parseFloat(getComputedStyle(l).lineHeight); "
-                 "out[k] = {name: parseFloat(getComputedStyle(n).fontSize), note: parseFloat(getComputedStyle(l).fontSize), lines: Math.round(l.getBoundingClientRect().height / ln), row: li.getBoundingClientRect().height}; } return out; })()")
+                 "const row = li.getBoundingClientRect().height; const noteH = l.getBoundingClientRect().height; l.style.display = 'none'; const bare = li.getBoundingClientRect().height; l.style.display = ''; "
+                 "out[k] = {name: parseFloat(getComputedStyle(n).fontSize), note: parseFloat(getComputedStyle(l).fontSize), lines: Math.round(noteH / ln), row: row, bare: bare, noteH: noteH, ln: ln, "
+                 "gap: parseFloat(getComputedStyle(li).rowGap), mt: parseFloat(getComputedStyle(l).marginTop)}; } return out; })()")
         with chrome() as cdp:
             js = self.show(cdp, "project")
             self.until(js, "[...document.querySelectorAll('.ask-folder-line')].length === 2 && [...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('100% indexed'))", "indexed")
@@ -142,6 +144,12 @@ class Page(Fixture):
                     for which, m in got.items():
                         self.assertEqual((m["name"], m["note"], m["name"] - m["note"]), (14, 13, 1), (mode, w, which, m))      # one size smaller than the folder name
                         self.assertEqual(m["lines"], 1, (mode, w, which, m))      # one line
+                        self.assertEqual((m["mt"], m["ln"]), (2, 1.5 * m["note"]), (mode, w, which, m))      # the note's own 2px top margin, and a line 1.5 times its 13px text: not a taller line
+                        self.assertEqual(m["row"] - m["bare"], m["gap"] + m["mt"] + m["noteH"], (mode, w, which, m))      # the note adds its row gap, its 2px margin and its own height to the row, nothing more
+                        if which == "shared":
+                            self.assertEqual(m["noteH"], m["ln"], (mode, w, which, m))      # text only: the note is exactly one line high
+                        else:
+                            self.assertLessEqual(m["noteH"], 24, (mode, w, which, m))      # this note holds the 24px (why) button: no higher than the button
                         rows.setdefault(which, set()).add(m["row"])
             self.assertEqual({k: len(v) for k, v in rows.items()}, {"shared": 1, "own": 1}, rows)      # the row does not grow with the width or the theme while the note fits
 

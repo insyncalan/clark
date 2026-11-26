@@ -92,7 +92,7 @@ class Classic(Base):
                         k = self.look(js, sel)
                         self.assertEqual((k["color"], k["size"], k["role"], k["exp"], k["list"], k["below"]), (k["blue"], "14px", "BUTTON", "false", False, True), (mode, w, sel, k))
                         self.assertEqual((k["h"], k["w"] >= 24), (24, True), (mode, w, sel, k))      # AP13 (Product Manager 24-11): 14px with a 24px hit box
-                        self.assertGreaterEqual(k["h"], 24)      # row 1371 AP6: the (why) click target is at least 24px high
+                        self.assertGreaterEqual(k["h"], 24)      # row 1371: the (why) click target is never under 24px high (the 24px pin is AP13, the line above)
                         self.assertEqual(js(BTN % sel + ".textContent"), "(why)")
             self.open_list(js, "#ask-folders")
             self.assertEqual(js(BTN % "#ask-folders" + ".getAttribute('aria-expanded')"), "true")
