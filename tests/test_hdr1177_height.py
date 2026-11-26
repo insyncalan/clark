@@ -38,6 +38,7 @@ class HeaderHeight(Base):
     def test_the_header_stays_at_the_top_after_scrolling_800_px_at_1400_and_900(self):
         with chrome() as cdp:
             p = self.visit(cdp)
+            p.edit()      # row 1266: a new project's View draws few sections (the empty ones are left out), so the page is tall enough to scroll 800 px only in Edit
             for w, h in HEIGHTS.items():
                 size(cdp, p, w, 400)      # a short window so even the two-column page at 1400 is taller than 800 px plus the window
                 p.js("window.scrollTo(0, 800)")

@@ -98,11 +98,13 @@ class ClassicCards(Themed):
             p = self.opened(cdp)
             self.ask_it(p)
             p.until(f"document.querySelectorAll('[data-ask-change]').length === {ask.MAX_CHANGES}", "only the first five cards")
-            for width in (1400, 900):
+            for width, theme in ((1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                where = f"{width} {theme}"
                 text = p.js("document.querySelector('#ask-panel').innerText")
-                self.assertIn(ask.CHANGE_LIMIT, text.replace("\n", " "), f"{width}: the change-limit line is on the page")
-                self.assertEqual(p.js("document.querySelectorAll('[data-ask-change]').length"), ask.MAX_CHANGES, width)
+                self.assertIn(ask.CHANGE_LIMIT, text.replace("\n", " "), f"{where}: the change-limit line is on the page")
+                self.assertEqual(p.js("document.querySelectorAll('[data-ask-change]').length"), ask.MAX_CHANGES, where)
 
     def test_a_card_for_another_item_is_not_marked(self):
         other = self.demo.action(owner="Kit Moss", description="Order the lanyards")

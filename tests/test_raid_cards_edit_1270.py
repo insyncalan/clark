@@ -42,6 +42,7 @@ class Edit(PageBase):
             self.set_select(p, f"{q} select[aria-label='Card 2 item']", made[1])
             self.assertTrue(self.wait_for(lambda: len(self.stored(sec)["cards"]) == 2), "the second card is saved")
             self.assertEqual(self.stored(sec)["v"], 1, "a card on a four across body keeps the old shape")
+            p.until(f"!!document.querySelector('{q} select[aria-label=\"Card 3 item\"]')", "the page drew the saved second card")      # row 1266: the heavier default page redraws later; changing Cards across before that would save its stale body over the second card
             self.set_select(p, f"{q} select[aria-label='Cards across']", "3")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 3))
             self.assertEqual([c["id"] for c in self.stored(sec)["cards"]], made[:2])

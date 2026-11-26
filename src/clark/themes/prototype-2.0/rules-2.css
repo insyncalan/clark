@@ -482,6 +482,8 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
   :root[data-theme=auto] .aim-ic { color: currentColor; }
 }
+/* Row 1266: the Milestones legend ("At risk" in amber, 4.16:1) sits straight on the brand picture; with Milestones fourth in the new default order it is on screen, so it gets the surface behind it (the contrast on the worst picture: not measured (1634 p7)). Classic only. */
+.msl-bar .mlg-row { background: var(--surface); padding: 2px var(--space-2); border-radius: var(--radius-sm); }
 /* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
 .secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
@@ -490,3 +492,16 @@ html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shado
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* row 1252: the Add page box (edit/AddPageBox.jsx): the list of starters at the left and the preview at the right at 1400, one column at 900 */
+[id="add-page-box"].ad.dlg.wide { width: min(980px, 100%); }
+[id="add-page-box"] .ap-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+@media (max-width: 900px) { [id="add-page-box"] .ap-cols { grid-template-columns: 1fr; } }
+[id="add-page-box"] h3 { margin: var(--space-2) 0; font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+[id="add-page-box"] .ap-choice { display: block; width: 100%; text-align: left; margin-bottom: 8px; padding: 10px 12px; border: 2px solid var(--line-soft); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+[id="add-page-box"] .ap-choice[aria-checked="true"] { border-color: var(--brand-blue); background: var(--grey-50); }
+[id="add-page-box"] .ap-choice[aria-disabled="true"] { opacity: .5; cursor: default; }
+[id="add-page-box"] .ap-choice small, [id="add-page-box"] .ap-part span { display: block; color: var(--text-muted); font-size: var(--size-caption); }
+[id="add-page-box"] .ap-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+[id="add-page-box"] .ap-chips i { font-style: normal; font-size: var(--size-caption); background: var(--grey-100); border-radius: 999px; padding: 1px 9px; }
+[id="add-page-box"] .ap-preview { background: var(--grey-50); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+[id="add-page-box"] .ap-part { margin: 8px 0; padding: 8px 10px; border: 1px dashed var(--grey-500); border-radius: var(--radius); background: var(--surface); }

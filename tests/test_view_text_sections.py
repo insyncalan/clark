@@ -26,8 +26,8 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 CURRENT = "<p>The pilot is on track and the data is clean.</p>"
 SUMMARY = "<p>Plain words about <strong>the month</strong>.</p><ul><li>One thing</li></ul>"
 HOSTILE = '<p>Next week we ship.</p><script>window.pwned = 1</script><img src="x" onerror="window.pwned = 2"><p onclick="window.pwned = 3">Click</p>'
-SUMMARY_ID = "ABC-S-011"      # row 1266: the default list has no Summary now; an older project's own Summary is added below as a stand-in text section
-SECTIONS = {"ABC-S-001": "current", SUMMARY_ID: "summary", "ABC-S-005": "this week", "ABC-S-006": "next week"}
+SUMMARY_ID = "ABC-S-012"      # row 1266: the default list has no Summary now; an older project's own Summary is added below as a stand-in text section
+SECTIONS = {"ABC-S-003": "current", SUMMARY_ID: "summary", "ABC-S-004": "this week", "ABC-S-005": "next week"}
 
 LUMA = """(function(){
   var rgb = function(c){ var m = c.match(/[\\d.]+/g).map(Number); return m; };
@@ -49,10 +49,10 @@ class TheBrowser(unittest.TestCase):
         self.addCleanup(self.demo.close)
         store = self.demo.store
         with store.step("dashboard", USER) as st:
-            st.update("report_sections", "ABC-S-001", {"body": CURRENT})      # item 1188: the first section is a text section, its body is the text
+            st.update("report_sections", "ABC-S-003", {"body": CURRENT})      # item 1188: the first section is a text section, its body is the text
             made = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Summary", "sort_order": 990, "body": SUMMARY})
             assert made == SUMMARY_ID, made
-            st.update("report_sections", "ABC-S-006", {"body": HOSTILE})      # ABC-S-005 stays empty
+            st.update("report_sections", "ABC-S-005", {"body": HOSTILE})      # ABC-S-004 stays empty
         self.s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
@@ -87,13 +87,13 @@ class TheBrowser(unittest.TestCase):
                         self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"{k} no longer says the old line in View: {where}")
                     # the cleaner dropped the script, the handler and the picture: nothing ran, nothing is left
                     self.assertIsNone(cdp.js("window.pwned", sid) or None, where)
-                    self.assertEqual(cdp.js("document.querySelectorAll('[data-id=ABC-S-006] script, [data-id=ABC-S-006] [onclick], [data-id=ABC-S-006] [onerror]').length", sid), 0, where)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-id=ABC-S-005] script, [data-id=ABC-S-005] [onclick], [data-id=ABC-S-005] [onerror]').length", sid), 0, where)
                     # the two built-in work sections draw their rows, or say there is nothing to show
                     other = cdp.js("[...document.querySelectorAll('.sec')].filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)", sid)
                     self.assertEqual(other, [], where)       # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are Work items lists now (their own tests); no built-in row section is a default
                     # readable and in the page: 4.5:1 text, no sideways scroll
                     self.assertGreaterEqual(cdp.js(LUMA % f"[data-id={SUMMARY_ID}] .prose p", sid), 4.5, "text contrast " + where)
-                    self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-005] .quiet", sid), 4.5, "quiet line contrast " + where)
+                    self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-004] .quiet", sid), 4.5, "quiet line contrast " + where)
                     self.assertGreaterEqual(float(cdp.js(f"parseFloat(getComputedStyle(document.querySelector('[data-id={SUMMARY_ID}] .prose p')).fontSize)", sid)), 13, where)
                     self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - window.innerWidth", sid), 0, "no sideways scroll " + where)
             # Edit: the four text sections show their text in the editor's field

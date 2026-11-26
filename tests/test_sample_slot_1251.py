@@ -16,7 +16,7 @@ from _paths import ROOT
 SAMPLES = ROOT / "src" / "clark" / "page" / "sample-pictures"
 Pub = PublishedFile
 
-KINDS = [("imagecap", "Fictional cap"), ("textimage", "Fictional ti"), ("gallery", "Fictional gal"), ("imagecap", "Fictional full", json.dumps({"v": 2}))]
+KINDS = [("imagecap", "Fictional cap"), ("textimage", "Fictional ti"), ("gallery", "Fictional gal"), ("imagecap", "Fictional full", json.dumps({"v": 2})), ("textimage", "Fictional side", json.dumps({"v": 2}))]
 COUNT = "(function(s){var r=document.querySelector(s);return r?[...r.querySelectorAll('[data-sample]')].filter(function(e){return e.getBoundingClientRect().height>40}).length:-1})"
 
 
@@ -52,7 +52,7 @@ class Classic(Base):
     def test_each_empty_picture_template_has_one_sample_in_edit_and_view_has_none(self):
         refs = [make(self, *k) for k in KINDS]
         got = counts(self, refs)
-        for ref, want in zip(refs, (1, 1, 0, 1)):      # row 1233: the gallery's empty area is the dashed one, with no sample
+        for ref, want in zip(refs, (1, 1, 0, 1, 1)):      # row 1233: the gallery's empty area is the dashed one, with no sample
             for width in (1400, 900):
                 self.assertEqual(got[(ref, width)], want, f"{ref} at {width}")
         for width in (1400, 900):
@@ -71,11 +71,13 @@ class Classic(Base):
         ref = make(self, "gallery", "Fictional six")
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.edit()
-            sel = json.dumps(f"[data-id={json.dumps(ref)}]")
-            p.until(f"!!document.querySelector({sel})", "the section is drawn")
-            p.until(f"!!document.querySelector({sel}).querySelector('.tpl-gal-empty')", "the empty area")
-            self.assertEqual(p.js(f"document.querySelector({sel}).querySelectorAll('img[data-sample]').length"), 0)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                sel = json.dumps(f"[data-id={json.dumps(ref)}]")
+                p.until(f"!!document.querySelector({sel})", "the section is drawn")
+                p.until(f"!!document.querySelector({sel}).querySelector('.tpl-gal-empty')", "the empty area")
+                self.assertEqual(p.js(f"document.querySelector({sel}).querySelectorAll('img[data-sample]').length"), 0, width)
 
     def test_the_sample_fills_its_slot_in_the_16_by_9_shape_at_both_widths(self):
         ref = make(self, "imagecap", "Fictional frame")
@@ -107,7 +109,8 @@ class Cards(Base):
         refs = [make(self, *k) for k in KINDS]
         got = counts(self, refs)
         for ref in refs:
-            self.assertEqual(got[(ref, 1400)], 0)
+            for width in (1400, 900):
+                self.assertEqual(got[(ref, width)], 0, f"{ref} at {width}")
 
 
 if __name__ == "__main__":
