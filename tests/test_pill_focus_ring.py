@@ -9,7 +9,8 @@ import json
 import re
 import unittest
 
-from test_seg_focus_ring import SegFocusRing as _Base, fill_colours, ratio, rgb, tearDownModule  # noqa: F401
+from test_seg_focus_ring import fill_colours, ratio, rgb, tearDownModule
+import test_seg_focus_ring as _test_seg_focus_ring
 from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, page_target  # noqa: E402
 
@@ -36,8 +37,8 @@ def solid_fills(bg_image, bg_color):
 
 
 class PillFocusRing(unittest.TestCase):
-    setUp = _Base.setUp      # the same real server over the demo data
-    read = _Base.read
+    setUp = _test_seg_focus_ring.SegFocusRing.setUp      # the same real server over the demo data
+    read = _test_seg_focus_ring.SegFocusRing.read
 
     def measure_pill(self, cdp, width, theme):
         sid = page_target(cdp)

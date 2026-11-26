@@ -8,7 +8,7 @@ bottom edge does not move when the peek is scrolled to the top, the middle or th
 import unittest
 
 import test_peek as tp  # noqa: E402
-from test_peek_card import CardBrowser  # noqa: E402
+import test_peek_card as _test_peek_card
 from test_server import chrome  # noqa: E402
 
 FIND = """const p = document.querySelector('#peek');
@@ -26,7 +26,7 @@ class SneakAnchor(unittest.TestCase):
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
     open_words = tp.Browser.open_words
-    show_item = CardBrowser.show_item
+    show_item = _test_peek_card.CardBrowser.show_item
 
     def test_the_words_box_stays_at_the_bottom_of_the_peek_while_it_scrolls(self):
         for width in (1400, 900):

@@ -103,6 +103,9 @@ class Card(unittest.TestCase):
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10), "ChatGPT offers gpt-6.1-sol after Connect")
             self.pick(js, "gpt-6.1-sol")
             self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10), "the drop-down shows gpt-6.1-sol")
+            # The page saves after the drop-down shows the choice; wait (10 s, like the waits around it) until the file holds it, then read it for the same assert.
+            if not wait(lambda: settings.ai_read(self.d)["model"] == "gpt-6.1-sol", 10):
+                self.fail("DIAG the saved file did not get gpt-6.1-sol within 10 s: #ai-model value=%r, saved model=%r" % (js("document.querySelector('#ai-model').value"), settings.ai_read(self.d)["model"]))
             saved = settings.ai_read(self.d)
             where = self.d / settings.FILE
             self.assertEqual(saved["model"], "gpt-6.1-sol", "read back: %r, chatgpt_on=%r, claude_off=%r, file %s, file existed=%r" % (saved["model"], saved["chatgpt_on"], saved["claude_off"], where, where.exists()))

@@ -32,7 +32,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_exclude, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_exclude, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, platform, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
@@ -104,8 +104,11 @@ def _open(data_dir, code, create=True):
     p = path_for(data_dir, code)
     if not p.exists() and not create:
         return None
+    made = not p.parent.exists()
     p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(p.parent, 0o700)                # a folder made earlier (or by another tool) is put right too
+    if made:
+        platform.exclude_from_backup(p.parent)   # Row 1568 AP1: Time Machine skips the folder, again each time it is made new
     if not p.exists():
         os.close(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
     os.chmod(p, 0o600)

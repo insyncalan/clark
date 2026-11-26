@@ -7,7 +7,7 @@ Run: python3 -m unittest test_published_name_font      (from tests/, with PYTHON
 import re
 import unittest
 
-from test_glance_page import Published
+import test_glance_page as _test_glance_page
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -21,7 +21,7 @@ LOOK = """(() => {
 })()"""
 
 
-class NameFont(Published):
+class NameFont(_test_glance_page.Published):
     def test_the_project_name_has_one_look_on_every_tab(self):
         path = self.publish()
         for width in (1400, 900):

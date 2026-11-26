@@ -8,7 +8,7 @@ Computed styles and boxes read in a real browser at 1400 and 900 px with the dem
 import unittest
 
 import test_peek as tp  # noqa: E402
-from test_peek_card import CardBrowser  # noqa: E402
+import test_peek_card as _test_peek_card
 import test_peek_chips_1180 as c1180  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 
@@ -31,7 +31,7 @@ class DetailsRows(unittest.TestCase):
     load_page = tp.Browser.load_page
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
-    show_item = CardBrowser.show_item
+    show_item = _test_peek_card.CardBrowser.show_item
     open_item = c1180.Chips.open_item
 
     def read(self, cdp, sid):

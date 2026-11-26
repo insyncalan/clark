@@ -13,7 +13,7 @@ import unittest
 from _paths import ROOT
 
 import test_peek as tp  # noqa: E402
-from test_peek_card import CardBrowser  # noqa: E402
+import test_peek_card as _test_peek_card
 from test_server import chrome  # noqa: E402
 
 READ = """(() => { const p = document.querySelector('#peek');
@@ -30,7 +30,7 @@ class Spacing(unittest.TestCase):
     load_page = tp.Browser.load_page
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
-    show_item = CardBrowser.show_item
+    show_item = _test_peek_card.CardBrowser.show_item
 
     def test_the_top_section_is_tighter_and_not_cramped(self):
         for width in (1400, 900):

@@ -11,7 +11,8 @@ logo and the menu by what they say and do, not by a class the build has to use.
 import unittest
 
 from _demo import USER
-from test_glance_page import Published, Setup
+from test_glance_page import Setup
+import test_glance_page as _test_glance_page
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
@@ -48,7 +49,7 @@ MENU = """(() => {
 })()"""
 
 
-class InTheFile(Published):
+class InTheFile(_test_glance_page.Published):
     def setUp(self):
         super().setUp()
         with self.store.step("dashboard", USER) as st:

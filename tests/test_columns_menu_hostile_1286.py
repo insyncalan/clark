@@ -19,6 +19,7 @@ from test_server import chrome
 MEASURE = """(() => { const el = document.querySelector('.cols-menu'); if (!el) return null; const r = el.getBoundingClientRect(), c = getComputedStyle(el);
  const bar = document.querySelector('.top'), bb = bar ? bar.getBoundingClientRect().bottom : 0;
  return {floor: Math.round(bb), top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, oy: c.overflowY, mh: el.style.maxHeight, scroll: el.scrollHeight, client: el.clientHeight}; })()"""
+SETTLE = ("document.fonts.status === 'loaded' && [...document.querySelectorAll('.cols-menu')].every(m => m.getAnimations().every(a => a.playState === 'finished'))")
 
 
 class ColsPanelHostile(base.InThePage):
@@ -43,10 +44,11 @@ class ColsPanelHostile(base.InThePage):
 
     def show_menu(self, p, block="start"):
         p.js(f"document.querySelector({json.dumps(self.head)}).scrollIntoView({{block:{json.dumps(block)}}})")
-        time.sleep(0.25)
+        # row 1286: right-click only once the page is quiet: the router's place restore is over (overflowAnchor back to ''), fonts are loaded, no animation runs
+        p.until("document.fonts.status === 'loaded' && document.documentElement.style.overflowAnchor === '' && document.getAnimations().length === 0", "the page has settled")
         p.js(f"document.querySelector({json.dumps(self.head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
         p.until(f"!!({MEASURE})", "the Columns menu opened")
-        time.sleep(0.15)
+        p.until(SETTLE, "the open animation finished")    # row 1286: read only once the m-drop open animation (translateY(-4px), 120 ms) has finished
         return p.js(MEASURE)
 
     def shut(self, p):

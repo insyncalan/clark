@@ -6,14 +6,15 @@ Run: python3 dev/run_tests.py test_gantt_keyboard
 import unittest
 
 import _paths  # noqa: F401
-from test_gantt_e2e import Browser, CODE, E2E as Base
+from test_gantt_e2e import Browser, CODE
+import test_gantt_e2e as _test_gantt_e2e
 from test_server import chrome, wait
 
 BAR = "[data-g-bar='GNT-002']"
 ACTIVE = "(document.activeElement && document.activeElement.dataset.gBar) || (document.activeElement && document.activeElement.tagName)"
 
 
-class Keyboard(Base):
+class Keyboard(_test_gantt_e2e.E2E):
     def test_the_gantt_from_settings_to_the_published_file(self):
         self.skipTest("the full flow is test_gantt_e2e's")
 

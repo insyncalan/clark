@@ -9,7 +9,7 @@ import unittest
 
 from test_server import chrome, wait  # noqa: E402
 import test_motion_rows as tmr  # noqa: E402
-from test_motion_rows import MotionRows  # noqa: E402
+import test_motion_rows as _test_motion_rows
 from clark import page, theme  # noqa: E402
 
 PROBE = """(() => { const q = (s, r) => (r || document).querySelector(s), qa = (s, r) => [...(r || document).querySelectorAll(s)], c = (e) => getComputedStyle(e);
@@ -33,8 +33,8 @@ PROBE = """(() => { const q = (s, r) => (r || document).querySelector(s), qa = (
 
 
 class WorkItemsOptionA(unittest.TestCase):
-    setUpClass = classmethod(MotionRows.setUpClass.__func__)
-    tearDownClass = classmethod(MotionRows.tearDownClass.__func__)
+    setUpClass = classmethod(_test_motion_rows.MotionRows.setUpClass.__func__)
+    tearDownClass = classmethod(_test_motion_rows.MotionRows.tearDownClass.__func__)
 
     def load(self, cdp, width, scheme, motion, hash_=None):
         """MotionRows.load, with the page under the Classic theme layer (the look is Classic only; Cards is unchanged)."""
@@ -42,7 +42,7 @@ class WorkItemsOptionA(unittest.TestCase):
         was = tmr.testpage.html
         tmr.testpage.html = lambda: html
         try:
-            return MotionRows.load(self, cdp, width, scheme, motion, hash_)
+            return _test_motion_rows.MotionRows.load(self, cdp, width, scheme, motion, hash_)
         finally:
             tmr.testpage.html = was
 

@@ -3,7 +3,8 @@ button and the Backups copy-folder keeps its Save (a half-typed path must not be
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import PAGES, Head
+from test_settings_head import PAGES
+import test_settings_head as _test_settings_head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -11,7 +12,7 @@ MODES = ("light", "dark")
 TEXT = "(document.querySelector('.toast .toast-text') || {}).textContent"
 
 
-class SaveAtOnce(Head):
+class SaveAtOnce(_test_settings_head.Head):
     def test_S5_appearance_and_spacing_save_at_once_with_a_toast_and_one_undo(self):
         for w in WIDTHS:
             for mode in MODES:

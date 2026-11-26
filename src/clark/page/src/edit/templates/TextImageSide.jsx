@@ -12,6 +12,8 @@ import { Crop } from "./FullImageCrop.jsx";
 import { useNatural } from "./FullImage.jsx";
 import { shrink, TYPES } from "./shrink.js";
 import { pngOf } from "./fullFrame.js";
+import { samplePicture } from "../samplePicture.js";
+import { startOr, classicLook } from "../startingText.js";
 import { say } from "../../stores/changes.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
@@ -205,7 +207,7 @@ export function Edit({ section }) {
       <div class="tpl-sbs-edit-grid">
         <div class="tpl-pic-field tpl-sbs-edit-words">
           <label>{W.text}</label>
-          <RichField field="textimage" id={section.id} value={richValue(v)} label={`${section.title} text`} empty="Click to write."
+          <RichField field="textimage" id={section.id} value={richValue(v)} label={`${section.title} text`} empty={startOr("Click to write.", "text-image", "empty", 0)}
             save={(html) => saveWords(section, { html: noBreaks(html), words: [] }, "Text saved.")} />
         </div>
         <div class="tpl-sbs-edit-pic">
@@ -227,10 +229,13 @@ export function Edit({ section }) {
               ) : null}
             </div>
           ) : (
+            <>
+            {classicLook() ? <img src={samplePicture(0)} alt="" class="tpl-pic-sample" data-sample aria-hidden="true" /> : null}
             <div class={`fi-drop${over ? " over" : ""}`} data-slot="image" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
               <button type="button" class="btn sm" data-act="pick" disabled={busy} onClick={pick}>{W.choose}</button>
               <span class="quiet">{busy ? W.making : W.drop}</span>
             </div>
+            </>
           )}
           {originalUrl && !cropping ? <Bar a={bar} /> : null}
           {originalUrl && !cropping && info ? <p class="quiet fi-file tpl-sbs-note" role="status" data-file-note>{fileNote(info.w, info.h)}</p> : null}
@@ -238,7 +243,7 @@ export function Edit({ section }) {
       </div>
       <LineField section={section} field="alt" label={W.describe} hint={W.describeHint} value={v.alt} max={300} words={W.altSaved} />
       {originalUrl && !v.alt ? <p class="fi-red tpl-sbs-red" data-alt-note>{W.noDescription}</p> : null}
-      <CaptionField section={section} field="caption" label={W.caption} hint={W.optional} empty={W.optional} value={v.caption} max={300} words={W.captionSaved} />
+      <CaptionField section={section} field="caption" label={W.caption} hint={W.optional} empty={startOr(W.optional, "text-image", "caption")} value={v.caption} max={300} words={W.captionSaved} />
       <PicturesTotal />
       {file}
     </div>

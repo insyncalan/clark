@@ -18,7 +18,8 @@ from pathlib import Path
 from _demo import USER
 from clark import changes, publish, sanitise, section_bodies, store as store_module
 from clark.section_kinds import base, callout, linkcard, onedoc
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome, wait
 from test_tpl_doclinks import MARK, check
@@ -117,7 +118,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(got["html"], "<p>Kept</p>")
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def raw(self, ref, text):
         import sqlite3
         con = sqlite3.connect(str(self.path))

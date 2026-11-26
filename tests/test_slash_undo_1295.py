@@ -5,7 +5,7 @@ Remove gives one #slash-undo; Make it clearer, Shorter and Write it all (describ
 typing clears the AI Undo. At 1400 and 900. Chrome is required: fails, never skips."""
 from test_server import chrome
 from test_slash_ai_1295 import AiBase, CLEARER_ADD, EDITOR
-from test_slash_editor_1295 import EditorStates
+import test_slash_editor_1295 as _test_slash_editor_1295
 
 FIELDS = "JSON.stringify(['#sl-name', '#sl-menu', '#sl-text'].map((s) => document.querySelector(s).value))"
 COUNTS = "[document.querySelectorAll('#slash-undo').length, document.querySelectorAll('#slash-ai-undo').length]"
@@ -16,7 +16,7 @@ class SlashUndo(AiBase):
         start = "Please list everything that is overdue, grouped by owner, oldest first"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                js = EditorStates.open_at(self, cdp, width, False, EDITOR + "&new=1")
+                js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, False, EDITOR + "&new=1")
                 self.ready(js)
                 for button, wait_for in (("#slash-ai-clearer", f"document.querySelector('#sl-text').value.includes({CLEARER_ADD!r})"),
                                          ("#slash-ai-shorter", "document.querySelector('#sl-text').value === 'Overdue by owner'")):

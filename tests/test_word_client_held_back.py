@@ -44,6 +44,11 @@ class Setup:
         self.local, self.word_local, self.client = self.tmp / "Local", self.tmp / "WordLocal", self.tmp / "Client"
         for folder in (self.local, self.word_local, self.client):
             folder.mkdir()
+        with self.store.step("dashboard", USER) as st:      # row 1266: a new project ends with a Documents (doclinks) section, which carries its own rows; these cases are the project's documents list, which an existing project keeps in a Supporting documents section
+            for row in self.store.read("report_sections", "ABC"):
+                if row["type"] == "doclinks":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": "ABC", "type": "docs", "title": "Supporting documents", "sort_order": row["sort_order"]})
         self.plant()
         self.demo.update("projects", "ABC", {"publish_client": str(self.client)})
 
@@ -182,7 +187,7 @@ class CleanReport(Setup, unittest.TestCase):
         with self.store.step("dashboard", USER) as st:
             st.create("documents", {"project": "ABC", "title": "Delivery plan", "kind": "Plan", "url": self.LINK, "sort_order": 1})
         # item 1188: the first section is a text section; its body (not the project's current_state) carries the rich text now
-        self.demo.update("report_sections", "ABC-S-001", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
+        self.demo.update("report_sections", "ABC-S-003", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
 
     def test_the_word_copy_saves_in_both_folders_with_its_link(self):
         status, got = self.word_export()

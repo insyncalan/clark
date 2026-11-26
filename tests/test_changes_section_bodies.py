@@ -10,7 +10,8 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import changes, section_bodies as sb, store as store_module
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 
 from test_needs_content import stored_section
 
@@ -35,7 +36,7 @@ def text(value):
     return json.dumps(value)
 
 
-class Content(Api):
+class Content(_test_changes.Api):
     def make(self, kind="needs", **more):
         if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
             ref = stored_section(self.s)
@@ -93,7 +94,7 @@ class Adding(Content):
                 self.assertNotIn(ref, self.ids_now())
 
     def test_every_other_type_is_still_refused(self):
-        for bad in ("glance", "docs", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), and "glance" stands in as a built-in the default report already has
+        for bad in ("needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), glance and docs are no longer defaults (row 1266), so they can be added again
             with self.subTest(type=bad):
                 self.refused(self.req("new", values={"type": bad, "title": "x"}), changes.NEW_TYPE_WORDS)
 
@@ -206,7 +207,7 @@ class Writing(Content):
 
     def test_the_built_in_sections_take_no_body(self):
         for row in self.rows():
-            if row["type"] in TYPES or row["type"] in ("usecases", "milestones") or row["type"] in ("text", "workitems"):      # a text section takes one, through the cleaner (test_changes_text_body)      # row 1234, row 1230: usecases and milestones take one (their view setting, test_usecases_view_body, test_milestones_view_body)
+            if row["type"] in TYPES or row["type"] in ("usecases", "milestones") or row["type"] in ("text", "workitems", "reportheadline", "glancetemplate", "doclinks"):      # a text section takes one, through the cleaner (test_changes_text_body)      # row 1234, row 1230: usecases and milestones take one (their view setting, test_usecases_view_body, test_milestones_view_body)
                 continue
             with self.subTest(type=row["type"], title=row["title"]):
                 self.refused_body(row["id"], text(BODY), changes.NO_BODY_HERE)

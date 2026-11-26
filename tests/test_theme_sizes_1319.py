@@ -7,12 +7,13 @@ import unittest
 
 from _paths import ROOT  # noqa: F401
 from test_server import chrome
-from test_theme_global_1319 import NAME, SIZES, Computed
+from test_theme_global_1319 import NAME, SIZES
+import test_theme_global_1319 as _test_theme_global_1319
 
 from clark import page
 
 
-class Sizes(Computed):
+class Sizes(_test_theme_global_1319.Computed):
     def test_classic_sizes_at_each_width_in_light_and_dark(self):
         html = page.page_html(branding=page.NO_BRAND, theme=NAME)
         with chrome() as cdp:

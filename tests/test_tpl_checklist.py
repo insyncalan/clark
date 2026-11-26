@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
@@ -116,7 +116,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(section_bodies.published("checklist", json.loads(self.check(body(line()))), base.Context()), {"v": 1, "items": [line()]})
 
 
-class Stored(Api):
+class Stored(_test_changes.Api):
     def make(self):
         return self.ok("new", values={"type": "checklist", "title": "Next steps"}, after=None)["ref"]
 
@@ -142,7 +142,7 @@ class Stored(Api):
         self.assertEqual(self.snapshot(), before)
 
 
-class Published(Api):
+class Published(_test_changes.Api):
     def plant(self):
         d = self.demo
         d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked rows sit with the built-in sections (row 1193)
