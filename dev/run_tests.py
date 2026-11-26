@@ -42,6 +42,12 @@ Run: python3 dev/run_tests.py [-j N] [--quick] [--changed [BASE]] [--push BASE] 
   --max-fail N
              once N files have failed, start no more (the ones running finish) and report: a machine where everything
              fails says so in minutes, not at the job's time limit (default 0: no limit; CI passes 8)
+  --results PATH
+             write the run's classes as JSON (also CLARK_RESULTS): DEFECT (failed, then failed alone: red), FLAKE (failed, then
+             passed alone: counted per file, not red), and "complete": false until the run ends
+  --summarize PATH [--job-status S]
+             print the markdown summary of a results file and stop; a job whose status is "cancelled" with a results file that
+             is not complete is SIZING (the 90-minute cap), never "failed"
   --rerun-max N
              re-run failures alone only when at most N files failed (default 15, or CLARK_RERUN_MAX). More than that is not
              load: something is broken for the whole machine
@@ -407,7 +413,8 @@ class Runner:
         self.stub = Path(tempfile.mkdtemp(prefix="clark-nodialog-"))      # RULE 14: osascript is a stub for every child (below)
         self.osascript_log = self.stub / "osascript-calls.log"
         stub = self.stub / "osascript"
-        stub.write_text('#!/bin/sh\necho "osascript $*" >> "$CLARK_TEST_OSASCRIPT_LOG"\nexit 1\n', encoding="utf-8")
+        # one record per call, ended by a NUL (no argument can hold one): a script of many lines is still one call
+        stub.write_text('#!/bin/sh\nprintf \'osascript %s\\0\' "$*" >> "$CLARK_TEST_OSASCRIPT_LOG"\nexit 1\n', encoding="utf-8")
         stub.chmod(0o755)
         self.procs = set()
         self.lock = threading.Lock()
@@ -419,7 +426,8 @@ class Runner:
         env = {**os.environ, "PYTHONPATH": path, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
                "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp),   # BL-246: everything it makes lands here
                "PATH": str(self.stub) + os.pathsep + os.environ.get("PATH", ""),      # RULE 14: a test never opens a real dialog
-               "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log)}
+               "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log),
+               "CLARK_TEST": "1"}      # #1666: every test child, whatever it imports, never starts the Mac's real picture reader
         if os.name == "posix":
             env["PYTHONFAULTHANDLER"] = "1"      # row 1566: SIGABRT on a hang prints every thread's Python traceback
         t, p, out, timed_out, reader = time.time(), None, [], False, None
@@ -483,11 +491,12 @@ class Runner:
             support.stop(p, grace=0)
 
     def osascript_calls(self):
-        """RULE 14: the lines the stub osascript logged (one per call a test made to the real dialog program)."""
+        """RULE 14: one entry per call a test made to the real dialog program, as the stub osascript logged it, on one line."""
         try:
-            return self.osascript_log.read_text(encoding="utf-8", errors="replace").splitlines()
+            logged = self.osascript_log.read_text(encoding="utf-8", errors="replace")
         except OSError:
             return []
+        return [" ".join(call.splitlines()) for call in logged.split("\0") if call]
 
     def close(self):
         """Remove the run's folder."""
@@ -527,6 +536,90 @@ def rerun_alone(failed, runner, most=None):
     return still, alone
 
 
+def classify(first_code, alone_code=None):
+    """T2 (AP1): PASS (passed the first time), SIZING (the file TIMED OUT, then passed alone: the shard was too heavy, not the test
+    wrong), FLAKE (failed, then passed alone) or DEFECT (failed, then failed alone too, or was not re-run). Only a DEFECT makes a
+    shard red."""
+    if first_code == 0:
+        return "PASS"
+    if alone_code == 0:
+        return "SIZING" if first_code == TIMED_OUT else "FLAKE"
+    return "DEFECT"
+
+
+def first_code(out):
+    """The first run's exit code as far as the class needs it: TIMED_OUT when the output carries the runner's TIMEOUT line, else 1."""
+    return TIMED_OUT if "\nTIMEOUT: " in out else 1
+
+
+def classes(failed, alone):
+    """Class the files that failed the first time: `failed` are (name, output) still failing after the run alone, `alone` are
+    (name, first output, run-alone output) that passed alone. Returns (DEFECT names, FLAKE names, SIZING names)."""
+    defects = [n for n, _ in failed]
+    flakes = [n for n, out, _ in alone if classify(first_code(out), 0) == "FLAKE"]
+    sizing = [n for n, out, _ in alone if classify(first_code(out), 0) == "SIZING"]
+    return defects, flakes, sizing
+
+
+def flake_counts(names):
+    """How many times each file is in the flake ledger (tests/.flaky.jsonl) on this machine, this run included."""
+    rows = FLAKY.read_text(encoding="utf-8").splitlines() if FLAKY.exists() else []
+    seen = [json.loads(x).get("file") for x in rows if x.strip()]
+    return {n: max(1, seen.count(n)) for n in names}
+
+
+def results_doc(total, defects, flakes, complete, not_run=0, failed_first=(), sizing=(), failed=False):
+    """The machine-readable result of one run: counts of DEFECT and FLAKE, the files, and whether the run reached its end.
+    `failed_first` are files that have failed once and are not yet classified (kept while the run is going, so a cancel hides none).
+    `failed`: the run reached its end red, whatever made it red (a DEFECT, files not run, an osascript call, no tests)."""
+    return {"complete": complete, "failed": failed, "files": total, "not_run": not_run,
+            "counts": {"DEFECT": len(defects), "FLAKE": len(flakes), "SIZING": len(sizing)},
+            "defects": sorted(defects), "flakes": dict(sorted(flakes.items())), "sizing": sorted(sizing),
+            "failed_first": sorted(failed_first)}
+
+
+def write_results(path, doc):
+    if path:
+        try:
+            Path(path).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"Could not write {path}: {e}", flush=True)
+
+
+def ended_defects(doc, job_status=""):
+    """The DEFECT count of a run that ended, as shown. A run or job that did not pass never shows a zero (AP2): when it counted no
+    DEFECT, something else made it red (files not run, an osascript call), so how many files are defective is unknown."""
+    count = doc["counts"]["DEFECT"]
+    red = job_status not in ("", "success") or doc.get("failed") or doc.get("not_run")
+    return "unknown (the run ended but did not pass)" if red and not count else str(count)
+
+
+def summarize(doc, job_status=""):
+    """Markdown for the job summary. Never hides a DEFECT: a run that did not end (cancelled, killed, no results file) shows the files
+    that had failed so far, or "unknown", never a zero. A cancelled job is also SIZING (the shard hit its time cap), never just "failed"."""
+    doc = json.loads(json.dumps(doc)) if doc else None
+    ended = bool(doc and doc.get("complete"))
+    c = doc["counts"] if doc else {"DEFECT": 0, "FLAKE": 0, "SIZING": 0}
+    open_files = [] if ended or not doc else doc.get("failed_first", [])
+    if job_status == "cancelled" and not ended:
+        c["SIZING"] = max(1, c["SIZING"])
+    if ended or (doc and job_status == "success"):
+        defect = ended_defects(doc, job_status)
+    elif open_files:
+        defect = f"{len(open_files)}+ (not yet re-run alone; the run did not end)"
+    else:
+        defect = "unknown (the run did not end" + ("" if doc else ", no results file") + ")"
+    lines = ["### Test classes", "", f"DEFECT {defect} | FLAKE {c['FLAKE']} | SIZING {c['SIZING']}", ""]
+    if job_status == "cancelled" and not ended:       # not for a file that timed out and passed alone in a run that ended
+        lines += ["SIZING: the job was cancelled at its time cap before the run ended; this is shard sizing, not a failed test.", ""]
+    if doc:
+        lines += [f"- DEFECT (failed twice, red): {n}" for n in doc["defects"]]
+        lines += [f"- DEFECT or unknown (failed once, the run ended before it was re-run alone): {n}" for n in open_files]
+        lines += [f"- FLAKE (failed, passed alone, x{k}): {n}" for n, k in doc["flakes"].items()]
+        lines += [f"- SIZING (timed out, passed alone): {n}" for n in doc.get("sizing", [])]
+    return "\n".join(lines) + "\n"
+
+
 def slowest_first(files):
     """Sort `files` in place: the files that failed last time first, then slowest first by the last run's times (unknown
     files count as slow); return those times."""
@@ -540,7 +633,7 @@ def slowest_first(files):
     return last
 
 
-def execute(files, jobs, runner, max_fail=0):
+def execute(files, jobs, runner, max_fail=0, on_fail=None):
     """Run `files` `jobs` at a time, the browser files at most CHROME_AT_ONCE at a time. With `max_fail` (--max-fail),
     once that many files have failed no further file starts (those running finish), and the rest are named.
     Returns {file name: seconds}, [(failed file name, output)], {file name: output}."""
@@ -562,6 +655,8 @@ def execute(files, jobs, runner, max_fail=0):
             report(f.name, code, secs, out)
             if code:
                 failed.append((f.name, out))
+                if on_fail:
+                    on_fail([n for n, _ in failed])
                 if max_fail and len(failed) == max_fail:
                     stop_starting(futures, named, max_fail)
     finally:
@@ -632,12 +727,22 @@ def main(argv):
     ap.add_argument("--stress", type=int, default=0, metavar="N")
     ap.add_argument("--file-timeout", type=float, default=FILE_TIMEOUT, metavar="S")
     ap.add_argument("--rerun-max", type=int, default=RERUN_MAX, metavar="N")
+    ap.add_argument("--results", default=os.environ.get("CLARK_RESULTS") or "", metavar="PATH")
+    ap.add_argument("--summarize", metavar="PATH")
+    ap.add_argument("--job-status", default="")
     ap.add_argument("--shard", type=shard_arg, metavar="I/N")
     ap.add_argument("--max-fail", type=int, default=0, metavar="N")
     ap.add_argument("names", nargs="*")
     a = ap.parse_args(argv)
     if a.flaky:
         flaky_report()
+        return 0
+    if a.summarize:
+        try:
+            doc = json.loads(Path(a.summarize).read_text(encoding="utf-8"))
+        except (OSError, ValueError):            # no results file: the run died before it began (not checked, not "no change")
+            doc = None
+        print(summarize(doc, a.job_status))
         return 0
     if a.changed and a.push:
         ap.error("--push already includes --changed: give one of them")
@@ -666,7 +771,7 @@ def main(argv):
     if not build_pages():
         return 1
     return run_all(files, a.j, a.repeat, a.stress, timeout=a.file_timeout, rerun_max=a.rerun_max, max_fail=a.max_fail,
-                   ids=ids)
+                   ids=ids, results=a.results)
 
 
 def build_pages():
@@ -715,7 +820,7 @@ def repeat(files, n, jobs, stress=0, timeout=FILE_TIMEOUT, ids=None):
     return 0 if all(all(v) for v in results.values()) and not dialogs else 1
 
 
-def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=None, max_fail=0, ids=None):
+def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=None, max_fail=0, ids=None, results=""):
     """Run `files`, re-run failures alone, report; always remove the run's temporary folders, even when stopped.
     With `copies` (--repeat), run that many copies of each under load instead, and report each file's passes."""
     support.clean()                       # BL-247: the folders of earlier runs that were killed outright
@@ -725,8 +830,10 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
     files = list(files)
     last = slowest_first(files)
     start, runner, dialogs = time.time(), Runner(timeout, ids), []
+    write_results(results, results_doc(len(files), [], {}, False))      # a cancelled job leaves this: complete false
     try:
-        took, failed, outs = execute(files, jobs, runner, max_fail)
+        took, failed, outs = execute(files, jobs, runner, max_fail, lambda names: write_results(
+            results, results_doc(len(files), [], {}, False, failed_first=names)))
         try:
             TIMES.write_text("".join(f"{k} {v:.2f}\n" for k, v in sorted({**last, **took}.items())), encoding="utf-8")
         except OSError:
@@ -754,10 +861,18 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
           + (f", {not_run} not run (--max-fail)" if not_run else "") + ".")
     count = sum(tests_ran(o) for o in outs.values())
     ok = not failed and not not_run and not dialogs
+    defects, flaked, sized = classes(failed, alone)
+    flakes = flake_counts(flaked)
+    passing = ok and count > 0
+    doc = results_doc(len(files), defects, flakes, True, not_run, sizing=sized, failed=not passing)
+    write_results(results, doc)
+    if flakes or sized:
+        print(f"FLAKE {len(flakes)}: " + ", ".join(f"{n} x{k}" for n, k in flakes.items()) + f"; SIZING {len(sized)}"
+              + (": " + ", ".join(sized) if sized else "") + f"; DEFECT {ended_defects(doc)}.", flush=True)
     if dialogs:
         print("\n" + osascript_message(dialogs))
     print(summary(ok, count, time.time() - start))
-    return 0 if ok and count else 1
+    return 0 if passing else 1
 
 
 if __name__ == "__main__":

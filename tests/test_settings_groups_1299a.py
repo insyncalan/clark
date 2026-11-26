@@ -17,9 +17,9 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
 GROUPS = [("You", ["Profile", "Look"]), ("All projects", ["Projects overview", "Backups"]),
-          ("Project settings", ["Reports and pages", "Brand and publishing", "People", "ask clark", "Export and import"]), ("Help and about", ["Version and updates", "Logs and diagnostics"])]
+          ("Project settings", ["Reports and pages", "Brand and publishing", "People", "ask clark", "Data"]), ("Help and about", ["Version and updates", "Logs and diagnostics"])]
 CARDS_GROUPS = [("Everyday", ["Projects", "People", "Profile"]), ("Publishing", ["Folder", "Brand", "Theme"]), ("Look and feel", ["Appearance", "Reports"]),
-                ("Data and safety", ["Backups", "Export and import"]), ("Advanced", ["Claude and AI", "Logs and diagnostics", "Version and updates"])]
+                ("Data and safety", ["Backups", "Data"]), ("Advanced", ["Claude and AI", "Logs and diagnostics", "Version and updates"])]
 AFFECTS = {"profile": "Affects: You", "appearance": "Affects: You", "projects": "Affects: All projects", "backups": "Affects: All projects",
            "reports": "Affects: TUL", "brand": "Affects: TUL", "people": "Affects: TUL", "claude": "Affects: TUL", "data": "Affects: TUL", "version": None, "logs": None}
 MENU = """(() => ({ groups: [...document.querySelectorAll('.set-nav .set-group')].map((g) => [g.querySelector('.set-group-name').textContent.trim(), [...g.querySelectorAll('.set-chip')].map((c) => c.textContent.trim())]),

@@ -7,6 +7,7 @@ Run: python3 -m unittest test_board_switch_1533   (from tests/)
 """
 import re
 import shutil
+import sys
 import sqlite3
 import tempfile
 import unittest
@@ -17,7 +18,7 @@ from clark import changes, store as store_module
 from test_gantt_store import Base
 from test_publish_dialog import Base as PageBase
 from test_server import chrome
-from test_settings_head import Head
+import test_settings_head
 from test_store_use_case_done_migration import make_at
 
 LABEL = "Show the board to clients"
@@ -137,7 +138,7 @@ class SettingsTick(PageBase):
 
     def drawn(self, cdp, w, mode):
         p = self.page(cdp)
-        Head.open_settings(self, p, w, mode, "reports")
+        test_settings_head.Head.open_settings(self, p, w, mode, "reports")
         p.until("!!document.getElementById('board-client')", "the board tick is drawn")
         return p
 
@@ -160,6 +161,23 @@ class SettingsTick(PageBase):
                 p.until("document.getElementById('board-client').checked && !!document.querySelector('#board-client').closest('.set-row').querySelector('.set-reset')", "the tick saved and Reset is offered")
                 p.js("document.querySelector('#board-client').closest('.set-row').querySelector('.set-reset').click()")
                 p.until("!document.getElementById('board-client').checked", "Reset put it back off")
+
+
+class NoHeadTests(unittest.TestCase):
+    """The Settings Head tests run in their own file: this file reaches Head.open_settings through the module, so unittest does not collect them here a second time."""
+
+    def test_the_file_does_not_collect_the_settings_head_tests(self):
+        names = [t.id() for t in unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__]) for t in _flat(t)]
+        self.assertTrue(names, "the file's own tests are collected")
+        self.assertEqual([n for n in names if n.startswith("test_settings_head.Head.")], [], "no Settings Head test is collected from this file")
+
+
+def _flat(suite):
+    for t in suite:
+        if isinstance(t, unittest.TestSuite):
+            yield from _flat(t)
+        else:
+            yield t
 
 
 if __name__ == "__main__":

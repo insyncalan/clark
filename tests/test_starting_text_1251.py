@@ -20,7 +20,7 @@ LIB = PAGE_SRC / "logic" / "templates.js"
 WANT = {
     "text": {"empty": ["Write here."]},
     "text-image": {"caption": "Say what the picture shows.", "empty": ["Write here.", "Add a picture."]},
-    "gallery": {"caption": "Say what the picture shows.", "empty": ["Add a picture."]},
+    "gallery": {"caption": "Say what the picture shows.", "empty": ["Choose images, or drop them here (up to six)"]},
     "quote": {"empty": ["Write what they said.", "Say who said it."]},
     "callout": {"empty": ["Write the one thing the reader must see."]},
     "contacts": {"empty": ["Add a person."]},

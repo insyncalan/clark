@@ -1,7 +1,7 @@
 """Row 1299 line 6: project tabs across the top of the Settings pages that hold one project's settings, in a real browser at 1400 and 900 px,
 light and dark. Run: python3 dev/run_tests.py test_settings_tabs_1299b
 
-What is asserted (Classic): the project pages (Reports and pages, Brand and publishing, People, ask clark, Export and import) draw one tab for each project, in the list's order, with
+What is asserted (Classic): the project pages (Reports and pages, Brand and publishing, People, ask clark, Data) draw one tab for each project, in the list's order, with
 the open project marked (aria-current); the tabs are one row about 44 px high and are pinned under the top bar when the page scrolls; a click on another tab changes the Settings page's project only (no page read, the address and the top bar do not move); the All projects and You pages draw no tabs; with the Cards look (no theme layer)
 no page draws tabs. Not in this part: a project switch without a page read, an Add project link. Chrome is required: these tests fail, never skip, without it.
 """
@@ -18,7 +18,7 @@ from test_settings_head import address
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 TWO = [{"code": "PUB", "name": "Harbour Bridge Programme", "open": 3}, {"code": "ABC", "name": "Second Programme", "open": 1}]
-TABS = "[...document.querySelectorAll('.set-tabs .set-tab')]"
+TABS = "[...document.querySelectorAll('.set-tabs .set-tab:not([data-all])')]"      # the project tabs; ask clark's leading All projects tab is data-all
 PROJECT_PAGES = ("reports", "brand", "people", "claude", "data")
 OTHER_PAGES = ("projects", "backups", "profile", "appearance", "version")
 
@@ -83,7 +83,7 @@ class Tabs(Base):
                     self.assertFalse(p.js("!!document.querySelector('.set-tabs')"), f"{slug} has no tabs")
 
     def test_T_a_click_on_another_tab_changes_the_settings_project_and_nothing_else(self):
-        """The tab switch is off (Views.jsx SWITCH_TABS) until the project cards follow the chosen tab: the other tab cannot be chosen, nothing moves."""
+        """The tab switch is off (stores/report.js switchTabs) until the project cards follow the chosen tab: the other tab cannot be chosen, nothing moves."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400, slug="people")

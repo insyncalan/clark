@@ -128,7 +128,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1; MACOS=1 ;;", plan)               # a push to main: full Ubuntu and the full macOS suite (17:58 order)
+        self.assertIn("push) FULL=1; SMOKE=1 ;;", plan)               # a push to main: full Ubuntu and the Mac smoke set (the owner, 24-11, row 1602)
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -230,18 +230,48 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_six_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_nine_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "6") for i in range(1, 7)})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
         self.assertRegex(mac, r"runs-on: macos-latest")
-        self.assertIn('python-version: "3.x"', mac)
+        self.assertIn('python-version: "3.15.2"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
+        self.assertNotIn('python-version: "3.x"', mac)
+        self.assertNotIn('python-version: "3.x"', self.jobs["macos-smoke"])
         self.assertNotIn("--quick", mac)
-        self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the Sunday run
+        self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the nightly run
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
         self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ matrix.shards }}", mac)
         self.assertIn("fail-fast: false", mac)
         self.assertIn("SHARD: ${{ matrix.shard }}", mac)
         self.assertIn("SHARDS: ${{ matrix.shards }}", mac)
+        # T2: the classes are summarised even when the job is cancelled at the cap, and kept as an artifact
+        self.assertIn("--summarize", mac)
+        self.assertIn("--job-status", mac)
+        self.assertIn("if: ${{ always() }}", mac)
+        self.assertIn("actions/upload-artifact@", mac)
+
+    def test_the_macos_job_pins_python_3_15_2(self):
+        for job in ("macos", "macos-smoke"):
+            self.assertIn('python-version: "3.15.2"', self.jobs[job], job)
+            self.assertNotIn('python-version: "3.x"', self.jobs[job], job)
+
+    def test_the_macos_job_pins_python_3_15_2_for_shards_1_to_9(self):
+        mac = self.jobs["macos"]
+        self.assertEqual(sorted(int(i) for i, _ in re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), list(range(1, 10)))
+        self.assertEqual(mac.count("python-version:"), 1)        # one setup step, so every one of the nine shards runs the pinned Python
+        self.assertIn('python-version: "3.15.2"', mac)
+
+    def test_the_tests_passed_gate_line_is_unchanged_by_the_classification(self):
+        passed = self.jobs["passed"]
+        for word in ("DEFECT", "FLAKE", "SIZING", "summarize", "test-classes", "CLARK_RESULTS"):
+            self.assertNotIn(word, passed)                       # the gate reads job results only, never the classes
+        self.assertIn('test "$PLAN" = "success"', passed)
+        self.assertIn('test "$TESTS" = "success"', passed)
+        self.assertIn('name: Tests passed', passed)
+        mac = self.jobs["macos"]                                 # the summary steps cannot make the job result differ from the tests' own
+        self.assertEqual(mac.count("if: ${{ always() }}"), 2)
+        self.assertNotIn("continue-on-error: true", mac)
+        self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
 
     def test_chrome_is_found_as_creaite_finds_it(self):
         for job in ("tests", "tests-py39", "macos"):
@@ -274,18 +304,60 @@ class Workflow(unittest.TestCase):
             else:
                 self.assertNotIn("continue-on-error", body, job)
 
-    def test_the_nightly_runs_the_full_macos_suite_and_it_is_required(self):
+    def test_the_nightly_runs_the_full_macos_suite_and_it_is_advisory_and_smoke_is_required(self):
+        """the owner, 24-11 (row 1602): "require the Mac smoke set only; run the full suite nightly as advisory". One nightly cron (the second,
+        '0 23 * * 0', was Monday 03:00 Dubai: a duplicate full macOS run); the schedule arm sets ADVISORY=1; a push to main asks for the smoke set and not for the shards."""
         wf = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('- cron: "0 22 * * *"', wf)
-        self.assertIn('- cron: "0 23 * * 0"', wf)
-        self.assertIn("schedule) FULL=1; MACOS=1 ;;", wf)      # every nightly: full macOS, required (no smoke-only, no advisory)
-        self.assertNotIn("ADVISORY=1", wf[wf.index("schedule) FULL=1"):wf.index("schedule) FULL=1") + 80])
+        self.assertNotIn('- cron: "0 23 * * 0"', wf)
+        self.assertEqual(wf.count("- cron:"), 1)
+        self.assertIn("schedule) FULL=1; MACOS=1; ADVISORY=1 ;;", wf)      # the nightly: full macOS, advisory
+        self.assertIn("push) FULL=1; SMOKE=1 ;;", wf)                     # a push to main: the smoke set, no shards
+        self.assertNotIn("push) FULL=1; MACOS=1", wf)
         smoke = self.jobs["macos-smoke"]
         self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
         self.assertIn("runs-on: macos-latest", smoke)
         for f in ("test_updates", "test_updater", "test_platform", "test_launcher", "test_doctor", "test_package", "test_main"):
             self.assertIn(" " + f + " ", smoke + " ")
         self.assertNotIn("--shard", smoke)
+
+    def plan_outputs(self, **env):
+        """Run the plan job's script as bash with these env values (an event that never reads the pull request's files, so no network) and return its outputs."""
+        import os
+        import tempfile
+        plan = self.jobs["plan"]
+        body = plan[plan.index("run: |\n") + len("run: |\n"):]
+        body = body[:body.index("\n\n")] if "\n\n" in body else body
+        script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "out")
+            open(out, "w", encoding="utf-8").close()
+            base = {"PATH": os.environ["PATH"], "GITHUB_OUTPUT": out, "RUNNER_TEMP": d, "EVENT": "", "BRANCH": "", "BASE_REF": "",
+                    "LABELS": "", "MACOS_INPUT": "", "SCHEDULE": "", "REPO": "x/y", "PR_NUMBER": "", "GH_TOKEN": ""}
+            base.update(env)
+            r = subprocess.run(["bash", "-c", script], env=base, capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return dict(ln.split("=", 1) for ln in open(out, encoding="utf-8").read().splitlines() if "=" in ln)
+
+    def test_macos_smoke_is_required_and_the_full_suite_runs_only_nightly_or_by_hand(self):
+        """The plan, run for real: push to main and a release line get the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
+        a hand-started run with macos=true on a release branch gets the shards (required) in place of the smoke set; an ordinary branch gets neither."""
+        cases = (
+            (dict(EVENT="push", BRANCH="main"), "", "1", ""),
+            (dict(EVENT="schedule", BRANCH="main"), "1", "", "1"),
+            (dict(EVENT="push", BRANCH="release-1.3.11"), "", "1", ""),
+            (dict(EVENT="pull_request", BRANCH="x", BASE_REF="release-1.3.11"), "", "1", ""),
+            (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), "", "1", ""),
+            (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", ""),
+            (dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true"), "1", "", ""),
+            (dict(EVENT="workflow_dispatch", BRANCH="team-x"), "", "", ""),
+            (dict(EVENT="merge_group", BRANCH="main"), "", "", ""),
+        )
+        for env, macos, smoke, advisory in cases:
+            out = self.plan_outputs(**env)
+            self.assertEqual((out.get("macos", ""), out.get("smoke", ""), out.get("advisory", "")), (macos, smoke, advisory), env)
+        self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("py39", ""), "")      # Python 3.9 stays off a push to main (owner's order 08-11)
+        self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="release-1.3.11").get("py39"), "1")
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 
@@ -308,9 +380,9 @@ class Workflow(unittest.TestCase):
             self.assertTrue(seen.get(name), f"{name} must be in the plan's Mac-specific list")
         self.assertIn(".github/*) FULL=1 ;;", plan)
 
-    def test_a_pull_request_never_requires_the_macos_shards_but_main_does(self):
-        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check); the full macOS suite stays
-        required on a push to main and on the nightly."""
+    def test_a_pull_request_never_requires_the_macos_shards(self):
+        """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check). the owner, 24-11 (row 1602): a push to main
+        gets the smoke set too, and the nightly's full macOS suite is advisory, so the shards are required only for a hand-started run with macos=true."""
         plan = self.jobs["plan"]
         pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]
         self.assertNotIn("MACOS=1", pr_part)          # no pull-request path asks for the macOS shards

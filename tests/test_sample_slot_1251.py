@@ -52,7 +52,7 @@ class Classic(Base):
     def test_each_empty_picture_template_has_one_sample_in_edit_and_view_has_none(self):
         refs = [make(self, *k) for k in KINDS]
         got = counts(self, refs)
-        for ref, want in zip(refs, (1, 1, 6, 1)):      # the gallery shows its six
+        for ref, want in zip(refs, (1, 1, 0, 1)):      # row 1233: the gallery's empty area is the dashed one, with no sample
             for width in (1400, 900):
                 self.assertEqual(got[(ref, width)], want, f"{ref} at {width}")
         for width in (1400, 900):
@@ -67,17 +67,15 @@ class Classic(Base):
         self.assertEqual(got[(ref, 1400)], 0)
 
 
-    def test_the_gallery_samples_are_six_different_pictures_that_loaded_and_the_published_file_has_none(self):
+    def test_the_empty_gallery_draws_the_dashed_area_and_no_sample(self):      # row 1233 (AP6): replaces the six samples of row 1251
         ref = make(self, "gallery", "Fictional six")
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             sel = json.dumps(f"[data-id={json.dumps(ref)}]")
             p.until(f"!!document.querySelector({sel})", "the section is drawn")
-            got = p.js("(function(s){return [...document.querySelector(s).querySelectorAll('img[data-sample]')].map(function(i){return [i.src.length,i.naturalWidth,i.getBoundingClientRect().width]})})(" + sel + ")")
-        self.assertEqual(len(got), 6)
-        self.assertEqual(len({g[0] for g in got}), 6)
-        self.assertTrue(all(g[1] == 640 and g[2] > 40 for g in got), got)
+            p.until(f"!!document.querySelector({sel}).querySelector('.tpl-gal-empty')", "the empty area")
+            self.assertEqual(p.js(f"document.querySelector({sel}).querySelectorAll('img[data-sample]').length"), 0)
 
     def test_the_sample_fills_its_slot_in_the_16_by_9_shape_at_both_widths(self):
         ref = make(self, "imagecap", "Fictional frame")

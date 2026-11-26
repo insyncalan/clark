@@ -15,8 +15,18 @@ def read():
     return (ROOT / ".mergify.yml").read_text(encoding="utf-8")
 
 
-def code_lines():
+def all_code_lines():
     return [ln.rstrip() for ln in read().splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+def code_lines():
+    """The queue_rules section only: the lines before the top-level pull_request_rules key."""
+    out = []
+    for ln in all_code_lines():
+        if ln == "pull_request_rules:":
+            break
+        out.append(ln)
+    return out
 
 
 def list_under(key):
@@ -46,10 +56,18 @@ class MergifyConfig(unittest.TestCase):
                          ["label = queue", "base = main", "-draft"] + ["check-success = " + c for c in CHECKS])
         self.assertEqual(list_under("merge_conditions"), ["check-success = " + c for c in CHECKS])
 
-    def test_queue_squashes_in_batches_of_3_and_waits_1_minute(self):
+    def test_queue_merges_with_a_merge_commit_in_batches_of_3_and_waits_1_minute(self):
         lines = code_lines()
-        for want in ("    merge_method: squash", "    batch_size: 3", "    batch_max_wait_time: 1 minute"):
+        for want in ("    merge_method: merge", "    batch_size: 3", "    batch_max_wait_time: 1 minute"):
             self.assertEqual(lines.count(want), 1, want)
+
+    def test_pull_request_rule_queues_labelled_prs_into_default(self):
+        lines = all_code_lines()
+        self.assertEqual(lines.count("pull_request_rules:"), 1)
+        rest = lines[lines.index("pull_request_rules:") + 1:]
+        self.assertEqual(rest, ["  - name: Queue PRs labelled queue", "    conditions:",
+                                "      - label = queue", "      - base = main", "      - -draft", "      - -closed",
+                                "    actions:", "      queue:", "        name: default"])
 
 
 if __name__ == "__main__":

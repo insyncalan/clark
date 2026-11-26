@@ -138,9 +138,9 @@ class SettingsChips(unittest.TestCase):
             return re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
         # row 1299 1a: the Cards look keeps its five groups, Classic has the mock-up's four; both are pinned exactly, neither is accepted for the other
         self.assertEqual(menu("GROUPS"), (["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"],
-                         ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"]))
+                         ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Data", "Claude and AI", "Logs and diagnostics", "Version and updates"]))
         self.assertEqual(menu("GROUPS_CLASSIC"), (["You", "All projects", "Project settings", "Help and about"],
-                         ["Profile", "Look", "Projects overview", "Backups", "Reports and pages", "Brand and publishing", "People", "ask clark", "Export and import", "Version and updates", "Logs and diagnostics"]))
+                         ["Profile", "Look", "Projects overview", "Backups", "Reports and pages", "Brand and publishing", "People", "ask clark", "Data", "Version and updates", "Logs and diagnostics"]))
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
         self.assertIn('<nav class="set-bar"', views)

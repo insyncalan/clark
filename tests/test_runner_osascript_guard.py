@@ -9,6 +9,7 @@ Three guards, each proved here:
 The runner is exercised on tiny test files made in a temporary folder, never on the real suite.
 """
 import io
+import json
 import os
 import shutil
 import sys
@@ -36,6 +37,10 @@ PATHS = ("import os, unittest\nclass T(unittest.TestCase):\n    def test_path(se
          "        self.assertTrue(os.access(os.path.join(first, 'osascript'), os.X_OK))\n")
 CALLS = ("import subprocess, unittest\nclass T(unittest.TestCase):\n    def test_calls(self):\n"
          "        subprocess.run(['osascript', '-e', 'beep'])\n")
+LONG_CALLS = ("import subprocess, unittest\nclass T(unittest.TestCase):\n    def test_calls(self):\n"
+              "        script = '\\n'.join(f'line {i} of the script' for i in range(21))\n"
+              "        for _ in range(4):\n"
+              "            subprocess.run(['osascript', '-e', script])\n")
 
 
 def tiny(text, name="test_tiny"):
@@ -62,17 +67,60 @@ class TheRunnerStubsOsascript(unittest.TestCase):
         self.assertEqual(len(lines), 1, lines)
         self.assertIn("osascript -e beep", lines[0])
 
+    def test_one_record_per_call_however_many_lines_the_script_has(self):
+        _, code, _, out = self.runner.run(tiny(LONG_CALLS))
+        self.assertEqual(code, 0, out)
+        calls = self.runner.osascript_calls()
+        self.assertEqual(len(calls), 4, calls)
+        for call in calls:
+            self.assertTrue(call.startswith("osascript -e line 0 of the script"), call)
+            self.assertIn("line 20 of the script", call)
+            self.assertNotIn("\n", call)
+
     def test_a_clean_child_logs_nothing(self):
         self.runner.run(tiny(CLEAN))
         self.assertEqual(self.runner.osascript_calls(), [])
 
 
+class TheRunnerSetsClarkTest(unittest.TestCase):
+    """#1666 AP1b: dev/run_tests.py gives every test child CLARK_TEST=1, even when the caller's environment has none."""
+    CHILD = ("import os, unittest\nclass T(unittest.TestCase):\n    def test_flag(self):\n"
+             "        self.assertEqual(os.environ.get('CLARK_TEST'), '1')\n")
+
+    def test_a_child_sees_clark_test_1_though_the_caller_has_none_or_another_value(self):
+        for before in (None, "0", ""):
+            env = {k: v for k, v in os.environ.items() if k != "CLARK_TEST"}
+            if before is not None:
+                env["CLARK_TEST"] = before
+            with mock.patch.dict(os.environ, env, clear=True):
+                runner = run_tests.Runner(timeout=60)
+                self.addCleanup(runner.close)
+                _, code, _, out = runner.run(tiny(self.CHILD))
+            self.assertEqual(code, 0, f"caller CLARK_TEST={before!r}: {out}")
+
+
 class ARunWithADialogCallFails(unittest.TestCase):
-    def run_all(self, text):
+    def run_all(self, text, results=""):
         out = io.StringIO()
         with redirect_stdout(out), mock.patch.object(run_tests, "TIMES", BASE / "times.txt"), mock.patch.object(run_tests, "remember_failed"):
-            code = run_tests.run_all([tiny(text)], 1)
+            code = run_tests.run_all([tiny(text)], 1, results=results)
         return code, out.getvalue()
+
+    def test_a_run_red_only_for_a_dialog_call_never_says_defect_0(self):
+        res = BASE / "results-dialog.json"
+        code, out = self.run_all(CALLS, results=str(res))
+        self.assertEqual(code, 1, out)
+        doc = json.loads(res.read_text(encoding="utf-8"))
+        self.assertEqual((doc["complete"], doc["defects"], doc["not_run"]), (True, [], 0), out)
+        for status in ("failure", ""):
+            text = run_tests.summarize(doc, status)
+            self.assertNotIn("DEFECT 0", text, status)
+            self.assertIn("DEFECT unknown", text, status)
+
+    def test_the_failure_counts_calls_not_lines(self):
+        code, out = self.run_all(LONG_CALLS)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: 4 call(s) to osascript", out)
 
     def test_every_test_passes_yet_the_run_fails_and_names_the_logged_line(self):
         code, out = self.run_all(CALLS)

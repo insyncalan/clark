@@ -113,6 +113,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 :root[data-theme=dark] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .set-tab[aria-current] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 .set-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1299 AP12 (no project, Classic only): the Add project link where the tabs would be. */
+.set-add-project { display: inline-block; margin: 0 0 var(--space-3); font-size: var(--size-small); }
 @media (max-width: 899px) { .set-tabs { top: calc(var(--topbar) + var(--set-bar, 0px)); } }
 /* Row 1299 (Brand for <code>, Classic only): the group heading over the project's brand row, a small heading in the heading colour with room above it. Bare length: the 600 weight. */
 .brand-for { margin: var(--space-4) 0 var(--space-1); color: var(--heading); font-size: var(--size-body); font-weight: 600; }
@@ -298,10 +300,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .pp-flat h1 { margin: var(--space-4) 0 var(--space-2); }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
-/* Row 1286 AP4 (ruling 23-11; Classic only; here because rules.css is at the 128 KB file limit, beside its Row 1286 menu rules at rules.css:411): the icons of Group by, Add and Move to draw the mock-up tones (menu-icons.css:5) - red, green and blue; amber and grey are already the same. The other menus keep production's tones. The three tokens hold exactly the mock-up values in light and in dark (tests/test_menu_icon_tones_1286.py pins them). */
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-r { color: var(--status-red-text); }
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-g { color: var(--status-green-text); }
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-b { color: var(--tone-blue-text); }
 /* Row 1294: the Defaults page opens the All projects tab with a text link, as the mock-up A8 draws it (muted dashed underline, brand colour on hover). Classic only. */
 .essentials .ess-link { background: none; border: 0; border-bottom: 1px dashed var(--text-muted); border-radius: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
 .essentials .ess-link:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
@@ -415,6 +413,31 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1233 (the Image gallery's Edit page, Classic only; Cards keeps the slot list). Values read from the approved mock-up (gallery-source.html, line numbers there): the grid (50), tile and frame (51-52, 20), add tile (56, 55), empty area (55, 108), caption (55). Three across, two at half width and at 900 px. */
+.tpl-gal-tiles { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-gal-tiles.c2, .slot-left .tpl-gal-tiles, .slot-right .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tpl-gal-tile { position: relative; box-sizing: border-box; padding: 0; border: 2px solid transparent; border-radius: 12px; cursor: pointer; min-width: 0; }
+.tpl-gal-tile.sel { border-color: var(--brand-blue); }
+.tpl-gal-frame { position: relative; width: 100%; overflow: hidden; border-radius: 9px; background-color: var(--grey-100); aspect-ratio: 4 / 3; }
+.tpl-gal-tiles.s11 .tpl-gal-frame { aspect-ratio: 1; }
+.tpl-gal-tiles.s169 .tpl-gal-frame { aspect-ratio: 16 / 9; }
+.tpl-gal-tiles.swhole .tpl-gal-frame { aspect-ratio: auto; }
+.tpl-gal-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tpl-gal-tiles.swhole .tpl-gal-frame img { height: auto; }
+.tpl-gal-tcap { margin: 8px 2px 0; font-size: 13px; color: var(--text-muted); }
+.tpl-gal-add { display: grid; place-items: center; box-sizing: border-box; min-height: 120px; border: 2px dashed var(--grey-300); border-radius: 12px; background: none; color: var(--text-muted); font: inherit; cursor: pointer; aspect-ratio: 4 / 3; }
+.tpl-gal-tiles.s11 .tpl-gal-add { aspect-ratio: 1; }
+.tpl-gal-tiles.s169 .tpl-gal-add { aspect-ratio: 16 / 9; }
+.tpl-gal-tiles.swhole .tpl-gal-add { aspect-ratio: 3 / 2; }
+.tpl-gal-add b { display: block; font-size: 26px; line-height: 1; }
+.tpl-gal-add span { font-size: 13px; }
+.tpl-gal-empty { display: grid; place-items: center; gap: 4px; box-sizing: border-box; width: 100%; min-height: 200px; border: 2px dashed var(--grey-300); border-radius: 12px; background: none; color: var(--text-muted); font: inherit; cursor: pointer; }
+.tpl-gal-empty b { font-size: 28px; }
+.tpl-gal-add:hover:not([disabled]), .tpl-gal-empty:hover:not([disabled]), .tpl-gal-empty.over, .tpl-gal-tiles.over .tpl-gal-add { border-color: var(--brand-blue); color: var(--brand-blue); }
+.tpl-gal-warn { margin: 3px 0 0; color: var(--tone-red-text); font-size: 13px; }
+.tpl-gal-count { margin: 6px 0 0; font-size: 13px; }
+
 /* Row 1591 (Classic only; Cards keeps its own rule): in Edit the section title box fills the heading row (it was as wide as its text, about 65px), stays on one line, never breaks inside a word, and ends with an ellipsis until it is focused; focused, it scrolls so the whole text is reachable. */
 .sec-t:has(> .sec-title) { width: 100%; }   /* stays inline-block (rules.css .sec-t), so the section head's line box and height are the ones main has; a shrink-to-fit box would give the title's 100% only its own text width */
 .sec-t > .sec-title { vertical-align: top; box-sizing: border-box; width: 100%; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }

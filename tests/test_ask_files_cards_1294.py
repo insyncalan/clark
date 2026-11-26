@@ -196,6 +196,21 @@ class Order(Base):
                     self.assertEqual(js(ORDER % cond), "[" + ",".join('"%s"' % i for i in ids) + "]", f"{tab} at {w}")
 
 
+class Pictures(Base):
+    def test_no_pictures_switch_is_drawn_on_either_tab_at_1400_and_900(self):
+        """Row 1294 DoD-4 (AP4), second clause: 0 Pictures switches. Nothing reads a picture yet, so no switch, checkbox or button in the ask clark cards is named for pictures or images, and the Files card has its one switch."""
+        probe = ("JSON.stringify([...document.querySelectorAll('section.setting button, section.setting input, section.setting [role=switch], section.setting [role=checkbox], #ask-settings button, #ask-settings input')]"
+                 ".filter(e => /picture|image|photo/i.test([e.textContent, e.getAttribute('aria-label'), e.getAttribute('title'), e.getAttribute('id'), e.getAttribute('name'), [...e.attributes].map(a => a.name).join(' ')].join(' '))).map(e => e.outerHTML.slice(0, 80)))")
+        for tab, one in (("all", "[data-files-switch]"), ("project", "[data-files-here]")):
+            with self.subTest(tab=tab), chrome() as cdp:
+                js = self.show(cdp, tab)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('%s')" % one), 10), "the Files switch is drawn")
+                for w in WIDTHS:
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    self.assertEqual(js("document.querySelectorAll('%s').length" % one), 1, f"{tab} at {w}: the one Files switch")
+                    self.assertEqual(js(probe), "[]", f"{tab} at {w}: a Pictures switch is drawn")
+
+
 class Cards(Base):
     theme = None
 

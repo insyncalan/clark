@@ -323,6 +323,26 @@ class FiveStates(Base):
         self.assertEqual(got[a]["line"], "Not indexed.")
         self.assertFalse(ask_index.path_for(self.data, "ABC").exists())
         self.assertEqual(ix.busy, 0)
+        # paused: the first pass was stopped half way and clark is closing, so no run can carry on
+        stop = threading.Event()
+        stop.set()
+        ask_index.refresh(self.data, "PAU", [a], self.home, stop=stop)
+        closing = ask_index.Indexer(self.data, self.home)
+        self.addCleanup(closing.shutdown)
+        closing.stop.set()
+        self.assertEqual(closing.status_for("PAU", [a])[a], {"state": "paused", "line": "Indexing paused. It carries on when clark is open"})
+        # failed: the run raised; the line says so until a read is started again
+        calls = []
+
+        def boom(data, code, folders, home=None, stop=None, progress=None):
+            calls.append(code)
+            raise RuntimeError("x")
+        bad = ask_index.Indexer(self.data, self.home, refresh_fn=boom)
+        self.addCleanup(bad.shutdown)
+        bad.start("FAI", [a])
+        self.assertTrue(bad.wait_idle(5))
+        self.assertEqual(bad.status_for("FAI", [a])[a], {"state": "failed", "line": "Could not index this folder."})
+        self.assertEqual(calls, ["FAI"])
 
     def test_one_changed_file_says_1_file(self):
         self.put(self.a, "one.txt", "alpha river")

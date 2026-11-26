@@ -89,6 +89,7 @@ class OnThePage(Base):
             for w in (1400, 900):
                 p.width(w)
                 p.show()
+                p.until("!!document.querySelector('#palette .pal-row[data-kind=\"Project\"]')", "the projects are listed")          # the list comes from GET /api/projects after the page draws (row 1518)
                 kinds = [r[0] for r in p.rows(True)]
                 self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"], f"at {w} px")
                 p.find("what is work?")

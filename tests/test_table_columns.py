@@ -8,7 +8,6 @@ and the project's data do not know about it. At 1400 and 900 px, light and dark.
 """
 import json
 import shutil
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -122,10 +121,10 @@ class Columns(unittest.TestCase):
                         sid, js = self.open_table(cdp, width, scheme, table)
                         self.assertIsNone(self.menu(js), "no menu until it is asked for")
                         self.assertTrue(self.open_menu(cdp, sid, js, head % ("owner" if table == "work" else "state")), "the menu opens")
-                        # The menu slides in by a few pixels, so its box is read only once it has stopped (twice the same, 100 ms apart).
+                        # The menu slides in by a few pixels, so its box is read only once it has stopped (the same on two reads in a row, taken by the wait helper's own polling).
                         seen = []
                         def still():
-                            seen.append(self.menu(js)["rows"]); time.sleep(.1)
+                            seen.append(self.menu(js)["rows"])
                             return len(seen) > 1 and seen[-1] == seen[-2]
                         self.assertTrue(wait(still, 5), "the menu stops moving")
                         got = self.menu(js)

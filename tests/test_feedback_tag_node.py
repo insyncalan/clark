@@ -152,7 +152,7 @@ class Killers(unittest.TestCase):
 
     def test_page_words_every_settings_page_name(self):
         names = {"people": "People", "profile": "Profile", "folder": "Folder", "brand": "Brand", "appearance": "Appearance", "reports": "Reports",
-                 "backups": "Backups", "data": "Export and import", "claude": "Claude and AI", "logs": "Logs and diagnostics",
+                 "backups": "Backups", "data": "Data", "claude": "Claude and AI", "logs": "Logs and diagnostics",
                  "version": "Version and updates", "projects": "Projects"}
         for k, v in names.items():
             self.assertEqual(call("FT.pageWords({view:'settings',page:'%s'})" % k), "Settings, " + v, k)
