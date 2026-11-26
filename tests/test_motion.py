@@ -20,6 +20,7 @@ import test_enrichments as te
 import test_work_filters as tf
 import test_publish_dialog as tpd
 import test_report_editor as tre
+from test_glance_tiles import builtin_glance
 from test_server import Running, chrome
 
 sys.path.insert(0, str(TOOLS))
@@ -176,6 +177,7 @@ class Looks(tre.Base):
                 self.assertEqual(off, on, "the row and its text do not shift or resize")
 
     def test_the_health_badge_and_reason_settle_when_health_changes_and_not_on_the_first_draw(self):
+        builtin_glance(self.store, ["ABC"])      # row 1266: the health badge and reason are the built-in glance's
         for mode in MODES:
             with self.subTest(mode=mode[0]), chrome() as cdp:
                 p = self.go(cdp, "#dashboard&p=ABC", mode)

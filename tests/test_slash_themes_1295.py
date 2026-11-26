@@ -13,7 +13,7 @@ CONTRAST = r"""(()=>{const lum=(c)=>{const m=c.match(/[\d.]+/g).map(Number).slic
 
 
 # Row 1572: when the lowest label is below 4.5, say WHICH element it is, its colour and the colour behind it (a hand run on a Mac read 2.318, the light muted colour on the dark page, and the log named nothing).
-WHO = CONTRAST.replace("return r.length?Math.min(...r):0;", "const i=r.indexOf(Math.min(...r));return els.length?[els[i].tagName+'.'+els[i].className+'#'+els[i].id, getComputedStyle(els[i]).color, r[i].toFixed(2), document.documentElement.dataset.theme||'', getComputedStyle(document.body).color]:[];")
+WHO = CONTRAST.replace("const r=els.map", "const bgs=[];const r=els.map").replace("const a=lum", "bgs.push(bg);const a=lum").replace("return r.length?Math.min(...r):0;", "const i=r.indexOf(Math.min(...r));return els.length?[els[i].tagName+'.'+els[i].className+'#'+els[i].id, getComputedStyle(els[i]).color, 'behind '+bgs[i], r[i].toFixed(2), document.documentElement.dataset.theme||'', getComputedStyle(document.body).color]:[];")
 
 
 class SlashThemes(Base):
@@ -30,4 +30,16 @@ class SlashThemes(Base):
                     self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     # the dark tokens are set by script and read at once: wait until no colour is still changing (document.getAnimations is empty)
                     self.until(js, "document.getAnimations().length === 0", "no colour is still changing", 10)
-                    self.assertGreaterEqual(js(CONTRAST), 4.5, "the lowest label contrast; element, its colour, ratio, theme, body colour: %r" % (js(WHO),))
+                    self.assertGreaterEqual(js(CONTRAST), 4.5, "the lowest label contrast; element, its colour, the colour behind it, ratio, theme, body colour: %r" % (js(WHO),))
+
+    # Row 1572: the buttons change colour at once with the theme (no colour fade to read mid-way) and keep the press movement's fade (transform), Classic
+    def test_the_buttons_have_no_colour_fade_and_keep_the_transform_fade_at_1400_and_900(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    self.until(js, "!!document.querySelector('#slash-cancel')", "the Cancel button")
+                    got = js("[...document.querySelectorAll('#slash-page button')].map(b => b.id + '/' + b.className + ':' + getComputedStyle(b).transitionProperty)")
+                    self.assertTrue(got, "the page has buttons")
+                    for g in got:
+                        self.assertTrue(g.endswith(":transform"), f"{width} dark={dark}: only transform may fade: {g!r} in {got!r}")

@@ -1,14 +1,15 @@
 // Settings, Reports: the Pages card (row 1252, Classic only). The Add page row with its cap line and meter, the list of the project's pages (the prebuilt Gantt
 // page first, then each added page in menu order) and, under a page's Configure button, the Configure group: Name, Menu position, Shown to the client, Sections,
 // Hide from the menu, Remove page. The prebuilt Gantt page counts as one of the five ALWAYS, hidden or shown. Every change is one step with Undo (added_pages).
-// The Add page button asks for the Add page box with the window event below; the box itself is the next slice.
-import { useRef, useState } from "preact/hooks";
+// The Add page button asks for the Add page box (AddPageBox.jsx) with the document event below; this card opens it.
+import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, project, shownTabs, titleOf, show } from "../stores/report.js";
 import { change, undo } from "../stores/changes.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { editorOn, clientOn, requestFor } from "../gantt/ganttTab.js";
 import { MAX_ADDED_PAGES } from "../logic/templates.js";
+import { AddPageBox } from "./AddPageBox.jsx";
 
 export const ADD_PAGE_EVENT = "clark:add-page";
 const WORDS = {
@@ -110,6 +111,12 @@ function Configure({ page, pages }) {
 
 export function AddPages() {
   const [open, setOpen] = useState("");
+  const [box, setBox] = useState(null);       // the Add page box: { opener } while it is open
+  useEffect(() => {
+    const ask = (e) => setBox({ opener: (e.detail && e.detail.opener) || null });
+    document.addEventListener(ADD_PAGE_EVENT, ask);
+    return () => document.removeEventListener(ADD_PAGE_EVENT, ask);
+  }, []);
   if (!classicTheme() || !data.value) return null;
   const p = data.value.project || {}, pages = sorted(data.value.added_pages || []);
   const used = pages.length + 1, full = used >= MAX_ADDED_PAGES;       // the prebuilt Gantt page is one of the five, hidden or shown
@@ -142,6 +149,7 @@ export function AddPages() {
       <div class="ap-foot"><div class="ap-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, used * 20)}%` }} /></div>
         <p class="ap-meter">{WORDS.meter(used)}</p><p class="ap-cap muted">{WORDS.cap}</p></div>
       {current ? <Configure key={current.id} page={current} pages={pages} /> : null}
+      {box && !full ? <AddPageBox project={p} opener={box.opener} onClose={() => setBox(null)} /> : null}
     </section>
   );
 }
