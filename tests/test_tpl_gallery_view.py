@@ -252,6 +252,13 @@ class View(unittest.TestCase):
         self.assertEqual(self.js("document.querySelector('figcaption').textContent"), "<b>Fictional</b> & plan")
         self.assertEqual(self.js("document.querySelectorAll('figcaption b, img[alt] i').length"), 0)
 
+    def test_the_view_never_shows_the_red_no_description_mark_of_the_edit(self):
+        for theme in ("light", "dark"):
+            self.draw(pictures(2, alts=False), 1400, theme)
+            self.assertEqual(self.js("document.querySelectorAll('.tpl-gal-nodesc').length"), 0, f"no mark on undescribed images in the view, {theme}")
+            self.assertEqual(self.js("document.querySelectorAll('.tpl-gal-fig').length"), 2, "the images are drawn")
+            self.assertNotIn("No description yet", self.js("document.body.textContent"))
+
     def test_an_address_that_is_not_a_real_image_draws_nothing(self):
         for bad in ("http://example.com/a.png", "javascript:alert(1)", "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", "data:image/gif;base64,R0lGODlhAQABAAAAACw="):
             self.js(f"G.mount({json.dumps({'id': 'ABC-S-001', 'type': 'gallery', 'content': {'pictures': [{'image': bad, 'caption': 'Fictional'}]}})})")

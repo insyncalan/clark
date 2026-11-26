@@ -256,6 +256,11 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
                 want = self.token("--tone-red-text")
                 self.assertEqual(self.style(sel, "backgroundColor"), [want], f"the mark is --tone-red-text, dark={dark}")
                 wants.append(want)
+                if dark:
+                    self.assertNotIn(self.style(sel, "display")[0], ("none", "contents"), "the mark is displayed in dark")
+                    self.assertEqual(self.style(sel, "visibility"), ["visible"], "the mark is visible in dark")
+                    box = self.val(f"(function(){{const r = document.querySelector('{sel}').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)];}})()")
+                    self.assertEqual(box, [20, 20], "the mark has its 20 x 20 box in dark")
             self.dark(False)
             self.assertNotEqual(wants[0], wants[1], "the token has its own dark value")
             d = self.val(f"(function(){{const m = document.querySelector('{sel}').getBoundingClientRect(), t = document.querySelector('.tpl-gal-tile:nth-child(2)').getBoundingClientRect(); return [m.top - t.top - 2, t.right - 2 - m.right];}})()")
