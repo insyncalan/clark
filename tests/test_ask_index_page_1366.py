@@ -121,6 +121,31 @@ class Page(Fixture):
                     self.assertFalse(js("!!document.querySelector('#ask-folders li progress, #ask-folders li [role=progressbar], #ask-folders li svg, #ask-folders li canvas')"), (mode, w))
             self.assertEqual(len(seen), 2, "light and dark muted colours differ, so the pin is not vacuous")
 
+    def test_note_is_one_size_smaller_than_the_folder_name_and_the_row_is_no_taller_when_it_fits(self):
+        """Row 1371 AP6: the note is 13px under a 14px folder name (one size smaller) and sits on one line; a row whose note fits is the same height at 1400 and 900, in light and dark."""
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        probe = ("(() => { const out = {}; for (const [k, sel] of [['shared', '#ask-folders-shared'], ['own', '#ask-folders']]) { const li = document.querySelector(sel + ' li'); "
+                 "const n = li.querySelector('.folder-now'); const l = li.querySelector('.ask-folder-line'); const ln = parseFloat(getComputedStyle(l).lineHeight); "
+                 "out[k] = {name: parseFloat(getComputedStyle(n).fontSize), note: parseFloat(getComputedStyle(l).fontSize), lines: Math.round(l.getBoundingClientRect().height / ln), row: li.getBoundingClientRect().height}; } return out; })()")
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, "[...document.querySelectorAll('.ask-folder-line')].length === 2 && [...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('100% indexed'))", "indexed")
+            rows = {}
+            for mode in ("light", "dark"):
+                js(f"document.documentElement.dataset.theme = {mode!r}")
+                for w in WIDTHS:
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {mode} {w}")
+                    got = js(probe)
+                    for which, m in got.items():
+                        self.assertEqual((m["name"], m["note"], m["name"] - m["note"]), (14, 13, 1), (mode, w, which, m))      # one size smaller than the folder name
+                        self.assertEqual(m["lines"], 1, (mode, w, which, m))      # one line
+                        rows.setdefault(which, set()).add(m["row"])
+            self.assertEqual({k: len(v) for k, v in rows.items()}, {"shared": 1, "own": 1}, rows)      # the row does not grow with the width or the theme while the note fits
+
+
     def test_a_picture_the_computer_cannot_read_has_its_line_and_reason_at_both_widths(self):
         (self.own / "p.png").write_bytes(b"x")
         (self.own / "q.jpg").write_bytes(b"x")
