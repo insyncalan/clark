@@ -11,7 +11,7 @@ from clark import page, theme
 import _testpage as testpage
 from test_publish_dialog import Base
 from test_publish_route import Rig
-from test_server import chrome
+from test_server import chrome, restore_done
 from test_settings_bar import calm
 from test_settings_head import address
 
@@ -59,6 +59,9 @@ class Tabs(Base):
                 self.assertTrue(40 <= h <= 48, f"one row about 44 px, got {h}")
                 pill = p.js("(() => { const c = getComputedStyle(document.querySelector('.set-tabs .set-tab')); return [c.borderTopLeftRadius, c.paddingTop, c.paddingLeft, c.fontSize, getComputedStyle(document.querySelector('.set-tabs .set-tab[aria-current]')).fontWeight]; })()")
                 self.assertEqual(pill, ["999px", "5px", "14px", "13.5px", "600"], "AP10: a pill, radius 999, padding 5px 14px, 13.5px, the open one weight 600")
+                # router.js restore() (118-142) puts the page back to its place each frame for up to 120 frames after the hash change and undoes a scrollTo made before it ends
+                restore_done(p)
+                p.until("document.fonts.status === 'loaded'", "the fonts loaded")
                 bar = p.js("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar'))")
                 p.js("document.body.style.paddingBottom = '2500px'")
                 nat = p.js("document.querySelector('.set-tabs').getBoundingClientRect().top + window.scrollY")
