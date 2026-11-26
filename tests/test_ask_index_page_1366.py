@@ -294,6 +294,36 @@ class FiveStates(Fixture):
             js = self.show(cdp, "all")
             self.check(cdp, js, "#ask-all-folder-list .ask-folder-line", "Could not index this folder. Try again", "Try again")
 
+    def test_the_note_wraps_inside_a_narrow_row_and_does_not_overflow(self):
+        """Row 1371 AP6, the last clause: a note that does not fit its row wraps onto more lines. The row is a wrapping flex line (shell.css .ask-folders li)
+        and the note is a full-width flex item with normal white space (rules.css .ask-folder-line), so the row itself is narrowed to 180px here,
+        at 1400 and 900, in light and dark, with the longest note of the five states: the note is two lines or more, stays inside the row, and the page does not scroll sideways."""
+        text = "Indexing paused. It carries on when clark is open"
+        self.serve("paused")
+        probe = ("(() => { const l = document.querySelector('#ask-folders .ask-folder-line'); const li = l.closest('li'); const ln = parseFloat(getComputedStyle(l).lineHeight); "
+                 "li.style.width = ''; const wide = l.getBoundingClientRect().height; li.style.boxSizing = 'border-box'; li.style.width = '180px'; "
+                 "const n = l.getBoundingClientRect(); const r = li.getBoundingClientRect(); "
+                 "const out = {ln: ln, wide: wide, h: n.height, right: n.right, left: n.left, rowW: r.width, rowLeft: r.left, rowRight: r.right, sw: l.scrollWidth, cw: l.clientWidth, "
+                 "space: getComputedStyle(l).whiteSpace, page: document.documentElement.scrollWidth, win: window.innerWidth, text: l.innerText}; "
+                 "li.style.width = ''; li.style.boxSizing = ''; return out; })()")
+        with chrome() as cdp:
+            js = self.show(cdp, "project")
+            self.until(js, f"!!document.querySelector('#ask-folders .ask-folder-line') && document.querySelector('#ask-folders .ask-folder-line').innerText === {text!r}", "paused")
+            for mode in ("light", "dark"):
+                js(f"document.documentElement.dataset.theme = {mode!r}")
+                for w in WIDTHS:
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {mode} {w}")
+                    m = js(probe)
+                    where = (mode, w, m)
+                    self.assertEqual((m["text"], m["rowW"]), (text, 180), where)      # the longest note, in a row made 180px wide
+                    self.assertEqual(m["wide"], m["ln"], f"the note is one line while its row is wide: {where}")
+                    self.assertGreaterEqual(m["h"], 2 * m["ln"] - 1, f"the note wraps onto two lines or more in a narrow row: {where}")
+                    self.assertLessEqual(m["sw"], m["cw"], f"the note's text does not overflow the note: {where}")
+                    self.assertGreaterEqual(m["left"], m["rowLeft"] - 0.5, f"the note starts inside its row: {where}")
+                    self.assertLessEqual(m["right"], m["rowRight"] + 0.5, f"the note ends inside its row: {where}")
+                    self.assertLessEqual(m["page"], m["win"], f"no sideways scroll with the narrow row: {where}")
+
 
 class Wired(unittest.TestCase):
     """Row 1371: the page draws the line with indexNote.js's words (its announce and its "(why)"), and the line itself is not a live region."""
