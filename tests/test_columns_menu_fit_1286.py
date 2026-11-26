@@ -48,6 +48,32 @@ class ColumnsMenuFit(base.InThePage):
                 p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
                 p.until("!document.querySelector('.cols-menu')", f"closed at {w}x{h}")
 
+    def test_the_columns_menu_fits_a_short_window(self):
+        """Row 1540 AP5: the Columns menu stays inside windows 420 and 280 high, 1400 and 900 wide, light and dark, under the sticky bar, and scrolls inside itself."""
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list")
+            for w in (1400, 900):
+                for h in (420, 280):
+                    for theme in ("light", "dark"):
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                        p.until(f"innerWidth === {w} && innerHeight === {h}", f"window {w}x{h}")
+                        p.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
+                        p.js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block:'start'}})")
+                        time.sleep(0.3)
+                        p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+                        p.until(f"!!({MEASURE})", f"the Columns menu opened at {w}x{h} {theme}")
+                        got = p.js(MEASURE)
+                        where = f"at {w}x{h} {theme}: {got}"
+                        self.assertGreaterEqual(got["top"], got["floor"], where)
+                        self.assertLessEqual(got["bottom"], got["h"], where)
+                        self.assertIn(got["oy"], ("auto", "scroll"), where)
+                        p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+                        p.until("!document.querySelector('.cols-menu')", f"closed at {w}x{h}")
+
     def test_columns_menu_foot_is_shifted_up_to_the_window_bottom_margin(self):
         """A menu that fits the window (it is not cut) but whose foot, placed under the heading, would be lower than 8px above the window bottom is moved up so its foot is at innerHeight - 8.
 

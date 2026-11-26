@@ -21,7 +21,17 @@ class ZoomPerPlace(H.Base):
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 10))
         cdp.js(f"document.querySelector('{scope} [data-grip]').scrollIntoView({{block: 'center', behavior: 'instant'}})", sid)
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 10))
-        x, y = cdp.js(f"(() => {{ const r = document.querySelector('{scope} [data-grip]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()", sid)
+        read = f"""(() => {{ const g = document.querySelector('{scope} [data-grip]'); const r = g.getBoundingClientRect();
+            const x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+            return [x, y, !!hit && hit.closest('[data-grip]') === g]; }})()"""
+        seen = []
+
+        def settled():
+            now = cdp.js(read, sid)
+            seen.append(now)
+            return now[2] and len(seen) > 1 and seen[-2] == now
+        self.assertTrue(wait(settled, 10), f"{scope}: the grip is under its own point and has not moved between two reads: {seen[-2:]}")
+        x, y = seen[-1][:2]
         mouse = lambda kind, py, **kw: cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": py, **kw}, sid)
         mouse("mousePressed", y, button="left", clickCount=1)
         for i in range(1, 7):

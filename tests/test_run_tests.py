@@ -243,6 +243,28 @@ class Classes(unittest.TestCase):
                 self.assertNotIn("DEFECT 0", run_tests.summarize(doc, status), (doc, status))
         self.assertIn("DEFECT 0", run_tests.summarize(run_tests.results_doc(300, [], {}, True), "success"))   # only a run that ended says 0
 
+    def test_a_run_red_only_for_files_not_run_never_prints_defect_0(self):
+        doc = run_tests.results_doc(300, [], {}, True, not_run=40)
+        for status in ("failure", "cancelled", "skipped", ""):
+            text = run_tests.summarize(doc, status)
+            self.assertNotIn("DEFECT 0", text, status)
+            self.assertIn("DEFECT unknown", text, status)
+
+    def test_a_failed_job_with_a_finished_results_file_never_prints_defect_0(self):
+        for status in ("failure", "cancelled", "skipped"):
+            self.assertNotIn("DEFECT 0", run_tests.summarize(run_tests.results_doc(300, [], {}, True), status), status)
+
+    def test_defects_counted_in_a_failed_run_keep_their_number(self):
+        doc = run_tests.results_doc(300, ["test_b.py"], {}, True, not_run=40)
+        self.assertIn("DEFECT 1 |", run_tests.summarize(doc, "failure"))
+
+    def test_a_timeout_that_passed_alone_does_not_say_the_job_was_cancelled(self):
+        doc = run_tests.results_doc(10, [], {}, True, sizing=["test_h.py"])
+        for status in ("success", "failure", "cancelled", ""):
+            text = run_tests.summarize(doc, status)
+            self.assertNotIn("cancelled at its time cap", text, status)
+            self.assertIn("- SIZING (timed out, passed alone): test_h.py", text, status)
+
     def test_the_summary_line_and_exit_code_are_unchanged_by_the_classification(self):
         self.assertEqual(run_tests.summary(True, 5, 1.0), f"Python {sys.version.split()[0]}: pass, 5 tests in 1.0 s")
         self.assertEqual(run_tests.summary(False, 5, 1.0), f"Python {sys.version.split()[0]}: FAIL, 5 tests in 1.0 s")
@@ -649,6 +671,19 @@ class Running(Records):
         self.assertIn("(--max-fail 1): no further file starts", out)
         self.assertRegex(out, r"\d+ not run \(--max-fail\)")
         self.assertLess(out.count("FAIL  test_probe_bad_"), 6 * 2)
+
+    def test_a_shard_red_only_for_files_not_run_never_says_defect_0(self):
+        # one file fails once and passes alone (a flake), --max-fail leaves the rest unrun: red, with no DEFECT counted
+        d = folder({"test_probe_a_flaky.py": FLAKY_ONCE, **{f"test_probe_ok_{i}.py": PASSES for i in range(5)}})
+        res = d / "results.json"
+        code, out = self.run_all(d, jobs=1, max_fail=1, results=str(res))
+        doc = json.loads(res.read_text(encoding="utf-8"))
+        self.assertEqual((code, doc["defects"]), (1, []), out)
+        self.assertGreater(doc["not_run"], 0, out)
+        self.assertIn("FLAKE 1", out)
+        self.assertNotIn("DEFECT 0", out)
+        for status in ("failure", ""):
+            self.assertNotIn("DEFECT 0", run_tests.summarize(doc, status), status)
 
     def test_rerun_max_runs_none_alone_when_too_many_fail(self):
         d = folder({f"test_probe_bad_{i}.py": FAILS for i in range(3)})
