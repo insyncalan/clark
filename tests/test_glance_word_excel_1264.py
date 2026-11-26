@@ -189,7 +189,7 @@ class Word(unittest.TestCase):
 class Excel(unittest.TestCase):
     def test_the_sheet_has_a_row_for_each_kept_tile_in_order(self):
         rows = sheet_rows(select())
-        self.assertEqual([r[0] for r in rows], ["Project health", "Overdue actions", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale"])
+        self.assertEqual([r[0] for r in rows], ["Project health", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale"])      # row 1543 AP4b: no Overdue actions row in the client workbook
 
     def test_a_bespoke_row_has_label_figure_tag_note(self):
         rows = {r[0]: r for r in sheet_rows(select())}
@@ -200,13 +200,14 @@ class Excel(unittest.TestCase):
         pub = select()
         c = counts(pub)
         rows = {r[0]: r for r in sheet_rows(pub)}
-        for key in ("overdue", "risks", "decisions"):
+        self.assertNotIn(c["overdue"]["title"], rows)      # row 1543 AP4b: the client workbook has no Overdue actions row
+        for key in ("risks", "decisions"):
             self.assertEqual(rows[c[key]["title"]][1], str(c[key]["value"]))
             self.assertEqual(rows[c[key]["title"]][3], c[key]["detail"])
 
     def test_the_order_is_the_bodys(self):
         rows = sheet_rows(select(body(order=["mor", "decisions", "bud", "health", "risks", "overdue"])))
-        self.assertEqual([r[0] for r in rows], ["ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues", "Overdue actions"])
+        self.assertEqual([r[0] for r in rows], ["ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues"])      # row 1543 AP4b: no Overdue actions row
 
     def test_hidden_tiles_are_absent(self):
         rows = sheet_rows(select(body(builtin={"overdue": {"hidden": True}}, health={"shown": False})))
