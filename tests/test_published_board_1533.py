@@ -16,14 +16,41 @@ import _publish_fixture as fx
 
 from clark import publish
 from clark.store import open_store
-from test_client_page_filters import EMPTY_BRANDING, INTERNAL, HIDDEN_OWNER, HIDDEN_WS, TODAY, VARIANTS, open_page, plant
+from test_client_page_filters import page_target, EMPTY_BRANDING, INTERNAL, HIDDEN_OWNER, HIDDEN_WS, TODAY, VARIANTS, open_page, plant
+from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
 from test_work_filters import need_chrome
 
-TYPES = ["action", "risk", "decision"]
+TYPES = ["action", "risk", "decision"]      # the type chips; issues sit inside "Risks and issues" (filters.js:15-16), so AP2's 4 kinds are these 3 chips plus the issue rows in the risk chip
+ISSUE_ID = "PUB-003"
 SIZE_BEFORE = 848970       # page-view.html on origin/main d5ad8db2d, bytes, built by dev/tools/build_page.py
 WRITE_WORDS = ["changeItem", "stores/changes", "/api/", "fetch("]
 MOVE_CODE = ["Move to", "data-move", "onDragStart"]      # strings only the editor board ships (edit/Board.jsx: the Move to menu, its button and the drag start); the CSS keeps its class names
+
+
+# Runs before the page's own scripts: any call a page could use to reach the network is recorded in window.__net.
+WATCH = """window.__net = [];
+for (const [o, n] of [[window, 'fetch'], [XMLHttpRequest.prototype, 'send'], [navigator, 'sendBeacon']]) {
+  const real = o[n]; if (!real) continue;
+  o[n] = function () { window.__net.push(n); return real.apply(this, arguments); };
+}
+for (const n of ['WebSocket', 'EventSource']) { const R = window[n]; window[n] = function () { window.__net.push(n); return new R(...arguments); }; }"""
+
+
+def open_watched(cdp, url, width):
+    sid = page_target(cdp)
+    cdp.call("Page.enable", {}, sid)
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+    cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": WATCH}, sid)
+    cdp.call("Page.navigate", {"url": url}, sid)
+    return sid
+
+
+def plant_with_issue():
+    """The shared plant plus one client-visible issue, so AP2's four kinds (actions, risks, issues, decisions) are all on the page."""
+    p = plant()
+    p["data"]["raid"].append(dict(p["data"]["raid"][0], id=ISSUE_ID, type="Issue", description="Crane access is blocked", workstream=None))
+    return p
 
 
 def publish_with(store, out, switch):
@@ -46,7 +73,7 @@ class PublishedBoard(unittest.TestCase):
     def setUpClass(cls):
         need_chrome()
         cls.tmp = Path(tempfile.mkdtemp(prefix="clark-pb-"))
-        cls.store = open_store(fx.build_db(cls.tmp / "c.db", plant()), onedrive_roots=[])
+        cls.store = open_store(fx.build_db(cls.tmp / "c.db", plant_with_issue()), onedrive_roots=[])
         (cls.tmp / "off").mkdir()
         (cls.tmp / "on").mkdir()
         cls.off = publish_with(cls.store, cls.tmp / "off", 0)
@@ -104,6 +131,14 @@ class PublishedBoard(unittest.TestCase):
                 self.to_board(cdp, sid)
                 cards = sorted(ids_of(cdp, sid, "#work-board article[data-id]"))
                 self.assertEqual(cards, rows, f"{kind}: the board's cards are the list's rows")
+                if kind in ("all", "risk"):
+                    self.assertIn(ISSUE_ID, cards, f"{kind}: the issue is a card, as it is a row")
+                if kind == "all":
+                    cdp.js("document.querySelector('[data-layout=table]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-list tr[data-id]').length", sid) > 0))
+                    kinds = set(cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.dataset.kind)", sid))
+                    self.assertTrue({"action", "risk", "issue", "decision"} <= kinds, f"AP2's four kinds are all on the page: {sorted(kinds)}")
+                    self.to_board(cdp, sid)
                 self.assertNotIn(INTERNAL, cdp.js("document.getElementById('work').textContent", sid))
 
     def test_published_board_client_output(self):
@@ -285,9 +320,30 @@ class PublishedBoard(unittest.TestCase):
         print(f"\npage-view.html bytes: before {SIZE_BEFORE}, after {view}")
         self.assertGreater(view, SIZE_BEFORE)
         with chrome() as cdp:
-            sid = self.page(cdp, self.on)
+            sid = open_watched(cdp, self.on.as_uri() + "#work", 1400)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work-list')", sid)), "the Work items tab drew")
             self.to_board(cdp, sid)
+            cdp.js("document.querySelector('[data-layout=table]').click(); document.querySelector('[data-layout=board]').click()", sid)
+            self.assertEqual(cdp.js("window.__net", sid), [], "AP8: 0 network requests: fetch(, XMLHttpRequest, sendBeacon, WebSocket and EventSource were never called while the list and the board drew")
             self.assertEqual(cdp.js("performance.getEntriesByType('resource').filter(r => !r.name.startsWith('file:') && !r.name.startsWith('data:')).length", sid), 0, "no network request")
+
+    def test_published_board_in_a_to_client_file_opens_in_chrome(self):
+        """AP7: the file the To client route really writes (POST /api/publish with to_client, the dialogs answered by the Rig, no osascript) is opened in Chrome."""
+        rig = Rig(self)
+        with rig.store.step("dashboard", "Sam Carter") as st:
+            st.update("projects", "PUB", {"show_board_client": 1})
+        status, got = rig.publish(to_client=True)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        client = rig.client / WANTED
+        for w in (1400, 900):
+            with chrome() as cdp:
+                sid = self.page(cdp, client, w)
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#layout-seg button')].map(b => b.textContent)", sid), ["List", "Board"], f"{w}: the client copy offers List and Board")
+                rows = sorted(ids_of(cdp, sid, "#work-list tr[data-id]"))
+                self.to_board(cdp, sid)
+                self.assertEqual(sorted(ids_of(cdp, sid, "#work-board article[data-id]")), rows, f"{w}: the board shows the list's rows")
+                cdp.js("window.dispatchEvent(new Event('beforeprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.print-tab #work-board').length === 0 && document.querySelectorAll('.print-tab #work-list tr[data-id]').length > 0", sid)), f"{w}: print is the list")
 
 
 if __name__ == "__main__":
