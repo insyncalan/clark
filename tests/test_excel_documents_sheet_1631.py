@@ -50,6 +50,8 @@ class Fixture(unittest.TestCase):
         self.gone = self.plant("Archived slides", "Slides", "https://example.com/zq-archived", "2030-04-01", archived=1)
         self.con.execute("INSERT INTO report_hidden (project, item_id) VALUES ('ABC', ?)", (self.eye,))
         self.con.commit()
+        with self.demo.store.step("dashboard", "demo") as st:      # row 1266: the default report ends with a doclinks section; the client copy fills documents only for a visible docs section
+            st.create("report_sections", {"project": "ABC", "type": "docs", "title": "Supporting documents", "sort_order": 990})
 
     def plant(self, title, kind, url, day, archived=0):
         self.n += 1

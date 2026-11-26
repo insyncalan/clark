@@ -32,9 +32,9 @@ EXEMPT = {
 }
 # Listed in startingText.js but not a template of the box.
 NOT_IN_BOX = {"raid-3": "raid-3 sections are only older ones; the box makes raid4 (raid-cards), which is checked as raid-4"}
-# Today's truth, pinned: the words Edit draws for each box template (any piece of the starting text; Text with image shows its own "Click to write.", the PM ruling of 26-11).
+# Today's truth, pinned: the words Edit draws for each box template (any piece of the starting text; Text with image shows "Write here." and one sample, the row 1251 v2 ruling).
 SHOWN = {
-    "text": "Write here.", "text-image": "Click to write.", "figures-4": "Pick what each number shows.", "figures-3": "Pick what each number shows.",
+    "text": "Write here.", "text-image": "Write here.", "figures-4": "Pick what each number shows.", "figures-3": "Pick what each number shows.",
     "table": "Add the first row.", "raid-cards": "Choose the items to show.", "work-items": "Say what the list shows.", "docs-links": "Add a file or a link.",
     "callout": "Write the one thing the reader must see.", "quote": "Write what they said.", "contacts": "Add a person.",
     "checklist": "Link the work items to tick off.", "key-dates": "No milestones to show yet.", "link-preview": "Paste the link.",
@@ -166,8 +166,8 @@ class ChooseImage(Base):
     add = Prompts.add
 
     def test_choosing_a_picture_in_image_and_text_with_image_shows_it_and_removes_the_sample(self):
-        # sample count before: Image draws the sample (FullImage.jsx:190); Text with image (version 2) draws none today (TextImageSide.jsx), pinned
-        for tid, samples in (("full-image", 1), ("text-image", 0)):
+        # sample count before: Image draws the sample (FullImage.jsx:190); Text with image (version 2) draws one (TextImageSide.jsx, row 1251 v2 ruling)
+        for tid, samples in (("full-image", 1), ("text-image", 1)):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 for width in WIDTHS:
