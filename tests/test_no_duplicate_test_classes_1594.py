@@ -136,7 +136,7 @@ class NoDuplicateRuns(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as d:
             for name, text in files.items():
-                (Path(d) / name).write_text(text)
+                (Path(d) / name).write_text(text, encoding="utf-8")
             imports = scan(d)
         self.assertEqual([("test_by_name", "test_base.Base")], [(m, c) for m, c, n, o in imports])
 
