@@ -187,6 +187,35 @@ class Header1543(glance.Published):
                 p.js("document.querySelector('dialog#report-search').dispatchEvent(new Event('cancel', {cancelable: true}))")
                 p.until("!document.querySelector('dialog#report-search') && document.activeElement === document.getElementById('pub-search-btn')", "closing puts focus back on the button")
 
+    def plant_added_page(self):
+        """An added page shown to the client with one text section (publish.py client_pages), then the file."""
+        from clark import changes
+        sections = json.dumps([{"id": "s1", "type": "text", "title": "Added page head", "body": "<p>ZQ-added-page-words</p>"}])
+        status, body = changes.make_change(self.store.path, [], USER)({"project": "ABC", "kind": "added_pages", "op": "new", "values": {"name": "Plans page", "starter": "blank", "sections": sections, "client": 1, "sort_order": 1}})
+        self.assertEqual(status, 200, body)
+        return self.publish()
+
+    def test_published_added_page_is_not_drawn_so_its_words_are_not_searched(self):
+        """Row 1252 puts an added page in the file (`data.pages`, its tab in `tabs`), but the page reads `added_pages` (stores/report.js:19,20,94), drops a tab that is not one of
+        router.js VIEWS (report.js:365) and never renames `pages` (report.js:371): today a published file does not draw the page. The search must not find what is not drawn."""
+        path = self.plant_added_page()
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("ZQ-added-page-words", text, "the file does carry the page")
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.querySelector('header.top-file .tab')", "the bar drew")
+                got = p.js("""JSON.stringify({tabs: [...document.querySelectorAll('header.top-file [role=tab]')].map((x) => x.textContent), words: document.body.innerText.includes('ZQ-added-page-words'),
+                    head: document.body.innerText.includes('Added page head')})""")
+                self.assertEqual(json.loads(got), {"tabs": ["Dashboard", "Work items", "Milestones", "Use cases"], "words": False, "head": False}, "no tab and no words of the added page are drawn")
+                p.js("location.hash = '#page:ABC-PG-001'")
+                p.until("location.hash === '#page:ABC-PG-001'", "the address changed")
+                self.assertFalse(p.js("document.body.innerText.includes('ZQ-added-page-words')"), "opening the page's address draws none of its words")
+                self.open_box(p)
+                self.assertEqual(self.search(p, "ZQ-added-page-words"), [], "words the page does not draw are not found")
+                self.assertEqual(self.search(p, "Added page head"), [])
+                self.assertEqual(self.search(p, "Plans page"), [])
+
     def test_published_search_only_what_the_file_holds(self):
         path = self.plant_search()
         wants = (("Chase the supplier", "Chase the supplier file", "work"), ("Pat Demo", "Chase the supplier file", "work"), ("ZQ-client-words", "Chase the supplier file", "work"),

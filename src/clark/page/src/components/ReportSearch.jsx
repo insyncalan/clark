@@ -3,7 +3,7 @@
 // logic/reportSearch.js in what the file holds and nothing else. Choosing a result opens the page it is on (the read only panel, the
 // keys and Ctrl or Cmd + K are part 2). A published file only: the editor keeps its own palette.
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { data, show, TITLES } from "../stores/report.js";
+import { data, show, TITLES, asAt } from "../stores/report.js";
 import { buildIndex, searchReport } from "../logic/reportSearch.js";
 
 export function ReportSearch() {
@@ -23,7 +23,7 @@ export function ReportSearch() {
 function Box({ onClose }) {
   const el = useRef(null), input = useRef(null);
   const [q, setQ] = useState("");
-  const index = useMemo(() => buildIndex(data.value), [data.value]);
+  const index = useMemo(() => buildIndex(data.value, asAt.value || undefined), [data.value, asAt.value]);
   const results = searchReport(index, q);
   useEffect(() => {
     const d = el.current;

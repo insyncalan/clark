@@ -174,7 +174,7 @@ CASES = {
     "table": ({"content": {"cols": ["ZQd-tb-col"], "rows": [["ZQd-tb-cell"]], "caption": "ZQd-tb-cap", "colour": "ZQu-tb-colour"}, "layout": "ZQu-tb-layout"}, ["ZQd-tb-col", "ZQd-tb-cell", "ZQd-tb-cap"], ["ZQu-tb-colour", "ZQu-tb-layout"]),
     "doclinks": ({"content": {"items": [{"kind": "file", "name": "ZQd-dl-file.pdf", "rel": "Report files/ZQd-dl-file.pdf", "bytes": 5, "label": "ZQd-dl-label"},
                                          {"kind": "link", "href": "https://zqd-dl-site.invalid/ZQu-dl-path", "label": ""}, {"kind": "ZQu-dl-kind", "href": "https://zqu-dl-other.invalid", "label": "ZQu-dl-kindlabel"}]}},
-                 ["ZQd-dl-file.pdf", "ZQd-dl-label", "zqd-dl-site.invalid"], ["Report files", "ZQu-dl-path", "ZQu-dl-kind", "zqu-dl-other", "ZQu-dl-kindlabel"]),
+                 ["ZQd-dl-file.pdf", "ZQd-dl-label", "zqd-dl-site.invalid", "PDF", "Web link"], ["Report files", "ZQu-dl-path", "ZQu-dl-kind", "zqu-dl-other", "ZQu-dl-kindlabel"]),
     "linkcard": ({"content": {"href": "https://zqd-lc-site.invalid/ZQu-lc-path", "title": "ZQd-lc-title", "site": "ZQd-lc-sitename", "text": ["ZQd-lc-text"], "html": "<p>ZQd-lc-html</p>", "ZQu-lc-key": "ZQu-lc-val"}},
                  ["ZQd-lc-title", "ZQd-lc-sitename", "ZQd-lc-text", "ZQd-lc-html"], ["ZQu-lc-path", "ZQu-lc-val", "ZQu-lc-key"]),
     "onedoc": ({"content": {"file": {"name": "ZQd-od-file.pdf", "rel": "Report files/ZQd-od-file.pdf", "bytes": 1}, "label": "ZQd-od-label", "text": ["ZQd-od-text"], "html": "<p>ZQd-od-html</p>"}},
@@ -188,7 +188,7 @@ CASES = {
               ["ZQd-qu-quote", "ZQd-qu-by", "ZQd-qu-role"], ["ZQu-qu-align", "ZQu-qu-per", "ZQu-qu-heading", "ZQu-qu-flat", "ZQu-qu-flatby"]),
     "contacts": ({"content": {"people": [{"name": "ZQd-ct-name", "role": "ZQd-ct-role", "email": "zqd-ct@example.invalid", "phone": "ZQd-ct-phone", "ZQu-ct-key": "ZQu-ct-val"}]}}, ["ZQd-ct-name", "ZQd-ct-role", "zqd-ct@example.invalid", "ZQd-ct-phone"], ["ZQu-ct-val"]),
     "checklist": ({"v": 1, "items": [{"text": "ZQd-ck-line", "done": 1}, {"item": "ZQu-ck-linked"}]}, ["ZQd-ck-line"], ["ZQu-ck-linked"]),
-    "keydates": ({"v": 1, "items": [{"label": "ZQd-kd-label", "date": "2031-01-02"}, {"milestone": "ZQu-kd-linked"}]}, ["ZQd-kd-label"], ["2031-01-02", "ZQu-kd-linked"]),
+    "keydates": ({"v": 1, "items": [{"label": "ZQd-kd-label", "date": "2031-01-02"}, {"milestone": "ZQu-kd-linked"}, {"label": "ZQu-kd-baddate", "date": "not a day"}]}, ["ZQd-kd-label"], ["2031-01-02", "ZQu-kd-linked", "ZQu-kd-baddate"]),
     "reportheadline": ({"content": {"health": "at_risk", "headline": "ZQd-rh-head", "sentence": "ZQd-rh-sent", "pill": True}}, ["ZQd-rh-head", "ZQd-rh-sent", "at risk"], ["at_risk", "off track", "on track", "not set"]),
     "glancetemplate": ({"content": {"health": {"shown": True, "own_row": True}, "per_row": "ZQu-gt-per", "order": ["ZQu-gt-order"], "builtin": {"overdue": {"outline": "ZQu-gt-outline"}},
                                     "bespoke": [{"id": "ZQu-gt-id", "label": "ZQd-gt-label", "figure": "ZQd-gt-figure", "tag": "ZQd-gt-tag", "note": "ZQd-gt-note", "tone": "ZQu-gt-tone"}]}},
@@ -234,13 +234,49 @@ class OnlyWhatTheViewDraws(unittest.TestCase):
 
     def test_an_added_page_section_is_found_and_its_undrawn_field_is_not(self):
         sec = {"id": "P1-S-1", "type": "imagecap", "title": "Plant photo", "content": {"image": PIC, "caption": "ZQd-page-caption", "alt": "ZQu-page-alt"}}
-        for key in ("added_pages", "pages"):
-            data = {key: [{"id": "P1", "name": "Site page", "sections": [sec]}]}
-            self.assertEqual(ids("ZQd-page-caption", data), ["P1-S-1"], f"a section of a page in `{key}` is found")
-            self.assertEqual(ids("plant photo", data), ["P1-S-1"])
-            self.assertEqual(ids("ZQu-page-alt", data), [], "its alt text is not")
-            self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].view", data), "page:P1")
-            self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].kind", data), "Site page")
+        data = {"added_pages": [{"id": "P1", "name": "Site page", "sections": [sec]}]}
+        self.assertEqual(ids("ZQd-page-caption", data), ["P1-S-1"], "a section of a page the page draws (`added_pages`) is found")
+        self.assertEqual(ids("plant photo", data), ["P1-S-1"])
+        self.assertEqual(ids("ZQu-page-alt", data), [], "its alt text is not")
+        self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].view", data), "page:P1")
+        self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].kind", data), "Site page")
+
+    def test_a_published_files_pages_are_not_read_because_the_page_does_not_draw_them(self):
+        """A published file holds the added pages as `data.pages`; the page reads `added_pages` and drops their tabs (stores/report.js:19,20,94,365,371), so none of it is drawn."""
+        sec = {"id": "P1-S-1", "type": "text", "title": "Added page head", "body": "<p>ZQ-undrawn-page-words</p>"}
+        data = {"pages": [{"id": "P1", "name": "Site page", "sections": [sec]}]}
+        self.assertEqual((ids("ZQ-undrawn-page-words", data), ids("Added page head", data), ids("Site page", data)), ([], [], []))
+        self.assertEqual(run("idx.length", data), 0)
+
+    def test_a_quote_or_callout_without_its_heading_does_not_find_its_title_and_the_switch_is_no_word(self):
+        for kind, content in (("quote", {"quotes": [{"quote": "Q", "by": "", "role": ""}]}), ("callout", {"tone": "info", "title": "T", "paras": ["P"], "category": "C", "colour": "plain", "icon": "none"})):
+            for heading, found in ((False, []), (True, ["S-1"]), (None, ["S-1"])):
+                c = dict(content) if heading is None else {**content, "heading": heading}
+                data = {"report_sections": [{"id": "S-1", "type": kind, "title": "ZQ heading words", "content": c}]}
+                self.assertEqual(ids("ZQ heading words", data), found, f"{kind}: heading switch {heading!r}")
+            self.assertEqual(ids("false", {"report_sections": [{"id": "S-1", "type": kind, "title": "x", "content": {**content, "heading": False}}]}), [], "the switch's value is never a word")
+            self.assertEqual(ids("true", {"report_sections": [{"id": "S-1", "type": kind, "title": "x", "content": {**content, "heading": True}}]}), [], "the switch's value is never a word")
+
+    def test_another_type_always_draws_its_title(self):
+        data = {"report_sections": [{"id": "S-1", "type": "text", "title": "ZQ always shown", "body": "<p>x</p>", "content": {"heading": False}}]}
+        self.assertEqual(ids("ZQ always shown", data), ["S-1"])
+
+    def test_a_key_dates_milestone_line_is_found_by_its_state_word_and_never_by_its_day(self):
+        data = {"milestones": [{"id": "M-1", "name": "Pilot live", "state": "Slipped", "baseline_date": "2031-05-06", "forecast_date": "2031-06-07"}],
+                "report_sections": [{"id": "S-1", "type": "keydates", "title": "Dates", "v": 1, "items": [{"milestone": "M-1"}, {"label": "Go live party", "date": "2031-09-10"}]}]}
+        self.assertEqual(ids("expected later", data), ["S-1"], "keydates.js: the milestone's state word as the client reads it")
+        self.assertEqual(ids("pilot live", data)[:2], ["M-1", "S-1"], "its label, drawn in the section too")
+        self.assertEqual(ids("go live party", data), ["S-1"], "a typed day has its label and no state word")
+        for day in ("2031-05-06", "2031-06-07", "2031-09-10", "slipped"):
+            self.assertEqual(ids(day, data), [], f"{day!r} is not drawn as the file holds it")
+        self.assertEqual(run("RS.searchReport(idx, 'expected later').length", data), 1)
+
+    def test_a_file_in_doclinks_is_found_by_its_type_word_and_not_by_its_raw_kind_or_path(self):
+        data = {"report_sections": [{"id": "S-1", "type": "doclinks", "title": "Papers", "content": {"items": [{"kind": "file", "name": "plan.pdf", "rel": "Report files/plan.pdf", "bytes": 5, "label": ""},
+                                                                                                          {"kind": "link", "href": "https://zq-site.invalid/path", "label": ""}]}}]}
+        self.assertEqual((ids("pdf", data), ids("web link", data), ids("zq-site.invalid", data)), (["S-1"], ["S-1"], ["S-1"]), "the Type word and the site")
+        for undrawn in ("file", "kind", "report", "rel", "zq-site.invalid/path", "path"):
+            self.assertEqual(ids(undrawn, data), [], f"{undrawn!r}: a folder, a path and the raw kind are never drawn")
 
     def test_a_health_word_is_found_only_while_the_pill_shows(self):
         on = {"report_sections": [{"id": "S-1", "type": "reportheadline", "title": "Head", "content": {"health": "off_track", "headline": "H", "sentence": "S", "pill": True}}]}
