@@ -414,7 +414,7 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
 /* Row 1534 (Classic only: the Cards page keeps its bytes, frozen 19-11): dragging a Work items heading to a new place; the drop place is a bar on the side of the heading it would land beside. */
-th[data-move] { cursor: grab; touch-action: none; }
+th[data-colmove] { cursor: grab; touch-action: none; }
 th.col-dragging { opacity: 0.55; cursor: grabbing; }
 th.col-drop-before { box-shadow: inset 3px 0 0 var(--brand-blue); }
 th.col-drop-after { box-shadow: inset -3px 0 0 var(--brand-blue); }

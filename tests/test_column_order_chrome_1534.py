@@ -241,7 +241,7 @@ class Moves(Base):
                     self.assertEqual(got[0], "c-pick", got)
                     self.assertEqual(got[-1], "c-eye", got)
                     self.assertEqual(got[1:-1], SAVED, "the pick column leads and the eye column ends the saved order")
-                    self.assertEqual(js("document.querySelectorAll('#work th.c-pick[data-move], #work th.c-eye[data-move]').length"), 0, "neither is draggable")
+                    self.assertEqual(js("document.querySelectorAll('#work th.c-pick[data-colmove], #work th.c-eye[data-colmove]').length"), 0, "neither is draggable")
                     js("document.querySelector(\"#work th[data-col='owner']\").focus()")
                     self.arrow(cdp, sid, "ArrowLeft")
                     self.assertTrue(wait(lambda: js(HEADS)[2] == "owner", 5), js(HEADS))
@@ -274,7 +274,7 @@ class Moves(Base):
                     sid, js = self.opened(cdp, w, scheme, classic=False)
                     self.assertEqual(js(UNIQ), STANDARD, "Cards ignores the saved order")
                     self.assertEqual(js(ROW), STANDARD)
-                    self.assertEqual(js("document.querySelectorAll('#work th[data-move]').length"), 0)
+                    self.assertEqual(js("document.querySelectorAll('#work th[data-colmove]').length"), 0)
                     js("document.querySelector(\"#work th[data-col='owner']\").focus()")
                     self.arrow(cdp, sid, "ArrowRight")
                     self.frames(js)
@@ -299,7 +299,7 @@ class Moves(Base):
                         self.assertEqual(js(HEADS), STANDARD, "the full order is unchanged")
                         self.assertEqual(js(ROW), STANDARD, "the cells are unchanged")
                         self.assertEqual(self.saved(), {}, "nothing was saved")
-                        self.assertEqual(js("[...document.querySelectorAll('#work th[data-move]')].map((e) => e.dataset.col).filter((c) => c === 'status' || c === 'item')"), [], "Status and Item are not draggable")
+                        self.assertEqual(js("[...document.querySelectorAll('#work th[data-colmove]')].map((e) => e.dataset.col).filter((c) => c === 'status' || c === 'item')"), [], "Status and Item are not draggable")
 
     def test_esc_cancels_a_drag_in_progress(self):
         self.serve()
@@ -359,7 +359,7 @@ class Moves(Base):
                 with self.subTest(width=w, scheme=scheme), chrome() as cdp:
                     sid, js = self.opened(cdp, w, scheme, kind="all")
                     self.assertEqual(js(HEADS), STANDARD, "All keeps the standard order")
-                    self.assertEqual(js("document.querySelectorAll('#work th[data-move]').length"), 0, "no heading is draggable")
+                    self.assertEqual(js("document.querySelectorAll('#work th[data-colmove]').length"), 0, "no heading is draggable")
                     js("document.querySelector(\"#work th[data-col='owner']\").focus()")
                     self.arrow(cdp, sid, "ArrowRight")
                     self.drag(cdp, sid, js, "prio", "owner")

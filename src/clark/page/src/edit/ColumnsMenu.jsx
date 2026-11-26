@@ -84,7 +84,7 @@ export function useColumns(table, css = false, type = "all") {
   const headProps = (id) => {
     if (!canMove || id === "status" || id === "item") return {};
     return {
-      "data-move": "",
+      "data-colmove": "",
       onKeyDown: (e) => {
         if (!(e.altKey && e.shiftKey) || e.ctrlKey || e.metaKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
         e.preventDefault(); e.stopPropagation();
