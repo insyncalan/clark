@@ -3,7 +3,8 @@
     python3 dev/tools/honesty_check.py --base BASE [--head HEAD] [--repo PATH] [--json]
 
 1. No test deleted: every test function a touched test file held at the base is still there at the head (in that file, or
-   in another test file the change touches, so moving a test is not deleting it).
+   new in another test file the change touches, so moving a test is not deleting it; a same-name test that file already
+   held does not count). A moved file (git's rename detection) is compared with the file it was.
 2. No new skip or xfail: a touched test file holds no more skip or expected-failure markers than it did at the base.
 3. Assert count not lower: a touched test file holds no fewer asserts (assert statements and assert* calls) than at the base.
 
@@ -11,7 +12,8 @@ It reads the two commits with git and nothing else: no test is run, nothing is w
 pass. Exit 1: at least one fails (each is reported on its own line). Exit 2: it could not check (not checked is never a pass).
 
 LIMIT: it counts, it does not judge. An assert swapped for a weaker one, a test body emptied but kept, or a skip written as an
-early `return` passes here; the read is what catches those.
+early `return` passes here; the read is what catches those. A file moved and rewritten so far that git no longer pairs it
+is a delete and an add: its tests must all be new in touched files, but its assert count is not compared.
 """
 import argparse
 import ast
@@ -19,7 +21,7 @@ import json
 import subprocess
 import sys
 
-SKIPS = {"skip", "skipIf", "skipUnless", "expectedFailure", "skipTest", "SkipTest", "xfail"}
+SKIPS = {"skip", "skipIf", "skipUnless", "expectedFailure", "skipTest", "SkipTest", "xfail", "skipif", "importorskip"}
 CHECKS = (("deleted", "no test deleted"), ("skips", "no new skip or xfail"), ("asserts", "assert count not lower"))
 
 
@@ -77,50 +79,53 @@ def is_test_file(path):
 
 
 def changed(repo, base, head):
-    """[(status, path)] for the files that differ between the merge base and the head; a move is a delete and an add."""
+    """[(status, path, path at the base)] for the files that differ between the merge base and the head. A moved file is one
+    entry, status R, with the path it had."""
     mb = git(repo, "merge-base", base, head).strip()
     out = []
-    for line in git(repo, "diff", "--name-status", "--no-renames", mb, head).splitlines():
-        status, _, path = line.partition("\t")
-        if path:
-            out.append((status[:1], path))
+    for line in git(repo, "diff", "--name-status", "-M", mb, head).splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[0][:1] == "R":
+            out.append(("R", parts[2], parts[1]))
+        elif len(parts) >= 2:
+            out.append((parts[0][:1], parts[-1], parts[-1]))
     return mb, out
 
 
 def check(repo, base, head="HEAD"):
     """The three checks as one result: {"ok", "files", "deleted", "skips", "asserts", "errors"}. Raises CannotCheck."""
     mb, files = changed(repo, base, head)
-    touched = [(s, p) for s, p in files if is_test_file(p)]
-    result = {"ok": True, "files": sorted(p for _, p in touched), "deleted": [], "skips": [], "asserts": [], "errors": []}
+    touched = [(s, p, was) for s, p, was in files if is_test_file(p) or is_test_file(was)]
+    result = {"ok": True, "files": sorted(p for _, p, _ in touched), "deleted": [], "skips": [], "asserts": [], "errors": []}
     before, after = {}, {}
-    for status, path in touched:
+    for status, path, was in touched:
         if status != "A":
-            before[path] = git(repo, "show", "%s:%s" % (mb, path))
+            before[path] = git(repo, "show", "%s:%s" % (mb, was))
         if status != "D":
             after[path] = git(repo, "show", "%s:%s" % (head, path))
-    parsed = {}
-    for path, source in after.items():
+    old, new = {}, {}
+    for path in sorted(set(before) | set(after)):
         try:
-            parsed[path] = (tests_in(source), skips_in(source), asserts_in(source))
+            src = before.get(path)
+            old[path] = (tests_in(src), skips_in(src), asserts_in(src)) if src is not None else (set(), 0, 0)
+        except (SyntaxError, ValueError):
+            old[path] = (set(), 0, 0)            # the base did not parse: nothing to hold the head to
+        try:
+            src = after.get(path)
+            new[path] = (tests_in(src), skips_in(src), asserts_in(src)) if src is not None else (set(), 0, 0)
         except (SyntaxError, ValueError):
             result["errors"].append("%s: does not parse" % path)
-    kept_anywhere = set()
-    for tests, _, _ in parsed.values():
-        kept_anywhere |= tests
-    for path in sorted(set(before) | set(parsed)):
-        try:
-            old = (tests_in(before[path]), skips_in(before[path]), asserts_in(before[path])) if path in before else (set(), 0, 0)
-        except (SyntaxError, ValueError):
-            old = (set(), 0, 0)                  # the base did not parse: nothing to hold the head to
-        if path in after and path not in parsed:
-            continue                             # already an error
-        new = parsed.get(path, (set(), 0, 0))
-        for name in sorted(old[0] - kept_anywhere):
+    for path in sorted(new):
+        moved_in = set()                         # tests that are new in another touched file: moved there, not deleted
+        for other in new:
+            if other != path:
+                moved_in |= new[other][0] - old[other][0]
+        for name in sorted(old[path][0] - new[path][0] - moved_in):
             result["deleted"].append("%s: %s" % (path, name))
-        if new[1] > old[1]:
-            result["skips"].append("%s: %d -> %d" % (path, old[1], new[1]))
-        if path in parsed and path in before and new[2] < old[2]:
-            result["asserts"].append("%s: %d -> %d" % (path, old[2], new[2]))
+        if new[path][1] > old[path][1]:
+            result["skips"].append("%s: %d -> %d" % (path, old[path][1], new[path][1]))
+        if path in before and path in after and new[path][2] < old[path][2]:
+            result["asserts"].append("%s: %d -> %d" % (path, old[path][2], new[path][2]))
     result["ok"] = not (result["deleted"] or result["skips"] or result["asserts"] or result["errors"])
     return result
 

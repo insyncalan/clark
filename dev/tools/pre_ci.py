@@ -187,8 +187,10 @@ class PreCi:
                             out or "%d files compile" % len(files), secs, files=len(files), interpreter="python3.9")
         start = time.time()
         bad = cannot_parse_39({p: (ROOT / p).read_bytes() for p in files})
-        out = "\n".join("%s: %s" % b for b in bad) or "%d files parse" % len(files)
-        return self.add(5, "Python 3.9 compile", ["ast.parse(feature_version=(3, 9))"], 1 if bad else 0, out, time.time() - start,
+        # This Python's 3.9 grammar switch accepts some syntax 3.9 refuses: it can prove a fail, never a pass.
+        out = "\n".join("%s: %s" % b for b in bad) or ("no Python 3.9 on this box (set CLARK_PY39 or put python3.9 on the PATH): "
+                                                        "%d files pass the grammar switch only, which is not a compile" % len(files))
+        return self.add(5, "Python 3.9 compile", ["ast.parse(feature_version=(3, 9))"], 1 if bad else None, out, time.time() - start,
                         files=len(files), interpreter="this Python with the 3.9 grammar switch (LIMIT: misses some newer syntax)")
 
     def smoke(self):
