@@ -241,7 +241,7 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.style(".tpl-gal-empty b", "fontSize")[0], "28px")
             self.assertEqual(self.style(".tpl-gal-empty span", "fontSize")[0], self.style(".tpl-gal-empty", "fontSize")[0], "the words keep the inherited size")
 
-    def test_caption_13px_muted_margin_6_2_0_at_both_widths(self):
+    def test_caption_13px_muted_margin_8_2_0_at_both_widths(self):
         for page in (1400, 900):
             self.mount(many(2, {"items": {"1": {"caption": "Fictional site visit"}}}), page)
             self.assertEqual(self.count(".tpl-gal-tcap"), 1, "only an image with a caption has one")
