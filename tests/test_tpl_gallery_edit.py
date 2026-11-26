@@ -43,6 +43,16 @@ window.cs = (sel, props) => { const e = document.querySelector(sel); const k = g
 PIC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
 
+def contrast(a, b):
+    """WCAG 2.x contrast ratio of two 'rgb(r, g, b)' colours."""
+    def lum(c):
+        ch = [int(x) / 255 for x in re.findall(r"\d+", c)[:3]]
+        ch = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in ch]
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 def many(n, extra=None):
     return json.dumps({"v": 2, "pictures": {str(i): PIC for i in range(1, n + 1)}, **(extra or {})})
 
@@ -249,18 +259,28 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.val(f"document.querySelector('{sel}').title"), "No description yet")
             self.assertEqual(self.val(f"document.querySelector('{sel}').textContent"), "!")
             self.assertEqual(self.style(sel, "width", "height", "borderTopLeftRadius", "color", "fontSize", "fontWeight"),
-                             ["20px", "20px", "50%", "rgb(255, 255, 255)", "12px", "700"])
+                             ["20px", "20px", "50%", "rgb(255, 255, 255)", "12px", "700"])   # light: white "!"
             wants = []
             for dark in (False, True):          # the red is the page's own token in each theme (no colour typed here)
                 self.dark(dark)
                 want = self.token("--tone-red-text")
                 self.assertEqual(self.style(sel, "backgroundColor"), [want], f"the mark is --tone-red-text, dark={dark}")
                 wants.append(want)
-                if dark:
+                bang = self.style(sel, "color")[0]
+                if not dark:
+                    self.assertEqual(bang, "rgb(255, 255, 255)", "light: white '!'")
+                else:
+                    self.assertEqual(bang, self.token("--bg"), "dark: the '!' is the page background (dark), not white")
+                    self.assertNotEqual(bang, "rgb(255, 255, 255)")
+                    self.assertGreaterEqual(contrast(bang, want), 4.5, f"dark '!' {bang} on {want} is 12px bold: needs 4.5:1")
                     self.assertNotIn(self.style(sel, "display")[0], ("none", "contents"), "the mark is displayed in dark")
                     self.assertEqual(self.style(sel, "visibility"), ["visible"], "the mark is visible in dark")
                     box = self.val(f"(function(){{const r = document.querySelector('{sel}').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)];}})()")
                     self.assertEqual(box, [20, 20], "the mark has its 20 x 20 box in dark")
+            self.cdp.js("document.documentElement.setAttribute('data-theme', 'auto')", self.sid)      # auto + prefers dark: the same dark '!'
+            self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]}, self.sid)
+            self.assertEqual(self.style(sel, "color"), [self.token("--bg")], "auto in a dark OS: dark '!'")
+            self.assertGreaterEqual(contrast(self.style(sel, "color")[0], self.style(sel, "backgroundColor")[0]), 4.5, "auto dark contrast")
             self.dark(False)
             self.assertNotEqual(wants[0], wants[1], "the token has its own dark value")
             d = self.val(f"(function(){{const m = document.querySelector('{sel}').getBoundingClientRect(), t = document.querySelector('.tpl-gal-tile:nth-child(2)').getBoundingClientRect(); return [m.top - t.top - 2, t.right - 2 - m.right];}})()")
