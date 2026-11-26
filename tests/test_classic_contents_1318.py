@@ -89,7 +89,7 @@ class Classic(Base):
             self.assertEqual(got, ["A", True, True, "solid", "2px"])
 
     def keep_only(self, n):
-        rows = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id").fetchall()
+        rows = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND type != 'reportheadline' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id").fetchall()      # row 1266: the Headline is not a Contents entry
         for (ref,) in rows[n:]:
             self.demo.update("report_sections", ref, {"hidden": 1})
 
@@ -153,7 +153,7 @@ class Classic(Base):
         # M09 and M24: with the bar's height left out the line sits about 0.7 of the bar higher; put it 5px past a section top, where only the right line marks it
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            k = 2
+            k = 5      # row 1266: a full-width section (Use cases); entries 2 and 3 are the This week and Next week pair, which share one top
             p.js(self.PUT + f"({k}, 5)")
             self.assertGreater(self.still(p), 0)
             entry = p.js(f"document.querySelectorAll('.cnt li a')[{k}].dataset.entry")
@@ -185,13 +185,13 @@ class Classic(Base):
             p = self.at(cdp, 1400)
             p.edit()
             total = p.js("document.querySelectorAll('.secs > .sec').length")
-            p.menu("ABC-S-004", "hide")
-            p.until("!!document.querySelector('[data-id=\"ABC-S-004\"].is-hidden')", "the section is hidden")
+            p.menu("ABC-S-007", "hide")
+            p.until("!!document.querySelector('[data-id=\"ABC-S-007\"].is-hidden')", "the section is hidden")
             entries = p.js("[...document.querySelectorAll('.cnt li a')].map(a => a.dataset.entry)")
             self.assertEqual(len(entries), total - 1)      # M10
-            self.assertNotIn("ABC-S-004", entries)
-            before = entries[entries.index(p.js("document.querySelector('[data-id=\"ABC-S-004\"]').previousElementSibling.dataset.id"))]
-            p.js("(function(){var e=document.querySelector('[data-id=\"ABC-S-004\"]'), bar=document.querySelector('.top').getBoundingClientRect().height;"
+            self.assertNotIn("ABC-S-007", entries)
+            before = entries[entries.index(p.js("document.querySelector('[data-id=\"ABC-S-007\"]').previousElementSibling.dataset.id"))]
+            p.js("(function(){var e=document.querySelector('[data-id=\"ABC-S-007\"]'), bar=document.querySelector('.top').getBoundingClientRect().height;"
                  "window.scrollTo(0, Math.round(e.getBoundingClientRect().top+window.scrollY+20-bar-(innerHeight-bar)*0.3));})()")
             self.assertGreater(self.still(p), 100)      # clear of the top, where the first entry is marked whatever the sections are
             p.until(f"{self.ON}.length === 1 && {self.ON}[0] === {before!r}", "the section before the hidden one is marked")      # M08
@@ -214,7 +214,7 @@ class Classic(Base):
             self.assertEqual(got, ["auto", True, True, True])      # M18
 
     def test_the_current_entry_is_heavier_and_a_long_title_stays_on_one_clipped_line(self):
-        ref = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id LIMIT 1 OFFSET 1").fetchone()[0]
+        ref = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND type != 'reportheadline' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id LIMIT 1 OFFSET 1").fetchone()[0]
         self.demo.update("report_sections", ref, {"title": "A very long fictional section title that needs far more room than the narrow column gives it"})
         with chrome() as cdp:
             p = self.at(cdp, 1400)
@@ -300,7 +300,8 @@ class PublishedFile(unittest.TestCase):
         self.addCleanup(demo.close)
         store = demo.store
         change = changes.make_change(store.path, [], USER)
-        for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown plan"})):
+        for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-006", {"title": "Shown plan"}),
+                          ("ABC-S-003", {"body": "<p>Fictional header words.</p>"}), ("ABC-S-004", {"body": "<p>Fictional work this week.</p>"})):      # row 1266: the file leaves out an empty text section, so two have words
             status, body = change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "changes": edit})
             self.assertEqual(status, 200, body)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
@@ -312,7 +313,7 @@ class PublishedFile(unittest.TestCase):
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#report .secs > .sec').length >= 3", sid)), "the file drew its sections")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)", sid), ["At a glance", "Use case summary", "Milestones"])      # what the Classic file draws on clean main too
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)", sid), ["Header", "This week", "Shown plan"])      # row 1266: what the Classic file draws for a new project now (the Contents code is unchanged; the list follows the new default sections)
             self.assertEqual(cdp.js("!!document.querySelector('.toc') || !!document.querySelector('.toc-lines')", sid), False)
             self.assertEqual(cdp.js("document.querySelectorAll('.cnt button').length", sid), 0, "the entries are links, not buttons: a view-only file has none")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].every(a => document.getElementById(a.getAttribute('href').slice(1)))", sid), True, "each link points at a section of the file")

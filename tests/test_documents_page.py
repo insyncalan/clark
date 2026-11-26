@@ -7,6 +7,7 @@ Needs Chrome (the #33 harness): these tests fail, never skip, without it. Fictio
 """
 import json
 import shutil
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,6 +22,13 @@ WIDTHS = ((1400, False), (900, True), (900, False), (1400, True))
 
 
 class Page(PageBase):
+    def setUp(self):
+        super().setUp()
+        con = sqlite3.connect(str(self.store.path))      # row 1266: a new project has Documents (doclinks); an existing report keeps the Supporting documents section these tests pin
+        con.execute("UPDATE report_sections SET type = 'docs', title = 'Supporting documents' WHERE project = 'ABC' AND type = 'doclinks'")
+        con.commit()
+        con.close()
+
     def docs_section(self):
         return next(r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "docs")
 

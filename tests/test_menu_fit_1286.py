@@ -97,6 +97,16 @@ class MenuFit(Base):
                 self.inside(cdp, sid, "#viewMenuList", "View menu", (w, h, th))
                 self.close(cdp, sid)
 
+    def test_the_view_menu_stays_inside_the_window_at_1400(self):
+        """Row 1540 AP4: the View menu at 1400 wide, window heights 900 and 420, light and dark, sits inside the window and scrolls when cut."""
+        with chrome() as cdp:
+            sid = self.loaded(cdp)
+            for w, h, th in [look for look in LOOKS if look[0] == 1400]:
+                self.look(cdp, sid, w, h, th)
+                tap(cdp, sid, "#viewMenu")
+                self.inside(cdp, sid, "#viewMenuList", "View menu", (w, h, th))
+                self.close(cdp, sid)
+
     def test_a_cell_status_list_stays_inside_the_window(self):
         with chrome() as cdp:
             sid = self.loaded(cdp)

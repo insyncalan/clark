@@ -152,11 +152,12 @@ class OnThePage(unittest.TestCase):
         time.sleep(0.2)
         js("document.querySelector('#ai-size').blur()")
 
-    def test_the_box_shows_saves_refuses_and_offers_the_default_at_1400_and_900(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
+    def test_the_box_shows_saves_refuses_and_offers_the_default_at_1400_and_900_light_and_dark(self):
+        for width, theme in ((1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")):
+            with self.subTest(width=width, theme=theme), chrome() as cdp:
                 settings.ai_write(self.d, {"size": 300_000})
                 js = self.show(cdp, width)
+                js(f"document.documentElement.dataset.theme = '{theme}'")
                 self.assertEqual(js("document.querySelector('label[for=ai-size]').innerText"), "Size of one question")
                 self.assertEqual(js("document.querySelector('#ai-size').value"), "300000")
                 self.assertEqual(js("document.querySelector('[data-ai-size-help]').innerText"), HELP)
@@ -178,6 +179,45 @@ class OnThePage(unittest.TestCase):
                 js("document.querySelector('[data-ai-size-default]').click()")
                 self.assertTrue(wait(lambda: settings.ask_size(self.d) == 300_000, 10))
                 self.assertTrue(wait(lambda: not js("!!document.querySelector('[data-ai-size-default]')"), 10))
+
+    ENTER = "document.querySelector('#ai-size').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))"
+
+    def test_enter_saves_the_size_and_a_refused_one_is_put_back_at_1400_and_900(self):
+        """Row 1571 (item 1): Enter in the box saves it without leaving the box; a refused value says the refusal and the saved one is put back."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                settings.ai_write(self.d, {"size": 300_000})
+                js = self.show(cdp, width)
+                js("(() => { const e = document.querySelector('#ai-size'); e.focus(); e.value = '5000'; })()")
+                self.assertFalse(js(self.ENTER), "Enter is defaultPrevented (no form submit, no page jump)")
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-msg]').innerText") == REFUSAL, 10), "Enter refused 5000")
+                self.assertTrue(wait(lambda: js("document.querySelector('#ai-size').value") == "300000", 10), "the saved value is put back")
+                self.assertEqual(settings.ask_size(self.d), 300_000)
+                js("(() => { const e = document.querySelector('#ai-size'); e.focus(); e.value = '40000'; })()")
+                self.assertFalse(js(self.ENTER), "Enter is defaultPrevented when it saves")
+                self.assertTrue(wait(lambda: settings.ask_size(self.d) == 40_000, 10), "Enter saved 40000")
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-size]').innerText") == LINE.format(t=40_000, c=160_000), 10))
+                self.assertTrue(wait(lambda: js("document.querySelector('[data-ai-msg]').innerText") == "Size of one question is saved.", 10))
+                self.assertTrue(js("document.activeElement === document.querySelector('#ai-size')"), "saved without leaving the box")
+
+    def test_enter_with_the_value_unchanged_saves_nothing_and_says_nothing_at_1400_and_900(self):
+        """Row 1571 gap: Enter on the value already saved sends nothing (no request, no file write, no toast) and is still defaultPrevented."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                settings.ai_write(self.d, {"size": 300_000})
+                js = self.show(cdp, width)
+                before = (self.d / settings.FILE).read_bytes() if (self.d / settings.FILE).exists() else None
+                js("(() => { window.__sent = 0; const f = window.fetch; window.fetch = function () { window.__sent += 1; return f.apply(this, arguments); };"
+                   " const e = document.querySelector('#ai-size'); e.focus(); e.value = '300000'; })()")
+                self.assertFalse(js(self.ENTER), "Enter is defaultPrevented even when nothing changes")
+                time.sleep(1.5)
+                self.assertEqual(js("window.__sent"), 0, "no request was sent")
+                self.assertEqual(js("(document.querySelector('[data-ai-msg]') || {innerText: ''}).innerText"), "", "no toast, no refusal")
+                self.assertFalse(js("document.body.innerText.includes('is saved')"), "no saved toast anywhere")
+                self.assertEqual(settings.ask_size(self.d), 300_000)
+                self.assertEqual((self.d / settings.FILE).read_bytes() if (self.d / settings.FILE).exists() else None, before, "the settings file is untouched")
+                self.assertEqual(js("document.querySelector('#ai-size').value"), "300000")
+                self.assertTrue(js("document.activeElement === document.querySelector('#ai-size')"), "still in the box")
 
 
 if __name__ == "__main__":

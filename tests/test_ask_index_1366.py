@@ -222,6 +222,16 @@ class FirstRunAndHelpWords(unittest.TestCase):
         self.assertIn("W.CARD_PICTURES", panel)
         self.assertIn(self.PICTURES, json.dumps(entries, ensure_ascii=False))
 
+    def test_first_run_card_and_help_state_the_pictures_sentence(self):
+        """Row 1616 AP2: the pictures sentence is the constant CARD_PICTURES, one li on the first-run card, and in the Help text."""
+        import json
+        import re
+        page = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src"
+        said = dict(re.findall(r'export const (CARD_[A-Z_]+) = "((?:[^"\\]|\\.)*)"', (page / "edit" / "askWords.js").read_text(encoding="utf-8")))
+        self.assertEqual(said.get("CARD_PICTURES"), self.PICTURES)
+        self.assertEqual((page / "edit" / "AskPanel.jsx").read_text(encoding="utf-8").count("<li>{W.CARD_PICTURES}</li>"), 1)
+        self.assertIn(self.PICTURES, json.dumps(json.loads((page / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False))
+
 
 class QuestionNeedsNoPassages(RouteBase):
     """AP27 'only when they contain words from your question': a question that matches nothing in the listed folders sends no folder passage."""
@@ -311,6 +321,35 @@ class QuestionNeedsNoPassages(RouteBase):
             self.assertEqual("note.txt" in sent, sent_expected, question)
             self.assertEqual("quarterly xylophone invoice" in sent, sent_expected, question)
             self.assertNotIn("RAWBYTES", sent, "the picture file's own bytes are never sent")
+
+    def test_a_pictures_text_is_sent_as_a_text_files_is_and_the_picture_never_is(self):
+        """Row 1616 AP1 (ticket's name): a .png and a .txt with the same words are both sent or both not, for a shared word, no shared word and a follow-up
+        whose item ID is only in an EARLIER turn; the picture's bytes, raw or base64, are in no request."""
+        import base64
+        from clark import ask_picture, platform as pl
+        reader = lambda raw: raw.decode("latin-1").split("|", 1)[-1]
+        for p in (mock.patch.object(ask_picture.platform, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", reader)):
+            p.start()
+            self.addCleanup(p.stop)
+        raw = b"RAWBYTESzqnever" + bytes(range(1, 60)) + b"|Item ZQP-R-077 is the xylophone invoice"
+        (self.box / "scan.png").write_bytes(raw)
+        (self.box / "note.txt").write_text("Item ZQP-R-077 is the xylophone invoice", encoding="utf-8")
+        self.ix.start("ABC", [str(self.box)])
+        self.assertTrue(self.ix.wait_idle(20))
+        earlier = [{"role": "user", "text": "What is ZQP-R-077?"}, {"role": "assistant", "text": "It is an item."}]
+        seen = []
+        for question, turns, expected in (("what is the xylophone invoice", None, True), ("milestones", None, False),
+                                          ("and who owns it?", earlier, True), ("and who owns it?", None, False)):
+            sent = self.ask(question, turns)
+            seen.append(sent)
+            self.assertEqual("scan.png" in sent, expected, (question, bool(turns)))
+            self.assertEqual("note.txt" in sent, expected, (question, bool(turns)))
+        b64 = base64.b64encode(raw).decode("ascii")
+        for sent in seen:
+            self.assertNotIn("RAWBYTES", sent)
+            self.assertNotIn(b64, sent, "the picture's base64 is not sent")
+            self.assertNotIn(b64[:40], sent, "no part of the picture's base64 is sent")
+            self.assertNotIn(base64.b64encode(raw[:30]).decode("ascii")[:32], sent)
 
     def test_the_fallback_also_sends_no_passage_when_no_word_matches(self):
         self.service.indexer = None                       # no current index: the folders are read at question time
