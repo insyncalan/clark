@@ -502,7 +502,7 @@ class AcceptedByChanges(InBrowser):
     def test_a_move_without_flags_is_accepted_and_gives_the_order_the_logic_said(self):
         with DemoStore() as store:
             change = changes.make_change(store.path, [], USER)
-            for who, target in (("ABC-S-009", {"before": "ABC-S-003"}), ("ABC-S-001", {"before": None}), ("ABC-S-004", {"before": "ABC-S-010"})):
+            for who, target in (("ABC-S-009", {"before": "ABC-S-003"}), ("ABC-S-001", {"before": None}), ("ABC-S-006", {"before": "ABC-S-010"})):
                 rows = order.in_order(store.read("report_sections", "ABC"))
                 got = self.val(f"T.placement.place({lit(rows)}, {lit(who)}, {lit(target)})")
                 self.assertTrue(got["ok"], got)
