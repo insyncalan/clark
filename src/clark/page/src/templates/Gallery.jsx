@@ -7,12 +7,12 @@
 // all (4:3 when none is said, as before), two or three across (two across at half width and at 900 px), its caption under it when it has
 // one. No tool, dot, bin or red mark. Click an image (or Enter on it) to see it larger with its caption; Esc, a click outside it, or the
 // close button closes it. Same words and keys as section_kinds/gallery.py published(). A small image (framed copy under SMALL_WIDE px wide)
-// sits centred at its own size in its tile on its fill (`fill`: "blur" the image's own blurred copy, the default, "brand" or "plain"), unless
-// its `fit` is "stretch"; the look is in the Classic theme (themes/prototype-2.0/rules-2.css), so a page without it draws the tile as before.
+// sits centred at its own size in its tile on one blurred copy of itself, the same for every image (a stored per-image fit or fill is not
+// read: review ruling, the per-image choice belongs to the Image template only); the look is in the Classic theme (themes/prototype-2.0/rules-2.css), so a page without it draws the tile as before.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { contentOf, lineOf, captionOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
-import { FITS, FILLS, SMALL_WIDE } from "../logic/fullImageWords.js";
+import { FITS, SMALL_WIDE } from "../logic/fullImageWords.js";
 
 export const READY = true;
 export const SLOTS = ["1", "2", "3", "4", "5", "6"];
@@ -26,10 +26,6 @@ export function shown(v) {
   const list = SLOTS.filter((s) => lineOf(pics[s])).map((s) => {
     const it = items[s] && typeof items[s] === "object" ? items[s] : {};
     const one = { image: pics[s], caption: captionOf(it.caption), alt: lineOf(it.alt) };
-    if (v.v === 2) {
-      if (it.fit === "stretch") one.fit = "stretch";
-      if (it.fill === "brand" || it.fill === "plain") one.fill = it.fill;
-    }
     return one;
   });
   if (!list.length) return null;
@@ -70,16 +66,14 @@ function Large({ p, onClose, opener }) {
   );
 }
 
-// One image in its tile. Once it has loaded, one narrower than SMALL_WIDE (and not asked to stretch) says so in its frame's class.
+// One image in its tile. Once it has loaded, one narrower than SMALL_WIDE says so in its frame's class.
 function Tile({ p, src, onOpen }) {
   const [small, setSmall] = useState(false);
-  const centred = p.fit !== "stretch";
-  const fill = FILLS.includes(p.fill) ? p.fill : FILLS[0];
   const seen = (img) => { if (img && img.complete && img.naturalWidth) setSmall(img.naturalWidth < SMALL_WIDE); };
   return (
     <button type="button" class="tpl-gal-open" aria-haspopup="dialog" onClick={onOpen}>
-      <span class={`tpl-gal-vframe${small && centred ? ` small fill-${fill}` : ""}`} data-fit={centred ? FITS[0] : "stretch"}
-        style={small && centred && fill === "blur" ? `--gal-img: url("${src}")` : undefined}>
+      <span class={`tpl-gal-vframe${small ? " small fill-blur" : ""}`} data-fit={FITS[0]}
+        style={small ? `--gal-img: url("${src}")` : undefined}>
         <img src={src} alt={lineOf(p.alt)} loading="lazy" decoding="async" ref={seen} onLoad={(e) => seen(e.currentTarget)} />
       </span>
     </button>

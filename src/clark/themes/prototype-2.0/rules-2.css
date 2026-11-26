@@ -376,7 +376,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .tpl-gal.s169 .tpl-gal-vframe.small { aspect-ratio: 16 / 9; }
 .tpl-gal.swhole .tpl-gal-vframe.small { aspect-ratio: auto; }
 .tpl-gal .tpl-gal-vframe.small img { position: relative; width: auto; max-width: 100%; height: auto; max-height: 100%; aspect-ratio: auto; object-fit: contain; }
-.tpl-gal-vframe.small.fill-brand { background: var(--brand-blue); }
 .tpl-gal-vframe.small.fill-blur::before { content: ""; position: absolute; inset: -24px; background: var(--gal-img) center / cover; filter: blur(24px); transform: scale(1.05); }
 .tpl-gal-large { padding: 30px; }
 .tpl-gal-large-in p { margin: 10px var(--space-1) 0; font-size: 14px; }

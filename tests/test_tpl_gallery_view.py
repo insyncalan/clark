@@ -342,7 +342,7 @@ class SmallImage(unittest.TestCase):
     def tile(self, i=0):
         return self.js(f"""(function(){{var f=document.querySelectorAll('.tpl-gal-vframe')[{i}], im=f.querySelector('img'), fr=f.getBoundingClientRect(), r=im.getBoundingClientRect();
           return {{cls:f.className, w:r.width, h:r.height, nat:im.naturalWidth, fw:fr.width, fh:fr.height, dx:(r.left+r.width/2)-(fr.left+fr.width/2), dy:(r.top+r.height/2)-(fr.top+fr.height/2),
-                   bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit}};}})()""")
+                   bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit, dfit:f.dataset.fit, bgimg:getComputedStyle(f,'::before').backgroundImage}};}})()""")
 
     def waitclass(self, i, small):
         self.assertTrue(wait(lambda: ("small" in self.tile(i)["cls"].split()) == small), "the frame says whether it is small")
@@ -382,28 +382,53 @@ class SmallImage(unittest.TestCase):
         self.assertEqual((round(t["w"]), round(t["h"])), (300, 200), "whole: the frame is the image's own size high")
         self.assertLessEqual(abs(t["fh"] - t["h"]), 1)
 
-    def test_the_fill_and_fit_the_file_carries_are_kept(self):
-        pics = pictures(3, size=(400, 300))
-        pics[0]["fill"], pics[1]["fill"], pics[2]["fit"] = "brand", "plain", "stretch"
-        self.draw(pics, 1400)
-        self.waitclass(0, True)
-        self.waitclass(1, True)
-        self.waitclass(2, False)
-        brand, plain = self.js("getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim()"), self.js("getComputedStyle(document.documentElement).getPropertyValue('--grey-100').trim()")
-        self.assertEqual((self.tile(0)["blur"], self.tile(1)["blur"]), ("none", "none"), "brand and plain have no blurred copy")
-        self.assertNotEqual(self.tile(0)["bg"], self.tile(1)["bg"], f"brand {brand} and plain {plain} differ")
-        self.assertEqual((round(self.tile(2)["w"]), self.tile(2)["fit"]), (round(self.tile(2)["fw"]), "cover"), "stretch fills the tile")
-        for bad in ("pink", "x\"); background:url(//e"):
-            self.draw([{**pictures(1, size=(400, 300))[0], "fill": bad}], 1400)
-            self.waitclass(0, True)
-            self.assertIn("blur(24px)", self.tile()["blur"], "an unknown fill is the blur")
+    def test_a_stored_brand_plain_or_stretch_is_drawn_as_the_one_blur_fill_at_1400_and_900_light_and_dark(self):
+        # Review ruling: ONE blur fill for every small gallery tile; a per-image fit or fill in old data is not read.
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                pics = pictures(4, size=(400, 300))
+                pics[0]["fill"], pics[1]["fill"], pics[2]["fit"], pics[3]["fill"] = "brand", "plain", "stretch", "pink"
+                self.draw(pics, width, theme=theme)
+                for i in range(4):
+                    self.waitclass(i, True)
+                    t = self.tile(i)
+                    with self.subTest(width=width, theme=theme, tile=i):
+                        self.assertIn("fill-blur", t["cls"].split())
+                        self.assertNotIn("fill-brand", t["cls"])
+                        self.assertNotIn("fill-plain", t["cls"])
+                        self.assertIn("blur(24px)", t["blur"], "the image's own blurred copy")
+                        self.assertIn("url(", t["bgimg"], "the blurred copy is of the image itself")
+                        self.assertEqual(t["dfit"], "centre", "never marked stretch")
+                        self.assertEqual(t["fit"], "contain", "centred at its own size, not stretched")
+                        self.assertLessEqual(round(t["w"]), 400, "never enlarged")
+                        self.assertEqual(round(t["w"]), round(min(400, t["fw"])), "its own size, or the tile when narrower")
+                self.assertEqual(self.tile(0)["bg"], self.tile(1)["bg"], "the same tile background under every fill")
 
-    def test_shown_passes_fit_and_fill_of_a_version_2_body_only(self):
+    def test_599_wide_is_small_and_600_wide_is_not_in_a_gallery_tile(self):
+        self.draw(pictures(1, size=(599, 400)), 1400)
+        self.waitclass(0, True)
+        self.assertIn("blur(24px)", self.tile()["blur"])
+        self.draw(pictures(1, size=(600, 400)), 1400)
+        self.waitclass(0, False)
+        self.assertEqual((self.tile()["blur"], self.tile()["fit"]), ("none", "cover"))
+
+    def test_the_gallery_small_rule_is_the_one_shared_SMALL_WIDE_and_no_second_number(self):
+        src = (ROOT / "src/clark/page/src/templates/Gallery.jsx").read_text(encoding="utf-8")
+        self.assertRegex(src, r'import \{[^}]*\bSMALL_WIDE\b[^}]*\} from "\.\./logic/fullImageWords\.js"')
+        self.assertIn("img.naturalWidth < SMALL_WIDE", src)
+        code = "\n".join(l.split("//")[0] for l in src.splitlines())
+        for number in ("600", "599", "1200", "1,200"):
+            self.assertNotIn(number, code, "the gallery has no number of its own for small")
+        words = (ROOT / "src/clark/page/src/logic/fullImageWords.js").read_text(encoding="utf-8")
+        self.assertIn("export const SMALL_WIDE = 600;", words)
+
+    def test_shown_passes_no_fit_or_fill_of_any_body(self):
         body = {"v": 2, "pictures": {"1": GOOD}, "items": {"1": {"fit": "stretch", "fill": "brand"}}}
-        self.assertEqual(self.js(f"G.shown({json.dumps(body)})")["pictures"][0], {"image": GOOD, "caption": "", "alt": "", "fit": "stretch", "fill": "brand"})
-        for bad in ({"fit": "centre", "fill": "blur"}, {"fit": "x", "fill": 3}):
-            self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'items': {'1': bad}})})")["pictures"][0], {"image": GOOD, "caption": "", "alt": ""})
-        self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'v': 1})})")["pictures"][0], {"image": GOOD, "caption": "", "alt": ""})
+        plain = {"image": GOOD, "caption": "", "alt": ""}
+        for v in (2, 1):
+            self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'v': v})})")["pictures"][0], plain)
+        for bad in ({"fit": "centre", "fill": "blur"}, {"fit": "x", "fill": 3}, {"fill": "plain"}):
+            self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'items': {'1': bad}})})")["pictures"][0], plain)
 
     def test_the_large_view_has_the_spec_padding_caption_and_close_position(self):
         self.draw(pictures(1, caps=(0,), size=(1600, 900)), 1400)
