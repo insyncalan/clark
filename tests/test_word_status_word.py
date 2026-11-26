@@ -51,8 +51,8 @@ def several(*fns):
 
 
 class WordCarriesThePageWord(unittest.TestCase):
-    def test_an_overdue_action_says_Overdue(self):
-        self.assertEqual(word_status(edit("actions", "PUB-A-001", due_date="2026-10-20"))["PUB-A-001"], "Overdue")
+    def test_an_overdue_action_says_Open_not_Overdue(self):      # row 1543 AP4: the client copy reads a passed date as the page does, a plain Open
+        self.assertEqual(word_status(edit("actions", "PUB-A-001", due_date="2026-10-20"))["PUB-A-001"], "Open")
 
     def test_a_delayed_action_not_yet_late_says_Delayed(self):
         self.assertEqual(word_status(edit("actions", "PUB-A-001", status="Delayed", due_date="2026-12-20"))["PUB-A-001"], "Delayed")

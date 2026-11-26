@@ -162,7 +162,8 @@ class WordExact(unittest.TestCase):
         self.assertNotEqual(text, fill)
         st = '<w:p><w:pPr><w:pStyle w:val="TableText"/></w:pPr><w:r><w:rPr>'
         end = "</w:rPr><w:t xml:space=\"preserve\">"
-        want = (f'<w:tc><w:tcPr><w:tcW w:w="2409" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="{fill}"/></w:tcPr>'
+        # row 1543 AP4: the client Word copy has one tile fewer (no Overdue actions), so the table rounds each cell to 2411 twips, not 2409
+        want = (f'<w:tc><w:tcPr><w:tcW w:w="2411" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="{fill}"/></w:tcPr>'
                 f'{st}{GREY}<w:sz w:val="16"/><w:szCs w:val="16"/>{end}ZQ-Budget</w:t></w:r></w:p>'
                 f'{st}<w:b/><w:color w:val="{text}"/><w:sz w:val="32"/><w:szCs w:val="32"/>{end}87%</w:t></w:r></w:p>'
                 f'{st}<w:b/><w:sz w:val="16"/><w:szCs w:val="16"/>{end}ZQ-Steady</w:t></w:r></w:p>'

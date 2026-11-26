@@ -418,7 +418,7 @@ def section_glance(published, ctx, title, sec, kept):
                                 TEXT_W, keep_next=True, spacing=(0, 60)))
         if health["reason"].strip():
             out.append(text_paras(health["reason"], ctx, style=None))
-    others = [t for t in tiles if t["tile"] != "health"]
+    others = [t for t in tiles if t["tile"] not in ("health", "overdue")]      # row 1543 AP4: the client Word copy has no Overdue actions tile, as the published page has none
     if others:
         weights = [1] * len(others)
         cells = []
@@ -440,7 +440,7 @@ def section_usecases(published, ctx, title, sec, kept):
         return "".join(out) + para(run(NONE))
     out.append(para(run(strip["total_words"] + ": " + ", ".join(f"{c['count']} {c['status']}" for c in strip["counts"]))))
     rows = [[word_cell(u["ref"], ctx), word_cell(u["title"], ctx), word_cell(u["status"], ctx, colour=u["colour"]),
-             word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(u["words"], ctx)] for u in strip["rows"]]
+             word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(re.sub(r", \d+ overdue$", "", u["words"]), ctx)] for u in strip["rows"]]      # row 1543 AP4: "1 open, 1 overdue" reads "1 open" in the client Word copy
     out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
@@ -629,7 +629,7 @@ def _status_key(word):
 def _due(table_name, field, row, ctx, extra=()):
     iso = row.get(field)
     late = colours_table.is_late(table_name, field, row, ctx.today)
-    return word_cell(_date(iso) + (" (overdue)" if late else "") if iso else "", ctx, late=late, extra=extra)
+    return word_cell(_date(iso) if iso else "", ctx, late=late, extra=extra)
 
 
 def _status_cell(row, kind, ctx):
@@ -642,7 +642,9 @@ def _status_cell(row, kind, ctx):
     if pill["text"] in ("Closed", "Made", "Completed"):
         return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
     if row.get("priority") == "Urgent" and glance.is_open(row):
-        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+        return word_cell("Open" if pill["text"] == "Overdue" else pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+    if pill["text"] == "Overdue":      # row 1543 AP4: the page reads a passed action date as a plain grey Open
+        return word_cell("Open", ctx, colour="grey")
     return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
 
 
@@ -689,7 +691,7 @@ def section_decisions(published, ctx, title, sec):
         rows.append([word_cell(d.get("id"), ctx), (text_paras(_words(d, "client_message", "decision"), ctx), None),
                      word_cell(d.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", d.get("status"))),
                      word_cell(d.get("made_by"), ctx),
-                     word_cell(label + when + (" (overdue)" if late else ""), ctx, late=late, extra=extra)])
+                     word_cell(label + when, ctx, late=late, extra=extra)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
@@ -785,7 +787,7 @@ def section_glancetemplate(published, ctx, title, sec):
             out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
         if h["note"]:
             out.append(text_paras(h["note"], ctx, style=None))
-    tiles = got["tiles"]
+    tiles = [t for t in got["tiles"] if t["key"] != "overdue"]      # row 1543 AP4: no Overdue actions tile in the client Word copy
     if tiles:
         cells = []
         for t in tiles:

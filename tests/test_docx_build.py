@@ -395,7 +395,7 @@ class WhatIsInIt(unittest.TestCase):
                 col = b["rows"][0].index("Priority")
                 self.assertTrue(all(r[col] in ("Urgent", "High", "Medium", "Low") for r in b["rows"][1:]))
 
-    def test_an_open_row_past_its_date_says_overdue_and_a_closed_one_is_not_listed(self):
+    def test_an_open_row_past_its_date_has_no_overdue_word_and_a_closed_one_is_not_listed(self):
         p = copy.deepcopy(self.p)
         p["as_at"] = "2026-12-31"
         p["data"]["actions"][0]["status"] = "Closed"
@@ -405,7 +405,7 @@ class WhatIsInIt(unittest.TestCase):
             return {r[0]: r[4] for r in table[1:]}
 
         got = due_cells(p)
-        self.assertEqual(got["PUB-A-002"], "06-11-2026 (overdue)")
+        self.assertEqual(got["PUB-A-002"], "06-11-2026")      # row 1543 AP4: the client copy has no (overdue) suffix
         self.assertNotIn("PUB-A-001", got)      # row 837: a closed action is not listed at all
         self.assertEqual(due_cells(self.p)["PUB-A-002"], "06-11-2026")
 
@@ -426,8 +426,9 @@ class WhatIsInIt(unittest.TestCase):
 
     def test_the_tiles_count_only_what_is_published(self):
         text = every_text(self.data)
-        self.assertIn("Overdue actions", text)
-        self.assertIn("of 2 open actions", text)
+        self.assertNotIn("Overdue actions", text)      # row 1543 AP4: the client Word copy has no Overdue actions tile
+        self.assertNotIn("of 2 open actions", text)
+        self.assertIn("Project health", text)
         self.assertIn("High risks and issues", text)
         self.assertNotIn("Decisions needed", text)             # hidden by default, as on the page
 

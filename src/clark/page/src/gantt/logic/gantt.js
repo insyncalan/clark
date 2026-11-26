@@ -6,6 +6,7 @@
 // renumbers what a reader sees while every dependency and parent keeps pointing at the right line. A milestone has one date: its end is its start.
 
 import { EXAMPLE_DATE } from "./ganttWords.js";
+import { isPublished } from "../../filters.js";      // row 1543 AP4: the published page's switch
 
 export const DAY_MS = 864e5;
 export const TYPES = ["phase", "task", "milestone"];
@@ -41,7 +42,7 @@ export const WORDS = {
   startsBefore: "Starts before",
 };
 export const typeWord = (t) => WORDS[t] || "";
-export const statusWord = (s) => WORDS[s] || "";
+export const statusWord = (s) => (s === "late" && isPublished() ? "\u2014" : WORDS[s] || "");      // row 1543 AP4: a published file has no Late word: a dash; the editor keeps it
 export const filterWord = (f) => WORDS[f] || WORDS.all;
 export const linesShown = (n, m) => `${n} of ${m} lines shown`;
 

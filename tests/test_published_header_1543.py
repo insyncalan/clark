@@ -212,7 +212,98 @@ class Late1543:      # the tests below are methods of Header1543 (mixed in at th
                 self.assertNotRegex(seen["dashboard"]["over"], r"\b[ra]\b", "the action whose date has passed has no red and no amber")
 
 
-for _cls in (Late1543,):
+# Row 1543 AP4, additions (Romanoff, WO-M22710): no Overdue actions tile, no Late Gantt status, no Overdue in the Word copy of a published file.
+class More1543:
+    def plant_gantt(self):
+        """A line whose end passed (2026-10-10, publish day 2026-10-28) and one still running, with the Gantt tab on for the client."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"show_gantt_client": 1, "show_gantt_editor": 1, "gantt_hidden_columns": ""})
+            st.create("report_sections", {"project": "ABC", "type": "gantttable", "title": "Plan table", "sort_order": 950, "body": "", "beside": 0, "hidden": 0})
+            for n, (name, a, b) in enumerate((("Passed task", "2026-10-01", "2026-10-10"), ("Running task", "2026-10-20", "2026-12-20")), 1):
+                st.create("gantt_lines", {"project": "ABC", "type": "task", "name": name, "start": a, "end": b, "pct": 20, "show": 1, "sort_order": 1024 * n})
+
+    def test_published_file_has_no_overdue_actions_tile_and_editor_keeps_it(self):
+        self.demo.plant_builtin_sections()
+        with self.store.step("dashboard", USER) as st:      # the built-in At a glance section (a new project starts with the template one)
+            for row in self.store.read("report_sections", "ABC"):
+                if row["type"] == "glancetemplate":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    e = self.show(cdp, width, dark)
+                    e.until("!!document.querySelector('[data-fig=overdue]')", "the editor draws the Overdue actions tile")
+                    self.assertIn("Overdue actions", e.js("document.querySelector('[data-fig=overdue]').textContent"))
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('[data-fig=health]')", "the file's tiles drew")
+                    got = p.js("""(() => { const g = document.querySelector('[data-glance]'); const r = (e) => e.getBoundingClientRect();
+                      return {text: g.textContent, over: g.querySelectorAll('[data-fig=overdue]').length, keys: [...g.querySelectorAll('[data-fig]')].map((e) => e.dataset.fig),
+                              boxes: [...g.querySelectorAll('[data-fig]')].map((e) => [Math.round(r(e).width), Math.round(r(e).height)]), wide: document.documentElement.scrollWidth <= innerWidth}; })()""")
+                    self.assertEqual(got["over"], 0, "no Overdue actions tile in the file")
+                    self.assertNotIn("Overdue actions", got["text"])
+                    self.assertIn("risks", got["keys"], "control: the other tiles are still drawn")
+                    self.assertTrue(all(w > 40 and h > 20 for w, h in got["boxes"]), f"every remaining tile has a box: {got['boxes']}")
+                    self.assertTrue(got["wide"], "no sideways scroll")
+
+    def test_published_gantt_has_no_late_word_and_the_editor_keeps_it(self):
+        self.plant_gantt()
+        path = self.publish()
+        probe = """(() => { const m = document.querySelector('main') || document.body;
+          const lab = [...m.querySelectorAll('[aria-label], [title]')].map((e) => (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).join(' | ');
+          return {text: m.innerText, lab, bars: m.querySelectorAll('[aria-label*="Passed task"]').length}; })()"""
+        pick = "(() => { const b = document.querySelector('[aria-label*=\"Passed task\"]'); if (b) b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return !!b; })()"
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('header.top-file [data-view=gantt]')", "the file has the Gantt tab")
+                    p.js("document.querySelector('header.top-file [data-view=gantt]').click()")
+                    p.until("document.body.innerText.includes('Passed task')", "the Gantt drew")
+                    p.js(pick)
+                    got = p.js(probe)
+                    p.js("document.querySelector('header.top-file [data-view=dashboard]').click()")
+                    p.until("document.body.innerText.includes('Passed task')", "the Gantt table section drew on the Dashboard")
+                    table = p.js(probe)
+                    self.assertNotRegex(table["text"], r"\bLate\b", "no Late word in the Gantt table's Status column")
+                    self.assertGreater(got["bars"], 0, "control: the passed line's bar is drawn")
+                    self.assertNotRegex(got["text"], r"\bLate\b", "no Late word on the published Gantt")
+                    self.assertNotRegex(got["lab"], r"\bLate\b", "no Late word in a Gantt label")
+                    self.assertNotRegex(got["text"], LATE_WORDS)
+                with chrome() as cdp:
+                    e = self.show(cdp, width, dark)
+                    e.until("!!document.querySelector('header.top [data-view=gantt]')", "the editor has the Gantt tab")
+                    e.js("document.querySelector('header.top [data-view=gantt]').click()")
+                    e.until("document.body.innerText.includes('Passed task')", "the editor's Gantt drew")
+                    e.js(pick)
+                    self.assertRegex(e.js(probe)["lab"], r"\bLate\b", "the editor's Gantt still says Late")
+
+    def test_client_word_copy_never_says_overdue(self):
+        import copy
+        from clark import docx_build
+        from test_docx_graphics import NS, parts
+        import xml.etree.ElementTree as ET
+        self.plant_gantt()
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        self.demo.action(description="Urgent late step", owner="Pat Demo", due_date="2026-10-02", priority="Urgent")
+        self.plant_late()
+        built = publish.build(self.store, "ABC", now="2026-10-28")["published"]
+        built = copy.deepcopy(built)
+        if not any(x["type"] == "gantt" for x in built["sections"]):
+            built["sections"] = list(built["sections"]) + [{"id": "gantt-1", "type": "gantt", "title": "Gantt", "beside": 0}]
+        text = docx_build.build(built)
+        doc = ET.fromstring(parts(text)["word/document.xml"])
+        said = " | ".join("".join(t.text or "" for t in p.iter("{%s}t" % NS["w"])) for p in doc.iter("{%s}p" % NS["w"]))
+        self.assertIn("Chase the supplier file", said, "control: the overdue action is in the copy")
+        self.assertIn("Passed task", said, "control: the Gantt is in the copy")
+        self.assertIn("Passed gate", said, "control: the passed milestone is in the copy")
+        self.assertNotRegex(said, r"(?i)overdue", "the client's Word copy says no Overdue")
+
+
+for _cls in (Late1543, More1543):
     for _name in dir(_cls):
         if _name.startswith(("test", "plant_", "pages", "peek_")):
             setattr(Header1543, _name, getattr(_cls, _name))
