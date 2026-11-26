@@ -1,5 +1,6 @@
 """Row 1281 (PR 2037), hostile pass on the NEW logic only: stores/version.js (loadVersion), Menu.jsx (groupedItems row flag, pillRadio keys,
-the aside span) and ProfileMenu.jsx (Classic-only items, pill, version on the Help line). Fictional data only.
+the aside span) and ProfileMenu.jsx (Classic-only items, version on the Help line). Row 1627: the pill left the Classic menu, so its browser tests went
+with it; MenuPure keeps the Menu.jsx group logic. Fictional data only.
 
 Run: python3 dev/run_tests.py test_profile_menu_hostile_1281
 """
@@ -165,19 +166,6 @@ class Hostile(Base):
                 "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
                 "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
-    def active(self, p):
-        return p.js("document.activeElement.textContent.replace('✓', '')")
-
-    def chosen(self, p):
-        return p.js("[...document.querySelectorAll('#profile-menu .pr')].filter(function(e){return e.getAttribute('aria-checked')==='true'}).map(function(e){return e.textContent}).join()")
-
-    def to_pill(self, p):
-        for _ in range(8):
-            if p.js("document.activeElement.classList.contains('pr')"):
-                return
-            p.key("ArrowDown", vk=40)
-        self.fail("the keys never reached the pill")
-
     def test_hostile_version_texts_are_text_only(self):
         for bad in ("<img src=x onerror=window.__x=1>", "1.2\u0000.3", "‮3.2.1", "a" * 3000, "\U0001f600́" * 40, "&amp;<b>x</b>"):
             with self.subTest(version=bad[:20]), mock.patch.object(sv, "VERSION", bad), chrome() as cdp:
@@ -208,88 +196,6 @@ class Hostile(Base):
             n = p.js("performance.getEntriesByType('resource').filter(function(e){return e.name.endsWith('/health')}).length")
             self.assertEqual(n, 1)
 
-    def test_key_mashing_in_the_pill_keeps_one_choice_one_stop_and_the_same_storage(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            self.to_pill(p)
-            order = ["System", "Light", "Dark"]
-            for i in range(1, 31):
-                p.key("ArrowRight", vk=39)
-                self.assertEqual((self.active(p), self.chosen(p)), (order[i % 3], order[i % 3]))
-            for _ in range(7):
-                p.key("ArrowLeft", vk=37)
-            self.assertEqual((self.chosen(p), self.active(p)), ("Dark", "Dark"), "30 rights then 7 lefts wrap to Dark")
-            self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu .pr')].filter(function(e){return e.tabIndex===0}).length"), 1, "exactly one tab stop")
-            self.assertEqual(p.js("document.querySelector('#profile-menu .pr[tabindex=\"0\"]').getAttribute('aria-checked')"), "true", "the stop is the chosen radio")
-            self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), self.chosen(p).lower())
-
-    def test_home_and_end_in_the_pill_choose_the_ends_and_keep_the_menu_and_page_still(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            self.to_pill(p)
-            y = p.js("scrollY")
-            for key, vk, want in (("End", 35, "Dark"), ("Home", 36, "System"), ("End", 35, "Dark"), ("End", 35, "Dark"), ("Home", 36, "System")):
-                p.key(key, vk=vk)
-                self.assertEqual((self.active(p), self.chosen(p)), (want, want), key)
-            self.assertTrue(p.js("!!document.querySelector('#profile-menu')"), "the menu stays open")
-            self.assertEqual(p.js("scrollY"), y, "the page did not scroll")
-
-    def test_classic_menu_entries_and_pill_markup_exact(self):
-        with mock.patch.object(sv, "VERSION", "6.5.4"), chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            p.until("!!document.querySelector('#profile-menu .hver')", "version")
-            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.getAttribute('data-kind')}).join()"),
-                             "who,preview,export,publish,published,settings,help")
-            self.assertEqual(p.js("document.querySelector('#profile-menu .hver').textContent"), "clark ver. 6.5.4")
-            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#profile-menu .pr'), function(e){return e.getAttribute('role')}).join()"), "menuitemradio,menuitemradio,menuitemradio")
-            self.assertEqual(p.js("document.querySelectorAll('#profile-menu .pr svg, #profile-menu .pr .mi').length"), 0)
-            self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu .ap'),l=document.getElementById(g.getAttribute('aria-labelledby'));return l&&l.textContent})()"), "Appearance")
-
-    def test_a_click_on_a_pill_radio_chooses_it_and_closes_the_menu(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            p.js("document.querySelector('#profile-menu .pr[data-kind=look-light]').click()")
-            p.until("!document.querySelector('#profile-menu')", "closed")
-            self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "light")
-
-    def test_pill_up_down_leave_and_return_to_the_chosen_radio(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            p.js("document.querySelector('#profile-menu [data-kind=look-dark]').click()")
-            p.until("!document.querySelector('#profile-menu')", "closed")
-            self.open_menu(p)
-            self.to_pill(p)
-            self.assertEqual(self.active(p), "Dark", "the keys stop on the chosen radio, not the first")
-            p.key("ArrowDown", vk=40)
-            p.key("ArrowUp", vk=38)
-            self.assertEqual(self.active(p), "Dark")
-            self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark", "Up and Down alone choose nothing")
-
-    def test_escape_in_the_pill_closes_and_hands_focus_back(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            self.to_pill(p)
-            p.key("ArrowRight", vk=39)
-            p.key("Escape", vk=27)
-            p.until("!document.querySelector('#profile-menu')", "closed")
-            self.assertEqual(p.js("document.activeElement.id"), "profile-btn")
-
-    def test_stray_keys_do_not_choose_a_radio(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            self.to_pill(p)
-            for k, vk in (("a", 65), ("x", 88), ("PageDown", 34), ("ArrowUp", 38)):
-                p.key(k, vk=vk)
-            self.assertIsNone(p.js("localStorage.getItem('clark.appearance')"))
-
-
     def test_word_export_hook_twice_without_error(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -298,18 +204,6 @@ class Hostile(Base):
             p.js("new Promise(r => setTimeout(r, 300))")
             self.assertEqual(p.js("window.__errs"), [])
             self.assertEqual(p.js("document.querySelectorAll('#word-export-dialog').length"), 1, "the box is open, once")
-
-    def test_modified_arrows_are_not_taken_by_the_pill(self):
-        """Alt+Left is the browser's Back, Ctrl+Home the page's top: a pill that chooses on them takes keys that are not its own."""
-        for name, key, vk, mod in (("alt-left", "ArrowLeft", 37, 1), ("ctrl-right", "ArrowRight", 39, 2), ("meta-left", "ArrowLeft", 37, 4), ("ctrl-home", "Home", 36, 2), ("ctrl-end", "End", 35, 2)):
-            with self.subTest(key=name), chrome() as cdp:
-                p = self.page(cdp)
-                self.open_menu(p)
-                self.to_pill(p)
-                for kind in ("keyDown", "keyUp"):
-                    cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk, "modifiers": mod}, p.sid)
-                self.assertIsNone(p.js("localStorage.getItem('clark.appearance')"), name + " chose a radio")
-
 
 class CardsHostile(Base):
     def setUp(self):

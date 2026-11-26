@@ -2,7 +2,7 @@
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
 // and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import from Word is not in this menu (row 1063). Settings is a page opened from this menu (row 976: no top-bar tab), Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
-// Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
+// Appearance (Light, Dark, System) is in the Cards menu (#179) and not in the Classic one (row 1627; Cards is frozen, the owner 19-11); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, showSettings, project, mode, view, status } from "../stores/report.js";
@@ -104,14 +104,15 @@ export function ProfileMenu() {
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
-  // Row 1281, Classic only: the three choices are one pill line (System | Light | Dark) in a row group; the Cards theme keeps its three rows.
-  const look = [{ id: "look-lab", lab: "Appearance", row: classic }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], ...(classic ? {} : { icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)) }), checked: appearance.value === m }))];
+  // Row 1627 (the owner 25-11), Classic only: the group is gone (it was row 1281's pill line), so one separator sets the actions apart from Help; the
+  // Cards theme keeps its three rows exactly as they were (frozen, the owner 19-11).
+  const look = classic ? [] : [{ id: "look-lab", lab: "Appearance", row: classic }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], ...(classic ? {} : { icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)) }), checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
   // item 1177: at 900 px and narrower the header has no search or ask clark button; they are the first two entries here (ask clark only while asking is on)
   const near = narrowHeader.value ? [{ id: "search", name: "Go to or do", icon: actionIcon("search") }, ...(askOn.value ? [{ id: "ask", name: "ask clark", icon: actionIcon("ask") }] : [])] : [];
-  const shown = [...(named ? [who, ...near] : [...near, who]), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest, ...(last ? [{ id: "sep", sep: true }] : []), ...(last ? [{ id: "note", lab: last }] : [])];   // a separator sets the settings entries apart from the look group
+  const shown = [...(named ? [who, ...near] : [...near, who]), ...actions, { id: "sep", sep: true }, ...look, ...(look.length && rest.length ? [{ id: "sep", sep: true }] : []), ...rest, ...(last ? [{ id: "sep", sep: true }] : []), ...(last ? [{ id: "note", lab: last }] : [])];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
     if (id === "search") openPalette();
     else if (id === "ask") { if (panelOpen.value) closePanel(); else openPanel(); }
