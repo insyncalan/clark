@@ -8,6 +8,7 @@
 
 Run: python3 dev/run_tests.py [-j N] [--quick] [--changed [BASE]] [--push BASE] [--deep] [--list] [--flaky]
                               [--repeat N [--stress N]] [--file-timeout S] [--rerun-max N] [--shard I/N] [--max-fail N]
+                              [--with-quarantined]
                               [name ...]
   name       only the test files whose name contains it (e.g. "vendor" runs the three test_vendor_ files); a dotted name
              (test_layout.LayoutTest or test_layout.LayoutTest.test_x) runs just that class or test
@@ -39,6 +40,9 @@ Run: python3 dev/run_tests.py [-j N] [--quick] [--changed [BASE]] [--push BASE] 
              They are balanced greedily, slowest first, by the times in dev/tools/shard_times.txt (read from a real run; a
              file it doesn't list counts as 30 s), never by this machine's last run, so every machine, and every CI job,
              computes the same split. Print one with --list.
+  --with-quarantined
+             also run the test files on dev/tools/quarantine.txt (flaky in two runs; dev/tools/flaky_quarantine.py). Without it
+             they are left out and named in a "Quarantined, not run" line. The nightly passes it
   --max-fail N
              once N files have failed, start no more (the ones running finish) and report: a machine where everything
              fails says so in minutes, not at the job's time limit (default 0: no limit; CI passes 8)
@@ -91,6 +95,7 @@ PATHS = (TESTS, ROOT / "src", TOOLS, ROOT / "vendor")   # each test file's PYTHO
 TIMES = TESTS / ".durations"          # last run's time per file, so the slowest start first (git-ignored)
 LAST_FAILED = TESTS / ".last-failed"  # the files that failed in their last run, one per line: they start first next time (git-ignored)
 SHARD_TIMES = TOOLS / "shard_times.txt"   # "test_x.py seconds" from a real run (committed), for --shard
+QUARANTINE = TOOLS / "quarantine.txt"    # test files flaky in two runs, one a line (committed): left out unless --with-quarantined
 SHARD_DEFAULT = 30                    # seconds assumed for a test file the times don't list
 FLAKY = TESTS / ".flaky.jsonl"        # one line each time a file failed under load and passed alone (git-ignored)
 REPO = ROOT
@@ -684,6 +689,15 @@ def stop_on_sigterm(_signum, _frame):
     raise KeyboardInterrupt
 
 
+def quarantined():
+    """The test file names on dev/tools/quarantine.txt (empty when the file is missing); `#` starts a comment."""
+    try:
+        lines = QUARANTINE.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return set()
+    return {ln.split("#")[0].strip() for ln in lines} - {""}
+
+
 def pick(names):
     """(the test files the names choose, {file name: unittest names}). A plain name is part of a file's name (creaite); a
     dotted one (test_layout.LayoutTest.test_x) is one class or test of that file, as #28's runner took them."""
@@ -732,6 +746,7 @@ def main(argv):
     ap.add_argument("--job-status", default="")
     ap.add_argument("--shard", type=shard_arg, metavar="I/N")
     ap.add_argument("--max-fail", type=int, default=0, metavar="N")
+    ap.add_argument("--with-quarantined", action="store_true")
     ap.add_argument("names", nargs="*")
     a = ap.parse_args(argv)
     if a.flaky:
@@ -754,6 +769,12 @@ def main(argv):
         return 1
     if a.quick:
         files = [f for f in files if not support.is_chrome(f)]
+    if not a.with_quarantined:
+        held = quarantined()
+        left_out = [f.name for f in files if f.name in held]
+        if left_out:
+            print(f"Quarantined, not run: {', '.join(left_out)} (dev/tools/quarantine.txt).", flush=True)
+            files = [f for f in files if f.name not in held]
     if a.changed:
         files, why = select(files, a.changed, a.deep)
         print(f"--changed: {len(files)} of the test files ({why}).", flush=True)
