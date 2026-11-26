@@ -47,7 +47,7 @@ Run: python3 dev/run_tests.py [-j N] [--quick] [--changed [BASE]] [--push BASE] 
              passed alone: counted per file, not red), and "complete": false until the run ends
   --summarize PATH [--job-status S]
              print the markdown summary of a results file and stop; a job whose status is "cancelled" with a results file that
-             is not complete is SIZING (the 60-minute cap), never "failed"
+             is not complete is SIZING (the 90-minute cap), never "failed"
   --rerun-max N
              re-run failures alone only when at most N files failed (default 15, or CLARK_RERUN_MAX). More than that is not
              load: something is broken for the whole machine
@@ -413,7 +413,8 @@ class Runner:
         self.stub = Path(tempfile.mkdtemp(prefix="clark-nodialog-"))      # RULE 14: osascript is a stub for every child (below)
         self.osascript_log = self.stub / "osascript-calls.log"
         stub = self.stub / "osascript"
-        stub.write_text('#!/bin/sh\necho "osascript $*" >> "$CLARK_TEST_OSASCRIPT_LOG"\nexit 1\n', encoding="utf-8")
+        # one record per call, ended by a NUL (no argument can hold one): a script of many lines is still one call
+        stub.write_text('#!/bin/sh\nprintf \'osascript %s\\0\' "$*" >> "$CLARK_TEST_OSASCRIPT_LOG"\nexit 1\n', encoding="utf-8")
         stub.chmod(0o755)
         self.procs = set()
         self.lock = threading.Lock()
@@ -489,11 +490,12 @@ class Runner:
             support.stop(p, grace=0)
 
     def osascript_calls(self):
-        """RULE 14: the lines the stub osascript logged (one per call a test made to the real dialog program)."""
+        """RULE 14: one entry per call a test made to the real dialog program, as the stub osascript logged it, on one line."""
         try:
-            return self.osascript_log.read_text(encoding="utf-8", errors="replace").splitlines()
+            logged = self.osascript_log.read_text(encoding="utf-8", errors="replace")
         except OSError:
             return []
+        return [" ".join(call.splitlines()) for call in logged.split("\0") if call]
 
     def close(self):
         """Remove the run's folder."""
@@ -565,10 +567,11 @@ def flake_counts(names):
     return {n: max(1, seen.count(n)) for n in names}
 
 
-def results_doc(total, defects, flakes, complete, not_run=0, failed_first=(), sizing=()):
+def results_doc(total, defects, flakes, complete, not_run=0, failed_first=(), sizing=(), failed=False):
     """The machine-readable result of one run: counts of DEFECT and FLAKE, the files, and whether the run reached its end.
-    `failed_first` are files that have failed once and are not yet classified (kept while the run is going, so a cancel hides none)."""
-    return {"complete": complete, "files": total, "not_run": not_run,
+    `failed_first` are files that have failed once and are not yet classified (kept while the run is going, so a cancel hides none).
+    `failed`: the run reached its end red, whatever made it red (a DEFECT, files not run, an osascript call, no tests)."""
+    return {"complete": complete, "failed": failed, "files": total, "not_run": not_run,
             "counts": {"DEFECT": len(defects), "FLAKE": len(flakes), "SIZING": len(sizing)},
             "defects": sorted(defects), "flakes": dict(sorted(flakes.items())), "sizing": sorted(sizing),
             "failed_first": sorted(failed_first)}
@@ -582,6 +585,14 @@ def write_results(path, doc):
             print(f"Could not write {path}: {e}", flush=True)
 
 
+def ended_defects(doc, job_status=""):
+    """The DEFECT count of a run that ended, as shown. A run or job that did not pass never shows a zero (AP2): when it counted no
+    DEFECT, something else made it red (files not run, an osascript call), so how many files are defective is unknown."""
+    count = doc["counts"]["DEFECT"]
+    red = job_status not in ("", "success") or doc.get("failed") or doc.get("not_run")
+    return "unknown (the run ended but did not pass)" if red and not count else str(count)
+
+
 def summarize(doc, job_status=""):
     """Markdown for the job summary. Never hides a DEFECT: a run that did not end (cancelled, killed, no results file) shows the files
     that had failed so far, or "unknown", never a zero. A cancelled job is also SIZING (the shard hit its time cap), never just "failed"."""
@@ -592,13 +603,13 @@ def summarize(doc, job_status=""):
     if job_status == "cancelled" and not ended:
         c["SIZING"] = max(1, c["SIZING"])
     if ended or (doc and job_status == "success"):
-        defect = str(c["DEFECT"])
+        defect = ended_defects(doc, job_status)
     elif open_files:
         defect = f"{len(open_files)}+ (not yet re-run alone; the run did not end)"
     else:
         defect = "unknown (the run did not end" + ("" if doc else ", no results file") + ")"
     lines = ["### Test classes", "", f"DEFECT {defect} | FLAKE {c['FLAKE']} | SIZING {c['SIZING']}", ""]
-    if c["SIZING"]:
+    if job_status == "cancelled" and not ended:       # not for a file that timed out and passed alone in a run that ended
         lines += ["SIZING: the job was cancelled at its time cap before the run ended; this is shard sizing, not a failed test.", ""]
     if doc:
         lines += [f"- DEFECT (failed twice, red): {n}" for n in doc["defects"]]
@@ -851,14 +862,16 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
     ok = not failed and not not_run and not dialogs
     defects, flaked, sized = classes(failed, alone)
     flakes = flake_counts(flaked)
-    write_results(results, results_doc(len(files), defects, flakes, True, not_run, sizing=sized))
+    passing = ok and count > 0
+    doc = results_doc(len(files), defects, flakes, True, not_run, sizing=sized, failed=not passing)
+    write_results(results, doc)
     if flakes or sized:
         print(f"FLAKE {len(flakes)}: " + ", ".join(f"{n} x{k}" for n, k in flakes.items()) + f"; SIZING {len(sized)}"
-              + (": " + ", ".join(sized) if sized else "") + f"; DEFECT {len(defects)}.", flush=True)
+              + (": " + ", ".join(sized) if sized else "") + f"; DEFECT {ended_defects(doc)}.", flush=True)
     if dialogs:
         print("\n" + osascript_message(dialogs))
     print(summary(ok, count, time.time() - start))
-    return 0 if ok and count else 1
+    return 0 if passing else 1
 
 
 if __name__ == "__main__":
