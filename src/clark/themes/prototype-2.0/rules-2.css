@@ -413,6 +413,11 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1534 (Classic only: the Cards page keeps its bytes, frozen 19-11): dragging a Work items heading to a new place; the drop place is a bar on the side of the heading it would land beside. */
+th[data-colmove] { cursor: grab; touch-action: none; }
+th.col-dragging { opacity: 0.55; cursor: grabbing; }
+th.col-drop-before { box-shadow: inset 3px 0 0 var(--brand-blue); }
+th.col-drop-after { box-shadow: inset -3px 0 0 var(--brand-blue); }
 /* Row 1233 (the Image gallery's Edit page, Classic only; Cards keeps the slot list). Values read from the approved mock-up (gallery-source.html, line numbers there): the grid (50), tile and frame (51-52, 20), add tile (56, 55), empty area (55, 108), caption (55). Three across, two at half width and at 900 px. */
 .tpl-gal-tiles { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tpl-gal-tiles.c2, .slot-left .tpl-gal-tiles, .slot-right .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
