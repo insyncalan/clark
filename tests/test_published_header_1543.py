@@ -7,6 +7,7 @@ Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; r
 import test_glance_page as glance
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
+from _classic_page import classic
 
 # The pages group and the bar: the group's gaps to the bar's right and bottom edges, each tab's left edge, and the right-hand group's box.
 PROBE = """(() => {
@@ -145,6 +146,22 @@ class Ap7:      # mixed into Header1543 below
                 self.assertTrue(got["cut"], "the long name does not fit, so it is cut")
                 self.assertLessEqual(got["idW"], got["barW"] * 0.5, "the name box stops at the editor's cap of half the bar (row 1305)")
                 self.assertEqual(got["title"], self.LONG_NAME, "its tooltip still names it")
+
+    def test_published_header_name_cap_is_the_editors(self):
+        """The name box cap of the published bar is the editor header's, read from the computed style (the cap does not bind at 1400 or 900, so the width alone cannot show it)."""
+        probe = "(() => { const n = document.querySelector('header.top #project-name').closest('.top-id, .hdr-id'); const cs = getComputedStyle(n); return {cls: n.className, max: cs.maxWidth}; })()"
+        classic(self)      # the editor in the Classic look, the one the file is drawn in
+        for width, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    p = self.show(cdp, width, dark)
+                    p.until("!!document.querySelector('header.top .tab')", "the editor's bar drew")
+                    e = p.js(probe)
+                f = self.probe_file(probe, width, dark)
+                self.assertIn("hdr-id", e["cls"], "control: the editor's name box")
+                self.assertIn("top-id", f["cls"], "control: the file's name box")
+                self.assertEqual(f["max"], e["max"], f"name cap: the file {f['max']}, the editor {e['max']}")
+                self.assertEqual(e["max"], "50%", "the editor's code value (rules.css row 1305: .hdr-id, .top-id max-width 50%)")
 
     def test_published_header_900px_follows_editor(self):
         for dark in (False, True):
