@@ -70,6 +70,28 @@ class Classic(Base):
                 p.key("Escape", vk=27)
                 p.until("!document.querySelector('#profile-menu')", "closed")
 
+    # Row 1627: the keyboard walk of what the Classic menu still has (it was part of test_appearance_pill_keys_1281, which also walked the pill)
+    def test_classic_menu_keys_1627(self):
+        active = "document.activeElement.textContent.replace(/ ?clark ver\\. .*$/, '')"
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            order = self.menu(p)
+            self.assertEqual(order, [WHO] + ITEMS, "the top line and the items, no pill between them")
+            self.assertEqual(p.js(active), WHO, "the first focus on open is the top line")
+            for want in order[1:]:
+                p.key("ArrowDown", vk=40)
+                self.assertEqual(p.js(active), want)
+            p.key("ArrowDown", vk=40)
+            self.assertEqual(p.js(active), WHO, "it wraps")
+            p.key("End", vk=35)
+            self.assertEqual(p.js(active), "Help")
+            p.key("Home", vk=36)
+            self.assertEqual(p.js(active), WHO)
+            p.key("Escape", vk=27)
+            p.until("!document.querySelector('#profile-menu')", "Escape closes the menu")
+            self.assertEqual(p.js("document.activeElement.id"), "profile-btn", "the focus is back on the profile button")
+
     # The version
     def test_help_line_version_1281(self):
         for w in WIDTHS:
