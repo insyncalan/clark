@@ -3,18 +3,24 @@
 // logic/reportSearch.js in what the file holds and nothing else. Choosing a result opens the page it is on (the read only panel, the
 // keys and Ctrl or Cmd + K are part 2). A published file only: the editor keeps its own palette.
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { signal } from "@preact/signals";
+import { narrowHeader } from "../edit/narrowHeader.js";
 import { data, show, TITLES, asAt } from "../stores/report.js";
 import { buildIndex, searchReport } from "../logic/reportSearch.js";
 
+export const searchOpen = signal(false);      // the one open state: the button (wide) and the report menu entry (900 px and narrower) both set it
+
 export function ReportSearch() {
-  const [open, setOpen] = useState(false);
+  const open = searchOpen.value, setOpen = (v) => { searchOpen.value = v; };
   const btn = useRef(null), was = useRef(false);
   useEffect(() => { if (was.current && !open && btn.current) btn.current.focus(); was.current = open; }, [open]);      // the box is gone (a modal keeps its page inert while it is open), so focus goes back to the button
   return (
     <>
-      <button type="button" class="tb-act" id="pub-search-btn" ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
-        <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
-      </button>
+      {narrowHeader.value ? null : (
+        <button type="button" class="tb-act" id="pub-search-btn" ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
+          <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
+        </button>
+      )}
       {open ? <Box onClose={() => setOpen(false)} /> : null}
     </>
   );

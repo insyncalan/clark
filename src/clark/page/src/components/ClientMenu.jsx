@@ -11,10 +11,12 @@ import { data, asAt } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { printReport } from "../stores/print.js";
 import { readerName, setReaderName, removeReader, initialsOf, look, toggleLook } from "../stores/reader.js";
+import { narrowHeader } from "../edit/narrowHeader.js";
+import { searchOpen } from "./ReportSearch.jsx";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
 
 const WORDS = {
-  menu: "Report menu", profile: "Profile", excel: "Export to Excel", pdf: "Export to PDF", past: "Past reports",
+  menu: "Report menu", search: "Go to or do", profile: "Profile", excel: "Export to Excel", pdf: "Export to PDF", past: "Past reports",
   theme: "Switch between light and dark",
   boxTitle: "Your profile", field: "Your name", save: "Save", cancel: "Cancel", remove: "Remove my profile",
   kept: "Kept only in this browser. It is never put in the report or sent anywhere.",
@@ -103,6 +105,7 @@ export function ClientMenu() {
       </button>
       {open ? (
         <MenuPanel label={WORDS.menu} id="client-menu" cls="cm-menu" anchor={btn.current} onClose={close}>
+          {narrowHeader.value ? item("search", WORDS.search, () => { searchOpen.value = true; }) : null}      {/* row 1543: at 900 px and narrower the bar has no search button (as the editor's); search is the first entry here */}
           {item("profile", WORDS.profile, () => setBox(true))}
           {book ? item("excel", WORDS.excel, () => download(book)) : null}
           {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" data-keep="1" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big"><Icon name={actionIcon("excel")} cls="mi" />{WORDS.excel}</button> : null}

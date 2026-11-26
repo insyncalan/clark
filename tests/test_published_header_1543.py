@@ -137,8 +137,15 @@ class Header1543(glance.Published):
         return p.js("[...document.querySelectorAll('.rs-row')].map((b) => [b.querySelector('.rs-label').textContent, b.dataset.kind])")
 
     def open_box(self, p):
-        p.until("!!document.getElementById('pub-search-btn')", "the button drew")
-        p.js("document.getElementById('pub-search-btn').click()")
+        """Wide: the search button. At 900 px and narrower the bar has no button (as the editor's): the first entry of the report menu opens the same box. Clicks only."""
+        p.until("!!document.getElementById('client-menu-btn')", "the bar drew")
+        if p.js("innerWidth <= 900"):
+            p.js("document.getElementById('client-menu-btn').click()")
+            p.until("!!document.querySelector('#client-menu [data-row=search]')", "the menu has the search entry")
+            p.js("document.querySelector('#client-menu [data-row=search]').click()")
+        else:
+            p.until("!!document.getElementById('pub-search-btn')", "the button drew")
+            p.js("document.getElementById('pub-search-btn').click()")
         p.until("!!document.querySelector('dialog#report-search[open]') && document.activeElement === document.getElementById('report-search-q')", "the search box opened with focus in it")
 
     def test_published_search_button_same_as_editor(self):
@@ -153,7 +160,7 @@ class Header1543(glance.Published):
             p.until("!!document.getElementById('pal-btn')", "the editor's search button drew")
             ed = p.js(edit_js)
         self.assertEqual((ed["w"], ed["h"]), (38, 28), "control: the editor's button is 38 by 28")
-        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+        for width, dark in ((1400, False), (1400, True)):
             with self.subTest(width=width, dark=dark):
                 got = self.probe_file(pub_js, width, dark)
                 self.assertEqual(got["count"], 1)
@@ -161,23 +168,41 @@ class Header1543(glance.Published):
                 self.assertEqual((got["border"], got["radius"]), (ed["border"], ed["radius"]), "the editor's border and corners")
                 self.assertEqual((got["name"], got["tip"]), ("Go to or do", "Go to or do (Ctrl or Cmd + K)"), "the editor's name and tooltip")
                 self.assertTrue(got["beforeSwitcher"] and got["inBar"] and got["wide"], f"the button is in the bar, left of the switcher, with no sideways scroll: {got}")
+                self.assertAlmostEqual(got["fromTabs"], ed["fromTabs"], delta=0.6, msg="it sits where the editor's search button does, 22 px after the pages")
+
+    def test_published_search_is_the_first_menu_entry_at_900_and_not_in_the_bar(self):
+        """PM ruling (row 1543, as the editor's SearchButton.jsx:8 and ProfileMenu.jsx:113, item 1177): at 900 px and narrower the bar has no search button; "Go to or do" is the first entry of the report menu and opens the same box. At 1400 the button is there and the menu has no such entry. Clicks only."""
+        path = self.plant_search()
+        menu_js = """(() => [...document.querySelectorAll('#client-menu [role=menuitem]')].map((x) => x.textContent.trim()).slice(0, 2))()"""
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.getElementById('client-menu-btn')", "the bar drew")
+                bar = p.js("document.querySelector('header.top-file').innerHTML.includes('Go to or do')")      # read before the menu opens (the menu panel sits inside the bar)
+                p.js("document.getElementById('client-menu-btn').click()")
+                p.until("!!document.querySelector('#client-menu [role=menuitem]')", "the menu opened")
+                first = p.js(menu_js)
                 if width == 900:
-                    self.assertLessEqual(got["gap"], 24, "at 900 px the button sits beside the switcher")
-                    self.assertLessEqual(got["endRight"], 40, "and both are at the right of the bar")
-                if width == 1400:
-                    self.assertAlmostEqual(got["fromTabs"], ed["fromTabs"], delta=0.6, msg="it sits where the editor's search button does, 22 px after the pages")
+                    self.assertEqual((p.js("!!document.getElementById('pub-search-btn')"), bar), (False, False), "no search button, and no 'Go to or do' word, in the bar")
+                    self.assertEqual(first[0], "Go to or do", f"it is the first menu entry: {first}")
+                    p.js("document.querySelector('#client-menu [data-row=search]').click()")
+                    p.until("!!document.querySelector('dialog#report-search[open]') && document.activeElement === document.getElementById('report-search-q')", "the entry opens the search box")
+                    self.assertEqual(p.js("document.querySelectorAll('dialog#report-search').length"), 1, "the one box")
+                else:
+                    self.assertEqual(p.js("!!document.getElementById('pub-search-btn')"), True, "the button is in the bar")
+                    self.assertNotIn("Go to or do", first, "the menu has no such entry when the button is there")
 
     def test_published_search_box_placeholder_and_open(self):
         path = self.plant_search()
         for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
-                p.until("!!document.getElementById('pub-search-btn')", "the button drew")
+                p.until("!!document.getElementById('client-menu-btn')", "the bar drew")
                 self.assertEqual(p.js("!!document.querySelector('dialog#report-search')"), False, "no box until the button is pressed")
                 self.open_box(p)
                 got = p.js("""(() => { const d = document.getElementById('report-search'), r = d.getBoundingClientRect(), i = document.getElementById('report-search-q');
                   return {ph: i.placeholder, inView: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, wide: document.documentElement.scrollWidth <= innerWidth, rows: document.querySelectorAll('.rs-row').length,
-                          none: !document.querySelector('.rs-none').hidden, expanded: document.getElementById('pub-search-btn').getAttribute('aria-expanded')}; })()""")
+                          none: !document.querySelector('.rs-none').hidden, expanded: (document.getElementById('pub-search-btn') || {getAttribute: () => 'true'}).getAttribute('aria-expanded')}; })()""")
                 self.assertEqual(got["ph"], "Search this report")
                 self.assertTrue(got["inView"] and got["wide"], f"the box fits the window: {got}")
                 self.assertEqual((got["rows"], got["none"], got["expanded"]), (0, False, "true"), "an empty box lists nothing and says nothing")
@@ -185,7 +210,10 @@ class Header1543(glance.Published):
                 self.assertEqual(p.js("document.querySelector('.rs-none').hidden"), False, "nothing found says so")
                 self.assertEqual(p.js("document.querySelector('.rs-none').textContent"), "Nothing matches.")
                 p.js("document.querySelector('dialog#report-search').dispatchEvent(new Event('cancel', {cancelable: true}))")
-                p.until("!document.querySelector('dialog#report-search') && document.activeElement === document.getElementById('pub-search-btn')", "closing puts focus back on the button")
+                if width == 900:
+                    p.until("!document.querySelector('dialog#report-search')", "closing takes the box away")
+                else:
+                    p.until("!document.querySelector('dialog#report-search') && document.activeElement === document.getElementById('pub-search-btn')", "closing puts focus back on the button")
 
     def plant_added_page(self):
         """An added page shown to the client with one text section (publish.py client_pages), then the file."""
