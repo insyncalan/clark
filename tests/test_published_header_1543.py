@@ -212,7 +212,7 @@ class Late1543:      # the tests below are methods of Header1543 (mixed in at th
                 self.assertNotRegex(seen["dashboard"]["over"], r"\b[ra]\b", "the action whose date has passed has no red and no amber")
 
 
-# Row 1543 AP4, additions (Romanoff, WO-M22710): no Overdue actions tile, no Late Gantt status, no Overdue in the Word copy of a published file.
+# Row 1543 AP4, additions (WO-M22710): no Overdue actions tile, no Late Gantt status, no Overdue in the Word copy of a published file.
 class More1543:
     def plant_gantt(self):
         """A line whose end passed (2026-10-10, publish day 2026-10-28) and one still running, with the Gantt tab on for the client."""
@@ -301,6 +301,59 @@ class More1543:
         self.assertIn("Passed task", said, "control: the Gantt is in the copy")
         self.assertIn("Passed gate", said, "control: the passed milestone is in the copy")
         self.assertNotRegex(said, r"(?i)overdue", "the client's Word copy says no Overdue")
+
+    def test_client_word_copy_has_no_late_word_and_no_late_colour(self):
+        """Row 1543 AP4b (rule 1543-ap4b-0827): the Word copy of a published file says no overdue, no late, no N days late in its text or
+        its picture alt text, and draws no late red: not in a run colour, not in a cell fill, not in a milestone or Gantt picture (the Gantt's red Today
+        line is the one red mark, a line, not a late signal)."""
+        import copy
+        import re
+        import xml.etree.ElementTree as ET
+        from clark import docx_build, docx_graphics
+        from test_docx_graphics import NS, parts, read_png
+        self.plant_gantt()
+        a_old = self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        a_urg = self.demo.action(description="Urgent passed step", owner="Pat Demo", due_date="2026-10-02", priority="Urgent")
+        a_yes = self.demo.action(description="Due yesterday step", owner="Pat Demo", due_date="2026-10-27")
+        a_five = self.demo.action(description="Due five days ago step", owner="Pat Demo", due_date="2026-10-23")
+        self.plant_late()
+        built = copy.deepcopy(publish.build(self.store, "ABC", now="2026-10-28")["published"])
+        built["sections"] = [x for x in built["sections"] if x["type"] != "gantt"] + [
+            {"id": "gantt-1", "type": "gantt", "title": "Gantt", "beside": 0},
+            {"id": "wi-1", "type": "workitems", "title": "Work items", "beside": 0, "columns": ["id", "due", "status"], "items": [a_yes, a_five, a_old, a_urg]}]
+        text = docx_build.build(built)
+        files = parts(text)
+        doc = ET.fromstring(files["word/document.xml"])
+        said = " | ".join("".join(t.text or "" for t in p.iter("{%s}t" % NS["w"])) for p in doc.iter("{%s}p" % NS["w"]))
+        alts = " | ".join(d.get("descr") or "" for d in doc.iter("{%s}docPr" % NS["wp"]))
+        for word in ("Chase the supplier file", "Urgent passed step", "Due yesterday step", "Passed task", "Passed gate", "Slipped gate"):
+            self.assertIn(word, said, f"control: {word} is in the copy")
+        for row in (a_old, a_urg, a_yes, a_five):
+            self.assertIn(row, said, f"control: the work item {row} is listed")
+        self.assertIn("27-10-2026 Yesterday", said, "the one kept word: a due date that is yesterday says Yesterday")
+        self.assertIn("23-10-2026", said, "control: the date from five days ago is shown, as a date alone")
+        self.assertIn("Open", said, "the accepted word for a passed action")
+        self.assertTrue(alts, "control: the pictures have alt text")
+        for where, got in (("text", said), ("alt text", alts)):
+            self.assertNotRegex(got, r"(?i)overdue", f"no overdue in the {where}")
+            self.assertNotRegex(got, r"(?i)\blate\b", f"no late in the {where}")
+            self.assertNotRegex(got, r"(?i)days late", f"no N days late in the {where}")
+        colours = {e.get("{%s}val" % NS["w"]) for e in doc.iter("{%s}color" % NS["w"])} | {e.get("{%s}fill" % NS["w"]) for e in doc.iter("{%s}shd" % NS["w"])}
+        red = docx_build.palette(None)["tone-red-text"]
+        self.assertTrue(colours - {None}, "control: the copy has colours")
+        red_runs = {"".join(t.text or "" for t in r.iter("{%s}t" % NS["w"])) for r in doc.iter("{%s}r" % NS["w"])
+                    if any(c.get("{%s}val" % NS["w"]) == red for c in r.iter("{%s}color" % NS["w"]))}
+        self.assertTrue(red_runs <= {"1", "Red"}, f"red text is only the High risks tile's count and the risk's Red rating (not lateness); no date, state or word of a late item: {red_runs}")
+        self.assertTrue(red_runs, "control: the red the copy does use is found by this check")
+        status_red = docx_graphics.tokens(docx_build.palette(None))["status-red"]
+        pngs = [n for n in files if n.startswith("word/media/") and n.endswith(".png")]
+        self.assertGreaterEqual(len(pngs), 2, "control: the plan and the Gantt pictures are in the copy")
+        for n in pngs:
+            w, h, palette, rows = read_png(files[n])
+            if status_red in palette:
+                at = palette.index(status_red)
+                cols = {x for row in rows for x, v in enumerate(row) if v == at}
+                self.assertLessEqual(len(cols), 2, f"{n}: red is only the Gantt's Today line, two pixels wide")
 
 
 for _cls in (Late1543, More1543):

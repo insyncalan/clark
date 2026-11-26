@@ -170,7 +170,7 @@ class Plan(unittest.TestCase):
     def centre(self, rows, i, iso=None):
         return lane_x(rows, self.TODAY, iso or rows[i]["baseline_date"]), g.TOP + i * g.LANE + g.LANE // 2
 
-    def test_an_achieved_milestone_is_a_green_ring_and_a_late_one_a_red_disc(self):
+    def test_an_achieved_milestone_is_a_green_ring_and_a_late_one_a_grey_disc(self):
         t = tok()
         rows = [ms(1, "Achieved", status="Done", actual_date="2026-11-20"), ms(2, "Overdue", baseline_date="2026-12-20")]
         (png, w, h), lanes = self.draw(rows)
@@ -178,13 +178,15 @@ class Plan(unittest.TestCase):
         x1, y1 = self.centre(rows, 1)
         self.assertEqual(pixel(png, x0 + 6, y0), t["status-green"])          # the ring
         self.assertEqual(pixel(png, x0, y0 - 4), t["surface"])               # and its inside
-        self.assertEqual(pixel(png, x1 + 6, y1), t["status-red"])
-        self.assertEqual(pixel(png, x1 + 5, y1), t["status-red"])
+        self.assertEqual(pixel(png, x1 + 6, y1), t["status-grey"])      # row 1543 AP4b: a passed milestone is grey, was red
+        self.assertEqual(pixel(png, x1 + 5, y1), t["status-grey"])
+        self.assertNotIn(t["status-red"], read_png(png)[2], "no red anywhere in the plan of a passed milestone")
         self.assertNotEqual(pixel(png, x0 + 6, y0), pixel(png, x1 + 6, y1))
 
     def test_each_state_has_its_own_colour_at_its_mark(self):
         t = tok()
-        want = {"On track": "status-green", "At risk": "status-amber", "Slipped": "status-red", "Overdue": "status-red",
+        want = {"On track": "status-green", "At risk": "status-amber", "Slipped": "status-grey", "Overdue": "status-grey",      # row 1543 AP4b: grey, were red
+                
                 "Forecast": "status-blue", "Achieved": "status-green"}
         for state, token in want.items():
             rows = [ms(1, state, status="Done" if state == "Achieved" else "Planned", actual_date="2026-11-20" if state == "Achieved" else None)]
@@ -210,16 +212,17 @@ class Plan(unittest.TestCase):
         (png, w, h), _ = self.draw(rows, "2026-11-20")
         self.assertEqual(pixel(png, b, 2), tok()["brand-navy"])
 
-    def test_a_slipped_milestone_has_a_dashed_red_line_back_and_a_ghost(self):
+    def test_a_slipped_milestone_has_a_dashed_grey_line_back_and_a_ghost(self):
         t = tok()
         rows = [ms(1, "Slipped", baseline_date="2026-11-20", forecast_date="2026-12-30", slip_days=40)]
         (png, w, h), lanes = self.draw(rows)
         self.assertEqual(str(lanes[0]["ghost"]), "2026-12-30")
         x0, y = self.centre(rows, 0, "2026-11-20")
         x1 = lane_x(rows, self.TODAY, "2026-12-30")
-        reds = [pixel(png, x, y) == t["status-red"] for x in range(x0 + 12, x1 - 9)]
+        reds = [pixel(png, x, y) == t["status-grey"] for x in range(x0 + 12, x1 - 9)]      # row 1543 AP4b: grey, was red
         self.assertTrue(any(reds) and not all(reds), "dashed, not solid")
-        self.assertEqual(pixel(png, x1 + 6, y), t["status-red"])
+        self.assertEqual(pixel(png, x1 + 6, y), t["status-grey"])
+        self.assertNotIn(t["status-red"], read_png(png)[2], "no red in the slipped milestone's plan")
 
     def test_the_lanes_follow_the_tables_order_and_an_undated_milestone_has_an_empty_lane(self):
         rows = [ms(1), ms(2, baseline_date=None, forecast_date=None), ms(3, baseline_date="2026-12-24")]

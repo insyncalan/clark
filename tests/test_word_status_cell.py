@@ -23,7 +23,7 @@ def cell(row, kind):
 class StatusColour(unittest.TestCase):
     def test_each_word_has_its_own_fill(self):
         for kind, row, word, colour in (
-            ("action", {"status": "Open", "due_date": "2026-10-20"}, "Overdue", "red"),
+            ("action", {"status": "Open", "due_date": "2026-10-20"}, "Open", "grey"),      # row 1543 AP4b: a passed action reads Open, grey (was Overdue, red)
             ("action", {"status": "Delayed", "due_date": "2026-12-20"}, "Delayed", "amber"),
             ("action", {"status": "Open", "due_date": "2026-10-30"}, "Due soon", "amber"),
             ("action", {"status": "Open", "due_date": "2026-12-20"}, "On track", "green"),
