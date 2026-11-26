@@ -8,8 +8,7 @@ import unittest
 
 from _demo import USER
 from test_report_editor import Base, tearDownModule  # noqa: F401
-from test_tpl_glance_page_1264 import seed_rows
-import test_tpl_glance_page_1264 as _test_tpl_glance_page_1264
+from test_tpl_glance_page_1264 import Page, seed_rows
 
 
 def add(test, kind):
@@ -25,8 +24,8 @@ def add(test, kind):
 
 
 class Tiles(Base):
-    make = _test_tpl_glance_page_1264.Page.make
-    look = _test_tpl_glance_page_1264.Page.look
+    make = Page.make
+    look = Page.look
 
     def raw(self, body):
         """A body the change route would refuse (an older or hand-written one): written straight to the store."""
