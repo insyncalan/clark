@@ -17,10 +17,12 @@ from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from clark import changes, history, publish
 from test_page import navigate
-from test_report_editor import EMPTY_BRANDING, IDS, Base, Pg
+from test_report_editor import EMPTY_BRANDING, Base, Pg
 from test_server import chrome, wait
 
 SIZES = (1400, 900)
+IDS = [f"ABC-S-{n:03d}" for n in range(2, 11)]
+EDIT_IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]          # row 1266: a new project's 11 sections; the Headline (S-001) is not listed in the contents, Documents (S-011) has no row to draw
 TOP = "document.querySelector('.top').getBoundingClientRect()"
 
 
@@ -58,21 +60,21 @@ class Minimap(Base):
             p = self.visit(cdp)
             self.assertEqual(self.listed(p), IDS, "View lists every section")
             p.edit()
-            self.assertEqual(self.listed(p), IDS)
+            self.assertEqual(self.listed(p), EDIT_IDS, "Edit lists the Headline and Documents too")
             p.menu("ABC-S-002", "hide")
             p.until("!!document.querySelector('[data-id=\"ABC-S-002\"].is-hidden')", "the section is hidden")
-            self.assertEqual(self.listed(p), [i for i in IDS if i != "ABC-S-002"], "a hidden section is not listed, though Edit still draws it")
+            self.assertEqual(self.listed(p), [i for i in EDIT_IDS if i != "ABC-S-002"], "a hidden section is not listed, though Edit still draws it")
             self.assertTrue(p.js("!!document.querySelector('[data-id=\"ABC-S-002\"]')"))
             p.js("document.querySelector('[data-id=\"ABC-S-001\"] [data-add]').click()")
             p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the Add a section box opened with Text chosen")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 11", "a section was added")
+            p.until("document.querySelectorAll('.secs > .sec').length === 12", "a section was added")
             listed = self.listed(p)
-            self.assertEqual(len(listed), 10)
+            self.assertEqual(len(listed), 11)
             self.assertNotIn("ABC-S-002", listed)
             self.assertEqual(listed[1], p.ids()[1], "the new section is listed in its place")
             p.view()
-            self.assertEqual(self.listed(p), listed, "View lists the same sections")
+            self.assertEqual(self.listed(p), [i for i in listed if i not in ("ABC-S-001", "ABC-S-011")], "View lists the same sections but the Headline and the empty Documents")
             p.edit()
             p.js("document.querySelector('[data-id=\"ABC-S-002\"] [data-options]').click()")
             p.until("!!document.querySelector('[data-id=\"ABC-S-002\"] .menu')", "the menu opened")
@@ -122,7 +124,7 @@ class Minimap(Base):
             p.until("document.querySelector('.toc-lines i.on') && document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-010'",
                     "the last section is current at the bottom")
             p.js("window.scrollTo(0, 0)")
-            p.until("document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-001'", "the first is current at the top")
+            p.until("document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-002'", "the first is current at the top")
 
     def test_it_fits_at_1400_and_900_in_both_colour_schemes(self):
         with chrome() as cdp:

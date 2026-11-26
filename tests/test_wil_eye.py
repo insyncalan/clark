@@ -15,7 +15,7 @@ OWNERS = ["Pat Demo", "Lee Demo", "Sam Demo", "Kim Demo"]
 
 
 def tile_values(built):
-    return {t["tile"]: t["value"] for t in built["published"]["data"]["glance"]["tiles"]}
+    return {c["tile"]: c["value"] for s in built["published"]["sections"] if s["type"] == "glancetemplate" for c in s["content"].get("counts", [])}      # row 1266: the default At a glance is the template, whose counts are in its section content
 
 
 class Eye(base.InThePage):

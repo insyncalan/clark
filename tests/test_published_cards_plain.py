@@ -99,6 +99,9 @@ class Plain(PublishedFile, glance.Setup):
             for n, (kind, body) in enumerate(self.other_bodies().items()):
                 st.create("report_sections", {"project": "ABC", "type": kind, "title": "Fictional %s" % kind, "sort_order": 1100 + n,
                                               "body": store_module.check_section_body(kind, json.dumps(body))})
+            glances = [r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "glancetemplate"]
+            for old in glances[:-1]:      # row 1266: the page draws one glance template; the file of this test keeps the filled one it plants last
+                st.cancel("report_sections", old)
 
     def other_bodies(self):
         """One filled section of every other template that is published, none of them a picture one."""
