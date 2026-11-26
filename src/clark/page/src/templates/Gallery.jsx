@@ -79,7 +79,7 @@ function Tile({ p, src, onOpen }) {
   return (
     <button type="button" class="tpl-gal-open" aria-haspopup="dialog" onClick={onOpen}>
       <span class={`tpl-gal-vframe${small && centred ? ` small fill-${fill}` : ""}`} data-fit={centred ? FITS[0] : "stretch"}
-        style={small && centred && fill === "blur" ? `--gal-src: url("${src}")` : undefined}>
+        style={small && centred && fill === "blur" ? `--gal-img: url("${src}")` : undefined}>
         <img src={src} alt={lineOf(p.alt)} loading="lazy" decoding="async" ref={seen} onLoad={(e) => seen(e.currentTarget)} />
       </span>
     </button>
