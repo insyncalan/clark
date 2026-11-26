@@ -342,7 +342,7 @@ class SmallImage(unittest.TestCase):
     def tile(self, i=0):
         return self.js(f"""(function(){{var f=document.querySelectorAll('.tpl-gal-vframe')[{i}], im=f.querySelector('img'), fr=f.getBoundingClientRect(), r=im.getBoundingClientRect();
           return {{cls:f.className, w:r.width, h:r.height, nat:im.naturalWidth, fw:fr.width, fh:fr.height, dx:(r.left+r.width/2)-(fr.left+fr.width/2), dy:(r.top+r.height/2)-(fr.top+fr.height/2),
-                   bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit, dfit:f.dataset.fit, bgimg:getComputedStyle(f,'::before').backgroundImage}};}})()""")
+                   bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit, dfit:f.dataset.fit, style:f.getAttribute('style')||'', bgimg:getComputedStyle(f,'::before').backgroundImage}};}})()""")
 
     def waitclass(self, i, small):
         self.assertTrue(wait(lambda: ("small" in self.tile(i)["cls"].split()) == small), "the frame says whether it is small")
@@ -386,10 +386,11 @@ class SmallImage(unittest.TestCase):
         # Review ruling: ONE blur fill for every small gallery tile; a per-image fit or fill in old data is not read.
         for width in (1400, 900):
             for theme in ("light", "dark"):
-                pics = pictures(4, size=(400, 300))
+                pics = pictures(5, size=(400, 300))
                 pics[0]["fill"], pics[1]["fill"], pics[2]["fit"], pics[3]["fill"] = "brand", "plain", "stretch", "pink"
+                pics[4]["fill"] = 'x"); background:url(//e'   # hostile text in a stored fill
                 self.draw(pics, width, theme=theme)
-                for i in range(4):
+                for i in range(5):
                     self.waitclass(i, True)
                     t = self.tile(i)
                     with self.subTest(width=width, theme=theme, tile=i):
@@ -397,12 +398,15 @@ class SmallImage(unittest.TestCase):
                         self.assertNotIn("fill-brand", t["cls"])
                         self.assertNotIn("fill-plain", t["cls"])
                         self.assertIn("blur(24px)", t["blur"], "the image's own blurred copy")
-                        self.assertIn("url(", t["bgimg"], "the blurred copy is of the image itself")
+                        self.assertRegex(t["bgimg"], r'^url\("data:image/', "the blurred copy is of the image itself, not of a stored fill text")
                         self.assertEqual(t["dfit"], "centre", "never marked stretch")
+                        self.assertRegex(t["style"], r'^--gal-img: url\("data:image/[^"]*"\);?$', "the frame's style is the blur property only, no stored text")
                         self.assertEqual(t["fit"], "contain", "centred at its own size, not stretched")
+                        self.assertLessEqual(abs(t["dx"]), 1, "centred across")
+                        self.assertLessEqual(abs(t["dy"]), 1, "centred down")
                         self.assertLessEqual(round(t["w"]), 400, "never enlarged")
                         self.assertEqual(round(t["w"]), round(min(400, t["fw"])), "its own size, or the tile when narrower")
-                self.assertEqual(self.tile(0)["bg"], self.tile(1)["bg"], "the same tile background under every fill")
+                self.assertEqual({self.tile(i)["bg"] for i in range(5)}, {self.tile(0)["bg"]}, "the same tile background under every fill")
 
     def test_599_wide_is_small_and_600_wide_is_not_in_a_gallery_tile(self):
         self.draw(pictures(1, size=(599, 400)), 1400)
