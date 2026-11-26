@@ -334,7 +334,7 @@ APPROVED_WORDS = "The download failed its check. It was not installed."
 
 
 class FirstSignedTest(SignedBase):
-    """Row 1328: from 1.3.4 up a verifying .sig is required; 1.3.3 and older stay accepted unsigned."""
+    """Row 1328: from 1.4.0 up a verifying .sig is required; 1.3.13 and older stay accepted unsigned."""
 
     def setUp(self):
         super().setUp()
@@ -344,19 +344,19 @@ class FirstSignedTest(SignedBase):
     def zip_of(self, version, sign=False):
         return make_zip(self.fresh(), version=version, sign=sign)
 
-    def test_the_first_signed_release_is_1_3_4(self):
-        self.assertEqual((1, 3, 4), SHIPPED_FIRST_SIGNED)
+    def test_the_first_signed_release_is_1_4_0(self):
+        self.assertEqual((1, 4, 0), SHIPPED_FIRST_SIGNED)
 
-    def test_1_3_3_and_older_are_not_asked_for_a_signature(self):
-        for v in ("1.3.3", "1.3.0", "1.2.99", "0.9.9", "1.3.2"):
+    def test_1_3_13_and_older_are_not_asked_for_a_signature(self):
+        for v in ("1.3.3", "1.3.0", "1.2.99", "0.9.9", "1.3.2", "1.3.4", "1.3.5", "1.3.10", "1.3.13", "1.3.99"):
             self.assertFalse(updates.signature_required(version=v), v)
 
-    def test_1_3_4_and_newer_are_asked_for_a_signature(self):
-        for v in ("1.3.4", "1.3.5", "1.3.10", "1.4.0", "2.0.0", "10.0.0"):
+    def test_1_4_0_and_newer_are_asked_for_a_signature(self):
+        for v in ("1.4.0", "1.4.1", "1.10.0", "2.0.0", "10.0.0"):
             self.assertTrue(updates.signature_required(version=v), v)
 
     def test_a_version_that_cannot_be_read_asks_for_a_signature(self):
-        for v in ("abc", "1.3", "", "1.3.4.dev", "9" * 5000):
+        for v in ("abc", "1.3", "", "1.4.0.dev", "9" * 5000):
             self.assertTrue(updates.signature_required(version=v), v)
 
     def test_check_signature_with_a_key_passed_in_is_not_the_placeholder_refusal(self):
@@ -380,34 +380,49 @@ class FirstSignedTest(SignedBase):
             with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", key):
                 self.assertEqual("1.3.3", self.read(self.zip_of("1.3.3"), installed="1.3.2").version)
 
-    def test_an_unsigned_1_3_4_is_accepted_and_a_wrongly_signed_one_is_refused_with_the_approved_words(self):
+    def test_an_unsigned_1_4_0_is_accepted_and_a_wrongly_signed_one_is_refused_with_the_approved_words(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        path = self.zip_of("1.3.4")
-        self.assertEqual("1.3.4", self.read(path, installed="1.3.3").version)      # row 1328 ruling: no .sig, still installs
+        path = self.zip_of("1.4.0")
+        self.assertEqual("1.4.0", self.read(path, installed="1.3.3").version)      # row 1328 ruling: no .sig, still installs
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
         self.refuses(path, "badsig", APPROVED_WORDS, installed="1.3.3")
         Path(str(path) + ".sig").write_bytes(b"x" * 63)
         self.refuses(path, "badsig", APPROVED_WORDS, installed="1.3.3")
 
-    def test_a_good_signature_over_1_3_4_installs(self):
+    def test_a_good_signature_over_1_4_0_installs(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        self.assertEqual("1.3.4", self.read(self.zip_of("1.3.4", sign=True), installed="1.3.3").version)
+        self.assertEqual("1.4.0", self.read(self.zip_of("1.4.0", sign=True), installed="1.3.3").version)
 
-    def test_1_3_4_is_never_accepted_unsigned_while_the_key_is_the_placeholder(self):
+    def test_1_4_0_is_never_accepted_unsigned_while_the_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
-        self.refuses(self.zip_of("1.3.4", sign=True), "nokey", installed="1.3.3")      # a .sig that is there cannot be checked with the placeholder
+        self.refuses(self.zip_of("1.4.0", sign=True), "nokey", installed="1.3.3")      # a .sig that is there cannot be checked with the placeholder
 
     def test_the_signature_is_checked_before_the_zip_is_opened(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        junk = Path(self.fresh()) / "clark-1.3.4-mac.zip"
+        junk = Path(self.fresh()) / "clark-1.4.0-mac.zip"
         junk.write_bytes(b"not a zip at all")
         Path(str(junk) + ".sig").write_bytes(b"x" * 63)
         self.refuses(junk, "badsig", installed="1.3.3")
 
-    def test_a_1_3_4_zip_renamed_1_3_3_is_not_taken_for_an_old_release(self):
+    def test_a_1_4_0_zip_renamed_1_3_3_is_not_taken_for_an_old_release(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        path = make_zip(self.fresh(), version="1.3.4", name="clark-1.3.3-mac.zip", sign=False)
+        path = make_zip(self.fresh(), version="1.4.0", name="clark-1.3.3-mac.zip", sign=False)
         self.refuses(path, "damaged", installed="1.3.2")
+
+    def test_the_threshold_has_two_sides_1_3_13_goes_unsigned_and_1_4_0_is_asked_for_its_sig(self):
+        """Row 1328 ruling 26-11: every release from 1.4.0 on must carry a signature; 1.3.13 and older are not asked for one.
+        With the shipped switch a release with NO .sig still installs on both sides (ruling 23-11); with the switch off
+        the same 1.4.0 file is refused as unsigned and 1.3.13 still reads."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        self.assertFalse(updates.signature_required(version="1.3.13"))
+        self.assertTrue(updates.signature_required(version="1.4.0"))
+        old, new = self.zip_of("1.3.13"), self.zip_of("1.4.0")
+        Path(str(old) + ".sig").write_bytes(b"x" * 63)                     # below the threshold a .sig beside the file is not looked at
+        self.assertEqual("1.3.13", self.read(old, installed="1.3.3").version)
+        self.assertEqual("1.4.0", self.read(new, installed="1.3.3").version)
+        with mock.patch.object(updates, "UNSIGNED_UPGRADES_ALLOWED", False):
+            self.assertEqual("1.3.13", self.read(old, installed="1.3.3").version)
+            self.refuses(new, "unsigned", APPROVED_WORDS, installed="1.3.3")
 
     def test_the_sentences_for_unsigned_and_a_bad_signature_are_the_approved_ones(self):
         self.assertEqual((APPROVED_WORDS, APPROVED_WORDS), (updates.MESSAGES["unsigned"], updates.MESSAGES["badsig"]))
