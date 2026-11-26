@@ -1048,6 +1048,7 @@ class Classic(Look):
                   "out.push([s, prop, els.length, els.filter((e) => getComputedStyle(e)[prop] !== want).length, want, els.filter((e) => getComputedStyle(e)[prop] !== want).map((e) => e.outerHTML.slice(0, 120) + getComputedStyle(e)[prop])]); } return JSON.stringify(out); })()")
 
     def test_dark_colours_are_the_production_tokens_in_view_and_edit_at_both_widths(self):
+        self.demo.action(description="Tidy the shared folder", owner="Pat Demo", due_date="2030-01-14", priority="Low")      # a Low chip, so every level is drawn
         ref = self.add(self.LIST)
         pairs = json.dumps(self.DARK_TOKENS)
         for width in (1400, 900):
@@ -1062,7 +1063,7 @@ class Classic(Look):
                     seen = {(s, prop): n for s, prop, n, bad, want, why in got}
                     for s, prop, n, bad, want, why in got:
                         self.assertEqual(bad, 0, f"{s} {prop} at {width} {mode} dark is not {want}: {why}")
-                    for key in ((".wil-table th", "color"), ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "color"),
+                    for key in ((".wil-table th", "color"), ('.wil-table .wil-pr[data-pri="Medium"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="High"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="Low"]:not(.wil-off .wil-pr)', "color"), ('.wil-table .wil-pr[data-pri="Urgent"]:not(.wil-off .wil-pr)', "color"),
                                 (".wil-table tr.wil-k-action:not(.wil-off) .ico", "color"), (".wil-table tr.wil-k-risk:not(.wil-off) .ico", "color")):
                         self.assertGreater(seen[key], 0, f"{key} was not on the page at {width} {mode}, so nothing was compared")
                     if mode == "edit":
