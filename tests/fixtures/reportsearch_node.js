@@ -1,2 +1,2 @@
 // Test-only (tests/test_report_search_1543_node.py): the published report's search logic, bundled to run in node.
-export { buildIndex, searchReport, sectionText } from "@src/logic/reportSearch.js";
+export { buildIndex, searchReport, sectionText, DRAWN } from "@src/logic/reportSearch.js";

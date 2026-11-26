@@ -32,9 +32,10 @@ DATA = {
     "use_cases": [{"id": "U-1", "ref": "1.2", "title": "Payment runs", "headline": "One file still fails", "standing": "<p>Two of three load</p>", "owner": "Ann Demo"}],
     "report_sections": [
         {"id": "S-1", "type": "text", "title": "This week", "body": "<p>Cut-over rehearsal done</p>", "beside": 0},
-        {"id": "S-2", "type": "table", "title": "Costs", "rows": [["Item", "Spend"], ["Licences", "12 000"]], "colour": ["teal", "ZQlistcolour"], "image": "ZQimage", "pic": "data:image/png;base64,QUJD", "url": "https://zq-address.invalid",
-         "color": "ZQcolor", "style": "ZQstyle", "layout": "ZQlayout", "href": "ZQhref", "src": "ZQsrc", "icon": "ZQicon", "sort_order": "ZQsort", "beside": "ZQbeside",
-         "groups": [{"id": "ZQ-nested-id", "note": {"words": "Nested words here"}}]},
+        {"id": "S-2", "type": "table", "title": "Costs", "content": {"cols": ["Item", "Spend"], "rows": [["Licences", "12 000"]], "caption": "Quarter one", "colour": ["teal", "ZQlistcolour"],
+         "image": "ZQimage", "pic": "data:image/png;base64,QUJD", "url": "https://zq-address.invalid", "color": "ZQcolor", "style": "ZQstyle", "layout": "ZQlayout",
+         "href": "ZQhref", "src": "ZQsrc", "icon": "ZQicon", "sort_order": "ZQsort", "beside": "ZQbeside", "groups": [{"id": "ZQ-nested-id", "note": {"words": "ZQ-nested-words"}}]},
+         "colour": "ZQouter-colour", "extra": "ZQouter-extra"},
         {"id": "S-3", "type": "text", "title": "Two paragraphs", "body": "<p>alpha</p><p>beta</p>"},
     ],
 }
@@ -96,9 +97,9 @@ class WhatIsIndexed(unittest.TestCase):
         self.assertEqual(ids("licences"), ["S-2"], "a table's cells, however deep")
         self.assertEqual(ids("12 000"), ["S-2"])
         self.assertEqual(ids("costs"), ["S-2"], "its title")
-        self.assertEqual(ids("nested words"), ["S-2"], "an object inside a list inside a section")
+        self.assertEqual(ids("quarter one"), ["S-2"], "the table's caption")
         self.assertEqual(ids("alpha beta"), ["S-3"], "two paragraphs read as separate words")
-        for structure in ("teal", "QUJD", "zq-address", "image", "ZQimage", "ZQlistcolour", "table", "ZQcolor", "ZQstyle", "ZQlayout", "ZQhref", "ZQsrc", "ZQicon", "ZQsort", "ZQbeside", "ZQ-nested-id"):
+        for structure in ("teal", "QUJD", "zq-address", "image", "ZQimage", "ZQlistcolour", "table", "ZQcolor", "ZQstyle", "ZQlayout", "ZQhref", "ZQsrc", "ZQicon", "ZQsort", "ZQbeside", "ZQ-nested-id", "ZQ-nested-words", "ZQouter-colour", "ZQouter-extra"):
             self.assertEqual(ids(structure), [], f"{structure!r}: a colour, a picture or an address is not a word of the report")
 
     def test_what_the_file_does_not_hold_cannot_be_found(self):
@@ -152,8 +153,123 @@ class HowItMatches(unittest.TestCase):
         data = {"actions": [{"id": "", "description": "No id here", "owner": "Pat", "client_message": ""}]}
         self.assertEqual(run("idx.length", data), 0)
 
-    def test_a_section_text_reads_nothing_from_a_data_address_or_a_number(self):
-        self.assertEqual(run("RS.sectionText({id: 'x', type: 'text', title: 'Plan', body: 'data:text/plain,hello', n: 12})"), "Plan")
+    def test_a_section_of_a_type_not_on_the_list_is_found_by_its_title_only(self):
+        self.assertEqual(run("RS.sectionText({id: 'x', type: 'newtype', title: 'Plan', body: 'ZQ-body', content: {caption: 'ZQ-cap'}})"), "Plan")
+        self.assertEqual(run("RS.sectionText({id: 'x', title: 'Plan', body: 'ZQ-body'})"), "Plan", "no type, no whitelist")
+        self.assertEqual(run("RS.sectionText({id: 'x', type: 'constructor', title: 'Plan', content: {caption: 'ZQ-cap'}})"), "Plan", "a name from Object is not a type")
+
+
+PIC = "data:image/png;base64,QUJD"
+# type -> (the published section, the words its view draws, the words in the section that it does not draw as text). Each section is shaped as section_kinds/<type>.py published() makes it.
+CASES = {
+    "text": ({"body": "<p>ZQd-text</p>", "ZQu-key": "ZQu-text", "colour": "ZQu-text-colour"}, ["ZQd-text"], ["ZQu-text", "ZQu-text-colour"]),
+    "imagecap": ({"content": {"image": PIC, "caption": "ZQd-icap", "alt": "ZQu-icap-alt", "full": 1, "fit": "stretch", "fill": "ZQu-icap-fill"}}, ["ZQd-icap"], ["ZQu-icap-alt", "ZQu-icap-fill"]),
+    "textimage": ({"content": {"words": ["ZQd-ti-words"], "html": "<p>ZQd-ti-html</p>", "side": "ZQu-ti-side", "image": PIC, "caption": "ZQd-ti-cap", "alt": "ZQu-ti-alt", "heading": "ZQd-ti-head", "half": "ZQu-ti-half",
+                                 "shape": "ZQu-ti-shape", "share": "ZQu-ti-share"}}, ["ZQd-ti-words", "ZQd-ti-html", "ZQd-ti-cap", "ZQd-ti-head"], ["ZQu-ti-side", "ZQu-ti-alt", "ZQu-ti-half", "ZQu-ti-shape", "ZQu-ti-share"]),
+    "gallery": ({"content": {"pictures": [{"image": PIC, "caption": "ZQd-gal-cap", "alt": "ZQu-gal-alt"}], "columns": 2, "shape": "ZQu-gal-shape"}}, ["ZQd-gal-cap"], ["ZQu-gal-alt", "ZQu-gal-shape"]),
+    "headline": ({"content": {"words": "ZQd-hl-words", "label": "ZQd-hl-label", "href": "https://zqu-hl.invalid", "image": PIC, "alt": "ZQu-hl-alt"}}, ["ZQd-hl-words", "ZQd-hl-label"], ["ZQu-hl-alt", "zqu-hl"]),
+    "figures4": ({"figures": [{"mode": "ZQu-f4-mode", "label": "ZQd-f4-label", "value": "ZQd-f4-value", "detail": "ZQd-f4-detail", "rag": "ZQu-f4-rag", "asof": "ZQu-f4-asof", "metric": "ZQu-f4-metric"}]},
+                  ["ZQd-f4-label", "ZQd-f4-value", "ZQd-f4-detail"], ["ZQu-f4-mode", "ZQu-f4-rag", "ZQu-f4-asof", "ZQu-f4-metric"]),
+    "figures3": ({"figures": [{"mode": "ZQu-f3-mode", "label": "ZQd-f3-label", "value": "ZQd-f3-value", "detail": "ZQd-f3-detail", "rag": "ZQu-f3-rag"}]}, ["ZQd-f3-label", "ZQd-f3-value", "ZQd-f3-detail"], ["ZQu-f3-mode", "ZQu-f3-rag"]),
+    "table": ({"content": {"cols": ["ZQd-tb-col"], "rows": [["ZQd-tb-cell"]], "caption": "ZQd-tb-cap", "colour": "ZQu-tb-colour"}, "layout": "ZQu-tb-layout"}, ["ZQd-tb-col", "ZQd-tb-cell", "ZQd-tb-cap"], ["ZQu-tb-colour", "ZQu-tb-layout"]),
+    "doclinks": ({"content": {"items": [{"kind": "file", "name": "ZQd-dl-file.pdf", "rel": "Report files/ZQd-dl-file.pdf", "bytes": 5, "label": "ZQd-dl-label"},
+                                         {"kind": "link", "href": "https://zqd-dl-site.invalid/ZQu-dl-path", "label": ""}, {"kind": "ZQu-dl-kind", "href": "https://zqu-dl-other.invalid", "label": "ZQu-dl-kindlabel"}]}},
+                 ["ZQd-dl-file.pdf", "ZQd-dl-label", "zqd-dl-site.invalid"], ["Report files", "ZQu-dl-path", "ZQu-dl-kind", "zqu-dl-other", "ZQu-dl-kindlabel"]),
+    "linkcard": ({"content": {"href": "https://zqd-lc-site.invalid/ZQu-lc-path", "title": "ZQd-lc-title", "site": "ZQd-lc-sitename", "text": ["ZQd-lc-text"], "html": "<p>ZQd-lc-html</p>", "ZQu-lc-key": "ZQu-lc-val"}},
+                 ["ZQd-lc-title", "ZQd-lc-sitename", "ZQd-lc-text", "ZQd-lc-html"], ["ZQu-lc-path", "ZQu-lc-val", "ZQu-lc-key"]),
+    "onedoc": ({"content": {"file": {"name": "ZQd-od-file.pdf", "rel": "Report files/ZQd-od-file.pdf", "bytes": 1}, "label": "ZQd-od-label", "text": ["ZQd-od-text"], "html": "<p>ZQd-od-html</p>"}},
+               ["ZQd-od-file.pdf", "ZQd-od-label", "ZQd-od-text", "ZQd-od-html"], ["Report files"]),
+    "raid3": ({"cards": [{"id": "ZQu-r3-id", "text": "ZQd-r3-text", "show": ["ZQu-r3-show"]}], "across": "ZQu-r3-across"}, ["ZQd-r3-text"], ["ZQu-r3-id", "ZQu-r3-show", "ZQu-r3-across"]),
+    "raid4": ({"cards": [{"id": "ZQu-r4-id", "text": "ZQd-r4-text"}]}, ["ZQd-r4-text"], ["ZQu-r4-id"]),
+    "workitems": ({"items": ["ZQu-wi-id"], "columns": ["ZQu-wi-column"], "caption": "ZQd-wi-cap"}, ["ZQd-wi-cap"], ["ZQu-wi-id", "ZQu-wi-column"]),
+    "callout": ({"content": {"tone": "warning", "title": "ZQd-co-title", "paras": ["ZQd-co-para"], "html": "<p>ZQd-co-html</p>", "category": "ZQd-co-cat", "colour": "ZQu-co-colour", "icon": "ZQu-co-icon", "heading": True}},
+                ["ZQd-co-title", "ZQd-co-para", "ZQd-co-html", "ZQd-co-cat"], ["warning", "ZQu-co-colour", "ZQu-co-icon"]),
+    "quote": ({"content": {"quotes": [{"quote": "ZQd-qu-quote", "by": "ZQd-qu-by", "role": "ZQd-qu-role"}], "align": "ZQu-qu-align", "perRow": "ZQu-qu-per", "heading": "ZQu-qu-heading", "quote": "ZQu-qu-flat", "by": "ZQu-qu-flatby"}},
+              ["ZQd-qu-quote", "ZQd-qu-by", "ZQd-qu-role"], ["ZQu-qu-align", "ZQu-qu-per", "ZQu-qu-heading", "ZQu-qu-flat", "ZQu-qu-flatby"]),
+    "contacts": ({"content": {"people": [{"name": "ZQd-ct-name", "role": "ZQd-ct-role", "email": "zqd-ct@example.invalid", "phone": "ZQd-ct-phone", "ZQu-ct-key": "ZQu-ct-val"}]}}, ["ZQd-ct-name", "ZQd-ct-role", "zqd-ct@example.invalid", "ZQd-ct-phone"], ["ZQu-ct-val"]),
+    "checklist": ({"v": 1, "items": [{"text": "ZQd-ck-line", "done": 1}, {"item": "ZQu-ck-linked"}]}, ["ZQd-ck-line"], ["ZQu-ck-linked"]),
+    "keydates": ({"v": 1, "items": [{"label": "ZQd-kd-label", "date": "2031-01-02"}, {"milestone": "ZQu-kd-linked"}]}, ["ZQd-kd-label"], ["2031-01-02", "ZQu-kd-linked"]),
+    "reportheadline": ({"content": {"health": "at_risk", "headline": "ZQd-rh-head", "sentence": "ZQd-rh-sent", "pill": True}}, ["ZQd-rh-head", "ZQd-rh-sent", "at risk"], ["at_risk", "off track", "on track", "not set"]),
+    "glancetemplate": ({"content": {"health": {"shown": True, "own_row": True}, "per_row": "ZQu-gt-per", "order": ["ZQu-gt-order"], "builtin": {"overdue": {"outline": "ZQu-gt-outline"}},
+                                    "bespoke": [{"id": "ZQu-gt-id", "label": "ZQd-gt-label", "figure": "ZQd-gt-figure", "tag": "ZQd-gt-tag", "note": "ZQd-gt-note", "tone": "ZQu-gt-tone"}]}},
+                       ["ZQd-gt-label", "ZQd-gt-figure", "ZQd-gt-tag", "ZQd-gt-note"], ["ZQu-gt-per", "ZQu-gt-order", "ZQu-gt-outline", "ZQu-gt-id", "ZQu-gt-tone"]),
+    "tracker": ({"size": "ZQu-tr-size", "overall": {"note": "ZQd-tr-note", "health": "ZQu-tr-health"}, "columns": {"ZQu-tr-col": True},
+                 "groups": [{"name": "ZQd-tr-group", "lines": [{"no": "ZQd-tr-no", "text": "ZQd-tr-line", "status": "ZQu-tr-status", "start": "ZQu-tr-start"}]}]},
+                ["ZQd-tr-note", "ZQd-tr-group", "ZQd-tr-no", "ZQd-tr-line"], ["ZQu-tr-size", "ZQu-tr-health", "ZQu-tr-col", "ZQu-tr-status", "ZQu-tr-start"]),
+}
+
+
+def one(kind):
+    content, drawn, undrawn = CASES[kind]
+    return {"report_sections": [{"id": "S-1", "type": kind, "title": "Title", "beside": 0, **content}]}
+
+
+class OnlyWhatTheViewDraws(unittest.TestCase):
+    """The index is a whitelist of the fields each section type's view draws as text (reportSearch.js DRAWN). A picture's description is the img's alt, a file's folder,
+    a tone, a colour, an icon, an alignment, an id and an ISO date are never drawn as text, so they are never found. One test per type (made below)."""
+
+    def test_every_type_the_registry_draws_has_a_case_or_is_title_only(self):
+        listed = set(run("Object.keys(RS.DRAWN)"))
+        self.assertEqual(listed, set(CASES) - {"text"} | {"text"}, "the whitelist and these cases name the same types")
+
+    def test_a_type_that_is_not_on_the_list_is_found_by_its_title_only(self):
+        self.assertEqual(run("RS.sectionText({id: 'x', type: 'newtype', title: 'Plan', body: 'ZQ-body', content: {caption: 'ZQ-cap'}})"), "Plan")
+        self.assertEqual(run("RS.sectionText({id: 'x', title: 'Plan', body: 'ZQ-body'})"), "Plan", "no type, no whitelist")
+        self.assertEqual(run("RS.sectionText({id: 'x', type: 'constructor', title: 'Plan', content: {caption: 'ZQ-cap'}})"), "Plan", "a name from Object is not a type")
+
+    def test_the_whitelist_reads_exact_keys_and_exact_types(self):
+        data = {"report_sections": [
+            {"id": "X-1", "type": "imagecap", "title": "One", "content": {"Caption": "ZQcase-key", " caption": "ZQspace-key", "caption ": "ZQspace-end", "caption": "ZQexact-key"}},
+            {"id": "X-2", "type": "ImageCap", "title": "Two", "content": {"caption": "ZQcase-type"}},
+            {"id": "X-3", "type": " imagecap", "title": "Three", "content": {"caption": "ZQspace-type"}},
+            {"id": "X-4", "type": "imagecap ", "title": "Four", "content": {"caption": "ZQspace-type-end"}},
+        ]}
+        self.assertEqual(ids("ZQexact-key", data), ["X-1"])
+        for word in ("ZQcase-key", "ZQspace-key", "ZQspace-end", "ZQcase-type", "ZQspace-type", "ZQspace-type-end"):
+            self.assertEqual(ids(word, data), [], f"{word!r}: the whitelist matches names exactly")
+
+    def test_a_whitelisted_name_deeper_or_higher_than_its_place_is_not_read(self):
+        data = {"report_sections": [{"id": "X-1", "type": "imagecap", "title": "One", "content": {"image": {"caption": "ZQdeep-caption"}}, "caption": "ZQouter-caption"}]}
+        self.assertEqual((ids("ZQdeep-caption", data), ids("ZQouter-caption", data)), ([], []))
+
+    def test_an_added_page_section_is_found_and_its_undrawn_field_is_not(self):
+        sec = {"id": "P1-S-1", "type": "imagecap", "title": "Plant photo", "content": {"image": PIC, "caption": "ZQd-page-caption", "alt": "ZQu-page-alt"}}
+        for key in ("added_pages", "pages"):
+            data = {key: [{"id": "P1", "name": "Site page", "sections": [sec]}]}
+            self.assertEqual(ids("ZQd-page-caption", data), ["P1-S-1"], f"a section of a page in `{key}` is found")
+            self.assertEqual(ids("plant photo", data), ["P1-S-1"])
+            self.assertEqual(ids("ZQu-page-alt", data), [], "its alt text is not")
+            self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].view", data), "page:P1")
+            self.assertEqual(run("RS.searchReport(idx, 'ZQd-page-caption')[0].kind", data), "Site page")
+
+    def test_a_health_word_is_found_only_while_the_pill_shows(self):
+        on = {"report_sections": [{"id": "S-1", "type": "reportheadline", "title": "Head", "content": {"health": "off_track", "headline": "H", "sentence": "S", "pill": True}}]}
+        off = {"report_sections": [{"id": "S-1", "type": "reportheadline", "title": "Head", "content": {"health": "off_track", "headline": "H", "sentence": "S", "pill": False}}]}
+        self.assertEqual(ids("off track", on), ["S-1"])
+        self.assertEqual(ids("off track", off), [], "the eye is off: the page draws no health word")
+        self.assertEqual(ids("off_track", on), [])
+
+    def test_an_older_callout_is_found_by_its_tone_word_and_a_newer_one_by_its_category(self):
+        older = {"report_sections": [{"id": "S-1", "type": "callout", "title": "Note", "content": {"tone": "decision", "title": "T", "paras": []}}]}
+        self.assertEqual(ids("decision needed", older), ["S-1"], "no category, colour or icon: the page draws the tone's word")
+        newer = {"report_sections": [{"id": "S-1", "type": "callout", "title": "Note", "content": {"tone": "decision", "title": "T", "paras": [], "category": "Heads up", "colour": "amber", "icon": "question"}}]}
+        self.assertEqual((ids("heads up", newer), ids("decision needed", newer), ids("amber", newer)), (["S-1"], [], []))
+
+
+def _case_test(kind):
+    def test(self):
+        content, drawn, undrawn = CASES[kind]
+        data = one(kind)
+        for w in undrawn:
+            self.assertEqual(ids(w, data), [], f"{kind}: {w!r} is in the file but not drawn as text, so search must not find it")
+            self.assertEqual(ids(w.upper(), data), [], f"{kind}: {w!r} in capitals")
+        for w in drawn:
+            self.assertEqual(ids(w, data), ["S-1"], f"{kind}: {w!r} is drawn, so search finds it")
+    return test
+
+
+for _kind in CASES:
+    setattr(OnlyWhatTheViewDraws, "test_type_" + _kind, _case_test(_kind))
 
 
 if __name__ == "__main__":
