@@ -65,8 +65,7 @@ class Box(Base):
 
     def opened(self, cdp, width):
         p = self.open_page(cdp, width)
-        p.js("document.querySelector('#add-page').click()")
-        p.until("!!" + BOX, "the box opened")
+        p.until("(document.getElementById('add-page-box') || document.getElementById('add-page').click(), !!" + BOX + ")", "the box opened")
         # The box takes the focus in an effect after it is drawn (Dialog.jsx). The focus goes back only for a box whose effect ran: wait for it, as a person does.
         p.until("!!document.activeElement && document.activeElement.id === 'add-page-name'", "the focus is in the box")
         return p
