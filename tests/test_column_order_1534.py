@@ -157,15 +157,15 @@ class Logic(unittest.TestCase):
         self.assertEqual(run_node(f"(() => {{ const to = CO.moveColumn({ids}, 'owner', -1); return CO.Words.MOVED('Owner', to.indexOf('owner') + 1, to.length); }})()"),
                          "Owner moved to position 3 of 6")
 
-        for gone in ("MOVE_LEFT", "MOVE_RIGHT", "RESET_ORDER"):
-            self.assertNotIn(gone, run_node("Object.keys(CO.Words)"), "the row 1499 pick 7B ruling: the menu has no Move or Reset words")
+        self.assertEqual(run_node("[CO.Words.MOVE_LEFT, CO.Words.MOVE_RIGHT, CO.Words.MOVED_LEFT('Owner'), CO.Words.MOVED_RIGHT('Owner')]"), ["Move left", "Move right", "Moved Owner left", "Moved Owner right"], "Q23: the menu words")
+        self.assertNotIn("RESET_ORDER", run_node("Object.keys(CO.Words)"), "Q23: the menu has Move left and Move right, no Reset word")
         menu = source("edit", "ColumnsMenu.jsx")
         self.assertIn("e.altKey && e.shiftKey", menu)                                                     # Alt+Shift+Left and Alt+Shift+Right move
         self.assertIn("W.MOVED(labelOfId(id), to.indexOf(id) + 1, to.length)", menu)                      # the announcement names the column and its new place
-        # Row 1499 pick 7B (ruled): the Classic Work items menu is a heading and tick lines only: no Move left, Move right or Reset item, in either menu
-        for gone in ("moveItems", "data-move-left", "data-move-right", "data-order-reset", "resetOrder", "standardOrder", "W.MOVE_", "W.RESET_ORDER", "fromId"):
+        # Row 1499 pick 7B (ruled): the Classic Work items menu is a heading and tick lines, then (Q23) Move left and Move right: no Reset item, in either menu
+        for gone in ("moveItems", "data-order-reset", "resetOrder", "standardOrder", "W.RESET_ORDER", "fromId"):
             self.assertNotIn(gone, menu)
-        self.assertNotIn('role="menuitem"', menu.split("const menu = at && classic")[1].split(") : at ?")[0], "the Classic menu has tick lines (menuitemcheckbox) only")
+        self.assertEqual(menu.split("const menu = at && classic")[1].split(") : at ?")[0].count('role="menuitem"'), 1, "the Classic menu has tick lines (menuitemcheckbox) and the one Move left / Move right line (Q23)")
         widths = source("edit", "colWidths.jsx")
         self.assertIn("e.shiftKey", widths.split("const onKey")[1].split("addEventListener")[0], "Alt+Left and Alt+Right still resize: Shift is left to moving")
 
