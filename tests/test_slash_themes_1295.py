@@ -38,7 +38,7 @@ class SlashThemes(Base):
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
                     self.until(js, "!!document.querySelector('#slash-cancel')", "the Cancel button")
                     got = js("[...document.querySelectorAll('#slash-page button')].map(b => b.id + '/' + b.className + ':' + getComputedStyle(b).transitionProperty)")
                     self.assertTrue(got, "the page has buttons")
