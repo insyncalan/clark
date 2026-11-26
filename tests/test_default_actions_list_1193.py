@@ -34,7 +34,7 @@ class DefaultActionsList(unittest.TestCase):
 
     def test_the_other_defaults_keep_their_types(self):
         types = [e["type"] for e in default_sections.DEFAULT_SECTIONS]
-        self.assertEqual(types, ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "workitems", "docs"])
+        self.assertEqual(types, ["reportheadline", "glancetemplate", "text", "text", "text", "milestones", "usecases", "workitems", "workitems", "workitems", "doclinks"])
 
     def test_the_body_is_canonical_and_lists_open_actions_only(self):
         value = wi.check(json.loads(default_sections.OPEN_ACTIONS_BODY), store_module.BODY_RULES)
@@ -46,7 +46,7 @@ class DefaultActionsList(unittest.TestCase):
     def test_a_new_project_stores_the_list_in_the_same_place_with_its_filter(self):
         rows = self.rows()
         self.assertEqual([(r["type"], r["id"], r["sort_order"], r["hidden"], r["body"]) for r in rows],
-                         [("workitems", "ABC-S-008", order.GAP * 8, 0, default_sections.OPEN_ACTIONS_BODY)])
+                         [("workitems", "ABC-S-009", order.GAP * 9, 0, default_sections.OPEN_ACTIONS_BODY)])
 
     def test_the_built_in_actions_section_stays_re_addable_under_its_title(self):
         self.assertEqual(changes.BUILT_IN_TITLES["actions"], "Open actions")

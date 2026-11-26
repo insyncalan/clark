@@ -256,6 +256,44 @@ GLANCE_SHEET = "At a glance"
 GLANCE_HEADS = (("Label", 28), ("Figure", 14), ("Tag", 16), ("Note", 60))
 
 
+def write_documents_sheet(wb, published, palette=None):
+    """The Documents sheet (row 1631), from the published documents alone (published["data"]["documents"], which publish.documents has
+    already limited to the live, visible ones): the same title band and headings row as the other sheets. None, no sheet."""
+    docs = published["data"].get("documents") or []
+    if not docs:
+        return None
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
+    cols = excel.DOCUMENT_COLUMNS
+    ws = wb.create_sheet(excel.DOCUMENTS_NAME)
+    name, sub = title_text(published)
+    for r, (text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
+        for c in range(1, len(cols) + 1):
+            ws.cell(row=r, column=c).fill = HEAD_FILL
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = font
+        excel.protect_text_cell(cell)
+    ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(cols), palette)
+    for i, (label, _, width) in enumerate(cols, start=1):
+        head = ws.cell(row=4, column=i, value=label)
+        head.font, head.fill = HEAD, HEAD_FILL
+        head.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for n, d in enumerate(docs, start=5):
+        for i, (_, field, _) in enumerate(cols, start=1):
+            cell = ws.cell(row=n, column=i, value=excel.document_cell(field, d.get(field)))
+            cell.font = BODY
+            cell.alignment = Alignment(wrap_text=field != "date", vertical="top", horizontal="left" if field == "date" else None)
+            if field == "date":
+                cell.number_format = excel.DATE_FORMAT
+            excel.protect_text_cell(cell)
+    ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{4 + len(docs)}"
+    excel.print_setup(ws)
+    excel.protect_sheet(ws)
+    return ws
+
+
 def write_glance_sheet(wb, published, sec, palette=None):
     """Row 1264 slice 7: a glance template section as one sheet, a row for each tile in the section's order (the health tile first when
     it has a row of its own): Label, Figure, Tag, Note. Locked text. The words are the published content's own."""
@@ -303,6 +341,7 @@ def workbook_bytes(published, palette=None):
         write_sheet(wb, published, table, palette)
     if "gantt" in published.get("tabs", ()) and (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client); row 1068: a table section's copy has no tab and no tab name, so no sheet
         write_gantt_sheet(wb, published, palette)
+    write_documents_sheet(wb, published, palette)       # row 1631: after the data sheets, before the glance sheets; none, no sheet
     for sec in published.get("sections") or ():
         if sec.get("type") == "glancetemplate":
             write_glance_sheet(wb, published, sec, palette)

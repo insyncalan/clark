@@ -14,11 +14,11 @@ from clark import default_sections, order, store as store_module
 from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
-TEN = (
-    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
-    ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
-    ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 8, 9 and 10 of item 1193
-    ("docs", "Supporting documents", 0))
+TEN = (      # row 1266, ruled 16-11: Headline first; This week sits beside Next week, so the ten items are eleven sections
+    ("reportheadline", "Headline", 0), ("glancetemplate", "At a glance", 0), ("text", "Header", 0),
+    ("text", "This week", 1), ("text", "Next week", 0), ("milestones", "Milestones", 0), ("usecases", "Use cases", 0),
+    ("workitems", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 7 to 9 of item 1266
+    ("doclinks", "Documents", 0))
 
 
 class Base(unittest.TestCase):
@@ -49,9 +49,9 @@ class Seed(Base):
     def test_sections_seed(self):
         rows = self.sections()
         self.assertEqual([(r["type"], r["title"], r["beside"]) for r in rows], list(TEN))
-        self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 11)])
-        self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 11)])
-        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] != "workitems"}, {(0, "")})      # item 1188: only the first starts with words
+        self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 12)])
+        self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 12)])
+        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] not in ("workitems", "glancetemplate")}, {(0, "")})      # item 1188: only the first starts with words
         self.assertEqual({r["body"] for r in rows if r["title"] == "Open actions"}, {default_sections.OPEN_ACTIONS_BODY})      # row 1193-9
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
@@ -62,9 +62,9 @@ class Seed(Base):
         self.assertIn("report_sections", tables)
         with self.s.step("dashboard", USER) as st:
             st.create("projects", {"code": "XYZ", "name": "Second Programme"})
-        self.assertEqual(len(self.sections("XYZ")), 10)
+        self.assertEqual(len(self.sections("XYZ")), len(TEN))
         self.assertEqual([r["id"] for r in self.sections("XYZ")][:2], ["XYZ-S-001", "XYZ-S-002"])
-        self.assertEqual(len(self.sections("ABC")), 10)
+        self.assertEqual(len(self.sections("ABC")), len(TEN))
 
     def test_undoing_a_projects_creation_leaves_the_project_and_its_sections_whole(self):
         with self.s.step("dashboard", USER) as st:
@@ -75,13 +75,13 @@ class Seed(Base):
         self.assertIsNone(out["step_id"])                                  # nothing was put back: no step, no half-done work
         self.assertEqual(out["reversed"], [])
         self.assertEqual((self.s.read("projects", ref="XYZ"), self.sections("XYZ")), before)
-        self.assertEqual(len(before[1]), 10)
+        self.assertEqual(len(before[1]), len(TEN))
         self.assertTrue(all("can't be removed by an undo" in s["why"] for s in out["skipped"]), out["skipped"])
         self.assertIn("a new project's sections can't be removed by an undo", {s["why"] for s in out["skipped"]})
         ref = self.add("Later", code="XYZ")                               # a section added to it later is a step of its own
         out = self.s.undo(self.last_step(), USER)
         self.assertEqual((out["skipped"], self.s.read("report_sections", ref=ref)), ([], None))
-        self.assertEqual(len(self.sections("XYZ")), 10)
+        self.assertEqual(len(self.sections("XYZ")), len(TEN))
 
     def test_the_re_addable_current_section_is_named_current_state(self):
         """Add a section offers the older "current" type again, under the title Current state (the first default is text now)."""
@@ -90,23 +90,25 @@ class Seed(Base):
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
-        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
+        self.assertTrue(all(s["type"] in NINE + ("workitems", "reportheadline", "glancetemplate", "doclinks") for s in default_sections.DEFAULT_SECTIONS))      # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are a Work items list
         self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
 
     def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
-        want = [""] * 10
-        want[6] = default_sections.RISKS_AND_ISSUES_LIST                             # row 1193-8
-        want[7] = default_sections.OPEN_ACTIONS_BODY                                 # row 1193-9
-        want[8] = default_sections.DECISIONS_LIST                                    # row 10 of item 1193: the three lists are the only defaults with a body, their saved filters
+        self.assertEqual((first["type"], first["title"], first["body"]), ("reportheadline", "Headline", ""))
+        want = [""] * 11
+        want[1] = default_sections.GLANCE_HEALTH_OFF                                 # row 1266 row 2: Health tile off
+        want[7] = default_sections.RISKS_AND_ISSUES_LIST                             # row 1193-8
+        want[8] = default_sections.OPEN_ACTIONS_BODY                                 # row 1193-9
+        want[9] = default_sections.DECISIONS_LIST                                    # row 10 of item 1193: the three lists are the only defaults with a body, their saved filters
         bodies = [r["body"] for r in self.sections()]
-        self.assertEqual(bodies[:6] + bodies[9:], [""] * 7)
-        self.assertEqual(json.loads(bodies[6]), json.loads(default_sections.RISKS_AND_ISSUES_LIST))
-        self.assertEqual(json.loads(bodies[7]), json.loads(default_sections.OPEN_ACTIONS_BODY))
-        self.assertEqual(json.loads(bodies[8]), json.loads(default_sections.DECISIONS_LIST))
+        self.assertEqual(bodies[:1] + bodies[2:7] + bodies[10:], [""] * 7)
+        self.assertEqual(json.loads(bodies[1]), {"v": 1, "health": {"shown": False}})
+        self.assertEqual(json.loads(bodies[7]), json.loads(default_sections.RISKS_AND_ISSUES_LIST))
+        self.assertEqual(json.loads(bodies[8]), json.loads(default_sections.OPEN_ACTIONS_BODY))
+        self.assertEqual(json.loads(bodies[9]), json.loads(default_sections.DECISIONS_LIST))
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
         self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], want, "item 1193: This week and Next week start empty too")
         self.assertNotIn("Summary", default_sections.SECTION_HINTS)               # item 1266: no Summary in the default report
@@ -177,12 +179,12 @@ class Tables(Base):
         with self.s.step("dashboard", USER) as st:
             st.create("projects", {"code": "XYZ", "name": "Second Programme"})
         one = self.add("One")
-        self.assertEqual(one, "ABC-S-011")
-        self.assertEqual(self.add("Other project", code="XYZ"), "XYZ-S-011")
+        self.assertEqual(one, "ABC-S-012")
+        self.assertEqual(self.add("Other project", code="XYZ"), "XYZ-S-012")
         out = self.s.undo(self.demo.last_step(), USER)                  # undo the XYZ add: its row goes
         self.assertEqual(out["skipped"], [])
-        self.assertEqual(self.add("Again", code="XYZ"), "XYZ-S-012")    # the number is not freed
-        self.assertEqual(self.add("Two"), "ABC-S-012")
+        self.assertEqual(self.add("Again", code="XYZ"), "XYZ-S-013")    # the number is not freed
+        self.assertEqual(self.add("Two"), "ABC-S-013")
 
     def test_a_new_section_carries_no_id(self):
         with self.assertRaisesRegex(Invalid, "no ID"):
@@ -270,8 +272,8 @@ class Rules(Base):
         self.assertEqual(self.s.read("report_sections", ref=ref)["type"], "text")
 
     def test_only_a_text_section_has_a_body(self):
-        raid = self.sections()[1]["id"]                                 # rows 1193-8 to 10: the raid, actions and decisions defaults are Work items lists now (they have their own body), so the second, At a glance, stands in
-        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "glance")
+        raid = self.sections()[5]["id"]                                 # rows 1193-8 to 10: the raid, actions and decisions defaults are Work items lists now (they have their own body), so the second, At a glance, stands in
+        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "milestones")
         with self.assertRaises(Invalid):
             self.change(raid, body="words")
         self.change(raid, hidden=1)                                     # hiding is for every type
@@ -291,7 +293,7 @@ class Rules(Base):
         self.assertEqual(len(self.sections()), len(TEN))             # nothing else about a section changed
 
     def test_beside_still_takes_only_0_or_1_on_any_type(self):
-        raid = self.sections()[6]["id"]
+        raid = self.sections()[7]["id"]
         with self.assertRaisesRegex(Invalid, "0 or 1"):
             self.change(raid, beside=2)
 
@@ -307,13 +309,13 @@ class Rules(Base):
 
     def test_at_most_100_sections_a_project(self):
         with self.s.step("dashboard", USER) as st:
-            for n in range(90):
+            for n in range(89):
                 st.create("report_sections", {"project": "ABC", "type": "text", "title": f"S{n}", "sort_order": 100000 + n})
         self.assertEqual(len(self.sections()), 100)
         self.bad("at most 100", title="One too many")
         with self.s.step("dashboard", USER) as st:                      # an update of one of the 100 is not a new section
-            st.update("report_sections", "ABC-S-011", {"title": "Renamed"})
-        self.assertEqual(self.s.read("report_sections", ref="ABC-S-011")["title"], "Renamed")
+            st.update("report_sections", "ABC-S-012", {"title": "Renamed"})
+        self.assertEqual(self.s.read("report_sections", ref="ABC-S-012")["title"], "Renamed")
 
     def test_an_undo_that_would_make_101_leaves_the_section_deleted_and_says_so(self):
         gone = self.add("Will go")
@@ -321,7 +323,7 @@ class Rules(Base):
             st.cancel("report_sections", gone)
         deleted = self.last_step()
         with self.s.step("dashboard", USER) as st:
-            for n in range(90):
+            for n in range(89):
                 st.create("report_sections", {"project": "ABC", "type": "text", "title": f"S{n}", "sort_order": 100000 + n})
         self.assertEqual(len(self.sections()), 100)
         out = self.s.undo(deleted, USER)
@@ -535,7 +537,24 @@ class UndoEachKind(Base):
         with self.assertRaisesRegex(Invalid, "has its report sections already"):
             with self.s.step("dashboard", USER) as st:
                 st.seed_sections("ABC")
-        self.assertEqual(len(self.sections()), 10)
+        self.assertEqual(len(self.sections()), len(TEN))
+
+    def test_existing_projects_keep_their_sections_when_the_default_list_changes(self):      # row 1266: new projects only
+        """A project made with the older default list (Current state first, Use case summary, Supporting documents) is left as it is:
+        the defaults are read only when a project is created, or for a project that never had sections."""
+        old = ("Current state", "At a glance", "Use case summary", "Supporting documents")
+        with self.s.step("dashboard", USER) as st:
+            for r in self.sections():
+                st.cancel("report_sections", r["id"])
+            for n, (t, title) in enumerate(zip(("text", "glance", "usecases", "docs"), old), 1):
+                st.create("report_sections", {"project": "ABC", "type": t, "title": title, "sort_order": order.GAP * n})
+        before = [(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()]
+        self.assertEqual([b[2] for b in before], list(old))
+        self.assertEqual([(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()], before)
+        with self.assertRaisesRegex(Invalid, "has its report sections already"):
+            with self.s.step("dashboard", USER) as st:
+                st.seed_sections("ABC")
+        self.assertEqual([(r["id"], r["type"], r["title"], r["sort_order"]) for r in self.sections()], before)
 
     def test_a_field_changed_twice_in_one_step_goes_back_to_its_first_value(self):
         ref = self.add("Plan")
