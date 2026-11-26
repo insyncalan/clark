@@ -361,6 +361,66 @@ class AppContrast(Measure, Rig):
                     self.assertEqual(got["alpha"], 1, "and the menu is an opaque card: that text is not over the picture")
 
 
+PILLS = """(() => {
+  const parse = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return {r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1}; };
+  const over = (f, b) => ({r: f.r * f.a + b.r * (1 - f.a), g: f.g * f.a + b.g * (1 - f.a), b: f.b * f.a + b.b * (1 - f.a), a: 1});
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const lum = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  const out = [];
+  for (const el of document.querySelectorAll('main [class~="pill"], main .hpill, main .tpl-rh-pill, main button.pillbtn, main .wil-pr')) {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    if (r.width < 2 || r.height < 2 || cs.visibility !== 'visible' || !el.textContent.trim()) continue;
+    const layers = []; for (let n = el; n && n.nodeType === 1; n = n.parentElement) layers.push(parse(getComputedStyle(n).backgroundColor));
+    let bg = {r: 255, g: 255, b: 255, a: 1}; for (let i = layers.length - 1; i >= 0; i--) bg = over(layers[i], bg);
+    const fg = over(parse(cs.color), bg), a = lum(fg), b = lum(bg);
+    out.push({t: el.textContent.trim().slice(0, 30), cls: el.className, fg: cs.color, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)});
+  }
+  return out; })()"""
+
+
+class DashboardPills(Rig):
+    """Row 1266 AP12: the pill text on the new default Dashboard (the Headline's health pill, in each of its health states, in View and in
+    Edit, and the status pills of its work lists) is at least 4.5:1 against the pill's own background, from the computed colours, in
+    light and dark, at 1400 and 900. A new Headline stores no body and so draws nothing in View until a health is chosen; its Edit pill is
+    drawn from the start."""
+
+    def headline(self):
+        return next(r["id"] for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline")
+
+    def measure(self, p, edit, scheme, width, label):
+        p.until("!!document.querySelector('main .hpill')", f"the Headline's pill drew ({label})")
+        steady(p)
+        got = p.js(PILLS)
+        self.assertTrue(any("hpill" in g["cls"] for g in got), f"the Headline pill is measured ({label}): {got}")
+        for g in got:
+            print(f"pill {label} {scheme} {width}: {g['t']!r} {g['cls']} {g['fg']} {g['ratio']:.2f}:1", flush=True)
+            self.assertGreaterEqual(g["ratio"], 4.5, f"pill {g['t']!r} ({g['cls']}) in {label}, {scheme}, {width}: {g['ratio']:.2f}:1")
+        return got
+
+    def test_the_new_default_dashboard_pill_text_keeps_4_5_to_1_in_light_and_dark(self):
+        ref = self.headline()
+        seen = set()
+        for level in ("Low", "Medium", "High", "Urgent"):      # the Open actions list draws a priority chip for each rated row
+            self.demo.action(description="Fictional " + level + " action", priority=level, owner="Sam Lee")
+        for scheme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(scheme=scheme, width=width, mode="edit"), self.chrome() as cdp:
+                    p = self.load_app(cdp, "#dashboard&p=ABC", ".sec", width, scheme)
+                    p.edit()
+                    got = self.measure(p, True, scheme, width, "edit, health not set")
+                    seen.update(g["t"] for g in got)
+                for health in ("on_track", "at_risk", "off_track"):
+                    with self.store.step("dashboard", USER) as st:
+                        st.update("report_sections", ref, {"body": json.dumps({"v": 1, "health": health, "headline": "Fictional plan holds", "sentence": "Fictional reason."})})
+                    with self.subTest(scheme=scheme, width=width, health=health), self.chrome() as cdp:
+                        p = self.load_app(cdp, "#dashboard&p=ABC", ".sec", width, scheme)
+                        got = self.measure(p, False, scheme, width, "view, " + health)
+                        seen.update(g["t"] for g in got)
+                with self.store.step("dashboard", USER) as st:
+                    st.update("report_sections", ref, {"body": ""})
+        self.assertTrue({"On track", "At risk", "Off track", "Not set", "Low", "Medium", "High", "Urgent"} <= seen, f"every health pill and every priority chip was measured: {seen}")
+
+
 def data_tokens(png):
     """The brand's tokens with its picture embedded as data, the form a published file can carry."""
     return ':root { --image-cover: url("data:image/png;base64,%s"); }' % base64.b64encode(png).decode()
