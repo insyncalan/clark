@@ -174,7 +174,7 @@ class Header1543(glance.Published):
         """PM ruling (row 1543, as the editor's SearchButton.jsx:8 and ProfileMenu.jsx:113, item 1177): at 900 px and narrower the bar has no search button; "Go to or do" is the first entry of the report menu and opens the same box. At 1400 the button is there and the menu has no such entry. Clicks only."""
         path = self.plant_search()
         menu_js = """(() => [...document.querySelectorAll('#client-menu [role=menuitem]')].map((x) => x.textContent.trim()).slice(0, 2))()"""
-        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+        for width, dark in ((1400, False), (1400, True), (901, False), (900, False), (900, True)):      # 901 is the first width with the button (the editor's breakpoint is max-width 900)
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
                 p.until("!!document.getElementById('client-menu-btn')", "the bar drew")

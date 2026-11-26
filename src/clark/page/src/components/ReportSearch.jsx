@@ -4,7 +4,7 @@
 // keys and Ctrl or Cmd + K are part 2). A published file only: the editor keeps its own palette.
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { narrowHeader } from "../edit/narrowHeader.js";
+import { narrowHeader } from "../logic/narrowHeader.js";
 import { data, show, TITLES, asAt } from "../stores/report.js";
 import { buildIndex, searchReport } from "../logic/reportSearch.js";
 
@@ -17,9 +17,9 @@ export function ReportSearch() {
   return (
     <>
       {narrowHeader.value ? null : (
-        <button type="button" class="tb-act" id="pub-search-btn" ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
+        <a role="button" tabindex="0" class="tb-act" id="pub-search-btn" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }} ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
           <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
-        </button>
+        </a>
       )}
       {open ? <Box onClose={() => setOpen(false)} /> : null}
     </>

@@ -11,7 +11,7 @@ import { data, asAt } from "../stores/report.js";
 import { classicTheme } from "./Contents.jsx";
 import { printReport } from "../stores/print.js";
 import { readerName, setReaderName, removeReader, initialsOf, look, toggleLook } from "../stores/reader.js";
-import { narrowHeader } from "../edit/narrowHeader.js";
+import { narrowHeader } from "../logic/narrowHeader.js";
 import { searchOpen } from "./ReportSearch.jsx";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
 
