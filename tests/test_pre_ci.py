@@ -211,6 +211,11 @@ class PartsTest(unittest.TestCase):
         chosen, capped = pre_ci.narrow(listed, ["src/clark/page/shell.css"], texts.get, cap=10)
         self.assertEqual((chosen, capped), (listed, False))
 
+    def test_a_name_every_test_file_holds_is_not_followed_but_its_own_test_file_runs(self):
+        listed = ["test_a.py", "test_b.py", "test_c.py", "test_d.py", "test_run_tests.py"]
+        chosen, capped = pre_ci.narrow(listed, ["dev/run_tests.py"], lambda f: "Run: python3 dev/run_tests.py", cap=3)
+        self.assertEqual((chosen, capped), (["test_run_tests.py"], True))
+
 
 if __name__ == "__main__":
     unittest.main()

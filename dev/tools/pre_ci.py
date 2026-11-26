@@ -18,8 +18,8 @@ The ticket file is the one dev/tools/scope_check.py reads: {"ticket", "files", "
 LIMITS (what a green record does not prove):
 - It runs the copies of the tools in this checkout, so a change to a tool is checked by the changed tool. CI runs the scan from
   the base branch; the full suite runs once, in the merge queue.
-- A change that can reach any test (a stylesheet, the page, a workflow) runs only the test files that name a changed file, at
-  most AFFECTED_CAP of them, and the record says "capped". The full suite is not run here.
+- A change that can reach any test (a stylesheet, the page, a workflow, the runner) runs only the close test files (see `narrow`),
+  at most AFFECTED_CAP of them, and the record says "capped". The full suite is not run here.
 - Without a Python 3.9 on the machine (python3.9 on the PATH, or CLARK_PY39) check 5 parses with this Python's 3.9 grammar
   switch, which misses some newer syntax; the record says which was used. CI compiles with a real 3.9.
 """
@@ -90,12 +90,17 @@ def run(argv, stdin=None):
 
 
 def narrow(listed, changed, text_of, cap=AFFECTED_CAP):
-    """(the affected test files to run, capped?). Up to the cap the whole list runs. Over it, only the files that name a changed
-    file (by its file name) or are themselves changed, in name order, cut at the cap."""
+    """(the affected test files to run, capped?). Up to the cap the whole list runs. Over it, only the close files run: a test
+    file that is itself changed, test_<name>.py for a changed <name>, and the files that name a changed file by its file name.
+    A name that more than `cap` files hold (every test file names the runner in its "Run:" line) tells nothing and is not
+    followed. In name order, cut at the cap."""
     if len(listed) <= cap:
         return list(listed), False
-    names = {Path(p).name for p in changed}
-    close = [f for f in listed if f in names or any(n in (text_of(f) or "") for n in names)]
+    close = set()
+    for name in sorted({Path(p).name for p in changed}):
+        own = {name, "test_" + Path(name).stem + ".py"} & set(listed)
+        naming = [f for f in listed if name in (text_of(f) or "")]
+        close |= own | (set(naming) if len(naming) <= cap else set())
     return sorted(close)[:cap], True
 
 
