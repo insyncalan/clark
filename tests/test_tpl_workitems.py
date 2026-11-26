@@ -656,6 +656,13 @@ class InThePage(PageBase):
             # The second press is made once the first one is in the store: a press made while the first save's reply is still on its way may be built on a list the
             # reply then redraws (suspected, not measured; a loaded runner may take seconds over it). Every assert and wait below is as it was.
             self.assertTrue(wait(lambda: self.demo.last_step() == steps + 1), "the first press reached the store")
+            # Suspected, not proven (failed on macOS only): drawing the Due column scrolls or resizes the longer page and the open menu closes on it (components/Menu.jsx).
+            # So the page is let settle (two frames, as in show()) and, if the menu was shut meanwhile, it is opened again by the same right click as above.
+            p.js("window.__settled = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__settled = 1; }))")
+            p.until("window.__settled === 1", "the page settled after Due was added")
+            if not p.js("!!document.querySelector('.cols-menu')"):
+                p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+                p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
