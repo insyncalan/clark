@@ -9,7 +9,7 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   once into a folder only clark writes, then work from that copy), never the original file. The checks run in
   this order, stopping at the first failure with one plain sentence (UpdateError.message). The real reason, and up to five
   member names, are in UpdateError.detail, for the log and never for the screen:
-  the signature, for a release from FIRST_SIGNED (1.3.4) up (or whenever a test passes a key): a detached Ed25519 signature in a
+  the signature, for a release from FIRST_SIGNED (1.4.0) up (or whenever a test passes a key): a detached Ed25519 signature in a
   file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the download's own bytes, checked against the release
   key before anything inside the download is looked at; a wrong .sig or a different key refuses it. No .sig at all is accepted (Human, row 1328: in-clark upgrades work unsigned).
   Releases older than FIRST_SIGNED are accepted unsigned (a .sig beside them is ignored);
@@ -81,11 +81,11 @@ STAMP_LENGTH = len("20261029T120000Z")
 SIGN_DOMAIN = b"clark-release-v1\0"     # put in front of the download's bytes before signing; dev/tools/sign_release.py uses this same value
 SIGNATURE_BYTES = 64                   # an Ed25519 signature is exactly this long
 SIGNATURE_SUFFIX = ".sig"
-FIRST_SIGNED = (1, 3, 4)               # the first release that must carry a verifying .sig; 1.3.3 and older are accepted unsigned
+FIRST_SIGNED = (1, 4, 0)               # the first release that must carry a verifying .sig (Human ruling 26-11, row 1328: 1.4 onwards); 1.3.13 and older are accepted unsigned
 UNSIGNED_UPGRADES_ALLOWED = True      # Human ruling (row 1328): an in-clark upgrade works when the release has NO .sig; a .sig that is there must still verify, and a wrong or short one is refused
 PLACEHOLDER_KEY = b"REPLACE-WITH-THE-RELEASE-KEY!!"[:30].ljust(32, b"!")
 # The release key: the 32-byte Ed25519 public key made offline with `python3 dev/tools/sign_release.py keygen` (the private key lives in the
-# owner's Keychain, never in a file). From FIRST_SIGNED (1.3.4) up every update must carry a .sig that verifies against this key.
+# owner's Keychain, never in a file). From FIRST_SIGNED (1.4.0) up every update must carry a .sig that verifies against this key.
 # Its sha256 (of the 32 raw bytes) is pinned in tests/test_update_signature.py.
 RELEASE_PUBLIC_KEY = bytes.fromhex("683bc5ffab41a172e3efe524034d500378cb84dad0d9bbb50071d74432449e0c")
 
@@ -401,8 +401,8 @@ def read_signature(path):
 
 
 def signature_required(public_key=None, version=None):
-    """Whether a download of `version` (text such as "1.3.4", the one in its file name) must carry a verifying signature: yes from
-    FIRST_SIGNED up, no for 1.3.3 and older. A key given by a test always asks. With no version (a caller that does not know it
+    """Whether a download of `version` (text such as "1.4.0", the one in its file name) must carry a verifying signature: yes from
+    FIRST_SIGNED up, no for 1.3.13 and older. A key given by a test always asks. With no version (a caller that does not know it
     yet) only a real built-in key asks. A version that cannot be read asks (fail closed)."""
     if public_key is not None:
         return True
