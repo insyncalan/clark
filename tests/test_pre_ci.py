@@ -41,13 +41,15 @@ class Fixture(PrFixture):
 
     def pre_ci(self, *more):
         env = dict(self.env)
-        env.pop("CLARK_PY39", None)
         r = subprocess.run([sys.executable, "dev/tools/pre_ci.py", "--ticket", str(self.ticket), "--base", self.base,
                             "--record", str(self.records), *more], cwd=self.dir, env=env, capture_output=True, text=True)
         return r.returncode, r.stdout + r.stderr
 
     def record(self, head):
         return json.loads((self.records / (head + ".json")).read_text(encoding="utf-8"))
+
+
+HAVE_39 = bool(pre_ci.python39())      # no Python 3.9 on the box: check 5 is "not checked" and the run cannot pass
 
 
 def results(doc):
@@ -59,16 +61,16 @@ class GreenTest(unittest.TestCase):
         with Fixture() as pr:
             head = pr.feature()
             code, out = pr.pre_ci()
-            self.assertEqual(code, 0, out)
-            self.assertIn("PRE-CI pass " + head, out)
+            self.assertEqual(code, 0 if HAVE_39 else 1, out)
+            self.assertIn("PRE-CI %s %s" % ("pass" if HAVE_39 else "FAIL", head), out)
             doc = pr.record(head)
             self.assertEqual(doc["head"], head)
             self.assertEqual(doc["base"], pr.base)
             self.assertEqual(doc["ticket"], "9001")
-            self.assertEqual(doc["result"], "pass")
+            self.assertEqual(doc["result"], "pass" if HAVE_39 else "fail")
             self.assertEqual([c["name"] for c in doc["checks"]], NAMES)
             self.assertEqual([c["n"] for c in doc["checks"]], [1, 2, 2, 3, 4, 5, 6])
-            self.assertEqual(set(results(doc).values()), {"pass"})
+            self.assertEqual({k: v for k, v in results(doc).items() if v != "pass"}, {} if HAVE_39 else {"Python 3.9 compile": "not checked"})
             for c in doc["checks"]:
                 self.assertTrue(c["command"], c["name"])
                 self.assertIn("seconds", c)
@@ -89,7 +91,7 @@ class GreenTest(unittest.TestCase):
 
 class RedTest(unittest.TestCase):
     def failing(self, pr, head):
-        return sorted(k for k, v in results(pr.record(head)).items() if v != "pass")
+        return sorted(k for k, v in results(pr.record(head)).items() if v == "fail")
 
     def test_a_line_python_3_9_cannot_parse_fails_the_compile_check(self):
         with Fixture() as pr:
@@ -154,6 +156,18 @@ class RedTest(unittest.TestCase):
 
 
 class PartsTest(unittest.TestCase):
+    def test_without_a_real_python_3_9_the_compile_check_is_not_checked_never_a_pass(self):
+        """Found in the read of 0e8947b8: with no Python 3.9 the grammar switch of a newer Python recorded pass, and it accepts
+        syntax 3.9 refuses (a parenthesised with, for one). It can still prove a fail; it can never prove a pass."""
+        real = pre_ci.python39
+        pre_ci.python39 = lambda: ""
+        try:
+            check = pre_ci.PreCi("", "", "").compile39()
+        finally:
+            pre_ci.python39 = real
+        self.assertEqual((check["result"], check["exit"]), ("not checked", None))
+        self.assertIn("no Python 3.9", check["tail"])
+
     def test_the_real_smoke_list_names_files_that_exist(self):
         names = pre_ci.smoke_names((ROOT / "dev" / "tools" / "pre_ci_smoke.txt").read_text(encoding="utf-8"))
         self.assertTrue(names)

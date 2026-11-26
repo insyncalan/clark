@@ -44,6 +44,31 @@ class FixtureDiffTest(unittest.TestCase):
         self.assertEqual(failing(fewer), ["asserts"])
         self.assertEqual(fewer["asserts"], ["tests/test_mod.py: 3 -> 2"])
 
+    def test_a_pytest_skipif_mark_is_a_new_skip(self):
+        """Found in the read of 0e8947b8: pytest's skipif (lower case) was not counted."""
+        skipped = self.result("    def test_double_negative", "    @pytest.mark.skipif(True, reason='later')\n    def test_double_negative")
+        self.assertEqual((failing(skipped), skipped["skips"]), (["skips"], ["tests/test_mod.py: 0 -> 1"]))
+
+    def test_a_same_name_test_already_in_another_touched_file_does_not_hide_a_delete(self):
+        """Found in the read of 0e8947b8: a deleted test counted as moved when any touched file held its name, even from before."""
+        with PrFixture() as pr:
+            pr.write("tests/test_other.py", TEST_MOD)
+            base = pr.commit("a second file with the same class and test names")
+            pr.write("tests/test_mod.py", TEST_MOD.replace("    def test_double_negative(self):", "    def helper(self):"))
+            pr.write("tests/test_other.py", TEST_MOD + "\n# touched\n")
+            pr.commit("delete one, touch the other")
+            r = hc.check(str(pr.dir), base, "HEAD")
+        self.assertEqual((failing(r), r["deleted"]), (["deleted"], ["tests/test_mod.py: ModTest.test_double_negative"]))
+
+    def test_a_moved_test_file_is_still_held_to_its_assert_count(self):
+        """Found in the read of 0e8947b8: a renamed file was a delete and an add, so its asserts were never compared."""
+        with PrFixture() as pr:
+            pr.git("mv", "tests/test_mod.py", "tests/test_moved.py")
+            pr.write("tests/test_moved.py", TEST_MOD.replace("        self.assertEqual(mod.double(0), 0)\n", ""))
+            pr.commit("move the file and drop an assert")
+            r = hc.check(str(pr.dir), pr.base, "HEAD")
+        self.assertEqual((failing(r), r["asserts"]), (["asserts"], ["tests/test_moved.py: 3 -> 2"]))
+
     def test_the_command_names_the_failing_check_and_cannot_check_is_exit_2(self):
         with PrFixture() as pr:
             pr.write("tests/test_mod.py", TEST_MOD.replace("        self.assertEqual(mod.double(0), 0)\n", ""))
