@@ -64,6 +64,49 @@ class TheGrowthCheckTellsLinearFromQuadratic(unittest.TestCase):
         self.assertGreater(ABSOLUTE_CAP, 1)
 
 
+class TheMedianOfRepeatedRatios(unittest.TestCase):
+    # #1671: assert_growth(..., repeats=k) is opt-in; the default (repeats=1) is the old single measure.
+    def fake(self, ratios):
+        return unittest.mock.patch.object(_growth, "growth_ratio", side_effect=[(0.1, 0.1 * r, r) for r in ratios])
+
+    def test_the_default_is_one_measure_with_the_old_result_and_message(self):
+        with self.fake([4.0]) as measured:
+            self.assertEqual(assert_growth(self, linear, 3, "one"), (0.1, 0.1 * 4.0, 4.0))
+        self.assertEqual(measured.call_count, 1)
+        with self.fake([6.69]) as measured:
+            with self.assertRaises(AssertionError) as caught:
+                assert_growth(self, linear, 3, "one")
+        self.assertEqual(measured.call_count, 1)
+        self.assertIn("one: t(n)=0.100 t(4n)=0.669 ratio=6.69", str(caught.exception))
+        self.assertNotIn("median", str(caught.exception))
+
+    def test_the_median_of_the_repeated_ratios_is_the_one_compared_with_the_limit(self):
+        with self.fake([4.1, 6.69, 4.0, 4.3, 3.9]) as measured:
+            result = assert_growth(self, linear, 3, "outlier", repeats=5)
+        self.assertEqual(measured.call_count, 5)
+        self.assertEqual(result[2], 4.1)
+        with self.fake([7.0, 9.0, 6.9, 4.0, 4.1]) as measured:
+            with self.assertRaises(AssertionError) as caught:
+                assert_growth(self, linear, 3, "slow", repeats=5)
+        self.assertIn("median", str(caught.exception))
+        for shown in ("7.00", "9.00", "6.90", "4.00", "4.10"):
+            self.assertIn(shown, str(caught.exception))
+
+    def test_a_quadratic_scan_fails_the_median_check(self):
+        with self.assertRaises(AssertionError):
+            assert_growth(self, quadratic, 1000, "quadratic", repeats=5)
+
+
+class ThePublishScanTestUsesTheMedian(unittest.TestCase):
+    def test_test_publish_asks_for_the_median_of_five_and_keeps_the_limit(self):
+        import os
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_publish.py"), encoding="utf-8") as handle:
+            lines = [line for line in handle if "assert_growth(self" in line]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("40000, name, repeats=5)", lines[0])
+        self.assertEqual(GROWTH_LIMIT, 6.5)
+
+
 class TheNearBaselineCheckTellsQuadraticFromPlain(unittest.TestCase):
     def test_a_hostile_input_as_quick_as_a_plain_one_passes_and_a_quadratic_one_fails(self):
         assert_near_baseline(self, lambda: linear(1), lambda: linear(1), "same")
