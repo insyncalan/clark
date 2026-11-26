@@ -154,7 +154,10 @@ class Workflow(unittest.TestCase):
         self.assertIn("rate limit|HTTP 429", plan)
         self.assertIn('[ "$ATTEMPT" -lt 4 ]', plan)
         # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
-        self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
+        # (the one expression with "files" in it is the hand-typed workflow_dispatch input, which is not a pull request's text and reaches the plan through env too)
+        files_input = "FILES_INPUT: ${{ github.event.inputs.files }}"
+        self.assertEqual(plan.count(files_input), 1)
+        self.assertNotRegex(plan.replace(files_input, ""), r"\$\{\{[^}]*(filename|files)")
 
     def test_never_pull_request_target_no_secrets_read_only(self):
         self.assertNotIn("pull_request_target", self.text)          # the header comment says "never"
@@ -233,7 +236,11 @@ class Workflow(unittest.TestCase):
 
     def test_nine_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
+        # the nine entries are written by the plan (output macmatrix) and read by the job's matrix; the whole-suite paths still get all nine
+        self.assertIn("include: ${{ fromJSON(needs.plan.outputs.macmatrix) }}", mac)
+        self.assertNotRegex(mac, r"\{shard: \d+, shards: \d+\}")      # no second, hand-written list beside the plan's
+        for env in (dict(EVENT="schedule", BRANCH="main"), dict(EVENT="workflow_dispatch", BRANCH="main", MACOS_INPUT="true")):
+            self.assertEqual({(str(e["shard"]), str(e["shards"])) for e in self.mac_matrix(**env)}, {(str(i), "9") for i in range(1, 10)}, env)
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.15.2"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
         self.assertNotIn('python-version: "3.x"', mac)
@@ -258,7 +265,7 @@ class Workflow(unittest.TestCase):
 
     def test_the_macos_job_pins_python_3_15_2_for_shards_1_to_9(self):
         mac = self.jobs["macos"]
-        self.assertEqual(sorted(int(i) for i, _ in re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), list(range(1, 10)))
+        self.assertEqual(sorted(e["shard"] for e in self.mac_matrix(EVENT="schedule", BRANCH="main")), list(range(1, 10)))
         self.assertEqual(mac.count("python-version:"), 1)        # one setup step, so every one of the nine shards runs the pinned Python
         self.assertIn('python-version: "3.15.2"', mac)
 
@@ -359,6 +366,89 @@ class Workflow(unittest.TestCase):
             self.assertEqual((out.get("macos", ""), out.get("smoke", ""), out.get("advisory", "")), (macos, smoke, advisory), env)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("py39", ""), "")      # Python 3.9 stays off a push to main (owner's order 08-11)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="release-1.3.11").get("py39"), "1")
+
+    NINE = [{"shard": i, "shards": 9} for i in range(1, 10)]
+
+    def mac_matrix(self, **env):
+        """The macOS matrix the plan writes for these env values: the parsed JSON list of {shard, shards} entries."""
+        import json
+        return json.loads(self.plan_outputs(**env)["macmatrix"])
+
+    def test_a_hand_started_run_that_names_test_files_uses_one_macos_job(self):
+        """The owner, 26-11: 'a named-file run uses one Mac job'. Run 45805635711 named one file with macos=true and started nine macOS jobs,
+        eight of them with no file to run. The plan, run for real: test files named gives ONE entry, shard 1/1; the whole suite keeps its nine."""
+        hand = dict(EVENT="workflow_dispatch", BRANCH="main", MACOS_INPUT="true")
+        for files in ("test_ask_btn_dot_1349.py", "--repeat 10 test_ask_btn_dot_1349.py", "test_layout test_milestones",
+                      "  test_layout  ", "test_layout.LayoutTest.test_x", "--quick test_layout --max-fail 3", "-j 1 test_layout"):
+            out = self.plan_outputs(FILES_INPUT=files, **hand)
+            self.assertEqual(self.mac_matrix(FILES_INPUT=files, **hand), [{"shard": 1, "shards": 1}], files)
+            self.assertEqual(out.get("macos"), "1", files)      # still wanted, so still required by the gate
+        # the whole suite, by hand and in the nightly, keeps the full list
+        self.assertEqual(self.mac_matrix(**hand), self.NINE)
+        self.assertEqual(self.mac_matrix(EVENT="schedule", BRANCH="main"), self.NINE)
+        # not a named test file: nothing typed, blanks, options only, an option's value that has test_ in it, a bare `test_`, a name with no test_ in it,
+        # a shell pattern (never expanded). All keep the nine, which is what main did for every input.
+        for files in ("", "   ", "--repeat 10", "--quick", "--push origin/test_branch", "--results test_out.json --repeat 2", "test_", "vendor", "*", "-test_x"):
+            self.assertEqual(self.mac_matrix(FILES_INPUT=files, **hand), self.NINE, repr(files))
+
+    def test_the_macos_matrix_is_never_empty_and_never_decides_whether_macos_runs(self):
+        """An empty matrix would skip the job with nobody asking for it. Every path writes a list of at least one entry, and naming files changes
+        neither `macos` (the job's `if`, and the gate's WANT_MACOS) nor any other output."""
+        import json
+        for env in (dict(EVENT="push", BRANCH="main"), dict(EVENT="merge_group", BRANCH="main"), dict(EVENT="schedule", BRANCH="main"),
+                    dict(EVENT="workflow_dispatch", BRANCH="team-x"), dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true"),
+                    dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), dict(EVENT="workflow_dispatch", BRANCH="cut-v1.3.13")):
+            plain = self.plan_outputs(**env)
+            named = self.plan_outputs(FILES_INPUT="--repeat 10 test_ask_btn_dot_1349.py", **env)
+            for out in (plain, named):
+                matrix = json.loads(out["macmatrix"])
+                self.assertGreaterEqual(len(matrix), 1, env)
+                for e in matrix:      # each entry is a real shard of its own count
+                    self.assertEqual(set(e), {"shard", "shards"}, env)
+                    self.assertTrue(1 <= e["shard"] <= e["shards"], env)
+                self.assertEqual(sorted(e["shard"] for e in matrix), list(range(1, matrix[0]["shards"] + 1)), env)      # every shard of the count, once
+            self.assertEqual({k: v for k, v in plain.items() if k != "macmatrix"}, {k: v for k, v in named.items() if k != "macmatrix"}, env)
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("macmatrix: ${{ steps.plan.outputs.macmatrix }}", text)      # declared by the plan job, or the job's matrix reads an empty string
+        self.assertIn('echo "macmatrix=$MACMATRIX" >> "$GITHUB_OUTPUT"', text)
+        self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", self.jobs["macos"])      # the job's `if` is the only thing that skips it
+
+    def test_shard_one_of_one_holds_every_named_file_and_the_gate_rule_is_as_it_was(self):
+        """The one macOS job runs `--shard 1/1` followed by the typed words as given: shard 1 of 1 is every chosen file, so no named file is dropped
+        (on main the file sat in one of nine shards and the other eight ran nothing). The gate reads needs.macos.result exactly as before."""
+        run = [sys.executable, str(ROOT / "dev" / "run_tests.py"), "--list"]
+        named = ["test_workflow.py", "test_run_tests", "test_ci_scan"]
+        whole = subprocess.run(run + named, cwd=ROOT, capture_output=True, text=True, timeout=120).stdout.split("\n")
+        one = subprocess.run(run + ["--shard", "1/1"] + named, cwd=ROOT, capture_output=True, text=True, timeout=120).stdout.split("\n")
+        self.assertGreaterEqual(len([ln for ln in whole if ln.startswith("test_")]), 3)
+        self.assertEqual([ln for ln in one if ln.startswith("test_")], [ln for ln in whole if ln.startswith("test_")])
+        mac = self.jobs["macos"]
+        self.assertIn("FILES: ${{ github.event.inputs.files }}", mac)
+        self.assertIn('python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', mac)      # the typed words, as given, last
+        # the gate: a wanted macOS job (nine shards or one) must be success; failure, cancelled and skipped are red; not wanted must be skipped
+        self.assertTrue(self.gate_passes(WANT_MACOS="1", MACOS="success"))
+        for result in ("failure", "cancelled", "skipped"):
+            self.assertFalse(self.gate_passes(WANT_MACOS="1", MACOS=result), result)
+        self.assertTrue(self.gate_passes(WANT_MACOS="", MACOS="skipped"))
+        for result in ("success", "failure", "cancelled"):
+            self.assertFalse(self.gate_passes(WANT_MACOS="", MACOS=result), result)
+        for result in ("failure", "cancelled", "skipped", "success"):      # the nightly is advisory, as before
+            self.assertTrue(self.gate_passes(WANT_MACOS="1", ADVISORY="1", MACOS=result, EVENT="schedule"), result)
+        passed = self.jobs["passed"]
+        self.assertIn("MACOS: ${{ needs.macos.result }}", passed)
+        self.assertNotIn("macmatrix", passed)      # the gate never reads the matrix, only the one result
+        self.assertNotIn("FILES", passed)
+
+    def test_the_plan_knows_every_run_tests_option_that_takes_a_value(self):
+        """The plan skips the word after an option that takes a value (`--repeat 10`, `--push origin/test_x`), so a value is never read as a file
+        name. Its list is every such option of dev/run_tests.py."""
+        src = (ROOT / "dev" / "run_tests.py").read_text(encoding="utf-8")
+        takes_value = {m.group(1) for m in re.finditer(r'ap\.add_argument\("(-[\w-]+)"([^\n]*)\)', src) if "action=" not in m.group(2)}
+        self.assertIn("--repeat", takes_value)
+        self.assertNotIn("--quick", takes_value)
+        arm = re.search(r"^\s*(-j\|[^)\s]+)\) PREV=", self.jobs["plan"], re.M)
+        self.assertTrue(arm, "the plan has no list of options that take a value")
+        self.assertEqual(set(arm.group(1).split("|")), takes_value)
 
     def gate_passes(self, **env):
         """Run the 'Tests passed' job's script as bash -e (as GitHub runs a step) with these env values and say whether it passes."""
