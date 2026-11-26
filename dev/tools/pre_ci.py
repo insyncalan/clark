@@ -1,6 +1,7 @@
 """Pre-CI: the six checks a head must pass before its pull request is marked Ready for QA (development only; standard library only).
 
     bash ~/wo/loadgate.sh -p 70 -- python3 dev/tools/pre_ci.py --ticket TICKET.json [--base origin/main] [--record DIR]
+    python3 dev/tools/pre_ci.py --compile39          # check 5 alone (CI runs it on Python 3.9)
 
 One command, the same tools CI uses, so green here should mean green there. Run it once per push, on a committed head:
 1. the scan (dev/tools/ci_scan.py) over what the head changes;
@@ -213,10 +214,15 @@ class PreCi:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--ticket", required=True, help="the ticket file: {ticket, files, named_tests}")
+    ap.add_argument("--ticket", help="the ticket file: {ticket, files, named_tests}")
+    ap.add_argument("--compile39", action="store_true", help="only check 5, the Python 3.9 compile check (CI runs this on 3.9)")
     ap.add_argument("--base", default="origin/main")
     ap.add_argument("--record", default="", metavar="DIR")
     a = ap.parse_args(argv)
+    if a.compile39:
+        return 0 if PreCi("", "", "").compile39()["result"] == "pass" else 1
+    if not a.ticket:
+        ap.error("--ticket is needed (or --compile39 for the compile check alone)")
     import scope_check
     try:
         ticket = scope_check.load_ticket(a.ticket)

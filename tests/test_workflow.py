@@ -175,7 +175,7 @@ class Workflow(unittest.TestCase):
 
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
         concurrency = block(self.text, "concurrency")
-        self.assertIn("group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}", concurrency)
+        self.assertIn("group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}", concurrency)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
         self.assertNotIn("cancel-in-progress: true", concurrency)
 
@@ -205,7 +205,7 @@ class Workflow(unittest.TestCase):
         tests = self.jobs["tests"]
         self.assertIn("needs: plan", tests)
         self.assertIn("FULL: ${{ needs.plan.outputs.full }}", tests)
-        self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi', tests)
+        self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--changed origin/$BASE"; fi', tests)      # the affected tests only (Bifrost 2.0, P12; was --push: the quick tier too)
         self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', tests)
         # the second Python and macOS exist only on the full path
         self.assertIn("if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}", self.jobs["tests-py39"])
@@ -294,7 +294,7 @@ class Workflow(unittest.TestCase):
         passed = self.jobs["passed"]
         self.assertIn("name: Tests passed", passed)
         needs = re.search(r"needs: \[([^\]]*)\]", passed).group(1)
-        self.assertEqual({n.strip() for n in needs.split(",")}, set(self.jobs) - {"passed"})
+        self.assertEqual({n.strip() for n in needs.split(",")}, set(self.jobs) - {"passed", "shard-times"})      # the nightly's refreshed times never decide the gate
         self.assertIn("if: ${{ !cancelled() }}", passed)         # a run cancelled by a newer one posts no red gate
         self.assertNotIn("always()", passed)
         for line in ("PLAN: ${{ needs.plan.result }}", "TESTS: ${{ needs.tests.result }}", "PY39: ${{ needs.tests-py39.result }}",
@@ -458,6 +458,8 @@ class Workflow(unittest.TestCase):
         script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
         base = {"PATH": os.environ["PATH"], "PLAN": "success", "TESTS": "success", "PY39": "success", "MACOS": "skipped", "SMOKE": "success",
                 "WANT_SMOKE": "1", "ADVISORY": "", "CUT": "", "WANT_PY39": "1", "WANT_MACOS": "", "EVENT": "workflow_dispatch"}
+        ran = "success" if env.get("EVENT") == "pull_request" else "skipped"      # the named tests and the 3.9 compile check run on a pull request only
+        base.update({"NAMED": ran, "COMPILE39": ran})
         base.update(env)
         return subprocess.run(["bash", "-e", "-c", script], env=base, capture_output=True, text=True, timeout=60).returncode == 0      # -e: as GitHub runs a step
 
@@ -475,6 +477,46 @@ class Workflow(unittest.TestCase):
         self.assertTrue(self.gate_passes(SMOKE="success"))                # a release line or a push to main: the smoke is still required
         for result in ("failure", "cancelled", "skipped"):
             self.assertFalse(self.gate_passes(SMOKE=result), f"release line, smoke {result}")
+
+    def test_a_pull_request_runs_its_named_tests_the_affected_tests_and_the_3_9_compile_check(self):
+        """Bifrost 2.0, P12, box 4: a pull request push runs only the named tests (the test files it adds or changes, a fast job of its own) and
+        the affected tests (--changed), plus the Python 3.9 compile check; the gate needs all three on a pull request and none of the two new ones elsewhere."""
+        named, compile39 = self.jobs["named"], self.jobs["py39-compile"]
+        for body in (named, compile39):
+            self.assertIn("if: ${{ github.event_name == 'pull_request' }}", body)
+        self.assertIn("""git diff --name-only --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py'""", named)
+        self.assertIn('python3 dev/run_tests.py -j 4 --max-fail 8 "${NAMED[@]}"', named)
+        self.assertIn("fetch-depth: 0", named)
+        self.assertIn('python-version: "3.9"', compile39)
+        self.assertIn("run: python3 dev/tools/pre_ci.py --compile39", compile39)
+        self.assertNotIn("run_tests.py", compile39)                                   # a compile check, no tests on 3.9
+        self.assertNotIn("--push", self.jobs["tests"])
+        self.assertTrue(self.gate_passes(EVENT="pull_request"))
+        for one in ("NAMED", "COMPILE39"):
+            for result in ("failure", "cancelled", "skipped"):
+                self.assertFalse(self.gate_passes(EVENT="pull_request", **{one: result}), f"{one} {result}")
+            self.assertFalse(self.gate_passes(**{one: "success"}), f"{one} ran outside a pull request")
+
+    def test_the_nightly_is_never_cancelled_and_hands_over_refreshed_shard_times_and_flaky_classes(self):
+        """Bifrost 2.0, P12, boxes 6 and 7: the nightly has a concurrency group of its own, runs the quarantined files too, and its last job builds
+        dev/tools/shard_times.txt from the real times of the shards and uploads it. Every Ubuntu job uploads its DEFECT and FLAKE classes, which
+        dev/tools/flaky_quarantine.py counts. The workflow still writes nothing: no write permission, no token."""
+        self.assertIn("github.event_name == 'schedule' && format('nightly-{0}', github.run_id)", block(self.text, "concurrency"))
+        tests, times = self.jobs["tests"], self.jobs["shard-times"]
+        self.assertIn('if [ "$EVENT" = "schedule" ]; then SCOPE="--with-quarantined"; fi', tests)
+        self.assertIn("CLARK_RESULTS: ${{ runner.temp }}/test-results.json", tests)
+        self.assertIn("name: test-classes-ubuntu-${{ matrix.shard }}", tests)
+        self.assertIn("name: durations-${{ matrix.shard }}", tests)
+        self.assertIn("path: tests/.durations", tests)
+        self.assertIn("if: ${{ always() && github.event_name == 'schedule' }}", tests)
+        self.assertIn("name: test-classes-named", self.jobs["named"])
+        self.assertIn("if: ${{ !cancelled() && github.event_name == 'schedule' }}", times)
+        self.assertIn("needs: tests", times)
+        self.assertIn("pattern: durations-*", times)
+        self.assertIn('run: python3 dev/tools/shard_refresh.py --durations "$DURATIONS"', times)
+        self.assertIn("path: dev/tools/shard_times.txt", times)
+        self.assertNotIn("git push", self.text)
+        self.assertNotIn(": write", self.text)
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 
