@@ -80,6 +80,51 @@ class Rows(unittest.TestCase):
         own = re.findall(r'\.rt-bar[^{}]*\.ddmenu\[aria-label\^="Text style"\][^{}]*\[data-kind="h[123]"\][^{}]*\{[^}]*font-size:\s*(?:20|18|16)px', RULES)
         self.assertEqual(own, [], "no toolbar rule gives a heading line its own 20/18/16px size")
 
+    def test_text_style_menu_ticks_the_current_style_only_1431(self):
+        """Row 1431 DoD2: the tick sits on the current style and on no other line, in the toolbar menu, at 1400 and 900 in light and dark."""
+        for doc, want in (("<p>Title</p>", "Text"), ("<h1>Title</h1>", "Heading 1"), ("<h3>Title</h3>", "Heading 3")):
+            with rp.Harness(chrome) as h:
+                d = T.Drive(self, h.cdp, h.sid)
+                for w, th in LOOKS:
+                    d.look(w, th)
+                    h.mount(doc)
+                    d.button(".rt-bar .rt-style", "the Text style button")
+                    d.js("document.querySelector('.rt-bar .rt-style').click()")
+                    d.until(f"document.querySelectorAll({json.dumps(OPT)}).length >= 4", "the Text style menu drew its four lines")
+                    m = d.js(READ)
+                    ticked = [r["t"].lstrip("\u2713") for r in m["rows"] if r["on"] == "true"]
+                    self.assertEqual(ticked, [want], f"{(w, th)} {doc}: the tick is on the current style and nowhere else: {m['rows']}")
+                    d.key("Escape", "Escape", 27)
+                    d.gone(".rt-bar [role=menu]", "the style menu")
+                    h.ev("window.unmount(); true")
+
+    def test_bubble_text_style_menu_has_the_toolbar_values_1431(self):
+        """Row 1431 AP2 (PM ruling 26-11): the bubble Text style menu rows have 0 16px side padding, 14px, one weight and are 32px high, as the toolbar menu; the current style is ticked."""
+        BUB = r"""(() => { const m = [...document.querySelectorAll('.rt-bubble [role=menu]')].pop(); if (!m) return null;
+ const o = [...m.querySelectorAll('[role=menuitemradio]')]; const c = e => getComputedStyle(e);
+ return {rows: o.map(e => ({t: e.textContent.trim(), h: Math.round(e.getBoundingClientRect().height * 10) / 10, fs: c(e).fontSize, fw: c(e).fontWeight, pt: c(e).paddingTop, pb: c(e).paddingBottom, pl: c(e).paddingLeft, pr: c(e).paddingRight, on: e.getAttribute('aria-checked')}))}; })()"""
+        with rp.Harness(chrome) as h:
+            d = T.Drive(self, h.cdp, h.sid)
+            for w, th in LOOKS:
+                d.look(w, th)
+                h.ev("var o = document.getElementById('theme'); if (o) o.remove(); var s = document.createElement('style'); s.id = 'theme'; s.textContent = '/* classic */'; document.head.appendChild(s); true")      # the bubble draws its Text style button only when the Classic layer is on
+                h.mount("<h2>Some words here</h2>")
+                h.select_all()
+                d.button(".rt-bubble .rt-style", "the bubble Text style button")
+                d.js("document.querySelector('.rt-bubble .rt-style').click()")
+                d.until("document.querySelectorAll('.rt-bubble [role=menuitemradio]').length >= 4", "the bubble Text style menu drew its four lines")
+                m = d.js(BUB)
+                self.assertEqual(len(m["rows"]), 4, (w, th))
+                for r in m["rows"]:
+                    self.assertEqual((r["fs"], r["pt"], r["pb"], r["pl"], r["pr"], r["h"]), ("14px", "0px", "0px", "16px", "16px", 32), f"{(w, th)}: {r['t']!r}")
+                self.assertEqual(len({r["fw"] for r in m["rows"]}), 1, f"{(w, th)}: one weight")
+                self.assertEqual([r["t"].lstrip("\u2713") for r in m["rows"] if r["on"] == "true"], ["Heading 2"], f"{(w, th)}: the tick is on the current style only")
+                d.key("Escape", "Escape", 27)
+                h.ev("window.unmount(); true")
+
+    def test_bubble_style_rule_has_no_heading_own_sizes_1431(self):
+        self.assertNotRegex(RULES, r'\.rt-bubble[^{}]*\.ddmenu\[aria-label\^="Text style"\][^{}]*\[data-kind="h[123]"\]')
+
     def test_cards_page_has_no_row_1431_rule(self):
         self.assertIn("Row 1431", RULES)
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
