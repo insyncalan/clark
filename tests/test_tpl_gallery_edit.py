@@ -239,6 +239,23 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             self.assertEqual(self.style(".tpl-gal-tcap", "fontSize", "color", "marginTop", "marginRight", "marginBottom", "marginLeft", "textAlign"),
                              ["13px", "rgb(71, 85, 119)", "8px", "2px", "0px", "2px", "start"])
 
+    def test_a_tile_without_a_description_has_the_red_mark_20px_8_from_the_top_38_from_the_right_at_both_widths(self):
+        """AP9 (Edit only): a 20 x 20 red circle, white "!" 12px bold, title "No description yet"; a tile with a description has none."""
+        for page in (1400, 900):
+            self.mount(many(2, {"items": {"1": {"alt": "Fictional description"}}}), page)
+            self.assertEqual(self.count(".tpl-gal-tile:nth-child(1) .tpl-gal-nodesc"), 0, "described: no mark")
+            self.assertEqual(self.count(".tpl-gal-tile:nth-child(2) .tpl-gal-nodesc"), 1, "undescribed: one mark")
+            sel = ".tpl-gal-tile:nth-child(2) .tpl-gal-nodesc"
+            self.assertEqual(self.val(f"document.querySelector('{sel}').title"), "No description yet")
+            self.assertEqual(self.val(f"document.querySelector('{sel}').textContent"), "!")
+            self.assertEqual(self.style(sel, "width", "height", "borderTopLeftRadius", "backgroundColor", "color", "fontSize", "fontWeight"),
+                             ["20px", "20px", "50%", "rgb(179, 57, 47)", "rgb(255, 255, 255)", "12px", "700"])
+            d = self.val(f"(function(){{const m = document.querySelector('{sel}').getBoundingClientRect(), t = document.querySelector('.tpl-gal-tile:nth-child(2)').getBoundingClientRect(); return [m.top - t.top - 2, t.right - 2 - m.right];}})()")
+            self.assertEqual([round(x) for x in d], [8, 38], "8px from the top, 38px from the right (inside the 2px border)")
+            self.val("document.querySelector('.tpl-gal-tile:nth-child(2)').click()")
+            self.until("document.querySelector('.tpl-gal-tile:nth-child(2).sel')", "selected")
+            self.assertEqual(self.count(sel), 1, "the mark stays on the selected tile")
+
 
 class Dark(Page):          # the key colours again in the dark theme, read from the page's own tokens
     def tearDown(self):

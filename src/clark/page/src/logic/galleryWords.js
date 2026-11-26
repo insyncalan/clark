@@ -29,6 +29,7 @@ export const WORDS = {
   describe: (n) => `Selected image ${n}: describe it`,
   describeHint: "for people who cannot see it",
   noDescription: "No description yet.",
+  noDescriptionMark: "No description yet",     // the title of the red mark on a tile with no description (row 1233, AP9; the spec says exactly this)
   caption: "Caption",
   optional: "optional",
   added: "Image added.",
