@@ -114,7 +114,7 @@ class ClassicMenu(Base):
                 self.assertEqual([i["name"] for i in lines], LISTED, "one line per column, in the table's own order, no title line")
                 for i in lines:
                     self.assertEqual(i["on"], "true" if i["name"] in ("Status", "Owner", "Due", "Priority", "Id") else "false", i["name"])
-                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitem]')}).length"), 0, "only tick lines")
+                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitem]')}).length"), 2, "the tick lines, then only the Move left and Move right lines (Q23)")
                 got = js(f"""(() => {{ const b = document.querySelector({json.dumps(ITEMS)}), c = getComputedStyle(b), t = b.firstElementChild, tc = getComputedStyle(t);
                     const probe = document.createElement('i'); probe.style.color = 'var(--brand-blue)'; document.body.appendChild(probe); const blue = getComputedStyle(probe).color; probe.remove();
                     return {{tk: t.className, tw: tc.width, tweight: tc.fontWeight, tcolor: tc.color, blue, first: t === b.firstChild || b.firstChild === t, gap: c.columnGap, min: c.minHeight, pad: [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft],
@@ -134,7 +134,7 @@ class ClassicMenu(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 _, js = self.opened(cdp, width)
-                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [aria-disabled], ' + MENU + ' [data-keep], ' + MENU + ' .cols-why, ' + MENU + ' small')}).length"), 0, "no locked line, no reason")
+                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitemcheckbox][aria-disabled], ' + MENU + ' [role=menuitemcheckbox][data-keep], ' + MENU + ' .cols-why, ' + MENU + ' small')}).length"), 0, "no locked line, no reason")
                 self.assertNotIn("Always shown", js(f"document.querySelector({json.dumps(MENU)}).textContent"))
                 self.assertIn("status", self.heads(js))
                 js(f"[...document.querySelectorAll({json.dumps(ITEMS)})].find((b) => b.dataset.colName === 'Status').click()")
@@ -148,7 +148,9 @@ class ClassicMenu(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 _, js = self.opened(cdp, width)
-                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [data-cols-standard], ' + MENU + ' [role=separator], ' + MENU + ' .sep, ' + MENU + ' [role=menuitem]')}).length"), 0)
+                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [data-cols-standard]')}).length"), 0)
+                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=separator]')}).length"), 1, "one line sets the two Move lines off from the ticks (Q23)")
+                self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitem]')}).length"), 2)
                 text = js(f"document.querySelector({json.dumps(MENU)}).textContent")
                 self.assertNotIn("standard columns", text.lower())
 

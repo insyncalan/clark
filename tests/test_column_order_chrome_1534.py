@@ -389,7 +389,7 @@ class Moves(Base):
 
 class Menu(Base):
     def test_menu_lists_columns_in_table_order_with_ticks_and_no_move_or_reset_line(self):
-        """the row 1499 pick 7B ruling: the Classic Work items menu is a heading and tick lines only (no Move left, Move right, Reset)."""
+        """the Classic Work items menu is a heading, tick lines, then Move left and Move right (Q23, after row 1499 pick 7B); no Reset."""
         self.serve({"actions": SAVED})
         for w in WIDTHS:
             for scheme in SCHEMES:
@@ -400,7 +400,7 @@ class Menu(Base):
                     self.assertEqual([l[0] for l in lines[:5]], ["Status", "Due", "Owner", "Priority", "Id"], "the shown columns in the table's order, the Status first")
                     self.assertEqual([l[1] for l in lines[:5]], ["true"] * 5)
                     self.assertTrue(all(l[1] == "false" for l in lines[5:]), "the hidden columns come after, unticked")
-                    self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitem], ' + MENU + ' .sep')}).length"), 0, "no Move or Reset line, no separator")
+                    self.assertEqual(js(f"document.querySelectorAll({json.dumps(MENU + ' [role=menuitem]')}).length"), 2, "Move left and Move right only, no Reset line")
                     self.assertEqual(js(f"document.querySelector({json.dumps(MENU)}).querySelector('h5').textContent"), "Columns to show")
                     # a tick still works and leaves the order alone
                     js(f"[...document.querySelectorAll({json.dumps(MENU + ' [role=menuitemcheckbox]')})].find((b) => b.dataset.colName === 'Priority').click()")

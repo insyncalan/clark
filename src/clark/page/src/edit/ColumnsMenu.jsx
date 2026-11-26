@@ -44,7 +44,7 @@ export function ColsPanel(props) {
 export function useColumns(table, css = false, type = "all") {
   const code = project.value, [mem, setMem] = useState({}), [at, setAt] = useState(null), box = useRef(null);
   const shown = mem[code] || readChoice(table, code);
-  // Row 1499 (pick 7B): the Work items menu in the Classic look is a heading and tick lines only: the Status can be unticked, the title is always drawn and is not
+  // Row 1499 (pick 7B): the Work items menu in the Classic look is a heading, tick lines and then Move left and Move right (Q23); the Status can be unticked, the title is always drawn and is not
   // listed, there is no standard reset. Cards (no Classic theme) keeps the menu of row 1222 as it was, Status greyed and always shown.
   const classic = table === "work" && classicTheme();
   const lockedIn = (c) => c.locked || (table === "work" && !classic && c.id === "status");
@@ -133,6 +133,10 @@ export function useColumns(table, css = false, type = "all") {
       aria-expanded={place !== "head" && place !== undefined && at && at.getAttribute("data-cbk") === place ? "true" : "false"} title={W.UNRULED_BUTTON_TIP} data-tip={W.UNRULED_BUTTON_TIP}
       onClick={(e) => { e.stopPropagation(); if (at === e.currentTarget) setAt(null); else open(e.currentTarget); }}><Icon name="columns" /></button>
   ); };
+  // Row 1534 (Q23): the Classic menu's Move left and Move right act on the column whose heading opened the menu, with the same moveColumn and the same saveOrder as the drag and Alt+Shift+Left/Right.
+  const headId = canMove && at && at.closest && at.closest("th[data-col], [data-col]") ? at.closest("th[data-col], [data-col]").getAttribute("data-col") : null;
+  const stepTo = (delta) => (headId ? moveColumn(ordered, headId, delta) : null);
+  const menuMove = (delta) => { const to = stepTo(delta); if (to) saveOrder(to, (delta < 0 ? W.MOVED_LEFT : W.MOVED_RIGHT)(labelOfId(headId))); };
   const press = (id, label) => {
     const next = toggled(table, shown, id);
     set(next);
@@ -146,6 +150,15 @@ export function useColumns(table, css = false, type = "all") {
         return (
           <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={c.label} tabIndex={-1} onClick={() => press(c.id, c.label)}>
             <span class="tk" aria-hidden="true">{on ? "✓" : ""}</span>{c.label}
+          </button>
+        );
+      })}
+      <div class="sep" role="separator"></div>
+      {[[-1, "left", W.MOVE_LEFT], [1, "right", W.MOVE_RIGHT]].map(([d, side, text]) => {
+        const off = !stepTo(d);
+        return (
+          <button key={side} type="button" role="menuitem" data-colmenu-move={side} aria-disabled={off ? "true" : undefined} data-keep="" tabIndex={-1} onClick={() => menuMove(d)}>
+            <span class="tk" aria-hidden="true"></span>{text}
           </button>
         );
       })}
