@@ -39,12 +39,12 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 37          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables; 36 (row 1417): workstreams.start, workstreams.end and workstreams.latest_update; 37 (row 1533): projects.show_board_client, the author's switch for the client's Work items board. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 38          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables; 36 (row 1417): workstreams.start, workstreams.end and workstreams.latest_update; 37 (row 1533): projects.show_board_client, the author's switch for the client's Work items board; 38 (row 1252): the added_pages table. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones", "added_pages")
 SETTINGS_TABLES = ("app_settings", "install_defaults", "connector_switches", "project_connectors")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
 HIDDEN_CONNECTORS = ("todoist",)      # row 1306: found but never offered, never On: its read-only tools are not checked yet (filed as a Tech Debt row)
 CONNECTORS = ("mail", "calendar", "teams", "sharepoint", "todoist")      # row 1306: the connectors asking may one day be allowed to read; the same five words as schema.sql's CHECKs
@@ -58,7 +58,7 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
         "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",), "install_defaults": ("id",),
         "connector_switches": ("connector",), "project_connectors": ("project_id", "connector"),
-        "people": ("id",), "gantt_lines": ("id",), "use_case_milestones": ("use_case", "milestone", "link_id")}      # row 1107: the key holds both ends, so History finds a link from either item
+        "people": ("id",), "gantt_lines": ("id",), "added_pages": ("id",), "use_case_milestones": ("use_case", "milestone", "link_id")}      # row 1107: the key holds both ends, so History finds a link from either item
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -84,6 +84,7 @@ REQUIRED_NEW = {
     "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
     "gantt_lines": ("project", "type", "name", "start", "end"),   # row 926
     "use_case_milestones": ("use_case", "milestone"),                # row 1107
+    "added_pages": ("project", "name", "starter"),                   # row 1252: client, hidden and sort_order are flags or numbers (0 is a value); sections default to none
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
@@ -129,6 +130,7 @@ ALLOWED = {
     ("labels", "default_choice"): ("include", "exclude"),
     ("projects", "health"): ("On track", "At risk", "Off track"),
     ("projects", "layout"): ("boxed", "spine", "cover"),                                           # clark
+    ("added_pages", "starter"): ("blank", "status", "documents", "people"),                       # row 1252: the four starters a row can hold; the Gantt starter is the prebuilt page, switched by show_gantt_editor
     ("gantt_lines", "type"): ("phase", "task", "milestone"),                                       # row 926
     ("gantt_lines", "health"): ("Green", "Amber", "Red"),                                          # row 926: and '' (no health, never checked)
     ("gantt_lines", "priority"): ("High", "Medium", "Low"),                                        # row 926: and ''
@@ -141,7 +143,7 @@ DATE_FIELDS = {"due_date", "raised", "closed", "date", "week_ending", "baseline_
                "needed_by", "actual_date", "start", "end", "baseline_start", "baseline_end"}      # row 926: + a Gantt line's dates
 NO_EDIT = {"id", "updated_at"}
 ID_PREFIX = {"actions": "-A-", "decisions": "-D-", "raid": "-", "milestones": "-M-", "workstreams": "-W-",
-             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-", "gantt_lines": "-GNT-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
+             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-", "gantt_lines": "-GNT-", "added_pages": "-PG-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
 # ITEM_ID and ITEM_TABLE below stay as they are: a section is not linkable and carries no label
 ITEM_ID = re.compile(r"([A-Z][A-Z0-9]{2,6})-(?:([ADMWU])-)?\d{3}")
 GANTT_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-GNT-\d{3}")                # row 926: a Gantt line's id (CODE-GNT-001); never matches ITEM_ID
@@ -161,7 +163,7 @@ BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "option
              "documents": ("date",),                                     # #74
              "gantt_lines": ("parent", "baseline_start", "baseline_end", "effort", "budget")}     # row 926: the columns that may hold no value
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
-DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders", "gantt_lines")
+DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders", "gantt_lines", "added_pages")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
 MAX_SECTIONS = 100                                                       # a project's sections (#65)
 TITLE_LIMIT = 120                                                        # a section's title, in characters
@@ -242,7 +244,7 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
 REVERT_CREATED += ("project_connectors",)      # row 1306: a project's first Off can be undone
-REVERT_CREATED += ("report_hidden", "documents", "gantt_lines", "use_case_milestones")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
+REVERT_CREATED += ("report_hidden", "documents", "gantt_lines", "use_case_milestones", "added_pages")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
                ("gantt_lines", "parent"),                                                   # row 926: a phase with lines under it (depends is a list: see referred_to)
@@ -444,7 +446,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action",
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "ask_files", "ask_files_off", "ask_new_projects", "ask_off", "needs_details", "client_action", "client",
                           "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client", "is_on", "off", "accepted", "show_board_client"})      # row 1365: source_folders.accepted, 0 = declined, 1 = accepted; row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
@@ -780,6 +782,76 @@ def _source_folder(con, table, row, changed):
         raise Invalid("A folder is accepted (1) or declined (0).")
 
 
+# ── Added pages (row 1252, step 38) ───────────────────────────────────────────
+
+MAX_ADDED_PAGES = 5                      # a project's added pages, the prebuilt Gantt page always included (hidden or shown)
+ADDED_PAGE_NAME_LIMIT = 40
+ADDED_PAGE_SECTION_LIMIT = 30            # sections one added page holds
+ADDED_PAGE_CAP = "You have 5 added pages. Remove one to add another."      # the approved words
+ADDED_PAGE_BAD_NAME = f"A page needs a name of one line, up to {ADDED_PAGE_NAME_LIMIT} letters."
+ADDED_PAGE_BAD_STARTER = "That is not a starter clark has."
+ADDED_PAGE_BAD_FLAG = "Shown to the client and Hide from the menu are on or off."
+ADDED_PAGE_BAD_PLACE = "A page needs its place in the menu, as a whole number."
+ADDED_PAGE_BAD_SECTIONS = "The page's sections are not in a form clark can keep."
+ADDED_PAGE_NO_GANTT = "Only the Gantt starter holds a Gantt or a Work items section."
+ADDED_PAGE_SECTION_KEYS = ("id", "type", "title", "body", "beside", "hidden")
+ADDED_PAGE_NOT_HAND = ("gantt", "gantttable", "workitems")
+
+
+def added_page_count(con, project):
+    """How many of the five a project has used: its added_pages rows, and one more always for the prebuilt Gantt page, hidden or shown
+    (PM ruling 24-11), so a project can add four more. show_gantt_editor and show_gantt_client stay the two switches; neither changes the count."""
+    n = con.execute("SELECT count(*) FROM added_pages WHERE project = ?", (project,)).fetchone()[0]
+    return n + 1
+
+
+def added_page_sections(value):
+    """The sections of an added page, as the list the column keeps (JSON text in, the same list out). Each is a dict of the keys above with a
+    text id and title; no section is a Gantt or a Work items section."""
+    try:
+        got = json.loads(value) if isinstance(value, str) else value
+    except ValueError:
+        raise Invalid(ADDED_PAGE_BAD_SECTIONS) from None
+    if not isinstance(got, list) or len(got) > ADDED_PAGE_SECTION_LIMIT:
+        raise Invalid(ADDED_PAGE_BAD_SECTIONS)
+    out, seen = [], set()
+    for s in got:
+        if not isinstance(s, dict) or set(s) - set(ADDED_PAGE_SECTION_KEYS):
+            raise Invalid(ADDED_PAGE_BAD_SECTIONS)
+        if s.get("type") not in SECTION_TYPES or not isinstance(s.get("id"), str) or not s["id"] or s["id"] in seen \
+                or not isinstance(s.get("title", ""), str) or len(s.get("title", "")) > TITLE_LIMIT \
+                or not isinstance(s.get("body", ""), (str, type(None))) or any(type(s.get(f, 0)) is not int or s.get(f, 0) not in (0, 1) for f in ("beside", "hidden")):
+            raise Invalid(ADDED_PAGE_BAD_SECTIONS)
+        if s["type"] in ADDED_PAGE_NOT_HAND:
+            raise Invalid(ADDED_PAGE_NO_GANTT)
+        seen.add(s["id"])
+        out.append(dict(s))
+    return json.dumps(out, ensure_ascii=False, separators=(",", ":"))
+
+
+def _added_page_rules(con, table, row, changed):
+    """Row 1252: an added page has a one-line name, one of the four starters, its place, two flags and its sections; a new page is refused
+    when the project already has five (the prebuilt Gantt page always counts one). A page already there (an Undo putting it back) is not counted again."""
+    name = row.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > ADDED_PAGE_NAME_LIMIT or any(unicodedata.category(c).startswith("C") for c in name):
+        raise Invalid(ADDED_PAGE_BAD_NAME)
+    row["name"] = " ".join(name.split())
+    if row.get("starter") not in ALLOWED[("added_pages", "starter")]:
+        raise Invalid(ADDED_PAGE_BAD_STARTER)
+    if row.get("sort_order") is None:
+        row["sort_order"] = 0
+    if type(row["sort_order"]) is not int:
+        raise Invalid(ADDED_PAGE_BAD_PLACE)
+    for f in ("client", "hidden"):
+        if row.get(f) is None:
+            row[f] = 0
+        if type(row[f]) is not int or row[f] not in (0, 1):
+            raise Invalid(ADDED_PAGE_BAD_FLAG)
+    row["sections"] = added_page_sections(row.get("sections") if row.get("sections") is not None else "[]")
+    if (not row.get("id") or fetch(con, table, row["id"]) is None) and added_page_count(con, row.get("project")) >= MAX_ADDED_PAGES:
+        raise Invalid(ADDED_PAGE_CAP)
+
+
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
 def _person_rules(con, table, row, changed):
     """#115: a person's fields are checked and written as people.check_person gives them (trimmed, email lower-cased, aliases joined,
@@ -1080,6 +1152,7 @@ ROW_RULES = {
     "source_folders": (_project_exists, _source_folder),                     # clark (#47)
     "project_connectors": (_project_connector,),                             # row 1306
     "gantt_lines": (_project_exists, _gantt_rules),                          # row 926
+    "added_pages": (_project_exists, _added_page_rules),                      # row 1252
     "use_case_milestones": (_uc_milestone_rules,),                           # row 1107
 }
 
@@ -3253,6 +3326,29 @@ def migrate_source_folders_1365(con):
         con.execute("ALTER TABLE source_folders ADD COLUMN " + ACCEPTED_COLUMN)
 
 
+ADDED_PAGES_STEP = 38        # row 1252's step number, written once here and used by MIGRATIONS
+ADDED_PAGES_TABLE = """CREATE TABLE IF NOT EXISTS added_pages (
+  id         TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-PG-[0-9][0-9][0-9]'),
+  project    TEXT NOT NULL REFERENCES projects(code),
+  name       TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 40),
+  starter    TEXT NOT NULL CHECK (starter IN ('blank','status','documents','people')),
+  sort_order INTEGER NOT NULL DEFAULT 0 CHECK (typeof(sort_order) = 'integer'),
+  client     INTEGER NOT NULL DEFAULT 0 CHECK (client IN (0,1)),
+  hidden     INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sections   TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)"""      # the same statement as schema.sql's (a test pins the two together)
+ADDED_PAGES_INDEX = "CREATE INDEX IF NOT EXISTS added_pages_project ON added_pages(project, sort_order, id)"
+
+
+def migrate_added_pages(con):
+    """Schema version 37 to 38 (row 1252): the `added_pages` table, new and empty. No existing table or value changes: show_gantt_editor and
+    show_gantt_client stay the two switches of the prebuilt Gantt page, values kept. Skipped when the table is already there (a new
+    database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 38 in MIGRATIONS."""
+    con.execute(ADDED_PAGES_TABLE)
+    con.execute(ADDED_PAGES_INDEX)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 # Row 1534: the column order of the work item tables, saved with the project (published for everyone, a ruling) and not in the browser. One saved
@@ -3343,7 +3439,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (CONNECTOR_SWITCHES_STEP, migrate_connector_switches), (ASK_FILES_STEP, migrate_ask_files),
               (EXCLUDED_STEP, migrate_source_folders_1365), (COLUMN_ORDERS_STEP, migrate_column_orders),
               (WORKSTREAM_COLUMNS_STEP, migrate_workstream_columns),
-              (BOARD_CLIENT_STEP, migrate_board_client))
+              (BOARD_CLIENT_STEP, migrate_board_client),
+              (ADDED_PAGES_STEP, migrate_added_pages))
 
 
 def migration_plan(version, table=None):
@@ -3724,7 +3821,7 @@ class Store:
                             "DELETE FROM use_case_milestones WHERE use_case IN (SELECT id FROM use_cases WHERE project = ?)",
                             "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
                             "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
-                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM project_connectors WHERE project_id = ?", "DELETE FROM gantt_lines WHERE project = ?",
+                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM project_connectors WHERE project_id = ?", "DELETE FROM gantt_lines WHERE project = ?", "DELETE FROM added_pages WHERE project = ?",
                             "DELETE FROM projects WHERE code = ?"):
                     con.execute(sql, (code,))
                 con.executemany("DELETE FROM change_log WHERE tbl = ? AND item_id = ?", sorted(keys))
@@ -3846,6 +3943,8 @@ class Store:
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
             out["gantt_lines"] = [dict(r) for r in con.execute(               # row 926: the editor's own read keeps every line and every column (the eye and the hidden columns only matter to a client file: publish.select)
                 "SELECT * FROM gantt_lines WHERE project = ? ORDER BY sort_order, id", (code,))]
+            out["added_pages"] = [dict(r) for r in con.execute(               # row 1252: the project's added pages, in menu order; none on a file made before step 34
+                "SELECT * FROM added_pages WHERE project = ? ORDER BY sort_order, id", (code,))] if columns(con, "added_pages") else []
             out["documents"] = [dict(r) for r in con.execute(                 # #74: the Supporting documents section's links
                 "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? AND archived IN (?, ?) "
                 "ORDER BY sort_order, id", (code, *flags))]
@@ -3937,6 +4036,8 @@ class Store:
                         "SELECT apply_id, tbl, item_id, field, op, new_value FROM change_log WHERE tbl = 'milestones' "
                         "AND field = 'baseline_date' AND item_id LIKE ? ORDER BY rowid", (mine_like,)) if r["item_id"] in mine],
                     "undone": [r["apply_id"] for r in con.execute("SELECT apply_id FROM applies WHERE undone_at IS NOT NULL")],
+                    "added_pages": [dict(r) for r in con.execute(            # row 1252: publish.select keeps only a page that is on for the client
+                        "SELECT * FROM added_pages WHERE project = ? ORDER BY sort_order, id", (code,))],
                     "documents": [dict(r) for r in con.execute(              # #74: every one, archived too: publish.select keeps only what may go
                         "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? "
                         "ORDER BY sort_order, id", (code,))],

@@ -57,7 +57,7 @@ LOOK = """(() => {
   const ctl = [...frame.querySelectorAll('.sec-ctl .handle, .sec-ctl .plus')].map(R);
   const touching = ctl.filter((c) => lines.some((ln) => hit(c, ln))).length;
   const pair = (id) => { const e = frame.querySelector('[data-id="' + id + '"]'), c = getComputedStyle(e); return { rect: R(e), w: c.borderTopWidth, colour: c.borderTopColor, style: c.borderTopStyle }; };
-  return JSON.stringify({ boxed, secSides, touching, controls: ctl.length, left: pair('ABC-S-005'), right: pair('ABC-S-006'), scroll: document.documentElement.scrollWidth <= innerWidth });
+  return JSON.stringify({ boxed, secSides, touching, controls: ctl.length, left: pair('ABC-S-004'), right: pair('ABC-S-005'), scroll: document.documentElement.scrollWidth <= innerWidth });
 })()"""
 
 
@@ -93,13 +93,13 @@ class OneCard(g.Setup):
                     p.edit()
                 got = self.look(p)
                 a, b = got["left"], got["right"]
-                self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left')"), True, "This week is half width")
+                self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-004\"]').classList.contains('slot-left')"), True, "This week is half width")
                 self.assertEqual((a["w"], b["w"]), ("1px", "1px"), mode)
                 self.assertEqual((a["colour"], a["style"]), (b["colour"], b["style"]), f"{mode}: both halves' lines look the same")
                 self.assertAlmostEqual(a["rect"]["t"], b["rect"]["t"], delta=0.5)
                 self.assertAlmostEqual(a["rect"]["r"], b["rect"]["l"], delta=0.5, msg=f"{mode}: the halves' lines meet, no gap in the middle")
             # the first two sections as a pair: neither half has a line (done last: the page is rearranged by hand)
-            p.js("(() => { const s = document.querySelector('#report .secs'), l = s.querySelector('[data-id=\"ABC-S-005\"]'), r = s.querySelector('[data-id=\"ABC-S-006\"]');"
+            p.js("(() => { const s = document.querySelector('#report .secs'), l = s.querySelector('[data-id=\"ABC-S-004\"]'), r = s.querySelector('[data-id=\"ABC-S-005\"]');"
                  " s.prepend(r); s.prepend(l); })()")
             got = self.look(p)
             self.assertEqual((got["left"]["w"], got["right"]["w"]), ("0px", "0px"), "the first row has no top line, for either half")

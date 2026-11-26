@@ -215,6 +215,10 @@ class WholeFile(unittest.TestCase):
             with store.step("dashboard", USER) as st:
                 st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "due_date": "2026-10-10",
                                       "client_visible": 1, "source": "demo"})
+                for row in store.read("report_sections", "ABC"):      # row 1266: a new project starts with the template glance; this test is the built-in one's, which an existing project keeps
+                    if row["type"] == "glancetemplate":
+                        st.cancel("report_sections", row["id"])
+                        st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
                 st.seed_tiles("ABC")
                 st.update("glance_tiles", "ABC|overdue", {"hidden": 1})
                 st.update("glance_tiles", "ABC|decisions", {"hidden": 0, "outline": "R"})

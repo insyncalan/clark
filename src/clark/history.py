@@ -316,6 +316,7 @@ FIELD_NAMES = {
     "gantt_lines": {"name": "Line", "type": "Type", "parent": "Parent", "start": "Start", "end": "End", "pct": "Done %",
                     "health": "Health", "depends": "Depends on", "baseline_start": "Baseline start", "baseline_end": "Baseline end",
                     "effort": "Effort (days)", "show": "On dashboard", "note": "Notes", "sort_order": "Place"},      # row 926
+    "added_pages": {"name": "Page name", "client": "Shown to the client", "hidden": "Hidden", "sort_order": "Place", "sections": "Sections"},   # row 1252
     "actions": {"description": "Action"},
     "raid": {"description": "Description", "type": "Type"},
     "decisions": {"status": "Status"},
@@ -330,7 +331,7 @@ CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a n
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
-         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line",
+         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line", "added_pages": "Page",
          "use_case_milestones": "Milestone link"}      # what a Created or Removed row is about
 
 
@@ -343,13 +344,13 @@ def field_name(table, field):
 
 
 # Where an item's title lives, and the whole of each read (fixed text, no table name is ever put into SQL).
-TITLE_COLUMN = {"gantt_lines": "name", "projects": "name", "milestones": "name", "workstreams": "name", "actions": "description", "raid": "description",
+TITLE_COLUMN = {"added_pages": "name", "gantt_lines": "name", "projects": "name", "milestones": "name", "workstreams": "name", "actions": "description", "raid": "description",
                 "decisions": "decision", "use_cases": "title"}
 TITLE_SQL = {
     "projects": "SELECT name FROM projects WHERE code = ?", "milestones": "SELECT name FROM milestones WHERE id = ?",
     "workstreams": "SELECT name FROM workstreams WHERE id = ?", "actions": "SELECT description FROM actions WHERE id = ?",
     "raid": "SELECT description FROM raid WHERE id = ?", "decisions": "SELECT decision FROM decisions WHERE id = ?",
-    "use_cases": "SELECT title FROM use_cases WHERE id = ?", "gantt_lines": "SELECT name FROM gantt_lines WHERE id = ?"}
+    "use_cases": "SELECT title FROM use_cases WHERE id = ?", "gantt_lines": "SELECT name FROM gantt_lines WHERE id = ?", "added_pages": "SELECT name FROM added_pages WHERE id = ?"}
 TITLE_LIMIT = 120
 
 

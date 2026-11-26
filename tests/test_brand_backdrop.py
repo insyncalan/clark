@@ -47,7 +47,7 @@ class Browser:
 
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
-PAGES = (("Dashboard", "#dashboard&p=ABC", ".glance"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),
+PAGES = (("Dashboard", "#dashboard&p=ABC", ".sec"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),      # row 1266: the default starts with the Headline and the glance template, which draw nothing in the app rig; .sec is the first section drawn
          ("Settings", "#settings&p=ABC", ".set-head"), ("Use cases", "#usecases&p=ABC", ".ucpage, #usecases"), ("Gantt", "#gantt&p=ABC", "#gantt-page"))      # row 1023: the Use cases and Gantt pages too
 MARKERS = ("body::before", "bg-in")          # what the new rules are made of: a file with no brand picture holds none of it
 
@@ -134,7 +134,7 @@ class Rig(Browser, Base):
     def unbrand(self):
         (self.root / "tokens.css").unlink()
 
-    def load_app(self, cdp, hash_="#dashboard&p=ABC", ready=".glance", width=1400, scheme="light"):
+    def load_app(self, cdp, hash_="#dashboard&p=ABC", ready=".sec", width=1400, scheme="light"):
         p = Pg.at(self, cdp, self.s.port, hash_)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)

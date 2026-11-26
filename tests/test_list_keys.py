@@ -379,5 +379,10 @@ class Keys(ie.Live):
                 self.assertGreater(cdp.js("document.querySelectorAll('#work-board .bc-main[tabindex=\"-1\"]').length", sid), 2)
 
 
+for _name in dir(ie.Live):      # Live's own tests run in test_inline_edits, not again here; only its helpers are wanted
+    if _name.startswith("test_") and _name not in Keys.__dict__:
+        setattr(Keys, _name, None)
+
+
 if __name__ == "__main__":
     unittest.main()
