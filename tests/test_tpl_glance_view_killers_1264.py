@@ -10,6 +10,7 @@ from _demo import USER
 from test_report_editor import Base, tearDownModule  # noqa: F401
 from test_tpl_glance_page_1264 import seed_rows
 import test_tpl_glance_page_1264 as _test_tpl_glance_page_1264
+import test_server  # noqa: F401  browser tier: this file drives Chrome through the 1264 page module
 
 
 def add(test, kind):
