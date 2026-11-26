@@ -1,5 +1,5 @@
 """Row 1293 (AP10 of the old ticket, AP6 here): the change card shows the item's title and its owner: "Owner: TBC" when the stored owner is
-TBC, and no owner line when the owner is blank or the item is new. At 1400 and 900, Classic.
+TBC, and no owner line when the owner is blank or the item is new. At 1400 and 900, Classic, light and dark.
 
 Run: python3 dev/run_tests.py test_ask_change_card_1293
 A real browser, the real page, a stub provider. Fictional data only.
@@ -27,15 +27,16 @@ class ChangeCard(Card):
             self.ask_it(p)
             self.card(p)
             p.until("document.querySelectorAll('[data-ask-change]').length === 3", "the cards")
-            for width in (1400, 900):
+            for width, theme in ((1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                where = f"{width} {theme}"
                 card = lambda i, sel: p.js(f"[...document.querySelectorAll('[data-ask-change]')[{i}].querySelectorAll('{sel}')].map(e => e.textContent)")
-                self.assertEqual(card(0, "[data-ask-title]"), ["Unassigned job"], width)
-                self.assertEqual(card(0, "[data-ask-owner]"), ["Owner: TBC"], width)
-                self.assertEqual(card(1, "[data-ask-title]"), ["Blank job"], width)
-                self.assertEqual(card(1, "[data-ask-owner]"), [], f"{width}: a blank owner shows no owner line")
-                self.assertEqual(card(2, "[data-ask-owner]"), [], f"{width}: a new item shows no owner line")
-
+                self.assertEqual(card(0, "[data-ask-title]"), ["Unassigned job"], where)
+                self.assertEqual(card(0, "[data-ask-owner]"), ["Owner: TBC"], where)
+                self.assertEqual(card(1, "[data-ask-title]"), ["Blank job"], where)
+                self.assertEqual(card(1, "[data-ask-owner]"), [], f"{where}: a blank owner shows no owner line")
+                self.assertEqual(card(2, "[data-ask-owner]"), [], f"{where}: a new item shows no owner line")
 
 if __name__ == "__main__":
     unittest.main()

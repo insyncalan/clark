@@ -152,11 +152,12 @@ class OnThePage(unittest.TestCase):
         time.sleep(0.2)
         js("document.querySelector('#ai-size').blur()")
 
-    def test_the_box_shows_saves_refuses_and_offers_the_default_at_1400_and_900(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
+    def test_the_box_shows_saves_refuses_and_offers_the_default_at_1400_and_900_light_and_dark(self):
+        for width, theme in ((1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")):
+            with self.subTest(width=width, theme=theme), chrome() as cdp:
                 settings.ai_write(self.d, {"size": 300_000})
                 js = self.show(cdp, width)
+                js(f"document.documentElement.dataset.theme = '{theme}'")
                 self.assertEqual(js("document.querySelector('label[for=ai-size]').innerText"), "Size of one question")
                 self.assertEqual(js("document.querySelector('#ai-size').value"), "300000")
                 self.assertEqual(js("document.querySelector('[data-ai-size-help]').innerText"), HELP)
