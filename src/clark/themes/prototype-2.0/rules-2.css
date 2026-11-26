@@ -370,6 +370,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-warn [data-ask-warn-name] { font-weight: 500; }
 .ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ask-warn-btns .btn:not(.pri) { color: var(--text); }
+.ask-warn-btns .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }      /* row 1639 AP11: the pressed one of Accept and Decline, the same pair as the .seg pressed button in shell.css; the border stays the .btn border */
 /* Row 1233 (s7, Classic only; Cards keeps its cover tile): a small image (framed copy under SMALL_WIDE (600 px, Row 1580) wide, the Gallery view marks its frame .small) sits centred at its own size in its tile on its fill (the image's own blurred copy, the brand colour or plain), never enlarged; the tile keeps the shape for all, Whole has no fill area. The large view: padding 30, caption 14px 10px below, close at top 16 right 20 (spec row 14, comment 7022644457; overlay rgba(6,20,30,.82) as the PM ruled, WO-M16293). The tile caption is the mock-up's .tile .tcap: 13px, rgb(71, 85, 119), margin 8px 2px 0 (the same as the Edit caption .fcap; PM ruling 03:19, .tcap = .fcap). */
 .tpl-gal-vframe { display: block; }
 .tpl-gal-vframe.small { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius); aspect-ratio: 4 / 3; background: var(--grey-100); }
