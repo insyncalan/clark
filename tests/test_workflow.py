@@ -484,7 +484,7 @@ class Workflow(unittest.TestCase):
         named, compile39 = self.jobs["named"], self.jobs["py39-compile"]
         for body in (named, compile39):
             self.assertIn("if: ${{ github.event_name == 'pull_request' }}", body)
-        self.assertIn("""git diff --name-only --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py'""", named)
+        self.assertIn("""git diff --name-only --no-renames --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py'""", named)
         self.assertIn('python3 dev/run_tests.py -j 4 --max-fail 8 "${NAMED[@]}"', named)
         self.assertIn("fetch-depth: 0", named)
         self.assertIn('python-version: "3.9"', compile39)

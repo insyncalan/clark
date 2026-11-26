@@ -337,8 +337,9 @@ jobs:
           CLARK_RESULTS: ${{ runner.temp }}/test-results.json
         run: |
           # File names from git, read line by line into an array: never typed text, never word-split by the shell.
+          # --no-renames: a moved test file is an added file here (git would call it R and the filter would drop it).
           NAMED=()
-          while IFS= read -r F; do NAMED+=("${F#tests/}"); done < <(git diff --name-only --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py')
+          while IFS= read -r F; do NAMED+=("${F#tests/}"); done < <(git diff --name-only --no-renames --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py')
           if [ "${#NAMED[@]}" -eq 0 ]; then echo "This pull request adds or changes no test file: nothing to run here."; exit 0; fi
           echo "named: ${NAMED[*]}"
           python3 dev/run_tests.py -j 4 --max-fail 8 "${NAMED[@]}"
@@ -372,7 +373,9 @@ jobs:
 
   shard-times:
     # The nightly only: one refreshed dev/tools/shard_times.txt from the real times of this run's Ubuntu shards, uploaded as the
-    # artifact `shard-times`. This workflow stays read-only: the file reaches main as an ordinary one-file pull request.
+    # artifact `shard-times`. This workflow stays read-only and opens nothing itself. The one-file pull request that brings the
+    # artifact to main is opened by the pipeline's hands on GitHub (the collector, Bifrost 2.0 P9), not by this workflow. Until
+    # that is live the file on main is as old as its last refresh by hand-started tooling.
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     name: Nightly · refreshed shard times
     needs: tests
