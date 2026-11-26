@@ -15,7 +15,8 @@ so), and its zip must have been attached before the release was published (the o
 From updates.FIRST_SIGNED (1.4.0) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
 file must verify over the zip's bytes with RELEASE_PUBLIC_KEY (updates.check_signature); a missing, wrong-length or non-verifying
 .sig fails.
-1.3.13 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required). From 1.4.0 on the app
+1.3.13 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required); a .sig that is attached
+to one is not checked here, but the app checks it and refuses a wrong one. From 1.4.0 on the app
 itself refuses a download with no .sig or with one that does not verify (updates.read_release).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
