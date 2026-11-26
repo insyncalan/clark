@@ -60,7 +60,7 @@ class Dashboard(unittest.TestCase):
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#dashboard&p=TUL"}, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.secs .glance')", sid)), "the Dashboard drew")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.secs .tpl-gt')", sid)), "the Dashboard drew")
                 got = cdp.js(MEASURE, sid)
                 self.assertEqual(got["bad"], PICKS[width], f"{width}px: nothing but the known pickers runs past its box")
                 self.assertFalse(got["page"], f"{width}px: the page does not scroll sideways")

@@ -23,7 +23,7 @@ from clark import ask, ask_folders, ask_index, ask_service, reach
 WIDTHS = (1400, 900)
 SCHEMES = ("light", "dark")
 PASSAGE = "The zebrafish tank is cleaned on Tuesdays."
-HOLDS = "This folder holds Payroll. Passages from it may go to Claude, which Anthropic runs, and they can contain personal information. Send passages from this folder to Claude?"
+HOLDS = "This folder holds Payroll (1 readable file). Passages from it may go to Claude, which Anthropic runs, and they can contain personal information. Send passages from this folder to Claude?"
 
 
 class IndexAnswer(t1292.Classic):

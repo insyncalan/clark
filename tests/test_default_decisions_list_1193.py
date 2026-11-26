@@ -39,7 +39,7 @@ class DefaultDecisionsList(unittest.TestCase):
 
     def test_a_new_project_stores_the_list_in_the_same_place(self):
         rows = [r for r in order.in_order(self.s.read("report_sections", "ABC")) if r["title"] == "Decisions"]
-        self.assertEqual([(r["type"], r["id"], r["sort_order"], r["hidden"]) for r in rows], [("workitems", "ABC-S-009", order.GAP * 9, 0)])
+        self.assertEqual([(r["type"], r["id"], r["sort_order"], r["hidden"]) for r in rows], [("workitems", "ABC-S-010", order.GAP * 10, 0)])
         self.assertEqual(json.loads(rows[0]["body"]), json.loads(default_sections.DECISIONS_LIST))
 
     def test_a_made_decision_is_kept_in_the_published_file_of_a_new_project(self):

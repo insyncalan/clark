@@ -74,6 +74,7 @@ TILE_TITLES = {"health": "Project health", "overdue": "Overdue actions", "risks"
 DEFAULT_HIDDEN = frozenset({"decisions"})
 SECTION_OF_TILE = {"overdue": "actions", "risks": "raid", "decisions": "decisions"}   # the published section a tile summarises
 KINDS_OF_TILE = {"overdue": ("action",), "risks": ("risk", "issue", "assumption", "dependency"), "decisions": ("decision",)}   # row 1268: the rows a tile counts
+KINDS_OF_TILE_BY_KIND = {"actions": ("action",), "raid": ("risk", "issue", "assumption", "dependency"), "decisions": ("decision",)}   # row 1266: the same kinds, keyed by the work-kind name publish uses (rows["raid"]), for the At a glance template
 OUTLINE_COLOUR = {"R": "red", "A": "amber", "G": "green", "N": None}  # glance_tiles.outline; "" is automatic
 USE_CASE_STATUSES = ("On track", "Flag", "High risk", "Done")         # (use_cases.status, schema.sql)
 USE_CASE_COLOUR = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}

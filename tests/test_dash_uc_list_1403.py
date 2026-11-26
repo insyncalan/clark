@@ -84,6 +84,7 @@ class Classic(Dash, Base):
         self.assertEqual(g["ref"], ["1px", "solid", "rgb(135, 148, 179)", "1px", "8px", "400"], f"badge: {g['ref']}")
         with chrome() as cdp:
             p = self.open_page(cdp)
+            p.js("document.querySelector('.uc .ucrow .ucbar').scrollIntoView({block: 'center'})")      # row 1266: the list is below the first screen now
             x, y = p.js("(() => { const r = document.querySelector('.uc .ucrow .ucbar').getBoundingClientRect(); return [r.left + 400, r.top + r.height / 2]; })()")
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 0, "y": 0}, p.sid)
             rest = p.js("getComputedStyle(document.querySelector('.uc .ucrow .ucbar')).backgroundColor")
@@ -135,7 +136,8 @@ class ChipStyles(Dash, Base):
     CONTRAST = """(() => {
       const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return [0, 1, 2].map((i) => { const v = m[i] / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0); };
       const chip = document.querySelector('.uc .cchip'); let e = chip, bg = 'rgba(0, 0, 0, 0)';
-      while (e && /rgba\\(.*, 0\\)$/.test(bg)) { bg = getComputedStyle(e).backgroundColor; e = e.parentElement; }
+      const alpha = (c) => { const m = c.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };      // row 1266: a banded section's own fill is a 4% white wash, not the page behind it
+      while (e && alpha(bg) < 0.5) { bg = getComputedStyle(e).backgroundColor; e = e.parentElement; }
       const a = lum(getComputedStyle(chip).color), b = lum(bg);
       return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); })()"""
 
