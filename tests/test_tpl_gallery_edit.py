@@ -248,8 +248,16 @@ class Parts(Page):         # AP3, AP4, AP5, AP6, AP11
             sel = ".tpl-gal-tile:nth-child(2) .tpl-gal-nodesc"
             self.assertEqual(self.val(f"document.querySelector('{sel}').title"), "No description yet")
             self.assertEqual(self.val(f"document.querySelector('{sel}').textContent"), "!")
-            self.assertEqual(self.style(sel, "width", "height", "borderTopLeftRadius", "backgroundColor", "color", "fontSize", "fontWeight"),
-                             ["20px", "20px", "50%", "rgb(179, 57, 47)", "rgb(255, 255, 255)", "12px", "700"])
+            self.assertEqual(self.style(sel, "width", "height", "borderTopLeftRadius", "color", "fontSize", "fontWeight"),
+                             ["20px", "20px", "50%", "rgb(255, 255, 255)", "12px", "700"])
+            wants = []
+            for dark in (False, True):          # the red is the page's own token in each theme (no colour typed here)
+                self.dark(dark)
+                want = self.token("--tone-red-text")
+                self.assertEqual(self.style(sel, "backgroundColor"), [want], f"the mark is --tone-red-text, dark={dark}")
+                wants.append(want)
+            self.dark(False)
+            self.assertNotEqual(wants[0], wants[1], "the token has its own dark value")
             d = self.val(f"(function(){{const m = document.querySelector('{sel}').getBoundingClientRect(), t = document.querySelector('.tpl-gal-tile:nth-child(2)').getBoundingClientRect(); return [m.top - t.top - 2, t.right - 2 - m.right];}})()")
             self.assertEqual([round(x) for x in d], [8, 38], "8px from the top, 38px from the right (inside the 2px border)")
             self.val("document.querySelector('.tpl-gal-tile:nth-child(2)').click()")
