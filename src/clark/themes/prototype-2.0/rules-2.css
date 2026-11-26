@@ -488,6 +488,8 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
 html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
+/* Row 1572 (Classic only; Cards keeps its look): the buttons of the slash command editor page change colour at once with the theme. The shared 120ms colour fade (edit.css) would otherwise show Cancel in the light theme's grey for a moment after the dark tokens are set (a contrast reading of 2.318 in CI, most likely, not proven). Colour only: the background, border and text colour change at once, the press movement (transform) keeps its fade; no token changes. */
+#slash-page button { transition-property: transform; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
