@@ -127,3 +127,31 @@ export function withOrder(columnOrders, type, ids) {
   if (rest(ids).every((x, i) => x === rest(std)[i])) delete all[key]; else all[key] = ["status", "item"].concat(rest(ids));
   return all;
 }
+
+// Row 1534 AP5: the Dashboard's Risks and issues, Open actions and Decisions draw the order saved for the same type switch on the Work items page (no second order).
+// The Dashboard's ids map to the work ids: ico = status, title = item, owner, date = due, prio, id. The Status and the Title always lead. A published file has no Id column,
+// so a saved order that names the id loses it there; a column the saved order does not name keeps its standard place after the named ones.
+export const DASH_STD = ["ico", "title", "owner", "date", "prio", "id"];
+const DASH_TYPE = { raid: "risk", actions: "action", decisions: "decision" }, DASH_OF = { owner: "owner", due: "date", prio: "prio", id: "id" };
+export function dashboardOrder(columnOrders, sectionType, withId, classic = true) {      // `classic`: the saved order is a Classic look feature; Cards (false) always draws the standard order
+  const tail = DASH_STD.slice(2).filter((x) => withId || x !== "id");
+  const named = (classic ? savedOrder(columnOrders, DASH_TYPE[sectionType]) : []).map((x) => DASH_OF[x]).filter((x, i, a) => x && tail.includes(x) && a.indexOf(x) === i);
+  return DASH_STD.slice(0, 2).concat(named, tail.filter((x) => !named.includes(x)));
+}
+
+// Row 1534 AP5: a Dashboard Work items list (store type "workitems") whose filter names one type (Actions, Risks and issues, Decisions) draws, and drags, the order saved for that type,
+// the one the Work items page uses. A list that mixes types keeps the order of this browser (row 1195). The list's ids are priority = prio; "item" is always the title.
+const WIL_WORK = { priority: "prio" }, WORK_WIL = { prio: "priority" };
+export function listType(kinds) {
+  const k = kinds || [];
+  if (!k.length) return null;
+  return k.every((x) => x === "action") ? "action" : k.every((x) => x === "decision") ? "decision" : k.every((x) => x === "risk" || x === "issue") ? "risk" : null;
+}
+/** The list's column ids (`ids`, none of them type) in the order saved for `type`; the Status leads when shown. */
+export function listOrder(columnOrders, type, ids) {
+  if (!movable(type)) return null;
+  const work = inOrder(["item"].concat(ids.map((c) => WIL_WORK[c] || c)), savedOrder(columnOrders, type));
+  return work.filter((c) => c !== "item").map((c) => WORK_WIL[c] || c);
+}
+/** `columnOrders` with `type`'s order set from the list's ids as they are now drawn (the standard order is saved as nothing). */
+export const listSave = (columnOrders, type, ids) => withOrder(columnOrders, type, ["item"].concat(ids.map((c) => WIL_WORK[c] || c)));
