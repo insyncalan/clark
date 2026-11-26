@@ -125,11 +125,12 @@ class Settings(unittest.TestCase):
         if fake:
             js(FAKE)
             js("location.hash = '#dashboard&p=ABC'")
-            wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
+            self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10), "the dashboard drew")
             js("location.hash = '#settings&p=ABC&s=claude'")
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
         if fake:
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 20), "the folders part has its answer")
+            self.assertTrue(wait(lambda: js("window.__ask.calls.length >= 1"), 20), "the page has read the folders through the fake")
         return js
 
     def until(self, read_value, expected, what, seconds=20):
@@ -467,11 +468,27 @@ class Settings(unittest.TestCase):
             js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
             self.assertTrue(wait(lambda: "Passages may go to ChatGPT." in flat(), 10))
 
+    def test_leaving_the_all_tab_in_the_commit_that_draws_the_card_keeps_the_provider(self):
+        """Row 1417 (CI run 45523455732, the 1621 race): the card keeps the provider's answer in the commit that draws it. The tab is left from a
+        MutationObserver, which runs the moment the card's tile is in the page and before any effect that waits for the paint: a plain effect
+        was lost there and the Asking notice kept saying Claude. No sleep, no timing: the order is the browser's own."""
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            js("window.__ask.provider = 'ChatGPT'")
+            js("""new MutationObserver((_, o) => { if (document.querySelector('[data-ai-tile=claude]')) { o.disconnect(); window.__ask.left = true;
+                document.querySelector('[data-ask-tab=project]').click(); } }).observe(document.body, {childList: true, subtree: true})""")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.assertTrue(wait(lambda: js("window.__ask.left === true"), 10), "the tab was left as the card drew")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 10))
+            self.assertTrue(wait(lambda: "ChatGPT" in (js("(document.querySelector('#ask-notice') || {}).innerText") or ""), 10),
+                            "the notice names the provider the card was told, though the tab was left as the card drew")
+
     def test_a_folder_without_such_names_shows_no_warning(self):
         with chrome() as cdp:
             js = self.show_page(cdp, fake=True)
             js("document.querySelector('[data-ask-choose]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 10))
+            self.assertTrue(wait(lambda: js("window.__ask.folders.length") == 1, 20), "the choose was answered")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folders')"), 20), "the folder is listed")
             self.assertFalse(js("!!document.querySelector('[data-ask-warn]')"))
 
     def test_cards_shows_the_same_notice_so_a_left_out_folder_has_its_two_buttons(self):
