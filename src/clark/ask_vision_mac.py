@@ -42,6 +42,8 @@ def read(raw, run=None):
     too big or not a picture, or the Mac's reader fails or runs out of time. `run` replaces subprocess.run (tests)."""
     if not isinstance(raw, (bytes, bytearray)) or not raw or len(raw) > MAX_BYTES:
         raise ask_picture.PictureUnreadable("size")
+    if run is None and os.environ.get("CLARK_TEST") == "1":     # under the tests (tests/_paths.py) the real osascript is never reached by accident
+        raise ask_picture.PictureUnreadable("the reader is not run under the tests")
     try:
         fd, name = tempfile.mkstemp(prefix="clark-picture-")    # private (mode 0600) file in the system's temporary folder
     except OSError:
