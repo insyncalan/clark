@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askDocker, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HOLDS, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_MAY_GO, PEOPLE_CONTRACT_QUESTION, PEOPLE_CONTRACT_ACCEPT, PEOPLE_CONTRACT_DECLINE, PEOPLE_CONTRACT_DECLINED, PEOPLE_CONTRACT_ACCEPTED, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HOLDS, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_MAY_GO, PEOPLE_CONTRACT_QUESTION, PEOPLE_CONTRACT_ACCEPT, PEOPLE_CONTRACT_DECLINE, PEOPLE_CONTRACT_DECLINED, PEOPLE_CONTRACT_ACCEPTED, PEOPLE_CONTRACT_LEAVE } from "./askWords.js";
 import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { FilesAll, FilesProject } from "./FilesSettings.jsx";
@@ -342,9 +342,9 @@ function AskProject() {
             const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} retry={retry} /></li>;
             if (!w) return [row];
             const who = askProvider.value;
-            const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
+            const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span><span data-ask-warn-count>{PEOPLE_CONTRACT_COUNT(Number.isFinite(i.readable_files) ? i.readable_files : 0)}</span></span>);
             return [row, (
-              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : p}>
+              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={p}>
                 <p>{PEOPLE_CONTRACT_HOLDS}{names}{PEOPLE_CONTRACT_MAY_GO(who)}</p>
                 <p data-ask-warn-q>{PEOPLE_CONTRACT_QUESTION(who)}</p>
                 <div class="ask-warn-btns">

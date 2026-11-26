@@ -111,7 +111,7 @@ class Settings(unittest.TestCase):
     def theme(self):
         """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules-2.css), so its test layers the Classic theme; the rest stay as they were."""
         name = self._testMethodName
-        return "prototype-2.0" if any(k in name for k in ("amber", "accept", "decline", "provider", "saved_notice", "leave_these", "leave_out")) else None
+        return "prototype-2.0" if any(k in name for k in ("amber", "accept", "decline", "provider", "saved_notice", "leave_these", "leave_out", "warning")) else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
@@ -374,7 +374,7 @@ class Settings(unittest.TestCase):
                     self.assertTrue(js(f"Math.abs({box}.getBoundingClientRect().width - {box}.parentElement.getBoundingClientRect().width) < 2"), "full width")
                     text = js(f"{box}.innerText")
                     flat = text.replace("\n", " ")
-                    self.assertIn("This folder holds Contract 2026 and Salary bands. Passages from it may go to Claude, which Anthropic runs, and they can contain personal information.", flat)
+                    self.assertIn("This folder holds Contract 2026 (12 readable files) and Salary bands (3 readable files). Passages from it may go to Claude, which Anthropic runs, and they can contain personal information.", flat)
                     self.assertIn("Send passages from this folder to Claude?", flat)
                     self.assertIn("Left out of ask clark.", flat, "no choice is Declined")
                     self.assertEqual(js(f"[...{box}.querySelectorAll('button')].map(b => b.innerText)"), ["Accept", "Decline"])
@@ -462,7 +462,7 @@ class Settings(unittest.TestCase):
             self.assertEqual(js(f"{box}.getAttribute('role')"), "region")
             flat = lambda: " ".join(js(f"{box}.innerText").split())      # the paragraphs are joined by line breaks: one space between words and between sentences
             self.assertTrue(wait(lambda: "may go to ChatGPT, and they can contain personal information." in flat(), 10), "the provider in use is named")
-            self.assertIn("This folder holds Payroll. Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
+            self.assertIn("This folder holds Payroll (1 readable file). Passages from it may go to ChatGPT, and they can contain personal information. Send passages from this folder to ChatGPT?", flat())
             self.assertNotIn("Claude", flat())
             self.assertNotIn("Anthropic", flat())
             js(f"{box}.querySelector('[data-ask-warn-accept]').click()")
@@ -523,6 +523,90 @@ class Settings(unittest.TestCase):
                     self.assertTrue(wait(lambda: js("window.__ask.folders.length") == 1, 10))
                 self.assertTrue(wait(lambda: js("document.querySelector('[data-ask-warn]').getAttribute('role')") == "region", 10), step)
                 self.assertEqual(js("document.querySelector('[data-ask-warn]').getAttribute('aria-label')"), "/Example/Programme files", step)
+
+    def test_warning_shown_on_save_lists_folders_and_counts(self):
+        """Row 1639 AP5: on save the notice lists every matched folder name with its number of readable files, in the approved forms "(N readable files)",
+        "(1 readable file)", "(0 readable files)", the name in weight 500. 1400 and 900, Classic."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light")
+                js("window.__ask.warn = [{folder: '/Example/Programme files', accepted: false, items: [{name: 'Contract 2026', readable_files: 12}, {name: 'Salary bands', readable_files: 1}, {name: 'Staff', readable_files: 0}, {name: 'Misc'}]}]")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10), str(width))
+                box = "document.querySelector('[data-ask-warn]')"
+                self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-name]')].map(n => n.innerText)"), ["Contract 2026", "Salary bands", "Staff", "Misc"])
+                self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-count]')].map(n => n.innerText.trim())"), ["(12 readable files)", "(1 readable file)", "(0 readable files)", "(0 readable files)"])
+                flat = " ".join(js(f"{box}.innerText").split())
+                self.assertIn("This folder holds Contract 2026 (12 readable files) and Salary bands (1 readable file) and Staff (0 readable files) and Misc (0 readable files). Passages", flat)
+                self.assertEqual(js(f"[...{box}.querySelectorAll('[data-ask-warn-name]')].map(n => getComputedStyle(n).fontWeight)"), ["500", "500", "500", "500"])
+                self.assertTrue(js(f"{box}.getBoundingClientRect().right <= innerWidth"), "no sideways overflow")
+
+    def test_warning_card_buttons_and_pressed_look_follow_the_mock_up(self):
+        """Row 1639 AP11 (mock-up 1639-warning-card): the three buttons are the plain Settings buttons (35px high, padding 6px 18px as the Choose folder button, radius 8px, 14px, 1px border, gap 8)
+        on one row inside the card; the pressed one of Accept and Decline is the .seg pair (brand-blue tint, blue text, weight 500) with the normal border; Decline is
+        pressed on first save, Accept after it is pressed; Leave these subfolders out is never pressed; the focus order is Accept, Decline, Leave. 1400 and 900, light and dark, Classic."""
+        folder = "/Example/Programme files"
+        items = [{"name": "Contract 2026", "readable_files": 4, "dir": True}, {"name": "People 2025", "readable_files": 7, "dir": True}]
+        for width in WIDTHS:
+            for scheme in ("light", "dark"):
+                with chrome() as cdp:
+                    js = self.warn_page(cdp, width, scheme)
+                    js(f"window.__ask.warn = [{{folder: {json.dumps(folder)}, accepted: false, items: {json.dumps(items)}}}]")
+                    js("document.querySelector('[data-ask-choose]').click()")
+                    self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10), (width, scheme))
+                    js("(() => { const e = document.createElement('style'); e.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; }'; document.head.appendChild(e); })()")      # a colour read in the middle of a fade is not the look
+                    box = "document.querySelector('[data-ask-warn]')"
+                    acc, dec, lv = (f"{box}.querySelector('{s}')" for s in ("[data-ask-warn-accept]", "[data-ask-warn-decline]", "[data-ask-warn-leave]"))
+                    tok = lambda name: js(f"(() => {{ const e = document.createElement('i'); e.style.color = 'var({name})'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }})()")
+                    tint, blue = tok("--brand-blue-tint"), tok("--status-blue-text")
+                    st = lambda b: js(f"(() => {{ const s = getComputedStyle({b}); return [s.backgroundColor, s.color, s.fontWeight]; }})()")
+                    where = (width, scheme)
+                    self.assertEqual(js(f"[{dec}, {acc}, {lv}].map(b => b.getAttribute('aria-pressed'))"), ["true", "false", None], where)
+                    self.until(lambda: st(dec), [tint, blue, "500"], f"{where}: Decline pressed")
+                    self.assertNotEqual(st(acc)[0], tint, where)
+                    self.assertNotEqual(st(lv)[0], tint, where)
+                    self.assertEqual(st(acc)[2], "400", where)
+                    plain = js(f"getComputedStyle({lv}).borderTopColor")
+                    self.assertEqual(js(f"[{dec}, {acc}, {lv}].map(b => getComputedStyle(b).borderTopColor)"), [plain] * 3, f"{where}: the pressed one keeps the border of the others")
+                    self.assertEqual(js(f"[{dec}, {acc}, {lv}].map(b => {{ const s = getComputedStyle(b); return [Math.round(b.getBoundingClientRect().height), s.paddingTop, s.paddingLeft, s.borderTopLeftRadius, s.fontSize, s.borderTopWidth]; }})"),
+                                     [[35, "6px", "18px", "8px", "14px", "1px"]] * 3, f"{where}: the real .btn, the same as the Choose folder button (the mock-up drew 14px side padding)")
+                    self.assertEqual(js("(() => { const b = document.querySelector('[data-ask-choose]'), s = getComputedStyle(b); return [Math.round(b.getBoundingClientRect().height), s.paddingTop, s.paddingLeft, s.borderTopLeftRadius, s.fontSize, s.borderTopWidth]; })()"),
+                                     [35, "6px", "18px", "8px", "14px", "1px"], where)
+                    self.assertEqual(js(f"getComputedStyle({acc}.parentElement).columnGap"), "8px", where)
+                    self.assertEqual(js(f"new Set([{acc}, {dec}, {lv}].map(b => Math.round(b.getBoundingClientRect().top))).size"), 1, f"{where}: one row")
+                    self.assertTrue(js(f"{lv}.getBoundingClientRect().right <= {box}.getBoundingClientRect().right"), where)
+                    self.assertEqual(js(f"[...{box}.querySelectorAll('button, a, input, select, [tabindex]')].map(b => b.innerText)"), ["Accept", "Decline", "Leave these subfolders out"], where)
+                    js(f"{acc}.click()")
+                    self.assertTrue(wait(lambda: js(f"{acc}.getAttribute('aria-pressed')") == "true", 10), where)
+                    self.assertEqual(js(f"[{dec}, {acc}, {lv}].map(b => b.getAttribute('aria-pressed'))"), ["false", "true", None], where)
+                    self.until(lambda: st(acc), [tint, blue, "500"], f"{where}: Accept pressed")
+                    self.assertNotEqual(st(dec)[0], tint, where)
+
+    def ax_name(self, cdp, selector):
+        """Row 1639 AP12: the role and the accessible name the browser itself computes for the first node matching `selector`."""
+        cdp.call("DOM.enable", {}, self.sid)
+        cdp.call("Accessibility.enable", {}, self.sid)
+        root = cdp.call("DOM.getDocument", {"depth": 0}, self.sid)["root"]["nodeId"]
+        node = cdp.call("DOM.querySelector", {"nodeId": root, "selector": selector}, self.sid)["nodeId"]
+        first = cdp.call("Accessibility.getPartialAXTree", {"nodeId": node, "fetchRelatives": False}, self.sid)["nodes"][0]
+        return first["role"]["value"], (first.get("name") or {}).get("value", "")
+
+    def test_warning_on_save_and_accept_decline_leave_buttons_have_accessible_names(self):
+        """Row 1639 AP12: the warning shown on save (role alert) is named with its folder and its three buttons by their approved words, as the browser's own
+        accessibility tree computes them. 1400 and 900, Classic. No word is added. (The saved-list region is covered by row 1365's
+        test_notice_region_and_buttons_have_accessible_names_in_the_browsers_own_tree.)"""
+        folder = "/Example/Programme files"
+        items = [{"name": "Contract 2026", "readable_files": 12, "dir": True}, {"name": "Salary bands", "readable_files": 3, "dir": True}]
+        buttons = [("[data-ask-warn-accept]", "Accept"), ("[data-ask-warn-decline]", "Decline"), ("[data-ask-warn-leave]", "Leave these subfolders out")]
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.warn_page(cdp, width, "light")
+                js(f"window.__ask.warn = [{{folder: {json.dumps(folder)}, accepted: false, items: {json.dumps(items)}}}]")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-warn]')"), 10), str(width))
+                self.assertEqual(self.ax_name(cdp, "[data-ask-warn]"), ("alert", folder), f"{width} on save")
+                for sel, name in buttons:
+                    self.assertEqual(self.ax_name(cdp, f"[data-ask-warn] {sel}"), ("button", name), f"{width} {sel}")
 
     def test_choose_and_remove_keep_the_focus_in_the_folders_part(self):
         """Choose folder and Remove are disabled while the request runs: the focus comes back to Choose folder, or after a Remove to

@@ -402,6 +402,8 @@ export const SLASH_HINT_CLASSIC = {
 // Claude is off and ChatGPT is on (askProvider). For ChatGPT the words "which Anthropic runs" are dropped (the ruling), and no other words are added.
 export const PEOPLE_CONTRACT_HOLDS = "This folder holds ";
 export const PEOPLE_CONTRACT_AND = " and ";
+// Row 1365 AP5 (words approved, row 1365, 26-11 02:39): the number of readable files in a matched folder, after its name: "(1 readable file)", "(0 readable files)", "(12 readable files)".
+export const PEOPLE_CONTRACT_COUNT = (n) => ` (${n} readable ${n === 1 ? "file" : "files"})`;
 export const PEOPLE_CONTRACT_MAY_GO = (who) => `. Passages from it may go to ${who === "ChatGPT" ? "ChatGPT" : "Claude, which Anthropic runs"}, and they can contain personal information.`;
 export const PEOPLE_CONTRACT_QUESTION = (who) => `Send passages from this folder to ${who === "ChatGPT" ? "ChatGPT" : "Claude"}?`;
 export const PEOPLE_CONTRACT_ACCEPT = "Accept";
