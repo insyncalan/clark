@@ -77,10 +77,10 @@ class TocButton(Base):
             p = self.at(cdp, 900)
             p.js(f"{BTN}.click()")
             p.until(OPEN, "open")
-            p.js("document.querySelector('.toc li button[data-id=\"ABC-S-008\"]').click()")
+            p.js("document.querySelector('.toc li button[data-id=\"ABC-S-009\"]').click()")
             p.until("window.scrollY > 0", "the page scrolled")
             p.until(f"!{OPEN}", "the list shut")
-            self.assertEqual(p.js("document.activeElement.dataset.id"), "ABC-S-008", "the section has the focus")
+            self.assertEqual(p.js("document.activeElement.dataset.id"), "ABC-S-009", "the section has the focus")
 
     def test_at_900_a_click_outside_closes_it(self):
         with chrome() as cdp:

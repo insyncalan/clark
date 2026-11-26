@@ -36,7 +36,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 37      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type, use_case_milestones, then latest_update on raid and milestones, then priority and latest_update on decisions, then source_folders.excluded, then projects.column_orders); the test pins the number on purpose
+NEW_LAYOUT = 38      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type, use_case_milestones, then latest_update on raid and milestones, then priority and latest_update on decisions, then source_folders.excluded, then projects.column_orders); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
@@ -268,6 +268,7 @@ class Update19To20(Rig):
         self.assertEqual([(1, 1, 14, 0, 0, "Gantt")], [r[:6] for r in after.pop("install_defaults")], "row 1300 (layout 30): the one row of Defaults values, at today's values")
         self.assertEqual([("mail", 0), ("calendar", 0), ("teams", 0), ("sharepoint", 0), ("todoist", 0)], [r[1:3] for r in after.pop("connector_switches")], "row 1306 (layout 32): five switches, all Off")
         self.assertEqual([], after.pop("project_connectors"), "row 1306 (layout 32): no project keeps anything yet")
+        self.assertEqual([], after.pop("added_pages"), "row 1252 (layout 38): the new table is there and empty")
         self.assertEqual(self.base, after, "every row of every table is kept (the new brand, owner and latest update columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)

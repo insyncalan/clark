@@ -5,6 +5,7 @@ against the approved mock-up (mockups/1261-headline-template/headline-approved.h
 Run: python3 dev/run_tests.py test_reportheadline_eye_1261
 """
 import json
+import time
 from pathlib import Path
 import unittest
 
@@ -165,17 +166,23 @@ class Eye(Base):
             eye = f'[data-id="{self.on}"] [data-rh-eye]'
             p.until(f"!!document.querySelector('{eye}')", "the eye")
             n = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+            fetched = lambda: p.js("performance.getEntriesByType('resource').filter(e => e.initiatorType === 'fetch').length")
+            f0 = fetched()
             p.js(f"document.querySelector('{eye}').click()")
             self.assertTrue(wait(lambda: self.stored(self.on).get("pill") is False, 10))
             p.js("document.activeElement && document.activeElement.blur()")
-            # Seen in one local failure on main 5529265ee: the save is silent and the page keeps its step for Undo a moment after the stored body changes (after it
-            # reads the project again), so a key pressed in that gap found nothing to undo and said so. Press again until the pill is back; a key that found
-            # nothing changes nothing. The 6 tries of 3 s are not measured.
-            for _ in range(6):
-                p.key("z", modifiers=2, code="KeyZ", vk=90)
-                if wait(lambda: "pill" not in self.stored(self.on), 3):
-                    break
-            self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10), "Undo shows the pill again")
+            # Seen in one local failure on main 5529265ee: the save is silent and the page keeps its step for Undo only after it reads the project again, so a
+            # key pressed in that gap found nothing to undo. So the page is settled BEFORE the one key: the change and the read after it (2 requests) are both
+            # done and no new request arrives for a second. Then ONE Ctrl+Z, and the pill must be back after that one press: no second press, no retry.
+            seen = {"n": f0, "since": None}
+            def settled():
+                now = fetched()
+                if now != seen["n"] or seen["since"] is None:
+                    seen["n"], seen["since"] = now, time.monotonic()
+                return now >= f0 + 2 and time.monotonic() - seen["since"] >= 1.0
+            self.assertTrue(wait(settled, 20), f"the change and the read after it are done: {seen['n'] - f0} requests")
+            p.key("z", modifiers=2, code="KeyZ", vk=90)
+            self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10), "Undo shows the pill again after ONE Ctrl+Z")
             self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], n + 2, "one change, one undo")
 
     def test_the_eye_row_is_the_mock_ups_size_at_1400_and_900_in_light_and_dark(self):
@@ -329,10 +336,11 @@ class Eye(Base):
     def test_the_change_api_takes_the_pill_off_start_body_for_a_new_report_headline_and_refuses_any_other_body(self):
         from clark import changes
         change = changes.make_change(self.store.path, [], USER)
+        had = {r["id"] for r in self.store.read("report_sections", "ABC")}      # row 1266: a new project already starts with a Headline section (no body)
         req = lambda body: {"project": "ABC", "kind": "report_sections", "op": "new", "place": "report", "values": {"type": "reportheadline", "title": "Headline", "body": body}}
         status, got = change(req('{"pill":false,"v":1}'))
         self.assertEqual((status, got.get("message")), (200, None), got)
-        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline"]
+        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline" and r["id"] not in had]
         self.assertEqual([json.loads(r["body"]) for r in made], [{"pill": False, "v": 1}], "stored with the pill off")
         for other in ('{"v":1,"headline":"x"}', '{"pill":true,"v":1}', "x"):
             status, got = change(req(other))
