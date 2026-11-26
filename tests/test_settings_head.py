@@ -169,6 +169,14 @@ class Head(Base):
             p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": now[0], "y": now[1], "button": "none", "buttons": 0, "clickCount": 0}, p.sid)
             return False
         self.assertTrue(wait(on_chip, 15), f"the pointer is on the {name} menu item and it stopped moving; last read (x, y, chip under it): {under.get('last')}; scrollY={p.js('scrollY')}")
+        # DIAG only (row 1670): record what the press, the release and the click really hit, so a missed click names its target in the FAIL text.
+        p.js("""(function(){ window.__hits = [];
+          if (window.__hitsOn) return; window.__hitsOn = true;
+          ['mousedown', 'mouseup', 'click'].forEach(function(t){ document.addEventListener(t, function(e){
+            var x = e.target, d = x && x.tagName ? x.tagName.toLowerCase() + (typeof x.className === 'string' && x.className ? '.' + x.className.split(' ')[0] : '') + '[' + String(x.textContent || '').trim().slice(0, 24) + ']' : String(x);
+            window.__hits.push(t + '@' + Math.round(e.clientX) + ',' + Math.round(e.clientY) + ' on ' + d + ' hash=' + location.hash + ' defaultPrevented=' + e.defaultPrevented);
+          }, true); });
+        })()""")
         for kind in ("mousePressed", "mouseReleased"):
             params = {"type": kind, "x": under["at"][0], "y": under["at"][1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}
             p.cdp.call("Input.dispatchMouseEvent", params, p.sid)
@@ -177,7 +185,7 @@ class Head(Base):
         })()""")
 
     def trail(self, p):
-        return p.js("(window.__trail || []).join(', ') + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
+        return p.js("(window.__trail || []).join(', ') + ' hits=[' + (window.__hits || []).join(' | ') + ']' + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
 
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""
