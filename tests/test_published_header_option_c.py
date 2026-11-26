@@ -86,7 +86,7 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(PROBE)
-                want = 85 if width == 1400 else 129      # 68 px of item 1146 plus 25 percent; at 900 px (row 1543 AP7) the editor's 129 px
+                want = 85 if width == 1400 else 103      # 68 px of item 1146 plus 25 percent; at 900 px (row 1543 AP7, review ruling) the Classic editor's 103 px
                 self.assertAlmostEqual(b["h"], want, delta=2, msg=f"the header is {b['h']} px, want about {want}")
                 self.assertTrue(b["wide"], "no sideways scroll")
 

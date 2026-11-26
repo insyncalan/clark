@@ -4,7 +4,12 @@ and the 1200 and 1100 px edge checks (the 900 px bar: AP7 below). Fictional data
 
 Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; run only while the machine's load is under 70)
 """
+import base64
+import json
+
+import _backdrop_pics as pics
 import test_glance_page as glance
+from test_published_one_bar import HIDE, colour, ratio
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 from _classic_page import classic
@@ -131,6 +136,15 @@ STRIP_PROBE = """(() => {
 })()"""
 
 
+ROW_PROBE = """(() => {
+  const bar = document.querySelector('header.top'), tabs = bar.querySelector('.tabs'), b = bar.getBoundingClientRect(), t = tabs.getBoundingClientRect(), cs = getComputedStyle(bar);
+  const id = bar.querySelector('.top-id, .hdr-id').getBoundingClientRect(), q = (n) => Math.round(n * 10) / 10;
+  return {barH: q(b.height), display: cs.display, wrap: cs.flexWrap, tabsTop: q(t.top - b.top), tabsH: q(t.height), border: getComputedStyle(tabs).borderTopWidth,
+    inline: t.top >= b.top && t.bottom <= b.bottom && t.left >= id.right - 0.5 && id.top < t.bottom && id.bottom > t.top,
+    search: bar.querySelectorAll('[aria-label="Go to or do"]').length, wide: document.documentElement.scrollWidth <= innerWidth};
+})()"""
+
+
 class Ap7:      # mixed into Header1543 below
     LONG_NAME = "A very long programme name that goes on and on and on for the whole line and beyond"
 
@@ -148,7 +162,7 @@ class Ap7:      # mixed into Header1543 below
                 self.assertEqual(got["title"], self.LONG_NAME, "its tooltip still names it")
 
     def test_published_header_name_cap_is_the_editors(self):
-        """The name box cap of the published bar is the editor header's, read from the computed style (the cap does not bind at 1400 or 900, so the width alone cannot show it)."""
+        """A GUARD, not a proof of a change: the name box cap of the published bar is the editor header's, read from the computed style (the cap does not bind at 1400 or 900, so the width alone cannot show it). Both bars take the one rule `.hdr-id, .top-id { max-width: 50% }` (rules.css, row 1305), so this passes with the Row 1543 AP7 CSS reverted; the 900 px layout is pinned by test_published_header_900px_follows_editor."""
         probe = "(() => { const n = document.querySelector('header.top #project-name').closest('.top-id, .hdr-id'); const cs = getComputedStyle(n); return {cls: n.className, max: cs.maxWidth}; })()"
         classic(self)      # the editor in the Classic look, the one the file is drawn in
         for width, dark in ((1400, False), (900, False), (1400, True), (900, True)):
@@ -164,21 +178,59 @@ class Ap7:      # mixed into Header1543 below
                 self.assertEqual(e["max"], "50%", "the editor's code value (rules.css row 1305: .hdr-id, .top-id max-width 50%)")
 
     def test_published_header_900px_follows_editor(self):
+        """AP7 (review ruling): at 900 px the published header follows the CLASSIC editor's bar (rules.css 900 px block: a flex row 103 px high, the pages inline in the same row, no strip and no line above the pages). The file is always Classic, so the editor here is Classic too. 1400 px: the file's bar is the editor's (85 px, flex, pages inline)."""
+        classic(self)
+        for width, high in ((900, 103), (1400, 85)):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark):
+                    with chrome() as cdp:
+                        p = self.show(cdp, width, dark)
+                        p.until("!!document.querySelector('header.top .tab')", "the editor's bar drew")
+                        e = p.js(ROW_PROBE)
+                    f = self.probe_file(ROW_PROBE, width, dark)
+                    for name, got in (("editor", e), ("file", f)):
+                        self.assertAlmostEqual(got["barH"], high, delta=1, msg=f"the {name}'s bar is {got['barH']} px high, not {high}")
+                        self.assertEqual(got["display"], "flex", f"the {name}'s bar is a flex row")
+                        self.assertEqual(got["wrap"], "nowrap", f"the {name}'s bar does not wrap")
+                        self.assertTrue(got["inline"], f"the {name}'s pages are inside the bar's box, in its one row: {got}")
+                        self.assertEqual(got["border"], "0px", f"the {name}'s pages have no line above them (no strip)")
+                    self.assertAlmostEqual(f["barH"], e["barH"], delta=1)
+                    self.assertAlmostEqual(f["tabsTop"], e["tabsTop"], delta=1.5, msg=f"the pages' top: the file {f['tabsTop']}, the editor {e['tabsTop']}")
+                    self.assertAlmostEqual(f["tabsH"], e["tabsH"], delta=1.5, msg=f"the pages' height: the file {f['tabsH']}, the editor {e['tabsH']}")
+                    self.assertTrue(f["wide"], "no sideways scroll")
+                    if width == 900:
+                        self.assertEqual(f["search"], 0, "search is not drawn in the bar")
+                        self.probe_menu(dark)
+
+    def test_published_header_900px_every_page_label_keeps_4_5_to_1_over_the_picture(self):
+        """AP7: at 900 px the pages sit in the bar's one row, over the cover picture; EVERY page label (selected or not) keeps 4.5 to 1 against the pixels drawn behind it, with a swirl and a bright picture in place, light and dark. The picture's fade at 900 px and narrower is what keeps it."""
+        labels = """(() => [...document.querySelectorAll('header.top .tab')].map((t) => { const n = t.querySelector('.tab-label') || t, w = document.createTreeWalker(t, NodeFilter.SHOW_TEXT), out = [];
+          for (let x; (x = w.nextNode());) { if (!x.textContent.trim()) continue; const rg = document.createRange(); rg.selectNodeContents(x);
+            for (const r of rg.getClientRects()) if (r.width > 2) out.push({x: r.left, y: r.top, w: r.width, h: r.height}); }
+          return {t: t.textContent.trim(), fg: getComputedStyle(t).color, rects: out}; }))()"""
         for dark in (False, True):
-            with self.subTest(dark=dark):
-                with chrome() as cdp:
-                    p = self.show(cdp, 900, dark)
-                    p.until("!!document.querySelector('header.top .tab')", "the editor's bar drew")
-                    e = p.js(STRIP_PROBE)
-                f = self.probe_file(STRIP_PROBE, 900, dark)
-                for k in ("barH", "tabsTop", "tabsH", "tabsLeft", "tabsW", "firstLeft", "logoTop", "logoLeft", "idLeft"):
-                    self.assertAlmostEqual(f[k], e[k], delta=1.5, msg=f"{k}: the file {f[k]}, the editor {e[k]}")
-                self.assertEqual(f["border"], e["border"], "the same line above the strip")
-                self.assertEqual(f["border"], "1px")
-                self.assertGreater(f["tabsTop"], f["logoTop"], "the pages are in a strip under the logo row")
-                self.assertTrue(f["wide"], "no sideways scroll")
-                self.assertEqual(f["search"], 0, "the pages are not in the profile menu and search is not drawn in the bar")
-                self.probe_menu(dark)
+            for name, data in (("swirl", pics.swirl()), ("bright", pics.solid((60, 200, 230)))):
+                with self.subTest(dark=dark, picture=name):
+                    path = self.publish()
+                    with chrome() as cdp:
+                        p = self.draw(cdp, path, 900, dark)
+                        p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                        p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps("url(data:image/png;base64," + base64.b64encode(data).decode() + ")"))
+                        p.until("document.getAnimations().every(a => a.playState === 'finished')", "settled")
+                        items = p.js(labels)
+                        p.js(HIDE)
+                        w, h, rows = pics.decode(base64.b64decode(cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]))
+                    self.assertGreaterEqual(len(items), 3, "control: the page labels were read")
+                    for it in items:
+                        self.assertTrue(it["rects"], f"control: {it['t']!r} has a drawn label")
+                        r, g, b, a = colour(it["fg"])
+                        low = 99.0
+                        for q in it["rects"]:
+                            for y in range(int(q["y"]), min(h, int(q["y"] + q["h"]) + 1), 2):
+                                for x in range(int(q["x"]), min(w, int(q["x"] + q["w"]) + 1), 2):
+                                    bg = rows[y][x]
+                                    low = min(low, ratio([a * c + (1 - a) * k for c, k in zip((r, g, b), bg)], bg))
+                        self.assertGreaterEqual(low, 4.5, f"{it['t']!r} is {low:.2f}:1 over the picture")
 
     def probe_menu(self, dark):
         path = self.publish()
