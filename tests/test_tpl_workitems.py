@@ -16,6 +16,7 @@ Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fic
 """
 import contextlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -662,6 +663,10 @@ class InThePage(PageBase):
             p.until("window.__settled === 1", "the page settled after Due was added")
             if not p.js("!!document.querySelector('.cols-menu')"):
                 print("REOPEN 1689: the menu was closed before the second press", flush=True)          # a record only, so a run log shows whether the menu closed by itself
+                summary = os.environ.get('GITHUB_STEP_SUMMARY')          # the run's summary page shows it on a pass too (run_tests passes the environment on)
+                if summary:
+                    with open(summary, 'a', encoding='utf-8') as f:
+                        f.write('REOPEN 1689: the menu was closed before the second press\n')
                 p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
                 p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
