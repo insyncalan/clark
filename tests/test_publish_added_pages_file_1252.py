@@ -39,7 +39,13 @@ class FilePage(unittest.TestCase):
         path.write_bytes(publish.build(self.s, "ABC", DAY, None)["body"])
         return path
 
-    def open(self, cdp, path, width, scheme, frag="", tab=None):
+    def load(self, cdp, path, width, scheme, frag="", tab=None):
+        """A REAL new load of the file: the same address with only a new #hash is a fragment navigation (no new document), so go through about:blank first."""
+        old = next((t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page"), None)
+        if old and frag:
+            blank = cdp.call("Target.attachToTarget", {"targetId": old, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": "about:blank"}, blank)
+            self.assertTrue(wait(lambda: cdp.js("location.href", blank) == "about:blank"), "left the file before the new load")
         sid = opened(cdp, path.as_uri() + frag, width)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
@@ -58,7 +64,7 @@ class Drawn(FilePage):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                     path = self.built(tmp)
-                    sid = self.open(cdp, path, width, scheme, tab=pid)
+                    sid = self.load(cdp, path, width, scheme, tab=pid)
                     tabs = cdp.js("[...document.querySelectorAll('[role=tab]')].map((e) => e.dataset.view)", sid)
                     self.assertIn("page:" + pid, tabs, f"the page's tab is in the bar: {tabs}")
                     self.assertEqual(tabs[-1], "page:" + pid, f"the tab is after the built-in tabs: {tabs}")
@@ -72,7 +78,7 @@ class Drawn(FilePage):
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#main [data-id], section[data-id]')].map((e) => e.dataset.id).filter((d) => d.startsWith('" + pid + "'))", sid),
                                      [pid + "-s1", pid + "-s2"], "each section id is the page id, a dash, the section id, once (as the served page draws it)")
                     # the address itself: a fresh open of #page:<id> draws the page, not the Dashboard
-                    sid = self.open(cdp, path, width, scheme, "#page:" + pid, tab=pid)
+                    sid = self.load(cdp, path, width, scheme, "#page:" + pid, tab=pid)
                     self.assertTrue(wait(lambda: "Notes head" in cdp.js(TEXT, sid)), "#page:<id> draws the added page")
                     self.assertEqual(cdp.js(f"document.querySelector('[data-view=\"page:{pid}\"]').getAttribute('aria-selected')", sid), "true")
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
@@ -88,13 +94,13 @@ class Absent(FilePage):
             raw = path.read_text(encoding="utf-8")
             for gone in ("Internal head", "Team only words", "Hidden head", "Menu hidden words", internal, hidden):
                 self.assertNotIn(gone, raw, gone)
-            sid = self.open(cdp, path, 1400, "light", tab=shown)
+            sid = self.load(cdp, path, 1400, "light", tab=shown)
             tabs = cdp.js("[...document.querySelectorAll('[role=tab]')].map((e) => e.dataset.view)", sid)
             self.assertIn("page:" + shown, tabs)
             self.assertNotIn("page:" + internal, tabs)
             self.assertNotIn("page:" + hidden, tabs)
             for pid in (internal, hidden):                       # their addresses draw no such page
-                sid = self.open(cdp, path, 1400, "light", "#page:" + pid, tab=shown)
+                sid = self.load(cdp, path, 1400, "light", "#page:" + pid, tab=shown)
                 self.assertNotIn("Team only words", cdp.js(TEXT, sid))
                 self.assertNotIn("Menu hidden words", cdp.js(TEXT, sid))
 
@@ -104,7 +110,7 @@ class Absent(FilePage):
         with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
             path = self.built(tmp)
             self.assertNotIn(empty, path.read_text(encoding="utf-8"), "an empty page is not in the file")
-            sid = self.open(cdp, path, 1400, "light", tab=shown)
+            sid = self.load(cdp, path, 1400, "light", tab=shown)
             tabs = cdp.js("[...document.querySelectorAll('[role=tab]')].map((e) => e.dataset.view)", sid)
             self.assertIn("page:" + shown, tabs)
             self.assertNotIn("page:" + empty, tabs)
