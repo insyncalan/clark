@@ -357,18 +357,27 @@ export function isFile() {
   return published() !== null;
 }
 
+/** The added pages of a published file (data.pages, row 1252) in the shape the page reads (data.added_pages): sections as text, each id without the page id the file put in front. */
+function filePages(listed) {
+  return (Array.isArray(listed) ? listed : []).filter((g) => g && typeof g.id === "string" && Array.isArray(g.sections)).map((g) => ({
+    id: g.id, name: String(g.name || ""),
+    sections: JSON.stringify(g.sections.filter((s) => s && typeof s.id === "string").map((s) => ({ ...s, id: s.id.startsWith(g.id + "-") ? s.id.slice(g.id.length + 1) : s.id }))),
+  }));
+}
+
 function openPublished(p) {
   fromFile.value = true;
   setPublished(true);                                     // the client's seven filters, no Client filter, Earlier for a finished item
   mode.value = "view";
   if (p === "bad") { tabs.value = []; status.value = "failed"; message.value = "This report's data could not be read."; return; }
-  tabs.value = VIEWS.filter((v) => p.tabs.includes(v));
+  const pages = filePages(p.data.pages);
+  tabs.value = [...VIEWS.filter((v) => p.tabs.includes(v)), ...p.tabs.filter((v) => pages.some((g) => "page:" + g.id === v))];      // row 1252: an added page's tab stays when its page is in the file
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
   publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
   useFileDensity(p.style);                                // the look it was published with (item 45); a file written before that has the default
-  data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
+  data.value = { ...p.data, added_pages: pages, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
   settle();
 }
