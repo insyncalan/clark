@@ -39,11 +39,13 @@ class Order(Base):
             for w in (1400, 900):
                 p.width(w)
                 p.show()
+                p.projects_drawn()
                 got = runs(self.kinds(p, "supplier"))
                 self.assertEqual([k for k in got if k in ("Project", "Risk", "ask clark")], ["Project", "Risk", "ask clark"], f"at {w} px: {got}")
                 self.assertEqual(got[-1], "ask clark", f"at {w} px: {got}")
                 p.key("Escape", 0, "Escape", 27)
                 p.show()
+                p.projects_drawn()
                 got = runs(self.kinds(p, "pilot"))
                 self.assertEqual([k for k in got if k in ("Command", "Page", "Project", "Milestone", "ask clark")], ["Project", "Milestone", "ask clark"], f"at {w} px: {got}")
                 self.assertLess(got.index("Project"), got.index("Milestone"), f"at {w} px")
@@ -55,6 +57,7 @@ class Order(Base):
             for w in (1400, 900):
                 p.width(w)
                 p.show()
+                p.projects_drawn()
                 got = runs(self.kinds(p, "work"))
                 self.assertEqual(got[:2], ["Command", "Page"], f"at {w} px: {got}")
                 got = runs(self.kinds(p, "add"))
@@ -67,6 +70,7 @@ class Order(Base):
             for w in (1400, 900):
                 p.width(w)
                 p.show()
+                p.projects_drawn()
                 self.assertEqual(runs([r[0] for r in p.rows(True)]), ["Page", "Action", "Project", "Command"], f"at {w} px")
                 self.assertEqual(self.kinds(p, "what is a supplier?")[0], "ask clark", f"at {w} px")
                 p.key("Escape", 0, "Escape", 27)

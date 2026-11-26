@@ -944,6 +944,8 @@ GANTT_DATES = {"start", "end", "baseline_start", "baseline_end"}
 GANTT_WIDTHS = {"id": 18, "name": 32, "type": 12, "parent": 18, "_days": 8, "pct": 10, "_status": 14, "depends": 30, "owner": 18, "workstream": 18,
                 "deliverable": 30, "show": 14, "note": 40}
 GANTT_DEFAULT_NAME = "Gantt"
+DOCUMENTS_NAME = "Documents"       # row 1631: the sheet of the project's documents, files and links; the import never reads it
+DOCUMENT_COLUMNS = (("Title", "title", 36), ("Kind", "kind", 14), ("Link", "url", 60), ("Date", "date", 12))      # (heading, publish.documents field, width)
 CLIENT_COPY_NAME = "clark_client_copy"       # row 926: the hidden workbook-level defined name only the client workbook carries (it points at the client Gantt sheet)
 GANTT_BAD_SHEET_CHARS = re.compile(r"[\\/*?:\[\]]")
 
@@ -975,7 +977,7 @@ def gantt_status(line, today):
 def gantt_sheet_name(name, taken=()):
     """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
     clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
-    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, OLD_COVER_NAME, META_NAME, *taken}       # the sheets written after the Gantt one are named already
+    reserved = {LISTS_NAME, HISTORY_NAME, DOCUMENTS_NAME, COVER_NAME, OLD_COVER_NAME, META_NAME, *taken}       # the sheets written after the Gantt one are named already
     if not clean or clean.lower() in {t.lower() for t in reserved}:
         clean = GANTT_DEFAULT_NAME
     return clean
@@ -1026,6 +1028,42 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
                 c.number_format = DATE_FORMAT
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(lines) + 1}"
+    protect_sheet(ws)
+    return ws
+
+
+def document_cell(field, value):
+    """One cell of the Documents sheet: the date as a real date, the rest as text a person can read and never a formula."""
+    if value in (None, ""):
+        return None
+    return to_cell("date" if field == "date" else field, value)
+
+
+def write_documents(wb, documents, pal=None):
+    """The Documents sheet (row 1631): Title, Kind, Link, Date, one row per document in `documents` ([{"title", "kind", "url", "date"}], in
+    the order to write them); none, no sheet. Read-only (locked), a header row, frozen under it; the import does not read it."""
+    if not documents:
+        return None
+    st = Styles(_pal(pal))
+    ws = wb.create_sheet(DOCUMENTS_NAME)
+    tab_colour(ws, "gantt", pal)
+    ws.append([label for label, _, _ in DOCUMENT_COLUMNS])
+    for d in documents:
+        ws.append([document_cell(f, d.get(f)) for _, f, _ in DOCUMENT_COLUMNS])
+        for c in ws[ws.max_row]:
+            c.font = st.body_font
+            protect_text_cell(c)
+    for i, (_, f, width) in enumerate(DOCUMENT_COLUMNS, start=1):
+        head = ws.cell(row=1, column=i)
+        head.font, head.fill = st.header_font, st.header
+        head.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = width
+        for (c,) in ws[f"{get_column_letter(i)}2:{get_column_letter(i)}{len(documents) + 1}"]:
+            c.alignment = Alignment(wrap_text=f != "date", vertical="top", horizontal="left" if f == "date" else None)
+            if f == "date":
+                c.number_format = DATE_FORMAT
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(DOCUMENT_COLUMNS))}{len(documents) + 1}"
     protect_sheet(ws)
     return ws
 
@@ -1166,7 +1204,7 @@ REPORT_NAME = "Report"              # row 1390: the first sheet, the Cover as it
 COVER_NAME = REPORT_NAME            # the name the picture code and the older readers use
 OLD_COVER_NAME = "Cover"            # what workbooks made before row 1390 call it: never read by the import, and a Gantt tab may not take it
 SHEET_LINK_ROWS = (("Use cases", "Use cases"), ("Milestones", "Milestones"), ("Risks and issues", "Risks & Issues"),
-                   ("Actions", "Actions"), ("Decisions", "Decisions"), ("Gantt", None))      # (Dashboard section, its sheet; None: the Gantt tab's own name)
+                   ("Actions", "Actions"), ("Decisions", "Decisions"), ("Documents", DOCUMENTS_NAME), ("Gantt", None))      # (Dashboard section, its sheet; None: the Gantt tab's own name)
 KEY_CHIP_COLUMNS = 2                # grid columns of one chip in the colour key
 COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells", "history": "History sheet"}
@@ -1507,6 +1545,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     if gantt:           # row 926: every line the author has, eye-off included (this is the editor's own copy); no lines, no sheet
         gantt_name = write_gantt(wb, sorted(gantt, key=lambda r: (r.get("sort_order") or 0, r["id"])), {f for _, f in GANTT_SHEET_COLUMNS},
                                  gantt_tab, day(on).isoformat(), pal).title
+    write_documents(wb, rows_by_table.get("documents"), pal)       # row 1631: the live documents; none, no sheet
     if history is not None:
         write_history(wb, history, pal)
     if lists:
@@ -1711,6 +1750,7 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     cover = excel_cover.from_store(store, project, exported_text(on), exported_by, owner, owner_email, INTERNAL_NOTE,
                                    as_at or day(on).isoformat(), show_as_at=bool(as_at))      # row 1390: "Shown as at" only when an as-at day is given
     view = history.view_for_project(store.con, project, "all", history.ROW_LIMIT)       # the one source the Activity tab shares
+    rows["documents"] = [r for r in sorted(store.read("documents", project), key=lambda r: (r.get("sort_order") or 0, str(r.get("id")))) if not r.get("archived")]      # row 1631: every live document, the eye-off ones too (the editor's own copy); only the Documents sheet reads them
     rows["gantt_lines"] = [r for r in store.read("gantt_lines", project)]      # row 926: only the sheet reads these; the import does not (TABLES)
     tab = (store.read("projects", ref=project) or {}).get("gantt_tab_name")
     export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse, gantt_tab=tab, exported_by=exported_by, exporter_name=exporter_name)

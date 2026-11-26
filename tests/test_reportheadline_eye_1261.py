@@ -336,10 +336,11 @@ class Eye(Base):
     def test_the_change_api_takes_the_pill_off_start_body_for_a_new_report_headline_and_refuses_any_other_body(self):
         from clark import changes
         change = changes.make_change(self.store.path, [], USER)
+        had = {r["id"] for r in self.store.read("report_sections", "ABC")}      # row 1266: a new project already starts with a Headline section (no body)
         req = lambda body: {"project": "ABC", "kind": "report_sections", "op": "new", "place": "report", "values": {"type": "reportheadline", "title": "Headline", "body": body}}
         status, got = change(req('{"pill":false,"v":1}'))
         self.assertEqual((status, got.get("message")), (200, None), got)
-        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline"]
+        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline" and r["id"] not in had]
         self.assertEqual([json.loads(r["body"]) for r in made], [{"pill": False, "v": 1}], "stored with the pill off")
         for other in ('{"v":1,"headline":"x"}', '{"pill":true,"v":1}', "x"):
             status, got = change(req(other))
