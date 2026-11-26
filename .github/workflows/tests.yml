@@ -18,9 +18,12 @@
 #    in the run and never turns "Tests passed" red (continue-on-error, set by the plan for `schedule`).
 #  - ON DEMAND: a hand-started run with macos=true (Actions > Tests > Run workflow, or gh workflow run Tests --ref <branch> -f macos=true)
 #    adds the full macOS suite, required for that run, in place of the smoke set. Use it for a change that needs a full Mac run.
+#    When "files" names test files (a word with test_ in it, e.g. -f files="--repeat 10 test_ask_btn_dot_1349.py"), the macOS side is
+#    ONE job (shard 1/1, which holds every named file), not nine: run 45805635711 named one file and started nine macOS jobs, eight of
+#    them with no file to run, and macOS runners are the scarce ones (the owner, 26-11). The plan decides (output macmatrix).
 # A macOS runner that fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix of nine, so `needs.macos.result` is ONE value for the whole matrix (success only if all
+# macOS shards: one job with a matrix of nine (of one when test files are named; the plan writes the list), so `needs.macos.result` is ONE value for the whole matrix (success only if all
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
@@ -89,6 +92,7 @@ jobs:
       py39: ${{ steps.plan.outputs.py39 }}
       shards39: ${{ steps.plan.outputs.shards39 }}
       count39: ${{ steps.plan.outputs.count39 }}
+      macmatrix: ${{ steps.plan.outputs.macmatrix }}
     steps:
       - id: plan
         env:
@@ -101,6 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          FILES_INPUT: ${{ github.event.inputs.files }}
         run: |
           FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; CUT=""; WIDE=""; NTESTS=0
           case "$EVENT" in
@@ -195,6 +200,27 @@ jobs:
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "shards39=$SHARDS39" >> "$GITHUB_OUTPUT"
           echo "count39=$COUNT39" >> "$GITHUB_OUTPUT"
+          # The macOS matrix (the owner, 26-11: "a named-file run uses one Mac job"). Nine shards for the whole suite. ONE job, shard 1/1, when
+          # the hand-typed "files" input names a test file: a word with test_ in it that is neither an option nor an option's value. `--shard 1/1`
+          # holds every chosen file, so no named file can fall outside it. Anything else (no input, options only, a name without test_) keeps the
+          # nine. The list is never empty, so the macos job is skipped only by its own `if`, never by an empty matrix. The input is text
+          # typed by a person: read from env, split with globbing off, compared in `case` only, never run.
+          MACMATRIX='[{"shard":1,"shards":9},{"shard":2,"shards":9},{"shard":3,"shards":9},{"shard":4,"shards":9},{"shard":5,"shards":9},{"shard":6,"shards":9},{"shard":7,"shards":9},{"shard":8,"shards":9},{"shard":9,"shards":9}]'
+          NAMED=""; PREV=""
+          set -f
+          for W in $FILES_INPUT; do
+            case "$PREV" in
+              -j|--changed|--push|--repeat|--stress|--file-timeout|--rerun-max|--results|--summarize|--job-status|--shard|--max-fail) PREV="$W"; continue ;;      # this word is that option's value, not a name
+            esac
+            case "$W" in
+              -*) ;;
+              *test_?*) NAMED=1 ;;
+            esac
+            PREV="$W"
+          done
+          set +f
+          if [ -n "$NAMED" ]; then MACMATRIX='[{"shard":1,"shards":1}]'; fi
+          echo "macmatrix=$MACMATRIX" >> "$GITHUB_OUTPUT"
           echo "event: $EVENT; branch: $BRANCH; full: ${FULL:-no}; macOS: ${MACOS:-no}; Ubuntu 3.x shards: $COUNT"
 
   tests:
@@ -295,7 +321,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file, nine shards) when the plan says so: the nightly (advisory) or a hand-started run with macos=true; a pull request
+    # macOS (the newest Python, every file, nine shards; ONE job, shard 1/1, when a hand-started run names test files: the plan's macmatrix) when the plan says so: the nightly (advisory) or a hand-started run with macos=true; a pull request
     # never starts this job (its Mac check is the smoke set below). Required when it runs, except in the nightly.
     if: ${{ needs.plan.outputs.macos == '1' }}
     continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}      # the nightly full run is advisory: a red shard shows, the run stays green
@@ -306,16 +332,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {shard: 1, shards: 9}
-          - {shard: 2, shards: 9}
-          - {shard: 3, shards: 9}
-          - {shard: 4, shards: 9}
-          - {shard: 5, shards: 9}
-          - {shard: 6, shards: 9}
-          - {shard: 7, shards: 9}
-          - {shard: 8, shards: 9}
-          - {shard: 9, shards: 9}
+        include: ${{ fromJSON(needs.plan.outputs.macmatrix) }}      # nine {shard, shards} entries, or one (1/1) when test files are named
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
