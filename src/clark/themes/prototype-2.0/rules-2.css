@@ -476,3 +476,25 @@ html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shado
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+
+/* Row 1543 part 1 (AP8): the published header's search button, the editor's own 38 by 28 box (shell.css .tb-act), sits in the room reserved for the editor's search button, at the start of the reserved group: the pages group has not moved. Above 900px it takes 38px, 10px of margin (the editor's search button starts 32px after the pages) and the 22px gap out of the profile group's margin; at 900px and below (two rows) it sits before the switcher. */
+@media (min-width: 901px) {
+  .top-file #pub-search-btn { order: 3; margin-left: 10px; }
+  .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 70px); }
+}
+@media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 94.94px - 70px); } }
+@media (max-width: 900px) { .top-file #pub-search-btn { margin-left: auto; } .top-file #pub-search-btn + .cm-wrap { margin-left: 0; } }
+/* Row 1543 part 1 (AP9, AP12): the search box of a published report ("Search this report") and its results, drawn as the editor's palette is (edit.css .pal), with its own names. */
+.rs { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; flex-direction: column; overflow: hidden; }
+.rs[open] { display: flex; }
+.rs-q { padding: var(--space-3) 14px; border-bottom: 1px solid var(--border); }
+.rs-q input { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rs-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rs-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.rs-list:empty { display: none; }
+.rs-row { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1) 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text); }
+.rs-row:hover { background: var(--grey-100); }
+.rs-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rs-kind { flex: none; min-width: 96px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+.rs-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.rs-none { margin: 0; padding: 14px var(--space-4); }
