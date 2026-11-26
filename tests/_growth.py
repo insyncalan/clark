@@ -33,12 +33,20 @@ def growth_ratio(work, n, tries=3):
     return small, big, big / max(small, GROWTH_FLOOR)
 
 
-def assert_growth(test, work, n, label, tries=3):
+def assert_growth(test, work, n, label, tries=3, repeats=1):
     """Run growth_ratio(work, n, tries), print the figures, and fail `test` if the ratio is above GROWTH_LIMIT or t(4n) is above
-    ABSOLUTE_CAP. The failure names `label` and both times."""
-    small, big, ratio = growth_ratio(work, n, tries)
+    ABSOLUTE_CAP. The failure names `label` and both times.
+
+    `repeats` is opt-in (#1671): with repeats=k above 1, growth_ratio runs k times and the run with the MEDIAN ratio is the one compared with
+    the limit (the limit is not changed), so one loaded sample cannot fail a healthy scan; the failure text then lists all k ratios. The
+    default, 1, is the single measure every other importer has always had."""
+    runs = [growth_ratio(work, n, tries) for _ in range(repeats)]
+    small, big, ratio = sorted(runs, key=lambda run: run[2])[len(runs) // 2]
     print("%s: t(n)=%.3f t(4n)=%.3f ratio=%.2f" % (label, small, big, ratio))
-    test.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(4n)=%.3f ratio=%.2f" % (label, small, big, ratio))
+    said = "%s: t(n)=%.3f t(4n)=%.3f ratio=%.2f" % (label, small, big, ratio)
+    if repeats > 1:
+        said += " (median of %d ratios: %s)" % (repeats, ", ".join("%.2f" % run[2] for run in runs))
+    test.assertLessEqual(ratio, GROWTH_LIMIT, said)
     test.assertLessEqual(big, ABSOLUTE_CAP, "%s: t(4n)=%.3f CPU seconds is over the absolute cap" % (label, big))
     return small, big, ratio
 
