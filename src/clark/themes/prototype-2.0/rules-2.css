@@ -47,6 +47,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .rce-show legend { padding: 0; }
 .rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
 .rce-f { display: grid; gap: var(--space-1); }
+.rce-f select, .rce-f input { border-color: var(--control-edge); }  /* Row 1270 (Classic only): the Edit fields take the control edge colour; edit.css is shared with Cards, so the rule lives here */
 .rce-across { max-width: 14rem; margin-bottom: var(--space-3); }
 .rce-none { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); }
 /* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
