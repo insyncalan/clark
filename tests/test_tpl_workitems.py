@@ -661,6 +661,7 @@ class InThePage(PageBase):
             p.js("window.__settled = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__settled = 1; }))")
             p.until("window.__settled === 1", "the page settled after Due was added")
             if not p.js("!!document.querySelector('.cols-menu')"):
+                print("REOPEN 1689: the menu was closed before the second press", flush=True)          # a record only, so a run log shows whether the menu closed by itself
                 p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
                 p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
