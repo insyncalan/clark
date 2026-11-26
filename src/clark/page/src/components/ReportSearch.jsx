@@ -34,7 +34,7 @@ function Box({ onClose }) {
   return (
     <dialog id="report-search" class="dlg rs" aria-label="Go to or do" ref={el} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <div class="rs-q">
-        <input type="search" id="report-search-q" placeholder="Search this report" aria-label="Search this report" autocomplete="off" spellcheck={false} ref={input} value={q} onInput={(e) => setQ(e.currentTarget.value)} />
+        <input type="search" id="report-search-q" placeholder="Search this report" aria-label="Search this report" autocomplete="off" spellcheck={false} style={{ boxSizing: "border-box", width: "100%", minHeight: "36px" }} ref={input} value={q} onInput={(e) => setQ(e.currentTarget.value)} />
       </div>
       <ul class="rs-list" aria-label="Results" data-for={q}>
         {results.map((r) => (

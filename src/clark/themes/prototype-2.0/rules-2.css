@@ -503,7 +503,7 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .rs-row:hover { background: var(--grey-100); }
 .rs-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rs-kind { flex: none; min-width: 96px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
-.rs-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.rs-label { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
 .rs-none { margin: 0; padding: 14px var(--space-4); }
 
 /* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
