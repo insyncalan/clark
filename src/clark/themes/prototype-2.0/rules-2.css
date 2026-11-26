@@ -167,10 +167,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
 .rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
 :is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { padding: 7px 10px; font-size: 15px; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+/* Row 1431: the bubble Text style menu takes the toolbar's values (0 16px side padding, 14px, one size and weight for the four lines; PM ruling 26-11). */
+.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { box-sizing: border-box; height: 32px; padding: 0 16px; font-size: 14px; }
 .rt-bubble { gap: 6px; }
 .rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible), .rt-bubble .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
 :is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
