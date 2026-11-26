@@ -73,7 +73,8 @@ export function TopBar({ tools }) {
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {Bell ? <Bell /> : null}
       {SearchButton ? <SearchButton /> : null}
-      {file ? <ReportSearch /> : null}      {/* row 1543: a published report has its own search (the editor's button, a box of its own) */}
+      {/* row 1543: a published report has its own search (the editor's button, a box of its own) */}
+      {file ? <ReportSearch /> : null}
       {AskButton ? <AskButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
   </>);
