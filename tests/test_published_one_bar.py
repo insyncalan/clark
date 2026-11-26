@@ -93,9 +93,9 @@ class InTheFile(Published):
                     self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 42, delta=3, msg="the tabs sit on the one row")
                     self.assertEqual(b["logoBox"], [22, 22], "issue 1178: the logo is 22 px high at 1400")
                 else:
-                    self.assertEqual(b["bar"]["h"], 125)
-                    self.assertEqual(b["topbarVar"], "125px")
-                    self.assertEqual(b["logoBox"], [18, 18], "issue 1178: the logo is 18 px high at 900")
+                    self.assertEqual(b["bar"]["h"], 129, "row 1543 AP7: at 900 px the bar is the editor's 129 px (it was 125)")
+                    self.assertEqual(b["topbarVar"], "129px")
+                    self.assertEqual(b["logoBox"], [24, 18], "row 1543 AP7: at 900 the logo box is the editor's 24 px high, its icon 18")
                     self.assertGreaterEqual(b["tabs"]["top"], b["line"]["bottom"] - 1, "the tabs are a strip under the name")
                     self.assertGreaterEqual(b["tabs"]["right"] - b["tabs"]["left"], width - 60, "the strip runs the width")
                 p.js("window.scrollTo(0, 600)")
@@ -107,7 +107,7 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(BAR)
-                below = 12 if width > 900 else 9      # row 1543: above 900 px as the editor's tabs (8 and 12), the 900 px bar is a later part
+                below = 12      # row 1543: the editor's tabs (8 and 12), above 900 px and (AP7) at 900 px and narrower
                 self.assertEqual(b["tabPad"], ["8px", f"{below}px"])
                 self.assertAlmostEqual(b["tab"]["h"] - b["tabLine"], 8 + below, delta=0.6, msg=f"the tab is its text plus 8 above and {below} below")
                 self.assertEqual((b["after"], b["afterBottom"]), (3, "0px"), "the cyan line is at the foot of that short tab")

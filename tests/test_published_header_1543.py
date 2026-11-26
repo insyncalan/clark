@@ -1,6 +1,6 @@
 """Row 1543 PR 1: the published header's pages group sits where the editor's does (same right edge, same line), and the room the
 editor's right-hand buttons use is reserved, so the pages do not move between the two. In a real browser, light and dark, 1400 px,
-and the 1200 and 1100 px edge checks (the 900 px bar is a later part of the row). Fictional data.
+and the 1200 and 1100 px edge checks (the 900 px bar: AP7 below). Fictional data.
 
 Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; run only while the machine's load is under 70)
 """
@@ -116,6 +116,69 @@ class Header1543(glance.Published):
                 self.assertEqual(got["n"], 0, f"no editor control in the published header: {got['btns']}")
 
 
+NAME_PROBE = """(() => {
+  const bar = document.querySelector('header.top'), n = bar.querySelector('#project-name'), b = bar.getBoundingClientRect(), r = n.getBoundingClientRect(), cs = getComputedStyle(n);
+  const id = n.closest('.top-id, .hdr-id').getBoundingClientRect();
+  return {name: n.textContent, barW: Math.round(b.width), barH: Math.round(b.height), nameW: Math.round(r.width), idW: Math.round(id.width), nameH: Math.round(r.height), lh: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2,
+    ws: cs.whiteSpace, tov: cs.textOverflow, ov: cs.overflow, cut: n.scrollWidth > n.clientWidth, title: n.getAttribute('title') || (n.firstElementChild && n.firstElementChild.getAttribute('title')) || ''};
+})()"""
+STRIP_PROBE = """(() => {
+  const bar = document.querySelector('header.top'), tabs = bar.querySelector('.tabs'), b = bar.getBoundingClientRect(), t = tabs.getBoundingClientRect(), logo = bar.querySelector('.logo').getBoundingClientRect();
+  const q = (n) => Math.round(n * 10) / 10, first = tabs.querySelector('[role=tab]').getBoundingClientRect(), cs = getComputedStyle(tabs);
+  return {barH: q(b.height), tabsTop: q(t.top - b.top), tabsH: q(t.height), tabsLeft: q(t.left - b.left), tabsW: q(t.width), firstLeft: q(first.left - b.left), border: cs.borderTopWidth, logoTop: q(logo.top - b.top), logoLeft: q(logo.left - b.left), idLeft: q(bar.querySelector('.top-id, .hdr-id').getBoundingClientRect().left - b.left),
+    search: bar.querySelectorAll('[aria-label="Go to or do"]').length, wide: document.documentElement.scrollWidth <= innerWidth};
+})()"""
+
+
+class Ap7:      # mixed into Header1543 below
+    LONG_NAME = "A very long programme name that goes on and on and on for the whole line and beyond"
+
+    def test_published_header_project_name_one_line(self):
+        self.store.con.execute("UPDATE projects SET name = ? WHERE code = 'ABC'", (self.LONG_NAME,))
+        self.store.con.commit()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                got = self.probe_file(NAME_PROBE, width, dark)
+                self.assertEqual(got["name"], self.LONG_NAME, "control: the long name is the one drawn")
+                self.assertLess(got["nameH"], got["lh"] * 1.5, f"the name is one line ({got['nameH']} px high, a line is {got['lh']})")
+                self.assertEqual((got["ws"], got["tov"], got["ov"]), ("nowrap", "ellipsis", "hidden"), "cut with an ellipsis")
+                self.assertTrue(got["cut"], "the long name does not fit, so it is cut")
+                self.assertLessEqual(got["idW"], got["barW"] * 0.5, "the name box stops at the editor's cap of half the bar (row 1305)")
+                self.assertEqual(got["title"], self.LONG_NAME, "its tooltip still names it")
+
+    def test_published_header_900px_follows_editor(self):
+        for dark in (False, True):
+            with self.subTest(dark=dark):
+                with chrome() as cdp:
+                    p = self.show(cdp, 900, dark)
+                    p.until("!!document.querySelector('header.top .tab')", "the editor's bar drew")
+                    e = p.js(STRIP_PROBE)
+                f = self.probe_file(STRIP_PROBE, 900, dark)
+                for k in ("barH", "tabsTop", "tabsH", "tabsLeft", "tabsW", "firstLeft", "logoTop", "logoLeft", "idLeft"):
+                    self.assertAlmostEqual(f[k], e[k], delta=1.5, msg=f"{k}: the file {f[k]}, the editor {e[k]}")
+                self.assertEqual(f["border"], e["border"], "the same line above the strip")
+                self.assertEqual(f["border"], "1px")
+                self.assertGreater(f["tabsTop"], f["logoTop"], "the pages are in a strip under the logo row")
+                self.assertTrue(f["wide"], "no sideways scroll")
+                self.assertEqual(f["search"], 0, "the pages are not in the profile menu and search is not drawn in the bar")
+                self.probe_menu(dark)
+
+    def probe_menu(self, dark):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 900, dark)
+            p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+            p.js("document.querySelector('.cm-badge').click()")
+            p.until("!!document.querySelector('[role=menu]') && document.querySelector('[role=menu]').textContent.trim().length > 0", "the profile menu opened")
+            menu = p.js("document.querySelector('[role=menu]').textContent")
+        for page in ("Dashboard", "Work items", "Milestones"):
+            self.assertNotIn(page, menu, "the pages do not move into the profile menu")
+
+
+for _cls in (Ap7,):
+    for _name in dir(_cls):
+        if _name.startswith(("test", "plant_", "pages", "probe_", "LONG")):
+            setattr(Header1543, _name, getattr(_cls, _name))
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file
     if _name.startswith("test") and _name not in Header1543.__dict__:
         setattr(Header1543, _name, None)

@@ -86,7 +86,7 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(PROBE)
-                want = 85 if width == 1400 else 125      # 68 and 100 px of item 1146, each plus 25 percent
+                want = 85 if width == 1400 else 129      # 68 px of item 1146 plus 25 percent; at 900 px (row 1543 AP7) the editor's 129 px
                 self.assertAlmostEqual(b["h"], want, delta=2, msg=f"the header is {b['h']} px, want about {want}")
                 self.assertTrue(b["wide"], "no sideways scroll")
 
@@ -95,7 +95,7 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(PROBE)
-                want = (147, 22) if width == 1400 else (120, 18)
+                want = (147, 22) if width == 1400 else (120, 24)      # row 1543 AP7: at 900 px the logo box is the editor's 120 x 24 (its icon stays 18)
                 hit = [x for x in b["logoBoxes"] if abs(x["h"] - want[1]) <= 1 and abs(x["w"] - want[0]) <= 1]
                 self.assertTrue(hit, f"some part of the logo (its box, icon, image or svg) is {want[0]}x{want[1]}: {b['logoBoxes']}")
 
