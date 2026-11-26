@@ -18,13 +18,20 @@ NAME = "prototype-2.0"
 MARK = "/* Row 1345 block"
 MARK2 = "/* Row 1345 title block"
 
-M = ("(function(){var r=function(e){var b=e.getBoundingClientRect();return [Math.round(b.left), Math.round(b.width)];}, s=document.querySelector('#report .secs > .sec:not(.is-hidden)'), cs=getComputedStyle(s);"
+M = ("(function(){var r=function(e){var b=e.getBoundingClientRect();return [Math.round(b.left), Math.round(b.width)];}, s=document.querySelector('#report .secs > .sec[data-id=ABC-S-003]'), cs=getComputedStyle(s);"
      "var n=document.querySelector('.cnt'), h=s.querySelector('.sec-h');"
      "return {cnt: n ? r(n) : null, secs: r(document.querySelector('.secs')), head: getComputedStyle(h).fontSize, pt: cs.paddingTop, pl: cs.paddingLeft,"
      "tw: [...document.querySelectorAll('.glance .fig .tw')].map(e => getComputedStyle(e).display), vw: document.documentElement.clientWidth};})()")
 
 
 class Dash(_test_classic_contents_1318.Classic):
+    def setUp(self):
+        super().setUp()
+        # row 1266: a new project starts with the Headline and the At a glance template; the figures strip these tests pin (.glance, .hpill, .tw) is the
+        # older At a glance section type, which an existing report keeps, so one is stored here (after the defaults); the first section measured is Header
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance (figures)", "sort_order": 10 ** 9})
+
     def measure(self, width, density="compact"):
         with chrome() as cdp:
             p = self.at(cdp, width)

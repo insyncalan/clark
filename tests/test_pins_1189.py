@@ -58,6 +58,8 @@ class PublishedSections(unittest.TestCase):
         return publish.build(self.store, "ABC", now="2030-01-15")["published"]["data"]["glance"]
 
     def test_c_a_hidden_glance_leaves_its_tiles_out_and_a_visible_one_carries_them(self):
+        with self.store.step("dashboard", USER) as st:      # row 1266: a new project has the At a glance template, not the built-in glance; an older report keeps the built-in, so this one gets it
+            st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance (older)", "sort_order": 990})
         self.set_hidden("glance", 0)
         self.assertTrue(self.glance()["tiles"], "visible: the figures are in")
         self.set_hidden("glance", 1)

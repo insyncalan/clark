@@ -5,7 +5,9 @@ import json
 import unittest
 
 from _paths import SRC
-from test_report_editor import Base, IDS, ALT, wait
+from test_report_editor import Base, ALT, wait
+
+IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]      # row 1266: a new project has eleven sections (Headline first, Documents last)
 
 HELP = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
 LINE = "Alt+Right puts the section beside the next one, Alt+Left makes it full width"
@@ -129,10 +131,10 @@ class AltSideKeys(Base):
         from test_server import chrome
         with chrome() as cdp:
             p = self.at(cdp, width)
-            p.js(GRIP % "ABC-S-004" + ".focus()")
+            p.js(GRIP % "ABC-S-007" + ".focus()")      # Use cases, a full-width section under Milestones
             n = len(self.sent)
             p.key("ArrowUp", ALT | 8, code="ArrowUp", vk=38)
-            p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "Shift+Alt+Up")
+            p.order_is(IDS[:5] + ["ABC-S-007", "ABC-S-006"] + IDS[7:], "Shift+Alt+Up")
             p.saved()
             self.assertEqual(len(self.sent) - n, 1, "one change")
             n = len(self.sent)

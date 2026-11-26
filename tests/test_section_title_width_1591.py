@@ -113,7 +113,7 @@ class SectionTitleWidth(Look):
     def test_a_short_title_starts_at_the_row_start_and_a_click_on_the_row_edits_it(self):
         for cdp, p, where, r in self.each():
             self.assertLessEqual(r["left"] - r["hleft"], 2, where)
-            self.assertTrue(p.js("(() => { const t = document.querySelector('.sec-title'); const r = t.getBoundingClientRect();"
+            self.assertTrue(p.js("(() => { const t = document.querySelector('.sec-title'); t.scrollIntoView({block: 'center'}); const r = t.getBoundingClientRect();"
                                  " return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === t; })()"), where)
 
     def test_a_half_width_box_is_the_half_and_nothing_overlaps_it(self):

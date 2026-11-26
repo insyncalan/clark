@@ -25,6 +25,7 @@ from clark import changes, docx_build, excel, excel_client, publish
 import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
 from test_server import chrome
+from test_glance_tiles import builtin_glance
 
 TODAY = "2030-01-15"
 ROW = re.compile(r"^ABC-(?:[A-Z]-)?\d{3}$")
@@ -85,6 +86,7 @@ class Data(_test_changes.Api):
     def setUp(self):
         super().setUp()
         plant(self)
+        builtin_glance(self.s, ["ABC"])      # row 1266: the tiles walked here are the built-in glance's
 
     def build(self, with_lists, built_in=True):
         """The published file's data. The lists are made once; the built-in sections are shown or hidden by their own rows."""
