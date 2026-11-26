@@ -176,6 +176,24 @@ class PublishedBoard(unittest.TestCase):
                 cdp.js("document.querySelector('#work-board [data-toggle]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-board .col.shut').length", sid) == 1), "a column collapses")
 
+    def test_published_board_due_words_match_the_list(self):
+        pick = "[...document.querySelectorAll({sel!r})].map(x => [x.dataset.id, ((x.querySelector('.due-l') || {{}}).textContent || ''), ((x.querySelector('.due-l') || {{}}).className || '')])"
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.page(cdp, self.on, width)
+                cdp.js("document.querySelector('[data-show=all]').click()", sid)
+                cdp.js("document.querySelector('[data-layout=table]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-list tr[data-id]').length", sid) > 0), "the list drew")
+                listed = {r[0]: r[1:] for r in cdp.js(pick.format(sel="#work-list tr[data-id]"), sid)}
+                self.to_board(cdp, sid)
+                carded = {r[0]: r[1:] for r in cdp.js(pick.format(sel="#work-board article[data-id]"), sid)}
+                words = [v[0] for v in listed.values()]
+                self.assertTrue(any(w.endswith(" late") for w in words), f"{width}: the list shows an overdue row's words")
+                self.assertTrue(any(w.startswith("In ") for w in words), f"{width}: the list shows a coming row's words")
+                self.assertTrue(any(not w for w in words), f"{width}: a row with no due words shows none on both")
+                self.assertGreater(len({v[1] for v in listed.values()}), 1, f"{width}: the list tones the words (more than one look)")
+                self.assertEqual(carded, listed, f"{width}: each card shows its row's due words and tone, and no row is missing")
+
     def test_published_board_filters_search_empty(self):
         with chrome() as cdp:
             sid = self.page(cdp, self.on)
