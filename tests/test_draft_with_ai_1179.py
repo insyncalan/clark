@@ -173,11 +173,13 @@ class Pane(unittest.TestCase):
                 with self.subTest(item=ref, width=width), chrome() as cdp:
                     sent, sid = self.opened(cdp, width, ref)
                     self.select_all(cdp, sid, "alpha beta gamma")
+                    # Row 1587 diagnostic only: every focus move from here on, with the time, so a macOS log says who took the focus from the menu.
+                    cdp.js("(() => { window.__fl = []; const t0 = performance.now(), d = (n) => n && n.tagName ? n.tagName + (n.dataset && n.dataset.aiOption ? '[' + n.dataset.aiOption + ']' : '') + (n.className ? '.' + String(n.className).split(' ')[0] : '') : String(n); for (const k of ['focusin', 'focusout']) document.addEventListener(k, (e) => window.__fl.push(k + ' ' + d(e.target) + ' to ' + d(e.relatedTarget) + ' @' + Math.round(performance.now() - t0)), true); })(); true", sid)
                     self.assertTrue(self.right_click(cdp, sid), "the browser's own menu is held back")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-rt-ai] [data-ai-menu]')", sid)), "the AI menu opens over the selection")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-rt-ai] [data-ai-option]')].map(e => e.dataset.aiOption)", sid), OPTIONS)
                     in_menu = wait(lambda: cdp.js("document.querySelector('#peek [data-rt-ai]').contains(document.activeElement)", sid))
-                    seen = "" if in_menu else cdp.js("(a => JSON.stringify({tag: a && a.tagName, cls: a && a.className, data: a && {...a.dataset}, hasFocus: document.hasFocus(), menuButton: !!document.querySelector('#peek [data-rt-ai] button')}))(document.activeElement)", sid)
+                    seen = "" if in_menu else cdp.js("(a => JSON.stringify({tag: a && a.tagName, cls: a && a.className, data: a && {...a.dataset}, hasFocus: document.hasFocus(), menuButton: !!document.querySelector('#peek [data-rt-ai] button'), moves: window.__fl}))(document.activeElement)", sid)
                     self.assertTrue(in_menu, "the focus is in the menu; seen: " + str(seen))
                     for t in ("keyDown", "keyUp"):
                         cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)

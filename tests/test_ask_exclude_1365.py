@@ -158,7 +158,7 @@ class Schema(Base):
         self.assertLessEqual({"ask_files", "ask_new_projects"}, have("app_settings"))
         self.assertLessEqual({"ask_off", "ask_files_off"}, have("projects"))
         self.assertIn("excluded", have("source_folders"))
-        self.assertEqual([n for n, _ in st.MIGRATIONS][-6:-3], [32, 33, 34])
+        self.assertEqual([n for n, _ in st.MIGRATIONS][-7:-4], [32, 33, 34])      # row 1252 step 38 follows row 1533 step 37, row 1417 step 36 and row 1534 step 35
 
     def test_the_migration_adds_the_column_with_nothing_left_out_keeps_rows_and_a_second_run_changes_nothing(self):
         con = sqlite3.connect(":memory:")

@@ -40,7 +40,7 @@ class Frames(Base):
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
                 got = cdp.js("(() => { const c = getComputedStyle(document.querySelector('#milestones .msv')); return [c.borderTopWidth, c.boxShadow !== 'none', c.backgroundColor !== 'rgba(0, 0, 0, 0)']; })()", sid)
                 self.assertEqual(got, ["1px", True, True], "the viewer and timeline keep a card")
-                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), "the page does not scroll sideways: " + cdp.js("'scrollWidth=' + document.documentElement.scrollWidth + ' innerWidth=' + innerWidth", sid))
 
     def test_row_832_use_cases_has_no_wrapping_card(self):
         self.flat("#usecases&p=ABC", "#usecases", "#usecases")

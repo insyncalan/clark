@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
 import { glide } from "./glide.js";
-import { data, mode, fromFile, dropAt, dragList, rebuilt } from "../stores/report.js";
+import { data as reportData, mode, fromFile, dropAt, dragList, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { Contents, classicTheme } from "./Contents.jsx";
@@ -68,9 +68,16 @@ function nearestTop() {
   return best || below;
 }
 
-export function Dashboard({ tools }) {
-  const d = data.value;
-  const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
+/** An added page's sections as the Dashboard draws them (row 1252): the page keeps them as text, each id made apart (page id, a dash, section id) so none meets the Dashboard's. */
+export function pageSections(page) {
+  let kept = [];
+  try { kept = JSON.parse(page && page.sections || "[]"); } catch (e) { kept = []; }
+  return (Array.isArray(kept) ? kept : []).filter((s) => s && typeof s.id === "string").map((s, i) => ({ sort_order: i, ...s, id: page.id + "-" + s.id }));
+}
+
+export function Dashboard({ tools, page }) {
+  const d = page ? { ...reportData.value, report_sections: pageSections(page) } : reportData.value;
+  const editing = !page && !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;      // an added page is read only here; its sections are edited in its own slice
   const was = useRef({ editing, at: null });
   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
   // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws) and when a class or the type of a section changes. Classic only: Cards draws exactly what it drew. No address or history is touched.

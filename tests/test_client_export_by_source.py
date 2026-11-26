@@ -96,6 +96,11 @@ class ClientCopy(unittest.TestCase):
         for sheet, cell in self.text:
             self.assertNotIn("INTERNAL", cell, sheet)
 
+    def test_client_workbook_has_no_hidden_rows_or_client_visible_columns(self):
+        """DoD9 (1390), the name the ticket gives: the two checks together, run on the same client copy."""
+        self.test_a_row_with_client_visible_no_is_on_no_sheet()
+        self.test_no_heading_says_client_visible_or_internal_note_on_any_sheet()
+
     def test_the_client_wording_stays(self):
         ws = self.wb[excel.SHEET_OF["actions"]]
         self.assertIn("ZQ-KEEP-MESSAGE-1", {str(c.value) for row in ws.iter_rows(min_row=5) for c in row})
@@ -133,6 +138,11 @@ class EditorExport(unittest.TestCase):
         got = {cell for _, cell in heads(wb)}
         for ident in hidden:
             self.assertIn(ident, got, f"the editor export keeps {ident}")
+
+    def test_editor_export_keeps_them(self):
+        """DoD9 (1390), the name the ticket gives: the editor export keeps the hidden rows, the flag headings and the note."""
+        self.test_every_editor_sheet_has_the_flag_heading_and_milestones_the_note()
+        self.test_a_real_editor_export_carries_the_hidden_rows_and_the_note()
 
 
 class ImportOfAClientCopy(unittest.TestCase):
