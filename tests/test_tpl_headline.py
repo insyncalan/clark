@@ -13,7 +13,7 @@ from _pictures_cases import PicturePage
 from _pictures_page import BarePage
 from clark import changes, publish, store as store_module
 from clark.section_kinds import headline, textimage
-from test_changes import Api
+import test_changes as _test_changes
 from test_server import chrome  # noqa: F401  (a browser file: its page tests drive Chrome through _pictures_cases)
 
 KIND = "headline"
@@ -48,7 +48,7 @@ class Checker(unittest.TestCase):
                          {"content": {"label": "Go", "href": "#ref-plan", "image": GOOD, "alt": "A"}})
 
 
-class Route(PictureSteps, Api):
+class Route(PictureSteps, _test_changes.Api):
     def test_one_step_one_undo_and_the_words_keep_the_picture(self):
         ref = self.made(KIND)
         self.words(ref, {"v": 1, "words": MESSAGE})

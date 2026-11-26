@@ -12,7 +12,8 @@ import json
 import unittest
 
 from _demo import USER
-from test_glance_page import Published, Setup, tearDownModule  # noqa: F401
+from test_glance_page import Setup, tearDownModule
+import test_glance_page as _test_glance_page
 from test_server import chrome
 
 PICKER = "Add a use case from your project record"
@@ -481,7 +482,7 @@ class Edit(Setup):
         p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent === 'Undone.'", "the Undone. toast")
 
 
-class PublishedFile(Published):
+class PublishedFile(_test_glance_page.Published):
     def test_the_file_has_none_of_edit_for_the_use_cases(self):
         path = self.publish()
         text = path.read_text(encoding="utf-8")

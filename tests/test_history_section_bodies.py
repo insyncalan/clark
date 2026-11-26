@@ -8,7 +8,8 @@ import unittest
 
 from _demo import USER
 from clark import history
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 from test_needs_content import stored_section
 
 MARK = "ZQ-HISTORY-MARK"
@@ -23,7 +24,7 @@ def tracker_body(word):
     return json.dumps({"v": 1, "groups": [{"name": "Plan", "lines": [{"text": word}]}]})
 
 
-class Shown(Api):
+class Shown(_test_changes.Api):
     def write(self, ref, word):
         make = tracker_body if self.s.read(KIND, ref=ref)["type"] == "tracker" else body
         status, got = self.change(self.req("update", id=ref, changes={"body": make(word)}))

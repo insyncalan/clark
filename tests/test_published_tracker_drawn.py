@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_published_tracker_drawn
 Headless Chrome (required)."""
 import json, shutil, tempfile, unittest
 from pathlib import Path
-from test_publish_section_bodies import Published
+import test_publish_section_bodies as _test_publish_section_bodies
 from test_published_work_no_add import open_page, VARIANTS
 from test_server import chrome, wait
 BODY = {"v": 1, "overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "A week behind plan."}, "columns": {}, "groups": [
@@ -13,7 +13,7 @@ BODY = {"v": 1, "overall": {"actual": 625, "planned": 700, "health": "atrisk", "
   {"name": "Roll-out", "lines": [{"no": "3", "text": "Training", "start": "2030-03-15", "end": "2030-04-30", "status": "planned", "weight": 300, "planned": 0, "achieved": 0}]}]}
 
 
-class Drawn(Published):
+class Drawn(_test_publish_section_bodies.Published):
     def test_the_published_file_draws_the_tracker_tile_and_its_lines(self):
         ref = self.section("tracker", title="Progress")
         self.write(ref, json.dumps(BODY))

@@ -16,7 +16,7 @@ from _demo import USER
 from _paths import SRC
 from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, doclinks, linkcard
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome, wait
 from test_tpl_doclinks import MARK, check
@@ -70,7 +70,7 @@ class Checker(unittest.TestCase):
                 self.assertNotIn(word, text, (f.name, word))
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def test_one_save_one_step_one_undo_and_hidden_or_linkless_cards_stay_out(self):
         ref = self.ok("new", values={"type": "linkcard", "title": "Fictional card"}, after=None)["ref"]
         status, a = self.change(self.req(changes.UPDATE, id=ref, changes={"body": card(**CARD)}, place="report"))

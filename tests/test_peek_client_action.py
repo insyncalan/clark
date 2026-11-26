@@ -6,14 +6,15 @@ Run: python3 dev/run_tests.py test_peek_client_action
 import unittest
 
 from _paths import ROOT
-from test_peek_latest import Browser as _Harness, OVERDUE
+from test_peek_latest import OVERDUE
+import test_peek_latest as _test_peek_latest
 from test_server import chrome
 
 
 class Page(unittest.TestCase):
-    setUp = _Harness.setUp
-    fresh = _Harness.fresh
-    load = _Harness.load
+    setUp = _test_peek_latest.Browser.setUp
+    fresh = _test_peek_latest.Browser.fresh
+    load = _test_peek_latest.Browser.load
 
     def test_the_source_has_no_switch_and_the_row_does_not_carry_the_flag(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")

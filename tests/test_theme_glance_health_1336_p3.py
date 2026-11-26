@@ -14,7 +14,8 @@ import unittest
 
 from test_server import chrome, wait
 from test_tpl_glance_editor_1264 import OWN  # noqa: E402
-from test_theme_glance_edit_1336 import ClassicEdit, RULES, tearDownModule  # noqa: F401
+from test_theme_glance_edit_1336 import RULES, tearDownModule
+import test_theme_glance_edit_1336 as _test_theme_glance_edit_1336
 
 PLAN = os.environ.get("CLARK_MOCKUP_DIR") or "/nonexistent"      # no default place: the mock-up compare runs only where CLARK_MOCKUP_DIR names a checkout that holds it
 MOCK = pathlib.Path(PLAN) / "mockups" / "1264-at-a-glance-template" / "html" / "at-a-glance-builder.html"
@@ -45,7 +46,7 @@ MOCK_PROBE = """(function(){ var out = {}; var cell = document.querySelector('[d
   out.shapes = shapes; return out; })()"""
 
 
-class Health(ClassicEdit):
+class Health(_test_theme_glance_edit_1336.ClassicEdit):
     def setUp(self):
         super().setUp()
         with self.store.step("dashboard", __import__("_demo").USER) as st:

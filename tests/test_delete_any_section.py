@@ -9,13 +9,14 @@ import unittest
 
 from _demo import USER
 from clark import as_at, changes, client_filters, excel_cover, glance, publish, store as store_module
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 
 DATA_TABLES = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "report_hidden", "people", "projects")
 BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")
 
 
-class Base(Api):
+class Base(_test_changes.Api):
     def setUp(self):
         super().setUp()
         self.old_actions_row()

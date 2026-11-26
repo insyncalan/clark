@@ -10,7 +10,7 @@ from _demo import USER
 from _paths import ROOT, SRC
 from clark import changes, glance, publish, section_bodies, section_kinds, store as store_module
 from clark.section_kinds import figures4 as _figures, base
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import Base as PageBase
 from test_server import Running, chrome, wait
 
@@ -167,7 +167,7 @@ def make_cases(TYPE, PLACES):
         def test_a_bad_as_at_leaves_live_figures_out_instead_of_failing(self):
             self.assertIsNone(section_bodies.published(TYPE, json.loads(body(live())), base.Context(self.rows(), None)))
 
-    class ThroughTheStore(Api):
+    class ThroughTheStore(_test_changes.Api):
         def section(self, *slots, title="Key figures", **more):
             ref = self.ok("new", values={"type": TYPE, "title": title}, **more)["ref"]
             if slots:

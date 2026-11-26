@@ -9,7 +9,7 @@ import unittest
 
 from _demo import USER
 
-from test_classic_contents_1318 import Classic as Base
+import test_classic_contents_1318 as _test_classic_contents_1318
 from test_inline_67 import size
 from test_server import chrome
 from clark import page, theme  # noqa: F401
@@ -24,7 +24,7 @@ M = ("(function(){var r=function(e){var b=e.getBoundingClientRect();return [Math
      "tw: [...document.querySelectorAll('.glance .fig .tw')].map(e => getComputedStyle(e).display), vw: document.documentElement.clientWidth};})()")
 
 
-class Dash(Base):
+class Dash(_test_classic_contents_1318.Classic):
     def setUp(self):
         super().setUp()
         # row 1266: a new project starts with the Headline and the At a glance template; the figures strip these tests pin (.glance, .hpill, .tw) is the
@@ -40,7 +40,7 @@ class Dash(Base):
             return p.js(M)
 
 
-for _n in [n for n in dir(Base) if n.startswith('test_')]:      # the 1318 tests run in their own file
+for _n in [n for n in dir(_test_classic_contents_1318.Classic) if n.startswith('test_')]:      # the 1318 tests run in their own file
     setattr(Dash, _n, None)
 
 

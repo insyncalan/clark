@@ -27,7 +27,7 @@ from _demo import USER
 from _paths import ROOT, SRC
 from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, workitems as wi
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
 from test_server import Running, chrome, wait, wait_toast
 
@@ -385,7 +385,7 @@ def plant(test):
     s.con.commit()
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def setUp(self):
         super().setUp()
         plant(self)
