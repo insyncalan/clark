@@ -11,4 +11,4 @@ export const UNRULED_ANNOUNCE_STANDARD = "Standard columns shown.";
 export const PANEL_HEADING = "Columns to show";
 // Row 1534: the Work items column-moving words are ruled, so they live in columnOrderWords.js (this file holds only UNRULED_ words and the one ruled heading above);
 // they are re-exported here so the menu reads every column-menu word from this one place.
-export { MOVED } from "./columnOrderWords.js";
+export { MOVED, MOVE_LEFT, MOVE_RIGHT, MOVED_LEFT, MOVED_RIGHT } from "./columnOrderWords.js";
