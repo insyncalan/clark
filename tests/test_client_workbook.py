@@ -95,8 +95,8 @@ class Workbook(unittest.TestCase):
                 continue                           # a workstream is a name, not a row
             self.assertIn(key, "\n".join(self.cells), key)
         for key, marker in self.plant["kept_markers"].items():
-            if key in ("current", "text_section", "health_reason", "PUB-A-001"):
-                continue            # prose on the page's own sections; and an action's own text, which its client wording replaces
+            if key in ("current", "text_section", "health_reason", "PUB-A-001", "latest_update"):
+                continue            # prose on the page's own sections; an action's own text, which its client wording replaces; row 1390: a client sheet has no Latest update column
             self.assertIn(marker, "\n".join(self.cells), key)
 
     def test_rows_are_the_published_rows_and_no_others(self):
