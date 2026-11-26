@@ -810,7 +810,7 @@ def added_page_sections(value):
     text id and title; no section is a Gantt or a Work items section."""
     try:
         got = json.loads(value) if isinstance(value, str) else value
-    except ValueError:
+    except (ValueError, RecursionError):  # Python 3.9 raises RecursionError on deep nesting such as "[" * 5000
         raise Invalid(ADDED_PAGE_BAD_SECTIONS) from None
     if not isinstance(got, list) or len(got) > ADDED_PAGE_SECTION_LIMIT:
         raise Invalid(ADDED_PAGE_BAD_SECTIONS)
