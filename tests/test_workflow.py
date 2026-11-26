@@ -125,7 +125,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("v0.1-release", docs)
         plan = self.jobs["plan"]
         self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
-        self.assertIn("release-*|v*-release*|cut-v*) FULL=1; REL=1 ;;", plan)      # row 1602: a cut branch (cut-v1.3.13) runs the Mac smoke set on a hand-started run, as a release-* branch does
+        self.assertIn("cut-v*) FULL=1; SMOKE=1; CUT=1 ;;", plan)      # row 1602: a cut branch (cut-v1.3.13) runs the Mac smoke set, reported and never required
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
@@ -359,6 +359,32 @@ class Workflow(unittest.TestCase):
             self.assertEqual((out.get("macos", ""), out.get("smoke", ""), out.get("advisory", "")), (macos, smoke, advisory), env)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("py39", ""), "")      # Python 3.9 stays off a push to main (owner's order 08-11)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="release-1.3.11").get("py39"), "1")
+
+    def gate_passes(self, **env):
+        """Run the 'Tests passed' job's script as bash -e (as GitHub runs a step) with these env values and say whether it passes."""
+        import os
+        passed = self.jobs["passed"]
+        body = passed[passed.index("run: |\n") + len("run: |\n"):]
+        script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
+        base = {"PATH": os.environ["PATH"], "PLAN": "success", "TESTS": "success", "PY39": "success", "MACOS": "skipped", "SMOKE": "success",
+                "WANT_SMOKE": "1", "ADVISORY": "", "CUT": "", "WANT_PY39": "1", "WANT_MACOS": "", "EVENT": "workflow_dispatch"}
+        base.update(env)
+        return subprocess.run(["bash", "-e", "-c", script], env=base, capture_output=True, text=True, timeout=60).returncode == 0      # -e: as GitHub runs a step
+
+    def test_a_cut_runs_the_mac_smoke_set_and_reports_it_but_a_red_smoke_never_stops_it(self):
+        """the owner, 26-11 (row 1602, question 74): 'the smoke set runs on every cut and is reported, but never stops it'. A cut-v* branch gets the smoke set
+        (and no full macOS shards) and the plan marks it as a cut; the gate then ignores the smoke result. A release-* branch is unchanged: the smoke is required."""
+        cut = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="cut-v1.3.13")
+        self.assertEqual((cut.get("smoke"), cut.get("cut"), cut.get("macos", "")), ("1", "1", ""))
+        rel = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="release-1.3.11")
+        self.assertEqual((rel.get("smoke"), rel.get("cut", ""), rel.get("macos", "")), ("1", "", ""))
+        self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("cut", ""), "")
+        for result in ("failure", "cancelled", "success", "skipped"):      # a cut: whatever the smoke did, the gate stays green
+            self.assertTrue(self.gate_passes(CUT="1", SMOKE=result), f"cut, smoke {result}")
+        self.assertFalse(self.gate_passes(CUT="1", TESTS="failure"))      # the Ubuntu tests still stop a cut
+        self.assertTrue(self.gate_passes(SMOKE="success"))                # a release line or a push to main: the smoke is still required
+        for result in ("failure", "cancelled", "skipped"):
+            self.assertFalse(self.gate_passes(SMOKE=result), f"release line, smoke {result}")
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 
