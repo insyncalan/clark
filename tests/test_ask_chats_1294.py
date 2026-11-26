@@ -13,7 +13,8 @@ import test_ask_panel
 from test_report_editor import Base
 from test_server import Running, chrome
 
-from test_ask_tabs_1294 import Tabs, WIDTHS
+from test_ask_tabs_1294 import WIDTHS
+import test_ask_tabs_1294 as _test_ask_tabs_1294
 from test_ask_settings import make_db, service
 from test_page import DATA
 from clark import page
@@ -21,7 +22,7 @@ from clark import page
 CHAT = lambda i: {"id": str(i), "at": 1000 + i, "title": f"q{i}", "turns": [{"role": "user", "text": f"q{i}"}, {"role": "assistant", "text": "a"}]}  # noqa: E731
 
 
-class ThemedTabs(Tabs):
+class ThemedTabs(_test_ask_tabs_1294.Tabs):
     THEME = "prototype-2.0"                       # row 1294 is Classic only: the Chats cards are drawn with the Theme
 
     def setUp(self):

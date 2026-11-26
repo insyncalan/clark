@@ -7,7 +7,8 @@ Row 841: a card has 16 px above and below and 24 px at the sides, its heading is
 the gap between two cards is 12 px. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import PAGES, Head
+from test_settings_head import PAGES
+import test_settings_head as _test_settings_head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -26,7 +27,7 @@ CARDS = """(() => { const cs = [...document.querySelectorAll('.set-cards > .fram
           intro: p ? getComputedStyle(p).fontSize : null, gap: prev === null ? null : Math.round(c.getBoundingClientRect().top - prev)}; }); })()"""
 
 
-class Rows(Head):
+class Rows(_test_settings_head.Head):
     def drawn(self, p, w, mode, edit):
         self.open_settings(p, w, mode)
         if edit:

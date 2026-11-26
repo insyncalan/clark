@@ -4,7 +4,7 @@ in a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests
 This first step moves the Freshness and Gantt cards onto the row. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+import test_settings_head as _test_settings_head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -26,7 +26,7 @@ PROBE = """(() => {
   return out; })()""" % list(CONTROLS)
 
 
-class SettingRow(Head):
+class SettingRow(_test_settings_head.Head):
     def test_S1_freshness_and_gantt_use_the_shared_row_with_the_control_at_the_right(self):
         for w in WIDTHS:
             for mode in MODES:

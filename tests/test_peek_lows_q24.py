@@ -12,9 +12,10 @@ import unittest
 import test_gantt_chart as tg
 from test_gantt_chart import contrast, rgb
 from test_gantt_logic import LINES
-from test_milestone_peek_828 import GO_LIVE, Fields
+from test_milestone_peek_828 import GO_LIVE
+import test_milestone_peek_828 as _test_milestone_peek_828
 from test_movement_page import Base
-from test_peek_card import CardBrowser
+import test_peek_card as _test_peek_card
 from test_server import chrome, wait
 
 EDGES = """(() => {
@@ -25,7 +26,7 @@ EDGES = """(() => {
 
 class Progress(Base):
     cur = GO_LIVE
-    visit_peek = Fields.visit_peek
+    visit_peek = _test_milestone_peek_828.Fields.visit_peek
 
     def test_an_empty_progress_chip_says_progress_not_set_and_stays_empty(self):
         """Row 1184: the number box is gone (the Progress chip's ten blocks set it); an empty progress is still empty in the saved data, and the chip says so in the live words."""
@@ -42,7 +43,7 @@ class Progress(Base):
 
 class MilestoneEdges(Base):
     cur = GO_LIVE
-    visit_peek = Fields.visit_peek
+    visit_peek = _test_milestone_peek_828.Fields.visit_peek
 
     def test_the_cards_start_where_the_title_and_the_tabs_start(self):
         for width in (1400, 900):
@@ -58,12 +59,12 @@ class MilestoneEdges(Base):
 
 
 class ItemEdges(unittest.TestCase):
-    setUpClass = CardBrowser.__dict__["setUpClass"]
-    tearDownClass = CardBrowser.__dict__["tearDownClass"]
-    load_page = CardBrowser.load_page
-    edit_mode = CardBrowser.edit_mode
-    ids_on_page = CardBrowser.ids_on_page
-    show_item = CardBrowser.show_item
+    setUpClass = _test_peek_card.CardBrowser.__dict__["setUpClass"]
+    tearDownClass = _test_peek_card.CardBrowser.__dict__["tearDownClass"]
+    load_page = _test_peek_card.CardBrowser.load_page
+    edit_mode = _test_peek_card.CardBrowser.edit_mode
+    ids_on_page = _test_peek_card.CardBrowser.ids_on_page
+    show_item = _test_peek_card.CardBrowser.show_item
 
     def test_the_cards_start_where_the_title_and_the_tabs_start(self):
         for width in (1400, 900):

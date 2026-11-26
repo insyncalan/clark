@@ -11,7 +11,8 @@ import unittest
 
 import _backdrop_pics as pics
 from test_cover_band import artwork
-from test_glance_page import Published, Setup
+from test_glance_page import Setup
+import test_glance_page as _test_glance_page
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -40,7 +41,7 @@ BAR = """(() => {
 })()"""
 
 
-class InTheFile(Published):
+class InTheFile(_test_glance_page.Published):
     def close(self):
         if getattr(self, "_cm", None):
             self._cm.__exit__(None, None, None)

@@ -8,8 +8,8 @@ import unittest
 
 from clark import changes, publish, section_bodies as sb, store as store_module
 from test_changes import KIND
-from test_delete_any_section import Base
-from test_publish_section_bodies import Published
+import test_delete_any_section as _test_delete_any_section
+import test_publish_section_bodies as _test_publish_section_bodies
 
 RULES = sb.Rules(plain=lambda t: True, visible=lambda t: True)
 
@@ -73,7 +73,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(sb.published("usecases", {}), {})
 
 
-class Route(Base):
+class Route(_test_delete_any_section.Base):
     def uc(self):
         return self.of_type("usecases")[0]["id"]
 
@@ -111,7 +111,7 @@ class Route(Base):
         self.assertEqual(json.loads(self.stored(ref)), {"tracker": "bottom"})
 
 
-class InFile(Published, Base):
+class InFile(_test_publish_section_bodies.Published, _test_delete_any_section.Base):
     def uc(self):
         return self.of_type("usecases")[0]["id"]
 

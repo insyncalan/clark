@@ -65,7 +65,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
       out.push(
         <optgroup label={label} key={kind}>
           {rows.map((r) => (
-            <option key={r.id} value={r.id}>{`${r.id}: ${cut(titleOf(r, kind) || "No text", 70)}${publishable(r, kind, rules) ? "" : " (left out of the published page)"}`}</option>
+            <option key={r.id} value={r.id} disabled={r.id !== current && !publishable(r, kind, rules)}>{`${r.id}: ${cut(titleOf(r, kind) || "No text", 70)}${publishable(r, kind, rules) ? "" : " (left out of the published page)"}`}</option>
           ))}
         </optgroup>,
       );
@@ -79,6 +79,9 @@ export function RaidEdit({ section, size: base, choice = false }) {
     const choose = (e) => {
       const id = e.currentTarget.value;
       if (!id) return put(i, null, "Card removed.");
+      // row 1270 (PM ruling 26-11): an item the published page would leave out (hidden, archived) is refused like the picker and the options do; the item the card already holds stays stored
+      const row = rowOf(d, id);
+      if (!(card && card.id === id) && !(row && publishable(row.row, row.kind, rules))) { e.currentTarget.value = card ? card.id : ""; return null; }
       const source = card && card.source === "latest" && kindOfId(id) !== "actions" ? "client" : card ? card.source : "client";
       return put(i, { id, source, own: card ? card.own : "", show: card ? card.show : {} }, card ? "Card changed." : "Card added.");      // an old saved own or latest choice is kept in the body as it was, never drawn
     };

@@ -7,7 +7,8 @@ Classic half and leave it out for the Cards half. Logic runs in node (askSlash.j
 import unittest
 
 import test_palette as tp
-from test_ask_slash import ROWS, SlashPanel, json, run_node
+from test_ask_slash import ROWS, json, run_node
+import test_ask_slash as _test_ask_slash
 from test_palette import Base as PalBase
 from test_server import chrome
 
@@ -42,7 +43,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(run_node("AS.slashMatches('/', true).map(c=>[c.ask, c.act])"), run_node("AS.slashMatches('/', false).map(c=>[c.ask, c.act])"))
 
 
-class Panel(SlashPanel):
+class Panel(_test_ask_slash.SlashPanel):
     def look(self, cdp, classic, width):
         p = self.visit(cdp)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)

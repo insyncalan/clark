@@ -3,11 +3,12 @@ import time
 import unittest
 
 import _paths  # noqa: F401
-from test_gantt_e2e import E2E, Browser, CODE
+from test_gantt_e2e import Browser, CODE
+import test_gantt_e2e as _test_gantt_e2e
 from test_server import chrome, wait
 
 
-class DragEsc(E2E):
+class DragEsc(_test_gantt_e2e.E2E):
     test_the_gantt_from_settings_to_the_published_file = None      # the parent's own flow is not re-run here
 
     def test_esc_cancels_a_bar_drag(self):

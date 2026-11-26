@@ -9,7 +9,7 @@ import unittest
 from _paths import ROOT  # noqa: F401
 
 from test_server import chrome  # noqa: E402
-from test_peek_chips_1180 import Chips  # noqa: E402
+import test_peek_chips_1180 as _test_peek_chips_1180
 
 READ = """(() => { const p = document.querySelector('#peek'); const out = {};
   for (const c of p.querySelectorAll('.pk-chips > [data-row]')) {
@@ -19,7 +19,7 @@ READ = """(() => { const p = document.querySelector('#peek'); const out = {};
   return out; })()"""
 
 
-class ChipIcon(Chips):
+class ChipIcon(_test_peek_chips_1180.Chips):
     def test_icon_20_chevron_at_the_right_edge_text_15_regular(self):
         for width in (1400, 900):
             with chrome() as cdp:
@@ -40,7 +40,7 @@ class ChipIcon(Chips):
 
 
 # only the new test runs here; the inherited ones belong to test_peek_chips_1180
-for _n in [n for n in dir(Chips) if n.startswith("test_")]:
+for _n in [n for n in dir(_test_peek_chips_1180.Chips) if n.startswith("test_")]:
     setattr(ChipIcon, _n, None)
 
 if __name__ == "__main__":
