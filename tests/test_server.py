@@ -576,7 +576,7 @@ class RealSaving(unittest.TestCase):
         self.assertTrue(all("body" not in r for r in body["sections"]))
         status, body = self.post("/api/undo", {"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, body["ok"], body["skipped"]), (200, True, []))
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Next week")
         status, body = self.post("/api/change", {**change, "changes": {"hidden": True}})
         self.assertEqual((status, body["message"], body["code"]), (400, "That must be 0 or 1.", "refused"))
         status, body = self.post("/api/change", {**change, "id": "XYZ-S-001"})
@@ -600,11 +600,11 @@ class RealSaving(unittest.TestCase):
             status, body = self.post("/api/change", {"project": "OLD", "kind": "report_sections", "op": "new", "values": {"title": title}})
             self.assertEqual(status, 200, body)
             made.append(body["apply_id"])
-        self.assertEqual(len(self.sections("OLD")), 13)
+        self.assertEqual(len(self.sections("OLD")), 14)
         status, body = self.post("/api/undo", {"project": "OLD", "apply_id": made[0]})
         self.assertEqual((status, body["skipped"]), (200, []))
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Current state"], ["y", "Hello"], False))
+        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (13, ["Headline"], ["y", "Hello"], False))
 
     def test_a_second_undo_of_an_old_projects_first_change_over_http_is_409_undone_already(self):
         self.old_project("OLD")
@@ -615,7 +615,7 @@ class RealSaving(unittest.TestCase):
         status, again = self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})
         self.assertEqual((status, again.get("ok"), again.get("message"), again.get("code")), (409, False, "That step has been undone already.", "undone"))
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps, "no step was written")
-        self.assertEqual(len(self.sections("OLD")), 10, "the starting sections stay")
+        self.assertEqual(len(self.sections("OLD")), 11, "the starting sections stay")
 
     def test_a_rename_that_seeded_and_is_undone_leaves_all_the_starting_sections(self):
         self.old_project("OLD")
@@ -624,7 +624,7 @@ class RealSaving(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})[0], 200)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[4]), (10, "This week"))
+        self.assertEqual((len(titles), titles[4]), (11, "Next week"))
 
     def test_two_first_adds_at_once_on_an_old_project_make_one_seed_and_two_steps(self):
         self.old_project("OLD")
@@ -640,8 +640,8 @@ class RealSaving(unittest.TestCase):
             t.join(20)
         self.assertEqual(sorted(r[0] for r in results), [200, 200], results)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), sorted(titles[-2:])), (12, ["One", "Two"]))
-        self.assertEqual(titles.count("Current state"), 1, "one seed")
+        self.assertEqual((len(titles), sorted(titles[-2:])), (13, ["One", "Two"]))
+        self.assertEqual(titles.count("Headline"), 1, "one seed")
         steps = {r[0] for r in self.demo.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE item_id LIKE 'OLD-S-%'")}
         self.assertEqual(len(steps), 2, "one step each")
         self.assertEqual(len({r[1]["apply_id"] for r in results}), 2)
@@ -652,7 +652,7 @@ class RealSaving(unittest.TestCase):
         for extra in ({"Origin": "https://evil.example"}, {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}):
             status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"), extra=extra)
             self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"), extra)
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Next week")
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps)
         status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"),
                                      extra={"Origin": f"http://127.0.0.1:{self.s.port}"})
@@ -1543,8 +1543,9 @@ unittest.TestCase._callTestMethod = _call_with_900_pause
 class _Pipe:
     """Chrome's --remote-debugging-pipe (as system/prototype/run_selftest.py): JSON messages ended by a NUL byte."""
 
-    def __init__(self, w, r):
+    def __init__(self, w, r, proc=None):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
+        self.proc = proc                       # Chrome's process, only to name its state in a failure message (row 1625)
         self.events = []                       # every message that is not the answer to a call (page events), in order
 
     # Pages attached through this pipe get focus emulation. A test whose page behaviour assumes an UNFOCUSED page (a field's blur-save or
@@ -1610,12 +1611,14 @@ class _Pipe:
         if session:
             msg["sessionId"] = session
         os.write(self.w, json.dumps(msg).encode() + b"\0")
+        began = time.monotonic()
         while True:
+            self._deadline_check(began, method, session)
             while b"\0" not in self.buf:
-                self._stuck_check(method, params, session)
+                self._stuck_check(method, params, session, began)
                 chunk = os.read(self.r, 1 << 16)
                 if not chunk:
-                    raise RuntimeError("Chrome closed the pipe")
+                    raise RuntimeError(f"Chrome closed the pipe; {self.machine_state()}")
                 self.buf += chunk
             raw, self.buf = self.buf.split(b"\0", 1)
             m = json.loads(raw)
@@ -1631,13 +1634,48 @@ class _Pipe:
     # call fails with the method, its session and the last events instead. The limit is far above any real answer (30 s page waits are polls of
     # many short calls), so no passing test changes. Not on Windows (select does not take pipes there): it blocks as before.
     STUCK_AFTER = 300.0
+    # The silence guard above never fires while Chrome keeps sending events that are not the answer (each event resets it), so a call could
+    # still wait for ever. CALL_DEADLINE is the whole time one call may wait for its own answer, events or not; far above any real answer.
+    CALL_DEADLINE = 600.0
 
-    def _stuck_check(self, method, params, session):
-        if os.name == "nt" or select.select([self.r], [], [], self.STUCK_AFTER)[0]:
+    def machine_state(self):
+        """Words for a failure message, row 1625: Chrome's proc.poll() (None = still running, else its exit code or minus the signal),
+        how many Chrome processes the machine has, and its load. Message text only: it changes no wait and no limit."""
+        poll = "unknown (no process given)"
+        if self.proc is not None:
+            try:
+                poll = repr(self.proc.poll())
+            except Exception as e:
+                poll = f"unreadable ({e!r})"
+        count = "not counted"
+        try:
+            out = subprocess.run(["ps", "-A", "-o", "comm="], capture_output=True, text=True, timeout=10).stdout
+            count = str(sum(1 for line in out.splitlines() if "chrome" in line.lower()))
+        except Exception as e:
+            count = f"not counted ({e!r})"
+        try:
+            load = ", ".join(f"{x:.2f}" for x in os.getloadavg())
+        except (AttributeError, OSError):
+            load = "not available"
+        return f"proc.poll {poll}; Chrome processes {count}; load {load}"
+
+    def _deadline_check(self, began, method, session):
+        if time.monotonic() - began > self.CALL_DEADLINE:
+            last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
+            raise RuntimeError(f"Chrome gave no answer to call {self.n} {method} (session {session!r}) in {self.CALL_DEADLINE:.0f} s, "
+                               f"though bytes kept coming; last events {last}")
+
+    def _stuck_check(self, method, params, session, began=None):
+        wait = self.STUCK_AFTER
+        if began is not None:
+            wait = max(0.0, min(wait, began + self.CALL_DEADLINE - time.monotonic()))
+        if os.name == "nt" or select.select([self.r], [], [], wait)[0]:
             return
+        if began is not None:
+            self._deadline_check(began, method, session)
         last = [(m.get("method"), str(m.get("params"))[:120]) for m in self.events[-5:]]
         raise RuntimeError(f"Chrome gave no answer for {self.STUCK_AFTER:.0f} s to call {self.n} {method} (session {session!r}, params "
-                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}")
+                           f"{str(params)[:200]}); buffered bytes {len(self.buf)}; last events {last}; {self.machine_state()}")
 
     def js(self, expr, session):
         """The value of the expression. A promise is waited for (awaitPromise), so `js("new Promise(r => setTimeout(r, 300))")` takes 300 ms (row 1622)."""
@@ -1656,7 +1694,7 @@ def chrome():
         os.close(to_r)
         os.close(from_w)
         try:
-            yield _Pipe(to_w, from_r)
+            yield _Pipe(to_w, from_r, proc)
         finally:
             stop_chrome(proc)                  # asked, waited for, killed if need be, reaped
             os.close(to_w)
@@ -1683,6 +1721,55 @@ class PipeStuck(unittest.TestCase):
         text = str(cm.exception)
         for part in ("call 1", "Emulation.setEmulatedMedia", "S9", "Page.frameNavigated"):
             self.assertIn(part, text)
+
+    def test_the_stall_and_the_closed_pipe_name_the_machine_state_1625(self):
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        if os.name != "nt":
+            p.STUCK_AFTER = 0.2
+            with self.assertRaises(RuntimeError) as cm:
+                p.call("Page.enable", {}, "S3")
+            for part in ("proc.poll", "Chrome processes", "load"):
+                self.assertIn(part, str(cm.exception))
+            self.assertEqual(p.STUCK_AFTER, 0.2)
+        r2, w2 = os.pipe()
+        os.close(w2)                                     # nobody can write: read returns no bytes
+        self.addCleanup(os.close, r2)
+        closed = _Pipe(sink_w, r2)
+        with self.assertRaises(RuntimeError) as cm:
+            closed.call("Page.enable", {}, "S3")
+        for part in ("Chrome closed the pipe", "proc.poll", "Chrome processes", "load"):
+            self.assertIn(part, str(cm.exception))
+        self.assertEqual((_Pipe.STUCK_AFTER, _Pipe.CALL_DEADLINE), (300.0, 600.0))
+
+    def test_events_that_never_answer_hit_the_call_deadline(self):
+        if os.name == "nt":
+            self.skipTest("select does not take pipes on Windows")
+        r, w = os.pipe()
+        sink_r, sink_w = os.pipe()
+        for fd in (r, w, sink_r, sink_w):
+            self.addCleanup(os.close, fd)
+        p = _Pipe(sink_w, r)
+        p.STUCK_AFTER = 5
+        p.CALL_DEADLINE = 0.3
+        stop = threading.Event()
+        self.addCleanup(stop.set)
+
+        def chatter():
+            while not stop.is_set():
+                try:
+                    os.write(w, json.dumps({"method": "Page.frameNavigated", "params": {}}).encode() + b"\0")
+                except OSError:
+                    return
+                time.sleep(0.02)
+        threading.Thread(target=chatter, daemon=True).start()
+        with self.assertRaises(RuntimeError) as cm:
+            p.call("Page.enable", {}, "S7")
+        for part in ("call 1", "Page.enable", "S7", "kept coming"):
+            self.assertIn(part, str(cm.exception))
 
     def test_an_answer_in_time_is_returned(self):
         r, w = os.pipe()

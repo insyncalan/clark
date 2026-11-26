@@ -36,7 +36,7 @@
     "n": "Edit",
     "t": "Shape the report",
     "ic": "doc",
-    "d": "On the Dashboard, press **Edit**. Write the current state, set the health and choose what the client sees."
+    "d": "On the Dashboard, press **Edit**. Write the Header text, set the health and choose what the client sees."
    },
    {
     "n": "Check",
@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Current state**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
+     "Click the text under **Header**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
@@ -560,8 +560,8 @@
    {
     "id": "keep-the-use-cases",
     "g": "The report",
-    "t": "Keep the use case summary",
-    "w": "Dashboard › Use case summary",
+    "t": "Keep the use cases",
+    "w": "Dashboard › Use cases",
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then a heading line (Ref, Use case, Status, Commitment, Next steps) and one slim row each: the ID, the name, the headline, the status, the commitment (in View, a dash when none; in Edit, a Set commitment button) and the open next steps. Until a number is set in Configure, the first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter cover every use case on the dashboard. On a use case’s own page, **Add a milestone** links it to a milestone and **Unlink** takes the link away; a milestone one of its work items has shows there by itself, as through work items. Each is one step you can undo, and History says who did it.",
@@ -1001,7 +1001,7 @@
         "Project health with its reason, and the count tiles."
        ],
        [
-        "Use case summary",
+        "Use cases",
         "A strip of counts, then a row per use case that opens in place."
        ],
        [
@@ -1009,7 +1009,7 @@
         "The timeline or calendar, the legend and the list of milestones."
        ],
        [
-        "Current state, This week, Next week",
+        "Header, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
        ]
       ]
@@ -1702,7 +1702,7 @@
     "b": [
      [
       "p",
-      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and Client wording, and a milestone’s description and Client wording. Click the text and it opens in place."
+      "One editor everywhere: Header, the text sections, a use case’s Where it stands, an item’s latest update, description and Client wording, and a milestone’s description and Client wording. Click the text and it opens in place."
      ],
      [
       "tbl",
@@ -1751,7 +1751,7 @@
       ],
       [
        [
-        "Current state, text sections, Where it stands",
+        "Header, text sections, Where it stands",
         "Draft from the project (where there is one), Format notes, Improve (with Longer), Structure, Make into, Ask"
        ],
        [
@@ -2751,10 +2751,10 @@
      "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
     },
     {
-     "d": "Open the file. It opens on the Report sheet: a title band with the project name, tagged INTERNAL, and under it the same line the Dashboard header shows (with Shown as at and the date when the report is shown as at a day). Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+     "d": "Open the file. It opens on the Report sheet: a title band with the project name, tagged INTERNAL, and under it the same line the Dashboard header shows (with Shown as at and the date when the report is shown as at a day). Then come the sections the published page shows, in the report’s order: the Header, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
-     "d": "After the Report come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Report are ignored."
+     "d": "After the Report come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines. Each row is one item, with its ID in the first column. A Documents sheet lists the project’s documents, files and links. A History sheet follows with the record of changes, read only. Changes made on the Report are ignored."
     },
     {
      "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. A client who presses **Export to Excel** on a published report gets a different file, made when you published: it leaves out every row that is not shown to the client and every column that says who may see a row, and it has no Internal note, no History sheet and no way to import it back. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."

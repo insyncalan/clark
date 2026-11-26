@@ -68,6 +68,7 @@ class FloatingPill(Base):
                 self.at(cdp, p, w)
                 box = f"(function(){{var r={PILL}.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.left), Math.round(r.width), Math.round(r.height)];}})()"
                 before = p.js(box)
+                p.js("document.body.style.minHeight = '4000px'")          # row 1266: a new project's report is shorter now; make the page long enough to scroll 1500 px
                 p.js("window.scrollTo(0, 1500)")
                 p.until("window.scrollY > 500", f"{w}: scrolled down")
                 after = p.js(box)

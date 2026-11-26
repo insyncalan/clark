@@ -300,10 +300,6 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .pp-flat h1 { margin: var(--space-4) 0 var(--space-2); }
 /* Tech Debt 1500 (Settings sidebar, Classic only; Cards keeps its look): the prototype's 4px between the pages of a group (settings.css:28-29) applies from 900 px up, not only from 1100; the 12px above a group already does (the Row 1285 rule in rules.css). Item 1177 packed this list at 900 to 1099; the prototype wins (PM ruling 22-11 03:00). */
 .set-nav .plain { gap: 4px; }
-/* Row 1286 AP4 (ruling 23-11; Classic only; here because rules.css is at the 128 KB file limit, beside its Row 1286 menu rules at rules.css:411): the icons of Group by, Add and Move to draw the mock-up tones (menu-icons.css:5) - red, green and blue; amber and grey are already the same. The other menus keep production's tones. The three tokens hold exactly the mock-up values in light and in dark (tests/test_menu_icon_tones_1286.py pins them). */
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-r { color: var(--status-red-text); }
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-g { color: var(--status-green-text); }
-:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .ic-b { color: var(--tone-blue-text); }
 /* Row 1294: the Defaults page opens the All projects tab with a text link, as the mock-up A8 draws it (muted dashed underline, brand colour on hover). Classic only. */
 .essentials .ess-link { background: none; border: 0; border-bottom: 1px dashed var(--text-muted); border-radius: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
 .essentials .ess-link:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
@@ -348,6 +344,24 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-turn-acts .ask-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
 .ask-turn-acts .ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ask-turn-acts .ask-act:disabled { cursor: default; opacity: 0.5; }
+/* Row 1252: the Pages card of Settings, Reports. The disabled Add page button and the empty meter use the quiet fill; the amber line is the cap message; at 900 the rows stack. */
+[id="add-pages"] { --hover: var(--grey-100); }
+[id="add-pages"] .ap-limit { background: var(--tone-amber-tint); color: var(--tone-amber-text); border: 1px solid var(--tone-amber-text); border-radius: var(--radius); padding: 8px 14px; margin: 8px 0; }
+[id="add-pages"] .ap-list { margin: 0; padding: 0; list-style: none; }
+[id="add-pages"] .ap-page { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 11px 0; border-top: 1px solid var(--line-soft); }
+[id="add-pages"] .ap-text { flex: 1 1 240px; min-width: 0; }
+[id="add-pages"] .ap-text small, [id="add-pages"] .ap-meter, [id="add-pages"] .ap-cap { display: block; margin: 2px 0 0; color: var(--text-muted); font-size: var(--size-caption); }
+[id="add-pages"] .ap-bar { height: 6px; width: min(260px, 100%); background: var(--hover); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+[id="add-pages"] .ap-bar i { display: block; height: 100%; background: var(--brand-blue); }
+[id="add-pages"] .btn:disabled { background: var(--hover); color: var(--text-muted); cursor: default; }
+[id="add-pages"] .ap-configure { margin-top: 12px; border-top: 1px solid var(--line-soft); }
+[id="add-pages"] .ap-pos { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+[id="add-pages"] .ap-strip { display: flex; margin: 0; padding: 0; list-style: none; overflow-x: auto; background: var(--bar-end); border-radius: var(--radius); }
+[id="add-pages"] .ap-strip li { flex: none; padding: 10px 12px; color: rgba(255, 255, 255, .75); white-space: nowrap; font-size: 13px; }
+[id="add-pages"] .ap-strip li[aria-current] { color: var(--white); box-shadow: inset 0 -3px 0 var(--accent-line); }
+[id="add-pages"] .ap-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 900px) { [id="add-pages"] .set-row { flex-wrap: wrap; } [id="add-pages"] .set-row-ctl { max-width: 100%; } }
+
 /* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
 .ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
 .ask-warn p { margin: 0; }
@@ -468,6 +482,8 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
   :root[data-theme=auto] .aim-ic { color: currentColor; }
 }
+/* Row 1266: the Milestones legend ("At risk" in amber, 4.16:1) sits straight on the brand picture; with Milestones fourth in the new default order it is on screen, so it gets the surface behind it (the contrast on the worst picture: not measured (1634 p7)). Classic only. */
+.msl-bar .mlg-row { background: var(--surface); padding: 2px var(--space-2); border-radius: var(--radius-sm); }
 /* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
 .secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
 /* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */

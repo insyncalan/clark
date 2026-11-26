@@ -17,7 +17,7 @@ from _paths import SRC
 from clark import changes, publish, sanitise, server as sv
 from test_changes import Api, KIND
 
-CURRENT, THIS_WEEK, NEXT_WEEK = "ABC-S-001", "ABC-S-005", "ABC-S-006"
+CURRENT, THIS_WEEK, NEXT_WEEK = "ABC-S-003", "ABC-S-004", "ABC-S-005"
 DIRTY = ('<p onclick="x()">Words <strong>bold</strong> <em>soft</em></p>'
          '<script>window.ZQ_RAN=1</script><style>p{color:red}</style><img src="x" onerror="window.ZQ_RAN=1">'
          '<a href="javascript:window.ZQ_RAN=1">ZQ-BAD-LINK</a><a href="&#106;avascript:window.ZQ_RAN=1">ZQ-ENC-LINK</a>'
@@ -240,7 +240,7 @@ class Refusing(TextBody):
 
     def test_a_section_of_another_type_is_still_refused_a_text_body(self):
         for row in self.rows():
-            if row["type"] in ("text", "needs", "tracker", "usecases", "milestones", "workitems", "doclinks"):      # row 1194 AP13: Documents and links is a new report's default and takes its own content
+            if row["type"] in ("text", "needs", "tracker", "usecases", "milestones", "workitems", "reportheadline", "glancetemplate", "doclinks"):
                 continue
             with self.subTest(type=row["type"]):
                 self.refused_body(row["id"], "<p>x</p>", changes.NO_BODY_HERE)

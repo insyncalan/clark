@@ -8,21 +8,22 @@ The browser parts are required: they fail, never skip, without Chrome (set CLARK
 """
 import unittest
 
-from test_report_editor import Base, IDS  # noqa: E402
+from test_report_editor import Base  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 
 WIDTHS = (1400, 900)
+IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]      # row 1266: a new project starts with eleven sections
 MOVER, HOST = "ABC-S-008", "ABC-S-002"
 BESIDE = IDS[:2] + [MOVER] + IDS[2:7] + IDS[8:]                       # the mover sits right after its host, as the right half
 UP = [MOVER] + [i for i in IDS if i != MOVER]                          # the top quarter of the first section: a row of its own above it
 DOWN = [i for i in IDS if i != MOVER]
-DOWN = DOWN[:4] + [MOVER] + DOWN[4:]                                   # the bottom quarter of the fourth section: a row of its own below it
+DOWN = DOWN[:3] + [MOVER] + DOWN[3:]                                   # the bottom quarter of the third section (the fourth is half of a pair now): a row of its own below it
 
 
 class LiveLayout(Base):
     def flags(self):
         """The pairs the person made: the demo report's own pair (005 and 006) is left out."""
-        return {k: v for k, v in self.beside_flags().items() if v and k != "ABC-S-005"}
+        return {k: v for k, v in self.beside_flags().items() if v and k != "ABC-S-004"}
 
     def classes(self, p):
         return p.js("Object.fromEntries([...document.querySelectorAll('.secs > .sec[data-id]')].map(s => [s.dataset.id, "
@@ -70,11 +71,11 @@ class LiveLayout(Base):
         p.until(f"document.querySelector('[data-id=\"{MOVER}\"]').classList.contains('slot-full')", f"{w}: full width")
         self.assertLess(p.rect(MOVER)["top"], p.rect("ABC-S-001")["top"], f"{w}: above the first section")
         # 3. down: the bottom quarter of the fourth section
-        r = p.rect("ABC-S-004")
+        r = p.rect("ABC-S-003")
         p.drag(MOVER, (r["left"] + r["right"]) / 2, r["bottom"] - 2)
         self.settled(p, DOWN, f"{w}: down")
         self.assertEqual(self.flags(), {}, f"{w}: no pair")
-        self.assertGreater(p.rect(MOVER)["top"], p.rect("ABC-S-004")["bottom"] - 1, f"{w}: below the fourth section")
+        self.assertGreater(p.rect(MOVER)["top"], p.rect("ABC-S-003")["bottom"] - 1, f"{w}: below the third section")
         # a pair again, so the reload has both a half and a row to keep
         r = p.rect(HOST)
         if not stacked:
