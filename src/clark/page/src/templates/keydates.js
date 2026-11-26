@@ -2,6 +2,7 @@
 // its id; what it is called, its date and its state are read live) or a typed date (a label and a day).
 import { milestoneRows, todayIso } from "../logic/milestones.js";
 import { keptRows, rulesFor } from "../logic/publishable.js";
+import { isPublished } from "../filters.js";
 import { dayNumber } from "../workItems.js";
 import { dateWords } from "./safe.js";
 
@@ -38,7 +39,7 @@ export function linesOf(section, data, { fromFile = false, today = todayIso() } 
       const r = rows.get(i.milestone);
       if (!r) return;
       const date = r.achieved || r.expected || r.baseline || r.forecast || "";
-      out.push({ key: i.milestone, label: r.name, date, words: r.word, tone: r.state === "Overdue" || r.state === "Slipped" ? "late" : r.state === "At risk" ? "risk" : "", milestone: true, n });
+      out.push({ key: i.milestone, label: r.name, date, words: r.word, tone: (r.state === "Overdue" || r.state === "Slipped") && !isPublished() ? "late" : r.state === "At risk" ? "risk" : "", milestone: true, n });
     } else if (dayNumber(i.date) !== null) {
       out.push({ key: `t${n}`, label: i.label, date: i.date, words: "", tone: "", milestone: false, n });
     }

@@ -5,6 +5,7 @@
 // listed are the ones marked for the client (the eye). An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek, openPeekEdit } from "../stores/report.js";
+import { isPublished } from "../filters.js";
 import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
 import { classicTheme } from "./Contents.jsx";
 import { richWords } from "../logic/richWords.js";
@@ -68,7 +69,7 @@ export const toneOf = (row, pill) => {
 };
 const COLOUR_WORDS = ["Red", "Amber", "Green"];      // the tile's colour words; the tooltip of an Urgent item drops them (the visible word stays as it is)
 export const iconWords = (row, pill, today) => {
-  const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
+  const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" && !isPublished() ? "Overdue" : "";
   const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue
   // An Urgent item keeps its maroon tile and says Urgent after its status word (Blocked, Delayed, Overdue, Pending ...); only the colour word gives way to Urgent.
   const parts = isUrgent(row) ? [COLOUR_WORDS.includes(pill.text) ? "" : pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];

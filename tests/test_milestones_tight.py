@@ -110,9 +110,12 @@ class Both(unittest.TestCase):
             seen.add((colour.group(1) if colour else None, filled))
             self.assertIsNotNone(r["sub"], f"{where}: the second line is there")
             self.assertTrue(r["sub"] == "Agreed" or r["sub"].startswith(("Expected ", "Achieved", "Forecast", "No agreed")), r["sub"])
-            self.assertEqual(r["late"], r["sub"].startswith("Expected ") and "later" in r["sub"], f"{where}: only the late second line is the red one ({r['sub']})")
+            self.assertEqual(r["late"], r["sub"].startswith("Expected ") and "later" in r["sub"] and not published, f"{where}: only the late second line is the red one (never in a published file, row 1543 AP4) ({r['sub']})")
             self.assertLess(r["subSize"], 13.5, f"{where}: the second line is small")
-        self.assertIn(("red", False), seen, f"{where}: a red ring is on the page")
+        if not published:      # row 1543 AP4: a published file has no red ring (Late and Expected later have no colour)
+            self.assertIn(("red", False), seen, f"{where}: a red ring is on the page")
+        else:
+            self.assertNotIn(("red", False), seen, f"{where}: no red ring in a published file")
         return got
 
     def test_the_live_page_at_1400_and_900_light_and_dark(self):

@@ -4,7 +4,13 @@ and the 1200 and 1100 px edge checks (the 900 px bar is a later part of the row)
 
 Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; run only while the machine's load is under 70)
 """
+import json
+from unittest import mock
+
 import test_glance_page as glance
+from clark import publish
+from clark import store as store_module
+from _demo import USER
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -116,6 +122,100 @@ class Header1543(glance.Published):
                 self.assertEqual(got["n"], 0, f"no editor control in the published header: {got['btns']}")
 
 
+# Row 1543 AP4: what the published page shows for a day that has passed. Read from the drawn page: its text and the words in its labels, tips and titles,
+# and the elements that carry the late look (red or amber late tags, the red milestone marks and the red sub-lines).
+LATE_WORDS = r"(?i)\b(overdue|late|days? late|d late|yesterday)\b"
+LATE_PROBE = """(() => {
+  const keep = (e) => !e.closest('[data-fig]');      // the Dashboard's four tiles are not part of AP4's list (reported, not changed here)
+  const text = [...document.querySelectorAll('main *')].filter((e) => keep(e) && e.children.length === 0).map((e) => e.textContent).join(' | ');
+  const attrs = [...document.querySelectorAll('main [aria-label], main [title], main [data-tip]')].filter(keep)
+    .map((e) => [e.getAttribute('aria-label'), e.getAttribute('title'), e.getAttribute('data-tip')].filter(Boolean).join(' ')).join(' | ');
+  const bad = [...document.querySelectorAll('.late, .tp-late, .due-l.late, .msl-sub.late, .mst.c-red, .mv-mk.c-red, .node.c-red, .cal-ms.c-red, .mtk-chip .c-red, .tpl-dates-row.is-late')].filter(keep).map((e) => e.className);
+  return {text, attrs, bad};
+})()"""
+
+
+class Late1543:      # the tests below are methods of Header1543 (mixed in at the end of the file)
+    def plant_late(self):
+        """An action 3 days ahead of the publish day (2026-10-28), a milestone whose agreed date has passed, and one slipped past its agreed date."""
+        self.a_soon = self.demo.action(description="Book the review room", owner="Pat Demo", due_date="2026-10-31")
+        with self.store.step("dashboard", USER) as st:
+            gone = st.create("milestones", {"project": "ABC", "name": "Passed gate", "baseline_date": "2026-10-01", "forecast_date": "2026-10-05", "source": "demo"})
+            slip = st.create("milestones", {"project": "ABC", "name": "Slipped gate", "baseline_date": "2026-12-01", "forecast_date": "2026-12-20", "source": "demo"})
+            st.create("report_sections", {"project": "ABC", "type": "keydates", "title": "Key dates", "sort_order": 900,
+                                          "body": store_module.check_section_body("keydates", json.dumps({"v": 1, "items": [{"milestone": gone}, {"milestone": slip}]}))})
+        self.demo.plant_builtin_sections()
+
+    def peek_due(self, p):
+        """The peek of the action whose date has passed: the class of its Due date chip's icon and the chip's text (read from the board card's peek)."""
+        p.js("document.querySelector('header.top [data-view=work]').click()")
+        p.until("!!document.querySelector('[data-layout=board]')", "the board switch drew")
+        p.js("document.querySelector('[data-layout=board]').click()")
+        p.until("!!document.querySelector('#work-board article .bc-main')", "the board drew")
+        p.js("[...document.querySelectorAll('#work-board article')].find((x) => x.textContent.includes('Chase the supplier file')).querySelector('.bc-main').click()")
+        p.until("!!document.querySelector('[data-peek] [data-row=due] .pkc-ic')", "the peek's Due date chip drew")
+        return p.js("(() => { const c = document.querySelector('[data-peek] [data-row=due]'); return {cls: c.querySelector('.pkc-ic').className, text: c.textContent, late: c.classList.contains('late')}; })()")
+
+    def peek_ms(self, p, name):
+        """The file's peek of a milestone, opened from the Milestones list: its text and the elements that carry a red or amber look."""
+        p.js("document.querySelector('header.top [data-view=milestones]').click()")
+        p.until("document.querySelectorAll('main .msl-row').length > 0", "the milestones drew")
+        p.js("[...document.querySelectorAll('main .msl-row')].find((x) => x.textContent.includes('%s')).querySelector('.msl-cells').click()" % name)
+        p.until("!!document.querySelector('[data-peek] [data-ms-head]')", f"the peek of {name} drew")
+        return p.js("(() => { const e = document.querySelector('[data-peek]'); return {text: e.textContent, bad: [...e.querySelectorAll('.late, .c-red, .ic-r, .ic-a, .c-amber')].map((x) => x.className)}; })()")
+
+    def pages(self, p):
+        """The text, labels and late-look elements of each page the file has: Dashboard, Work items, Milestones."""
+        out = {}
+        for v in ("dashboard", "work", "milestones"):
+            if p.js(f"!!document.querySelector('header.top [data-view={v}]')"):
+                p.js(f"document.querySelector('header.top [data-view={v}]').click()")
+                p.until(f"document.querySelector('header.top [data-view={v}]').getAttribute('aria-selected') === 'true' && document.querySelectorAll('main .sec, main tr[data-id], main .msl-row, main [data-ms]').length > 0", f"{v} drew")
+                out[v] = p.js(LATE_PROBE)
+                if v == "dashboard":
+                    for key, title in (("soon", "Book the review room"), ("over", "Chase the supplier file")):
+                        out[v][key] = p.js("(() => { const r = [...document.querySelectorAll('.wl-row')].find((x) => x.textContent.includes('%s')), e = r && r.querySelector('.ico-w'); return e ? e.className : 'NONE'; })()" % title)
+        return out
+
+    def test_published_report_never_highlights_late(self):
+        self.plant_late()
+        real = publish.read_inputs
+
+        def with_board(*a, **k):      # the Work items board is how a file opens the peek (row 1533: the author's switch)
+            inputs = real(*a, **k)
+            inputs["data"]["project"]["show_board_client"] = 1
+            return inputs
+        with mock.patch.object(publish, "read_inputs", with_board):
+            path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                seen = self.pages(p)
+                self.assertGreaterEqual(len(seen), 3, f"control: the three pages were read, {sorted(seen)}")
+                self.assertIn("Passed gate", seen["milestones"]["text"], "control: the milestone with a passed date is on the page")
+                self.assertIn("Chase the supplier file", seen["work"]["text"] + seen["dashboard"]["text"], "control: the overdue action is on the page")
+                for v, got in seen.items():
+                    self.assertNotRegex(got["text"], LATE_WORDS, f"{v}: no late word in the text")
+                    self.assertNotRegex(got["attrs"], LATE_WORDS, f"{v}: no late word in a label, tip or title")
+                    self.assertEqual(got["bad"], [], f"{v}: no late look")
+                peek = self.peek_due(p)
+                self.assertNotRegex(peek["cls"], r"\bic-[ra]\b", f"the peek's Due date icon of the passed date has no red and no amber: {peek}")
+                self.assertNotRegex(peek["text"], LATE_WORDS, "and the peek says no late word")
+                for name in ("Passed gate", "Slipped gate"):
+                    ms = self.peek_ms(p, name)
+                    self.assertIn(name, ms["text"], "control: the milestone's own peek is open")
+                    self.assertNotRegex(ms["text"], LATE_WORDS, f"{name}: no late word in the peek: {ms['text']}")
+                    self.assertEqual(ms["bad"], [], f"{name}: no red or amber look in the peek")
+                self.assertIn("Expected later", seen["milestones"]["text"], "'Expected later' stays, plain")
+                self.assertRegex(seen["dashboard"]["soon"], r"\ba\b", "amber for 'due within 7 days' stays")
+                self.assertNotRegex(seen["dashboard"]["over"], r"\b[ra]\b", "the action whose date has passed has no red and no amber")
+
+
+for _cls in (Late1543,):
+    for _name in dir(_cls):
+        if _name.startswith(("test", "plant_", "pages", "peek_")):
+            setattr(Header1543, _name, getattr(_cls, _name))
 for _name in dir(glance.Published):      # the base class's own tests are run in its own file
     if _name.startswith("test") and _name not in Header1543.__dict__:
         setattr(Header1543, _name, None)
