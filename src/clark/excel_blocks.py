@@ -36,6 +36,7 @@ def reportheadline_block(sec):
 PICTURE = "picture not in this export"
 PICTURES = "{n} pictures not in this export"
 DOT = " · "
+TICKED, UNTICKED = "\u2611 ", "\u2610 "      # the Word export's own ticks (docx_build.py), glyph and one space
 
 
 def _content(sec):
@@ -132,7 +133,7 @@ def checklist_block(sec):
     out = []
     for i in _dicts(sec.get("items")):
         if _s(i.get("text")):
-            out.append(("[x] " if i.get("done") == 1 else "[ ] ") + _s(i.get("text")))
+            out.append((TICKED if i.get("done") == 1 else UNTICKED) + _s(i.get("text")))
     return _framed(sec, out)
 
 

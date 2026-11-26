@@ -69,7 +69,7 @@ class EachType(unittest.TestCase):
         texts = [t for k, t in got if k == "text"]
         for want in ("Words one", "Quote one", "Sam Fict · Sponsor", "Para one\nPara two", "Note ti", "Note ic", "Note g1", "Note g2",
                      "Open · 7 · of 9", "Done · 3", "Col A · Col B", "a1 · b1", "Note t", "Pat Fict · Lead · ann@example.org · 123",
-                     "[x] Send plan", "[ ] Book room", "Go live · 01-02-2030"):
+                     "\u2611 Send plan", "\u2610 Book room", "Go live · 01-02-2030"):
             self.assertIn(want, texts)
 
     def test_a_picture_says_picture_not_in_this_export(self):
@@ -91,6 +91,11 @@ class EachType(unittest.TestCase):
         for kind in excel_blocks.BLOCKS:
             for c in (None, {}, 5, "x", [], {"quotes": 3, "pictures": "x", "people": None, "rows": [1], "cols": 4}):
                 self.assertEqual(excel_blocks.block(sec(kind, "T", content=c, items=c, figures=c)), [], (kind, c))
+
+    def test_the_ticks_are_the_word_exports_glyphs_with_one_space(self):
+        got = words(excel_blocks.block(sec("checklist", "C", v=1, items=[{"text": "A", "done": 1}, {"text": "B", "done": 0}])))
+        self.assertEqual(got, [("heading", "C"), ("text", "\u2611 A"), ("text", "\u2610 B")])
+        self.assertEqual(excel_blocks.TICKED + excel_blocks.UNTICKED, "\u2611 \u2610 ")
 
     def test_a_section_with_no_title_has_no_heading_line(self):
         self.assertEqual(one("quote", "", {"quotes": [{"quote": "Q"}]}), [("text", "Q")])
