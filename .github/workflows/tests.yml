@@ -14,6 +14,8 @@
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
 # label `full-ci`, and by hand.
 #
+# NO Tests run on a push to main (Bifrost 2.0 P7, Alan 26-11): a change was tested in Mergify's combined run (branch mergify/merge-queue/*, or the merge_group event) before it merged.
+#
 # macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
 #  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
 #    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
@@ -55,8 +57,6 @@ on:
       macos: {description: "Add the macOS job", type: boolean, required: false, default: false}
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
-  push:
-    branches: [main]
   schedule:
     - cron: "0 22 * * *"      # every night at 02:00 Dubai (22:00 UTC), on main only (GitHub runs a schedule on the default branch): the full Ubuntu suite (required) and the full macOS suite (advisory)
   merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
@@ -124,6 +124,8 @@ jobs:
             release-*|v*-release*) FULL=1; REL=1 ;;
             cut-v*) FULL=1; SMOKE=1; CUT=1 ;;      # a release cut (cut-v1.3.13): the Mac smoke set runs and is reported, but it is never part of "Tests passed" (the owner, 26-11, row 1602, question 74: "the smoke set runs on every cut and is reported, but never stops it")
           esac
+          # Mergify's combined run (its draft pull request on top of main, branch mergify/merge-queue/...): the full Ubuntu matrix, once, the only full run before a merge (Bifrost 2.0 P7)
+          if [ "${BRANCH#mergify/merge-queue/}" != "$BRANCH" ]; then FULL=1; fi
           # A pull request that TARGETS a release branch is part of the release line too (its base, not only its head branch).
           case "$BASE_REF" in
             release-*|v*-release*) FULL=1; REL=1 ;;
