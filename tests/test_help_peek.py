@@ -31,6 +31,9 @@ GONE = "!document.querySelector('#help-peek') && !document.querySelector('.peek.
 
 
 class Peek(Base):
+    # the slide in has ended when nothing animates in the peek and its right edge is the edge of the page's own width: a drawn scrollbar (Linux, Windows) takes room from the window, so innerWidth is not that edge there
+    SLID_IN = "document.querySelector('#help-peek').getAnimations({subtree: true}).length === 0 && document.querySelector('#help-peek').getBoundingClientRect().right === document.documentElement.clientWidth"
+
     def setUp(self):
         super().setUp()
         self.stub = Stub()
@@ -168,7 +171,12 @@ class Peek(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_on_key(p)
+            # #1693: the peek slides in for 500 ms (pk-in) and p.box waits only for the sections' glide, so a point read mid-slide could be off the
+            # peek by the press, and helpStore.js closes the peek on a mousedown outside it. Read the point once the slide has ended (the same wait
+            # as the look test below), and check that the point is on the peek before pressing.
+            p.until(self.SLID_IN, "the slide in has ended")
             x, y, _ = p.box("#help-peek h2")
+            p.until(f"(e => !!e && !!e.closest('#help-peek'))(document.elementFromPoint({x}, {y}))", "the press point is on the peek's own text")
             p.mouse("mousePressed", x, y, 1)
             p.mouse("mouseReleased", x, y, 0)
             self.assertEqual(p.js("!!document.querySelector('#help-peek')"), True, "a click on its own text keeps it")
@@ -271,8 +279,7 @@ class Peek(Base):
                     p.js("document.activeElement && document.activeElement.blur()")
                     self.open_on_key(p)
                     where = f"{w} {scheme}"
-                    # the slide in has ended when nothing animates in the peek and its right edge is the edge of the page's own width: a drawn scrollbar (Linux, Windows) takes room from the window, so innerWidth is not that edge there
-                    p.until("document.querySelector('#help-peek').getAnimations({subtree: true}).length === 0 && document.querySelector('#help-peek').getBoundingClientRect().right === document.documentElement.clientWidth", f"{w} {scheme}: the slide in has ended")
+                    p.until(self.SLID_IN, f"{w} {scheme}: the slide in has ended")
                     r = p.js("""(function () {
                       var e = document.querySelector('#help-peek'), b = e.getBoundingClientRect(), t = document.querySelector('header.top').getBoundingClientRect();
                       var btn = document.querySelector('#profile-btn').getBoundingClientRect(), hit = document.elementFromPoint(btn.left + btn.width / 2, btn.top + btn.height / 2);
