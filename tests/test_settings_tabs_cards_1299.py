@@ -1,8 +1,7 @@
-"""Row 1299 AP11: the project cards follow the Settings tab's project, in a real browser at 1400 px. Run: python3 dev/run_tests.py test_settings_tabs_cards_1299
+"""Row 1299 AP11: the STORE behind the project cards follows the Settings tab's project, in a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_tabs_cards_1299
 
-What is asserted (Classic): with the tab on a project other than the open one (T, here ABC; the open one O is PUB) the store reads T's data (GET /api/data?project=ABC), and the
-cards show and save T's values: a save goes to T's code, the toast and its Undo name T, T's data is read again, and O's data and the top bar are not touched. A tab that is the open
-project reads nothing again. A failed read of T's data shows no values (never O's) and the page's plain failure words. Chrome is required: these tests fail, never skip, without it.
+What is asserted (Classic), on the store only (no card is drawn from it yet; the switch stays a test hook, so the page's cards are not proven to follow the tab): with the tab on a project other than the open one (T, here ABC; the open one O is PUB) the store reads T's data (GET /api/data?project=ABC) and hands it out (settingsProjectData); a change made for T goes to T's code, the toast and its Undo name T, T's data is read again, and O's data and the top bar are not touched. A tab that is the open
+project reads nothing again. A failed read of T's data hands out no values (never O's); a failed read AFTER T's data was held drops it, and the page says the change was saved but could not be refreshed. Chrome is required: these tests fail, never skip, without it.
 """
 import copy
 import unittest
@@ -52,8 +51,10 @@ class Cards(Rigged):
         real_change, real_undo = rig.httpd.change, rig.httpd.undo
         rig.httpd.data_for, rig.httpd.change, rig.httpd.undo = data_for, change, undo
 
+    w, mode = 1400, "light"
+
     def settings(self, p, slug):
-        self.open_settings(p, 1400, slug=slug)
+        self.open_settings(p, self.w, self.mode, slug=slug)
         p.until(f"{TABS}.length === 2", "the tabs drew")
 
     def choose_abc(self, p):
@@ -61,7 +62,7 @@ class Cards(Rigged):
         p.until(f"{TABS}[1].getAttribute('aria-current') === 'page' && clarkPage.settingsProjectData() && clarkPage.settingsProjectData().project.code === 'ABC'", "ABC's data was read")
 
 
-class TabStore(Cards):
+class StoreTests:
     def test_a_tab_reads_its_projects_data_and_the_open_project_stays(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -105,6 +106,28 @@ class TabStore(Cards):
             p.js(f"{TABS}[1].click()")
             p.until("clarkPage.settingsRead() === 'failed'", "the read failed")
             self.assertIsNone(p.js("clarkPage.settingsProjectData()"), "no data, not the open project's")
+
+    def test_a_failed_re_read_after_a_change_drops_the_held_data_and_says_so(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.settings(p, "reports")
+            self.choose_abc(p)
+            self.fail_abc = True
+            p.js("clarkPage.changeFor('ABC', {kind: 'projects', op: 'update', changes: {review_after_days: 21}, place: 'menu'}, 'Not reviewed after: 21 days.')")
+            p.until("clarkPage.settingsRead() === 'failed'", "the re-read failed")
+            self.assertIsNone(p.js("clarkPage.settingsProjectData()"), "T's old values are gone, and O's are not shown in their place")
+            p.until("!!clarkPage.toast() && clarkPage.toast().kind === 'problem'", "the page says the re-read failed")
+            self.assertEqual(p.js("clarkPage.toast().text"), "The change was saved, but the page could not be refreshed. Reload the page to see it.")
+
+
+class TabStore(StoreTests, Cards):
+    pass
+
+
+for _w in (1400, 900):
+    for _m in ("light", "dark"):
+        if (_w, _m) != (1400, "light"):
+            globals()[f"TabStore{_w}{_m.title()}"] = type(f"TabStore{_w}{_m.title()}", (StoreTests, Cards), {"w": _w, "mode": _m})
 
 
 if __name__ == "__main__":
