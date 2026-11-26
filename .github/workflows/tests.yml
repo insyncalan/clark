@@ -14,7 +14,7 @@
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
 # label `full-ci`, and by hand.
 #
-# NO Tests run on a push to main (Bifrost 2.0 P7, Alan 26-11): a change was tested in Mergify's combined run (branch mergify/merge-queue/*, or the merge_group event) before it merged.
+# NO Tests run on a push to main (Bifrost 2.0 P7, the owner, 26-11): a change was tested in Mergify's combined run (branch mergify/merge-queue/*, or the merge_group event) before it merged.
 #
 # macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
 #  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
