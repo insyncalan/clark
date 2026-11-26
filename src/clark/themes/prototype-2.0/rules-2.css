@@ -482,10 +482,6 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
   :root[data-theme=auto] .aim-opt:hover, :root[data-theme=auto] .aim-opt:focus-visible { background: var(--brand-blue-tint); }
   :root[data-theme=auto] .aim-ic { color: currentColor; }
 }
-/* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
-.secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
-/* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
-html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1233 (s7, Classic only; Cards keeps its cover tile): a small image (framed copy under SMALL_WIDE (600 px, Row 1580) wide, the Gallery view marks its frame .small) sits centred at its own size in its tile on its fill (the image's own blurred copy, the brand colour or plain), never enlarged; the tile keeps the shape for all, Whole has no fill area. The large view: padding 30, caption 14px 10px below, close at top 16 right 20 (spec row 14, comment 7022644457; overlay rgba(6,20,30,.82) as the PM ruled, WO-M16293). The tile caption is the mock-up's .tile .tcap: 13px, rgb(71, 85, 119), margin 8px 2px 0 (the same as the Edit caption .fcap; PM ruling 03:19, .tcap = .fcap). */
 .tpl-gal-vframe { display: block; }
 .tpl-gal-vframe.small { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius); aspect-ratio: 4 / 3; background: var(--grey-100); }
@@ -500,6 +496,10 @@ html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shado
 .tpl-gal-x { top: 16px; right: 20px; display: inline-block; width: auto; height: auto; padding: 6px 14px; border-radius: 999px; background: rgb(255, 255, 255); font: inherit; } /* AP14 close: the mock-up's .lb button (gallery-source.html:58): white pill, padding 6px 14px, text 'Close (Esc)' */
 .tpl-gal-large::backdrop { background: rgba(6, 20, 30, .82); }
 .tpl-gal .tpl-gal-fig figcaption { margin: 8px 2px 0; font-size: 13px; color: var(--grey-700); text-align: left; }
+/* Row 1592 (Classic only; Cards keeps its own rule in shell.css): a full width image section shows its heading (number and title) above the picture, in View and in the published file, like every other section. shell.css hides it for the Cards page; the section's own heading display is the one the shared .sec-head rule gives (flex), so no new size or token. The per-section heading switch (.no-head) still hides it in View. */
+.secs .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: flex; }
+/* Row 1606 (Classic only; Cards untouched): a Tile-off section is clear, so the band-coloured strip the comfortable-density left slot paints beside it (rules.css item 1311) goes too. */
+html[data-density="comfortable"] .secs > .sec.slot-left.band.no-tile { box-shadow: none; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
