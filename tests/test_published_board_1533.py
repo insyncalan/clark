@@ -142,6 +142,19 @@ class PublishedBoard(unittest.TestCase):
         for word in WRITE_WORDS[:2]:
             self.assertNotIn(word, text, f"the file holds no {word}")
 
+    def test_published_page_carries_no_drag_attribute_on_any_element(self):
+        """Row 1534: the column drag of the editor's Work items headings (data-colmove) and the board's Move button (data-move) are editor-only. The published
+        page, with the board switch on or off, has no ELEMENT that carries either attribute, in the list and on the board, so the guard does not depend on a name."""
+        for which in ("on", "off"):
+            for w in (1400, 900):
+                with chrome() as cdp:
+                    sid = self.page(cdp, getattr(self, which), w, "light")
+                    self.assertGreater(cdp.js("document.querySelectorAll('#work th').length", sid), 0, f"{which} {w}: the list headings are there")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-colmove], [data-move]').length", sid), 0, f"{which} {w} list: no drag attribute")
+                    if which == "on":
+                        self.to_board(cdp, sid)
+                        self.assertEqual(cdp.js("document.querySelectorAll('[data-colmove], [data-move]').length", sid), 0, f"{which} {w} board: no drag attribute")
+
     def test_published_board_card_opens_the_peek(self):
         with chrome() as cdp:
             sid = self.page(cdp, self.on)
