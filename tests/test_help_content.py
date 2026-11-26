@@ -105,15 +105,15 @@ class Shape(unittest.TestCase):
             self.assertNotIn(gone, text)
 
     def test_the_add_documents_and_links_entry_exists(self):
-        """Row 1194 AP14: the Help entry for the Documents and links section, placed in Edit, and the BRD line FR-100a."""
+        """Row 1194 AP14: the Help entry for the Documents section, placed in Edit, and the BRD line FR-100a."""
         entry = [t for t in STEPS if t["t"] == "Add documents and links"]
         self.assertEqual(len(entry), 1)
-        self.assertEqual(entry[0]["w"], "Dashboard \u203a Edit \u203a Documents and links")
+        self.assertEqual(entry[0]["w"], "Dashboard \u203a Edit \u203a Documents")
         self.assertEqual(entry[0]["go"], "dashboard+edit")
         self.assertIn("A section holds up to 20 entries.", entry[0]["s"])
-        self.assertIn("A new report starts with a Documents and links section. Reports you saved before keep their Supporting documents section.", entry[0]["s"])      # AP14, words approved 26-11
+        self.assertIn("A new report starts with a Documents section. Reports you saved before keep their Supporting documents section.", entry[0]["s"])      # AP14, words approved 26-11
         brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
-        self.assertIn("- **FR-100a:** A new report starts with a Documents and links section instead of Supporting documents.", brd)
+        self.assertIn("- **FR-100a:** A new report starts with a Documents section (from the Files and links card) instead of Supporting documents.", brd)
 
     def test_three_tabs_from_one_source(self):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
