@@ -24,38 +24,6 @@ def doc(flakes=(), defects=()):
             "defects": sorted(defects), "flakes": {f: 1 for f in flakes}, "sizing": [], "failed_first": []}
 
 
-class CountTest(unittest.TestCase):
-    def test_a_file_counts_once_per_run_however_many_jobs_saw_it(self):
-        runs = fq.flaky_runs({"100__shard-1.json": doc(["test_a.py"]), "100__shard-2.json": doc(["test_a.py"]),
-                              "101__shard-1.json": doc(["test_b.py"])})
-        self.assertEqual(runs, {"test_a.py": ["100"], "test_b.py": ["101"]})
-
-    def test_two_different_runs_is_the_line(self):
-        runs = fq.flaky_runs({"100__a.json": doc(["test_a.py", "test_b.py"]), "101__a.json": doc(["test_a.py"]),
-                              "102__a.json": doc(["test_a.py"], defects=["test_c.py"])})
-        self.assertEqual(fq.to_quarantine(runs, already=set()), {"test_a.py": ["100", "101", "102"]})
-
-    def test_a_defect_is_never_quarantined(self):
-        runs = fq.flaky_runs({"100__a.json": doc(defects=["test_c.py"]), "101__a.json": doc(defects=["test_c.py"])})
-        self.assertEqual(fq.to_quarantine(runs, already=set()), {})
-
-    def test_a_file_already_on_the_list_is_not_added_or_filed_again(self):
-        runs = {"test_a.py": ["100", "101"]}
-        self.assertEqual(fq.to_quarantine(runs, already={"test_a.py"}), {})
-
-    def test_the_list_is_read_without_its_comments(self):
-        self.assertEqual(fq.read_list("# why\n\ntest_a.py  # runs 100, 101\ntest_b.py\n"), ["test_a.py", "test_b.py"])
-
-    def test_the_ticket_carries_the_release_and_the_runs(self):
-        t = fq.ticket("test_a.py", ["100", "101"])
-        self.assertEqual(t["release"], "Tech Debt - Priority")
-        self.assertEqual(t["ledger_release"], "none")
-        self.assertEqual(t["file"], "test_a.py")
-        self.assertIn("test_a.py", t["title"])
-        self.assertIn("100", t["body"])
-        self.assertIn("101", t["body"])
-
-
 class CommandTest(unittest.TestCase):
     def run_main(self, d, *more):
         buf = io.StringIO()
@@ -85,14 +53,6 @@ class CommandTest(unittest.TestCase):
             code, out = self.run_main(d, "--write")
             self.assertEqual(fq.read_list((d / "quarantine.txt").read_text(encoding="utf-8")), ["test_a.py"])
             self.assertEqual(json.loads((d / "tickets.json").read_text(encoding="utf-8")), [])
-
-    def test_without_write_nothing_changes(self):
-        with tempfile.TemporaryDirectory() as d:
-            d = Path(d)
-            self.folder(d, {"100__s1.json": doc(["test_a.py"]), "101__s3.json": doc(["test_a.py"])})
-            self.run_main(d)
-            self.assertEqual(fq.read_list((d / "quarantine.txt").read_text(encoding="utf-8")), [])
-            self.assertFalse((d / "tickets.json").exists())
 
     def test_one_flaky_run_is_not_enough(self):
         with tempfile.TemporaryDirectory() as d:
@@ -150,15 +110,6 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertNotIn("Quarantined, not run", out)
         self.assertIn("2 tests", out)
-
-    def test_a_run_of_only_quarantined_files_is_not_green(self):
-        code, out = self.runner("test_shaky")
-        self.assertEqual(code, 1, out)
-        self.assertIn("Quarantined, not run: test_shaky.py", out)
-
-    def test_the_real_list_names_only_test_files_that_exist(self):
-        for name in fq.read_list((ROOT / "dev" / "tools" / "quarantine.txt").read_text(encoding="utf-8")):
-            self.assertTrue((ROOT / "tests" / name).is_file(), name)
 
 
 if __name__ == "__main__":

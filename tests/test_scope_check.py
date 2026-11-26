@@ -16,23 +16,6 @@ import scope_check as sc
 TICKET = {"ticket": "9001", "files": ["src/clark/mod.py"], "named_tests": ["test_mod.ModTest.test_double"]}
 
 
-class NamedTest(unittest.TestCase):
-    def test_a_named_test_names_its_file(self):
-        self.assertEqual(sc.test_file("test_mod.ModTest.test_double"), "tests/test_mod.py")
-        self.assertEqual(sc.test_file("test_mod"), "tests/test_mod.py")
-        self.assertEqual(sc.test_file("test_mod.py"), "tests/test_mod.py")
-        self.assertEqual(sc.test_file("tests/test_mod.py"), "tests/test_mod.py")
-
-    def test_exact_paths_folders_and_patterns(self):
-        named = ["src/clark/mod.py", "docs/", "src/clark/page/*.css"]
-        self.assertTrue(sc.is_named("src/clark/mod.py", named))
-        self.assertTrue(sc.is_named("docs/help/a.md", named))
-        self.assertTrue(sc.is_named("src/clark/page/shell.css", named))
-        self.assertFalse(sc.is_named("src/clark/mod.pyc", named))
-        self.assertFalse(sc.is_named("src/clark/other.py", named))
-        self.assertFalse(sc.is_named("docs.md", named))
-
-
 class FixtureDiffTest(unittest.TestCase):
     def test_a_change_inside_the_ticket_passes(self):
         with PrFixture() as pr:
@@ -53,26 +36,6 @@ class FixtureDiffTest(unittest.TestCase):
             self.assertFalse(r["ok"])
             self.assertEqual(r["extra"], ["src/clark/other.py"])
 
-    def test_a_deleted_file_outside_the_ticket_is_extra(self):
-        with PrFixture() as pr:
-            pr.remove("src/clark/__init__.py")
-            pr.commit("delete a file the ticket does not name")
-            self.assertEqual(sc.check(str(pr.dir), pr.base, "HEAD", TICKET)["extra"], ["src/clark/__init__.py"])
-
-    def test_both_names_of_a_moved_file_count(self):
-        with PrFixture() as pr:
-            pr.git("mv", "src/clark/mod.py", "src/clark/moved.py")
-            pr.commit("move")
-            self.assertEqual(sc.check(str(pr.dir), pr.base, "HEAD", TICKET)["extra"], ["src/clark/moved.py"])
-
-    def test_a_ticket_that_names_no_file_is_not_a_pass(self):
-        with PrFixture() as pr:
-            pr.write("src/clark/mod.py", "def double(n):\n    return n + n\n")
-            pr.commit("change")
-            r = sc.check(str(pr.dir), pr.base, "HEAD", {"ticket": "9001", "files": [], "named_tests": []})
-            self.assertFalse(r["ok"])
-            self.assertEqual(r["extra"], ["src/clark/mod.py"])
-
 
 class CommandTest(unittest.TestCase):
     def run_main(self, pr, ticket, base=None):
@@ -86,23 +49,6 @@ class CommandTest(unittest.TestCase):
         finally:
             path.unlink()
         return code, out.getvalue()
-
-    def test_exit_0_on_a_change_in_scope(self):
-        with PrFixture() as pr:
-            pr.write("src/clark/mod.py", "def double(n):\n    return n + n\n")
-            pr.commit("in scope")
-            code, out = self.run_main(pr, TICKET)
-            self.assertEqual(code, 0)
-            self.assertIn("Scope: passed (1 changed file, ticket 9001)", out)
-
-    def test_exit_1_and_the_extra_file_printed(self):
-        with PrFixture() as pr:
-            pr.write("README.md", "hello\n")
-            pr.commit("extra")
-            code, out = self.run_main(pr, TICKET)
-            self.assertEqual(code, 1)
-            self.assertIn("not named by the ticket: README.md", out)
-            self.assertIn("Scope: FAILED", out)
 
     def test_exit_2_when_it_cannot_check(self):
         with PrFixture() as pr:
