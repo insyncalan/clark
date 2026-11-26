@@ -17,6 +17,10 @@ class TimeMachine(unittest.TestCase):
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
         self.run_ = mock.Mock()
+        env = mock.patch.dict(os.environ)                        # these tests exercise the real code path: the CLARK_TEST guard is off here
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("CLARK_TEST", None)
         for p in (mock.patch.object(pl.subprocess, "run", self.run_), mock.patch.object(pl, "system", return_value=pl.MAC)):
             p.start()
             self.addCleanup(p.stop)
@@ -54,6 +58,13 @@ class TimeMachine(unittest.TestCase):
             self.run_.side_effect = err
             self.make()
             self.assertTrue(ask_index.path_for(self.d, "P1").exists())
+
+    def test_under_clark_test_nothing_runs_tmutil(self):
+        os.environ["CLARK_TEST"] = "1"
+        self.run_.side_effect = AssertionError("the real tmutil must never run under CLARK_TEST=1")
+        self.make()
+        pl.exclude_from_backup(self.d)
+        self.run_.assert_not_called()
 
     def test_a_missing_folder_is_not_created_for_a_read(self):
         self.assertIsNone(ask_index._open(self.d, "P1", create=False))
