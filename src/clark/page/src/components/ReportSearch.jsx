@@ -17,9 +17,9 @@ export function ReportSearch() {
   return (
     <>
       {narrowHeader.value ? null : (
-        <a role="button" tabindex="0" class="tb-act" id="pub-search-btn" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }} ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
+        <button type="button" class="tb-act" id="pub-search-btn" ref={btn} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)" onClick={() => setOpen(true)}>
           <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
-        </a>
+        </button>
       )}
       {open ? <Box onClose={() => setOpen(false)} /> : null}
     </>
