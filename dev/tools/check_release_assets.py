@@ -15,7 +15,9 @@ so), and its zip must have been attached before the release was published (the o
 From updates.FIRST_SIGNED (1.4.0) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
 file must verify over the zip's bytes with RELEASE_PUBLIC_KEY (updates.check_signature); a missing, wrong-length or non-verifying
 .sig fails.
-1.3.13 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required).
+1.3.13 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required). The app itself also
+still installs a 1.4.0 or newer download that has no .sig at all (updates.UNSIGNED_UPGRADES_ALLOWED); it refuses only a .sig
+that does not verify, so this check and publish_public.py are what refuse an unsigned release.
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
 60 seconds, or an unreadable answer).
@@ -93,7 +95,7 @@ def _signature_lines(r, tag, want, notes, fetch, key):
     sig_name = want + updates.SIGNATURE_SUFFIX
     sig, zipped = _asset(r, sig_name), _asset(r, want)
     if sig is None:
-        return [f"{tag}: the release has no {sig_name}, so the app would refuse this update as unsigned. The owner signs the zip "
+        return [f"{tag}: the release has no {sig_name}, and a release from 1.4.0 up must carry one (the app itself still installs a download with no .sig, so this check is what stops it). The owner signs the zip "
                 f"(`python3 dev/tools/sign_release.py sign {want}`, dev/RELEASING.md step 7a), attaches the .sig beside the zip, "
                 f"then run this check again."]
     if fetch is None:
@@ -170,7 +172,7 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
                 sig_noted = True
                 notes.append("The .sig of each release from 1.4.0 up was not checked: the .sig is asked only of a tag named on the "
                              "command line (dev/RELEASING.md step 20).")
-            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line: shipped 1.3.4 to 1.3.7 have none
+            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line, and only from 1.4.0 up (_signature_lines); 1.3.13 and older are never asked
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
