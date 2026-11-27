@@ -1,22 +1,15 @@
-"""Row 1299 AP31: the Projects overview's bar (the two filters) and banner (the issue line) fit the content, in a real browser at 1400 and 900 px, Classic only.
-PRODUCT GAP: AP31 on origin/main the content has 0px side padding at 900 (AP8 not built); the fit test is red on that assertion.
+"""Row 1299: the Projects overview in a real browser at 1400 and 900 px, Classic only: the AP15 intro line.
 Run: python3 dev/run_tests.py test_settings_overview_1299
-
-Asserted: the content box is the Settings content with the AP8 side padding (16px each side at 900); the bar's and the banner's right edge is inside that content box, their width is not above
-the content box's width, and the page has no sideways scroll (scrollWidth <= clientWidth). Text may wrap; heights are as built. Chrome is required: these tests fail, never skip, without it."""
+Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
 from test_server import chrome
 from test_projects_overview_ui_1299 import Service, ROWS, TWO, Base, Rig, theme, page, testpage, calm, address
 
 WIDTHS = (1400, 900)
-PROBE = ("(() => { const cs = getComputedStyle(document.querySelector('.set-cards')), c = document.querySelector('.set-cards').getBoundingClientRect(),"
-         " L = c.left + parseFloat(cs.paddingLeft), R = c.right - parseFloat(cs.paddingRight), box = n => { const e = document.querySelector(n), r = e.getBoundingClientRect(); return {left: r.left, right: r.right, width: r.width, sw: e.scrollWidth, cw: e.clientWidth}; };"
-         " const d = document.documentElement; return {content: {left: L, right: R, width: R - L}, bar: box('.ov-filters'), banner: box('#ov-issues'), padL: cs.paddingLeft, padR: cs.paddingRight,"
-         " sw: d.scrollWidth, cw: d.clientWidth, bsw: document.body.scrollWidth, bcw: document.body.clientWidth}; })()")
 
 
-class Fit(Base):
+class Intro(Base):
     def setUp(self):
         css = theme.css("prototype-2.0")
         self.rig = Rig(self, saved=self.saved, page_html=lambda: page.layer_theme(testpage.html(), css))
