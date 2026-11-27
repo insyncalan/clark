@@ -3,6 +3,9 @@
 Every test that failed on one machine, or under load, and passed on another machine or on a repeat. Use it to tell a known
 flake from a new defect fast. Newest knowledge wins: update an entry when its fix merges or it is seen again.
 
+A test file that is flaky in two different runs is taken out of ordinary runs by `dev/tools/flaky_quarantine.py` (the list is
+`dev/tools/quarantine.txt`); the nightly still runs it, and it leaves the list by a pull request that fixes it.
+
 Status words:
 
 - **Fixed**: the cause is known and the fix is merged (or the fault was in an unmerged branch and that branch is fixed).
