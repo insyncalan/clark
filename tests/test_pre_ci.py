@@ -101,7 +101,9 @@ class RedTest(unittest.TestCase):
             code, out = pr.pre_ci()
             self.assertEqual(code, 1, out)
             self.assertIn("PRE-CI FAIL " + head, out)
-            self.assertEqual(self.failing(pr, head), ["Python 3.9 compile"])
+            # run by Python 3.9 itself (the nightly's 3.9 shards) the tests cannot import the file either, so those checks fail too
+            alone = ["Python 3.9 compile"] if sys.version_info >= (3, 10) else ["Python 3.9 compile", "affected tests", "named tests", "smoke suite"]
+            self.assertEqual(self.failing(pr, head), alone)
             self.assertIn("src/clark/mod.py", {c["name"]: c for c in pr.record(head)["checks"]}["Python 3.9 compile"]["tail"])
             self.assertEqual(pr.record(head)["result"], "fail")
 
