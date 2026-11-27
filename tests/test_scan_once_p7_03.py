@@ -65,6 +65,25 @@ class ScanTriggerPins(unittest.TestCase):
                 keys.append(ln.strip().rstrip(":").split(":")[0])
         return keys
 
+    @staticmethod
+    def _event_block(lines, key):
+        """Indented lines under '  <key>:' in the on: block, up to the next key at the same indent."""
+        i = lines.index("  %s:" % key)
+        block = []
+        for ln in lines[i + 1:]:
+            if len(ln) - len(ln.lstrip(" ")) <= 2:
+                break
+            block.append(ln)
+        return block
+
+    def test_push_block_is_exactly_branches_main_so_no_paths_and_no_paths_ignore_skip_a_commit_on_main(self):
+        lines = code(".github/workflows/scan.yml")  # a missing file raises: error, not skip
+        self.assertEqual(self._event_block(lines, "push"), ["    branches: [main]"])
+
+    def test_pull_request_block_has_no_keys_at_all(self):
+        lines = code(".github/workflows/scan.yml")
+        self.assertEqual(self._event_block(lines, "pull_request"), [])
+
     def test_trigger_set_is_exactly_pull_request_and_push_so_no_merge_group_and_no_manual_run(self):
         self.assertEqual(self._on_keys(), ["pull_request", "push"])
 
