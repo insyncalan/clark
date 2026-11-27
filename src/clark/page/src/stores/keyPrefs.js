@@ -10,7 +10,7 @@ function remembered() {
 
 export const singleKeys = signal(remembered());
 
-/** Turn the single-key shortcuts on or off. It applies at once and is remembered. */
+/** Turn the single-key slash commands on or off. It applies at once and is remembered. */
 export function setSingleKeys(on) {
   singleKeys.value = !!on;
   try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) { /* a private window: it applies now, and is not remembered */ }
