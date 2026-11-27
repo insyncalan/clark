@@ -61,6 +61,7 @@ class CommitTest(unittest.TestCase):
             self.assertEqual(pr.git("rev-parse", "HEAD~1"), pr.git("rev-parse", "main"))
             self.assertEqual(pr.remote_branches(), {"main": main_before, "shard-times-45936741199": sha})
             self.assertIn("45936741199", pr.git("log", "-1", "--format=%B"))
+            self.assertEqual(pr.git("log", "-1", "--format=%cn <%ce>"), "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>")      # the committer too, not only the author
             self.assertEqual(pr.git("log", "-1", "--format=%an <%ae>"), "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>")
             self.assertEqual(pr.read(FILE), NEW)
 
@@ -101,6 +102,15 @@ class RefusalTest(unittest.TestCase):
             pr.write(FILE, NEW)
             pr.write("src/clark/mod.py", "X = 1\n")
             self.refused(pr, "src/clark/mod.py", "--run-id", "7", "--push")
+
+    def test_a_brand_new_untracked_file_beside_the_shard_file_is_refused_too_also_one_with_a_space_in_its_name(self):
+        """Read of #2546: only a modified extra file was tested; an untracked one (and a name git quotes) must refuse as well."""
+        for name in ("src/clark/brand_new.py", "new file.txt"):
+            with Fixture() as pr:
+                pr.write(FILE, NEW)
+                pr.write(name, "X = 1\n")
+                self.assertIn("??", pr.git("status", "--porcelain", "--untracked-files=all"))
+                self.refused(pr, name.split("/")[-1].split(".")[0], "--run-id", "7", "--push")
 
     def test_a_run_id_that_is_not_digits_is_refused_because_it_names_a_branch(self):
         with Fixture() as pr:

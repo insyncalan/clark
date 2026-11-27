@@ -54,7 +54,7 @@ def main(argv=None):
         return refuse("%s is missing" % a.file)
     if not read_times(path.read_text(encoding="utf-8", errors="replace")):
         return refuse("%s holds no time" % a.file)
-    changed = [ln[3:].strip().strip('"') for ln in git("status", "--porcelain", "--untracked-files=all").stdout.splitlines()]
+    changed = [ln[3:] for ln in git("status", "--porcelain", "--untracked-files=all").stdout.splitlines()]
     others = [p for p in changed if p != a.file]
     if others:
         return refuse("%d other changed file%s: %s" % (len(others), "" if len(others) == 1 else "s", ", ".join(others[:5])))
