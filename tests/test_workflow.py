@@ -165,14 +165,20 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("secrets.", self.text)
         self.assertNotIn("secrets:", self.text)
         self.assertEqual(block(self.text, "permissions").split(), ["contents:", "read"])
-        self.assertNotRegex(self.text, r"\bwrite\b")
+        # the one write: the nightly's shard-times job pushes ONE new branch (dev/tools/shard_commit.py); no other word "write" anywhere in the code
+        self.assertNotRegex(code(self.text).replace("      contents: write\n", "", 1), r"\bwrite\b")
+        self.assertEqual(code(self.text).count("contents: write"), 1)
+        self.assertEqual(code(block(self.jobs["shard-times"], "permissions", 4)).split(), ["contents:", "write"])
         for job, body in self.jobs.items():
-            if job != "plan":
+            if job not in ("plan", "shard-times"):
                 self.assertNotIn("permissions:", body, f"{job} widens the permissions")
         # only the plan job widens, by one read scope (the changed-files API call); every other scope stays absent
         self.assertEqual(code(block(self.jobs["plan"], "permissions", 4)).split(), ["contents:", "read", "pull-requests:", "read"])
         self.assertEqual(self.text.count("pull-requests: read"), 1)
-        self.assertEqual(self.text.count("persist-credentials: false"), self.text.count("actions/checkout@"))
+        # every checkout drops the token, except the one of the shard-times job (it pushes with it)
+        self.assertEqual(self.text.count("persist-credentials: false"), self.text.count("actions/checkout@") - 1)
+        self.assertEqual(self.jobs["shard-times"].count("persist-credentials: true"), 1)
+        self.assertNotIn("persist-credentials: false", self.jobs["shard-times"])
 
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
         concurrency = block(self.text, "concurrency")
@@ -511,7 +517,7 @@ class Workflow(unittest.TestCase):
     def test_the_nightly_is_never_cancelled_and_hands_over_refreshed_shard_times_and_flaky_classes(self):
         """Bifrost 2.0, P12, boxes 6 and 7: the nightly has a concurrency group of its own, runs the quarantined files too, and its last job builds
         dev/tools/shard_times.txt from the real times of the shards and uploads it. Every Ubuntu job uploads its DEFECT and FLAKE classes, which
-        dev/tools/flaky_quarantine.py counts. The workflow still writes nothing: no write permission, no token."""
+        dev/tools/flaky_quarantine.py counts. One job writes: the last, with `contents: write`, pushes one new branch through dev/tools/shard_commit.py; no other job has a write scope; no secret."""
         self.assertIn("github.event_name == 'schedule' && format('nightly-{0}', github.run_id)", block(self.text, "concurrency"))
         tests, times = self.jobs["tests"], self.jobs["shard-times"]
         self.assertIn('if [ "$EVENT" = "schedule" ]; then SCOPE="--with-quarantined"; fi', tests)
@@ -526,8 +532,15 @@ class Workflow(unittest.TestCase):
         self.assertIn("pattern: durations-*", times)
         self.assertIn('run: python3 dev/tools/shard_refresh.py --durations "$DURATIONS"', times)
         self.assertIn("name: shard-times\n          path: dev/tools/shard_times.txt", times)      # the artifact name Bifrost 2.0 (nightly_handover.shard_times_pr) downloads; the file it commits
+        # the nightly commits the refreshed file itself, as ONE new branch (never main): the tool does the push, never a command line of the workflow
+        self.assertIn('run: python3 dev/tools/shard_commit.py --run-id "$GITHUB_RUN_ID" --push', times)
+        self.assertLess(times.index("name: shard-times\n          path: dev/tools/shard_times.txt"), times.index("shard_commit.py"))
+        self.assertEqual(code(self.text).count("shard_commit.py"), 1)
         self.assertNotIn("git push", self.text)
-        self.assertNotIn(": write", self.text)
+        self.assertNotIn("gh pr", self.text)            # no pull request from the workflow: one opened with its token starts no checks
+        self.assertNotIn("force", times)
+        self.assertEqual(code(self.text).count("contents: write"), 1)
+        self.assertEqual(code(block(times, "permissions", 4)).split(), ["contents:", "write"])
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 

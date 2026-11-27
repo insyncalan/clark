@@ -38,7 +38,7 @@
 # run while `if: always()` kept the gate running; `if: ${{ !cancelled() }}` posts nothing for a cancelled run.
 #
 # Safety: `pull_request`, never `pull_request_target` (a fork's code never runs with this repository's token or secrets);
-# read-only permissions; no secrets in any job; one run per branch or pull request at a time (a newer run cancels the older);
+# read-only permissions (the nightly's shard-times job alone has contents: write, to push one new branch); no secrets in any job; one run per branch or pull request at a time (a newer run cancels the older);
 # every action pinned to a full commit SHA (the tag is in the comment after it); NO paths-ignore: a documents-only change
 # still runs the suite, because tests/test_no_real_names.py reads every tracked file, documents included, and the reuse-record
 # test reads the reuse record. Skipping the run for a document would let a real name merge unchecked. The suite
@@ -376,18 +376,21 @@ jobs:
 
   shard-times:
     # The nightly only: one refreshed dev/tools/shard_times.txt from the real times of this run's Ubuntu shards, uploaded as the
-    # artifact `shard-times`. This workflow stays read-only and opens nothing itself. The one-file pull request that brings the
-    # artifact to main is opened by the pipeline's hands on GitHub (the collector, Bifrost 2.0 P9), not by this workflow. Until
-    # that is live the file on main is as old as its last refresh by hand-started tooling.
+    # artifact `shard-times`, and committed by the nightly itself (dev/tools/shard_commit.py) as ONE commit on a NEW branch
+    # shard-times-<run id>: never main, never forced, never an existing branch. This is the ONLY job with write access
+    # (`contents: write`, this job's token), and it opens no pull request: a pull request opened with a workflow's own token starts
+    # no checks, so the pipeline's hands on GitHub (the collector, Bifrost 2.0 P9) open the one-file pull request from that branch.
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     name: Nightly · refreshed shard times
     needs: tests
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          persist-credentials: false
+          persist-credentials: true      # the one checkout that keeps the job token: the commit step below pushes the new branch with it
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -407,6 +410,10 @@ jobs:
         with:
           name: shard-times
           path: dev/tools/shard_times.txt
+
+      - name: Commit the refreshed shard times to a new branch
+        # A refused push (the branch of this run exists) or a changed file other than the times file fails the job: shard_commit.py says why.
+        run: python3 dev/tools/shard_commit.py --run-id "$GITHUB_RUN_ID" --push
 
   tests-py39:
     # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Only where the plan wants it (py39=1: by hand, release line, label full-ci, Mac-specific files).
