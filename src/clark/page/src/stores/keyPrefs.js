@@ -1,4 +1,4 @@
-// Single-key shortcuts (#193): the letter keys V, E and the rest do nothing when this is off. On by default; remembered in the
+// Single-key slash commands (#193): the letter keys V, E and the rest do nothing when this is off. On by default; remembered in the
 // browser on this computer, like the section style (no database change). Read live: no reload.
 import { signal } from "@preact/signals";
 

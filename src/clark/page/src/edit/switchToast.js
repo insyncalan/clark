@@ -1,4 +1,4 @@
-// The toast for a Settings switch (Asking, Single-key shortcuts), with Undo (row 849): it says the new state in the switch's own words
+// The toast for a Settings switch (Asking, Single-key slash commands), with Undo (row 849): it says the new state in the switch's own words
 // and carries a local Undo that puts the switch back and says that state. The choices are kept by clark or the browser, not in the
 // change log, so Undo is the page setting the old value again through the same route as the switch. Leaving the card takes it away.
 import { effect } from "@preact/signals";
