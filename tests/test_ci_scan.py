@@ -1245,12 +1245,64 @@ class AddedLinesOnly(unittest.TestCase):
     TEMPLATE = pp.reveal("Onaare")                  # the one allowed use per capped file, built here so this file does not carry it
 
     def test_second_use_in_capped_file_still_fails(self):
-        r = self.repo({self.CAPPED: "a %s b\n" % self.TEMPLATE})
-        r.write(self.CAPPED, "a %s b\nc %s d\n" % (self.TEMPLATE, self.TEMPLATE))
-        r.commit("second use")
+        for path in sorted(pp.GUARD_ALLOWED):
+            with self.subTest(path=path):
+                r = self.repo({path: "a %s b\n" % self.TEMPLATE})
+                r.write(path, "a %s b\nc %s d\n" % (self.TEMPLATE, self.TEMPLATE))
+                r.commit("second use")
+                rc, out = r.scan()
+                self.assertEqual(rc, 1, out)
+                self.assertNotIn(self.TEMPLATE, out)
+
+    def test_the_capped_paths_are_the_views_file_and_the_template_files(self):
+        self.assertTrue({"system/prototype/views.js", self.CAPPED, *pp.TEMPLATE_NAME_PATHS} <= set(pp.GUARD_ALLOWED))
+
+    def test_a_path_that_only_starts_like_a_capped_one_is_not_capped(self):
+        for path in (self.CAPPED + ".orig", "a/other/help.js"):
+            with self.subTest(path=path):
+                r = self.repo({path: "a %s b\nplain\n" % self.TEMPLATE})
+                r.write(path, "a %s b\nplain\nnew clean\n" % self.TEMPLATE)
+                r.commit("edit")
+                rc, out = r.scan()
+                self.assertEqual(rc, 0, out)
+
+    def test_a_pure_move_of_a_capped_file_to_another_path_is_refused(self):
+        r = self.repo({self.CAPPED: "a %s b\nplain\n" % self.TEMPLATE})
+        Path(r.path, "src").mkdir()
+        r.git("mv", self.CAPPED, "src/moved.js")
+        r.commit("move")
         rc, out = r.scan()
         self.assertEqual(rc, 1, out)
         self.assertNotIn(self.TEMPLATE, out)
+
+    def test_a_pure_move_of_an_uncapped_file_with_an_old_hit_still_passes(self):
+        r = self.repo({"src/other.js": "a %s b\nplain\n" % self.TEMPLATE})
+        r.git("mv", "src/other.js", "src/moved.js")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def vendored_repo(self):
+        src = (ROOT / "vendor/pypdf/LICENSE").read_bytes()
+        r = self.repo({})
+        r.write("vendor/pypdf/LICENSE", src, "wb")
+        r.commit("vendor")
+        r.base = r.git("rev-parse", "HEAD").strip()
+        return r, src
+
+    def test_an_edited_pinned_vendored_file_with_a_clean_added_line_is_read_whole_and_refused(self):
+        r, src = self.vendored_repo()
+        r.write("vendor/pypdf/LICENSE", src + b"\nclean line\n", "wb")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_pinned_vendored_file_moved_to_another_path_is_refused(self):
+        r, src = self.vendored_repo()
+        r.git("mv", "vendor/pypdf/LICENSE", "vendor/pypdf/LICENSE2")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
 
     def test_capped_file_with_its_one_use_and_another_changed_line_passes(self):
         r = self.repo({self.CAPPED: "a %s b\nplain\n" % self.TEMPLATE})

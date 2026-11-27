@@ -246,6 +246,7 @@ class Scan:
         self.env = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
         self.report = pp.Report()
         self.entries, self.blobs, self.deleted = [], [], []
+        self.whole = set()                                  # paths in HEAD moved from a path with a per-file allowance: read in full
         self.old = {}                                       # path in HEAD -> sha of the same file (or its moved-from file) in BASE
 
     def git(self, *args):
@@ -285,6 +286,9 @@ class Scan:
                 new_path = moved[j + paths].decode("utf-8", "surrogateescape")
                 if not meta[4].startswith(b"D") and set(meta[2]) != {48}:
                     self.old[new_path] = meta[2].decode()
+                src = moved[j + 1].decode("utf-8", "surrogateescape")
+                if paths == 2 and (src in pp.GUARD_ALLOWED or src in VENDORED_PINS):
+                    self.whole.add(new_path)        # its per-file allowance or pin does not travel: the new path is read in full
                 j += 1 + paths
         changed.sort(key=lambda c: c[2])
         shas = [c[1] for c in changed]
@@ -303,7 +307,7 @@ class Scan:
         """What the listed-word scan reads of a changed file: only the lines HEAD adds to it (a removed or unchanged line never counts;
         a moved file counts its added lines; a new file, a binary file, a zip, a file with NULs and a file with a pinned per-file allowance count in full)."""
         old = self.old.get(e.path)
-        if e.path in pp.GUARD_ALLOWED:      # its allowance is a per-FILE count (one use), so the whole file is read, not the added lines
+        if e.path in pp.GUARD_ALLOWED or e.path in self.whole or e.path in VENDORED_PINS:      # its allowance is a per-FILE count (one use), so the whole file is read, not the added lines
             return data
         if not old or not data or b"\0" in data or data[:2] == b"PK":
             return data
