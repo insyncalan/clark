@@ -365,7 +365,7 @@ class Menu(unittest.TestCase):
                     self.click_badge(cdp, js)
                     self.assertTrue(wait(lambda: js(f"!!{MENU}")), "the mouse opened it")
                     got = js(ring)
-                    self.assertEqual(got[0], "profile", "the first row still has the focus")
+                    self.assertEqual(got[0], "search" if width == 900 else "profile", "the first row still has the focus (at 900 px the first row is Go to or do, as the editor's menu)")
                     self.assertTrue(got[1] == "none" or got[2] == 0, f"no ring after a mouse open at {width} px, {theme}: {got}")
                     self.key(cdp, "Escape", 27)
                     self.assertTrue(wait(lambda: not js(f"!!{MENU}")))
