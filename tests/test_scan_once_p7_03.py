@@ -1,4 +1,4 @@
-"""Bifrost 2.0 P7-03: on Mergify's combined run (draft PR, branch mergify/merge-queue/*) the scan runs ONCE and is advisory.
+"""Bifrost 2.0 P7-03: scan.yml triggers on pull_request (no filter) and push to main only, one job Scan with one concurrency group per PR; Scan is advisory (not a Mergify condition). Not literally one run per PR: one per push.
 
 Run: python3 dev/run_tests.py test_scan_once_p7_03
 Files are read as text (PyYAML is not installed on the CI runners).
@@ -37,7 +37,7 @@ class ScanOnceAndAdvisory(unittest.TestCase):
         i = lines.index("  push:")
         self.assertEqual(lines[i + 1].strip(), "branches: [main]")
 
-    def test_one_scan_job_named_scan_and_one_run_per_pull_request(self):
+    def test_one_scan_job_named_scan_with_one_concurrency_group_per_pull_request(self):
         t = text(".github/workflows/scan.yml")
         self.assertEqual(len(re.findall(r"^    name: Scan$", t, re.M)), 1)
         self.assertIn("group: scan-${{ github.event.pull_request.number || github.sha }}", t)
