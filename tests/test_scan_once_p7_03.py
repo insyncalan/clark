@@ -51,6 +51,61 @@ class ScanOnceAndAdvisory(unittest.TestCase):
     def test_tests_workflow_does_not_run_the_scan_a_second_time(self):
         self.assertNotRegex("\n".join(code(".github/workflows/tests.yml")), r"ci_scan|workflows/scan\.yml")
 
+class ScanTriggerPins(unittest.TestCase):
+    """P7-03 survivors: the exact trigger set, the concurrency pair, and no second Scan start from tests.yml."""
+
+    def _on_keys(self):
+        lines = code(".github/workflows/scan.yml")
+        i = lines.index("on:")
+        keys = []
+        for ln in lines[i + 1:]:
+            if not ln.startswith(" "):
+                break
+            if re.match(r"^  [A-Za-z_]+:", ln):
+                keys.append(ln.strip().rstrip(":").split(":")[0])
+        return keys
+
+    @staticmethod
+    def _event_block(lines, key):
+        """Indented lines under '  <key>:' in the on: block, up to the next key at the same indent."""
+        i = lines.index("  %s:" % key)
+        block = []
+        for ln in lines[i + 1:]:
+            if len(ln) - len(ln.lstrip(" ")) <= 2:
+                break
+            block.append(ln)
+        return block
+
+    def test_push_block_is_exactly_branches_main_so_no_paths_and_no_paths_ignore_skip_a_commit_on_main(self):
+        lines = code(".github/workflows/scan.yml")  # a missing file raises: error, not skip
+        self.assertEqual(self._event_block(lines, "push"), ["    branches: [main]"])
+
+    def test_pull_request_block_has_no_keys_at_all(self):
+        lines = code(".github/workflows/scan.yml")
+        self.assertEqual(self._event_block(lines, "pull_request"), [])
+
+    def test_trigger_set_is_exactly_pull_request_and_push_so_no_merge_group_and_no_manual_run(self):
+        self.assertEqual(self._on_keys(), ["pull_request", "push"])
+
+    def test_no_merge_group_and_no_workflow_dispatch_anywhere_in_scan_yml(self):
+        t = "\n".join(code(".github/workflows/scan.yml"))
+        self.assertNotIn("merge_group", t)
+        self.assertNotIn("workflow_dispatch", t)
+
+    def test_concurrency_group_is_per_pull_request_and_per_commit_on_push(self):
+        t = "\n".join(code(".github/workflows/scan.yml"))
+        self.assertEqual(re.findall(r"^\s+group: (.*)$", t, re.M),
+                         ["scan-${{ github.event.pull_request.number || github.sha }}"])
+
+    def test_cancel_in_progress_only_for_a_pull_request_never_for_a_push_to_main(self):
+        t = "\n".join(code(".github/workflows/scan.yml"))
+        self.assertEqual(re.findall(r"^\s+cancel-in-progress: (.*)$", t, re.M),
+                         ["${{ github.event_name == 'pull_request' }}"])
+
+    def test_tests_workflow_never_starts_scan_by_gh_workflow_run(self):
+        t = "\n".join(code(".github/workflows/tests.yml"))
+        self.assertNotRegex(t, r"gh\s+workflow\s+run\s+[\"']?(Scan|scan)")
+
 
 if __name__ == "__main__":
     unittest.main()
