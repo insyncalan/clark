@@ -130,7 +130,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertNotIn("push) ", plan)                              # no case for a push to main: nothing runs on one (Bifrost 2.0 P7), so a dead case would only mislead
+        self.assertNotRegex(plan, r"(?m)^\s*push\)")                  # no case for a push to main: nothing runs on one (Bifrost 2.0 P7), so a dead case would only mislead
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -321,7 +321,7 @@ class Workflow(unittest.TestCase):
         self.assertNotIn('- cron: "0 23 * * 0"', wf)
         self.assertEqual(wf.count("- cron:"), 1)
         self.assertIn("schedule) FULL=1; MACOS=1; ADVISORY=1 ;;", wf)      # the nightly: full macOS, advisory
-        self.assertNotIn("push) ", wf)                                    # no push case (see the plan test); the smoke set comes from the pull request cases
+        self.assertNotRegex(wf, r"(?m)^\s*push\)")                       # no push case (see the plan test); the smoke set comes from the pull request cases
         self.assertNotIn("push) FULL=1; MACOS=1", wf)
         smoke = self.jobs["macos-smoke"]
         self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
@@ -349,12 +349,12 @@ class Workflow(unittest.TestCase):
             return dict(ln.split("=", 1) for ln in open(out, encoding="utf-8").read().splitlines() if "=" in ln)
 
     def test_macos_smoke_is_required_and_the_full_suite_runs_only_nightly_or_by_hand(self):
-        """The plan, run for real: push to main and a release line get the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
+        """The plan, run for real: a push gets nothing (no push trigger, P7); a pull request into a release line gets the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
         a hand-started run with macos=true on a release branch gets the shards (required) in place of the smoke set; an ordinary branch gets neither."""
         cases = (
-            (dict(EVENT="push", BRANCH="main"), "", "1", ""),
+            (dict(EVENT="push", BRANCH="main"), "", "", ""),                  # nothing triggers on a push to main any more (P7); were one to, it would get nothing
             (dict(EVENT="schedule", BRANCH="main"), "1", "", "1"),
-            (dict(EVENT="push", BRANCH="release-1.3.11"), "", "1", ""),
+            (dict(EVENT="push", BRANCH="release-1.3.11"), "", "", ""),
             (dict(EVENT="pull_request", BRANCH="x", BASE_REF="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", ""),
