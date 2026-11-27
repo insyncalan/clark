@@ -36,7 +36,7 @@ class ReleaseBuild(unittest.TestCase):
         c = code()
         self.assertIn("runs-on: macos-latest", c)
         self.assertRegex(c, r"actions/checkout@[0-9a-f]{40}")
-        self.assertIn("ref: ${{ github.ref }}", c)                       # the exact tagged commit, never a later one
+        self.assertNotRegex(c, r"(?m)^\s+ref:")            # a tag push checks out the tagged commit itself: never a later one, and no github.ref in a line ci_scan refuses
         self.assertIn("python3 dev/tools/package.py mac --release", c)
         self.assertRegex(c, r"shasum -a 256 .*clark-\$\{VERSION\}-mac\.zip")
 

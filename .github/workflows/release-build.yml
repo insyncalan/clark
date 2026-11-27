@@ -17,9 +17,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
+      # a tag push checks out the tagged commit itself (no ref: input; ci_scan refuses github.ref in a non-env line)
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.ref }}
           persist-credentials: false
           fetch-depth: 0
       - name: Build the zip from the tagged commit
