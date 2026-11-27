@@ -154,6 +154,14 @@ class RedTest(unittest.TestCase):
             self.assertIn("commit first", out)
             self.assertFalse(pr.records.exists())
 
+    def test_a_base_git_cannot_find_is_did_not_start_exit_2_not_a_failed_check(self):
+        with Fixture() as pr:
+            pr.feature()
+            code, out = pr.pre_ci("--base", "origin/does-not-exist")
+            self.assertEqual(code, 2)
+            self.assertIn("did not start", out)
+            self.assertFalse(pr.records.exists())
+
 
 class PartsTest(unittest.TestCase):
     def test_without_a_real_python_3_9_the_compile_check_is_not_checked_never_a_pass(self):

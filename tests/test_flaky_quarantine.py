@@ -105,6 +105,12 @@ class RunnerTest(unittest.TestCase):
         self.assertNotIn("OK    test_shaky.py", out)
         self.assertIn("1 tests", out)
 
+    def test_a_quarantined_file_named_on_the_command_line_still_runs(self):
+        code, out = self.runner("test_shaky.py")        # a ticket's named test is never left out: only an unnamed run drops a quarantined file
+        self.assertEqual(code, 0, out)
+        self.assertIn("OK    test_shaky.py", out)
+        self.assertNotIn("Quarantined, not run", out)
+
     def test_the_nightly_flag_runs_it(self):
         code, out = self.runner("--with-quarantined")
         self.assertEqual(code, 0, out)
