@@ -1,0 +1,3 @@
+# The quarantine list: test files that were flaky (failed, then passed alone) in two runs. One file a line, `#` starts a comment.
+# dev/run_tests.py leaves these out of an ordinary run and says so; the nightly runs them (--with-quarantined).
+# Lines are added by dev/tools/flaky_quarantine.py and taken off by the pull request that fixes the test.

@@ -3,9 +3,13 @@
 # e.g. "test_layout test_milestones") or is left empty for the whole suite; "macos" adds the macOS job.
 #
 # ===== what runs when =====
-# CHEAP PATH (an ordinary pull request): ONE Ubuntu 24.04 job on the newest Python ("3.x"): the pages build, then
-# `dev/run_tests.py --push origin/<base>` (the quick tier plus the browser files the change reaches, which is `--changed`
-# plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
+# PULL REQUEST PATH (Bifrost 2.0, P12; the owner, 26-11: "CI runs only what a push needs"): on the newest Python ("3.x"),
+#  - `named` (the fast job): the test files the pull request adds or changes. A ticket's named tests must be in its change, so
+#    these are the named tests, read from the diff and never from text a person typed.
+#  - `tests` (the affected tests): `dev/run_tests.py --changed origin/<base>`, the test files that can reach a changed file. The
+#    quick tier no longer runs on every pull request.
+#  - `py39-compile`: every tracked .py file must compile on Python 3.9, the oldest clark supports (seconds; no tests on 3.9).
+# No macOS. Pre-CI (dev/tools/pre_ci.py) runs the same checks before the push.
 # FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
 # label `full-ci`, and by hand.
@@ -68,7 +72,9 @@ permissions:
 concurrency:
   # One automatic run per pull request or branch. A newer pull request run cancels the older; a main or release push run is
   # never cancelled (it queues). Manual runs each get their own group (run_id), so a second hand-started run never cancels the first.
-  group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  # The nightly has a group of its own (nightly-<run id>): in the main group a later push to main replaced a nightly that was still
+  # waiting, so it never ran. Nothing cancels or replaces it now (Bifrost 2.0, P12).
+  group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -269,11 +275,135 @@ jobs:
           FULL: ${{ needs.plan.outputs.full }}
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}
+          CLARK_RESULTS: ${{ runner.temp }}/test-results.json
         run: |
           # Branch and base names are untrusted text: they reach this shell only through env, never interpolated into it.
+          # An ordinary pull request runs the affected tests only (--changed). The nightly also runs the quarantined files.
           SCOPE=""
-          if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi
+          if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--changed origin/$BASE"; fi
+          if [ "$EVENT" = "schedule" ]; then SCOPE="--with-quarantined"; fi
           python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
+
+      - name: Upload the classes
+        # DEFECT and FLAKE per file, for the flaky count (dev/tools/flaky_quarantine.py: a file flaky in two runs is quarantined).
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-classes-ubuntu-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-results.json
+          if-no-files-found: ignore
+
+      - name: Upload the times (nightly)
+        # The real time of every file this shard ran, for the nightly's refreshed dev/tools/shard_times.txt (the shard-times job).
+        if: ${{ always() && github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: durations-${{ matrix.shard }}
+          path: tests/.durations
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  named:
+    # The fast job of a pull request: the test files it adds or changes (the ticket's named tests are in its change), whole, on the
+    # newest Python. The list comes from git, never from typed text. A pull request that touches no test file has nothing to run here.
+    if: ${{ github.event_name == 'pull_request' }}
+    name: ubuntu-24.04 · Python 3.x · named tests
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.x"
+
+      - name: Find Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "No Chrome on this runner"; exit 1; }
+          echo "CLARK_CHROME=$CHROME" >> "$GITHUB_ENV"
+          "$CHROME" --version
+
+      - name: Build the pages
+        run: python3 dev/tools/build_page.py
+
+      - name: Tests (the named tests)
+        env:
+          BASE: ${{ github.base_ref }}
+          CLARK_RESULTS: ${{ runner.temp }}/test-results.json
+        run: |
+          # File names from git, read line by line into an array: never typed text, never word-split by the shell.
+          # --no-renames: a moved test file is an added file here (git would call it R and the filter would drop it).
+          NAMED=()
+          while IFS= read -r F; do NAMED+=("${F#tests/}"); done < <(git diff --name-only --no-renames --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py')
+          if [ "${#NAMED[@]}" -eq 0 ]; then echo "This pull request adds or changes no test file: nothing to run here."; exit 0; fi
+          echo "named: ${NAMED[*]}"
+          python3 dev/run_tests.py -j 4 --max-fail 8 "${NAMED[@]}"
+
+      - name: Upload the classes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-classes-named
+          path: ${{ runner.temp }}/test-results.json
+          if-no-files-found: ignore
+
+  py39-compile:
+    # Python 3.9 is the oldest clark supports (README): every tracked .py file must compile on it. Seconds, no tests, on every pull request.
+    if: ${{ github.event_name == 'pull_request' }}
+    name: ubuntu-24.04 · Python 3.9 · compile check
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.9"
+
+      - name: Compile every .py file on Python 3.9
+        run: python3 dev/tools/pre_ci.py --compile39
+
+  shard-times:
+    # The nightly only: one refreshed dev/tools/shard_times.txt from the real times of this run's Ubuntu shards, uploaded as the
+    # artifact `shard-times`. This workflow stays read-only and opens nothing itself. The one-file pull request that brings the
+    # artifact to main is opened by the pipeline's hands on GitHub (the collector, Bifrost 2.0 P9), not by this workflow. Until
+    # that is live the file on main is as old as its last refresh by hand-started tooling.
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
+    name: Nightly · refreshed shard times
+    needs: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.x"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: durations-*
+          path: ${{ runner.temp }}/durations
+
+      - name: Refresh the shard times
+        env:
+          DURATIONS: ${{ runner.temp }}/durations
+        run: python3 dev/tools/shard_refresh.py --durations "$DURATIONS"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shard-times
+          path: dev/tools/shard_times.txt
 
   tests-py39:
     # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Only where the plan wants it (py39=1: by hand, release line, label full-ci, Mac-specific files).
@@ -423,7 +553,7 @@ jobs:
     # with its own flag. So a FAILED or cancelled required job fails the gate, and a job skipped by the cheap path does not.
     # (A cancelled run posts no gate at all, see the header.)
     name: Tests passed
-    needs: [plan, tests, tests-py39, macos, macos-smoke]
+    needs: [plan, tests, tests-py39, macos, macos-smoke, named, py39-compile]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
@@ -439,10 +569,15 @@ jobs:
           WANT_PY39: ${{ needs.plan.outputs.py39 }}
           WANT_MACOS: ${{ needs.plan.outputs.macos }}
           EVENT: ${{ github.event_name }}
+          NAMED: ${{ needs.named.result }}
+          COMPILE39: ${{ needs.py39-compile.result }}
         run: |
           echo "plan: $PLAN; Linux 3.x: $TESTS; Linux 3.9: $PY39 (required: ${WANT_PY39:-no}); macOS: $MACOS (required: ${WANT_MACOS:-no})"
           test "$PLAN" = "success"
           test "$TESTS" = "success"
+          # a pull request also needs its named tests and the Python 3.9 compile check; no other event runs them
+          echo "named tests: $NAMED; Python 3.9 compile: $COMPILE39"
+          if [ "$EVENT" = "pull_request" ]; then test "$NAMED" = "success"; test "$COMPILE39" = "success"; else test "$NAMED" = "skipped"; test "$COMPILE39" = "skipped"; fi
           if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
           # the full macOS shards are never required on a pull request, a push to main or a release line (the Mac smoke set below is the Mac check there); only a hand-started run with macos=true requires them, and the nightly is advisory (ADVISORY=1: no check here)
           if [ "$EVENT" = "pull_request" ]; then :; elif [ -n "$WANT_MACOS" ] && [ -z "$ADVISORY" ]; then test "$MACOS" = "success"; elif [ -z "$WANT_MACOS" ]; then test "$MACOS" = "skipped"; fi
