@@ -13,6 +13,7 @@ import test_glance_page as glance
 from clark import publish
 from clark import store as store_module
 from _demo import USER
+from _new_page import reload_to_new_page
 from test_published_one_bar import HIDE, colour, ratio
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
@@ -408,8 +409,8 @@ class Overdue1543:
                 p = self.draw(cdp, path, width, dark)
                 p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
                 p.js(keep)
-                p.js("window.__before = 1; location.hash = '#work'; location.reload()")
-                p.until("!window.__before && !!document.querySelector('#work-list') && document.querySelectorAll('#work tr[data-id]').length > 0", "the Work items drew with the remembered choice")
+                p.js("location.hash = '#work'")
+                reload_to_new_page(p.js, "!!document.querySelector('#work-list') && document.querySelectorAll('#work tr[data-id]').length > 0", "the Work items drew with the remembered choice")
                 self.assertEqual(p.js("document.querySelectorAll('[data-chip=due]').length"), 0, "no Due chip")
                 self.assertTrue(p.js("document.querySelector('#work').textContent.includes('Chase the supplier file')"), "the item is drawn: the choice is no filter")
                 self.assertNotRegex(p.js("document.querySelector('#work').textContent"), r"(?i)overdue")
@@ -421,8 +422,7 @@ class Overdue1543:
                 p = self.show(cdp, width, dark, hash_="#work&p=ABC", settings=True)      # settings=True: the page is not waited for as a Dashboard
                 p.until("document.documentElement.dataset.ready === '1'", "the editor opened")
                 p.js("localStorage.setItem('clark.work.v1', JSON.stringify({ABC: {view: 'table', group: 'due', lane: null, collapsed: []}}))")
-                p.js("location.reload()")
-                p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('tbody[data-group]')", "the editor's Work items drew")
+                reload_to_new_page(p.js, "document.documentElement.dataset.ready === '1' && !!document.querySelector('tbody[data-group]')", "the editor's Work items drew")
                 if dark:
                     p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until("[...document.querySelectorAll('tbody[data-group]')].some((t) => t.dataset.group === 'overdue')", "the Overdue group drew")
