@@ -4,7 +4,8 @@
 
 DIR holds the tests/.durations file of each shard of one full run ("test_x.py seconds" a line, as dev/run_tests.py writes it).
 A test file the run timed takes its new time (the slowest, if two shards timed it); one it did not time keeps its old line; a
-line whose test file is gone is removed; the header comment is kept. The nightly runs this and uploads the result, so the
+line whose test file is gone is removed; the header comment is kept. The five pinned heavy files (PINNED) never go below their
+pin and count at most 10 percent over it. The nightly runs this and uploads the result, so the
 shards stay balanced without anyone editing the file by hand.
 
 Exit 0: the file was written. Exit 2: no time was measured (nothing is changed; not checked is never "no change").
@@ -18,6 +19,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 LINE = re.compile(r"^(test_\w+\.py) (\d+(?:\.\d+)?)\s*$")
+
+
+# The heavy files tests/test_run_tests.py pins (measured over five full macOS runs). One night's time never takes them below the
+# pin, and counts at most 10 percent over it: the band that test holds them to.
+PINNED = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,
+          "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 136.0}
 
 
 def read_times(text):
@@ -39,11 +46,22 @@ def combine(many):
     return out
 
 
+def cap(pin):
+    """The highest weight, to one decimal, that is still within 10 percent of the pin (rounded down, never to the nearest:
+    277.8 x 1.1 rounds to 305.6, which is over the band test_run_tests holds the heavy files to)."""
+    top = int(pin * 11) / 10
+    while top / pin - 1.0 > 0.10:
+        top = round(top - 0.1, 1)
+    return top
+
+
 def merge(old, new, existing):
     """The new table: only test files that exist; the measured time where there is one, else the old line."""
     out = {}
     for name in sorted(existing):
-        if name in new:
+        if name in PINNED and name in new:
+            out[name] = min(max(round(new[name], 1), PINNED[name]), cap(PINNED[name]))
+        elif name in new:
             out[name] = round(new[name], 1) or 0.1
         elif name in old:
             out[name] = old[name]
