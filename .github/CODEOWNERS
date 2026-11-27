@@ -2,6 +2,7 @@
 # that hold them to their rules). With "Require review from Code Owners" switched on in the branch rules, none of these can
 # change without that review. tests/test_ci_scan.py checks that every file the scan protects is listed here.
 /.github/ @insyncalan
+/.mergify.yml @insyncalan
 /dev/tools/ci_scan.py @insyncalan
 /dev/tools/publish_public.py @insyncalan
 /tests/test_ci_scan.py @insyncalan
