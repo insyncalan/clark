@@ -525,7 +525,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("needs: tests", times)
         self.assertIn("pattern: durations-*", times)
         self.assertIn('run: python3 dev/tools/shard_refresh.py --durations "$DURATIONS"', times)
-        self.assertIn("path: dev/tools/shard_times.txt", times)
+        self.assertIn("name: shard-times\n          path: dev/tools/shard_times.txt", times)      # the artifact name Bifrost 2.0 (nightly_handover.shard_times_pr) downloads; the file it commits
         self.assertNotIn("git push", self.text)
         self.assertNotIn(": write", self.text)
 
