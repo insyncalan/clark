@@ -72,10 +72,12 @@ permissions:
 concurrency:
   # One automatic run per pull request or branch. A newer pull request run cancels the older; any other run (the
   # Mergify queue run, a hand-started run, the nightly) is never cancelled (it queues). Manual runs each get their own group (run_id), so a second hand-started run never cancels the first.
+  # A label change (labeled, unlabeled) never cancels a run in flight: the Mergify queue adds and removes its own labels (queued, dequeued), and a label run
+  # that cancelled the PR's run left Mergify a cancelled "Tests passed" = "checks interrupted" (clark#2507, 27-11). It waits its turn in the group instead.
   # The nightly has a group of its own (nightly-<run id>): in the main group a later push to main replaced a nightly that was still
   # waiting, so it never ran. Nothing cancels or replaces it now (Bifrost 2.0, P12).
   group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
 
 jobs:
   plan:

@@ -177,7 +177,7 @@ class Workflow(unittest.TestCase):
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
         concurrency = block(self.text, "concurrency")
         self.assertIn("group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}", concurrency)
-        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}", concurrency)      # spec change: a label event no longer cancels a run in flight
         self.assertNotIn("cancel-in-progress: true", concurrency)
 
     def test_ubuntu_24_04_newest_python_and_3_9_on_the_quick_tier(self):
