@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 
 DOC = Path(__file__).resolve().parent.parent / "dev" / "RELEASING.md"
-LINE = ("Copies of clark installed before 1.3.4 do not check an update's signature; "
-        "only copies from 1.3.4 on are protected by it.")
+LINE = ("Copies of clark installed before 1.4.0 (the first signed release) do not check an update's signature; "
+        "only copies from 1.4.0 on are protected by it.")
 
 
 class Releasing(unittest.TestCase):
