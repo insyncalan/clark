@@ -1231,5 +1231,287 @@ class VendoredPdfLibrary(unittest.TestCase):
                          ["vendor/pypdf/"])
 
 
+class AddedLinesOnly(unittest.TestCase):
+    """The listed-words check reads only the lines a change ADDS: an old hit on the base, a removed line or an unchanged line
+    never counts; an added line, a new file and a moved file's added lines do. (Human ruling 27-11 ~22:50.)"""
+    OLD = "old line %s here\nplain\n" % LISTED
+
+    def repo(self, files=None):
+        r = Repo(files or {"src/old.py": self.OLD})
+        self.addCleanup(r.close)
+        return r
+
+    CAPPED = "system/prototype/help.js"
+    TEMPLATE = pp.reveal("Onaare")                  # the one allowed use per capped file, built here so this file does not carry it
+
+    def test_second_use_in_capped_file_still_fails(self):
+        for path in sorted(pp.GUARD_ALLOWED):
+            with self.subTest(path=path):
+                r = self.repo({path: "a %s b\n" % self.TEMPLATE})
+                r.write(path, "a %s b\nc %s d\n" % (self.TEMPLATE, self.TEMPLATE))
+                r.commit("second use")
+                rc, out = r.scan()
+                self.assertEqual(rc, 1, out)
+                self.assertNotIn(self.TEMPLATE, out)
+
+    def test_the_capped_paths_are_the_views_file_and_the_template_files(self):
+        self.assertTrue({"system/prototype/views.js", self.CAPPED, *pp.TEMPLATE_NAME_PATHS} <= set(pp.GUARD_ALLOWED))
+
+    def test_a_path_that_only_starts_like_a_capped_one_is_not_capped(self):
+        for path in (self.CAPPED + ".orig", "a/other/help.js"):
+            with self.subTest(path=path):
+                r = self.repo({path: "a %s b\nplain\n" % self.TEMPLATE})
+                r.write(path, "a %s b\nplain\nnew clean\n" % self.TEMPLATE)
+                r.commit("edit")
+                rc, out = r.scan()
+                self.assertEqual(rc, 0, out)
+
+    def test_a_pure_move_of_a_capped_file_to_another_path_is_refused(self):
+        r = self.repo({self.CAPPED: "a %s b\nplain\n" % self.TEMPLATE})
+        Path(r.path, "src").mkdir()
+        r.git("mv", self.CAPPED, "src/moved.js")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn(self.TEMPLATE, out)
+
+    def test_a_pure_move_of_an_uncapped_file_with_an_old_hit_still_passes(self):
+        r = self.repo({"src/other.js": "a %s b\nplain\n" % self.TEMPLATE})
+        r.git("mv", "src/other.js", "src/moved.js")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def vendored_repo(self):
+        src = (ROOT / "vendor/pypdf/LICENSE").read_bytes()
+        r = self.repo({})
+        r.write("vendor/pypdf/LICENSE", src, "wb")
+        r.commit("vendor")
+        r.base = r.git("rev-parse", "HEAD").strip()
+        return r, src
+
+    def test_an_edited_pinned_vendored_file_with_a_clean_added_line_is_read_whole_and_refused(self):
+        r, src = self.vendored_repo()
+        r.write("vendor/pypdf/LICENSE", src + b"\nclean line\n", "wb")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_pinned_vendored_file_moved_to_another_path_is_refused(self):
+        r, src = self.vendored_repo()
+        r.git("mv", "vendor/pypdf/LICENSE", "vendor/pypdf/LICENSE2")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_capped_file_with_its_one_use_and_another_changed_line_passes(self):
+        r = self.repo({self.CAPPED: "a %s b\nplain\n" % self.TEMPLATE})
+        r.write(self.CAPPED, "a %s b\nplain changed\n" % self.TEMPLATE)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_non_capped_file_with_old_hit_and_unrelated_added_line_passes(self):
+        r = self.repo({"src/other.js": "a %s b\nx\n" % self.TEMPLATE})
+        r.write("src/other.js", "a %s b\nx\ny\n" % self.TEMPLATE)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_an_old_word_on_the_base_with_an_added_clean_line_passes(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "a new clean line\n")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("REFUSED", out)
+
+    def test_an_added_line_with_a_word_is_refused_and_not_printed(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("file #1: a person's name", out)
+        self.assertNotIn(LISTED, out)
+        self.assertNotIn(LISTED.lower(), out)
+
+    def test_an_added_line_with_a_word_is_refused_under_a_global_color_diff_always(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        cfg = Path(r.path, "global.gitconfig")
+        cfg.write_text("[color]\n\tdiff = always\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(cfg), "GIT_CONFIG_SYSTEM": os.devnull, "HOME": r.path}):
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn(LISTED, out)
+
+    def test_a_new_file_with_a_word_is_refused(self):
+        r = self.repo()
+        r.write("src/new.py", "x = 1\n# %s\n" % LISTED)
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+        self.assertNotIn(LISTED, out)
+
+    def test_a_removed_line_with_a_word_passes(self):
+        r = self.repo()
+        r.write("src/old.py", "plain\n")
+        r.commit("remove the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_moved_file_counts_only_its_added_lines(self):
+        r = self.repo()
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.commit("move")
+        self.assertEqual(r.scan()[0], 0)
+        r = self.repo()
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.write("src/moved.py", self.OLD + "more %s\n" % LISTED)
+        r.commit("move and add")
+        self.assertEqual(r.scan()[0], 1)
+
+    def test_a_changed_line_that_keeps_the_word_counts_as_added(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD.replace("old line", "newer line"))
+        r.commit("edit the line")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_word_only_in_the_second_hunk_is_refused(self):
+        base = "".join("line %d\n" % i for i in range(30))
+        r = self.repo({"src/old.py": base})
+        r.write("src/old.py", base.replace("line 2\n", "line 2 clean\n").replace("line 25\n", "line 25 %s\n" % LISTED))
+        r.commit("two hunks, the word in the second only")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_word_at_the_very_start_of_an_added_line_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "%s starts the line\n" % LISTED)
+        r.commit("word first on the added line")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_an_added_line_that_itself_starts_with_a_plus_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "+%s\n" % LISTED)
+        r.commit("added line whose text starts with a plus")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_whitespace_only_change_to_a_line_with_the_word_counts_as_added(self):
+        r = self.repo()
+        r.write("src/old.py", "    " + self.OLD)
+        r.commit("re-indent the line that holds the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_utf16_file_with_nuls_is_still_read_whole(self):
+        r = self.repo()
+        r.write("u.txt", ("%s here\n" % LISTED).encode("utf-16"), "wb")
+        r.commit("utf16 base")
+        r.base = r.git("rev-parse", "HEAD").strip()
+        r.write("u.txt", ("%s here\nmore\n" % LISTED).encode("utf-16"), "wb")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+
+    def test_an_edited_file_that_starts_with_pk_is_read_whole(self):
+        r = self.repo({"z.dat": "PK zip-like start\nold line %s here\n" % LISTED})
+        r.write("z.dat", "PK zip-like start\nold line %s here\nmore\n" % LISTED)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+
+    def test_a_rename_after_another_changed_file_still_counts_its_added_lines(self):
+        r = self.repo({"a.py": "a\n", "src/old.py": self.OLD})
+        r.write("a.py", "a\nb\n")
+        r.git("mv", "src/old.py", "src/z.py")
+        r.write("src/z.py", self.OLD + "more %s\n" % LISTED)
+        r.commit("edit one file, move and add in another")
+        self.assertEqual(r.scan()[0], 1)
+        r = self.repo({"a.py": "a\n", "src/old.py": self.OLD})
+        r.write("a.py", "a\nb\n")
+        r.git("mv", "src/old.py", "src/z.py")
+        r.commit("edit one file, plain move of another")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_word_split_across_two_added_lines_is_not_formed(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + LISTED[:2] + "\n" + LISTED[2:] + "\n")
+        r.commit("two added lines that only joined would spell the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    PHRASE = pp.reveal("pernvgr cyna")              # a listed phrase with a space in it, built here so this file does not carry it
+
+    def test_a_space_phrase_on_one_added_line_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "see %s\n" % self.PHRASE)
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 1)
+
+    def test_a_space_phrase_split_across_two_added_lines_is_refused(self):
+        a, b = self.PHRASE.split(" ")
+        r = self.repo()
+        r.write("src/old.py", self.OLD + a + "\n" + b + "\n")
+        r.commit("the phrase's words on two added lines: the line join counts as its space")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_phrase_split_across_a_context_line_and_an_added_line_is_NOT_covered(self):
+        """Known limit of added-lines-only: the old half is not read, so the phrase is not formed. Pinned so a change is seen."""
+        a, b = self.PHRASE.split(" ")
+        r = self.repo({"src/old.py": "x %s\nplain\n" % a})
+        r.write("src/old.py", "x %s\n%s\nplain\n" % (a, b))
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 0)
+
+    def test_a_moved_file_is_found_when_the_user_config_turns_rename_detection_off(self):
+        r = self.repo()
+        r.git("config", "diff.renames", "false")
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.commit("move")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_copied_file_is_a_new_file_and_read_whole(self):
+        r = self.repo()
+        r.write("src/copy.py", self.OLD)
+        r.commit("copy")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_an_edited_vendored_path_file_counts_its_added_lines(self):
+        r = self.repo({"vendor/pypdf/LICENSE": "x\n"})
+        r.write("vendor/pypdf/LICENSE", "x\nthanks %s\n" % LISTED)
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 1)
+
+    def test_a_listed_word_in_the_message_is_still_refused_when_the_file_is_untouched(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "clean\n")
+        r.commit("thanks to %s" % LISTED)
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("listed word in a name, an address or a message", out)
+        self.assertNotIn(LISTED, out)
+
+    def test_a_listed_word_in_the_path_of_an_edited_file_is_still_refused(self):
+        r = self.repo({"docs/%s.md" % LISTED: "a\n"})
+        r.write("docs/%s.md" % LISTED, "a\nb\n")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a listed word in its path", out)
+
+
 if __name__ == "__main__":
     unittest.main()

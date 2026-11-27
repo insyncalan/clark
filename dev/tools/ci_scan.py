@@ -246,6 +246,8 @@ class Scan:
         self.env = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
         self.report = pp.Report()
         self.entries, self.blobs, self.deleted = [], [], []
+        self.whole = set()                                  # paths in HEAD moved from a path with a per-file allowance: read in full
+        self.old = {}                                       # path in HEAD -> sha of the same file (or its moved-from file) in BASE
 
     def git(self, *args):
         proc = pp.git(["-C", self.repo] + list(args), env=self.env)
@@ -259,7 +261,7 @@ class Scan:
             changed = [(e.mode, e.sha, e.path) for e in pp.list_tree(self.repo, self.head, self.env)]
             raw = []
         else:
-            raw = self.git("diff", "--raw", "-z", "--no-renames", "--no-abbrev", self.base, self.head).split(b"\0")
+            raw = self.git("diff", "--no-color", "--raw", "-z", "--no-renames", "--no-abbrev", self.base, self.head).split(b"\0")
         while i + 1 < len(raw) and raw[i].startswith(b":"):
             meta, path = raw[i].split(), raw[i + 1].decode("utf-8", "surrogateescape")
             i += 2
@@ -271,6 +273,23 @@ class Scan:
                 changed.append((meta[1].decode(), meta[3].decode(), path))
         if self.base != "ALL" and (i != len(raw) - 1 or raw[-1] != b""):
             raise RuntimeError("git diff output not fully read")
+        if self.base != "ALL":                      # rename detection is used ONLY to find what a moved file's lines were before
+            moved = self.git("-c", "diff.renames=true", "diff", "--no-color", "--raw", "-z", "-M", "--no-abbrev", self.base, self.head).split(b"\0")
+            j = 0
+            while j + 1 < len(moved) and moved[j].startswith(b":"):
+                meta = moved[j].split()
+                if len(meta) < 5:
+                    raise RuntimeError("git diff output not understood")
+                paths = 2 if meta[4][:1] in (b"R", b"C") else 1
+                if j + paths >= len(moved):
+                    raise RuntimeError("git diff output not fully read")
+                new_path = moved[j + paths].decode("utf-8", "surrogateescape")
+                if not meta[4].startswith(b"D") and set(meta[2]) != {48}:
+                    self.old[new_path] = meta[2].decode()
+                src = moved[j + 1].decode("utf-8", "surrogateescape")
+                if paths == 2 and (src in pp.GUARD_ALLOWED or src in VENDORED_PINS):
+                    self.whole.add(new_path)        # its per-file allowance or pin does not travel: the new path is read in full
+                j += 1 + paths
         changed.sort(key=lambda c: c[2])
         shas = [c[1] for c in changed]
         sizes = {}
@@ -283,6 +302,23 @@ class Scan:
         data = dict(zip((e.path for e in regular), pp.read_blobs(self.repo, regular, self.env) if regular else []))
         self.blobs = [data.get(e.path, b"") for e in self.entries]
         self.tree = pp.list_tree(self.repo, self.head, self.env)
+
+    def added(self, e, data):
+        """What the listed-word scan reads of a changed file: only the lines HEAD adds to it (a removed or unchanged line never counts;
+        a moved file counts its added lines; a new file, a binary file, a zip, a file with NULs and a file with a pinned per-file allowance count in full)."""
+        old = self.old.get(e.path)
+        if e.path in pp.GUARD_ALLOWED or e.path in self.whole or e.path in VENDORED_PINS:      # its allowance is a per-FILE count (one use), so the whole file is read, not the added lines
+            return data
+        if not old or not data or b"\0" in data or data[:2] == b"PK":
+            return data
+        diff = self.git("diff", "--no-color", "-U0", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)
+        lines, hunk = [], False
+        for ln in diff.split(b"\n"):
+            if ln.startswith(b"@@"):
+                hunk = True
+            elif hunk and ln.startswith(b"+"):
+                lines.append(ln[1:])
+        return b"\n".join(lines)
 
     @staticmethod
     def clear(path):
@@ -338,6 +374,7 @@ class Scan:
         self.add("no secrets", pp.secret_findings(*scanned))
         listed = [d.replace(PDF_LANG_KEY, b"") if e.index in pinned and e.path.endswith(".pdf") else d for e, d in kept]
         listed = [b"" if vendored(e.mode, e.path, raw) else d for (e, raw), d in zip(kept, listed)]      # its path is still read by the scan
+        listed = [self.added(e, d) for (e, _), d in zip(kept, listed)]      # only the lines the change adds
         self.add("no listed words (people, private repos, hosting)", pp.guard_findings(scanned[0], listed))
         self.identity()
         self.workflows(text, by_number)
@@ -348,7 +385,7 @@ class Scan:
             out, expected = b"", 0
         else:
             span = "%s..%s" % (self.base, self.head)
-            out = self.git("log", "--no-show-signature", "--format=%H%x00%an%x00%ae%x00%cn%x00%ce%x00%B%x00%x01", span)
+            out = self.git("log", "--no-color", "--no-show-signature", "--format=%H%x00%an%x00%ae%x00%cn%x00%ce%x00%B%x00%x01", span)
             expected = int(self.git("rev-list", "--count", span))
         bad, n = [], 0
         # A record ends with NUL then \x01, so a \x01 inside a message hides nothing; the record count must then equal git's own.
