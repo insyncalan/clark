@@ -130,7 +130,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1; SMOKE=1 ;;", plan)               # a push to main: full Ubuntu and the Mac smoke set (the owner, 24-11, row 1602)
+        self.assertNotIn("push) ", plan)                              # no case for a push to main: nothing runs on one (Bifrost 2.0 P7), so a dead case would only mislead
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -321,7 +321,7 @@ class Workflow(unittest.TestCase):
         self.assertNotIn('- cron: "0 23 * * 0"', wf)
         self.assertEqual(wf.count("- cron:"), 1)
         self.assertIn("schedule) FULL=1; MACOS=1; ADVISORY=1 ;;", wf)      # the nightly: full macOS, advisory
-        self.assertIn("push) FULL=1; SMOKE=1 ;;", wf)                     # a push to main: the smoke set, no shards
+        self.assertNotIn("push) ", wf)                                    # no push case (see the plan test); the smoke set comes from the pull request cases
         self.assertNotIn("push) FULL=1; MACOS=1", wf)
         smoke = self.jobs["macos-smoke"]
         self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
