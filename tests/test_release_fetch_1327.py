@@ -724,6 +724,57 @@ class SignedFromFirstSignedTest(Served2):
                 self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
                 self.assertIsNone(self.up.fetched)
 
+    def app_hash(self):
+        h = hashlib.sha256()
+        for rel, body in sorted(self.tree().items()):
+            h.update(rel.encode() + b"\0" + body + b"\0")
+        return h.hexdigest()
+
+    def test_failed_check_installs_nothing_bad_missing_and_swapped_zip(self):
+        """Row 1328 AP5 (PM ruling): every signature failure shows exactly the check sentence and installs nothing."""
+        self.assertEqual("The download failed its check. It was not installed.", self.WORDS)
+        zip_b = make_zip(Path(tempfile.mkdtemp(prefix="clark zip b ", dir=self.zip_dir)), version="1.3.5").read_bytes()
+        cases = {"bad signature": dict(sig=b"x" * 64),
+                 "missing signature asset": dict(sig_asset=False),
+                 "zip B's valid signature beside zip A": dict(sig=sg.signature_for(zip_b))}
+        for label, kw in cases.items():
+            with self.subTest(label):
+                before = self.app_hash()
+                self.release("1.3.4", **kw)
+                if "sig" in kw:
+                    self.assertNotEqual(self.zip, zip_b)
+                fetch = self.fetch_state()
+                self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+                self.assertEqual(updates.MESSAGES["badsig"], fetch["message"])
+                self.assertIsNone(self.up.fetched)
+                self.assertIsNone(self.up.reviewed)
+                code, body = self.up.install({"review_id": "x"})
+                self.assertEqual((409, "review_again"), (code, body["code"]))
+                self.assertEqual([], self.started)
+                self.assertEqual(before, self.app_hash())
+
+    def test_a_digest_mismatch_keeps_its_own_words(self):
+        """Row 1328 AP5: a wrong digest or a truncated zip is not a signature failure; it keeps FETCH_MISMATCH and its own words."""
+        own = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
+        self.assertEqual(own, up.FETCH_MISMATCH)
+        for label in ("wrong digest", "truncated zip"):
+            with self.subTest(label):
+                before = self.app_hash()
+                self.set_release("1.3.4")
+                if label == "wrong digest":
+                    self.doc["assets"][0]["digest"] = "sha256:" + "0" * 64
+                    self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+                else:
+                    self.net.routes[self.url] = lambda req: Reply(self.zip[:-10], self.url)
+                self.up.status()
+                fetch = self.fetch_state()
+                self.assertEqual("failed", fetch["state"])
+                self.assertEqual(up.FETCH_MISMATCH, fetch["message"])
+                self.assertEqual(own, fetch["message"])
+                self.assertNotEqual(self.WORDS, fetch["message"])
+                self.assertIsNone(self.up.fetched)
+                self.assertEqual(before, self.app_hash())
+
     def test_1_3_4_asks_for_its_signature_by_the_release_version_even_with_the_placeholder_key(self):
         self.release("1.3.4")
         with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY):
