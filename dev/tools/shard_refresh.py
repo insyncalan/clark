@@ -46,12 +46,21 @@ def combine(many):
     return out
 
 
+def cap(pin):
+    """The highest weight, to one decimal, that is still within 10 percent of the pin (rounded down, never to the nearest:
+    277.8 x 1.1 rounds to 305.6, which is over the band test_run_tests holds the heavy files to)."""
+    top = int(pin * 11) / 10
+    while top / pin - 1.0 > 0.10:
+        top = round(top - 0.1, 1)
+    return top
+
+
 def merge(old, new, existing):
     """The new table: only test files that exist; the measured time where there is one, else the old line."""
     out = {}
     for name in sorted(existing):
         if name in PINNED and name in new:
-            out[name] = round(min(max(new[name], PINNED[name]), PINNED[name] * 1.1), 1)
+            out[name] = min(max(round(new[name], 1), PINNED[name]), cap(PINNED[name]))
         elif name in new:
             out[name] = round(new[name], 1) or 0.1
         elif name in old:
