@@ -349,12 +349,10 @@ class Workflow(unittest.TestCase):
             return dict(ln.split("=", 1) for ln in open(out, encoding="utf-8").read().splitlines() if "=" in ln)
 
     def test_macos_smoke_is_required_and_the_full_suite_runs_only_nightly_or_by_hand(self):
-        """The plan, run for real: a push gets nothing (no push trigger, P7); a pull request into a release line gets the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
+        """The plan, run for real: there is no push trigger (P7), so no push case; a pull request into a release line gets the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
         a hand-started run with macos=true on a release branch gets the shards (required) in place of the smoke set; an ordinary branch gets neither."""
         cases = (
-            (dict(EVENT="push", BRANCH="main"), "", "", ""),                  # nothing triggers on a push to main any more (P7); were one to, it would get nothing
             (dict(EVENT="schedule", BRANCH="main"), "1", "", "1"),
-            (dict(EVENT="push", BRANCH="release-1.3.11"), "", "", ""),
             (dict(EVENT="pull_request", BRANCH="x", BASE_REF="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", ""),
