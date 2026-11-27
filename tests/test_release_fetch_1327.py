@@ -486,6 +486,29 @@ class DownloadFlowTest(Served2):
             self.up.download({})
         self.assertNotIn(self.sig_url, [c[0].full_url for c in self.net.calls])      # while the key is the placeholder, none is asked for
 
+    def test_under_the_first_signed_release_a_signature_the_release_lists_is_fetched_and_checked_with_a_real_key(self):
+        """Row 1328 (answer of 26-11): a signature that is present is always checked. 0.3.2 is put under the first signed release."""
+        with mock.patch.object(updates, "FIRST_SIGNED", (0, 4, 0)):
+            self.assertFalse(updates.signature_required(version="0.3.2"))
+            self.ready()
+            self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+            for bad in (sg.signature_for(b"other bytes"), self.sig[:63], b"short"):
+                with self.subTest(length=len(bad)):
+                    self.net.routes[self.sig_url] = lambda req, b=bad: Reply(b, self.sig_url)
+                    self.up.cancel({})
+                    self.up.status()
+                    self.up.check({})
+                    self.up.download({})
+                    fetch = self.up.status()[1]["fetch"]
+                    self.assertEqual(("failed", up.FETCH_CHECK), (fetch["state"], fetch.get("message")))
+                    self.assertIsNone(self.up.reviewed)
+
+    def test_under_the_first_signed_release_no_signature_is_fetched_while_the_key_is_the_placeholder(self):
+        with mock.patch.object(updates, "FIRST_SIGNED", (0, 4, 0)), mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY):
+            self.net.routes[self.sig_url] = lambda req: Reply(b"x" * 64, self.sig_url)
+            self.ready()
+        self.assertNotIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
     def test_a_missing_or_wrong_signature_fails_the_check(self):
         for bad in (None, b"x" * 64, b"short"):
             with self.subTest(bad=bad):
@@ -641,7 +664,8 @@ class DownloadFlowTest(Served2):
 
 
 class SignedFromFirstSignedTest(Served2):
-    """Row 1328: the download takes the .sig from 1.3.4 up (with the key patched in), not before, and a download that fails its signature says the approved words."""
+    """Row 1328: from 1.3.4 up (the first signed release in this class, with the key patched in) the download must have its .sig; before that a
+    missing one is allowed and one the release lists is still fetched and checked. A download that fails its signature says the approved words."""
     WORDS = "The download failed its check. It was not installed."
 
     def setUp(self):
@@ -669,15 +693,28 @@ class SignedFromFirstSignedTest(Served2):
         self.assertEqual("ready", self.fetch_state()["state"])
         self.assertNotIn(self.sig_url, [c[0].full_url for c in self.net.calls])
 
+    def test_1_3_3_with_a_signature_on_the_release_takes_it_and_a_wrong_or_short_one_says_the_approved_words(self):
+        self.release("1.3.3")
+        self.assertEqual("ready", self.fetch_state()["state"])
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+        for bad in (sg.signature_for(b"other bytes"), b"x" * 64, self.sig[:63], b"short", b"x" * 200):
+            with self.subTest(len=len(bad)):
+                self.release("1.3.3", sig=bad)
+                fetch = self.fetch_state()
+                self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+                self.assertIsNone(self.up.fetched)
+
     def test_1_3_4_takes_its_signature_with_it(self):
         self.release("1.3.4")
         self.assertEqual("ready", self.fetch_state()["state"])
         self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
 
-    def test_1_3_4_with_no_signature_on_the_release_still_upgrades(self):
-        """Human ruling (row 1328): the in-clark upgrade works when the release has no signature."""
+    def test_1_3_4_with_no_signature_on_the_release_fails_its_check(self):
+        """Row 1328 (answer of 26-11): from the first signed release on (1.3.4 in this class) a release with no signature is not installed."""
         self.release("1.3.4", sig_asset=False)
-        self.assertEqual("ready", self.fetch_state()["state"])
+        fetch = self.fetch_state()
+        self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+        self.assertIsNone(self.up.fetched)
 
     def test_1_3_4_with_a_wrong_signature_says_the_approved_words(self):
         for bad in (sg.signature_for(b"other bytes"), b"x" * 64, b"short", b"x" * 200):
@@ -686,6 +723,57 @@ class SignedFromFirstSignedTest(Served2):
                 fetch = self.fetch_state()
                 self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
                 self.assertIsNone(self.up.fetched)
+
+    def app_hash(self):
+        h = hashlib.sha256()
+        for rel, body in sorted(self.tree().items()):
+            h.update(rel.encode() + b"\0" + body + b"\0")
+        return h.hexdigest()
+
+    def test_failed_check_installs_nothing_bad_missing_and_swapped_zip(self):
+        """Row 1328 AP5 (PM ruling): every signature failure shows exactly the check sentence and installs nothing."""
+        self.assertEqual("The download failed its check. It was not installed.", self.WORDS)
+        zip_b = make_zip(Path(tempfile.mkdtemp(prefix="clark zip b ", dir=self.zip_dir)), version="1.3.5").read_bytes()
+        cases = {"bad signature": dict(sig=b"x" * 64),
+                 "missing signature asset": dict(sig_asset=False),
+                 "zip B's valid signature beside zip A": dict(sig=sg.signature_for(zip_b))}
+        for label, kw in cases.items():
+            with self.subTest(label):
+                before = self.app_hash()
+                self.release("1.3.4", **kw)
+                if "sig" in kw:
+                    self.assertNotEqual(self.zip, zip_b)
+                fetch = self.fetch_state()
+                self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
+                self.assertEqual(updates.MESSAGES["badsig"], fetch["message"])
+                self.assertIsNone(self.up.fetched)
+                self.assertIsNone(self.up.reviewed)
+                code, body = self.up.install({"review_id": "x"})
+                self.assertEqual((409, "review_again"), (code, body["code"]))
+                self.assertEqual([], self.started)
+                self.assertEqual(before, self.app_hash())
+
+    def test_a_digest_mismatch_keeps_its_own_words(self):
+        """Row 1328 AP5: a wrong digest or a truncated zip is not a signature failure; it keeps FETCH_MISMATCH and its own words."""
+        own = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
+        self.assertEqual(own, up.FETCH_MISMATCH)
+        for label in ("wrong digest", "truncated zip"):
+            with self.subTest(label):
+                before = self.app_hash()
+                self.set_release("1.3.4")
+                if label == "wrong digest":
+                    self.doc["assets"][0]["digest"] = "sha256:" + "0" * 64
+                    self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+                else:
+                    self.net.routes[self.url] = lambda req: Reply(self.zip[:-10], self.url)
+                self.up.status()
+                fetch = self.fetch_state()
+                self.assertEqual("failed", fetch["state"])
+                self.assertEqual(up.FETCH_MISMATCH, fetch["message"])
+                self.assertEqual(own, fetch["message"])
+                self.assertNotEqual(self.WORDS, fetch["message"])
+                self.assertIsNone(self.up.fetched)
+                self.assertEqual(before, self.app_hash())
 
     def test_1_3_4_asks_for_its_signature_by_the_release_version_even_with_the_placeholder_key(self):
         self.release("1.3.4")

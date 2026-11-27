@@ -47,6 +47,7 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .rce-show legend { padding: 0; }
 .rce-ck { display: flex; gap: var(--space-2); align-items: flex-start; }
 .rce-f { display: grid; gap: var(--space-1); }
+.rce-f select, .rce-f input { border-color: var(--control-edge); }  /* Row 1270 (Classic only): the Edit fields take the control edge colour; edit.css is shared with Cards, so the rule lives here */
 .rce-across { max-width: 14rem; margin-bottom: var(--space-3); }
 .rce-none { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); }
 /* Row 1499 (pick 7B): the Work items menu in the Classic look, the mock-up's .ctxm. Its --line, --muted, --soft and --blue are the Classic tokens --grey-200, --text-muted, --grey-50 and --brand-blue (the mock-up's --card is --surface). */
@@ -103,6 +104,11 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .cols-menu.cm-7b [role="menuitemcheckbox"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
 .cols-menu.cm-7b [role="menuitemcheckbox"]:hover, .cols-menu.cm-7b [role="menuitemcheckbox"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
 .cols-menu.cm-7b .tk { flex: none; width: 16px; color: var(--brand-blue); font-weight: 700; }
+/* Row 1534 (Q23): the Classic Columns menu's Move left and Move right lines look like its tick lines; one at the first or last movable place is greyed. Cards is not touched. */
+.cols-menu.cm-7b [role="menuitem"] { align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: var(--size-small); font-weight: 500; }
+.cols-menu.cm-7b [role="menuitem"]:hover, .cols-menu.cm-7b [role="menuitem"]:focus-visible { background: var(--grey-50); color: var(--text); outline: none; }
+.cols-menu.cm-7b [role="menuitem"][aria-disabled="true"], .cols-menu.cm-7b [role="menuitem"][aria-disabled="true"]:hover { background: none; color: var(--text-muted); cursor: default; }
+.cols-menu.cm-7b .sep { height: 1px; margin: 4px 0; background: var(--grey-200); }
 /* Row 1299 AP10 (project tabs, Classic only; the Cards look draws no tabs, shell.css is untouched): on the project pages of Settings one pill for each project across the top of the cards, pinned under the top bar while the page scrolls, one row that scrolls sideways when the projects do not fit, capped at 44px high at 1400 and at 900. A pill is a 999px radius, 5px 14px padding, 13.5px type; the open pill has the brand fill (--brand-navy, --white text, as a chosen segment has) and weight 600; in dark it takes the 1px inset --grey-500 ring a navy fill needs. Bare lengths: the 44px cap, the 999px radius, the 5px 14px padding, the 13.5px size, the 600 weight. */
 .set-tabs { position: sticky; top: var(--topbar); z-index: 16; min-width: 0; max-height: 44px; margin-bottom: var(--space-3); background: var(--bg); box-shadow: 0 1px 0 var(--grey-200); }
 .set-tabs ul { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); box-sizing: border-box; height: 44px; margin: 0; padding: 0; list-style: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -166,10 +172,8 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 /* Row 1288: Style button, Style menu 2A (heading sizes 20/18/16 are the builder's pick, none ruled), bubble gap 6 and 13px. */
 .rt-bar .rt-style, .rt-bubble .rt-style { padding: 0 8px 0 10px; gap: 10px; font-size: 15px; min-width: 150px; }
 :is(.rt-bar, .rt-bubble) .ddmenu[aria-label^="Text style"] { min-width: 224px; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { padding: 7px 10px; font-size: 15px; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h1"]:not(.hp) { font-size: 20px; font-weight: 600; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h2"]:not(.hp) { font-size: 18px; font-weight: 600; }
-.rt-bubble .ddmenu[aria-label^="Text style"] [role][data-kind="h3"]:not(.hp) { font-size: 16px; font-weight: 600; }
+/* Row 1431: the bubble Text style menu takes the toolbar's values (0 16px side padding, 14px, one size and weight for the four lines; PM ruling 26-11). */
+.rt-bubble .ddmenu[aria-label^="Text style"] [role]:not(.hp) { box-sizing: border-box; height: 32px; padding: 0 16px; font-size: 14px; }
 .rt-bubble { gap: 6px; }
 .rt-bar .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible), .rt-bubble .ddmenu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--grey-50); color: var(--text); }
 :is(.rt-bar, .rt-bubble) .ddmenu .ck { color: var(--text); }
@@ -369,6 +373,20 @@ html body > .gt-menu.leaving button { padding-left: var(--space-3); padding-righ
 .ask-warn [data-ask-warn-name] { font-weight: 500; }
 .ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ask-warn-btns .btn:not(.pri) { color: var(--text); }
+.ask-warn-btns .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }      /* row 1639 AP11: the pressed one of Accept and Decline, the same pair as the .seg pressed button in shell.css; the border stays the .btn border */
+/* Row 1233 (s7, Classic only; Cards keeps its cover tile): a small image (framed copy under SMALL_WIDE (600 px, Row 1580) wide, the Gallery view marks its frame .small) sits centred at its own size in its tile on its fill (the image's own blurred copy, the brand colour or plain), never enlarged; the tile keeps the shape for all, Whole has no fill area. The large view: padding 30, caption 14px 10px below, close at top 16 right 20 (spec row 14, comment 7022644457; overlay rgba(6,20,30,.82) as the PM ruled, WO-M16293). The tile caption is the mock-up's .tile .tcap: 13px, rgb(71, 85, 119), margin 8px 2px 0 (the same as the Edit caption .fcap; PM ruling 03:19, .tcap = .fcap). */
+.tpl-gal-vframe { display: block; }
+.tpl-gal-vframe.small { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius); aspect-ratio: 4 / 3; background: var(--grey-100); }
+.tpl-gal.s11 .tpl-gal-vframe.small { aspect-ratio: 1 / 1; }
+.tpl-gal.s169 .tpl-gal-vframe.small { aspect-ratio: 16 / 9; }
+.tpl-gal.swhole .tpl-gal-vframe.small { aspect-ratio: auto; }
+.tpl-gal .tpl-gal-vframe.small img { position: relative; width: auto; max-width: 100%; height: auto; max-height: 100%; aspect-ratio: auto; object-fit: contain; }
+.tpl-gal-vframe.small.fill-blur::before { content: ""; position: absolute; inset: -24px; background: var(--gal-img) center / cover; filter: blur(24px); transform: scale(1.05); }
+.tpl-gal-large { padding: 30px; }
+.tpl-gal-large-in p { margin: 10px var(--space-1) 0; font-size: 14px; }
+.tpl-gal-x { top: 16px; right: 20px; display: inline-block; width: auto; height: auto; padding: 6px 14px; border-radius: 999px; background: rgb(255, 255, 255); font: inherit; } /* AP14 close: the mock-up's .lb button (gallery-source.html:58): white pill, padding 6px 14px, text 'Close (Esc)' */
+.tpl-gal-large::backdrop { background: rgba(6, 20, 30, .82); }
+.tpl-gal .tpl-gal-fig figcaption { margin: 8px 2px 0; font-size: 13px; color: var(--grey-700); text-align: left; }
 /* Row 1273 (Classic only; Cards keeps its menu rules): the two prototype menus, the View menu's Group by (#viewMenuList) and Move to, and no other (the Add menu is row 1462; the use case Group by menus keep theirs). Main's Row 1286 rules give them 15px and 224px. The prototype line: 7px 10px padding, then the icon at x10 and 10px (a space-2 and 2px) from icon to words: words at x36. The tick of the item in use is on the right of the word, as in every menu (ruling 9A: no tick slot in front of the icon); main's tick rule places it. Only two heads are drawn in capitals, Group by and the card's Move to head; the words stay as they are. */
 #viewMenuList.ddmenu [role="menuitemradio"], .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) [role="menuitem"] { gap: 0; padding-left: calc(var(--space-2) + 2px); }   /* :not(#none) only lifts Move to above the Row 1286 rule that names the three menus in one :is() list */
 #viewMenuList.ddmenu .mi, .ddmenu[aria-label^="Move "][aria-label$=" to"]:not(#none) .mi { margin-right: calc(var(--space-2) + 2px); }
@@ -399,6 +417,17 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 @media (min-width: 901px) and (max-width: 1100px) { .top-file .cm-wrap { margin-left: calc(228.94px - var(--profile-size) - var(--theme-btn-size) - var(--space-2) - 94.94px); } }
 /* Row 1543: the published header's profile circle is filled with the brand cyan as the editor's circle and the approved mock-up draw it, at every width (it was a slate fill with a grey ring); its size stays 32px. */
 .top-file .cm-badge { background: var(--brand-cyan); border-color: transparent; color: var(--brand-navy); }
+/* Row 1543 AP7 (review ruling): at 900px and narrower the published header follows the Classic editor's bar (rules.css, the 900px block for .top-hdr): one flex row 103px high, the logo, the name, the pages inline and the buttons, no strip under the bar; the picture's fade starts at 78 percent of its box, so no page label sits on the picture (4.5 to 1 kept). A published file is always Classic. */
+@media screen and (max-width: 900px) {
+  html:has(.top-file) { --topbar: 103px; --bar-min: 103px; }
+  .top-file { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 20px; height: 103px; }
+  .top-file .top-id { flex: 1 1 0; }
+  .top-file .tabs { flex: 0 1 auto; min-width: 0; margin: 0; padding: 0; border-top: 0; align-self: stretch; align-items: flex-end; height: auto; order: 2; }
+  .top-file .tab { padding-block: 8px 12px; }
+  .top-file .top-slot, .top-file .cm-wrap { order: 3; margin-left: 0; }
+  .top-file .logo { width: 120px; height: 24px; margin-block: -3px; }
+  .top-file { --image-fade: linear-gradient(to right, transparent 78%, currentColor); }
+}
 
 /* Row 1046: the "Database refreshed" toast (Informed): database icon, teal edge, its own slot under the change toast. */
 .toast.refresh { border-left: 6px solid var(--brand-cyan); margin-top: var(--space-2); }
@@ -413,6 +442,27 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 
 /* Row 1462 (Classic only; Cards keeps its menu): the + icon of the Add menu is grey, as the icons of the other menus (shell.css .menu .menu-item .mi). */
 :is(#newBtnMenu, .ddmenu[aria-label^="Add "]) .mi { color: var(--text-muted); }
+/* Row 1534 (AP5, Classic only): the column widths by name, for a Dashboard list drawn in the order saved on the Work items page (data-ord, --cols-ord from ItemRows.jsx). The standard order never uses them. */
+.irows { --w-ico: 28px; --w-owner: 160px; --w-date: 112px; --w-prio: 84px; --w-id: 88px; }
+.irows.is-edit { --w-id: 124px; }
+.irows.is-file { --w-ico: 112px; }
+.irows.is-dec { --w-date: 184px; }
+/* A list in a saved order: the cells are in that order in the page, so a screen reader reads it. Wide: the tracks follow the order. Narrow (900 px and below, and a half card up to 700 px): each cell goes back to its standard place (--s) and the standard tracks. */
+.irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: var(--s); }
+@media (min-width: 901px) {
+  .irows[data-ord] .wl-row, .irows[data-ord] .wl-head { grid-template-columns: var(--cols-ord); }
+  .irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: 0; }
+}
+@container half (max-width: 700px) {
+  .irows[data-ord] .wl-row, .irows[data-ord] .wl-head { grid-template-columns: var(--cols); }
+  .irows[data-ord] .wl-row > *, .irows[data-ord] .wl-head > * { order: var(--s); }
+}
+/* Row 1534 (Classic only: the Cards page keeps its bytes, frozen 19-11): dragging a Work items heading to a new place; the drop place is a bar on the side of the heading it would land beside. */
+th[data-colmove] { cursor: grab; touch-action: none; }
+.wil-table th.col-move { cursor: grab; touch-action: none; }      /* a Dashboard Work items list of one type (Edit only): the same grab, and a finger drags the heading */
+th.col-dragging { opacity: 0.55; cursor: grabbing; }
+th.col-drop-before { box-shadow: inset 3px 0 0 var(--brand-blue); }
+th.col-drop-after { box-shadow: inset -3px 0 0 var(--brand-blue); }
 /* Row 1233 (the Image gallery's Edit page, Classic only; Cards keeps the slot list). Values read from the approved mock-up (gallery-source.html, line numbers there): the grid (50), tile and frame (51-52, 20), add tile (56, 55), empty area (55, 108), caption (55). Three across, two at half width and at 900 px. */
 .tpl-gal-tiles { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tpl-gal-tiles.c2, .slot-left .tpl-gal-tiles, .slot-right .tpl-gal-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -425,6 +475,9 @@ html .peek .wordsbox { margin-left: -24px; margin-right: -24px; padding-left: 24
 .tpl-gal-tiles.swhole .tpl-gal-frame { aspect-ratio: auto; }
 .tpl-gal-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tpl-gal-tiles.swhole .tpl-gal-frame img { height: auto; }
+.tpl-gal-nodesc { position: absolute; top: 8px; right: 38px; z-index: 1; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--tone-red-text); color: rgb(255, 255, 255); font-size: 12px; font-weight: 700; line-height: 1; } /* Row 1233 AP9 (Edit only): the red mark on a tile with no description; the spec's var(--red) is clark's red token --tone-red-text */
+:root[data-theme=dark] .tpl-gal-nodesc { color: var(--bg); } /* the white "!" is 2.04:1 on the dark red, so in dark it takes the page background (over 7:1), no new colour */
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .tpl-gal-nodesc { color: var(--bg); } }
 .tpl-gal-tcap { margin: 8px 2px 0; font-size: 13px; color: var(--text-muted); }
 .tpl-gal-add { display: grid; place-items: center; box-sizing: border-box; min-height: 120px; border: 2px dashed var(--grey-300); border-radius: 12px; background: none; color: var(--text-muted); font: inherit; cursor: pointer; aspect-ratio: 4 / 3; }
 .tpl-gal-tiles.s11 .tpl-gal-add { aspect-ratio: 1; }

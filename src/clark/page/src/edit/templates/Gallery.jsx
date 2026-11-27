@@ -119,6 +119,7 @@ function Tiles({ section }) {
             <div class={`tpl-gal-tile${on ? " sel" : ""}`} key={s} data-slot={s} role="button" tabIndex={0} aria-pressed={on} aria-label={W.tile(i + 1)}
               onClick={() => setPick(s)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(s); } }}>
               <div class="tpl-gal-frame"><img src={safeImage(pics[s])} alt="" draggable={false} /></div>
+              {!(items[s] || {}).alt ? <span class="tpl-gal-nodesc" title={W.noDescriptionMark} role="img" aria-label={W.noDescriptionMark} data-nodesc>!</span> : null}
               {cap ? <div class="tpl-gal-tcap">{cap}</div> : null}
             </div>
           );

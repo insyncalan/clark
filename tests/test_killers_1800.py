@@ -2,11 +2,11 @@
 The footer has no padding, so the 43 px is the content box. A real browser at 1400 and 900 px.
 Run: python3 dev/run_tests.py -j 1 test_killers_1800
 """
-from test_peek_footer_1258 import Footer as _Footer
+import test_peek_footer_1258 as _test_peek_footer_1258
 from test_server import chrome
 
 
-class FootPadding(_Footer):
+class FootPadding(_test_peek_footer_1258.Footer):
     def test_the_footer_has_no_padding_so_the_43_px_is_the_content_box(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

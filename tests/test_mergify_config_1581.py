@@ -56,9 +56,9 @@ class MergifyConfig(unittest.TestCase):
                          ["label = queue", "base = main", "-draft"] + ["check-success = " + c for c in CHECKS])
         self.assertEqual(list_under("merge_conditions"), ["check-success = " + c for c in CHECKS])
 
-    def test_queue_merges_with_a_merge_commit_in_batches_of_3_and_waits_1_minute(self):
+    def test_queue_merges_with_a_merge_commit_one_pr_per_combined_run_and_waits_1_minute(self):
         lines = code_lines()
-        for want in ("    merge_method: merge", "    batch_size: 3", "    batch_max_wait_time: 1 minute"):
+        for want in ("    merge_method: merge", "    batch_size: 1      # one PR per combined run: the sha Mergify tests is the sha it merges (Bifrost 2.0 P7)", "    batch_max_wait_time: 1 minute"):
             self.assertEqual(lines.count(want), 1, want)
 
     def test_pull_request_rule_queues_labelled_prs_into_default(self):

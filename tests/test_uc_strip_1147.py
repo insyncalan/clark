@@ -5,7 +5,8 @@ Same harness and fictional data as test_glance_page. 1400 and 900 px, light and 
 """
 import unittest
 
-from test_glance_page import Published, Setup, tearDownModule  # noqa: F401
+from test_glance_page import Setup, tearDownModule
+import test_glance_page as _test_glance_page
 from test_server import chrome
 
 # The strip's box, the bars' box and the first count's box, in the page's pixels.
@@ -44,7 +45,7 @@ class Bars(Setup):
                         self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
 
-class PublishedBars(Published):
+class PublishedBars(_test_glance_page.Published):
     def test_the_published_file_has_the_bars_at_the_right_too(self):
         path = self.publish()
         for width in (1400, 900):

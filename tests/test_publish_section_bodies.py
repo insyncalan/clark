@@ -13,7 +13,8 @@ from unittest import mock
 from _demo import USER
 from _publish_fixture import spellings
 from clark import changes, publish, section_bodies as sb, store as store_module
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 from test_needs_content import stored_section
 
 MARK = "ZQ-PUBLISH-MARK"
@@ -32,7 +33,7 @@ def tbody(*words):
     return json.dumps({"v": 1, "groups": [{"name": "Plan", "lines": [{"text": w[:200]} for w in words]}]})
 
 
-class Published(Api):
+class Published(_test_changes.Api):
     def section(self, kind="tracker", title=None, **more):
         if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
             return stored_section(self.s)

@@ -84,7 +84,7 @@ FETCH_BAD = "The check did not finish. Try again."
 FETCH_NOFILE = "No download for this computer was found, or the releases page gave an answer clark could not read. Try again later."
 # Row 1327 (the approved table, row 8): one sentence for a download that failed its check; the page titles the row "The download failed its check".
 FETCH_TOOBIG = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
-FETCH_CHECK = updates.MESSAGES["badsig"]       # a download whose signature is missing or does not verify (1.3.4 and up)
+FETCH_CHECK = updates.MESSAGES["badsig"]       # a download whose signature is missing (1.4.0 and up), or does not verify or could not be fetched (any version); under 1.4.0 a missing one is allowed
 FETCH_MISMATCH = FETCH_TOOBIG
 # A refusal of the review that runs on a downloaded file, by its code: damaged bytes say (b), a file that is not what the page lists
 # (a signature, a version, a system, a name) says (c); a failure inside this computer (space, folder) is the plain check sentence.
@@ -419,7 +419,8 @@ class Updater:
             release_fetch.download(latest["url"], dest, progress=lambda done, total: self._progress(token, version, done, total),
                                    cancelled=flag.is_set, expected_size=latest["bytes"], digest=latest["digest"],
                                    opener=self.release_opener)
-            if updates.signature_required(version=version) and latest.get("sig_url"):         # from 1.3.4 up the signature comes with it
+            # From 1.4.0 up the signature comes with it; under 1.4.0 too when the release lists one and a real key is built in (row 1328: a signature that is there is always checked).
+            if latest.get("sig_url") and (updates.signature_required(version=version) or updates.signature_required()):
                 try:
                     release_fetch.download(latest["sig_url"], Path(str(dest) + updates.SIGNATURE_SUFFIX), cancelled=flag.is_set,
                                            opener=self.release_opener, max_bytes=updates.SIGNATURE_BYTES)

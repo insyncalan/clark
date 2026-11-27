@@ -87,11 +87,14 @@ class Page(PublishedFile, glance.Setup):
         self.seed(4, 8)
         path = self.publish()
         with chrome() as cdp:
-            for w in (1400, 900):
-                got = self.read(self.draw(cdp, path, width=w))
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                got = self.read(self.draw(cdp, path, width=w, dark=dark))
+                cols = 4 if w == 1400 else 2
                 self.assertEqual(got["n"], 8, w)
                 self.assertIn("raid-n4", got["cls"])
-                self.assertEqual(got["left"], 4 if w == 1400 else 2, f"four across hold at 1400 and go two across at 900: {got}")
+                self.assertEqual(got["left"], cols, f"four across hold at 1400 and go two across at 900 (dark={dark}): {got}")
+                for row in range(0, 8, cols):
+                    self.assertEqual(len(set(got["h"][row:row + cols])), 1, f"a row is one height at {w}, dark={dark}: {got}")
 
     def test_four_across_at_1400_fit_a_whole_owner(self):
         made = []

@@ -225,11 +225,11 @@ class Check(unittest.TestCase):
         for word in ("Pre-release is unticked", "no Beta line", "before 1.2.0"):   # the stable wording of steps 8 and 19
             self.assertIn(word, step)
 
-    def test_the_checklist_says_the_sig_is_required_from_1_3_4_and_the_check_looks_for_it(self):
+    def test_the_checklist_says_the_sig_is_required_from_1_4_0_and_the_check_looks_for_it(self):
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
         steps = {l.split(".")[0]: l for l in text.splitlines() if l[:1].isdigit() and ". **" in l[:6]}
         for number in ("10", "20"):
-            for word in ("1.3.4", ".sig", "1.3.3"):
+            for word in ("1.4.0", ".sig", "1.3.13"):
                 self.assertIn(word, steps[number], number)
         self.assertNotIn("does not look for the `.sig`", text)
         self.assertNotIn("the time the key went live", text)
@@ -380,16 +380,16 @@ class Signature(unittest.TestCase):
 
     def test_the_command_fails_a_release_without_its_sig_when_the_key_is_real(self):
         out = io.StringIO()
-        run = mock.Mock(returncode=0, stdout=json.dumps([self.release(sig=False, tag="v1.3.4")]))
+        run = mock.Mock(returncode=0, stdout=json.dumps([self.release(sig=False, tag="v1.4.0")]))
         with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", _signing.TEST_PUBLIC), \
                 contextlib.redirect_stdout(out):
-            self.assertEqual(mod.main(["v1.3.4"]), 1)
-        self.assertIn("no clark-1.3.4-mac.zip.sig", out.getvalue())
+            self.assertEqual(mod.main(["v1.4.0"]), 1)
+        self.assertIn("no clark-1.4.0-mac.zip.sig", out.getvalue())
 
 
 class FirstSigned(unittest.TestCase):
-    """Row 1328: from 1.3.4 up (updates.FIRST_SIGNED) a release must carry a verifying .sig, with the real key or the placeholder;
-    1.3.3 and older are not asked. A key passed in by a test asks of every release from 0.5.0."""
+    """Row 1328: from 1.4.0 up (updates.FIRST_SIGNED) a release must carry a verifying .sig, with the real key or the placeholder;
+    1.3.13 and older are not asked. A key passed in by a test asks of every release from 0.5.0."""
     ZIP = b"PK pretend download bytes"
 
     def release(self, tag, sig=False):
@@ -407,42 +407,43 @@ class FirstSigned(unittest.TestCase):
             return mod.problems(releases, tags, [], fetch)
 
     def test_the_tool_uses_the_apps_constant(self):
-        self.assertEqual((1, 3, 4), mod.updates.FIRST_SIGNED)
+        self.assertEqual((1, 4, 0), mod.updates.FIRST_SIGNED)
         self.assertFalse(hasattr(mod, "FIRST_SIGNED"))
 
-    def test_1_3_3_needs_no_sig_with_the_placeholder_or_a_real_key(self):
+    def test_1_3_13_and_older_need_no_sig_with_the_placeholder_or_a_real_key(self):
         for key in (None, _signing.TEST_PUBLIC):
-            for tag in ("v1.3.3", "v1.3.0", "v1.2.0"):
+            for tag in ("v1.3.3", "v1.3.0", "v1.2.0", "v1.3.4", "v1.3.5", "v1.3.13"):
                 self.assertEqual(self.check([self.release(tag)], key=key), [], (tag, key))
         self.assertEqual(self.check([self.release("v1.3.3")], {"v1.3.3"}, self.fetch(), _signing.TEST_PUBLIC), [])
+        self.assertEqual(self.check([self.release("v1.3.13")], {"v1.3.13"}, self.fetch(), _signing.TEST_PUBLIC), [])
 
-    def test_1_3_4_without_its_sig_fails_even_while_the_key_is_the_placeholder(self):
-        for tag in ("v1.3.4", "v1.3.5", "v1.4.0", "v2.0.0"):
+    def test_1_4_0_without_its_sig_fails_even_while_the_key_is_the_placeholder(self):
+        for tag in ("v1.4.0", "v1.4.1", "v1.10.0", "v2.0.0"):
             out = self.check([self.release(tag)], {tag})
             self.assertEqual(len(out), 1, tag)
             self.assertIn(f"no clark-{tag[1:]}-mac.zip.sig", out[0])
             self.assertIn("step 7a", out[0])
 
-    def test_1_3_4_with_a_verifying_sig_passes_with_the_real_key(self):
-        self.assertEqual(self.check([self.release("v1.3.4", sig=True)], None, self.fetch(), _signing.TEST_PUBLIC), [])
+    def test_1_4_0_with_a_verifying_sig_passes_with_the_real_key(self):
+        self.assertEqual(self.check([self.release("v1.4.0", sig=True)], None, self.fetch(), _signing.TEST_PUBLIC), [])
 
-    def test_1_3_4_with_a_sig_from_another_key_or_over_other_bytes_fails(self):
-        out = self.check([self.release("v1.3.4", sig=True)], {"v1.3.4"}, self.fetch(_signing.OTHER_SEED), _signing.TEST_PUBLIC)
+    def test_1_4_0_with_a_sig_from_another_key_or_over_other_bytes_fails(self):
+        out = self.check([self.release("v1.4.0", sig=True)], {"v1.4.0"}, self.fetch(_signing.OTHER_SEED), _signing.TEST_PUBLIC)
         self.assertEqual(len(out), 1)
         self.assertIn("badsig", out[0])
         wrong_len = lambda asset: self.ZIP if asset["id"] == 1 else b"short"
-        self.assertEqual(len(self.check([self.release("v1.3.4", sig=True)], {"v1.3.4"}, wrong_len, _signing.TEST_PUBLIC)), 1)
+        self.assertEqual(len(self.check([self.release("v1.4.0", sig=True)], {"v1.4.0"}, wrong_len, _signing.TEST_PUBLIC)), 1)
 
-    def test_1_3_4_signed_while_the_key_is_the_placeholder_cannot_verify(self):
-        out = self.check([self.release("v1.3.4", sig=True)], {"v1.3.4"}, self.fetch())
+    def test_1_4_0_signed_while_the_key_is_the_placeholder_cannot_verify(self):
+        out = self.check([self.release("v1.4.0", sig=True)], {"v1.4.0"}, self.fetch())
         self.assertEqual(len(out), 1)
         self.assertIn("nokey", out[0])
 
     def test_a_sig_that_cannot_be_downloaded_fails_whichever_of_the_two_is_missing(self):
-        rel = self.release("v1.3.4", sig=True)
+        rel = self.release("v1.4.0", sig=True)
         for missing in (1, 2):
             fetch = lambda asset, m=missing: None if asset["id"] == m else b"x"
-            out = self.check([rel], {"v1.3.4"}, fetch, _signing.TEST_PUBLIC)
+            out = self.check([rel], {"v1.4.0"}, fetch, _signing.TEST_PUBLIC)
             self.assertEqual(len(out), 1, missing)
             self.assertIn("could not be downloaded", out[0])
 
@@ -455,8 +456,8 @@ class FirstSigned(unittest.TestCase):
                 mod.main([])
             self.assertEqual(said, "still the placeholder" in err.getvalue(), key)
 
-    def test_an_old_unsigned_tag_is_checked_only_when_it_is_given(self):
-        for tag in ("v1.3.4", "v1.3.6", "v1.3.7"):
+    def test_an_unsigned_tag_is_checked_only_when_it_is_given(self):
+        for tag in ("v1.4.0", "v1.4.1", "v1.5.0"):
             run = mock.Mock(returncode=0, stdout=json.dumps([self.release(tag)]))
             for argv, code in (([], 0), ([tag], 1)):
                 with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", _signing.TEST_PUBLIC), \

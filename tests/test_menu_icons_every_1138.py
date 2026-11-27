@@ -291,7 +291,7 @@ class Dashboard(Base):
             for w, th in LOOKS:
                 d.look(w, th)
                 d.button("#profile-btn", "profile")
-                d.check("profile", "document.querySelector('#profile-btn').click()", "#profile-menu", 8)
+                d.check("profile", "document.querySelector('#profile-btn').click()", "#profile-menu", 7)
                 d.button("#project-name", "project switch")
                 d.check("project-switch", "document.querySelector('#project-name').click()", "[role=menu]", 1)
                 for ref in d.js("[...document.querySelectorAll('.secs > .sec[data-id]')].map(s => s.dataset.id)"):      # the page's own sections: the swapped glance has a new id

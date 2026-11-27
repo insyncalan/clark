@@ -11,7 +11,8 @@ import unittest
 
 from _paths import SRC  # noqa: F401
 from test_server import chrome, wait  # noqa: E402,F401      (named here, so the runner sees a browser test by its text)
-from test_uc_published_same_1479 import ENTRY, SamePage as _Base, UC, FIXED_DATE, page_target, need_chrome, tearDownModule  # noqa: E402,F401
+from test_uc_published_same_1479 import ENTRY, UC, FIXED_DATE, page_target, need_chrome, tearDownModule
+import test_uc_published_same_1479 as _test_uc_published_same_1479
 
 ENTRY2 = ENTRY + """
 import { UCEDIT } from "./edit/UseCasesEdit.jsx";
@@ -27,7 +28,7 @@ window.clarkPatch = (src) => { data.value = new Function("d", "return (" + src +
 """
 
 
-class Slots(_Base):
+class Slots(_test_uc_published_same_1479.SamePage):
     """Reuses the build and the server of the same-page test; its own AP1, AP3, AP4 and AP6 tests are switched off here."""
     test_published_and_editor_pages_have_the_same_cards_in_the_same_order = None
     test_details_shows_owner_and_not_last_change = None

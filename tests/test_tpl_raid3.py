@@ -17,7 +17,7 @@ from _demo import USER
 from _paths import SRC
 from clark import changes, publish, section_bodies, store as store_module, theme
 from clark.section_kinds import base, raid3, raid4
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import Base as PageBase
 from test_server import chrome
 
@@ -119,7 +119,7 @@ class CheckerBase:
         self.assertLessEqual(len(self.check(biggest)), self.MODULE.LIMIT)
 
 
-class Items(Api):
+class Items(_test_changes.Api):
     """The store with a risk, an issue, an action and a decision, and a card section of the type under test."""
     TYPE, SIZE = "raid3", 3
 

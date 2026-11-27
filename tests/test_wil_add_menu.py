@@ -15,7 +15,7 @@ from _paths import ROOT, SRC, TOOLS
 from clark import changes
 from clark.section_kinds import workitems as wi
 import test_tpl_workitems as base
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -40,7 +40,7 @@ def template_start():
     return json.loads(got.stdout)
 
 
-class StartsWithAFilter(Api):
+class StartsWithAFilter(_test_changes.Api):
     def setUp(self):
         super().setUp()
         base.plant(self)

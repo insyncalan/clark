@@ -607,10 +607,10 @@ class ThePublish(Base):
         self.assertEqual(code, 0, out)
         self.assertEqual(self.heads(), ["refs/heads/release-0.1.0"])
 
-    def test_a_release_from_1_3_4_up_is_refused_without_a_verifying_sig(self):          # #1328 AP2
+    def test_a_release_from_1_4_0_up_is_refused_without_a_verifying_sig(self):          # #1328 AP2
         self.make_private(GOOD)
         _signing.trust_test_key(self)
-        zipped = self.tmp / "clark-1.3.4-mac.zip"
+        zipped = self.tmp / "clark-1.4.0-mac.zip"
         zipped.write_bytes(b"zip bytes")
         sig = _signing.sign_file(zipped)
         other = self.tmp / "other.sig"
@@ -618,15 +618,22 @@ class ThePublish(Base):
         for flags in ((), ("--zip", str(zipped)), ("--sig", str(sig)), ("--zip", str(zipped), "--sig", str(other)),
                       ("--zip", str(zipped), "--sig", str(self.tmp / "none.sig"))):
             with self.subTest(flags):
-                self.assertIn("REFUSED  release is signed", self.refused("--branch", "release-1.3.4", *flags))
-        code, out = self.go("--branch", "release-1.3.4", "--zip", str(zipped), "--sig", str(sig))
+                self.assertIn("REFUSED  release is signed", self.refused("--branch", "release-1.4.0", *flags))
+        code, out = self.go("--branch", "release-1.4.0", "--zip", str(zipped), "--sig", str(sig))
         self.assertEqual(code, 0, out)
-        self.assertEqual(self.heads(), ["refs/heads/release-1.3.4"])
+        self.assertEqual(self.heads(), ["refs/heads/release-1.4.0"])
 
-    def test_a_release_before_1_3_4_needs_no_sig(self):
+    def test_a_release_before_1_4_0_needs_no_sig(self):
         self.make_private(GOOD)
         code, out = self.go("--branch", "release-1.3.3")
         self.assertEqual(code, 0, out)
+
+    def test_the_threshold_has_two_sides_1_3_13_goes_without_a_sig_and_1_4_0_is_refused(self):          # row 1328 ruling 26-11
+        self.make_private(GOOD)
+        self.assertIn("REFUSED  release is signed", self.refused("--branch", "release-1.4.0"))
+        code, out = self.go("--branch", "release-1.3.13")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.heads(), ["refs/heads/release-1.3.13"])
 
     def test_other_branch_names_are_refused(self):
         self.make_private(GOOD)

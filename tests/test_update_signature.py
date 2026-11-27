@@ -140,10 +140,10 @@ class SignatureCheckTest(SignedBase):
         self.with_sig(path, ed25519_sign.sign(sg.TEST_SEED, updates.SIGN_DOMAIN + data))
         self.assertEqual("0.3.1", self.read(path).version)
 
-    def test_no_signature_file_is_accepted_for_an_in_clark_upgrade_but_check_signature_alone_still_says_unsigned(self):
-        """Human ruling (row 1328): the upgrade works when the release has no .sig. The pinned key stays; a .sig that is there is still checked."""
+    def test_no_signature_file_is_refused_from_the_first_signed_release_and_check_signature_alone_says_unsigned(self):
+        """Row 1328 (answer of 26-11): from the first signed release on (here every version: trust_test_key) a download with no .sig is refused."""
         path = make_zip(self.tmp, sign=False)
-        self.assertEqual("0.3.1", self.read(path).version)
+        self.refuses(path, "unsigned", APPROVED_WORDS)
         with self.assertRaises(UpdateError) as said:
             updates.check_signature(b"x", None, sg.TEST_PUBLIC)
         self.assertEqual(("unsigned", APPROVED_WORDS), (said.exception.key, said.exception.message))
@@ -325,7 +325,8 @@ class OneSetOfBytesTest(SignedBase):
         unsigned = make_zip(self.fresh(), sign=False)
         kept, digest = ui.take_in(unsigned, data_dir, "mac")
         self.assertFalse(Path(str(kept) + ".sig").exists())
-        self.assertEqual("0.3.1", ui.read_taken(kept, digest, "mac", "0.3.0", 2).version)      # row 1328 ruling: no .sig is accepted
+        with mock.patch.object(updates, "FIRST_SIGNED", (0, 3, 2)):      # row 1328: a missing .sig is allowed only under the first signed release, so 0.3.1 is put under it
+            self.assertEqual("0.3.1", ui.read_taken(kept, digest, "mac", "0.3.0", 2).version)
 
 
 
@@ -334,7 +335,7 @@ APPROVED_WORDS = "The download failed its check. It was not installed."
 
 
 class FirstSignedTest(SignedBase):
-    """Row 1328: from 1.3.4 up a verifying .sig is required; 1.3.3 and older stay accepted unsigned."""
+    """Row 1328: from 1.4.0 up a verifying .sig is required; 1.3.13 and older stay accepted unsigned."""
 
     def setUp(self):
         super().setUp()
@@ -344,19 +345,19 @@ class FirstSignedTest(SignedBase):
     def zip_of(self, version, sign=False):
         return make_zip(self.fresh(), version=version, sign=sign)
 
-    def test_the_first_signed_release_is_1_3_4(self):
-        self.assertEqual((1, 3, 4), SHIPPED_FIRST_SIGNED)
+    def test_the_first_signed_release_is_1_4_0(self):
+        self.assertEqual((1, 4, 0), SHIPPED_FIRST_SIGNED)
 
-    def test_1_3_3_and_older_are_not_asked_for_a_signature(self):
-        for v in ("1.3.3", "1.3.0", "1.2.99", "0.9.9", "1.3.2"):
+    def test_1_3_13_and_older_are_not_asked_for_a_signature(self):
+        for v in ("1.3.3", "1.3.0", "1.2.99", "0.9.9", "1.3.2", "1.3.4", "1.3.5", "1.3.10", "1.3.13", "1.3.99"):
             self.assertFalse(updates.signature_required(version=v), v)
 
-    def test_1_3_4_and_newer_are_asked_for_a_signature(self):
-        for v in ("1.3.4", "1.3.5", "1.3.10", "1.4.0", "2.0.0", "10.0.0"):
+    def test_1_4_0_and_newer_are_asked_for_a_signature(self):
+        for v in ("1.4.0", "1.4.1", "1.10.0", "2.0.0", "10.0.0"):
             self.assertTrue(updates.signature_required(version=v), v)
 
     def test_a_version_that_cannot_be_read_asks_for_a_signature(self):
-        for v in ("abc", "1.3", "", "1.3.4.dev", "9" * 5000):
+        for v in ("abc", "1.3", "", "1.4.0.dev", "9" * 5000):
             self.assertTrue(updates.signature_required(version=v), v)
 
     def test_check_signature_with_a_key_passed_in_is_not_the_placeholder_refusal(self):
@@ -380,34 +381,129 @@ class FirstSignedTest(SignedBase):
             with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", key):
                 self.assertEqual("1.3.3", self.read(self.zip_of("1.3.3"), installed="1.3.2").version)
 
-    def test_an_unsigned_1_3_4_is_accepted_and_a_wrongly_signed_one_is_refused_with_the_approved_words(self):
+    def test_an_unsigned_1_4_0_is_refused_and_a_wrongly_signed_one_is_refused_with_the_approved_words(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        path = self.zip_of("1.3.4")
-        self.assertEqual("1.3.4", self.read(path, installed="1.3.3").version)      # row 1328 ruling: no .sig, still installs
+        path = self.zip_of("1.4.0")
+        self.refuses(path, "unsigned", APPROVED_WORDS, installed="1.3.3")      # row 1328 (answer of 26-11): no .sig from 1.4.0 on is refused
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
         self.refuses(path, "badsig", APPROVED_WORDS, installed="1.3.3")
         Path(str(path) + ".sig").write_bytes(b"x" * 63)
         self.refuses(path, "badsig", APPROVED_WORDS, installed="1.3.3")
 
-    def test_a_good_signature_over_1_3_4_installs(self):
+    def test_a_good_signature_over_1_4_0_installs(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        self.assertEqual("1.3.4", self.read(self.zip_of("1.3.4", sign=True), installed="1.3.3").version)
+        self.assertEqual("1.4.0", self.read(self.zip_of("1.4.0", sign=True), installed="1.3.3").version)
 
-    def test_1_3_4_is_never_accepted_unsigned_while_the_key_is_the_placeholder(self):
+    def test_1_4_0_is_never_accepted_unsigned_while_the_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
-        self.refuses(self.zip_of("1.3.4", sign=True), "nokey", installed="1.3.3")      # a .sig that is there cannot be checked with the placeholder
+        self.refuses(self.zip_of("1.4.0", sign=True), "nokey", installed="1.3.3")      # a .sig that is there cannot be checked with the placeholder
 
     def test_the_signature_is_checked_before_the_zip_is_opened(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        junk = Path(self.fresh()) / "clark-1.3.4-mac.zip"
+        junk = Path(self.fresh()) / "clark-1.4.0-mac.zip"
         junk.write_bytes(b"not a zip at all")
         Path(str(junk) + ".sig").write_bytes(b"x" * 63)
         self.refuses(junk, "badsig", installed="1.3.3")
 
-    def test_a_1_3_4_zip_renamed_1_3_3_is_not_taken_for_an_old_release(self):
+    def test_a_1_4_0_zip_renamed_1_3_3_is_not_taken_for_an_old_release(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
-        path = make_zip(self.fresh(), version="1.3.4", name="clark-1.3.3-mac.zip", sign=False)
+        path = make_zip(self.fresh(), version="1.4.0", name="clark-1.3.3-mac.zip", sign=False)
         self.refuses(path, "damaged", installed="1.3.2")
+
+    def test_the_threshold_has_two_sides_1_3_13_goes_unsigned_and_1_4_0_is_asked_for_its_sig(self):
+        """Row 1328 ruling 26-11: every release from 1.4.0 on must carry a signature; 1.3.13 and older are not asked for one.
+        A release with NO .sig installs under 1.4.0 and is refused as unsigned from 1.4.0 on (answer of 26-11), with the
+        switch as shipped and with it off; 1.3.13 reads either way."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        self.assertFalse(updates.signature_required(version="1.3.13"))
+        self.assertTrue(updates.signature_required(version="1.4.0"))
+        old, new = self.zip_of("1.3.13"), self.zip_of("1.4.0")
+        self.assertEqual("1.3.13", self.read(old, installed="1.3.3").version)
+        self.refuses(new, "unsigned", APPROVED_WORDS, installed="1.3.3")
+        with mock.patch.object(updates, "UNSIGNED_UPGRADES_ALLOWED", False):
+            self.assertEqual("1.3.13", self.read(old, installed="1.3.3").version)
+            self.refuses(new, "unsigned", APPROVED_WORDS, installed="1.3.3")
+        Path(str(old) + ".sig").write_bytes(b"x" * 63)                     # below the threshold only a MISSING .sig is allowed: one that is there is checked
+        self.refuses(old, "badsig", APPROVED_WORDS, installed="1.3.3")
+
+    def test_from_1_4_0_on_a_download_with_no_sig_is_refused_as_unsigned(self):
+        """Row 1328 (answer of 26-11): the app itself refuses an unsigned download from 1.4.0 on."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        self.assertIs(True, updates.UNSIGNED_UPGRADES_ALLOWED)                # as shipped: the switch does not reach 1.4.0 and up
+        for v in ("1.4.0", "1.4.1", "1.10.0", "2.0.0"):
+            path = self.zip_of(v)
+            self.assertFalse(Path(str(path) + ".sig").exists())
+            self.refuses(path, "unsigned", APPROVED_WORDS, installed="1.3.3")
+
+    def test_under_1_4_0_a_download_with_no_sig_still_installs(self):
+        """The other side of the same line: the last versions under 1.4.0 read with no .sig, with the switch on or off."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        for allowed in (True, False):
+            with mock.patch.object(updates, "UNSIGNED_UPGRADES_ALLOWED", allowed):
+                for v in ("1.3.4", "1.3.13", "1.3.99"):
+                    self.assertEqual(v, self.read(self.zip_of(v), installed="1.3.3").version, (v, allowed))
+
+    def test_an_unsigned_1_4_0_is_refused_through_take_in_too(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        kept, digest = ui.take_in(self.zip_of("1.4.0"), self.fresh(), "mac")
+        self.assertFalse(Path(str(kept) + ".sig").exists())
+        with self.assertRaises(UpdateError) as said:
+            ui.read_taken(kept, digest, "mac", "1.3.3", 2)
+        self.assertEqual(("unsigned", APPROVED_WORDS), (said.exception.key, said.exception.message))
+
+    def test_with_the_placeholder_key_an_unsigned_1_4_0_reads_as_before(self):
+        """Not changed by row 1328: while the release key is the placeholder nothing can be verified, and a download with no .sig
+        is let through as it was (a .sig that is there is refused as nokey, see the test above). The shipped key is a real one
+        (ShippedKeyTest), so this state is not the shipped one."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
+        self.assertEqual("1.4.0", self.read(self.zip_of("1.4.0"), installed="1.3.3").version)
+        with mock.patch.object(updates, "UNSIGNED_UPGRADES_ALLOWED", False):
+            self.refuses(self.zip_of("1.4.0"), "nokey", installed="1.3.3")
+
+    def test_a_wrong_sig_beside_a_download_under_1_4_0_is_refused(self):
+        """Row 1328 (answer of 26-11): a signature that is present is always checked and a wrong one refused, at any version."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        for v, installed in (("1.3.13", "1.3.3"), ("1.3.99", "1.3.3"), ("1.3.4", "1.3.3"), ("1.3.3", "1.3.2"), ("0.9.9", "0.3.0")):
+            path = self.zip_of(v)
+            for label, wrong in (("another key", sg.signature_for(path.read_bytes(), sg.OTHER_SEED)),
+                                 ("other bytes", sg.signature_for(b"other bytes")), ("64 junk bytes", b"x" * 64)):
+                Path(str(path) + ".sig").write_bytes(wrong)
+                with self.subTest(v=v, sig=label):
+                    self.refuses(path, "badsig", APPROVED_WORDS, installed=installed)
+
+    def test_a_short_sig_beside_a_download_under_1_4_0_is_refused(self):
+        """A cut-off .sig is a wrong one: refused under 1.4.0 as it is from 1.4.0 on, never taken for a missing one."""
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        path = self.zip_of("1.3.13")
+        good = sg.signature_for(path.read_bytes())
+        for cut in (good[:63], good[:32], good[:1], b"", good + b"\0"):
+            Path(str(path) + ".sig").write_bytes(cut)
+            with self.subTest(length=len(cut)):
+                self.refuses(path, "badsig", APPROVED_WORDS, detail=f"the signature file is {len(cut)} bytes", installed="1.3.3")
+        Path(str(path) + ".sig").write_bytes(good)
+        self.assertEqual("1.3.13", self.read(path, installed="1.3.3").version)
+
+    def test_a_good_sig_beside_a_download_under_1_4_0_installs(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        for v in ("1.3.4", "1.3.13"):
+            self.assertEqual(v, self.read(self.zip_of(v, sign=True), installed="1.3.3").version)
+
+    def test_a_wrong_or_short_sig_under_1_4_0_is_refused_through_take_in_too(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        path = self.zip_of("1.3.13")
+        for wrong in (sg.signature_for(path.read_bytes(), sg.OTHER_SEED), sg.signature_for(path.read_bytes())[:63]):
+            Path(str(path) + ".sig").write_bytes(wrong)
+            kept, digest = ui.take_in(path, self.fresh(), "mac")
+            with self.assertRaises(UpdateError) as said:
+                ui.read_taken(kept, digest, "mac", "1.3.3", 2)
+            self.assertEqual(("badsig", APPROVED_WORDS), (said.exception.key, said.exception.message))
+
+    def test_under_1_4_0_the_signature_that_is_there_is_checked_before_the_zip_is_opened(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        junk = Path(self.fresh()) / "clark-1.3.13-mac.zip"
+        junk.write_bytes(b"not a zip at all")
+        Path(str(junk) + ".sig").write_bytes(b"x" * 63)
+        self.refuses(junk, "badsig", installed="1.3.3")
 
     def test_the_sentences_for_unsigned_and_a_bad_signature_are_the_approved_ones(self):
         self.assertEqual((APPROVED_WORDS, APPROVED_WORDS), (updates.MESSAGES["unsigned"], updates.MESSAGES["badsig"]))
@@ -486,11 +582,11 @@ class PlaceholderKeyTest(Base):
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes()))
         self.assertEqual("0.3.1", self.read(path, public_key=sg.TEST_PUBLIC).version)
 
-    def test_a_real_release_key_in_force_accepts_unsigned_and_refuses_wrongly_signed(self):
+    def test_a_real_release_key_in_force_refuses_unsigned_and_wrongly_signed(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
         mock.patch.object(updates, "FIRST_SIGNED", (0, 0, 0)).start()          # these fake downloads are 0.3.1
         path = make_zip(self.tmp, sign=False)
-        self.assertEqual("0.3.1", self.read(path).version)      # row 1328 ruling: no .sig is accepted
+        self.refuses(path, "unsigned")      # row 1328 (answer of 26-11): no .sig is refused from the first signed release on
         Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
         self.refuses(path, "badsig")
         self.assertTrue(updates.signature_required())

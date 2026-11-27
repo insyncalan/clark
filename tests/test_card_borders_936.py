@@ -8,7 +8,8 @@ shell.css still holds the original rules (the published page is unchanged).
 import unittest
 
 from _paths import ROOT
-from test_help_nav_page import WhatNextPage, set_theme
+from test_help_nav_page import set_theme
+import test_help_nav_page as _test_help_nav_page
 from test_server import chrome
 
 PAGE = ROOT / "src" / "clark" / "page"
@@ -19,7 +20,7 @@ def read(path):
         return f.read()
 
 
-class HelpNote(WhatNextPage):
+class HelpNote(_test_help_nav_page.WhatNextPage):
     def test_the_help_note_has_no_one_side_stripe(self):
         with chrome() as cdp:
             p = self.open_at(cdp, "guide-fixture-guide")

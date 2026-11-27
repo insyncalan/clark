@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
@@ -114,7 +114,7 @@ class Checker(unittest.TestCase):
         self.assertIsNone(section_bodies.published("keydates", only_gone, base.Context()), "no context, no milestone")
 
 
-class Stored(Api):
+class Stored(_test_changes.Api):
     def make(self, title="Key dates"):
         return self.ok("new", values={"type": "keydates", "title": title}, after=None)["ref"]
 
@@ -141,7 +141,7 @@ class Stored(Api):
         self.assertEqual(self.snapshot(), before)
 
 
-class Published(Api):
+class Published(_test_changes.Api):
     def plant(self):
         with self.s.step("dashboard", USER) as st:
             self.ok_ms = st.create("milestones", {"project": "ABC", "name": f"{MARK} kept", "baseline_date": "2030-04-01", "source": "demo"})

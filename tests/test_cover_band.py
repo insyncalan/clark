@@ -16,7 +16,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from _demo import USER
-from test_glance_page import Published, Setup, Pg
+from test_glance_page import Setup, Pg
+import test_glance_page as _test_glance_page
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 import _testpage as testpage
@@ -370,7 +371,7 @@ class TheWeek(Setup):
         self.assertIn("Week ending " + self.coming_friday().strftime("%d-%m-%Y"), line)
 
 
-class InTheFile(Published):
+class InTheFile(_test_glance_page.Published):
     def setUp(self):
         super().setUp()
         with self.store.step("dashboard", USER) as st:
