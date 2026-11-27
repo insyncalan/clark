@@ -244,6 +244,8 @@ class Keys(Base):
                     self.arrow(p, "ArrowRight", modifiers=1)      # Alt with an arrow, the key the heading's label names (row 1195), still moves it, and now saves it with the project
                     p.until(f"({HEADS % ref}).join() === {json.dumps(self.OWNER_RIGHT)}.join()", f"Alt+Right moved the Owner: {p.js(HEADS % ref)}")
                     self.assertEqual(p.js(live), "Owner moved to position 4 of 6")
+                    self.assertTrue(wait(lambda: self.saved() == {"actions": ["status", "item", "due", "owner", "prio", "id"]}, 10), f"saved with the project: {self.saved()}")      # the move is drawn and saved (slower on macOS): then focus the heading again
+                    p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').focus()")
                     self.arrow(p, "ArrowLeft", modifiers=1)
                     p.until(f"({HEADS % ref}).join() === {json.dumps(STANDARD)}.join()", f"Alt+Left moved it back: {p.js(HEADS % ref)}")
                     self.assertTrue(wait(lambda: self.saved() == {}, 10), f"saved: {self.saved()}")
