@@ -11,13 +11,13 @@
 #  - `py39-compile`: every tracked .py file must compile on Python 3.9, the oldest clark supports (seconds; no tests on 3.9).
 # No macOS. Pre-CI (dev/tools/pre_ci.py) runs the same checks before the push.
 # FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
-# the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
+# the quick tier (`--quick`) on a release branch, on a pull request that changes a guarded file, on the
 # label `full-ci`, and by hand.
 #
 # NO Tests run on a push to main (Bifrost 2.0 P7, the owner, 26-11): a change was tested in Mergify's combined run (branch mergify/merge-queue/*, or the merge_group event) before it merged.
 #
 # macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
-#  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a push to main, on a release branch and on a
+#  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a release branch and on a
 #    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
 #    files), and on a pull request that carries the label `full-ci`. Nothing else asks for a Mac.
 #  - ADVISORY: the full macOS suite (the newest Python, every file, nine shards) runs in the nightly on main only; a red shard shows
@@ -59,7 +59,7 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
   schedule:
     - cron: "0 22 * * *"      # every night at 02:00 Dubai (22:00 UTC), on main only (GitHub runs a schedule on the default branch): the full Ubuntu suite (required) and the full macOS suite (advisory)
-  merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
+  merge_group:      # GitHub merge queue: the queue tests the combined result; the full Ubuntu matrix, no macOS (that stays at the release gate)
     types: [checks_requested]
 
 name: Tests
@@ -70,8 +70,8 @@ permissions:
   contents: read
 
 concurrency:
-  # One automatic run per pull request or branch. A newer pull request run cancels the older; a main or release push run is
-  # never cancelled (it queues). Manual runs each get their own group (run_id), so a second hand-started run never cancels the first.
+  # One automatic run per pull request or branch. A newer pull request run cancels the older; any other run (the
+  # Mergify queue run, a hand-started run, the nightly) is never cancelled (it queues). Manual runs each get their own group (run_id), so a second hand-started run never cancels the first.
   # The nightly has a group of its own (nightly-<run id>): in the main group a later push to main replaced a nightly that was still
   # waiting, so it never ran. Nothing cancels or replaces it now (Bifrost 2.0, P12).
   group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}
@@ -115,8 +115,7 @@ jobs:
         run: |
           FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; CUT=""; WIDE=""; NTESTS=0
           case "$EVENT" in
-            merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
-            push) FULL=1; SMOKE=1 ;;      # a push to main: the full Ubuntu matrix and the Mac smoke set (required); the full macOS suite runs in the nightly only, advisory (the owner, 24-11, row 1602)
+            merge_group) FULL=1 ;;      # a merge-queue run: the full Ubuntu matrix, NO macOS
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
             schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (the owner, 24-11, row 1602)
           esac
