@@ -7,9 +7,17 @@ The mapping runs in node on the bundled page source; the drawing (a real list in
 """
 import json
 import re
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
+from _demo import USER
+from clark import changes, publish
 from test_column_order_1534 import PAGE_SRC, run_node, source
+from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
+from test_server import chrome
+from test_tpl_workitems import TODAY, plant
 
 
 def order(saved, section, with_id):
@@ -139,6 +147,37 @@ class Cards(unittest.TestCase):
                      ["Id", "Type", "Title", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"],
                      ["ID", "Decision", "Status", "Made by", "Date"]):
             self.assertIn(want, heads["saved"])
+
+
+class PublishedMixedList(PageBase):
+    """Real Chrome on the published file (Classic, fictional data): a list of two kinds has no one type, so it draws the standard order."""
+    def test_a_mixed_type_list_in_the_published_page_draws_the_standard_order(self):
+        plant(self)      # open actions and one risk in ABC
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Mixed list"}, "after": None})
+        self.ref = got["ref"]
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": self.ref,
+                                        "changes": {"body": json.dumps({"mode": "all", "columns": ["id", "owner", "due"], "kinds": ["action", "risk"]})}})
+        self.assertEqual(status, 200, got)
+        status, got = self.real_change({"project": "ABC", "kind": "projects", "op": changes.UPDATE,
+                                        "changes": {"column_orders": {"actions": ["status", "item", "due", "owner", "id"], "risks": ["status", "item", "due", "owner", "id"]}}})
+        self.assertEqual(status, 200, got)      # the project has an order saved for each of the two types
+        out = tempfile.mkdtemp(prefix="clark-1534-mixed-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)["path"])
+        tab = json.dumps(f'[data-id="{self.ref}"] .wil-table')
+        heads = "[...document.querySelectorAll(" + tab + " + ' thead th')].map((e) => e.className.replace(/^wil-c-/, '').split(' ')[0])"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { localStorage.setItem('order.wil-%s', JSON.stringify(['id', 'due', 'owner'])); } catch (e) {}" % self.ref}, sid)      # and this browser holds a saved order too
+                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                p = Pg(self, cdp, sid)
+                p.until("!!document.querySelector(" + tab + " + ' thead th')", "the list drew")
+                kinds = p.js("[...document.querySelectorAll(" + tab + " + ' tbody tr[data-id]')].map((r) => r.className)")
+                self.assertTrue(any("wil-k-risk" in k for k in kinds) and any("wil-k-action" in k for k in kinds), f"the list is mixed: {kinds}")
+                self.assertEqual(p.js(heads), ["tile", "title", "owner", "due", "id"], "the standard order: Item, Owner, Due, Id (not the saved order)")
 
 
 class WorkItemsListSection(unittest.TestCase):
