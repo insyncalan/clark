@@ -9,6 +9,7 @@ server and, in Classic, the real page at 1400 and 900. Cards draws no per-projec
 answer is read from the server only. Fictional data only. Chrome is required for the page test.
 """
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -27,16 +28,32 @@ WIDTHS = (1400, 900)
 NOT_READY = "This computer's saved data can't keep that setting yet."
 
 
+def without_column(con, table, column):
+    """Rebuild `table` without `column` (create the old shape, copy the rows, drop, rename), the way an old file has it. ALTER TABLE DROP COLUMN is
+    not used: SQLite 3.45 cuts the stored CREATE TABLE text at the comma before the column, and the comment that follows that comma in schema.sql
+    swallows the closing bracket ("incomplete input"). A file that got its column by ADD COLUMN never had such a comment."""
+    sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()[0]
+    lines = [re.sub(r"\s*--.*$", "", line) for line in sql.split("\n")]
+    lines = [line for line in lines if line.strip() and not line.strip().startswith(column + " ")]
+    lines[-2] = lines[-2].rstrip().rstrip(",")
+    old = "\n".join(lines).replace("CREATE TABLE " + table, "CREATE TABLE " + table + "_old", 1)
+    keep = ", ".join(r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] != column)
+    con.execute("PRAGMA foreign_keys = OFF")
+    con.execute(old)
+    con.execute(f"INSERT INTO {table}_old ({keep}) SELECT {keep} FROM {table}")
+    con.execute(f"DROP TABLE {table}")
+    con.execute(f"ALTER TABLE {table}_old RENAME TO {table}")
+
+
 def file_like_the_one_that_failed(folder):
     """A clark.db with project ABC at version 38 whose app_settings has no ask_new_projects and whose projects has no ask_off: what a file that
     reached step 33 before the two columns joined it looks like once the later steps ran."""
     db = make_db(folder)
-    con = sqlite3.connect(db)
+    con = sqlite3.connect(db, isolation_level=None)
     try:
-        con.execute("ALTER TABLE app_settings DROP COLUMN ask_new_projects")
-        con.execute("ALTER TABLE projects DROP COLUMN ask_off")
+        without_column(con, "app_settings", "ask_new_projects")
+        without_column(con, "projects", "ask_off")
         con.execute("UPDATE meta SET v = '38' WHERE k = 'schema_version'")
-        con.commit()
     finally:
         con.close()
     return db
