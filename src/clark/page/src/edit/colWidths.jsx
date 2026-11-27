@@ -93,12 +93,18 @@ export function useColOrder(table, shared = null) {      // row 1534: `shared` =
   const [mine, setSaved] = useState(() => { const v = recall(key, []); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; });
   const [drag, setDrag] = useState(null), [over, setOver] = useState(null);
   const focus = useRef(null), from = useRef(null), onGrip = useRef(false);
-  useEffect(() => {      // after a move the heading keeps the focus, so the next arrow press moves it again
+  // After a move the heading keeps the focus, so the next arrow press moves it again. The saved order is drawn again when the save's reply is read back, and that can
+  // draw the heading cell new, which drops the focus to the page: the wish stays until the focus is somewhere else on purpose (a press, or another control taking it).
+  useEffect(() => {
     if (!focus.current) return;
-    const h = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`);
-    focus.current = null;
-    if (h && h.focus) h.focus();
+    const a = document.activeElement, h = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`);
+    if (h && h.focus && (!a || a === document.body)) h.focus();
   });
+  useEffect(() => {
+    const off = (e) => { if (focus.current && !(e.target && e.target.closest && e.target.closest(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`))) focus.current = null; };
+    document.addEventListener("focusin", off, true); document.addEventListener("pointerdown", off, true);
+    return () => { document.removeEventListener("focusin", off, true); document.removeEventListener("pointerdown", off, true); };
+  }, [table]);
   const saved = shared ? shared.read() : mine;
   const apply = (ids) => { const known = saved.filter((x) => ids.includes(x)); return known.concat(ids.filter((x) => !known.includes(x))); };
   const move = (a, b, ids) => {
