@@ -297,7 +297,7 @@ class Scan(unittest.TestCase):
         r = self.shots(self.SHOTS, self.SHOTS_BASE + "        env:\n          B: ${{ toJSON(secrets) }}\n")
         self.refused(r, "file #1: uses a secret or write access")
 
-    # Row D6b (Alan 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write`: the nightly's shard-times job, which pushes one new branch.
+    # Row 1709 D6b (owner ruling 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write`: the nightly's shard-times job, which pushes one new branch.
     TESTS = ".github/workflows/tests.yml"
     TIMES_BASE = ("on:\n  schedule:\n    - cron: '0 4 * * *'\npermissions:\n  contents: read\njobs:\n  tests:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo hi\n"
                   "  shard-times:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo times\n")

@@ -44,7 +44,7 @@ SAFE_LINE = re.compile(r"^\s*(?:-\s+)?(?:if|name|run-name|group|[A-Z][A-Z0-9_]*)
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 # Row Argos: ONE workflow may read ONE named secret, in one step's env, and nothing else (no other secret, no write, no id-token).
 ALLOWED_SECRET = {".github/workflows/screenshots.yml": "ARGOS_TOKEN"}
-# Row D6b (Alan 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write` and nothing else that writes: the nightly's shard-times job,
+# Row 1709 D6b (owner ruling 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write` and nothing else that writes: the nightly's shard-times job,
 # which pushes one new branch. Exactly the two lines `    permissions:` / `      contents: write` directly inside that job's block.
 ALLOWED_WRITE = {".github/workflows/tests.yml": "shard-times"}
 
