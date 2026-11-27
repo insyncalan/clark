@@ -5,6 +5,8 @@ Run: python3 dev/run_tests.py test_update_fetch_page_1327
 """
 import unittest
 
+import _paths  # noqa: F401
+from clark import updates
 from test_update_page import CONTRAST, OK, REVIEW, STATUS, InBrowser, lit
 
 BASE = {**STATUS, "available": None, "line": None, "last": None}
@@ -129,6 +131,16 @@ class Fetch(InBrowser):
         for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": "The check did not finish. Try again."}}):
             self.assertEqual("Update", self.text("#update-row-l"), "only a failed check takes the failed-check title")
 
+
+    def test_a_failed_signature_shows_the_approved_sentence_in_full_at_1400_and_900(self):
+        sentence = "The download failed its check. It was not installed."
+        self.assertEqual(sentence, updates.MESSAGES["badsig"], "the words the app sends")
+        # The row title is not asserted: Update.jsx:208 gives "The download failed its check" only for FAILED_TEXT, so a badsig message shows "Update" (reported on row 1328).
+        for _ in self.each({**BASE, "latest": AVAIL, "fetch": {"state": "failed", "version": "0.3.2", "message": updates.MESSAGES["badsig"]}}):
+            self.assertEqual(sentence, self.text("#update-line"))
+            self.assertEqual("Download again", self.text("#update-row [data-download]"))
+            self.assertTrue(self.val("(e => e.scrollWidth <= e.clientWidth && e.scrollHeight <= e.clientHeight + 1)(document.querySelector('#update-line'))"), "the sentence is not clipped")
+            self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"))
 
     def test_not_now_puts_the_download_away(self):
         self.show(AVAIL, READY, cancel=OK({"ok": True}))
