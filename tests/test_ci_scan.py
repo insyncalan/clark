@@ -1333,6 +1333,48 @@ class AddedLinesOnly(unittest.TestCase):
         self.assertEqual(rc, 1, out)
         self.assertIn("a person's name", out)
 
+    def test_an_edited_file_that_starts_with_pk_is_read_whole(self):
+        r = self.repo({"z.dat": "PK zip-like start\nold line %s here\n" % LISTED})
+        r.write("z.dat", "PK zip-like start\nold line %s here\nmore\n" % LISTED)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+
+    def test_a_rename_after_another_changed_file_still_counts_its_added_lines(self):
+        r = self.repo({"a.py": "a\n", "src/old.py": self.OLD})
+        r.write("a.py", "a\nb\n")
+        r.git("mv", "src/old.py", "src/z.py")
+        r.write("src/z.py", self.OLD + "more %s\n" % LISTED)
+        r.commit("edit one file, move and add in another")
+        self.assertEqual(r.scan()[0], 1)
+        r = self.repo({"a.py": "a\n", "src/old.py": self.OLD})
+        r.write("a.py", "a\nb\n")
+        r.git("mv", "src/old.py", "src/z.py")
+        r.commit("edit one file, plain move of another")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_word_split_across_two_added_lines_is_not_formed(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + LISTED[:2] + "\n" + LISTED[2:] + "\n")
+        r.commit("two added lines that only joined would spell the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_copied_file_is_a_new_file_and_read_whole(self):
+        r = self.repo()
+        r.write("src/copy.py", self.OLD)
+        r.commit("copy")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_an_edited_vendored_path_file_counts_its_added_lines(self):
+        r = self.repo({"vendor/pypdf/LICENSE": "x\n"})
+        r.write("vendor/pypdf/LICENSE", "x\nthanks %s\n" % LISTED)
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 1)
+
     def test_a_listed_word_in_the_message_is_still_refused_when_the_file_is_untouched(self):
         r = self.repo()
         r.write("src/old.py", self.OLD + "clean\n")
