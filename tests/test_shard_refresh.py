@@ -37,6 +37,19 @@ class CommandTest(unittest.TestCase):
                              "# header line one\n# header line two\ntest_a.py 12.3\ntest_b.py 20.0\ntest_c.py 0.5\n")
             self.assertIn("2 measured, 1 kept, 1 removed", buf.getvalue())
 
+    def test_a_pinned_heavy_file_never_drops_below_its_pin_and_stays_within_ten_percent_above_it(self):
+        """Found on the first real nightly (27-11): test_publish_scan_time.py measured 184.7 s against a pin of 450.4, and
+        test_run_tests holds the five heavy files within 10 percent of their pins. The pin is the floor; a slower night counts
+        up to 10 percent over it."""
+        existing = set(sr.PINNED) | {"test_other.py"}
+        low = sr.merge({}, dict({n: 1.0 for n in sr.PINNED}, **{"test_other.py": 1.0}), existing)
+        self.assertEqual({n: low[n] for n in sr.PINNED}, sr.PINNED)
+        self.assertEqual(low["test_other.py"], 1.0)
+        high = sr.merge({}, {n: 9999.0 for n in existing}, existing)
+        self.assertEqual({n: high[n] for n in sr.PINNED}, {n: round(v * 1.1, 1) for n, v in sr.PINNED.items()})
+        self.assertEqual(high["test_other.py"], 9999.0)
+        self.assertEqual(sr.PINNED["test_publish_scan_time.py"], 450.4)
+
     def test_no_measured_time_changes_nothing_and_is_not_a_pass(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
