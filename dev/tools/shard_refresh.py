@@ -10,6 +10,8 @@ shards stay balanced without anyone editing the file by hand.
 Exit 0: the file was written. Exit 2: no time was measured (nothing is changed; not checked is never "no change").
 
 LIMIT: one run's times. A file that was slow once because the runner was busy is recorded as slow until the next night.
+
+The nightly's job `shard-times` (tests.yml) runs this and uploads the result as the artifact `shard-times`.
 """
 import argparse
 import re

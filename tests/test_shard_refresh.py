@@ -3,6 +3,8 @@ dev/tools/shard_times.txt, so the shards stay balanced. A file the run did not t
 gone loses its line, and the result still reads as the runner reads it.
 
 Run: python3 dev/run_tests.py test_shard_refresh   (quick tier)
+
+The same command runs in the nightly's job `shard-times` (tests.yml).
 """
 import contextlib
 import io
