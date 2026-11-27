@@ -29,6 +29,25 @@ class Affects(Rigged):
                             self.assertEqual(p.js("document.querySelector('.set-cards').firstElementChild.className.includes('set-affects')"), True, "the first thing on the page")
                             self.assertTrue(p.js("(() => { const r = document.querySelector('.set-affects').getBoundingClientRect(); return r.width > 0 && r.right <= window.innerWidth; })()"), "inside the window")
 
+    def test_affects_label_is_one_line_at_both_widths(self):
+        """AP30: the label is --size-small in --text-muted, one line (one client rect, one line high), not wider than the content it sits in."""
+        probe = ("(() => { const e = document.querySelector('.set-affects'), cs = getComputedStyle(e), t = document.createElement('i');"
+                 " t.style.cssText = 'font-size:var(--size-small);color:var(--text-muted)'; document.body.appendChild(t); const w = getComputedStyle(t); const want = {size: w.fontSize, color: w.color}; t.remove();"
+                 " const r = e.getBoundingClientRect(), c = document.querySelector('.set-cards').getBoundingClientRect(), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;"
+                 " return {size: cs.fontSize, color: cs.color, want, lines: e.getClientRects().length, height: r.height, lh, right: r.right, cards: c.right}; })()")
+        for w in WIDTHS:
+            for mode in ("light", "dark"):
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode, slug="reports")
+                    p.until("!!document.querySelector('.set-affects')", "the label drew")
+                    r = p.js(probe)
+                    self.assertEqual(r["size"], r["want"]["size"], "font-size is --size-small")
+                    self.assertEqual(r["color"], r["want"]["color"], "colour is --text-muted")
+                    self.assertEqual(r["lines"], 1, "one line box")
+                    self.assertLess(r["height"], r["lh"] * 1.5, "one line high, no wrap")
+                    self.assertLessEqual(r["right"], r["cards"], "does not run off the content")
+
     def test_a_project_page_names_the_chosen_tab_not_the_top_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
