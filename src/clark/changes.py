@@ -570,6 +570,9 @@ def _stored_value(section):
     return json.loads(text) if text else None
 
 
+LAYOUT_FIELDS = frozenset(("columns", "shape", "order"))      # row 1620: what a version 2 gallery has and a version 1 gallery has not
+
+
 def _keep_pictures(section, body):
     """A picture template's words from /api/change, with the pictures already stored kept: the sent body is checked on its own
     (it may not name `pictures`, and is at most the template's TEXT_LIMIT), then the stored pictures are put back and the whole
@@ -590,8 +593,9 @@ def _keep_pictures(section, body):
             if "image" in value[PICTURES]:
                 if "original" not in value[PICTURES]:
                     value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
-            else:
-                value["v"] = 1      # row 1567: a version 1 gallery (slots "1" to "6") keeps its pictures as stored, so its words stay version 1
+            elif not LAYOUT_FIELDS & set(json.loads(body)):
+                value["v"] = 1      # row 1567: a words-only change keeps a version 1 gallery (slots "1" to "6") and its pictures as stored
+            # row 1620: columns, shape or order, AS SENT (the check above drops their default values), upgrade it to version 2 with its pictures
     return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
 
 

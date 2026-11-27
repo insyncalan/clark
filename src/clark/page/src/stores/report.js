@@ -146,6 +146,7 @@ function apply(s) {
   });
   if (s.project !== project.value) {
     settingsProject.value = "";
+    settingsData.value = null; settingsRead.value = ""; ++settingsReading;
     settingsAll.value = false;
     project.value = s.project;
     data.value = null;
@@ -219,14 +220,49 @@ export function showSettings(page) {
 
 // Row 1299 (project tabs): the project the Settings tabs have chosen. It lives only on the Settings page: choosing a tab reads nothing again and never changes the address,
 // the top bar or the open project. "" means the open project. A different open project (the top bar, Back) puts the tabs back on it.
-// Off until the project cards read settingsProjectNow() and not the open project (Views.jsx project tabs; the overview's click follows it).
+// Off until the project cards read settingsProjectNow() (the code) and settingsProjectData() (the data) and not the open project (Views.jsx project tabs; the overview's click follows it). Removed in the last step of row 1299 AP11.
 // A signal: off in the served page; only the test build turns it on (testhook.js clarkPage.switchTabs), for the tests of a tab click.
 export const switchTabs = signal(false);
+// settingsProjectNow() is the code the project cards read and save for, settingsProjectData() their data; the open project's own data is not touched.
 export const settingsProjectNow = () => settingsProject.value || project.value;
+// The tab project's data (GET /api/data, as the open project's is read): { code, data }, or null while it is being read or when it could not be.
+// settingsRead says which: "" (nothing to read: the tab is the open project), "loading", "failed". A tab project is never shown the open project's values.
+export const settingsData = signal(null);
+export const settingsRead = signal("");
+let settingsReading = 0;
+/** The data the project cards show: the open project's when no other tab is chosen, else the tab project's (null until it has been read). */
+export function settingsProjectData() {
+  if (!settingsProject.value) return data.value;
+  const s = settingsData.value;
+  return s && s.code === settingsProject.value ? s.data : null;
+}
+/** Read the tab project's data (a different project from the open one). Resolves to true when it was read, or when the tab has moved on meanwhile (nothing is wrong then). */
+export async function readSettingsData(code) {
+  // Equivalent mutant (RULES 24): chooseSettingsProject already sends only a non-empty code that is not the open project, so this guard is a second, unreachable check.
+  if (fromFile.value || !code || code === project.value) return false;
+  const mine = ++settingsReading;
+  settingsRead.value = "loading";
+  try {
+    const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => ({}));
+    if (mine !== settingsReading || code !== settingsProject.value) return true;
+    if (!r.ok || !body.ok || !body.data) { settingsData.value = null; settingsRead.value = "failed"; return false; }
+    settingsData.value = { code, data: body.data };
+    settingsRead.value = "";
+    return true;
+  } catch (e) {
+    if (mine !== settingsReading || code !== settingsProject.value) return true;
+    settingsData.value = null; settingsRead.value = "failed";
+    return false;
+  }
+}
 export function chooseSettingsProject(code) {
   if (!route.isProject(code)) return;
   settingsAll.value = false;
+  const was = settingsProject.value;
   settingsProject.value = code === project.value ? "" : code;
+  if (settingsProject.value !== was) { ++settingsReading; settingsData.value = null; settingsRead.value = ""; }
+  if (settingsProject.value && settingsProject.value !== was) readSettingsData(code);
   if (view.value === "settings") route.retag(code);      // the address keeps the tab's project as p, this entry rewritten (AP11)
 }
 /** The ask clark page's leading "All projects" tab (row 1299 AP11): the page's Affects line says All projects; the address is not touched. */

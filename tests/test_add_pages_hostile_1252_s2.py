@@ -49,9 +49,10 @@ class Migration(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.f, ignore_errors=True)
 
     def test_step_is_the_last_and_schema_version_matches(self):
-        self.assertEqual(STEP, 38)      # 35 to 37 are other rows' steps; main's last is 34 until they land
-        self.assertEqual(sm.SCHEMA_VERSION, STEP)
-        self.assertEqual(sm.MIGRATIONS[-1][0], STEP)
+        self.assertEqual(STEP, 38)      # 35 to 37 are other rows' steps
+        self.assertEqual(sm.SCHEMA_VERSION, sm.ASK_COLUMNS_AGAIN_STEP)      # row 1628's step 39 follows this one; this step is the one before it
+        self.assertEqual(sm.MIGRATIONS[-1][0], sm.ASK_COLUMNS_AGAIN_STEP)
+        self.assertEqual(sm.MIGRATIONS[-2][0], STEP)
         self.assertEqual([m[0] for m in sm.MIGRATIONS], sorted({m[0] for m in sm.MIGRATIONS}))
 
     def test_file_before_the_step_with_gantt_switches_keeps_values_and_gets_table_and_index(self):
@@ -87,7 +88,7 @@ class Migration(unittest.TestCase):
         s = open_store(path, onedrive_roots=[]); s.close()
         con = sqlite3.connect(str(path))
         self.assertEqual(con.execute("SELECT name, starter FROM added_pages").fetchall(), [("Keep", "people")])
-        self.assertEqual(con.execute("SELECT v FROM meta WHERE k='schema_version'").fetchone()[0], str(STEP))
+        self.assertEqual(con.execute("SELECT v FROM meta WHERE k='schema_version'").fetchone()[0], str(sm.SCHEMA_VERSION))
         con.close()
 
     def test_schema_sql_and_step_statement_are_the_same_text(self):

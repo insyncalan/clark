@@ -4,11 +4,13 @@ Run: python3 dev/run_tests.py test_raid_cards_edit_1270
 Fictional rows.
 """
 import json
+import tempfile
 import unittest
 
 from _demo import USER
 import test_tpl_raid3 as three
-from test_report_editor import Base as PageBase
+from clark import page
+from test_report_editor import Base as PageBase, real_server
 from test_server import chrome
 
 
@@ -67,6 +69,32 @@ class Edit(PageBase):
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] select[aria-label=\"Card 1 item\"]')", "the card row is there")
             self.assertTrue(p.js(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-show')"), "the cards card draws the boxes")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(old)}] .rce-show')"), "an old three across section does not: it saves no show")
+
+
+    def test_the_edit_fields_use_the_control_edge_colour_at_both_widths_light_and_dark(self):
+        """Row 1270 (PM ruling, point 9): the Edit fields of a card (.rce-f select and input) have the control-edge colour as their border, as the other
+        controls do, at 1400 and 900, light and dark. Measured as the computed colour against a probe that takes var(--control-edge).
+        The card's own edge and the disabled hint are waived (PM ruling): not checked here."""
+        # the Edit field colour is Classic only (rules-2.css), so the page is the one the person gets with the Classic theme layered
+        self.s.close()
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme="prototype-2.0"), seam=self.seam)
+        self.addCleanup(self.s.close)
+        sec, made = self.seed()
+        q = f"[data-id={json.dumps(sec)}]"
+        probe = ("(() => { const d = document.createElement('i'); d.style.cssText = 'border:1px solid var(--control-edge)'; document.body.appendChild(d);"
+                 " const c = getComputedStyle(d).borderTopColor; d.remove(); return c; })()")
+        fields = (f"(() => [...document.querySelectorAll('{q} .rce-f select, {q} .rce-f input')].map(e => getComputedStyle(e).borderTopColor))()")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{q} .rce-f select')", "the fields are there")
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("document.documentElement.dataset.theme = %s" % json.dumps("dark" if dark else "light"))
+                edge = p.js(probe)
+                got = self.arr(p, fields)
+                self.assertTrue(len(got) >= 2, f"the card has fields at {w} dark={dark}: {got}")
+                self.assertEqual(set(got), {edge}, f"every Edit field has the control-edge colour {edge} at {w} dark={dark}: {got}")
 
 
 if __name__ == "__main__":

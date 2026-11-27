@@ -12,7 +12,8 @@ from _demo import USER
 from _publish_fixture import spellings
 from clark import publish, section_bodies as sb
 from clark.store import BODY_RULES
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 
 MARK = "ZQ-NEEDS-MARK"
 HOSTILE = ["<script>alert('" + MARK + "')</script>", '"><img src=x onerror=alert(1)>', "</script><script>x", "javascript:alert(1)", "<!--", "&lt;b&gt;&amp;"]
@@ -201,7 +202,7 @@ class Published(unittest.TestCase):
         self.assertEqual(sb.published("tracker", {"rows": [row()]}), None)      # a tracker with nothing to publish is left out; needs content is not read as a tracker
 
 
-class Route(Api):
+class Route(_test_changes.Api):
     def make(self):
         return stored_section(self.s)
 
@@ -270,7 +271,7 @@ class Route(Api):
         self.assertEqual(self.stored(ref), kept)
 
 
-class InTheFile(Api):
+class InTheFile(_test_changes.Api):
     def build(self):
         return publish.build(self.s, "ABC", now="2030-01-15")
 

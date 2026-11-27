@@ -1,0 +1,43 @@
+# Release build (Bifrost 2.0 P8, slice 2b). A pushed tag v* builds the Mac zip from that exact commit and uploads the zip and its digest as one artifact.
+# READ-ONLY on purpose: no write permission and no secret (dev/tools/ci_scan.py refuses both). The tag, the draft, attaching the artifact, check_release_assets.py --draft and the
+# publish are done by Dum-E's hands (engine/release/cut_run.py in the bifrost repository), which also records "not run" when this job did not produce an artifact (Mac off, timeout).
+# The Mac never blocks a release: a red or missing job here gives a release without the Mac zip and a Tech Debt - Priority ticket. Signing is deferred (plan).
+name: Release build
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-build-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  mac-zip:
+    name: Mac zip (never blocks the release)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      # a tag push checks out the tagged commit itself (no ref: input; ci_scan refuses github.ref in a non-env line)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Build the zip from the tagged commit
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          python3 dev/tools/package.py mac --release --notes "dev/release-notes/${VERSION}-plain.md" --out ../zips
+      - name: Take the digest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          shasum -a 256 "../zips/clark-${VERSION}-mac.zip" > "../zips/clark-${VERSION}-mac.zip.sha256"
+          cat "../zips/clark-${VERSION}-mac.zip.sha256"
+      - name: Upload the zip and the digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: ${{ github.workspace }}/../zips/clark-*
+          if-no-files-found: error

@@ -39,7 +39,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 38          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables; 36 (row 1417): workstreams.start, workstreams.end and workstreams.latest_update; 37 (row 1533): projects.show_board_client, the author's switch for the client's Work items board; 38 (row 1252): the added_pages table. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 39          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions; 32 (row 1306): connector_switches and project_connectors; 33 (row 1294): app_settings.ask_files and projects.ask_files_off, and app_settings.ask_new_projects and projects.ask_off; 34 (row 1365): source_folders.excluded, the subfolders left out, and source_folders.accepted, 0 = declined, 1 = accepted; 35 (row 1534): projects.column_orders, the saved column order of the work item tables; 36 (row 1417): workstreams.start, workstreams.end and workstreams.latest_update; 37 (row 1533): projects.show_board_client, the author's switch for the client's Work items board; 38 (row 1252): the added_pages table; 39 (row 1628): step 33 again, for a file that reached 33 before ask_new_projects and ask_off joined that step. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -3326,6 +3326,17 @@ def migrate_source_folders_1365(con):
         con.execute("ALTER TABLE source_folders ADD COLUMN " + ACCEPTED_COLUMN)
 
 
+ASK_COLUMNS_AGAIN_STEP = 39        # row 1628's step number, written once here and used by MIGRATIONS
+
+
+def migrate_ask_columns_again(con):
+    """Schema version 38 to 39 (row 1628): step 33 again. Row 1294 put app_settings.ask_new_projects and projects.ask_off into step 33 a day
+    after that step first shipped with ask_files and ask_files_off alone, with no new version, so a file that reached version 33 in that day
+    never got the two columns, and turning a project's asking on answered not_ready (app_settings.py). migrate_ask_files adds only a column
+    that is missing, so a file that has them all is not changed. Runs inside the caller's transaction and does not touch the version."""
+    migrate_ask_files(con)
+
+
 ADDED_PAGES_STEP = 38        # row 1252's step number, written once here and used by MIGRATIONS
 ADDED_PAGES_TABLE = """CREATE TABLE IF NOT EXISTS added_pages (
   id         TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-PG-[0-9][0-9][0-9]'),
@@ -3440,7 +3451,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (EXCLUDED_STEP, migrate_source_folders_1365), (COLUMN_ORDERS_STEP, migrate_column_orders),
               (WORKSTREAM_COLUMNS_STEP, migrate_workstream_columns),
               (BOARD_CLIENT_STEP, migrate_board_client),
-              (ADDED_PAGES_STEP, migrate_added_pages))
+              (ADDED_PAGES_STEP, migrate_added_pages),
+              (ASK_COLUMNS_AGAIN_STEP, migrate_ask_columns_again))
 
 
 def migration_plan(version, table=None):

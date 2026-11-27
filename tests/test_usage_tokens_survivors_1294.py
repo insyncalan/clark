@@ -63,7 +63,8 @@ import time
 
 import test_ask_claude as tc
 from clark import ai_providers, ask, ask_service
-from test_ask_usage_1294 import Counted, DAY as USAGE_DAY
+from test_ask_usage_1294 import DAY as USAGE_DAY
+import test_ask_usage_1294 as _test_ask_usage_1294
 
 
 class Atomic(Files):
@@ -147,8 +148,8 @@ class Chosen(unittest.TestCase):
 
 
 class Report(unittest.TestCase):
-    setUp = Counted.setUp
-    ask, usage = Counted.ask, Counted.usage
+    setUp = _test_ask_usage_1294.Counted.setUp
+    ask, usage = _test_ask_usage_1294.Counted.ask, _test_ask_usage_1294.Counted.usage
 
     def db_do(self, sql, *args):
         con = sqlite3.connect(str(self.db))
@@ -208,11 +209,11 @@ class Report(unittest.TestCase):
         self.assertEqual([p["code"] for p in self.service.usage_read()[1]["projects"]], ["ABC"])
 
 
-from test_ask_usage_1294 import OnThePage
+import test_ask_usage_1294 as _test_ask_usage_1294
 from clark import store as st
 
 
-class PageEdges(OnThePage):
+class PageEdges(_test_ask_usage_1294.OnThePage):
     """The Usage cards in a real browser at 1400 and 900 for the cases the first page test does not reach."""
 
     def test_the_lists_show_names_and_numbers_and_do_not_overflow_at_1400_and_900(self):
@@ -361,7 +362,7 @@ class ConnectorRun(ConnectorBase):
         self.assertIsNone(self.provider.last_tokens)
 
 
-class ZeroOnThePage(OnThePage):
+class ZeroOnThePage(_test_ask_usage_1294.OnThePage):
     def test_the_lists_show_names_and_numbers_and_do_not_overflow_at_1400_and_900(self):
         pass
 
@@ -387,8 +388,8 @@ class ZeroOnThePage(OnThePage):
 
 class SortAndSkip(unittest.TestCase):
     """The report's rows: sorted by code, no cap, archived with no question skipped (row 1294)."""
-    setUp = Counted.setUp
-    ask, usage = Counted.ask, Counted.usage
+    setUp = _test_ask_usage_1294.Counted.setUp
+    ask, usage = _test_ask_usage_1294.Counted.ask, _test_ask_usage_1294.Counted.usage
 
     def rows_from(self, projects, kept=None):
         class Store:

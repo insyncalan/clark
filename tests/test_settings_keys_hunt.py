@@ -3,7 +3,7 @@ import json
 import unittest
 
 import test_settings_data_page as D
-from test_filter_line_keys import Keys
+import test_filter_line_keys as _test_filter_line_keys
 from test_server import chrome
 
 from clark import backup, safety
@@ -13,7 +13,7 @@ class Hunt(D.Base):
     settle = D.Card.settle
     open_settings = D.Card.open_settings
 
-    press = Keys.press
+    press = _test_filter_line_keys.Keys.press
 
     def setUp(self):
         super().setUp()

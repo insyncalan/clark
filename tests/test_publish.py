@@ -563,7 +563,7 @@ class TheFile(Plant):
         # for 40,000); it is now the growth from 40,000 to 160,000 repeats in CPU time (growth_ratio, as in test_publish_public).
         for name, make in (("end tags with no >", lambda n: "<style>" + "</style " * n), ("starts with no >", lambda n: "<style " * n),
                            ("starts and ends", lambda n: "<style>" + "</style x>" * n), ("starts alone", lambda n: "<style>" * n)):
-            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 40000, name)
+            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 40000, name, repeats=5)
 
     def test_style_dash_x_is_not_an_end_tag(self):
         self.assertEqual(publish.style_texts("<style>a{}</style-x>b{}</style>"), ["a{}</style-x>b{}"])

@@ -14,7 +14,7 @@ from unittest import mock
 from _paths import ROOT
 
 import test_peek as tp  # noqa: E402
-from test_peek_card import CardBrowser  # noqa: E402
+import test_peek_card as _test_peek_card
 from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
@@ -43,7 +43,7 @@ class Chips(unittest.TestCase):
     load_page = tp.Browser.load_page
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
-    show_item = CardBrowser.show_item
+    show_item = _test_peek_card.CardBrowser.show_item
 
     def open_item(self, cdp, sid, item, view=False):
         """View is a switch on the Dashboard only (Work items is always editable): view=True opens the peek there, in View."""

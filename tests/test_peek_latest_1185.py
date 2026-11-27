@@ -7,7 +7,7 @@ import sys
 import unittest
 
 from _paths import ROOT, SRC
-from test_milestone_peek_828 import Fields
+import test_milestone_peek_828 as _test_milestone_peek_828
 from test_movement_page import GO_LIVE, Base
 from _demo import USER, DemoStore
 from clark import activity_read, changes, publish
@@ -241,8 +241,8 @@ class MilestonePublished(unittest.TestCase):
 
 class MilestoneBox(Base):
     """The milestone peek in a real browser (1400 and 900): the box saves the editor's HTML, one Undo puts it back, the history lists it."""
-    visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store,
-                                                                Fields.saved, Fields.toast_text)
+    visit_peek, click, undo, until_store, saved, toast_text = (_test_milestone_peek_828.Fields.visit_peek, _test_milestone_peek_828.Fields.click, _test_milestone_peek_828.Fields.undo, _test_milestone_peek_828.Fields.until_store,
+                                                                _test_milestone_peek_828.Fields.saved, _test_milestone_peek_828.Fields.toast_text)
     cur = GO_LIVE
 
     def test_the_milestone_latest_update_saves_undoes_and_is_listed(self):

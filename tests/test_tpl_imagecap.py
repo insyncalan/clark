@@ -13,7 +13,7 @@ from _pictures_cases import PicturePage
 from _pictures_page import BarePage
 from clark import changes, store as store_module
 from clark.section_kinds import imagecap, textimage
-from test_changes import Api
+import test_changes as _test_changes
 from test_imagecap_full_server import RED, BLUE, halves, decode
 from test_server import chrome  # noqa: F401  (a browser file: its page tests drive Chrome through _pictures_cases)
 
@@ -39,7 +39,7 @@ class Checker(unittest.TestCase):
                          {"content": {"image": GOOD, "caption": "Fictional plan", "alt": ""}})
 
 
-class Route(PictureSteps, Api):
+class Route(PictureSteps, _test_changes.Api):
     def test_one_step_one_undo_and_the_words_keep_the_picture(self):
         ref = self.made(KIND)
         status, got = self.put(ref, "image", GOOD)
@@ -68,7 +68,7 @@ class Route(PictureSteps, Api):
         self.assertNotIn(GOOD_JPEG.split(",")[1], text)
 
 
-class FullRoute(PictureSteps, Api):
+class FullRoute(PictureSteps, _test_changes.Api):
     """Row 1223: the Full width image is an imagecap section with a version 2 body; the store type, the schema and the store are the old ones."""
     START = imagecap.START
 

@@ -611,6 +611,24 @@
     ]
    },
    {
+    "id": "add-documents-and-links",
+    "g": "The report",
+    "t": "Add documents and links",
+    "w": "Dashboard › Edit › Documents",
+    "go": "dashboard+edit",
+    "s": [
+     "A new report starts with a Documents section. Reports you saved before keep their Supporting documents section.",
+     "Choose the file icon to add a file, or drop files on the box.",
+     "To add a link, choose the link icon, type the web address and a link description, then choose Add. A link starts with https:// or mailto:.",
+     "You can add PDF, Word, Excel, PowerPoint, JPG, PNG and TXT files. HTML, SVG, ZIP and programs are refused.",
+     "A section holds up to 20 entries.",
+     "Each row has Open; a file also has Download."
+    ],
+    "page": [
+     "dashboard+edit"
+    ]
+   },
+   {
     "id": "change-the-layout-and-look",
     "g": "The report",
     "t": "Change the look",

@@ -11,7 +11,8 @@ import unittest
 
 import _backdrop_pics as pics
 from test_cover_band import artwork
-from test_glance_page import Published, Setup
+from test_glance_page import Setup
+import test_glance_page as _test_glance_page
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -40,7 +41,7 @@ BAR = """(() => {
 })()"""
 
 
-class InTheFile(Published):
+class InTheFile(_test_glance_page.Published):
     def close(self):
         if getattr(self, "_cm", None):
             self._cm.__exit__(None, None, None)
@@ -93,11 +94,11 @@ class InTheFile(Published):
                     self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 42, delta=3, msg="the tabs sit on the one row")
                     self.assertEqual(b["logoBox"], [22, 22], "issue 1178: the logo is 22 px high at 1400")
                 else:
-                    self.assertEqual(b["bar"]["h"], 125)
-                    self.assertEqual(b["topbarVar"], "125px")
-                    self.assertEqual(b["logoBox"], [18, 18], "issue 1178: the logo is 18 px high at 900")
-                    self.assertGreaterEqual(b["tabs"]["top"], b["line"]["bottom"] - 1, "the tabs are a strip under the name")
-                    self.assertGreaterEqual(b["tabs"]["right"] - b["tabs"]["left"], width - 60, "the strip runs the width")
+                    self.assertEqual(b["bar"]["h"], 103, "row 1543 AP7 (review ruling): at 900 px the bar is the Classic editor's 103 px, one row (it was 129)")
+                    self.assertEqual(b["topbarVar"], "103px")
+                    self.assertEqual(b["logoBox"], [24, 18], "row 1543 AP7: at 900 the logo box is the editor's 24 px high, its icon 18")
+                    self.assertLess(b["tabs"]["top"] + b["tabs"]["h"] / 2, 103, "the tabs are inline in the one row, as the Classic editor's")
+                    self.assertLess(b["tabs"]["right"] - b["tabs"]["left"], width - 60, "the pages are not a full-width strip")
                 p.js("window.scrollTo(0, 600)")
                 p.until("window.scrollY > 100", "scrolled")
                 self.assertEqual(p.js("document.querySelector('header.top').getBoundingClientRect().top"), 0, "it stays at the top")
@@ -107,7 +108,7 @@ class InTheFile(Published):
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(BAR)
-                below = 12 if width > 900 else 9      # row 1543: above 900 px as the editor's tabs (8 and 12), the 900 px bar is a later part
+                below = 12      # row 1543: the editor's tabs (8 and 12), above 900 px and (AP7) at 900 px and narrower
                 self.assertEqual(b["tabPad"], ["8px", f"{below}px"])
                 self.assertAlmostEqual(b["tab"]["h"] - b["tabLine"], 8 + below, delta=0.6, msg=f"the tab is its text plus 8 above and {below} below")
                 self.assertEqual((b["after"], b["afterBottom"]), (3, "0px"), "the cyan line is at the foot of that short tab")

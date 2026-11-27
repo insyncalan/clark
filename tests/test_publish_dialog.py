@@ -17,7 +17,7 @@ from _paths import SRC
 from _new_page import reload_to_new_page_cdp
 from test_page import navigate
 from test_publish_route import Rig, WANTED, USER
-from test_server import chrome, wait
+from test_server import chrome, restore_done, wait
 import _testpage as testpage
 
 from clark import page, to_client
@@ -42,6 +42,7 @@ class Pg:
         """Wait until nothing is moving: no running animation (document.getAnimations()) and window.scrollY the same on two reads 100 ms
         apart. A smooth scroll into view is not in getAnimations(), and macOS runs it longer than Linux, so a click or a measurement taken
         while it was still moving was the macOS gate's red."""
+        restore_done(self, seconds=seconds)      # router.js restore() holds scrollY equal while it pins the page, so two equal reads are not enough
         seen = []
 
         def still():

@@ -15,7 +15,8 @@ from pathlib import Path
 from _demo import USER, DemoStore
 from _paths import SRC
 from clark import changes, publish, sanitise, server as sv
-from test_changes import Api, KIND
+from test_changes import KIND
+import test_changes as _test_changes
 
 CURRENT, THIS_WEEK, NEXT_WEEK = "ABC-S-003", "ABC-S-004", "ABC-S-005"
 DIRTY = ('<p onclick="x()">Words <strong>bold</strong> <em>soft</em></p>'
@@ -24,7 +25,7 @@ DIRTY = ('<p onclick="x()">Words <strong>bold</strong> <em>soft</em></p>'
          '<a href="https://example.com/notes" onmouseover="x()" target="_blank">ZQ-SAFE-LINK</a><ul><li>one</li></ul>')
 
 
-class TextBody(Api):
+class TextBody(_test_changes.Api):
     def write(self, ref, body, **more):
         return self.change(self.req("update", id=ref, changes={"body": body}, **more))
 

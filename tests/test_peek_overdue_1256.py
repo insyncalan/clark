@@ -9,8 +9,9 @@ from unittest import mock
 from _paths import ROOT
 
 import test_peek as tp  # noqa: E402
-from test_peek_card import CardBrowser  # noqa: E402
-from test_peek_chips_1180 import Chips, OVERDUE  # noqa: E402
+import test_peek_card as _test_peek_card
+from test_peek_chips_1180 import OVERDUE
+import test_peek_chips_1180 as _test_peek_chips_1180
 from test_server import chrome, wait  # noqa: E402
 from test_work_filters import hover  # noqa: E402
 
@@ -30,9 +31,9 @@ class Overdue(unittest.TestCase):
     load_page = tp.Browser.load_page
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
-    show_item = CardBrowser.show_item
-    open_item = Chips.open_item
-    with_overdue = Chips.with_overdue
+    show_item = _test_peek_card.CardBrowser.show_item
+    open_item = _test_peek_chips_1180.Chips.open_item
+    with_overdue = _test_peek_chips_1180.Chips.with_overdue
 
     def test_overdue_look(self):
         for width in (1400, 900):

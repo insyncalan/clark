@@ -13,7 +13,7 @@ import unittest
 from _help_shown import LATER, RAW, shown_content
 from test_help_guides import check_guides, run_node
 from test_help_navigation import BANNED
-from test_help_shown import AgainstThePage
+import test_help_shown as _test_help_shown
 
 IDS = ["bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client"]
 STEPS = {"bring-in-an-excel-workbook": 8, "send-the-workbook-out": 7, "publish-to-the-client": 8}
@@ -60,7 +60,7 @@ class TheThreeGuides(unittest.TestCase):
 
     def test_every_bold_name_is_a_string_in_the_page_source(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(AgainstThePage.HELPCODE)
+        code = norm(_test_help_shown.AgainstThePage.HELPCODE)
         names = {b for g in GUIDES.values() for t in words(g) for b in re.findall(r"\*\*(.+?)\*\*", t)}
         self.assertTrue(names)
         self.assertEqual(sorted(b for b in names if norm(b).strip(" .,:;…") not in code), [])

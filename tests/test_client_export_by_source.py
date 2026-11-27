@@ -88,6 +88,15 @@ class ClientCopy(unittest.TestCase):
             for c in ws[4]:
                 self.assertFalse(c.value and NOT_FOR_CLIENT.fullmatch(str(c.value).strip()), f"{ws.title}: {c.value}")
 
+    def test_no_client_sheet_has_a_latest_update_labels_response_action_or_source_heading(self):
+        """Row 1390 (PM ruling): the four client sheets carry no Latest update; no client sheet has any of these four headings."""
+        banned = {"latest update", "labels", "response action", "source"}
+        for ws in self.wb.worksheets:
+            for c in ws[4]:
+                self.assertNotIn(str(c.value).strip().lower(), banned, f"{ws.title}!{c.coordinate}: {c.value}")
+        for table in ("actions", "raid", "decisions", "milestones", "use_cases"):
+            self.assertNotIn("Latest update", [h for h, _, _ in excel_client.COLUMNS[table]], table)
+
     def test_the_copy_has_no_history_sheet_and_no_internal_tag(self):
         self.assertNotIn("History", self.wb.sheetnames)
         self.assertFalse([w for w in self.wb.sheetnames if w.lower() in ("history", "lists", "cover")], self.wb.sheetnames)

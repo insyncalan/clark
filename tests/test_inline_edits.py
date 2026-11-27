@@ -26,7 +26,7 @@ import _testpage as testpage
 
 from clark import changes, page, server as sv  # noqa: E402
 from clark.store import open_store, priority as store_priority  # noqa: E402
-from test_server import CHROME, Running, chrome, wait  # noqa: E402
+from test_server import CHROME, Running, chrome, restore_done, wait  # noqa: E402
 from test_work_items import FIXED_DATE, TODAY, bundled, load_demo, page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -280,6 +280,7 @@ def settle_motion(cdp, sid, selector, seconds=5):
 
 
 def click(cdp, sid, selector, mods=0):
+    restore_done(cdp, sid)
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     settle_motion(cdp, sid, selector)
     where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"

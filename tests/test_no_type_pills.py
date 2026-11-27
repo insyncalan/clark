@@ -5,14 +5,15 @@ Type and status are reached through the filter line (type:, status:, is:open, is
 """
 import unittest
 
-from test_filter_line_page import INPUT, Line, wait  # noqa: E402
+from test_filter_line_page import INPUT, wait
+import test_filter_line_page as _test_filter_line_page
 from test_server import chrome  # noqa: E402  (a browser file: the runner tells the tiers by this import)
 from test_work_filters import expect, set_line  # noqa: E402
 
 PILLS = "[data-type=all], [data-type=action], [data-type=risk], [data-type=decision], [data-show], .wbar [aria-label=Type], .wbar [aria-label='Open or closed']"
 
 
-class NoTypePills(Line):
+class NoTypePills(_test_filter_line_page.Line):
     def test_the_app_page_has_no_type_or_status_pills_and_the_line_still_does_their_job(self):
         s = self.serve()
         for width in (1400, 900):
@@ -41,7 +42,7 @@ class NoTypePills(Line):
                 self.assertGreater(cdp.js("document.querySelector('#work-list').getBoundingClientRect().top", sid), cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().bottom - 1", sid))
 
 
-for _name in [n for n in dir(Line) if n.startswith("test_")]:     # only the helpers of Line are wanted here, not its tests
+for _name in [n for n in dir(_test_filter_line_page.Line) if n.startswith("test_")]:     # only the helpers of Line are wanted here, not its tests
     if _name not in NoTypePills.__dict__:
         setattr(NoTypePills, _name, None)
 

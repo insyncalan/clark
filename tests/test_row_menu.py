@@ -18,7 +18,7 @@ from _paths import ROOT, SRC
 from _demo import USER
 from clark import draft_email_feed, publish
 
-from test_server import chrome, wait  # noqa: E402
+from test_server import chrome, restore_done, wait  # noqa: E402
 from test_work_filters import click, need_chrome  # noqa: E402
 from test_work_items import bundled, page_target  # noqa: E402
 import test_work_board_page as board  # noqa: E402
@@ -619,6 +619,8 @@ class Menu(board.Base):
             self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows in Edit mode")
             cdp.js("window.__rowTop = null", sid)
             self.until(cdp, sid, "(() => { const r = document.querySelector('[data-type=actions] .wl-row'); if (!r) return false; const t = r.getBoundingClientRect().top + scrollY, same = window.__rowTop === t; window.__rowTop = t; return same; })()", "the Dashboard row to hold its place")
+            # row 1554 (second try): the router's place restore, which runs for up to 120 frames after the hash move, may still put the page back to the top after the scroll below; wait for it to end (it clears overflow-anchor), as test_server.restore_done does
+            restore_done(cdp, sid)
             self.calm(cdp, sid)
             self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
             dash = [e[1] for e in self.entries(cdp, sid)]

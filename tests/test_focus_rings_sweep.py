@@ -8,7 +8,8 @@ import re
 import unittest
 
 from _paths import SRC
-from test_seg_focus_ring import SegFocusRing as _Base, tearDownModule  # noqa: F401
+from test_seg_focus_ring import tearDownModule
+import test_seg_focus_ring as _test_seg_focus_ring
 from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, page_target  # noqa: E402
 
@@ -65,7 +66,7 @@ BROWSER_RING = r"""(() => {
 })()"""
 
 
-class FocusRingsDrawn(_Base):
+class FocusRingsDrawn(_test_seg_focus_ring.SegFocusRing):
     """The rings are drawn in the real page, at 1400 and 900: a focused menu item (Chrome is required)."""
 
     def test_a_focused_menu_item_and_the_filter_box_draw_a_two_pixel_ring_at_both_widths(self):

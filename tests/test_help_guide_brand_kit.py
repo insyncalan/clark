@@ -10,7 +10,7 @@ import unittest
 from _help_shown import LATER, RAW, shown_content
 from test_help_guides import check_guides, run_node
 from test_help_navigation import BANNED
-from test_help_shown import AgainstThePage
+import test_help_shown as _test_help_shown
 
 GID = "the-brand-kit-guide"
 GUIDE = next((g for g in shown_content()["guides"] if g["id"] == GID), None)
@@ -47,7 +47,7 @@ class TheBrandKitGuide(unittest.TestCase):
         for name in ("**Settings**", "**Brands**", "**Choose zip…**", "**Review the brand in Downloads**", "**Install**", "**Replace**", "**Undo**", "**Remove**"):
             self.assertIn(name, text, name)
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(AgainstThePage.HELPCODE)
+        code = norm(_test_help_shown.AgainstThePage.HELPCODE)
         for b in {b for t in words(GUIDE) for b in re.findall(r"\*\*(.+?)\*\*", t)}:
             self.assertIn(norm(b).strip(" .,:;…"), code, b)
 

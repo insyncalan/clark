@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-os.environ["CLARK_TEST"] = "1"      # #1366: src/clark/ask_vision_mac.register() then registers no real picture reader (no osascript by accident)
+os.environ["CLARK_TEST"] = "1"      # #1366: src/clark/ask_vision_mac.read() then raises PictureUnreadable instead of starting the Mac's osascript (no osascript by accident)
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"

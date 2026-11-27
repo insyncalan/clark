@@ -28,7 +28,7 @@ class ComputedContrast(T.ClassicPage):
     ITEMS = [("pdf", "Plan.pdf"), ("docx", "Scope.docx"), ("xlsx", "Budget.xlsx"), ("pptx", "Deck.pptx"), ("jpg", "Site.jpg"), ("png", "Map.png"), ("txt", "Notes.txt"), ("file", "Old.zip")]
 
     def check(self, p, where, mail):
-        """`mail` is the Email link's text: the editor draws an envelope whose only text is the @, the published tile says MAIL."""
+        """`mail` is the Email link's text: the editor draws an envelope whose only text is the @, the published tile draws the same envelope (1194 AP8)."""
         got = p.js(self.JS)
         self.assertEqual(sorted(g[0] for g in got), sorted(["PDF", "DOC", "XLS", "PPT", "JPG", "PNG", "TXT", "URL", "FILE", mail]), (where, got))
         for label, fg, r in got:
@@ -71,8 +71,9 @@ class ComputedContrast(T.ClassicPage):
                 if dark:
                     p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until(f"document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i').length === 10", "the list is in the file")
-                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl-i .tpl-badge.tpl-plain').length"), 10, "the published tiles are the plain boxes")
-                self.check(p, "published %d %s" % (width, dark), "MAIL")
+                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl-i .tpl-badge.tpl-plain').length"), 9, "the published tiles are the plain boxes, the Email link apart (1194 AP8)")
+                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl-i .tpl-badge.tpl-mail').length"), 1, "the Email link draws the envelope like the editor (1194 AP8)")
+                self.check(p, "published %d %s" % (width, dark), "@")
 
 
 if __name__ == "__main__":

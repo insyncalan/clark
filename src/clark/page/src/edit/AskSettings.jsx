@@ -344,7 +344,7 @@ function AskProject() {
             const who = askProvider.value;
             const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span><span data-ask-warn-count>{PEOPLE_CONTRACT_COUNT(Number.isFinite(i.readable_files) ? i.readable_files : 0)}</span></span>);
             return [row, (
-              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : p}>
+              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={p}>
                 <p>{PEOPLE_CONTRACT_HOLDS}{names}{PEOPLE_CONTRACT_MAY_GO(who)}</p>
                 <p data-ask-warn-q>{PEOPLE_CONTRACT_QUESTION(who)}</p>
                 <div class="ask-warn-btns">

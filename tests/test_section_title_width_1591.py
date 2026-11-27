@@ -257,7 +257,9 @@ class SectionTitleBrowser(Look):
             for w in self.widths(cdp, p):
                 sid = self.ids(p)[0]
                 t = TITLE % sid
-                p.js("document.activeElement.blur(); window.scrollTo(0, 0)")
+                # Enter in the title blurred it on the 1400 pass; Chrome keeps the Tab start there, so set it above the sections.
+                p.js("(() => { const c = document.querySelector('[data-mode=edit]'); c.focus(); c.blur(); window.scrollTo(0, 0); })()")
+                p.until("document.activeElement === document.body", "the Tab start is above the sections")
                 seen = False
                 for _ in range(60):
                     p.key("Tab", code="Tab", vk=9)

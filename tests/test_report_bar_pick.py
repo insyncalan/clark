@@ -6,7 +6,7 @@ import re
 import unittest
 
 from _paths import SRC
-from test_report_bar import Bar
+import test_report_bar as _test_report_bar
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -14,7 +14,7 @@ PAGE = SRC / "clark" / "page"
 PANEL = "document.querySelector('.cpop.cdate')"
 
 
-class Pick(Bar):
+class Pick(_test_report_bar.Bar):
     def opened(self, p):
         p.js("document.querySelector('#week-ending-pick').click()")
         p.until("!!" + PANEL, "the panel opened")
