@@ -164,9 +164,10 @@ class Head(Base):
             # A scroll that arrived late (the wheel's, on a slow runner) can have put the chip out of the window or under the sticky top bar since it was measured: bring it back (an instant scroll) before the pointer goes to it.
             p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(); if (document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) !== b) b.scrollIntoView({{block: 'center', behavior: 'instant'}}); }})()")
             now = p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return [x, y, document.elementFromPoint(x, y) === b]; }})()")
-            if under.get("at") == now[:2] and now[2]:
+            if under.get("at") == now[:2] and now[2] and under.get("on"):      # row 1676: the chip is under the point on two polls in a row
                 return True
             under["at"] = now[:2]
+            under["on"] = now[2]
             under["last"] = now
             p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": now[0], "y": now[1], "button": "none", "buttons": 0, "clickCount": 0}, p.sid)
             return False
@@ -177,14 +178,24 @@ class Head(Base):
           ['mousedown', 'mouseup', 'click'].forEach(function(t){ document.addEventListener(t, function(e){
             var x = e.target, d = x && x.tagName ? x.tagName.toLowerCase() + (typeof x.className === 'string' && x.className ? '.' + x.className.split(' ')[0] : '') + '[' + String(x.textContent || '').trim().slice(0, 24) + ']' : String(x);
             window.__hits.push(t + '@' + Math.round(e.clientX) + ',' + Math.round(e.clientY) + ' on ' + d + ' hash=' + location.hash + ' defaultPrevented=' + e.defaultPrevented);
+            var chip = t === 'click' && x && x.closest ? x.closest('.set-chip') : null;      // row 1676: which menu item a click reached
+            if (chip) window.__clicked.push(chip.textContent);
           }, true); });
         })()""")
+        p.js("window.__clicked = []")
+        # Row 1676: what is under the press point when the button goes down and when it comes up (the FAIL text names both).
+        point = f"(function(){{ var e = document.elementFromPoint({under['at'][0]}, {under['at'][1]}), b = {find}; return (e === b ? 'the chip' : e && e.tagName ? e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className ? '.' + e.className.split(' ')[0] : '') + '[' + String(e.textContent || '').trim().slice(0, 24) + ']' : String(e)); }})()"
+        seen = {}
         for kind in ("mousePressed", "mouseReleased"):
+            seen[kind] = p.js(point)
             params = {"type": kind, "x": under["at"][0], "y": under["at"][1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}
             p.cdp.call("Input.dispatchMouseEvent", params, p.sid)
         p.js("""(function(){ window.__trail = [];
           [0, 100, 500, 2000].forEach(function(ms){ setTimeout(function(){ window.__trail.push('+' + ms + 'ms scrollY=' + Math.round(window.scrollY)); }, ms); });
         })()""")
+        # Row 1676: a condition wait (no sleep, no second press) until the click reached the named chip; else the evidence of where it went.
+        if not wait(lambda: name in p.js("window.__clicked || []"), 15):
+            self.fail(f"a click reached the {name} menu item; clicks seen on menu items={p.js('window.__clicked')!r}; press point {under['at']}: under it at press={seen['mousePressed']}, at release={seen['mouseReleased']}, now={p.js(point)}; hits=[{' | '.join(p.js('window.__hits || []'))}]; scrollY={p.js('scrollY')}")
 
     def trail(self, p):
         return p.js("(window.__trail || []).join(', ') + ' hits=[' + (window.__hits || []).join(' | ') + ']' + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
