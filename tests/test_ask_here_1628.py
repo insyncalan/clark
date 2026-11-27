@@ -143,7 +143,7 @@ class AskHere1628(unittest.TestCase):
                     if js("document.querySelector('#ask-here-state').textContent") == "Asking is off for ABC.":
                         js("document.querySelector('[data-ask-here]').click()")
                     self.assertTrue(wait(lambda: js("document.querySelector('#ask-here-state').textContent === 'Asking is on for ABC.'"), 20),
-                                    f"on for the project; the line: {js('(document.querySelector(\"#ask-here-state\") || {}).textContent')!r}")
+                                    "on for the project; the line: " + repr(js("(document.querySelector('#ask-here-state') || {}).textContent")))
                     self.assertTrue(wait(lambda: not js("document.body.innerText.includes(" + repr(NOT_READY) + ")"), 5), "no not_ready line")
                     self.assertEqual(js("document.body.innerText.split(" + repr(NOT_READY) + ").length - 1"), 0)
                 self.assertFalse(service(db).read_new("ABC")[1]["off_here"])
