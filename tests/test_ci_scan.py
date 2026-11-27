@@ -1231,5 +1231,96 @@ class VendoredPdfLibrary(unittest.TestCase):
                          ["vendor/pypdf/"])
 
 
+class AddedLinesOnly(unittest.TestCase):
+    """The listed-words check reads only the lines a change ADDS: an old hit on the base, a removed line or an unchanged line
+    never counts; an added line, a new file and a moved file's added lines do. (Human ruling 27-11 ~22:50.)"""
+    OLD = "old line %s here\nplain\n" % LISTED
+
+    def repo(self, files=None):
+        r = Repo(files or {"src/old.py": self.OLD})
+        self.addCleanup(r.close)
+        return r
+
+    def test_an_old_word_on_the_base_with_an_added_clean_line_passes(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "a new clean line\n")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("REFUSED", out)
+
+    def test_an_added_line_with_a_word_is_refused_and_not_printed(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("file #1: a person's name", out)
+        self.assertNotIn(LISTED, out)
+        self.assertNotIn(LISTED.lower(), out)
+
+    def test_a_new_file_with_a_word_is_refused(self):
+        r = self.repo()
+        r.write("src/new.py", "x = 1\n# %s\n" % LISTED)
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+        self.assertNotIn(LISTED, out)
+
+    def test_a_removed_line_with_a_word_passes(self):
+        r = self.repo()
+        r.write("src/old.py", "plain\n")
+        r.commit("remove the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_moved_file_counts_only_its_added_lines(self):
+        r = self.repo()
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.commit("move")
+        self.assertEqual(r.scan()[0], 0)
+        r = self.repo()
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.write("src/moved.py", self.OLD + "more %s\n" % LISTED)
+        r.commit("move and add")
+        self.assertEqual(r.scan()[0], 1)
+
+    def test_a_changed_line_that_keeps_the_word_counts_as_added(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD.replace("old line", "newer line"))
+        r.commit("edit the line")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_utf16_file_with_nuls_is_still_read_whole(self):
+        r = self.repo()
+        r.write("u.txt", ("%s here\n" % LISTED).encode("utf-16"), "wb")
+        r.commit("utf16 base")
+        r.base = r.git("rev-parse", "HEAD").strip()
+        r.write("u.txt", ("%s here\nmore\n" % LISTED).encode("utf-16"), "wb")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a person's name", out)
+
+    def test_a_listed_word_in_the_message_is_still_refused_when_the_file_is_untouched(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "clean\n")
+        r.commit("thanks to %s" % LISTED)
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("listed word in a name, an address or a message", out)
+        self.assertNotIn(LISTED, out)
+
+    def test_a_listed_word_in_the_path_of_an_edited_file_is_still_refused(self):
+        r = self.repo({"docs/%s.md" % LISTED: "a\n"})
+        r.write("docs/%s.md" % LISTED, "a\nb\n")
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a listed word in its path", out)
+
+
 if __name__ == "__main__":
     unittest.main()
