@@ -1336,6 +1336,17 @@ class AddedLinesOnly(unittest.TestCase):
         self.assertNotIn(LISTED, out)
         self.assertNotIn(LISTED.lower(), out)
 
+    def test_an_added_line_with_a_word_is_refused_under_a_global_color_diff_always(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        cfg = Path(r.path, "global.gitconfig")
+        cfg.write_text("[color]\n\tdiff = always\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(cfg), "GIT_CONFIG_SYSTEM": os.devnull, "HOME": r.path}):
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn(LISTED, out)
+
     def test_a_new_file_with_a_word_is_refused(self):
         r = self.repo()
         r.write("src/new.py", "x = 1\n# %s\n" % LISTED)

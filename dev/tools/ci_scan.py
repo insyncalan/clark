@@ -261,7 +261,7 @@ class Scan:
             changed = [(e.mode, e.sha, e.path) for e in pp.list_tree(self.repo, self.head, self.env)]
             raw = []
         else:
-            raw = self.git("diff", "--raw", "-z", "--no-renames", "--no-abbrev", self.base, self.head).split(b"\0")
+            raw = self.git("diff", "--no-color", "--raw", "-z", "--no-renames", "--no-abbrev", self.base, self.head).split(b"\0")
         while i + 1 < len(raw) and raw[i].startswith(b":"):
             meta, path = raw[i].split(), raw[i + 1].decode("utf-8", "surrogateescape")
             i += 2
@@ -274,7 +274,7 @@ class Scan:
         if self.base != "ALL" and (i != len(raw) - 1 or raw[-1] != b""):
             raise RuntimeError("git diff output not fully read")
         if self.base != "ALL":                      # rename detection is used ONLY to find what a moved file's lines were before
-            moved = self.git("-c", "diff.renames=true", "diff", "--raw", "-z", "-M", "--no-abbrev", self.base, self.head).split(b"\0")
+            moved = self.git("-c", "diff.renames=true", "diff", "--no-color", "--raw", "-z", "-M", "--no-abbrev", self.base, self.head).split(b"\0")
             j = 0
             while j + 1 < len(moved) and moved[j].startswith(b":"):
                 meta = moved[j].split()
@@ -311,7 +311,7 @@ class Scan:
             return data
         if not old or not data or b"\0" in data or data[:2] == b"PK":
             return data
-        diff = self.git("diff", "-U0", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)
+        diff = self.git("diff", "--no-color", "-U0", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)
         lines, hunk = [], False
         for ln in diff.split(b"\n"):
             if ln.startswith(b"@@"):
@@ -385,7 +385,7 @@ class Scan:
             out, expected = b"", 0
         else:
             span = "%s..%s" % (self.base, self.head)
-            out = self.git("log", "--no-show-signature", "--format=%H%x00%an%x00%ae%x00%cn%x00%ce%x00%B%x00%x01", span)
+            out = self.git("log", "--no-color", "--no-show-signature", "--format=%H%x00%an%x00%ae%x00%cn%x00%ce%x00%B%x00%x01", span)
             expected = int(self.git("rev-list", "--count", span))
         bad, n = [], 0
         # A record ends with NUL then \x01, so a \x01 inside a message hides nothing; the record count must then equal git's own.
