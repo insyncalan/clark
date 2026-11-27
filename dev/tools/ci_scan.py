@@ -273,7 +273,7 @@ class Scan:
         if self.base != "ALL" and (i != len(raw) - 1 or raw[-1] != b""):
             raise RuntimeError("git diff output not fully read")
         if self.base != "ALL":                      # rename detection is used ONLY to find what a moved file's lines were before
-            moved = self.git("diff", "--raw", "-z", "-M", "--no-abbrev", self.base, self.head).split(b"\0")
+            moved = self.git("-c", "diff.renames=true", "diff", "--raw", "-z", "-M", "--no-abbrev", self.base, self.head).split(b"\0")
             j = 0
             while j + 1 < len(moved) and moved[j].startswith(b":"):
                 meta = moved[j].split()
@@ -301,8 +301,10 @@ class Scan:
 
     def added(self, e, data):
         """What the listed-word scan reads of a changed file: only the lines HEAD adds to it (a removed or unchanged line never counts;
-        a moved file counts its added lines; a new file, a binary file, a zip and a file with NULs count in full, as before)."""
+        a moved file counts its added lines; a new file, a binary file, a zip, a file with NULs and a file with a pinned per-file allowance count in full)."""
         old = self.old.get(e.path)
+        if e.path in pp.GUARD_ALLOWED:      # its allowance is a per-FILE count (one use), so the whole file is read, not the added lines
+            return data
         if not old or not data or b"\0" in data or data[:2] == b"PK":
             return data
         diff = self.git("diff", "-U0", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)

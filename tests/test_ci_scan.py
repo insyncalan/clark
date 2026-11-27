@@ -1241,6 +1241,31 @@ class AddedLinesOnly(unittest.TestCase):
         self.addCleanup(r.close)
         return r
 
+    CAPPED = "system/prototype/help.js"
+    TEMPLATE = pp.reveal("Onaare")                  # the one allowed use per capped file, built here so this file does not carry it
+
+    def test_second_use_in_capped_file_still_fails(self):
+        r = self.repo({self.CAPPED: "a %s b\n" % self.TEMPLATE})
+        r.write(self.CAPPED, "a %s b\nc %s d\n" % (self.TEMPLATE, self.TEMPLATE))
+        r.commit("second use")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn(self.TEMPLATE, out)
+
+    def test_capped_file_with_its_one_use_and_another_changed_line_passes(self):
+        r = self.repo({self.CAPPED: "a %s b\nplain\n" % self.TEMPLATE})
+        r.write(self.CAPPED, "a %s b\nplain changed\n" % self.TEMPLATE)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_non_capped_file_with_old_hit_and_unrelated_added_line_passes(self):
+        r = self.repo({"src/other.js": "a %s b\nx\n" % self.TEMPLATE})
+        r.write("src/other.js", "a %s b\nx\ny\n" % self.TEMPLATE)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
     def test_an_old_word_on_the_base_with_an_added_clean_line_passes(self):
         r = self.repo()
         r.write("src/old.py", self.OLD + "a new clean line\n")
@@ -1359,6 +1384,38 @@ class AddedLinesOnly(unittest.TestCase):
         r = self.repo()
         r.write("src/old.py", self.OLD + LISTED[:2] + "\n" + LISTED[2:] + "\n")
         r.commit("two added lines that only joined would spell the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    PHRASE = pp.reveal("pernvgr cyna")              # a listed phrase with a space in it, built here so this file does not carry it
+
+    def test_a_space_phrase_on_one_added_line_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "see %s\n" % self.PHRASE)
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 1)
+
+    def test_a_space_phrase_split_across_two_added_lines_is_refused(self):
+        a, b = self.PHRASE.split(" ")
+        r = self.repo()
+        r.write("src/old.py", self.OLD + a + "\n" + b + "\n")
+        r.commit("the phrase's words on two added lines: the line join counts as its space")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_phrase_split_across_a_context_line_and_an_added_line_is_NOT_covered(self):
+        """Known limit of added-lines-only: the old half is not read, so the phrase is not formed. Pinned so a change is seen."""
+        a, b = self.PHRASE.split(" ")
+        r = self.repo({"src/old.py": "x %s\nplain\n" % a})
+        r.write("src/old.py", "x %s\n%s\nplain\n" % (a, b))
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 0)
+
+    def test_a_moved_file_is_found_when_the_user_config_turns_rename_detection_off(self):
+        r = self.repo()
+        r.git("config", "diff.renames", "false")
+        r.git("mv", "src/old.py", "src/moved.py")
+        r.commit("move")
         rc, out = r.scan()
         self.assertEqual(rc, 0, out)
 
