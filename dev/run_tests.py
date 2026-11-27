@@ -769,7 +769,7 @@ def main(argv):
         return 1
     if a.quick:
         files = [f for f in files if not support.is_chrome(f)]
-    if not a.with_quarantined:
+    if not a.with_quarantined and not a.names:       # a file NAMED on the command line always runs: a ticket's named test is never left out
         held = quarantined()
         left_out = [f.name for f in files if f.name in held]
         if left_out:

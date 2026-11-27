@@ -58,7 +58,8 @@ def dubai_now():
 def git(*args):
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
     if r.returncode:
-        raise SystemExit("pre-CI did not start: git %s failed: %s" % (args[0], r.stderr.strip()))
+        print("pre-CI did not start: git %s failed: %s" % (args[0], r.stderr.strip()))
+        raise SystemExit(2)
     return r.stdout
 
 
