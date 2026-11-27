@@ -16,7 +16,7 @@ queue_rules:
       - check-success = bifrost-point-map
       - check-success = bifrost-test-exists
     merge_method: merge
-    batch_size: 3
+    batch_size: 1      # one PR per combined run: the sha Mergify tests is the sha it merges (Bifrost 2.0 P7)
     batch_max_wait_time: 1 minute
 
 # Row 1581 follow-up: the label alone enqueued nothing. This rule queues a PR that carries `queue`;

@@ -82,7 +82,8 @@ class Workflow(unittest.TestCase):
         self.assertRegex(block(on, "macos", 6), r"type: boolean")
         self.assertIn("pull_request:", on)
         self.assertRegex(block(on, "pull_request", 2), r"types: \[opened, synchronize, reopened, labeled, unlabeled\]")
-        self.assertRegex(block(on, "push", 2), r"branches: \[main\]")
+        self.assertNotRegex(on, r"^  push:", "no Tests run on a push to main (Bifrost 2.0 P7)")
+        self.assertIn('if [ "${BRANCH#mergify/merge-queue/}" != "$BRANCH" ]; then FULL=1; fi', self.text)      # Mergify's combined run is the full Ubuntu run
 
     def test_the_merge_queue_trigger_and_its_full_run_plan_are_pinned(self):
         self.assertEqual(merge_queue_problems(self.text), [])
