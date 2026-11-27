@@ -1293,6 +1293,35 @@ class AddedLinesOnly(unittest.TestCase):
         rc, out = r.scan()
         self.assertEqual(rc, 1, out)
 
+    def test_a_word_only_in_the_second_hunk_is_refused(self):
+        base = "".join("line %d\n" % i for i in range(30))
+        r = self.repo({"src/old.py": base})
+        r.write("src/old.py", base.replace("line 2\n", "line 2 clean\n").replace("line 25\n", "line 25 %s\n" % LISTED))
+        r.commit("two hunks, the word in the second only")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_word_at_the_very_start_of_an_added_line_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "%s starts the line\n" % LISTED)
+        r.commit("word first on the added line")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_an_added_line_that_itself_starts_with_a_plus_is_refused(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "+%s\n" % LISTED)
+        r.commit("added line whose text starts with a plus")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_whitespace_only_change_to_a_line_with_the_word_counts_as_added(self):
+        r = self.repo()
+        r.write("src/old.py", "    " + self.OLD)
+        r.commit("re-indent the line that holds the word")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
     def test_a_utf16_file_with_nuls_is_still_read_whole(self):
         r = self.repo()
         r.write("u.txt", ("%s here\n" % LISTED).encode("utf-16"), "wb")
