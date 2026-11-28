@@ -118,7 +118,7 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance [data-fig]')].map(e => e.dataset.fig).join()", sid), "health,overdue,risks", "the file drew exactly its three tiles, in order")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance [data-fig]')].map(e => e.dataset.fig).join()", sid), "health,risks", "the file drew exactly its two tiles, in order (row 1543 AP4: no Overdue actions tile in a file)")
             figs = cdp.js("[...document.querySelectorAll('.glance .fig')].map(f => [f.dataset.fig, f.tagName])", sid)
             has_work = cdp.js("!!document.querySelector('.tab[data-view=work]')", sid)      # row 1193: a new project's file has Work items lists, not the built-in sections, so no Work items tab for a tile to open
             self.assertTrue(figs and all((tag == "BUTTON") == (key != "health" and has_work) for key, tag in figs), f"a counting tile is a button when the file has the Work items tab, and Project health never is: {figs}")

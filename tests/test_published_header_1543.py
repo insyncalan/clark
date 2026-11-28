@@ -6,10 +6,14 @@ Run: python3 dev/run_tests.py test_published_header_1543        (needs Chrome; r
 """
 import base64
 import json
+from unittest import mock
 
 import _backdrop_pics as pics
 import test_glance_page as glance
+from clark import publish
+from clark import store as store_module
 from _demo import USER
+from _new_page import reload_to_new_page
 from test_published_one_bar import HIDE, colour, ratio
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
@@ -281,6 +285,411 @@ class Header1543(glance.Published):
                 for words in team_only + ("ZQ-hidden", "ZQ-client-off", "ZQ-team"):
                     self.assertEqual(self.search(p, words), [], f"{words!r} (team only) returns 0 results")
                 self.assertEqual(p.js("document.querySelector('.rs-none').hidden"), False)
+
+
+# Row 1543 AP4: what the published page shows for a day that has passed. Read from the drawn page: its text and the words in its labels, tips and titles,
+# and the elements that carry the late look (red or amber late tags, the red milestone marks and the red sub-lines).
+LATE_WORDS = r"(?i)\b(overdue|late|days? late|d late|yesterday)\b"
+LATE_PROBE = """(() => {
+  const keep = (e) => !e.closest('[data-fig]');      // the Dashboard's four tiles are not part of AP4's list (reported, not changed here)
+  const text = [...document.querySelectorAll('main *')].filter((e) => keep(e) && e.children.length === 0).map((e) => e.textContent).join(' | ');
+  const attrs = [...document.querySelectorAll('main [aria-label], main [title], main [data-tip]')].filter(keep)
+    .map((e) => [e.getAttribute('aria-label'), e.getAttribute('title'), e.getAttribute('data-tip')].filter(Boolean).join(' ')).join(' | ');
+  const bad = [...document.querySelectorAll('.late, .tp-late, .due-l.late, .msl-sub.late, .mst.c-red, .mv-mk.c-red, .node.c-red, .cal-ms.c-red, .mtk-chip .c-red, .tpl-dates-row.is-late')].filter(keep).map((e) => e.className);
+  return {text, attrs, bad};
+})()"""
+
+
+class Late1543:      # the tests below are methods of Header1543 (mixed in at the end of the file)
+    def plant_late(self):
+        """An action 3 days ahead of the publish day (2026-10-28), a milestone whose agreed date has passed, and one slipped past its agreed date."""
+        self.a_soon = self.demo.action(description="Book the review room", owner="Pat Demo", due_date="2026-10-31")
+        with self.store.step("dashboard", USER) as st:
+            gone = st.create("milestones", {"project": "ABC", "name": "Passed gate", "baseline_date": "2026-10-01", "forecast_date": "2026-10-05", "source": "demo"})
+            slip = st.create("milestones", {"project": "ABC", "name": "Slipped gate", "baseline_date": "2026-12-01", "forecast_date": "2026-12-20", "source": "demo"})
+            st.create("report_sections", {"project": "ABC", "type": "keydates", "title": "Key dates", "sort_order": 900,
+                                          "body": store_module.check_section_body("keydates", json.dumps({"v": 1, "items": [{"milestone": gone}, {"milestone": slip}]}))})
+        self.demo.plant_builtin_sections()
+
+    def peek_due(self, p):
+        """The peek of the action whose date has passed: the class of its Due date chip's icon and the chip's text (read from the board card's peek)."""
+        p.js("document.querySelector('header.top [data-view=work]').click()")
+        p.until("!!document.querySelector('[data-layout=board]')", "the board switch drew")
+        p.js("document.querySelector('[data-layout=board]').click()")
+        p.until("!!document.querySelector('#work-board article .bc-main')", "the board drew")
+        p.js("[...document.querySelectorAll('#work-board article')].find((x) => x.textContent.includes('Chase the supplier file')).querySelector('.bc-main').click()")
+        p.until("!!document.querySelector('[data-peek] [data-row=due] .pkc-ic')", "the peek's Due date chip drew")
+        return p.js("(() => { const c = document.querySelector('[data-peek] [data-row=due]'); return {cls: c.querySelector('.pkc-ic').className, text: c.textContent, late: c.classList.contains('late')}; })()")
+
+    def peek_ms(self, p, name):
+        """The file's peek of a milestone, opened from the Milestones list: its text and the elements that carry a red or amber look."""
+        p.js("document.querySelector('header.top [data-view=milestones]').click()")
+        p.until("document.querySelectorAll('main .msl-row').length > 0", "the milestones drew")
+        p.js("[...document.querySelectorAll('main .msl-row')].find((x) => x.textContent.includes('%s')).querySelector('.msl-cells').click()" % name)
+        p.until("!!document.querySelector('[data-peek] [data-ms-head]')", f"the peek of {name} drew")
+        return p.js("(() => { const e = document.querySelector('[data-peek]'); return {text: e.textContent, bad: [...e.querySelectorAll('.late, .c-red, .ic-r, .ic-a, .c-amber')].map((x) => x.className)}; })()")
+
+    def pages(self, p):
+        """The text, labels and late-look elements of each page the file has: Dashboard, Work items, Milestones."""
+        out = {}
+        for v in ("dashboard", "work", "milestones"):
+            if p.js(f"!!document.querySelector('header.top [data-view={v}]')"):
+                p.js(f"document.querySelector('header.top [data-view={v}]').click()")
+                p.until(f"document.querySelector('header.top [data-view={v}]').getAttribute('aria-selected') === 'true' && document.querySelectorAll('main .sec, main tr[data-id], main .msl-row, main [data-ms]').length > 0", f"{v} drew")
+                out[v] = p.js(LATE_PROBE)
+                if v == "dashboard":
+                    for key, title in (("soon", "Book the review room"), ("over", "Chase the supplier file")):
+                        out[v][key] = p.js("(() => { const r = [...document.querySelectorAll('.wl-row')].find((x) => x.textContent.includes('%s')), e = r && r.querySelector('.ico-w'); return e ? e.className : 'NONE'; })()" % title)
+        return out
+
+    def test_published_report_never_highlights_late(self):
+        self.plant_late()
+        real = publish.read_inputs
+
+        def with_board(*a, **k):      # the Work items board is how a file opens the peek (row 1533: the author's switch)
+            inputs = real(*a, **k)
+            inputs["data"]["project"]["show_board_client"] = 1
+            return inputs
+        with mock.patch.object(publish, "read_inputs", with_board):
+            path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                seen = self.pages(p)
+                self.assertGreaterEqual(len(seen), 3, f"control: the three pages were read, {sorted(seen)}")
+                self.assertIn("Passed gate", seen["milestones"]["text"], "control: the milestone with a passed date is on the page")
+                self.assertIn("Chase the supplier file", seen["work"]["text"] + seen["dashboard"]["text"], "control: the overdue action is on the page")
+                for v, got in seen.items():
+                    self.assertNotRegex(got["text"], LATE_WORDS, f"{v}: no late word in the text")
+                    self.assertNotRegex(got["attrs"], LATE_WORDS, f"{v}: no late word in a label, tip or title")
+                    self.assertEqual(got["bad"], [], f"{v}: no late look")
+                peek = self.peek_due(p)
+                self.assertNotRegex(peek["cls"], r"\bic-[ra]\b", f"the peek's Due date icon of the passed date has no red and no amber: {peek}")
+                self.assertNotRegex(peek["text"], LATE_WORDS, "and the peek says no late word")
+                for name in ("Passed gate", "Slipped gate"):
+                    ms = self.peek_ms(p, name)
+                    self.assertIn(name, ms["text"], "control: the milestone's own peek is open")
+                    self.assertNotRegex(ms["text"], LATE_WORDS, f"{name}: no late word in the peek: {ms['text']}")
+                    self.assertEqual(ms["bad"], [], f"{name}: no red or amber look in the peek")
+                self.assertIn("Expected later", seen["milestones"]["text"], "'Expected later' stays, plain")
+                self.assertRegex(seen["dashboard"]["soon"], r"\ba\b", "amber for 'due within 7 days' stays")
+                self.assertNotRegex(seen["dashboard"]["over"], r"\b[ra]\b", "the action whose date has passed has no red and no amber")
+
+
+# Row 1543 AP4, additions (WO-M22710): no Overdue actions tile, no Late Gantt status, no Overdue in the Word copy of a published file.
+class More1543:
+    def plant_gantt(self):
+        """A line whose end passed (2026-10-10, publish day 2026-10-28) and one still running, with the Gantt tab on for the client."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"show_gantt_client": 1, "show_gantt_editor": 1, "gantt_hidden_columns": ""})
+            st.create("report_sections", {"project": "ABC", "type": "gantttable", "title": "Plan table", "sort_order": 950, "body": "", "beside": 0, "hidden": 0})
+            for n, (name, a, b) in enumerate((("Passed task", "2026-10-01", "2026-10-10"), ("Running task", "2026-10-20", "2026-12-20")), 1):
+                st.create("gantt_lines", {"project": "ABC", "type": "task", "name": name, "start": a, "end": b, "pct": 20, "show": 1, "sort_order": 1024 * n})
+
+    def test_published_file_has_no_overdue_actions_tile_and_editor_keeps_it(self):
+        self.demo.plant_builtin_sections()
+        with self.store.step("dashboard", USER) as st:      # the built-in At a glance section (a new project starts with the template one)
+            for row in self.store.read("report_sections", "ABC"):
+                if row["type"] == "glancetemplate":
+                    st.cancel("report_sections", row["id"])
+                    st.create("report_sections", {"project": "ABC", "type": "glance", "title": "At a glance", "sort_order": row["sort_order"]})
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    e = self.show(cdp, width, dark)
+                    e.until("!!document.querySelector('[data-fig=overdue]')", "the editor draws the Overdue actions tile")
+                    self.assertIn("Overdue actions", e.js("document.querySelector('[data-fig=overdue]').textContent"))
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('[data-fig=health]')", "the file's tiles drew")
+                    got = p.js("""(() => { const g = document.querySelector('[data-glance]'); const r = (e) => e.getBoundingClientRect();
+                      return {text: g.textContent, over: g.querySelectorAll('[data-fig=overdue]').length, keys: [...g.querySelectorAll('[data-fig]')].map((e) => e.dataset.fig),
+                              boxes: [...g.querySelectorAll('[data-fig]')].map((e) => [Math.round(r(e).width), Math.round(r(e).height)]), wide: document.documentElement.scrollWidth <= innerWidth}; })()""")
+                    self.assertEqual(got["over"], 0, "no Overdue actions tile in the file")
+                    self.assertNotIn("Overdue actions", got["text"])
+                    self.assertIn("risks", got["keys"], "control: the other tiles are still drawn")
+                    self.assertTrue(all(w > 40 and h > 20 for w, h in got["boxes"]), f"every remaining tile has a box: {got['boxes']}")
+                    self.assertTrue(got["wide"], "no sideways scroll")
+
+    def test_published_gantt_has_no_late_word_and_the_editor_keeps_it(self):
+        self.plant_gantt()
+        path = self.publish()
+        probe = """(() => { const m = document.querySelector('main') || document.body;
+          const lab = [...m.querySelectorAll('[aria-label], [title]')].map((e) => (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).join(' | ');
+          return {text: m.innerText, lab, bars: m.querySelectorAll('[aria-label*="Passed task"]').length}; })()"""
+        pick = "(() => { const b = document.querySelector('[aria-label*=\"Passed task\"]'); if (b) b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return !!b; })()"
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    p = self.draw(cdp, path, width, dark)
+                    p.until("!!document.querySelector('header.top-file [data-view=gantt]')", "the file has the Gantt tab")
+                    p.js("document.querySelector('header.top-file [data-view=gantt]').click()")
+                    p.until("document.body.innerText.includes('Passed task')", "the Gantt drew")
+                    p.js(pick)
+                    got = p.js(probe)
+                    p.js("document.querySelector('header.top-file [data-view=dashboard]').click()")
+                    p.until("document.body.innerText.includes('Passed task')", "the Gantt table section drew on the Dashboard")
+                    table = p.js(probe)
+                    self.assertNotRegex(table["text"], r"\bLate\b", "no Late word in the Gantt table's Status column")
+                    self.assertGreater(got["bars"], 0, "control: the passed line's bar is drawn")
+                    self.assertNotRegex(got["text"], r"\bLate\b", "no Late word on the published Gantt")
+                    self.assertNotRegex(got["lab"], r"\bLate\b", "no Late word in a Gantt label")
+                    self.assertNotRegex(got["text"], LATE_WORDS)
+                with chrome() as cdp:
+                    e = self.show(cdp, width, dark)
+                    e.until("!!document.querySelector('header.top [data-view=gantt]')", "the editor has the Gantt tab")
+                    e.js("document.querySelector('header.top [data-view=gantt]').click()")
+                    e.until("document.body.innerText.includes('Passed task')", "the editor's Gantt drew")
+                    e.js(pick)
+                    self.assertRegex(e.js(probe)["lab"], r"\bLate\b", "the editor's Gantt still says Late")
+
+    def test_client_word_copy_never_says_overdue(self):
+        import copy
+        from clark import docx_build
+        from test_docx_graphics import NS, parts
+        import xml.etree.ElementTree as ET
+        self.plant_gantt()
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        self.demo.action(description="Urgent late step", owner="Pat Demo", due_date="2026-10-02", priority="Urgent")
+        self.plant_late()
+        built = publish.build(self.store, "ABC", now="2026-10-28")["published"]
+        built = copy.deepcopy(built)
+        if not any(x["type"] == "gantt" for x in built["sections"]):
+            built["sections"] = list(built["sections"]) + [{"id": "gantt-1", "type": "gantt", "title": "Gantt", "beside": 0}]
+        text = docx_build.build(built)
+        doc = ET.fromstring(parts(text)["word/document.xml"])
+        said = " | ".join("".join(t.text or "" for t in p.iter("{%s}t" % NS["w"])) for p in doc.iter("{%s}p" % NS["w"]))
+        self.assertIn("Chase the supplier file", said, "control: the overdue action is in the copy")
+        self.assertIn("Passed task", said, "control: the Gantt is in the copy")
+        self.assertIn("Passed gate", said, "control: the passed milestone is in the copy")
+        self.assertNotRegex(said, r"(?i)overdue", "the client's Word copy says no Overdue")
+
+    def test_client_word_copy_has_no_late_word_and_no_late_colour(self):
+        """Row 1543 AP4b (rule 1543-ap4b-0827): the Word copy of a published file says no overdue, no late, no N days late in its text or
+        its picture alt text, and draws no late red: not in a run colour, not in a cell fill, not in a milestone or Gantt picture (the Gantt's red Today
+        line is the one red mark, a line, not a late signal)."""
+        import copy
+        import re
+        import xml.etree.ElementTree as ET
+        from clark import docx_build, docx_graphics
+        from test_docx_graphics import NS, parts, read_png
+        self.plant_gantt()
+        a_old = self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+        a_urg = self.demo.action(description="Urgent passed step", owner="Pat Demo", due_date="2026-10-02", priority="Urgent")
+        a_yes = self.demo.action(description="Due yesterday step", owner="Pat Demo", due_date="2026-10-27")
+        a_five = self.demo.action(description="Due five days ago step", owner="Pat Demo", due_date="2026-10-23")
+        self.plant_late()
+        built = copy.deepcopy(publish.build(self.store, "ABC", now="2026-10-28")["published"])
+        built["sections"] = [x for x in built["sections"] if x["type"] != "gantt"] + [
+            {"id": "gantt-1", "type": "gantt", "title": "Gantt", "beside": 0},
+            {"id": "wi-1", "type": "workitems", "title": "Work items", "beside": 0, "columns": ["id", "due", "status"], "items": [a_yes, a_five, a_old, a_urg]}]
+        text = docx_build.build(built)
+        files = parts(text)
+        doc = ET.fromstring(files["word/document.xml"])
+        said = " | ".join("".join(t.text or "" for t in p.iter("{%s}t" % NS["w"])) for p in doc.iter("{%s}p" % NS["w"]))
+        alts = " | ".join(d.get("descr") or "" for d in doc.iter("{%s}docPr" % NS["wp"]))
+        for word in ("Chase the supplier file", "Urgent passed step", "Due yesterday step", "Passed task", "Passed gate", "Slipped gate"):
+            self.assertIn(word, said, f"control: {word} is in the copy")
+        for row in (a_old, a_urg, a_yes, a_five):
+            self.assertIn(row, said, f"control: the work item {row} is listed")
+        self.assertNotRegex(said.replace("Due yesterday step", ""), r"(?i)yesterday", "a passed due date has no relative word, Yesterday included")
+        due_cells = {"".join(t.text or "" for t in c.iter("{%s}t" % NS["w"])) for c in doc.iter("{%s}tc" % NS["w"])}
+        self.assertIn("27-10-2026", due_cells, "the item due yesterday has its due cell as the plain date alone")
+        self.assertNotIn("27-10-2026 Yesterday", said)
+        self.assertIn("23-10-2026", said, "control: the date from five days ago is shown, as a date alone")
+        self.assertIn("Open", said, "the accepted word for a passed action")
+        self.assertTrue(alts, "control: the pictures have alt text")
+        for where, got in (("text", said), ("alt text", alts)):
+            self.assertNotRegex(got, r"(?i)overdue", f"no overdue in the {where}")
+            self.assertNotRegex(got, r"(?i)\blate\b", f"no late in the {where}")
+            self.assertNotRegex(got, r"(?i)days late", f"no N days late in the {where}")
+        colours = {e.get("{%s}val" % NS["w"]) for e in doc.iter("{%s}color" % NS["w"])} | {e.get("{%s}fill" % NS["w"]) for e in doc.iter("{%s}shd" % NS["w"])}
+        red = docx_build.palette(None)["tone-red-text"]
+        self.assertTrue(colours - {None}, "control: the copy has colours")
+        red_runs = {"".join(t.text or "" for t in r.iter("{%s}t" % NS["w"])) for r in doc.iter("{%s}r" % NS["w"])
+                    if any(c.get("{%s}val" % NS["w"]) == red for c in r.iter("{%s}color" % NS["w"]))}
+        self.assertTrue(red_runs <= {"1", "Red"}, f"red text is only the High risks tile's count and the risk's Red rating (not lateness); no date, state or word of a late item: {red_runs}")
+        self.assertTrue(red_runs, "control: the red the copy does use is found by this check")
+        status_red = docx_graphics.tokens(docx_build.palette(None))["status-red"]
+        pngs = [n for n in files if n.startswith("word/media/") and n.endswith(".png")]
+        self.assertGreaterEqual(len(pngs), 2, "control: the plan and the Gantt pictures are in the copy")
+        for n in pngs:
+            w, h, palette, rows = read_png(files[n])
+            if status_red in palette:
+                at = palette.index(status_red)
+                cols = {x for row in rows for x, v in enumerate(row) if v == at}
+                self.assertLessEqual(len(cols), 2, f"{n}: red is only the Gantt's Today line, two pixels wide")
+
+
+# Row 1543 AP4 (slice 6, review ruling 'no late days on any client surface'): the published Work items page has no Overdue group and no Overdue
+# Due-filter option; an open item whose date has passed is in the group "Earlier" and is still drawn. The editor keeps both.
+class Overdue1543:
+    def plant_overdue_item(self):
+        self.demo.action(description="Chase the supplier file", owner="Pat Demo", due_date="2026-10-01")
+
+    def published_work(self, cdp, path, width, dark):
+        p = self.draw(cdp, path, width, dark)
+        p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+        p.js("document.querySelector('header.top-file [data-view=work]').click()")
+        p.until("!!document.querySelector('#work-list') && !!document.querySelector('#group-by')", "the published Work items drew")
+        return p
+
+    def test_published_work_items_have_no_overdue_group_or_filter_option(self):
+        self.plant_overdue_item()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.published_work(cdp, path, width, dark)
+                p.js("document.querySelector('[data-show=all]') && document.querySelector('[data-show=all]').click()")
+                p.js("document.querySelector('#group-by').click()")
+                p.until("!!document.querySelector('[role=menuitem][data-kind=due]')", "the Group by menu opened")
+                p.js("document.querySelector('[role=menuitem][data-kind=due]').click()")
+                p.until("[...document.querySelectorAll('tr.grp th')].some((t) => /Earlier/.test(t.textContent))", "the Due groups drew, the passed date in Earlier")
+                heads = p.js("[...document.querySelectorAll('tr.grp th')].map((t) => t.textContent)")
+                self.assertTrue(any(h.startswith("Earlier") for h in heads), f"the open item whose date passed is in Earlier: {heads}")
+                self.assertGreater(p.js("document.querySelectorAll('#work tr[data-id]').length"), 0, "control: the rows are drawn")
+                self.assertTrue(p.js("document.querySelector('#work').textContent.includes('Chase the supplier file')"), "control: the item is still drawn")
+                p.js("document.querySelector('[data-fb=due]').click()")
+                p.until("!!document.querySelector('#fbox-due input')", "the Due filter opened")
+                menu = p.js("document.querySelector('#fbox-due').textContent")
+                self.assertIn("Due in 7 days", menu, "control: the Due filter offers its options")
+                self.assertEqual(p.js("document.querySelectorAll('#fbox-due input[value=overdue]').length"), 0, "no Overdue option")
+                self.assertNotRegex(menu, r"(?i)overdue")
+                self.assertNotRegex(p.js("document.querySelector('#work').textContent"), r"(?i)overdue", "no Overdue text anywhere on the Work items page")
+
+    def test_published_remembered_overdue_filter_is_no_filter(self):
+        self.plant_overdue_item()
+        path = self.publish()
+        keep = "localStorage.setItem('clark.work.ABC', JSON.stringify({v: 1, type: 'all', mode: 'all', filters: {due: ['overdue']}, not: {}, group: 'workstream'}))"
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+                p.js(keep)
+                p.js("location.hash = '#work'")
+                reload_to_new_page(p.js, "!!document.querySelector('#work-list') && document.querySelectorAll('#work tr[data-id]').length > 0", "the Work items drew with the remembered choice")
+                self.assertEqual(p.js("document.querySelectorAll('[data-chip=due]').length"), 0, "no Due chip")
+                self.assertTrue(p.js("document.querySelector('#work').textContent.includes('Chase the supplier file')"), "the item is drawn: the choice is no filter")
+                self.assertNotRegex(p.js("document.querySelector('#work').textContent"), r"(?i)overdue")
+
+    def test_editor_work_items_keep_the_overdue_group(self):
+        self.plant_overdue_item()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark, hash_="#work&p=ABC", settings=True)      # settings=True: the page is not waited for as a Dashboard
+                p.until("document.documentElement.dataset.ready === '1'", "the editor opened")
+                p.js("localStorage.setItem('clark.work.v1', JSON.stringify({ABC: {view: 'table', group: 'due', lane: null, collapsed: []}}))")
+                reload_to_new_page(p.js, "document.documentElement.dataset.ready === '1' && !!document.querySelector('tbody[data-group]')", "the editor's Work items drew")
+                if dark:
+                    p.js("document.documentElement.dataset.theme = 'dark'")
+                p.until("[...document.querySelectorAll('tbody[data-group]')].some((t) => t.dataset.group === 'overdue')", "the Overdue group drew")
+                # the editor's Due filter (filters.js options) still lists Overdue: pinned in test_work_filters (labels Overdue, Due in 7 days, No date, Later), run with this file
+                self.assertIn("Overdue", p.js("[...document.querySelectorAll('thead[data-group]')].map((t) => t.textContent).join('|')"), "the Overdue group is drawn with its heading")
+
+
+# Row 1543 AP4d (PM ruling rom-rul-1543-ap4d-0920): on a published file the Milestones timeline keeps the slip (the ghost ring, the dashed line,
+# "+N days", the Slipped diamond) and loses its red; the editor draws them red as before.
+TIMELINE_PROBE = """(() => {
+  const root = document.querySelector('.mv') || document.querySelector('[data-ms]').parentElement;
+  const probe = document.createElement('i'); document.body.appendChild(probe);
+  const tok = (n) => { probe.style.color = `var(${n})`; return getComputedStyle(probe).color; };
+  const red = [tok('--status-red'), tok('--status-red-text')], amber = [tok('--status-amber'), tok('--status-amber-text')];
+  const hsl = (c) => { const m = c.match(/[\\d.]+/g); if (!m || m.length < 3 || (m.length > 3 && +m[3] === 0)) return null; const [r, g, b] = m.slice(0, 3).map((x) => x / 255);
+    const hi = Math.max(r, g, b), lo = Math.min(r, g, b), d = hi - lo, l = (hi + lo) / 2; if (!d) return {h: 0, s: 0};
+    const s = d / (1 - Math.abs(2 * l - 1)); let h = hi === r ? ((g - b) / d) % 6 : hi === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; return {h, s}; };
+  const bad = (c) => { if (red.includes(c) || amber.includes(c)) return 'token'; const x = hsl(c); if (!x || x.s <= 0.25) return ''; return (x.h >= 345 || x.h <= 15) ? 'red hue' : (x.h >= 30 && x.h <= 50) ? 'amber hue' : ''; };
+  const sets = {
+    slip: [[...root.querySelectorAll('[data-slip]')], ['color']],
+    conn: [[...root.querySelectorAll('.mv-conn')], ['borderTopColor']],
+    ghost: [[...root.querySelectorAll('.mv-ghost')], ['borderTopColor', 'borderLeftColor']],
+    diamond: [[...root.querySelectorAll('.mv-mk svg path')].filter((e) => /M10 2\\.5l7\\.5/.test(e.getAttribute('d') || '')), ['stroke']],
+    legend: [[...document.querySelectorAll('.mlg-ghost')], ['borderTopColor']],
+    cal: [[...document.querySelectorAll('.cal-ms.ghost')], ['borderTopColor', 'color']],
+  };
+  const out = {hits: [], n: {}, red: 0, slips: [...root.querySelectorAll('[data-slip]')].map((e) => e.textContent), widths: [...root.querySelectorAll('.mv-ghost, .mv-conn')].map((e) => e.getBoundingClientRect().width),
+               slipText: sets.slip[0].length ? getComputedStyle(sets.slip[0][0]).color : null, redText: red[1], redStroke: red[0], diamondStroke: sets.diamond[0].length ? getComputedStyle(sets.diamond[0][0]).stroke : null};
+  for (const [k, [els, props]] of Object.entries(sets)) { out.n[k] = els.length;
+    for (const e of els) { const c = getComputedStyle(e); for (const p of props) { const v = c[p], w = bad(v); if (w) out.hits.push(k + ' ' + p + ' ' + v + ' ' + w); if (red.includes(v)) out.red++; } } }
+  return out;
+})()"""
+
+
+class Timeline1543:
+    def timeline(self, cdp, path, width, dark, edit=False):
+        if edit:
+            p = self.show(cdp, width, dark, hash_="#milestones&p=ABC", settings=True)
+            p.until("document.querySelectorAll('.mv-mk').length > 0", "the editor's timeline drew")
+        else:
+            p = self.draw(cdp, path, width, dark)
+            p.until("!!document.querySelector('header.top-file .tab')", "the published bar drew")
+            p.js("document.querySelector('header.top-file [data-view=milestones]').click()")
+            p.until("document.querySelectorAll('.mv-mk').length > 0", "the published timeline drew")
+        p.until("document.getAnimations().every((a) => a.playState === 'finished')", "settled")
+        return p
+
+    def test_published_timeline_keeps_the_slip_and_drops_the_red(self):
+        """PM rulings rom-rul-1543-ap4d-0920 and the scope ruling: no red and no amber computed colour on the slip text, dashed line, ghost ring,
+        Slipped diamond (timeline), the legend's ghost ring and the calendar's ghost chip in a published file; each is still drawn; the editor stays red."""
+        self.plant_late()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark):
+                with chrome() as cdp:
+                    p = self.timeline(cdp, path, width, dark)
+                    got = p.js(TIMELINE_PROBE)
+                    p.js("[...document.querySelectorAll('button')].find((b) => /^\\s*Calendar\\s*$/.test(b.textContent)).click()")
+                    p.until("document.querySelectorAll('.cal-ms.ghost').length > 0", "the calendar drew its ghost chip")
+                    cal = p.js(TIMELINE_PROBE)
+                    p.js("document.querySelector('header.top-file [data-view=dashboard]').click()")      # the Dashboard's own timeline section (the other label layout)
+                    p.until("document.querySelectorAll('.mv-lab2').length > 0", "the Dashboard's timeline section drew")
+                    dash = p.js(TIMELINE_PROBE)
+                self.assertGreaterEqual(sum(got["n"][k] for k in ("slip", "conn", "ghost", "diamond")), 4, f"control: the elements were found {got['n']}")
+                for k in ("slip", "conn", "ghost", "diamond"):
+                    self.assertGreaterEqual(got["n"][k], 1, f"{k} is still drawn")
+                self.assertEqual(got["n"]["slip"], got["n"]["ghost"], "one +N days for each ghost")
+                self.assertEqual(got["n"]["conn"], got["n"]["ghost"], "one dashed line for each ghost")
+                self.assertTrue(all(t.startswith("+") for t in got["slips"]), f"+N days is still said: {got['slips']}")
+                self.assertTrue(all(w > 0 for w in got["widths"]), "the ghost and the line have a size")
+                self.assertEqual(got["hits"], [], "no red or amber computed colour in the published timeline")
+                self.assertGreaterEqual(dash["n"]["slip"], 1, "control: the Dashboard's timeline shows +N days")
+                self.assertEqual(dash["hits"], [], "no red or amber on the Dashboard's timeline slip")
+                self.assertGreaterEqual(cal["n"]["cal"], 1, "control: the calendar's ghost chip is drawn")
+                self.assertEqual(cal["hits"], [], "no red or amber on the calendar's ghost chip")
+                if got["n"]["legend"]:
+                    self.assertEqual([h for h in got["hits"] if h.startswith("legend")], [], "no red on the legend's ghost ring")
+                with chrome() as cdp:
+                    e = self.timeline(cdp, None, width, dark, edit=True)
+                    ed = e.js(TIMELINE_PROBE)
+                    self.assertGreaterEqual(ed["n"]["ghost"], 1, "control: the editor draws the ghost")
+                    self.assertGreaterEqual(ed["red"], 1, "the editor's timeline is still red")
+                    self.assertEqual(ed["slipText"], ed["redText"], "the editor's +N days is the red text colour")
+                    self.assertEqual(ed["diamondStroke"], ed["redStroke"], "the editor's Slipped diamond is red")
+
+    def test_published_timeline_pictures(self):
+        import base64
+        import os
+        out = os.environ.get("CLARK_SHOT_DIR")
+        if not out:
+            self.skipTest("CLARK_SHOT_DIR not set: the by-eye pictures are made on request")
+        self.plant_late()
+        path = self.publish()
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with chrome() as cdp:
+                p = self.timeline(cdp, path, width, dark)
+                p.js("document.querySelector('.mv') && document.querySelector('.mv').scrollIntoView()")
+                data = cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]
+                os.makedirs(out, exist_ok=True)
+                with open(os.path.join(out, f"timeline-{width}{'-dark' if dark else ''}.png"), "wb") as f:
+                    f.write(base64.b64decode(data))
+
+
+for _cls in (Late1543, More1543, Overdue1543, Timeline1543):
+    for _name in dir(_cls):
+        if _name.startswith(("test", "plant_", "pages", "peek_", "published_work", "timeline")):
+            setattr(Header1543, _name, getattr(_cls, _name))
 
 
 NAME_PROBE = """(() => {

@@ -1,5 +1,6 @@
 // The state marks on the milestone line, as the prototype draws them (creaite's marks), as elements: no raw HTML. `name` is a
 // shape name from logic/milestones.js LOOK. Colours are tokens; the white inside is the surface so a mark reads in the dark theme.
+import { onPublishedPage } from "../workItems.js";
 export function MsMark({ name, cls }) {
   const c = `ms-i${cls ? " " + cls : ""}`;
   switch (name) {
@@ -10,9 +11,9 @@ export function MsMark({ name, cls }) {
     case "triangle":
       return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3l8 14H2z" fill="var(--surface)" stroke="var(--status-amber)" stroke-width="2" stroke-linejoin="round" /><path d="M10 8v4.2M10 14.4v.3" stroke="var(--status-amber)" stroke-width="2" /></svg>;
     case "diamond":
-      return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5l7.5 7.5-7.5 7.5L2.5 10z" fill="var(--surface)" stroke="var(--status-red)" stroke-width="2" /></svg>;
+      return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5l7.5 7.5-7.5 7.5L2.5 10z" fill="var(--surface)" stroke={onPublishedPage() ? "var(--status-grey)" : "var(--status-red)"} stroke-width="2" /></svg>;      // row 1543 AP4: a published file draws the slipped diamond grey
     case "cross-circle":
-      return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="var(--status-red)" /><path d="M7 7l6 6M13 7l-6 6" stroke="var(--surface)" stroke-width="2" /></svg>;
+      return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill={onPublishedPage() ? "var(--status-grey)" : "var(--status-red)"} /><path d="M7 7l6 6M13 7l-6 6" stroke="var(--surface)" stroke-width="2" /></svg>;
     case "dashed-circle":
       return <svg class={c} viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" fill="var(--surface)" stroke="var(--status-blue)" stroke-width="2" stroke-dasharray="3 2.4" /></svg>;
     case "dash":

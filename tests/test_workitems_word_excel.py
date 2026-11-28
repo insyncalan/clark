@@ -118,11 +118,11 @@ class Word(unittest.TestCase):
         # the Work items list's own words (templates/workItemsList.js WORDS.columns, WorkItemsList.jsx): ID, Item (the title), Owner, Due, Status, Priority
         self.assertEqual(self.list_table(with_list(["PUB-A-001"], columns=("id", "owner", "priority", "due", "status")))[0], ["ID", "Item", "Owner", "Due", "Status", "Priority"])
 
-    def test_a_late_row_says_what_the_screen_says_not_overdue(self):
+    def test_a_late_row_has_the_date_alone_no_days_late(self):      # row 1543 AP4b: no N days late in the client copy (was "06-11-2026 55 days late")
         p = with_list(["PUB-A-002"], columns=("id", "owner", "priority", "due", "status"))
         p["as_at"] = "2026-12-31"
         due = self.list_table(p)[1][3]
-        self.assertEqual(due, "06-11-2026 55 days late")      # workItems.js dueCell: N days late
+        self.assertEqual(due, "06-11-2026")
         self.assertNotIn("(overdue)", every_text(docx_build.build(p)))
 
     def test_a_row_not_late_has_the_date_alone(self):
@@ -135,18 +135,18 @@ class Word(unittest.TestCase):
         d.update(status=status, needed_by=needed_by, date=date)
         return self.list_table(p)[1][2]
 
-    def test_a_row_due_yesterday_says_yesterday(self):
+    def test_a_row_due_yesterday_has_the_date_alone(self):      # review ruling: a passed date gets no relative word, Yesterday included
         p = with_list(["PUB-A-002"], columns=("id", "due"))
         p["as_at"] = "2026-11-07"                       # PUB-A-002 is due 2026-11-06
-        self.assertEqual(self.list_table(p)[1][2], "06-11-2026 Yesterday")
+        self.assertEqual(self.list_table(p)[1][2], "06-11-2026")
         p["as_at"] = "2026-11-08"
-        self.assertEqual(self.list_table(p)[1][2], "06-11-2026 2 days late")
+        self.assertEqual(self.list_table(p)[1][2], "06-11-2026")      # row 1543 AP4b: was "06-11-2026 2 days late"
 
-    def test_a_pending_decision_due_yesterday_says_yesterday(self):
-        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026 Yesterday")
+    def test_a_pending_decision_due_yesterday_has_the_date_alone(self):      # review ruling: no Yesterday on a passed date
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026")
 
-    def test_a_pending_decision_late_by_days_says_days_late(self):
-        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-10"), "06-11-2026 4 days late")
+    def test_a_pending_decision_late_by_days_has_the_date_alone(self):      # row 1543 AP4b: was "06-11-2026 4 days late"
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-10"), "06-11-2026")
 
     def test_a_pending_decision_not_yet_late_has_the_date_alone(self):
         self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-06"), "06-11-2026")

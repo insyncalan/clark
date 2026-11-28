@@ -5,8 +5,8 @@ import { MsMark } from "./MsMark.jsx";
 import { STATES, CANCELLED, CLIENT_WORD, LOOK } from "../logic/milestones.js";
 
 export function trackerCounts(rows, client) {
-  const states = client ? STATES : [...STATES, CANCELLED];
-  return states.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] || s : s, mark: LOOK[s][1], colour: LOOK[s][0], means: LOOK[s][2], n: rows.filter((r) => r.state === s).length }));
+  const states = client ? STATES.filter((s) => s !== "Overdue") : [...STATES, CANCELLED];      // row 1543 AP4: no Late chip on the published page
+  return states.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] || s : s, mark: LOOK[s][1], colour: client && s === "Slipped" ? "grey" : LOOK[s][0], means: LOOK[s][2], n: rows.filter((r) => r.state === s).length }));
 }
 
 export function MsTracker({ rows, client }) {

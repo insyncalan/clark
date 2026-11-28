@@ -103,10 +103,11 @@ export function milestoneRows(list, today, client) {
     const state = cancelled ? CANCELLED : client && r.state ? r.state : stateOf(r, today);
     const slip = cancelled || state === "Forecast" ? null : slipDays(r, today);
     const expected = slip ? expectedDate(r, today) : null;
-    const look = LOOK[state] || LOOK.Forecast;
+    const look = client && (state === "Overdue" || state === "Slipped") ? [state === "Overdue" ? LOOK[CANCELLED][0] : "grey", state === "Overdue" ? LOOK[CANCELLED][1] : LOOK[state][1]] : LOOK[state] || LOOK.Forecast;      // row 1543 AP4: on the published page a passed or slipped milestone has no colour: grey, like other past dates
     out.push({
       id: r.id, name: r.name, owner: r.owner || "", status: r.status || "Planned", state,
-      word: cancelled ? CANCELLED : client ? CLIENT_WORD[state] || state : state,
+      word: cancelled ? CANCELLED : client ? (state === "Overdue" ? "" : CLIENT_WORD[state] || state) : state,      // row 1543 AP4: no "Late" word on the published page: the plain date shows. "Expected later" stays, plain
+      client: !!client,
       colour: look[0], mark: look[1], baseline: r.baseline_date || null, forecast: r.forecast_date || null,
       achieved: r.status === "Done" ? r.actual_date || null : null, achievedNote: achievedNote(r),
       percent: r.percent_complete === undefined ? null : r.percent_complete, slip, slipText: slip ? `${plural(slip, "day")} later` : null,
@@ -215,7 +216,7 @@ export function calendarChips(rows) {
 
 /** The Legend: the six states in order, then (in the editor only) Cancelled, then Expected and Today. A published file says the client's word and drops Cancelled rows, so it has no Cancelled entry. */
 export function legend(client) {
-  const out = STATES.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] : s, colour: LOOK[s][0], mark: LOOK[s][1], means: LOOK[s][2] }));
+  const out = STATES.filter((s) => !(client && s === "Overdue")).map((s) => ({ state: s, word: client ? CLIENT_WORD[s] : s, colour: client && s === "Slipped" ? "grey" : LOOK[s][0], mark: LOOK[s][1], means: LOOK[s][2] }));      // row 1543 AP4: a published file has no Late entry and no colour for Expected later
   if (!client) out.push({ state: CANCELLED, word: CANCELLED, colour: LOOK[CANCELLED][0], mark: LOOK[CANCELLED][1], means: LOOK[CANCELLED][2] });
   out.push({ state: "Expected", word: "Expected", colour: null, mark: "ghost", means: "Where a slipped milestone is now expected; a dashed line joins it to its agreed date" });
   out.push({ state: "Today", word: "Today", colour: null, mark: "today-line", means: "The line on the timeline; the blue date on the calendar" });
@@ -291,7 +292,7 @@ export function subLine(r) {
   if (r.state === "Achieved") return { text: "Achieved, date not recorded", late: false };
   if (r.state === CANCELLED) return { text: "No longer going ahead", late: false };
   if (r.state === "Forecast") return { text: "Forecast, not agreed", late: false };
-  if (r.slip) return { text: `Expected ${showDate(r.expected)} \u00b7 ${r.slipText}`, late: true };
+  if (r.slip) return { text: `Expected ${showDate(r.expected)} \u00b7 ${r.slipText}`, late: !r.client };
   return { text: r.baseline ? "Agreed" : "No agreed date", late: false };
 }
 
@@ -304,7 +305,7 @@ export function expectedCell(r) {
   if (r.state === "Achieved") return { date: r.achieved ? showDate(r.achieved) : "\u2014", text: r.achieved ? r.achievedNote || "Achieved" : "Achieved, date not recorded", late: false };
   if (r.state === CANCELLED) return { date: showDate(r.baseline || r.forecast), text: "No longer going ahead", late: false };
   if (r.state === "Forecast") return { date: showDate(r.forecast || r.baseline), text: "Forecast", late: false };
-  if (r.slip) return { date: showDate(r.expected), text: `+${plural(r.slip, "day")}`, late: true };
+  if (r.slip) return { date: showDate(r.expected), text: `+${plural(r.slip, "day")}`, late: !r.client };
   return { date: showDate(r.baseline || r.forecast), text: "", late: false };
 }
 

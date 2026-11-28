@@ -45,7 +45,7 @@ LOOK = r"""(() => {
   return {wrap: wrap ? wrap.getBoundingClientRect().height : null, rows,
     tog: tog ? box(tog) : null, leg: leg ? box(leg) : null, bar: bar ? box(bar) : null,
     barKids: bar ? [...bar.children].map((c) => c.className) : null,
-    slipColour: slipEl ? getComputedStyle(slipEl).color : null, redText: prim('--status-red-text', 'color'), bodyColour: getComputedStyle(document.body).color,
+    slipColour: slipEl ? getComputedStyle(slipEl).color : null, redText: prim('--status-red-text', 'color'), mutedText: prim('--text-muted', 'color'), bodyColour: getComputedStyle(document.body).color,
     colours: {green: probe('--status-green'), red: probe('--status-red'), amber: probe('--status-amber'), surface: probe('--surface')},
     slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent; }),   // what is seen: the screen-reader-only words are left out
     labH: [...document.querySelectorAll('.mv-lab')].map((e) => e.getBoundingClientRect().height),
@@ -79,7 +79,11 @@ class Both(unittest.TestCase):
         self.assertTrue(got["slips"], f"{where}: the demo has a slipped milestone")
         for s in got["slips"]:
             self.assertRegex(s, r"^\+\d+ days?$", where)
-        self.assertEqual(got["slipColour"], got["redText"], f"{where}: the late '+N days' text is the red text colour")
+        if published:      # row 1543 AP4d (PM ruling rom-rul-1543-ap4d-0920): a published file keeps '+N days' and draws it muted, not red
+            self.assertEqual(got["slipColour"], got["mutedText"], f"{where}: the '+N days' text is the muted text colour in a published file")
+            self.assertNotEqual(got["slipColour"], got["redText"], f"{where}: and not red")
+        else:
+            self.assertEqual(got["slipColour"], got["redText"], f"{where}: the late '+N days' text is the red text colour")
         self.assertNotEqual(got["slipColour"], got["bodyColour"], f"{where}: the late text is not the body colour")
         for r in got["rows"]:
             if r["late"]:
@@ -110,9 +114,12 @@ class Both(unittest.TestCase):
             seen.add((colour.group(1) if colour else None, filled))
             self.assertIsNotNone(r["sub"], f"{where}: the second line is there")
             self.assertTrue(r["sub"] == "Agreed" or r["sub"].startswith(("Expected ", "Achieved", "Forecast", "No agreed")), r["sub"])
-            self.assertEqual(r["late"], r["sub"].startswith("Expected ") and "later" in r["sub"], f"{where}: only the late second line is the red one ({r['sub']})")
+            self.assertEqual(r["late"], r["sub"].startswith("Expected ") and "later" in r["sub"] and not published, f"{where}: only the late second line is the red one (never in a published file, row 1543 AP4) ({r['sub']})")
             self.assertLess(r["subSize"], 13.5, f"{where}: the second line is small")
-        self.assertIn(("red", False), seen, f"{where}: a red ring is on the page")
+        if not published:      # row 1543 AP4: a published file has no red ring (Late and Expected later have no colour)
+            self.assertIn(("red", False), seen, f"{where}: a red ring is on the page")
+        else:
+            self.assertNotIn(("red", False), seen, f"{where}: no red ring in a published file")
         return got
 
     def test_the_live_page_at_1400_and_900_light_and_dark(self):

@@ -7,7 +7,7 @@ not carry are read from the look, the same tokens.css). The full words are still
 of the plan has one lane for each milestone, in the order of the table under it.
 
 The marks and their colours are the page's (milestone_rows.LOOK, MsMark.jsx): Achieved a green ring with a tick, On track a green
-dot, At risk an amber triangle, Slipped a red diamond, Overdue (the client's word is Late) a red disc with a cross, Forecast a
+dot, At risk an amber triangle, Slipped a diamond, Overdue a disc with a cross (both grey in the client copy, row 1543 AP4b), Forecast a
 blue dashed ring; a slipped milestone also has a dashed red ring on its expected date joined to the agreed date by a dashed red
 line (FR-50); the Today line is navy. The axis is the page's (milestone_rows.timeline_span). A date outside 2000 to 2100 is not
 drawn (its lane stays empty). At most MAX_LANES milestones are drawn (the table lists them all) and the picture is never bigger than WIDTH x its lanes.
@@ -223,7 +223,8 @@ def _rows(milestones):
         if 0 < slip <= 36500 and state != ms.FORECAST and solid[1] == "agreed" and m.get("status") != "Done":
             end = solid[0] + timedelta(days=slip)
             ghost = end if mr.in_range(end.isoformat()) else None
-        out.append({"row": m, "state": state, "shape": mr.LOOK[state][1], "colour": mr.LOOK[state][0],
+        quiet = state in ("Overdue", "Slipped")      # row 1543 AP4b: as the page's peek, a passed or slipped milestone keeps its shape but is grey, never red
+        out.append({"row": m, "state": state, "shape": mr.LOOK[state][1], "colour": "grey" if quiet else mr.LOOK[state][0],
                     "solid": solid[0], "ghost": ghost, "marks": {"solid": {"date": solid[0].isoformat()} if solid[0] else None,
                     "ghost": {"date": ghost.isoformat()} if ghost else None}})
     return out[:MAX_LANES]
@@ -297,8 +298,8 @@ def plan(milestones, today, tok):
         if not r["solid"]:
             continue
         if r["ghost"]:
-            c.hline(x(r["solid"]), x(r["ghost"]), cy, t["status-red"], 2, dash=(5, 3))
-            c.circle(x(r["ghost"]), cy, 7, t["status-red"], inner=4, dashed=True)
+            c.hline(x(r["solid"]), x(r["ghost"]), cy, t["status-grey"], 2, dash=(5, 3))      # row 1543 AP4b: the expected date's ghost is grey, not red
+            c.circle(x(r["ghost"]), cy, 7, t["status-grey"], inner=4, dashed=True)
         _mark(c, r["shape"], x(r["solid"]), cy, r["colour"], t)
     c.hline(0, WIDTH, height - 1, t["grey-300"])
     return (c.png(), WIDTH, height), rows

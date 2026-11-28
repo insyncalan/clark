@@ -2,6 +2,9 @@
 // cases tests/fixtures/work-items-list-cases.json). The logic follows creaite's `rel`, `OPENST` and the prototype's `C.look`
 // and `C.dueWords`, rewritten here. `todayIso()` is the only place that reads the clock.
 
+import { isPublished } from "./filters.js";      // row 1543 AP4: the published page's switch (a cycle with filters.js, which imports this file; only functions are used, after both have loaded)
+
+export const onPublishedPage = () => isPublished();      // row 1543 AP4: for modules that must not import filters.js themselves
 export const KIND_WORDS = { action: "Action", risk: "Risk", issue: "Issue", assumption: "Assumption", dependency: "Dependency", decision: "Decision" };
 // The letter in the badge before an item's title (#456; prototype db.js TYPES: A, R, I, D). The prototype has four kinds; an assumption
 // and a dependency, which only this build has, take S and P so no two kinds share a letter.
@@ -72,6 +75,7 @@ export function dueCell(row, today) {
   const a = dayNumber(iso), b = dayNumber(today);
   if (a === null || b === null || !isOpen(row) || (row.status === "Completed" && a < b)) return out;
   const n = a - b;
+  if (n < 0 && isPublished()) return out;      // row 1543 AP4: the published page never highlights late days: a past date has no word and no tone
   out.words = n === 0 ? "Today" : n === 1 ? "Tomorrow" : n === -1 ? "Yesterday" : n < 0 ? `${plural(-n, "day")} late` : `In ${plural(n, "day")}`;
   if (n < 0) out.tone = "late";
   return out;
@@ -92,7 +96,7 @@ export function pillOf(row, today) {
   if (row.kind === "risk" || row.kind === "issue") { const c = colourOf(row.priority); return { text: c.word, class: c.class }; }
   if (row.kind === "action") {
     const n = dayNumber(row.due_date), t = dayNumber(today);
-    if (n !== null && t !== null && n < t) return s === "Completed" ? { text: "Open", class: "b" } : { text: "Overdue", class: "r" };
+    if (n !== null && t !== null && n < t) return s === "Completed" ? { text: "Open", class: "b" } : isPublished() ? { text: "Open", class: "n" } : { text: "Overdue", class: "r" };      // row 1543 AP4: the published page has no Overdue word and no red; a past date reads plain, grey
     if (s === "Delayed") return { text: "Delayed", class: "a" };
     if (n !== null && t !== null && n - t <= 7) return { text: "Due soon", class: "a" };
   }

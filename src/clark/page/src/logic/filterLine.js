@@ -153,9 +153,10 @@ export function offers(field, rows, ctx = {}) {
       return [...all, ...dyn((r) => r.status).filter((s) => !all.includes(s))].map((s) => [s, s]);
     }
     case "priority": return [...PRIORITIES.map((p) => [p, p]), ...(noneRow((r) => r.priority) ? [[NONE, "No priority"]] : [])];
-    case "due": return DUE_WORDS.map(([w, l]) => [stored("due", w), l]);
+    case "due": return DUE_WORDS.filter(([w]) => !(isPublished() && w === "overdue")).map(([w, l]) => [stored("due", w), l]);      // row 1543 AP4: a published file does not offer Overdue
     case "client": return CLIENT_WORDS.map(([w, l]) => [stored("client", w), l]);
-    case "is": return isPublished() ? isWords().filter(([v]) => CLIENT_IS.includes(v)) : isWords().filter(([v]) => isOn(v, ctx, rows));
+    case "is": return isPublished() ? isWords().filter(([v]) => CLIENT_IS.includes(v) && v !== "overdue") :      // row 1543 AP4: a published file does not offer is:overdue
+       isWords().filter(([v]) => isOn(v, ctx, rows));
     case "owner": return [...(isPublished() ? [] : [["me", ctx.me ? `Me (${ctx.me})` : "Me (set your name in Settings)"]]), ...dyn((r) => text(r.owner)).map((o) => [o, o]), ...(noneRow((r) => text(r.owner)) ? [[NONE, "No owner"]] : [])];
     case "workstream": return [...inOrder(projectWorkstreams(ctx), dyn((r) => r.workstream)).map((o) => [o, o]), ...(noneRow((r) => r.workstream) ? [[NONE, "No workstream"]] : [])];
     case "usecase": return [...dyn((r) => r.uc).map((o) => [o, o]), ...(noneRow((r) => r.uc) ? [[NONE, "No use case"]] : [])];
@@ -426,6 +427,7 @@ export function lineIsClientSafe(line) {
     const vals = splitValues(rest).map(low);
     if (k === "is" && !vals.every((v) => CLIENT_IS.includes(v))) return false;
     if (k === "owner" && vals.includes("me")) return false;
+    if ((k === "due" || k === "is") && vals.includes("overdue")) return false;      // row 1543 AP4: no Overdue on the published page
   }
   return true;
 }

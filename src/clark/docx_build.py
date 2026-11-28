@@ -242,17 +242,15 @@ def picture_para(ctx, make, width_twips, style=None, ext="png", **kw):
         return ""
 
 
-def word_cell(text, ctx, colour=None, late=False, extra=()):
+def word_cell(text, ctx, colour=None, extra=()):
     """A cell of words. `colour` (red, amber, green, blue, grey) gives a fill and text of the same hue, the words always shown;
-    `late` draws the text red; `extra` are quieter lines under it."""
+    a late date is never drawn red (row 1543 AP4b); `extra` are quieter lines under it."""
     fill = color = None
     if colour == "urgent":      # row 1021: Urgent is a solid maroon cell with bold white words (the page's maroon tile)
         fill, color = ctx.tok["tone-urgent"], ctx.tok["white"]
         return text_paras(text, ctx, color=color, bold=True), fill
     if colour in colours_table.COLOURS:
         fill, color = ctx.hexes(colour)
-    elif late:
-        color = ctx.tok["tone-red-text"]
     body = text_paras(text, ctx, color=color)
     body += "".join(para(run(x, color=ctx.tok["grey-700"], size=16), "TableText") for x in extra if x)
     return body, fill
@@ -418,7 +416,7 @@ def section_glance(published, ctx, title, sec, kept):
                                 TEXT_W, keep_next=True, spacing=(0, 60)))
         if health["reason"].strip():
             out.append(text_paras(health["reason"], ctx, style=None))
-    others = [t for t in tiles if t["tile"] != "health"]
+    others = [t for t in tiles if t["tile"] not in ("health", "overdue")]      # row 1543 AP4: the client Word copy has no Overdue actions tile, as the published page has none
     if others:
         weights = [1] * len(others)
         cells = []
@@ -440,7 +438,7 @@ def section_usecases(published, ctx, title, sec, kept):
         return "".join(out) + para(run(NONE))
     out.append(para(run(strip["total_words"] + ": " + ", ".join(f"{c['count']} {c['status']}" for c in strip["counts"]))))
     rows = [[word_cell(u["ref"], ctx), word_cell(u["title"], ctx), word_cell(u["status"], ctx, colour=u["colour"]),
-             word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(u["words"], ctx)] for u in strip["rows"]]
+             word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(re.sub(r", \d+ overdue$", "", u["words"]), ctx)] for u in strip["rows"]]      # row 1543 AP4: "1 open, 1 overdue" reads "1 open" in the client Word copy
     out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
@@ -472,9 +470,13 @@ def section_milestones(published, ctx, title, sec):
                                  1440, "TableText")
         when = ("Achieved" + (f" {_date(m['actual_date'])}" if m.get("actual_date") else "")) if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
+        state_word = m.get("state_word") or m.get("state")
+        if m.get("state") in QUIET_STATES:      # row 1543 AP4b: as the page's peek (MsState): a passed or slipped milestone has no colour; a passed one a dash, not Late
+            colour = "grey"
+            state_word = QUIET if m.get("state") == "Overdue" else state_word
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
-                     word_cell(m.get("state_word") or m.get("state"), ctx, colour=colour),
+                     word_cell(state_word, ctx, colour=colour),
                      word_cell(f"+{slip} day{'' if slip == 1 else 's'}" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
@@ -484,7 +486,7 @@ def section_milestones(published, ctx, title, sec):
             return None
         image, lanes = drawn
         words = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
-                          f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+                          f"{_plan_word(r['row'])}" for r in lanes)
         if len(words) > PLAN_ALT_MAX:                  # 200 long names would make an alt text of many thousand characters: cut at a word
             words = words[:PLAN_ALT_MAX].rsplit(" ", 1)[0]
         return image, words
@@ -494,8 +496,15 @@ def section_milestones(published, ctx, title, sec):
 
 
 PLAN_ALT_MAX = 1500
+QUIET_STATES = ("Overdue", "Slipped")
 
-GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
+
+def _plan_word(m):
+    """The state words in the plan picture's alt text: the table's State words, so a passed milestone is a dash, never Late."""
+    return QUIET if m.get("state") == "Overdue" else (m.get("state_word") or m.get("state") or "")
+
+QUIET = "\u2014"      # row 1543 AP4b: where the page says a dash instead of a late word (Peek.jsx MsState, gantt.js statusWord)
+GANTT_STATUS = {"done": "Done", "late": QUIET, "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
 GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
 
 
@@ -565,7 +574,7 @@ def section_gantt(published, ctx, title, sec):
             name = para(run(line.get("name") or "", bold=r["type"] == "phase"), "TableText")
             rows.append([word_cell(numbers[at], ctx), (name, None), word_cell(_date(r["start"].isoformat()), ctx),
                          word_cell(_date(r["end"].isoformat()), ctx), word_cell(f"{r['pct']}%", ctx),
-                         word_cell(s, ctx, colour={"done": "green", "late": "red"}.get(_status_key(s)))])
+                         word_cell(s, ctx, colour="green" if _status_key(s) == "done" else None)])
             at += 1
         out.append(table(ctx, ["No", "Phase / task", "Start", "End", "Done", "Status"], [800, 4238, 1150, 1150, 900, 1400], rows))
     return "".join(out)
@@ -628,8 +637,7 @@ def _status_key(word):
 
 def _due(table_name, field, row, ctx, extra=()):
     iso = row.get(field)
-    late = colours_table.is_late(table_name, field, row, ctx.today)
-    return word_cell(_date(iso) + (" (overdue)" if late else "") if iso else "", ctx, late=late, extra=extra)
+    return word_cell(_date(iso) if iso else "", ctx, extra=extra)      # row 1543 AP4b: a passed date is a plain date, no red
 
 
 def _status_cell(row, kind, ctx):
@@ -642,7 +650,9 @@ def _status_cell(row, kind, ctx):
     if pill["text"] in ("Closed", "Made", "Completed"):
         return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
     if row.get("priority") == "Urgent" and glance.is_open(row):
-        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+        return word_cell("Open" if pill["text"] == "Overdue" else pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+    if pill["text"] == "Overdue":      # row 1543 AP4: the page reads a passed action date as a plain grey Open
+        return word_cell("Open", ctx, colour="grey")
     return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
 
 
@@ -683,13 +693,12 @@ def section_decisions(published, ctx, title, sec):
         pending = d.get("status") == "Pending"
         when = (_date(d.get("needed_by")) if d.get("needed_by") else "No date needed by") if pending else _date(d.get("date"))
         label = ("Needed by " if pending and d.get("needed_by") else "Made " if d.get("status") == "Made" else "")
-        late = colours_table.is_late("decisions", "needed_by", d, ctx.today)
         extra = [f"Revisit {_date(d['revisit'])}" if d.get("revisit") else "",
                  f"Replaces {d['replaces']}" if d.get("replaces") else ""]
         rows.append([word_cell(d.get("id"), ctx), (text_paras(_words(d, "client_message", "decision"), ctx), None),
                      word_cell(d.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", d.get("status"))),
                      word_cell(d.get("made_by"), ctx),
-                     word_cell(label + when + (" (overdue)" if late else ""), ctx, late=late, extra=extra)])
+                     word_cell(label + when, ctx, extra=extra)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
@@ -700,14 +709,9 @@ WORK_COLUMNS = {"type": ("Type", 1000), "id": ("ID", 1200), "owner": ("Owner", 1
 WORK_DEFAULT = ("type", "id", "owner", "due", "priority")
 
 
-def _late_words(iso, ctx):
-    """Row 1268: the words the on-screen Work items list puts beside a late date (workItems.js dueCell): Yesterday, or N days late."""
-    n = (ctx.today - date.fromisoformat(str(iso)[:10])).days
-    return "Yesterday" if n == 1 else f"{n} days late"
-
-
-def _list_due(iso, late, ctx, extra=()):
-    return word_cell(_date(iso) + (" " + _late_words(iso, ctx) if late and iso else "") if iso else "", ctx, late=late, extra=extra)
+def _list_due(iso, ctx, extra=()):
+    """Row 1543 AP4b: a due date in the Work items list is the date alone, passed or not (no relative word beside a passed date)."""
+    return word_cell(_date(iso) if iso else "", ctx, extra=extra)
 
 
 def section_workitems(published, ctx, title, sec):
@@ -724,10 +728,9 @@ def section_workitems(published, ctx, title, sec):
         if t == "decisions":
             pending = r.get("status") == "Pending"
             when = _date(r.get("needed_by") if pending else r.get("date")) if (r.get("needed_by") if pending else r.get("date")) else ""
-            late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
             cells = {"type": word_cell("Decision", ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "decision"), ctx), None),
                      "owner": word_cell(r.get("made_by"), ctx), "priority": word_cell(None, ctx), "workstream": word_cell(None, ctx), "milestone": word_cell(None, ctx),
-                     "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
+                     "due": word_cell(when, ctx), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
             body = text_paras(_words(r, "client_message", "description"), ctx)
@@ -737,7 +740,7 @@ def section_workitems(published, ctx, title, sec):
             cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (body, None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
-                     "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
+                     "due": _list_due(r.get("due_date"), ctx), "status": _status_cell(r, kind, ctx)}
         rows.append([cells[c] for c in order])
     if not rows:
         return ""
@@ -785,7 +788,7 @@ def section_glancetemplate(published, ctx, title, sec):
             out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
         if h["note"]:
             out.append(text_paras(h["note"], ctx, style=None))
-    tiles = got["tiles"]
+    tiles = [t for t in got["tiles"] if t["key"] != "overdue"]      # row 1543 AP4: no Overdue actions tile in the client Word copy
     if tiles:
         cells = []
         for t in tiles:

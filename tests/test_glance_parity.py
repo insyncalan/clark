@@ -79,7 +79,7 @@ class SameWords(unittest.TestCase):
 
     def test_the_file_drawn_by_the_page_keeps_the_words_it_was_given(self):
         for i, name in enumerate(self.names):
-            ref = {t["tile"]: t["detail"] for t in self.inputs[i]["file"] if t["tile"] != "health"}
+            ref = {t["tile"]: t["detail"] for t in self.inputs[i]["file"] if t["tile"] not in ("health", "overdue")}      # row 1543 AP4: the page draws no Overdue actions tile from a file
             with self.subTest(case=name):
                 self.assertEqual(dict(self.out["fromFile"][i]), {**ref, "health": ""})
 

@@ -129,12 +129,12 @@ class Rules(unittest.TestCase):
                          {d: [{**c, "word": c["state"]} for c in cs] for d, cs in mr.calendar_chips(rows).items()})
         self.assertTrue(all(c["date"] == d for d, cs in self.js["chips"].items() for c in cs), "each chip carries the day it is on (its tooltip)")
         self.assertEqual([[{k: it[k] for k in ("state", "word", "colour", "mark", "means")} for it in lg] for lg in self.js["legend"]],
-                         [mr.legend(False), mr.legend(True)])
+                         [mr.legend(False), [{**it, "colour": "grey" if it["state"] == "Slipped" else it["colour"]} for it in mr.legend(True) if it["state"] != "Overdue"]])      # row 1543 AP4: no Late entry and no colour for Expected later on the published page
 
     def test_a_published_row_says_the_clients_words_and_leaves_out_cancelled(self):
         words = {r["id"]: r["word"] for r in self.js["client"]}
         self.assertEqual(words["X-M-002"], "Expected later")
-        self.assertEqual(words["X-M-003"], "Late")
+        self.assertEqual(words["X-M-003"], "", "row 1543 AP4: the Overdue state has no word on the published page (it was Late)")
         self.assertEqual(words["X-M-010"], "Forecast")
         self.assertNotIn("X-M-012", words)
 
@@ -531,8 +531,9 @@ class Published(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('.mv-ghost').length", sid), 1)
             self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "+52 days")
             legend = cdp.js("document.querySelector('.mlg-p').textContent", sid)
-            for word in ("Expected later", "Late", "Forecast"):
+            for word in ("Expected later", "Forecast"):
                 self.assertIn(word, legend)
+            self.assertNotIn("Late", legend, "row 1543 AP4: no Late entry")
             self.assertNotIn("Slipped", legend)
             self.assertNotIn("Overdue", legend)
             self.assertNotIn("Cancelled", legend, "a published file has no Cancelled rows, so its Legend has no Cancelled entry")

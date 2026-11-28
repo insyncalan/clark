@@ -83,14 +83,14 @@ class WordCells(unittest.TestCase):
         c = ctx()
         body, fill = docx_build._status_cell({"status": "Open", "priority": "Urgent", "due_date": "2026-01-01"}, "action", c)
         self.assertEqual(fill, c.tok["tone-urgent"])
-        self.assertIn("Overdue", body)
+        self.assertIn("Open", body)      # row 1543 AP4b: a passed Urgent action reads Open in the maroon cell (was Overdue)
+        self.assertNotIn("Overdue", body)
 
-    def test_late_text_is_red_and_on_time_text_is_not(self):          # word_cell late=
+    def test_a_passed_date_is_never_red(self):          # row 1543 AP4b: replaces test_late_text_is_red_and_on_time_text_is_not (word_cell has no late=)
         c = ctx()
         red = f'<w:color w:val="{c.tok["tone-red-text"]}"/>'
-        self.assertIn(red, docx_build.word_cell("01-01-2026 (overdue)", c, late=True)[0])
-        self.assertNotIn(red, docx_build.word_cell("01-01-2030", c, late=False)[0])
-        self.assertNotIn(red, docx_build.word_cell("01-01-2030", c)[0])
+        self.assertNotIn(red, docx_build.word_cell("01-01-2026", c)[0])
+        self.assertNotIn(red, docx_build._due("actions", "due_date", {"status": "Open", "due_date": "2026-01-01"}, c)[0])
 
 
 class WordSections(unittest.TestCase):

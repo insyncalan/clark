@@ -148,9 +148,11 @@ class AllTemplates(Base):
         """Each template section's words, by id, with white space folded. How late a work item is counts from the day it is read
         (the served View: today; the file: its as-at day), so that count is folded too. The served View's "Review all N items" link
         opens the Work items page, so the file has none (Row 1268): it is folded out too. So is the Classic foot count ("Showing all of N", Row 1195): the file draws no foot."""
+        # row 1543 AP4 (review ruling): the file shows the plain date; the served View's " (N days late)" is left out of the comparison
         got = p.js("(function(refs){ try { return JSON.stringify(Object.fromEntries(refs.map(function(id){"
                    " var e = document.querySelector('[data-id=\"' + id + '\"]');"
-                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/\\d+ days? late/g, 'N days late').replace(/\\s*Review all \\d+ items$/, '').replace(/\\s*Showing (all of )?\\d+( of \\d+)?(, scroll for the rest)?$/, '').trim() : null]; }))); }"
+                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/(\\d{4})\\s*\\(?\\d+ days? late\\)?/g, '$1')"
+                   ".replace(/\\s*Review all \\d+ items$/, '').replace(/\\s*Showing (all of )?\\d+( of \\d+)?(, scroll for the rest)?$/, '').trim() : null]; }))); }"
                    " catch (x) { return 'ERROR ' + x.message; } })("
                    + json.dumps(sorted(self.refs.values())) + ")")
         self.assertFalse(str(got).startswith("ERROR"), got)

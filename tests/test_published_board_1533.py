@@ -5,6 +5,7 @@ Two files are published from the test plant: one with the board switch off (the 
 on. The switch is the project's `show_board_client`; the file carries it as project.board (1 or absent). Both are opened from disk in headless
 Chrome at 1400 and 900 px, light and dark.
 """
+import re
 import shutil
 import tempfile
 import unittest
@@ -236,7 +237,7 @@ class PublishedBoard(unittest.TestCase):
                 self.to_board(cdp, sid)
                 carded = {r[0]: r[1:] for r in cdp.js(pick.format(sel="#work-board article[data-id]"), sid)}
                 words = [v[0] for v in listed.values()]
-                self.assertTrue(any(w.endswith(" late") for w in words), f"{width}: the list shows an overdue row's words")
+                self.assertFalse(any(re.search(r"(?i)\blate\b|overdue", w) for w in words), f"{width}: the published list shows no late days (AP4 of row 1543)")
                 self.assertTrue(any(w.startswith("In ") for w in words), f"{width}: the list shows a coming row's words")
                 self.assertTrue(any(not w for w in words), f"{width}: a row with no due words shows none on both")
                 self.assertGreater(len({v[1] for v in listed.values()}), 1, f"{width}: the list tones the words (more than one look)")
