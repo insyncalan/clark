@@ -216,6 +216,10 @@ class CheapPathTest(unittest.TestCase):
     def test_the_3_9_compile_job_needs_only_the_plan(self):
         self.assertEqual(re.findall(r"^    needs: (.*)$", jobs()["py39-compile"], re.M), ["plan"])
 
+    def test_the_cheap_path_job_timeouts(self):
+        for job, mins in (("plan", "5"), ("named", "30"), ("py39-compile", "10")):
+            self.assertEqual(re.findall(r"^    timeout-minutes: (.*)$", jobs()[job], re.M), [mins], job)
+
 
 if __name__ == "__main__":
     unittest.main()
