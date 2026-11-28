@@ -107,3 +107,29 @@ export function searchReport(index, q) {
   const inTitle = (e) => words.every((w) => e.title.toLowerCase().includes(w));
   return [...hits.filter(inTitle), ...hits.filter((e) => !inTitle(e))].slice(0, MAX_RESULTS);
 }
+
+// Row 1543 AP11 (part 2): the keys of the search, as pure rules over a key event's fields so the box and the tests share them.
+
+/** The result Up (dir -1) or Down (dir 1) reaches from `at` (-1: none chosen) among `n` results; the ends wrap (as the editor's palette); -1 when there are none. */
+export function stepAt(n, at, dir) {
+  if (!n) return -1;
+  if (at < 0) return dir > 0 ? 0 : n - 1;
+  return (at + dir + n) % n;
+}
+
+/** The chosen result among `n` for the words `q`: the first when there is one, the pick's own only while the words are the ones it was made for; -1 when there are none. */
+export const chosenAt = (pick, q, n) => (n ? (pick.q === q ? Math.min(pick.at, n - 1) : 0) : -1);
+
+/** The pick after the words change: none (the words go back to an earlier value and the old pick must not come back with them). */
+export const pickOnType = (pick) => ({ q: "", at: 0 });
+
+/** Ctrl or Cmd + K, nothing else held, and not while an input method is composing (as edit/Palette.jsx). A plain k, typed anywhere, is not it. */
+export const isShortcut = (e) => String(e.key || "").toLowerCase() === "k" && !!(e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing;
+
+/** What a key does in the open box: {do: "move", at} | {do: "choose", at} | null (not ours). `at` is the chosen result (-1 none); Esc is the dialog's own cancel. */
+export function boxKey(e, n, at) {
+  if (e.isComposing) return null;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") return e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || !n ? null : { do: "move", at: stepAt(n, at, e.key === "ArrowDown" ? 1 : -1) };
+  if (e.key === "Enter") return at >= 0 && at < n ? { do: "choose", at } : null;
+  return null;
+}

@@ -271,6 +271,83 @@ class Header1543(glance.Published):
             p.js("document.querySelector('.rs-row').click()")
             p.until("!document.querySelector('dialog#report-search') && location.hash.startsWith('#milestones')", "the result's page opened and the box closed")
 
+    # ---- Row 1543 part 2 (AP11): the keys. Real key events (Input.dispatchKeyEvent), widths 1400 and 900, light and dark. ----
+    def press(self, p, key, code, vk, modifiers=0, text=None):
+        for kind in ("keyDown", "keyUp"):
+            args = {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, "modifiers": modifiers}
+            if text and kind == "keyDown":
+                args["text"] = text
+            p.cdp.call("Input.dispatchKeyEvent", args, p.sid)
+
+    def test_published_search_keyboard(self):
+        """AP11: Ctrl or Cmd + K opens the box (and the page stops the browser's own use of the keys); a plain k, with Alt or with Shift, does not; Esc closes it;
+        Up and Down walk the results (the ends wrap) and Enter opens the chosen one."""
+        path = self.plant_search()
+        CTRL, META, ALT, SHIFT = 2, 4, 1, 8
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                p.until("!!document.getElementById('client-menu-btn')", "the bar drew")
+                p.js("window.__seen = []; window.addEventListener('keydown', (e) => window.__seen.push([e.key, e.defaultPrevented]))")
+                box = "!!document.querySelector('dialog#report-search[open]')"
+                for mods in (ALT | CTRL, SHIFT | CTRL, 0):
+                    self.press(p, "k", "KeyK", 75, mods, text="k" if not mods else None)
+                    self.assertEqual(p.js(box), False, f"K with modifiers {mods} does not open the box")
+                self.press(p, "k", "KeyK", 75, CTRL)
+                p.until(box + " && document.activeElement === document.getElementById('report-search-q')", "Ctrl + K opens the box with focus in it")
+                self.assertEqual(p.js("window.__seen.filter((s) => s[0] === 'k').map((s) => s[1])"), [False, False, False, True], "only Ctrl + K is taken from the browser")
+                self.press(p, "Escape", "Escape", 27)
+                p.until("!document.querySelector('dialog#report-search')", "Esc closes the box")
+                self.press(p, "k", "KeyK", 75, META)
+                p.until(box, "Cmd + K opens the box")
+                self.press(p, "k", "KeyK", 75, 0, text="k")
+                self.assertEqual(p.js("document.getElementById('report-search-q').value"), "k", "a plain k typed in the box is a letter and the box stays")
+                self.assertEqual(p.js(box), True)
+                rows = self.search(p, "ZQ")
+                self.assertGreaterEqual(len(rows), 3, f"control: several results to walk: {rows}")
+                n = len(rows)
+                p.until("document.querySelector('.rs-row').hasAttribute('data-active')", "the first result is chosen")
+                at = lambda want: p.until(f"[...document.querySelectorAll('.rs-row')].findIndex((b) => b.hasAttribute('data-active')) === {want}", f"the chosen result is {want}")
+                for i in range(n + 1):
+                    self.press(p, "ArrowDown", "ArrowDown", 40)
+                    at((i + 1) % n)      # Down walks the results and wraps from the last to the first
+                self.press(p, "ArrowUp", "ArrowUp", 38)
+                at(0)      # Up goes back one
+                self.press(p, "ArrowUp", "ArrowUp", 38)
+                at(n - 1)      # Up from the first wraps to the last
+                self.press(p, "ArrowUp", "ArrowUp", 38)
+                at(n - 2)
+                self.press(p, "ArrowDown", "ArrowDown", 40)
+                at(n - 1)
+                want = p.js(f"document.querySelectorAll('.rs-row')[{n - 1}].dataset.kind")
+                self.assertNotEqual(want, p.js("document.querySelector('.rs-row').dataset.kind"), "control: the last result is on another page than the first, so opening the first would show")
+                self.press(p, "Enter", "Enter", 13)
+                p.until(f"!document.querySelector('dialog#report-search') && location.hash.startsWith('#' + {json.dumps(want)})", "Enter opens the page of the chosen result and closes the box")
+
+    def test_published_search_text_back_to_earlier_value_opens_first(self):
+        """AP11, real keys: pick the last result, type a letter, delete it (the words are ZQ again): the pick is forgotten, the first result is chosen and Enter opens it."""
+        path = self.plant_search()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width, False)
+                self.open_box(p)
+                rows = self.search(p, "ZQ")
+                n = len(rows)
+                self.assertGreaterEqual(n, 3, f"control: several results to walk: {rows}")
+                first, last = rows[0][1], rows[-1][1]
+                self.assertNotEqual(first, last, "control: the first and the last result are on different pages, so opening the wrong one shows")
+                at = lambda want: p.until(f"[...document.querySelectorAll('.rs-row')].findIndex((b) => b.hasAttribute('data-active')) === {want}", f"the chosen result is {want}")
+                for _ in range(n - 1):
+                    self.press(p, "ArrowDown", "ArrowDown", 40)
+                at(n - 1)
+                self.press(p, "x", "KeyX", 88, 0, text="x")
+                p.until("document.getElementById('report-search-q').value === 'ZQx'", "a letter was typed")
+                self.press(p, "Backspace", "Backspace", 8)
+                p.until("document.getElementById('report-search-q').value === 'ZQ' && document.querySelector('.rs-list').dataset.for === 'ZQ'", "the words are ZQ again")
+                at(0)      # the old pick does not come back with the old words
+                self.press(p, "Enter", "Enter", 13)
+                p.until(f"!document.querySelector('dialog#report-search') && location.hash.startsWith('#' + {json.dumps(first)})", "Enter opens the page of the first result")
+
     def test_published_search_hidden_item_not_found(self):
         path = self.plant_search()
         text = path.read_text(encoding="utf-8")
