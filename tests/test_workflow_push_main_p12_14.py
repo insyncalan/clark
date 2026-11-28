@@ -2,8 +2,9 @@
 
 Run: python3 dev/run_tests.py test_workflow_push_main_p12_14   (quick tier)
 
-tests/test_workflow.py test_triggers pins this with assertNotRegex(on, r"^  push:") and no re.M flag, so `^` matches only
-the start of the whole block and a `  push:` line inside `on:` passes. This file reads the top-level `on:` of every workflow
+tests/test_workflow.py test_triggers pins this with assertNotRegex(on, r"^  push:") and no re.M flag. Without re.M, `^`
+matches only at the very start of the whole `on:` text, so a `  push:` that is on any later line (the normal place) is not
+found and the check passes although a push trigger exists. This file reads the top-level `on:` of every workflow
 (block form, flow list, flow map, plain string; comments stripped; standard library only, no YAML library) and fails on a
 `push` trigger of any kind in tests.yml or in any workflow that runs the suite. scan.yml and screenshots.yml push to main on
 purpose and do not run the suite; test 2 states that.
@@ -18,7 +19,8 @@ TESTS_YML = WORKFLOWS / "tests.yml"
 
 
 def strip_comments(text):
-    """The text without whole-line comments and without ` # ...` endings (no workflow here has a # inside a quoted value)."""
+    """The text without whole-line comments and without ` # ...` endings."""
+    # Assumes no `#` inside a quoted value (no workflow here has one); such a value would be cut at the `#`.
     out = []
     for ln in text.splitlines():
         if ln.lstrip().startswith("#"):
@@ -93,6 +95,13 @@ def name_of(text):
     return None
 
 
+FILTER_RE = r"^\s*(?:-\s*)?(branches|branches-ignore|paths|paths-ignore|tags|tags-ignore)\s*:"
+
+
+def filters_in(body):
+    return [b.strip() for b in body if re.match(FILTER_RE, b)]
+
+
 def read(path):
     return path.read_text(encoding="utf-8")
 
@@ -131,6 +140,14 @@ class PushToMainTest(unittest.TestCase):
         self.assertEqual(triggers(cases["flow list"]), {"push", "pull_request"})
         self.assertEqual(triggers(cases["flow map"]), {"push", "pull_request"})
         self.assertEqual(triggers(cases["block"]), {"push", "pull_request"})
+        # flow_items splits on commas at any depth, also inside a nested map
+        self.assertEqual(triggers("on: {pull_request: {branches: [a, b]}}"), {"pull_request"})
+        # quotes around names are stripped
+        self.assertEqual(triggers('on: ["push", pull_request]'), {"push", "pull_request"})
+        # the filter regex sees every filter key
+        for key in ("branches", "branches-ignore", "tags", "tags-ignore", "paths", "paths-ignore"):
+            self.assertEqual(filters_in(["  pull_request:", "    %s: [x]" % key]), ["%s: [x]" % key], key)
+        self.assertEqual(filters_in(" pull_request:\n paths: [x]\n".splitlines()), ["paths: [x]"])
         # a push written only in a comment or deeper in the file is not a trigger
         self.assertEqual(triggers("on:\n  pull_request:\n    # push:\n  schedule:\n    - cron: \"0 1 * * *\"  # push:\njobs:\n  push:\n    runs-on: x\n"),
                          {"pull_request", "schedule"})
@@ -138,8 +155,7 @@ class PushToMainTest(unittest.TestCase):
     def test_no_filter_widens_the_tests_triggers(self):
         inline, body = on_block(read(TESTS_YML))
         self.assertEqual(inline, "")
-        filters = [b.strip() for b in body if re.match(r"^\s*(?:-\s*)?(branches|branches-ignore|paths|paths-ignore|tags|tags-ignore)\s*:", b)]
-        self.assertEqual(filters, [])
+        self.assertEqual(filters_in(body), [])
         text = "\n".join(body)
         self.assertEqual(re.findall(r"^  pull_request:\n    types: (\[[^\]]*\])$", text, re.M),
                          ["[opened, synchronize, reopened, labeled, unlabeled]"])
