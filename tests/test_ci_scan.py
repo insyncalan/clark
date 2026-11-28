@@ -1552,5 +1552,57 @@ class AddedLinesOnly(unittest.TestCase):
         self.assertIn("a listed word in its path", out)
 
 
+    def test_a_failed_added_lines_diff_is_never_a_pass(self):
+        """The -U0 diff that finds a changed file's added lines fails: the scan must not run (exit 2), never read no lines and pass."""
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        real = pp.git
+
+        def failing(args, **kw):
+            if "-U0" in args:
+                return subprocess.CompletedProcess(args, 1, b"", b"boom")
+            return real(args, **kw)
+        out = io.StringIO()
+        with mock.patch.object(pp, "git", failing), contextlib.redirect_stdout(out):
+            rc = ci_scan.main(["--repo", r.path, "--base", r.base])
+        self.assertEqual(rc, 2, out.getvalue())
+        self.assertIn("could not run", out.getvalue())
+        self.assertNotIn("CI scan: passed", out.getvalue())
+
+    def test_a_submodule_replaced_by_a_file_is_read_whole(self):
+        """The base has a gitlink (mode 160000) where HEAD has a plain file: its old id is a commit, not a file, so the file is read in full."""
+        r = self.repo({})
+        r.git("update-index", "--add", "--cacheinfo", "160000,%s,sub" % r.base)
+        r.commit("a submodule")
+        r.base = r.git("rev-parse", "HEAD").strip()
+        r.git("rm", "-q", "--cached", "sub")
+        r.write("sub", "thanks %s\n" % LISTED)
+        r.commit("a file in its place")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn("could not run", out)
+
+    def test_a_forced_color_diff_setting_does_not_hide_added_lines(self):
+        """color.diff=always (user config, GIT_CONFIG_COUNT) puts escape codes around '+' and '@@' lines: the scan must still see them."""
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        env = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "color.diff", "GIT_CONFIG_VALUE_0": "always"}
+        with mock.patch.dict(os.environ, env):
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_added_lines_from_two_hunks_are_joined_into_one_stream_a_known_over_refusal(self):
+        """Known limit: lines added in two separate hunks are joined by a newline, so a phrase split across them is refused though a
+        line of old text lies between. It only over-refuses. Pinned so a change is seen."""
+        a, b = self.PHRASE.split(" ")
+        old = "".join("keep %d\n" % n for n in range(12))
+        r = self.repo({"src/old.py": old})
+        r.write("src/old.py", a + "\n" + old + b + "\n")
+        r.commit("edit")
+        self.assertEqual(r.scan()[0], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
