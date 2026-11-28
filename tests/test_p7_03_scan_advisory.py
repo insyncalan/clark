@@ -51,6 +51,22 @@ class ScanIsAdvisoryOnTheMergifyDraft(unittest.TestCase):
         for var in ("MACOS", "SMOKE", "ADVISORY", "CUT"):
             self.assertNotIn(var + "=", line)
 
+    def test_no_other_plan_line_near_the_mergify_branch_starts_a_mac_run(self):
+        """A Mac set started for the Mergify draft by ANOTHER line (e.g. a separate case on the branch) is caught: any line that assigns MACOS=1 or SMOKE=1
+        must not name mergify itself or sit within the 2 code lines after a line that does."""
+        lines = code(".github/workflows/tests.yml")
+        for i, ln in enumerate(lines):
+            if re.search(r"\b(MACOS|SMOKE)=1", ln):
+                window = lines[max(0, i - 2):i + 1]
+                for w in window:
+                    self.assertNotIn("mergify", w.lower(), "a Mac run is set next to the Mergify branch: " + ln.strip())
+
+    def test_the_mac_jobs_still_start_only_from_the_plan_outputs(self):
+        lines = [ln.strip() for ln in code(".github/workflows/tests.yml")]
+        self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", lines)
+        self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", lines)
+        self.assertEqual(len([ln for ln in lines if ln.startswith("if:") and ("macos" in ln or "smoke" in ln)]), 2, "no other if: starts a Mac job")
+
 
 if __name__ == "__main__":
     unittest.main()
