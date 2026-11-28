@@ -3,7 +3,7 @@
 // - the bar above the table or board while two or more are selected (BulkActions, handed to #195's SelectBar);
 // - the right-click menu, Shift+F10 or the Menu key on a row, a card or a selection ("N items"; installBulkMenu);
 // - the keys O owner, S status, P priority, T due date and C close on the row or card with the keyboard, on a selection, or on
-//   the item open in the peek (installBulkKeys). They are single-key shortcuts: they ask the Single-key switch (#193) first, act
+//   the item open in the peek (installBulkKeys). They are single-key slash commands: they ask the Single-key switch (#193) first, act
 //   only in Edit, and only when the table, the board or the peek has the keyboard. No page key uses these letters.
 // Above 25 items, and before a cell of a selected row changes every selected row (Done-when 6), a question is asked first. Nothing
 // here deletes or archives. The rules are in ./bulkLogic.js; the pickers are the cells' own (./cells/).
