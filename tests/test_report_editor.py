@@ -96,8 +96,15 @@ class Pg:
         self.until("document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
 
     def view(self):
-        self.js("document.querySelector('[data-mode=view]').click()")
-        self.until("document.querySelector('#report').dataset.mode === 'view'", "View mode")
+        """Click View and wait for it; click again every half second while it is not View, so one click the page lost (the click that
+        ends a column drag is swallowed once, colWidths.jsx; a re-render can replace the button) never fails a test. Clicking View in View does nothing."""
+        mode = "document.querySelector('#report').dataset.mode"
+        t0 = time.time()
+        while time.time() - t0 < 10:
+            self.js("(document.querySelector('[data-mode=view]') || {click() {}}).click()")
+            if wait(lambda: self.js(f"{mode} === 'view'"), 0.5):
+                return
+        self.until(f"{mode} === 'view'", "View mode", 1)
 
     def ids(self):
         return self.js("[...document.querySelectorAll('.secs > .sec')].map(e => e.dataset.id)")
@@ -295,6 +302,17 @@ class Modes(OldBase):
             p.until("document.querySelector('#report').dataset.mode === 'view' && window.marker === undefined",
                     "a reload is View")
             self.assertNotIn("edit", p.js("location.hash"))
+
+    def test_view_clicks_again_when_the_first_click_is_lost(self):
+        """Row 1534 (Tech Debt 1756): after a column drag the page swallows the next click once (colWidths.jsx 'quiet'); on a slow
+        runner that click is the one view() sent. A capture listener that eats the first click stands in for it: view() must still land."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("window.__eaten = 0; document.addEventListener('click', (c) => { c.stopPropagation(); c.preventDefault(); window.__eaten++; }, { capture: true, once: true })")
+            p.view()
+            self.assertEqual(p.js("window.__eaten"), 1, "the first click was lost")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
 
     def test_view_is_read_only(self):
         """View has none of the finder's elements (absent, not hidden); typing changes nothing; Edit has them all."""
