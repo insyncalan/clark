@@ -469,6 +469,11 @@ class Python39Test(unittest.TestCase):
             self.assertIn(str(bad), out)
 
 
+def files_named(name, files):
+    """The test files a smoke-list entry names: the entry plus .py, exactly (no prefix or substring match)."""
+    return [f for f in files if f == name + ".py"]
+
+
 class SmokeListTest(unittest.TestCase):
     """P12-07: the smoke list file and how it is read."""
     def test_smoke_names_keeps_one_clean_name_a_line_and_drops_comments_and_blank_lines(self):
@@ -478,9 +483,16 @@ class SmokeListTest(unittest.TestCase):
     def test_the_real_smoke_list_has_no_name_twice_and_each_name_matches_exactly_one_file(self):
         names = pre_ci.smoke_names((ROOT / "dev" / "tools" / "pre_ci_smoke.txt").read_text(encoding="utf-8"))
         self.assertEqual(len(names), len(set(names)))
+        files = [p.name for p in (ROOT / "tests").glob("*.py")]
         for n in names:
-            holding = [p.name for p in (ROOT / "tests").glob("*.py") if n in p.name]
-            self.assertEqual(holding, [n + ".py"], n)
+            self.assertEqual(files_named(n, files), [n + ".py"], n)
+
+    def test_a_smoke_name_matches_its_own_file_only_never_a_longer_name_that_starts_with_it(self):
+        files = ["test_workflow.py", "test_workflow_push_main_p12_14.py", "test_work.py"]
+        self.assertEqual(files_named("test_workflow", files), ["test_workflow.py"])
+        self.assertEqual(files_named("test_work", files), ["test_work.py"])
+        self.assertEqual(files_named("test_workflow_push_main_p12_14", files), ["test_workflow_push_main_p12_14.py"])
+        self.assertEqual(files_named("test_wor", files), [])
 
     def test_the_smoke_list_is_the_file_beside_the_tool(self):
         self.assertEqual(pre_ci.SMOKE, ROOT / "dev" / "tools" / "pre_ci_smoke.txt")
