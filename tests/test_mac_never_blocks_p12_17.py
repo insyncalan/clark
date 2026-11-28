@@ -8,9 +8,9 @@ required checks, equality) and tests/test_release_build_workflow.py (tag trigger
   - the release build's Mac zip job is the only job of its workflow, nothing needs it and nothing reads its result, so a red or missing zip cannot stop anything;
   - no workflow other than the tests workflow starts a Mac job, and no workflow waits for the release build.
 
-KNOWN GAPS (ruling 28-11, filed Tech Debt - Priority, code NOT changed; these are NOT pinned as wanted, they are how tests.yml behaves today and they contradict
-"a macOS failure never blocks"): (1) a release-* branch, or a pull request into one, REQUIRES the Mac smoke set, so a red smoke blocks "Tests passed"
-(tests/test_workflow.py pins it as required); (2) a hand-started run with macos=true REQUIRES the full Mac shards.
+Two gaps this file first recorded are closed by P12-18 (the ruling of 28-11, G1 and G2), and tests/test_workflow.py now pins both: a release-* branch, or a pull request
+into one, runs the Mac smoke set reported and never required (CUT=1), and a hand-started run with macos=true runs the full Mac shards advisory. Read this file with P12-18
+landed: with it not landed, those two arms still require the Mac. Nothing below depends on either arm.
 
 Text checks only, no YAML parser. Run: python3 dev/run_tests.py test_mac_never_blocks_p12_17"""
 import os
