@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { CardsDate } from "./CardsDate.jsx";
+import { ReportSearch } from "./ReportSearch.jsx";
 import { classicTheme } from "./Contents.jsx";
 import { coverLine } from "../logic/cover.js";
 import { TITLES, titleOf, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
@@ -72,6 +73,8 @@ export function TopBar({ tools }) {
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {Bell ? <Bell /> : null}
       {SearchButton ? <SearchButton /> : null}
+      {/* row 1543: a published report has its own search (the editor's button, a box of its own) */}
+      {file ? <ReportSearch /> : null}
       {AskButton ? <AskButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
   </>);
