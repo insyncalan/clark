@@ -1233,7 +1233,7 @@ class VendoredPdfLibrary(unittest.TestCase):
 
 class AddedLinesOnly(unittest.TestCase):
     """The listed-words check reads only the lines a change ADDS: an old hit on the base, a removed line or a context line
-    never counts; an added line, a new file and a moved file's added lines do. (Human ruling 27-11 ~22:50.)"""
+    never counts; an added line, a new file and a moved file's added lines do. (owner ruling 27-11 ~22:50.)"""
     OLD = "old line %s here\nplain\n" % LISTED
 
     def repo(self, files=None):
