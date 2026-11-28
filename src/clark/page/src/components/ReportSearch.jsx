@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { narrowHeader } from "../logic/narrowHeader.js";
 import { data, show, TITLES, asAt } from "../stores/report.js";
-import { buildIndex, searchReport, boxKey, isShortcut } from "../logic/reportSearch.js";
+import { buildIndex, searchReport, boxKey, isShortcut, chosenAt, pickOnType } from "../logic/reportSearch.js";
 
 export const searchOpen = signal(false);      // the one open state: the button (wide) and the report menu entry (900 px and narrower) both set it
 
@@ -37,7 +37,7 @@ function Box({ onClose }) {
   const index = useMemo(() => buildIndex(data.value, asAt.value || undefined), [data.value, asAt.value]);
   const results = searchReport(index, q);
   const [pick, setPick] = useState({ q: "", at: 0 });
-  const chosen = results.length ? (pick.q === q ? Math.min(pick.at, results.length - 1) : 0) : -1;      // the first result is chosen as soon as there is one, and again for every new words (the pick remembers the words it was made for, so no effect can undo a key pressed before it runs)
+  const chosen = chosenAt(pick, q, results.length);      // the first result is chosen as soon as there is one, and again for every new words (the pick remembers the words it was made for, so no effect can undo a key pressed before it runs)
   useEffect(() => { const r = el.current && el.current.querySelector(".rs-row[data-active]"); if (r && r.scrollIntoView) r.scrollIntoView({ block: "nearest" }); }, [chosen]);
   useEffect(() => {
     const d = el.current;
@@ -54,7 +54,7 @@ function Box({ onClose }) {
   return (
     <dialog id="report-search" class="dlg rs" aria-label="Go to or do" ref={el} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <div class="rs-q">
-        <input type="search" id="report-search-q" placeholder="Search this report" aria-label="Search this report" autocomplete="off" spellcheck={false} style={{ boxSizing: "border-box", width: "100%", minHeight: "36px" }} ref={input} onKeyDown={onKey} role="combobox" aria-expanded={results.length ? "true" : "false"} aria-controls="report-search-list" aria-activedescendant={chosen >= 0 ? "rs-opt-" + chosen : undefined} value={q} onInput={(e) => setQ(e.currentTarget.value)} />
+        <input type="search" id="report-search-q" placeholder="Search this report" aria-label="Search this report" autocomplete="off" spellcheck={false} style={{ boxSizing: "border-box", width: "100%", minHeight: "36px" }} ref={input} onKeyDown={onKey} role="combobox" aria-expanded={results.length ? "true" : "false"} aria-controls="report-search-list" aria-activedescendant={chosen >= 0 ? "rs-opt-" + chosen : undefined} value={q} onInput={(e) => { setPick(pickOnType(pick)); setQ(e.currentTarget.value); }} />
       </div>
       <ul class="rs-list" id="report-search-list" role="listbox" aria-label="Results" data-for={q}>
         {results.map((r, i) => (

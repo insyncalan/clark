@@ -36,6 +36,18 @@ class Keys1543(unittest.TestCase):
         ch = lambda at: {"do": "choose", "at": at}
         self.assertEqual(got, [mv(0), mv(0), mv(2), mv(2), None, None, None, None, None, ch(1), None, None, None, ch(0), ch(2), None, None, None, None])
 
+    def test_text_goes_back_to_an_earlier_value_first_result_chosen(self):
+        got = run("""(() => {
+          const n = 4; let q = "ZQ", pick = {q: "", at: 0};
+          const first = RS.chosenAt(pick, q, n);
+          pick = {q, at: n - 1};      // Down to the last result
+          const last = RS.chosenAt(pick, q, n);
+          pick = RS.pickOnType(pick); q = "ZQx";      // a character is added
+          pick = RS.pickOnType(pick); q = "ZQ";      // and deleted again: the words are the old ones
+          return [first, last, RS.chosenAt(pick, q, n)];
+        })()""", {})
+        self.assertEqual(got, [0, 3, 0], "Enter after the words went back to an earlier value picks the FIRST result, not the old pick")
+
 
 if __name__ == "__main__":
     unittest.main()
