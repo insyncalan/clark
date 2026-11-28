@@ -7,6 +7,7 @@ Pins the as-built .github/workflows/tests.yml for a plain pull_request. The plan
 As built, the named job does NOT run before the shards: both only need `plan`, so they start together (GAP against "fast job first").
 The full-path events are pinned elsewhere (P12-13); macOS is P12-17. Tests only, standard library only.
 """
+import json
 import os
 import re
 import subprocess
@@ -55,11 +56,13 @@ def python_versions(body):
 
 
 class CheapPathTest(unittest.TestCase):
-    def plan(self, **env):
+    def plan(self, files=None, gh=None, **env):
+        """files: the changed files the fake gh lists (default: one source and one test file); gh: a whole fake `gh` function body instead."""
         with tempfile.TemporaryDirectory() as d:
             out = os.path.join(d, "out")
             open(out, "w", encoding="utf-8").close()
-            fake = "gh() { printf '%s\\n' src/clark/foo.py tests/test_foo.py; }\n"
+            files = ["src/clark/foo.py", "tests/test_foo.py"] if files is None else files
+            fake = gh if gh is not None else "gh() { printf '%s\\n' " + " ".join("'" + f + "'" for f in files) + "; }\n"
             base = {"PATH": os.environ["PATH"], "GITHUB_OUTPUT": out, "RUNNER_TEMP": d, "EVENT": "pull_request", "BRANCH": "feature-x",
                     "BASE_REF": "main", "LABELS": "", "MACOS_INPUT": "", "SCHEDULE": "", "REPO": "x/y", "PR_NUMBER": "7",
                     "GH_TOKEN": "", "FILES_INPUT": ""}
@@ -122,6 +125,96 @@ class CheapPathTest(unittest.TestCase):
         self.assertEqual(re.findall(r"^    if: (.*)$", j["tests-py39"], re.M),
                          ["${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}"])
         self.assertEqual(self.plan()["py39"], "")
+
+    # ---- plan step: the file list decides the path ----
+    def test_a_changed_workflow_file_is_the_full_path_and_a_changed_stylesheet_is_ten_shards_not_full(self):
+        out = self.plan(files=[".github/workflows/x.yml"])
+        self.assertEqual((out["full"], out["count"]), ("1", "10"))
+        out = self.plan(files=["style.css"])
+        self.assertEqual((out["full"], out["shards"], out["count"]), ("", "[1,2,3,4,5,6,7,8,9,10]", "10"))
+        out = self.plan(files=["src/clark/page/x.html"])
+        self.assertEqual((out["full"], out["shards"], out["count"]), ("", "[1,2,3,4,5,6,7,8,9,10]", "10"))
+        for f in ("src/clark/brand/x.svg", "src/clark/templates/x.html"):
+            self.assertEqual((self.plan(files=[f])["full"], self.plan(files=[f])["count"]), ("", "10"), f)
+
+    def test_each_guarded_store_file_is_the_full_path(self):
+        for f in ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py", "src/clark/server.py"):
+            out = self.plan(files=[f])
+            self.assertEqual((out["full"], out["count"]), ("1", "10"), f)
+        self.assertEqual(self.plan(files=["src/clark/foo.py"])["full"], "")
+
+    def test_eight_changed_test_files_are_ten_shards_and_seven_are_three(self):
+        seven = ["tests/test_%d.py" % i for i in range(7)]
+        out = self.plan(files=seven)
+        self.assertEqual((out["full"], out["count"], out["shards"]), ("", "3", "[1,2,3]"))
+        out = self.plan(files=seven + ["tests/test_7.py"])
+        self.assertEqual((out["full"], out["count"], out["shards"]), ("", "10", "[1,2,3,4,5,6,7,8,9,10]"))
+        # files that are not tests/test_*.py are not counted
+        self.assertEqual(self.plan(files=seven + ["tests/helper.py"])["count"], "3")
+
+    def test_the_file_list_is_read_only_for_a_pull_request_that_is_not_already_full(self):
+        # a push event never calls gh: a gh that would answer full is ignored
+        out = self.plan(EVENT="push", files=[".github/workflows/x.yml"])
+        self.assertEqual((out["full"], out["count"]), ("", "3"))
+
+    def test_a_list_of_3000_files_is_the_full_path_and_2999_is_not(self):
+        out = self.plan(gh='gh() { for i in $(seq 1 3000); do echo "docs/f$i.md"; done; }\n')
+        self.assertEqual((out["full"], out["count"]), ("1", "10"))
+        out = self.plan(gh='gh() { for i in $(seq 1 2999); do echo "docs/f$i.md"; done; }\n')
+        self.assertEqual((out["full"], out["count"]), ("", "3"))
+
+    def test_a_failed_file_list_read_is_the_full_path_and_never_macos(self):
+        out = self.plan(gh="gh() { return 1; }\n")
+        self.assertEqual((out["full"], out["macos"], out["count"]), ("1", "", "10"))
+
+    def test_python_3_9_runs_for_a_hand_start_a_release_base_and_a_mac_specific_file_not_for_a_plain_pull_request(self):
+        self.assertEqual(self.plan()["py39"], "")
+        self.assertEqual(self.plan(EVENT="workflow_dispatch")["py39"], "1")
+        self.assertEqual(self.plan(BASE_REF="release-1")["py39"], "1")
+        out = self.plan(files=["src/clark/updates.py"])
+        self.assertEqual((out["py39"], out["full"]), ("1", "1"))
+
+    def test_the_plan_outputs_of_a_plain_pull_request_are_all_pinned(self):
+        out = self.plan()
+        self.assertEqual(out["cut"], "")
+        self.assertEqual((out["shards39"], out["count39"]), ("[1,2,3]", "3"))
+        mac = json.loads(out["macmatrix"])
+        self.assertEqual(len(mac), 9)
+        self.assertEqual(mac, [{"shard": i, "shards": 9} for i in range(1, 10)])
+
+    # ---- Tests step ----
+    def test_the_tests_step_env_and_matrix_come_from_the_plan_outputs(self):
+        t = jobs()["tests"]
+        env = block(t[t.index("- name: Tests"):], "env", 8)
+        for line in ("SHARDS: ${{ needs.plan.outputs.count }}", "FULL: ${{ needs.plan.outputs.full }}", "BASE: ${{ github.base_ref }}",
+                     "JOBS: 4", "SHARD: ${{ matrix.shard }}", "EVENT: ${{ github.event_name }}"):
+            self.assertIn("          " + line, env.splitlines())
+        self.assertIn("        shard: ${{ fromJSON(needs.plan.outputs.shards) }}", t.splitlines())
+
+    def test_named_files_are_appended_after_max_fail(self):
+        self.assertTrue(self.tests_command(FILES="test_a.py").endswith("--max-fail 8 test_a.py"))
+
+    def test_a_push_has_no_changed_scope_and_the_nightly_adds_the_quarantined_files(self):
+        self.assertNotIn("--changed", self.tests_command(EVENT="push", FULL=""))
+        self.assertIn("--with-quarantined", self.tests_command(EVENT="schedule", FULL="1"))
+        self.assertNotIn("--with-quarantined", self.tests_command())
+
+    def test_the_tests_job_fetches_the_history_of_a_pull_request_and_has_no_job_level_if(self):
+        j = jobs()
+        t = j["tests"]
+        self.assertIn("fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}", t)
+        self.assertIn("      fail-fast: false", t.splitlines())
+        self.assertEqual(re.findall(r"^    timeout-minutes: (.*)$", t, re.M), ["90"])
+        self.assertIn("python3 dev/tools/build_page.py", t)
+        self.assertEqual(re.findall(r"^    if: ", t, re.M), [])      # the shards run on every event the plan runs on
+
+    def test_the_named_job_fetches_the_whole_history_and_builds_the_pages(self):
+        n = jobs()["named"]
+        self.assertIn("fetch-depth: 0", n)
+        self.assertIn("python3 dev/tools/build_page.py", n)
+
+    def test_the_3_9_compile_job_needs_only_the_plan(self):
+        self.assertEqual(re.findall(r"^    needs: (.*)$", jobs()["py39-compile"], re.M), ["plan"])
 
 
 if __name__ == "__main__":
