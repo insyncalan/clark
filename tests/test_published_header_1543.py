@@ -324,6 +324,30 @@ class Header1543(glance.Published):
                 self.press(p, "Enter", "Enter", 13)
                 p.until(f"!document.querySelector('dialog#report-search') && location.hash.startsWith('#' + {json.dumps(want)})", "Enter opens the page of the chosen result and closes the box")
 
+    def test_published_search_text_back_to_earlier_value_opens_first(self):
+        """AP11, real keys: pick the last result, type a letter, delete it (the words are ZQ again): the pick is forgotten, the first result is chosen and Enter opens it."""
+        path = self.plant_search()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width, False)
+                self.open_box(p)
+                rows = self.search(p, "ZQ")
+                n = len(rows)
+                self.assertGreaterEqual(n, 3, f"control: several results to walk: {rows}")
+                first, last = rows[0][1], rows[-1][1]
+                self.assertNotEqual(first, last, "control: the first and the last result are on different pages, so opening the wrong one shows")
+                at = lambda want: p.until(f"[...document.querySelectorAll('.rs-row')].findIndex((b) => b.hasAttribute('data-active')) === {want}", f"the chosen result is {want}")
+                for _ in range(n - 1):
+                    self.press(p, "ArrowDown", "ArrowDown", 40)
+                at(n - 1)
+                self.press(p, "x", "KeyX", 88, 0, text="x")
+                p.until("document.getElementById('report-search-q').value === 'ZQx'", "a letter was typed")
+                self.press(p, "Backspace", "Backspace", 8)
+                p.until("document.getElementById('report-search-q').value === 'ZQ' && document.querySelector('.rs-list').dataset.for === 'ZQ'", "the words are ZQ again")
+                at(0)      # the old pick does not come back with the old words
+                self.press(p, "Enter", "Enter", 13)
+                p.until(f"!document.querySelector('dialog#report-search') && location.hash.startsWith('#' + {json.dumps(first)})", "Enter opens the page of the first result")
+
     def test_published_search_hidden_item_not_found(self):
         path = self.plant_search()
         text = path.read_text(encoding="utf-8")
