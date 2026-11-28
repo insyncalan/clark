@@ -3,7 +3,6 @@
 queue_rules:
   - name: default
     queue_conditions:
-      - label = queue
       - base = main
       - -draft
       - check-success = Tests passed
@@ -16,7 +15,7 @@ queue_rules:
       - check-success = bifrost-point-map
       - check-success = bifrost-test-exists
     merge_method: merge
-    batch_size: 1      # one PR per combined run: the sha Mergify tests is the sha it merges (Bifrost 2.0 P7)
+    batch_size: 5      # Fable review R1, 28-11: five PRs per combined run, no queue label
     batch_max_wait_time: 1 minute
 
 # Row 1581 follow-up: the label alone enqueued nothing. This rule queues a PR that carries `queue`;
@@ -24,7 +23,6 @@ queue_rules:
 pull_request_rules:
   - name: Queue PRs labelled queue
     conditions:
-      - label = queue
       - base = main
       - -draft
       - -closed
