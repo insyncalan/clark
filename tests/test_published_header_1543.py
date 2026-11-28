@@ -279,7 +279,7 @@ class Header1543(glance.Published):
                 args["text"] = text
             p.cdp.call("Input.dispatchKeyEvent", args, p.sid)
 
-    def test_published_search_keys(self):
+    def test_published_search_keyboard(self):
         """AP11: Ctrl or Cmd + K opens the box (and the page stops the browser's own use of the keys); a plain k, with Alt or with Shift, does not; Esc closes it;
         Up and Down walk the results (the ends wrap) and Enter opens the chosen one."""
         path = self.plant_search()

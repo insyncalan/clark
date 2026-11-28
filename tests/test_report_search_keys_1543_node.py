@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_report_search_keys_1543_node
 Quick tier: the same esbuild bundle and node as test_report_search_1543_node.py (skipped when node is not on the machine). The box and the real keys are in
-test_published_header_1543.py (test_published_search_keys).
+test_published_header_1543.py (test_published_search_keyboard).
 """
 import json
 import unittest
