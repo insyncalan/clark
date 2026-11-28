@@ -106,13 +106,27 @@ class FullSuiteOnlyInMergeQueueTest(unittest.TestCase):
             dict(files=("src/clark/server.py",)),
             dict(files=(".github/workflows/tests.yml",)),
             dict(BASE_REF="release-1.2"),
+            dict(BRANCH="release-1.2"),
+            dict(EVENT="workflow_dispatch", BRANCH="x"),
+            dict(files=("src/clark/updates.py",)),
+            dict(files=("src/clark/platform.py",)),
             dict(BRANCH="cut-v1.2.3"),
             dict(gh_fails=True),
             dict(files=["f%d.txt" % i for i in range(3000)]),
         )
         for kw in full:
-            with self.subTest(case=sorted(kw)):
-                self.assertFull(self.plan(**{k: v for k, v in kw.items()}))
+            with self.subTest(case=", ".join("%s=%r" % (k, kw[k]) for k in sorted(kw))[:200]):
+                self.assertFull(self.plan(**kw))
+
+    def test_hand_started_run_asks_for_macos_only_when_told(self):
+        self.assertEqual(self.plan(EVENT="workflow_dispatch", MACOS_INPUT="true")["macos"], "1")
+        self.assertEqual(self.plan(EVENT="workflow_dispatch", MACOS_INPUT="false")["macos"], "")
+        self.assertEqual(self.plan(EVENT="workflow_dispatch")["macos"], "")
+
+    def test_eight_changed_test_files_are_wide_seven_are_cheap(self):
+        out = self.plan(files=["tests/test_%d.py" % i for i in range(8)])
+        self.assertEqual((out["full"], out["count"], out["shards"]), ("", "10", TEN))
+        self.assertCheap(self.plan(files=["tests/test_%d.py" % i for i in range(7)]))
 
     def test_a_look_alike_label_is_not_full_ci(self):
         self.assertCheap(self.plan(LABELS="full-ci-not,xfull-ci"))
