@@ -120,7 +120,7 @@ def _sweep_parts(folder, now=None):
 def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BYTES):
     """Copy the update file at `source` once into `<data>/releases/<its proper name>` and return (that path, its SHA-256).
     The signature file beside it (`source` + .sig) is copied too, so everything after works from the private copy; a missing
-    one is not an error here (updates.read_release asks for a signature only once a real release key is set).
+    one is not an error here (updates.read_release refuses a missing signature from updates.FIRST_SIGNED, 1.4.0, up).
 
     The name is checked first (updates.check_name). The file is opened without following a link, must be a regular file no
     bigger than `max_bytes`, and is read once, in chunks, into a new private file in the releases folder; nothing else of the

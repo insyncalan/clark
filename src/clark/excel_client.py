@@ -61,19 +61,20 @@ def palette_of(branding):
 COLUMNS = {
     "actions": [("ID", "id", 12), ("Title", "_words", 50), ("Workstream", "workstream", 16), ("Owner", "owner", 16),
                 ("Priority", "priority", 10), ("Due", "due_date", 12), ("Status", "status", 12), ("Raised", "raised", 12),
-                ("Closed", "closed", 12), ("Latest update", "latest_update", 40)],
+                ("Closed", "closed", 12)],
     "raid": [("ID", "id", 12), ("Type", "type", 10), ("Title", "_words", 50), ("Workstream", "workstream", 16),
              ("Owner", "owner", 16), ("Due", "due_date", 12), ("Impact", "impact", 10), ("Likelihood", "likelihood", 10),
-             ("Priority", "priority", 10), ("Status", "status", 12), ("Raised", "raised", 12), ("Closed", "closed", 12), ("Latest update", "latest_update", 40)],
+             ("Priority", "priority", 10), ("Status", "status", 12), ("Raised", "raised", 12), ("Closed", "closed", 12)],
     "decisions": [("ID", "id", 12), ("Decision", "_words", 50), ("Status", "status", 12), ("Priority", "priority", 10), ("Made by", "made_by", 16),
-                  ("Needed by", "needed_by", 12), ("Decided on", "date", 12), ("Revisit", "revisit", 12), ("Latest update", "latest_update", 40)],
+                  ("Needed by", "needed_by", 12), ("Decided on", "date", 12), ("Revisit", "revisit", 12)],
     "milestones": [("ID", "id", 12), ("Milestone", "name", 30), ("Description", "_words", 50), ("Workstream", "workstream", 16),
                    ("Original", "original_date", 12), ("Agreed", "baseline_date", 12), ("Forecast", "forecast_date", 12),
                    ("State", "state_word", 14), ("Progress %", "percent_complete", 11), ("Owner", "owner", 16),
-                   ("State reason", "state_reason", 40), ("Achieved on", "actual_date", 12), ("Latest update", "latest_update", 40)],
+                   ("State reason", "state_reason", 40), ("Achieved on", "actual_date", 12)],
     "use_cases": [("ID", "id", 12), ("Reference", "ref", 12), ("Use case", "title", 30), ("Status", "status", 12),
                   ("Headline", "headline", 40), ("Where it stands", "standing", 60)],
 }
+NO_LATE_WORD = "\u2014"      # row 1543 AP4b: the client workbook says no Late and no Overdue; a dash where the page's rule says late (the published page's DASH)
 COMMITMENT = ("Commitment", "commitment", 14)      # a use case's flag: a column only while the file carries it (publish.PUBLISH_FIELDS)
 OWN_TEXT = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "description"}
 LEGACY_RICH = set(publish.LEGACY_RICH)      # (table, field): rich now, plain before (row 1005)
@@ -95,6 +96,8 @@ def plain(value):
 
 
 def value_of(table, row, field):
+    if field == "state_word" and row.get("state") == "Overdue":      # row 1543 AP4b: a passed milestone date reads a dash, not "Late"
+        return NO_LATE_WORD
     if field == "_words":
         own = row.get(OWN_TEXT[table])
         said = row.get("client_message")
@@ -238,7 +241,8 @@ def write_gantt_sheet(wb, published, palette=None):
         ws.column_dimensions[get_column_letter(i)].width = width
     for n, line in enumerate(g["lines"], start=5):
         for i, (_, f, _) in enumerate(cols, start=1):
-            cell = ws.cell(row=n, column=i, value=excel.gantt_cell(line, f, published["as_at"]))
+            v = excel.gantt_cell(line, f, published["as_at"])
+            cell = ws.cell(row=n, column=i, value=NO_LATE_WORD if f == "_status" and v == "Late" else v)      # row 1543 AP4b: no Late word, as the published Gantt
             cell.font = BODY
             cell.alignment = Alignment(horizontal="left" if f in excel.GANTT_DATES else None, wrap_text=True, vertical="top")
             if f in excel.GANTT_DATES:
@@ -298,7 +302,7 @@ def write_glance_sheet(wb, published, sec, palette=None):
     """Row 1264 slice 7: a glance template section as one sheet, a row for each tile in the section's order (the health tile first when
     it has a row of its own): Label, Figure, Tag, Note. Locked text. The words are the published content's own."""
     got = glance_print.read(published, sec)
-    rows = ([got["health_row"]] if got["health_row"] else []) + got["tiles"]
+    rows = ([got["health_row"]] if got["health_row"] else []) + [t for t in got["tiles"] if t["key"] != "overdue"]      # row 1543 AP4b: no Overdue actions tile in the client workbook
     if not rows:
         return None
     HEAD, TITLE, SUB, HEAD_FILL = styles(palette)

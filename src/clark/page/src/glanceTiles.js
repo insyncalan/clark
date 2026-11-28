@@ -93,7 +93,7 @@ export function stepTile(order, key, dir) {
 /** The file's own figures (data.glance.tiles, publish.add_glance) as tiles to draw: colour G A R N or "" is its letter lower-cased. */
 export function fileTiles(glance, project) {
   const health = (project && project.health) || "";
-  return ((glance && glance.tiles) || []).map((t) => {
+  return ((glance && glance.tiles) || []).filter((t) => t.tile !== "overdue").map((t) => {      // row 1543 AP4: the published page has no Overdue actions tile; the editor keeps it
     const rag = String(t.colour || "").toLowerCase() || "n";
     return t.tile === "health"
       ? { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: t.outline ? rag : HEALTH_WORDS[health] || rag, reason: (project && project.health_reason) || "", outline: t.outline || "", word: "" }

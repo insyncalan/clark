@@ -103,7 +103,8 @@ class Overview(Base):
 class OverviewClean(Overview):
     rows = [ROWS[0]]
 
-    def test_O_the_page_draws_the_ruled_words_and_one_row_for_each_project(self):
+    test_O_the_page_draws_the_ruled_words_and_one_row_for_each_project = None      # the base test is for the base rows; this class has its own
+    def test_O_clean_draws_its_own_words(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400)
@@ -118,7 +119,8 @@ class OverviewClean(Overview):
 class OverviewCards(Overview):
     classic = False
 
-    def test_O_the_page_draws_the_ruled_words_and_one_row_for_each_project(self):
+    test_O_the_page_draws_the_ruled_words_and_one_row_for_each_project = None      # the base test is for the base rows; this class has its own
+    def test_O_cards_draws_its_own_words(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400)

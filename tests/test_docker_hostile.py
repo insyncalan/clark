@@ -11,7 +11,8 @@ from unittest import mock
 from _paths import SRC  # noqa: F401
 
 from clark import ai_codex, ask_claude, ask_folders, log_routes, platform as pl, updater
-from test_docker_front import Script as Starter, TEMPLATE
+from test_docker_front import TEMPLATE
+import test_docker_front as _test_docker_front
 from test_docker_words import WORDS, InDocker
 
 SECRET = "/Users/someone/Library/Secret Folder/clark.db"
@@ -96,7 +97,7 @@ class Routes(InDocker):
             self.assertNotIn("rm -rf", repr(got))
 
 
-class StarterPorts(Starter):
+class StarterPorts(_test_docker_front.Script):
     test_with_the_server_running_it_starts_the_front_on_the_default_ports = None
 
     def test_a_port_with_a_zero_in_front_is_refused_because_the_browser_never_spells_it_so(self):

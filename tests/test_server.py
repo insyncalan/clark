@@ -1442,6 +1442,15 @@ def wait(check, seconds=15):
     return False
 
 
+def restore_done(page, sid=None, seconds=15):
+    """Wait until the router's place restore (router.js restore(), up to 120 frames after a hash move, puts the page back to its saved scroll
+    and undoes a scroll the test made) has ended: it clears overflow-anchor on <html> when it is done. `page` is a cdp client (with its sid) or a
+    page helper with .cdp and .sid (Pg in test_publish_dialog)."""
+    cdp, sid = (page.cdp, page.sid) if sid is None else (page, sid)
+    if not wait(lambda: cdp.js("document.documentElement.style.overflowAnchor === ''", sid), seconds):
+        raise AssertionError("the page's place restore has finished: it had not after %s s" % seconds)
+
+
 def wait_toast(read, seconds=10):
     """The text of the toast a page test is about to read: waits (up to `seconds`) for `read()` to give something, then returns the text
     that wait saw (not a second read, which could find the toast gone). A slow runner paints a toast late. Fails with a plain

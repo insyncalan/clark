@@ -15,7 +15,7 @@ from _pictures_cases import PicturePage
 from _pictures_page import BarePage
 from clark import changes, store as store_module
 from clark.section_kinds import gallery, textimage
-from test_changes import Api
+import test_changes as _test_changes
 from test_server import chrome  # noqa: F401  (a browser file: its page tests drive Chrome through _pictures_cases)
 
 KIND = "gallery"
@@ -52,7 +52,7 @@ class Checker(unittest.TestCase):
         self.assertIsNone(gallery.published({"v": 2}, None), "no picture: nothing in the report")
 
 
-class Route(PictureSteps, Api):
+class Route(PictureSteps, _test_changes.Api):
     def test_each_picture_is_one_step_and_taking_one_out_takes_its_caption(self):
         ref = self.made(KIND)
         for slot, pic in (("1", GOOD), ("2", GOOD_JPEG), ("3", GOOD_WEBP)):

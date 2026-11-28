@@ -14,7 +14,7 @@ from pathlib import Path
 from _demo import USER
 from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, onedoc
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome
 from test_tpl_doclinks import MARK, check
@@ -64,7 +64,7 @@ class Checker(unittest.TestCase):
                          {"content": {"file": FILE, "label": "x", "text": ["y"]}})
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def test_one_save_one_step_one_undo_and_the_file_keeps_hidden_and_empty_ones_out(self):
         ref = self.ok("new", values={"type": "onedoc", "title": "Fictional document"}, after=None)["ref"]
         status, a = self.change(self.req(changes.UPDATE, id=ref, changes={"body": doc(file=FILE, label="v1")}, place="report"))

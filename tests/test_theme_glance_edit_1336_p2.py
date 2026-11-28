@@ -11,7 +11,8 @@ import json
 import unittest
 
 from test_server import chrome, wait
-from test_theme_glance_edit_1336 import ClassicEdit, tearDownModule  # noqa: F401
+from test_theme_glance_edit_1336 import tearDownModule
+import test_theme_glance_edit_1336 as _test_theme_glance_edit_1336
 
 HINT = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. "
         "Add a tile brings it back.")
@@ -34,7 +35,7 @@ PROBE = """(function(sel){ function rel(el, cell){ var r = el.getBoundingClientR
   return out; })"""
 
 
-class Controls(ClassicEdit):
+class Controls(_test_theme_glance_edit_1336.ClassicEdit):
     def seed_body(self, body):
         status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": self.ref, "changes": {"body": json.dumps(body)}})
         assert status == 200, got

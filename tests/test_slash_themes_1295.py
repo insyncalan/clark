@@ -4,7 +4,8 @@ Run: python3 dev/run_tests.py test_slash_themes_1295
 In each of the four combinations the list, the fields, the live preview, Test it, the placeholders popup and the AI check card are on the page, nothing scrolls sideways, and every
 label's text colour has a contrast ratio of at least 4.5 to 1 against the colour behind it. Chrome is required: fails, never skips."""
 from test_server import chrome
-from test_slash_editor_1295 import Base, EDITOR, EditorStates
+from test_slash_editor_1295 import Base, EDITOR
+import test_slash_editor_1295 as _test_slash_editor_1295
 
 CONTRAST = r"""(()=>{const lum=(c)=>{const m=c.match(/[\d.]+/g).map(Number).slice(0,3).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*m[0]+.7152*m[1]+.0722*m[2];};
   const els=[...document.querySelectorAll('#slash-page label, #slash-page .slash-lab, #slash-page h1, #slash-page h3, #slash-page .muted, #slash-page .slash-pickers button, #slash-page .btn')].filter(e=>e.offsetHeight>0&&e.textContent.trim()&&!e.disabled);
@@ -21,7 +22,7 @@ class SlashThemes(Base):
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
                     self.until(js, "!!document.querySelector('.slash-edit-card')", "the card")
                     self.click(js, "#slash-help")
                     self.until(js, "!!document.querySelector('#slash-pop')", "the placeholders popup")
@@ -37,7 +38,7 @@ class SlashThemes(Base):
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    js = EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
+                    js = _test_slash_editor_1295.EditorStates.open_at(self, cdp, width, dark, EDITOR + "&new=1")
                     self.until(js, "!!document.querySelector('#slash-cancel')", "the Cancel button")
                     got = js("[...document.querySelectorAll('#slash-page button')].map(b => b.id + '/' + b.className + ':' + getComputedStyle(b).transitionProperty)")
                     self.assertTrue(got, "the page has buttons")

@@ -473,7 +473,7 @@ class Looks(Base):
 class Published(unittest.TestCase):
     def test_the_published_page_has_no_palette(self):
         view = (page.PAGE.parent / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("Search commands, pages", "pal-row", "palette-q", "Go to or do", "Appearance: Dark"):
+        for needle in ("Search commands, pages", "pal-row", "palette-q", "Appearance: Dark", "pal-btn", 'id:"palette"'):
             self.assertNotIn(needle, view)
         self.assertIn("palette-q", page.PAGE.read_text(encoding="utf-8"))
 

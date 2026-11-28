@@ -6,6 +6,7 @@
 // day); Left and Right move a day, Up and Down a week, into the next period when they leave this one; Enter on a day with milestones goes
 // to its first chip, and Enter or Space on a chip opens it; Shift+Tab or Esc on a chip (no peek open) goes back to its day. The scale is
 // switched by its buttons, as in the prototype. Page Up and Page Down step a whole period (kept from #76: the prototype has no such key).
+import { onPublishedPage } from "../workItems.js";
 import { Fragment } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
@@ -22,7 +23,7 @@ function Chip({ c, say, open }) {
   const Tag = open ? "button" : "span";            // plain text in a published file
   const label = c.ghost ? `Expected: ${c.name}` : c.name;
   return (
-    <Tag {...(open ? { type: "button", onClick: () => open(c.id) } : {})} class={`cal-ms c-${c.colour}${c.ghost ? " ghost" : ""}${open ? "" : " plain"}`} data-ms={c.id} data-ghost={c.ghost ? "1" : "0"}
+    <Tag {...(open ? { type: "button", onClick: () => open(c.id) } : {})} class={`cal-ms c-${c.colour}${c.ghost ? " ghost" : ""}${open ? "" : " plain"}`} data-ms={c.id} data-ghost={c.ghost ? "1" : "0"} {...(c.ghost && onPublishedPage() ? { style: { borderColor: "var(--status-grey)", color: "var(--text-muted)" } } : null)}
       title={`${c.name} · ${showDate(c.date)} · ${c.ghost ? "expected" : c.word}`} aria-label={`${label}, ${c.word}`}><MsMark name={c.mark} /><span>{c.ghost ? "Expected: " : ""}{c.name}</span></Tag>
   );
 }

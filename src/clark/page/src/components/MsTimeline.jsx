@@ -9,7 +9,7 @@ import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
 import { classicTheme } from "./Contents.jsx";   // row 1267: the grip's slider keys and the no-grip-on-a-short-line rule are Classic only; Cards keeps what it always did
 import { showDate, timelineSpan, monthStarts, clampZoom, ZOOM_MIN, ZOOM_MAX, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
-import { dayNumber } from "../workItems.js";
+import { dayNumber, onPublishedPage } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
 import { reduced } from "../stores/motion.js";
@@ -24,6 +24,8 @@ const PRINT_W = 680;                            // the printed line is this wide
 const PRINT_TAIL = 60;                          // on paper a month name that would start within this many pixels of the line's end is left off: the frame clips it
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
+// row 1543 AP4d: a published file keeps the slip (ghost ring, dashed line, "+N days") and draws it in the muted tokens, no red (the editor keeps shell.css's red)
+const QUIET_LINE = { borderTopColor: "var(--status-grey)" }, QUIET_RING = { borderColor: "var(--status-grey)" }, QUIET_TEXT = { color: "var(--text-muted)" };
 const LH = 38, TGAP = 10, LEAD = 12, SIDE = 24, CAPROOM = 30;   // row 1230 (the Dashboard section): a two-line label's height, the space between tiers, a leader's first stretch, the label's distance from the line, room under the lowest label for the caption
 const LYP = 78, TP = 28, PROOM = 34;   // row 1315 (Classic, Milestones page): the line, the label lane above it and the room under the line for the Today name (14px under the line, 18px tall, inside the 1px border: 34 keeps it inside the strip when there is no sideways scrollbar), read off the prototype picture at 1400
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
@@ -198,8 +200,8 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             const px = x(s.date), say = `${r.name}, ${showDate(s.date)}, ${r.word}`;
             return (
               <Fragment key={r.id}>
-                {r.marks.line ? <div class="mv-conn" key={`c${r.id}`} data-conn={r.id} style={{ left: `${px}px`, top: `${LY}px`, width: `${x(r.marks.line.to) - px}px` }} /> : null}
-                {r.marks.ghost ? <div class="mv-ghost" key={`g${r.id}`} data-ghost={r.id} title={r.marks.ghost.label} style={{ left: `${x(r.marks.ghost.date)}px`, top: `${LY + 1}px` }} /> : null}
+                {r.marks.line ? <div class="mv-conn" key={`c${r.id}`} data-conn={r.id} style={{ ...(onPublishedPage() ? QUIET_LINE : null), left: `${px}px`, top: `${LY}px`, width: `${x(r.marks.line.to) - px}px` }} /> : null}
+                {r.marks.ghost ? <div class="mv-ghost" key={`g${r.id}`} data-ghost={r.id} title={r.marks.ghost.label} style={{ ...(onPublishedPage() ? QUIET_RING : null), left: `${x(r.marks.ghost.date)}px`, top: `${LY + 1}px` }} /> : null}
                 <Tag {...(open ? { type: "button", onClick: () => open(r.id) } : { role: "img" })} class={`mv-mk c-${r.colour}${open ? "" : " plain"}`} key={`m${r.id}`} data-ms={r.id} data-mark-at={s.date}{...(hidden.has(r.id) ? { "data-hid": say } : {})} aria-label={say} title={say}
                   style={{ left: `${px}px`, top: `${LY + 1}px`, "--at": `${px}px`, "--end": `${W}px` }}><MsMark name={r.mark} /></Tag>
               </Fragment>
@@ -209,12 +211,12 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
           {R2 ? labs.map((l) => (
             <Tag {...btn(l.r.id)} class={`mv-lab2${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${tierTop(l.t)}px` }}>
               <b>{l.r.name}</b>
-              <span>{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
+              <span>{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" {...(onPublishedPage() ? { style: QUIET_TEXT } : null)} data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
             </Tag>)) : labs.map((l) => (l.hid
-            ? <span class="mv-meas" key={`n${l.r.id}`} aria-hidden="true" data-lab={`${l.r.id}:main`}><b>{l.r.name}</b>{" "}{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
+            ? <span class="mv-meas" key={`n${l.r.id}`} aria-hidden="true" data-lab={`${l.r.id}:main`}><b>{l.r.name}</b>{" "}{showDate(l.at)}{l.r.marks.ghost ? <>{" "}<span class="slip" {...(onPublishedPage() ? { style: QUIET_TEXT } : null)} data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}</span>
             : <Tag {...btn(l.r.id)} class={`mv-lab${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${(P ? TP : T0) + l.line * RH}px` }}>
               <b>{l.r.name}</b>{" "}{showDate(l.at)}
-              {l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}
+              {l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" {...(onPublishedPage() ? { style: QUIET_TEXT } : null)} data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}
             </Tag>))}
         </div>
       </div>

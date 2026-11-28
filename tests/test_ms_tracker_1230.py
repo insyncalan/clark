@@ -120,12 +120,11 @@ class Tracker(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid), 10))
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-tracker]')", sid), 10), "the file draws the tracker")
             got = cdp.js("[...document.querySelectorAll('[data-tracker]')[0].querySelectorAll('[data-tracker-state]')].map((c) => [c.dataset.trackerState, c.textContent.trim()])", sid)
-        self.assertEqual([s for s, _ in got], STATES[:-1], "no Cancelled chip in a file")
+        self.assertEqual([s for s, _ in got], [s for s in STATES[:-1] if s != "Overdue"], "no Cancelled chip and no Late chip in a file (row 1543 AP4)")
         words = dict(got)
         self.assertRegex(words["Slipped"], r"^\d+ Expected later$")
-        self.assertRegex(words["Overdue"], r"^\d+ Late$")
+        self.assertNotIn("Overdue", words)
         self.assertNotIn("Slipped", words["Slipped"])
-        self.assertNotIn("Overdue", words["Overdue"])
 
     def test_every_chip_has_a_title_and_only_empty_chips_are_zero(self):
         with chrome() as cdp:

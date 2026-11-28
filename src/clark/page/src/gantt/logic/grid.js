@@ -9,6 +9,7 @@
 //   eff, cost  a number or ''          show  true when the line is on the dashboard (the eye)
 // Every function returns new values; none changes what it was given. Dates are shown as DD-MM-YYYY and stored as YYYY-MM-DD.
 import { EXAMPLE_DATE } from "./ganttWords.js";
+import { isPublished } from "../../filters.js";
 
 
 const DAY = 864e5;
@@ -104,7 +105,7 @@ export const addDays = (iso, n) => isoOf(utc(iso) + n * DAY);
 // Done, Late, In progress, Not started; worked out from the dates and the percentage, never typed.
 export function statusOf(line, today) {
   if (line.pct >= 100) return "Done";
-  if (today && line.e < today) return "Late";
+  if (today && line.e < today) return isPublished() ? "\u2014" : "Late";      // row 1543 AP4: no Late word on the published page: a dash
   if ((today && line.s <= today) || line.pct > 0) return "In progress";
   return "Not started";
 }

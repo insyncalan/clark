@@ -45,7 +45,7 @@ export function clientPill(row, today) {
     return { text: s, class: OWN_STATUS_CLASS[s] || "n" };
   }
   const p = pillOf(row, today);
-  return row.kind === "action" && p.text === "Open" ? { text: "On track", class: "g" } : p;
+  return row.kind === "action" && p.text === "Open" && p.class === "b" ? { text: "On track", class: "g" } : p;
 }
 
 // "3 d late" for an open action whose date has passed; nothing otherwise (a decision, a risk, an action not late).

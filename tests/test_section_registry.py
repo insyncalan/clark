@@ -21,7 +21,7 @@ from _demo import USER
 from _paths import ROOT, SRC
 from clark import changes, publish, section_bodies, section_kinds, server as sv, store as store_module
 from clark.section_kinds import base
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import Base as PageBase
 from test_server import Running, chrome, wait
 
@@ -254,7 +254,7 @@ class PythonSide(unittest.TestCase):
             self.assertTrue(all(u.startswith("clark.section_kinds") or u in PURE_LIBRARY for u in used), (f.name, used))
 
 
-class StubNeverPublished(Api):
+class StubNeverPublished(_test_changes.Api):
     """Every real stub, or (once every template is built) a real type turned back into a stub for the test (fake_stub)."""
 
     def setUp(self):

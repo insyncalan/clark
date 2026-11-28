@@ -110,8 +110,8 @@ class ItemRows(unittest.TestCase):
         self.assertIn(w("Hosting region to be chosen"), decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
-        self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
-        self.assertIn(actions[1].split("|")[1], ("Overdue", "Due soon", "On track"), f"{where}: the other action reads Overdue, Due soon or On track (was Open), by the date it is read on (its date is near the real today and passes)")
+        self.assertEqual(actions[0].split("|")[1], "Open" if where == "the file" else "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212); row 1543 AP4: the published file never says Overdue, it reads Open")
+        self.assertIn(actions[1].split("|")[1], ("Overdue", "Open", "Due soon", "On track"), f"{where}: the other action reads Overdue, Due soon or On track (was Open), by the date it is read on (its date is near the real today and passes)")
         self.assertEqual(decisions[0].split("|")[1], "Pending", f"{where}: a pending decision reads Pending")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):

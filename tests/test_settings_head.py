@@ -14,7 +14,7 @@ import unittest
 from _paths import ROOT
 from test_appearance import scheme
 from test_publish_dialog import Base
-from test_server import chrome, wait
+from test_server import chrome, restore_done, wait
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
@@ -95,11 +95,13 @@ class Head(Base):
         drew = f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}"
         p.until(f"[...document.querySelectorAll('.set-nav .set-chip')].some(b => b.textContent === '{name}')", f"the {name} menu item is drawn")
         p.settled(f"the {name} menu item stopped moving before it is clicked")
+        restore_done(p)      # router.js restore() would put the page back to its place under a chip press that lands after the page moved
         self.click_chip(p, name)
         if not wait(lambda: p.js(drew), 15):
             # The evidence is read only after the wait failed: a passing run costs nothing extra.
             chip = p.js("(document.querySelector('.set-chip[aria-current]')||{}).textContent")
-            self.fail(f"the {name} page drew; location.hash={p.js('location.hash')!r}; marked chip={chip!r}; heading present={p.js(heads)}; trail={self.trail(p)}")
+            drawn = p.js("(document.querySelector('.set-cards') || {dataset: {}}).dataset.page")
+            self.fail(f"the {name} page drew; the page actually drawn={drawn!r}; location.hash={p.js('location.hash')!r}; marked chip={chip!r}; heading present={p.js(heads)}; trail={self.trail(p)}")
         p.settled("the page finished drawing")
 
     def chips(self, p):
@@ -162,22 +164,41 @@ class Head(Base):
             # A scroll that arrived late (the wheel's, on a slow runner) can have put the chip out of the window or under the sticky top bar since it was measured: bring it back (an instant scroll) before the pointer goes to it.
             p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(); if (document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) !== b) b.scrollIntoView({{block: 'center', behavior: 'instant'}}); }})()")
             now = p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return [x, y, document.elementFromPoint(x, y) === b]; }})()")
-            if under.get("at") == now[:2] and now[2]:
+            if under.get("at") == now[:2] and now[2] and under.get("on"):      # row 1676: the chip is under the point on two polls in a row
                 return True
             under["at"] = now[:2]
+            under["on"] = now[2]
             under["last"] = now
             p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": now[0], "y": now[1], "button": "none", "buttons": 0, "clickCount": 0}, p.sid)
             return False
         self.assertTrue(wait(on_chip, 15), f"the pointer is on the {name} menu item and it stopped moving; last read (x, y, chip under it): {under.get('last')}; scrollY={p.js('scrollY')}")
+        # DIAG only (row 1670): record what the press, the release and the click really hit, so a missed click names its target in the FAIL text.
+        p.js("""(function(){ window.__hits = [];
+          if (window.__hitsOn) return; window.__hitsOn = true;
+          ['mousedown', 'mouseup', 'click'].forEach(function(t){ document.addEventListener(t, function(e){
+            var x = e.target, d = x && x.tagName ? x.tagName.toLowerCase() + (typeof x.className === 'string' && x.className ? '.' + x.className.split(' ')[0] : '') + '[' + String(x.textContent || '').trim().slice(0, 24) + ']' : String(x);
+            window.__hits.push(t + '@' + Math.round(e.clientX) + ',' + Math.round(e.clientY) + ' on ' + d + ' hash=' + location.hash + ' defaultPrevented=' + e.defaultPrevented);
+            var chip = t === 'click' && x && x.closest ? x.closest('.set-chip') : null;      // row 1676: which menu item a click reached
+            if (chip) window.__clicked.push(chip.textContent);
+          }, true); });
+        })()""")
+        p.js("window.__clicked = []")
+        # Row 1676: what is under the press point when the button goes down and when it comes up (the FAIL text names both).
+        point = f"(function(){{ var e = document.elementFromPoint({under['at'][0]}, {under['at'][1]}), b = {find}; return (e === b ? 'the chip' : e && e.tagName ? e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className ? '.' + e.className.split(' ')[0] : '') + '[' + String(e.textContent || '').trim().slice(0, 24) + ']' : String(e)); }})()"
+        seen = {}
         for kind in ("mousePressed", "mouseReleased"):
+            seen[kind] = p.js(point)
             params = {"type": kind, "x": under["at"][0], "y": under["at"][1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}
             p.cdp.call("Input.dispatchMouseEvent", params, p.sid)
         p.js("""(function(){ window.__trail = [];
           [0, 100, 500, 2000].forEach(function(ms){ setTimeout(function(){ window.__trail.push('+' + ms + 'ms scrollY=' + Math.round(window.scrollY)); }, ms); });
         })()""")
+        # Row 1676: a condition wait (no sleep, no second press) until the click reached the named chip; else the evidence of where it went.
+        if not wait(lambda: name in p.js("window.__clicked || []"), 15):
+            self.fail(f"a click reached the {name} menu item; clicks seen on menu items={p.js('window.__clicked')!r}; press point {under['at']}: under it at press={seen['mousePressed']}, at release={seen['mouseReleased']}, now={p.js(point)}; hits=[{' | '.join(p.js('window.__hits || []'))}]; scrollY={p.js('scrollY')}")
 
     def trail(self, p):
-        return p.js("(window.__trail || []).join(', ') + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
+        return p.js("(window.__trail || []).join(', ') + ' hits=[' + (window.__hits || []).join(' | ') + ']' + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
 
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""

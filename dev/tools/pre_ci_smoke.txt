@@ -1,0 +1,8 @@
+# The smoke suite of pre-CI (dev/tools/pre_ci.py, check 6): one test file a line, quick tier only (no Chrome), about a minute.
+# A name is matched as dev/run_tests.py matches it (part of a file name), so list names that match one file.
+# A first list (26-11-2026): the repository's own rules, the page build, the workflows, the updater and the doctor.
+test_repo_hygiene
+test_generated_pages
+test_workflow
+test_updates
+test_doctor

@@ -2,7 +2,7 @@
 // A change is sent as it is; the page never edits its own copy. It redraws from the sections the reply carries, so what is on
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
-import { data, project, reread, plainChange } from "./report.js";
+import { data, project, reread, plainChange, settingsProject, readSettingsData } from "./report.js";
 import { busy, beforeReload, stayed, trouble } from "./leave.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { isProject } from "../router.js";
@@ -117,7 +117,10 @@ function redraw(code, reply) {
 // After a change or an undo the page reads the project again (#188), so a section's body is the one clark stored, not the one the
 // page had: a body saved or undone elsewhere must never be written over by the next save. Resolves to false, with a plain line,
 // when it could not be read; true when it was, or when the person has opened another project meanwhile (nothing is wrong then).
+// Row 1299 AP11: a step made for a Settings tab's project (not the open one) reads that tab project's data again; the open project's data is left as it is.
 async function readAgain(code, what) {
+  if (code !== project.value && code === settingsProject.value) { if (await readSettingsData(code)) return true; say("problem", `${what}, but the page could not be refreshed. Reload the page to see it.`); return false; }
+  if (code !== project.value && settingsProject.value !== code) return true;
   if (await reread(code) || project.value !== code) return true;
   say("problem", `${what}, but the page could not be refreshed. Reload the page to see it.`);
   return false;
@@ -148,8 +151,9 @@ export function enqueue(task) {
 // Make one change. Resolves to the reply, or to null when it failed (and the toast says why). `done` is what the toast says
 // when it worked; with a step to undo it carries Undo. A change that altered nothing (no step) says nothing.
 // `named` (row 865): { focus: a selector } makes the Undo say "Undone: <the toast's words>" and puts focus back on that control.
+// `named.code` (row 1299 AP11): the project the change is for, when a Settings card works on a tab's project; the step, its toast and its Undo name that code. Left out: the open project.
 export function change(req, done, named = null) {
-  const code = project.value;
+  const code = (named && named.code) || project.value;
   return enqueue(async () => {
     const r = await sendChange(code, req);
     if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)

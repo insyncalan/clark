@@ -12,10 +12,12 @@ named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Be
 From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
-From updates.FIRST_SIGNED (1.3.4) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
+From updates.FIRST_SIGNED (1.4.0) up the release must also carry clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that
 file must verify over the zip's bytes with RELEASE_PUBLIC_KEY (updates.check_signature); a missing, wrong-length or non-verifying
 .sig fails.
-1.3.3 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required).
+1.3.13 and older are not asked for a .sig: the app accepts them unsigned (updates.signature_required); a .sig that is attached
+to one is not checked here, but the app checks it and refuses a wrong one. From 1.4.0 on the app
+itself refuses a download with no .sig or with one that does not verify (updates.read_release).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
 60 seconds, or an unreadable answer).
@@ -87,13 +89,13 @@ def _utc(value):
 
 
 def _signature_lines(r, tag, want, notes, fetch, key):
-    """The lines for a release whose .sig is missing or does not verify against the release key (none for 1.3.3 and older)."""
+    """The lines for a release whose .sig is missing or does not verify against the release key (none for 1.3.13 and older)."""
     if not updates.signature_required(key, tag.lstrip("v")):
         return []
     sig_name = want + updates.SIGNATURE_SUFFIX
     sig, zipped = _asset(r, sig_name), _asset(r, want)
     if sig is None:
-        return [f"{tag}: the release has no {sig_name}, so the app would refuse this update as unsigned. The owner signs the zip "
+        return [f"{tag}: the release has no {sig_name}, so the app (from 1.4.0 on) would refuse this update as unsigned. The owner signs the zip "
                 f"(`python3 dev/tools/sign_release.py sign {want}`, dev/RELEASING.md step 7a), attaches the .sig beside the zip, "
                 f"then run this check again."]
     if fetch is None:
@@ -168,9 +170,9 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
         if have.get(want):
             if not tags and notes is not None and not sig_noted and updates.signature_required(key, tag.lstrip("v")):
                 sig_noted = True
-                notes.append("The .sig of each release from 1.3.4 up was not checked: the .sig is asked only of a tag named on the "
+                notes.append("The .sig of each release from 1.4.0 up was not checked: the .sig is asked only of a tag named on the "
                              "command line (dev/RELEASING.md step 20).")
-            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line: shipped 1.3.4 to 1.3.7 have none
+            out.extend(_rules(r, tag, want, notes, fetch, key, check_sig=bool(tags)))     # the .sig is asked only of a tag named on the command line, and only from 1.4.0 up (_signature_lines); 1.3.13 and older are never asked
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
@@ -244,7 +246,7 @@ def main(argv=None):
             break
     notes = []
     if not updates.signature_required():
-        print("RELEASE_PUBLIC_KEY is still the placeholder, so a release from 1.3.4 up cannot pass until the real key is in.", file=sys.stderr)
+        print("RELEASE_PUBLIC_KEY is still the placeholder, so a release from 1.4.0 up cannot pass until the real key is in.", file=sys.stderr)
     found = problems(releases, tags, notes, _download(repo))
     for line in found:
         print(line)

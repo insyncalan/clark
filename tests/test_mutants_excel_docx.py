@@ -78,11 +78,11 @@ class WordStatusCells(unittest.TestCase):
         body, fill = docx_build._status_cell({"status": "Closed"}, "action", ctx())
         self.assertEqual((body, fill), docx_build.word_cell("Closed", ctx(), colour="blue"))
 
-    def test_a_late_word_is_the_red_text_not_the_amber(self):
-        """word_cell(late=True): the red text hex is in the cell, the amber one is not, and there is no fill."""
-        body, fill = docx_build.word_cell("1 Jan 2026 (overdue)", ctx(), late=True)
+    def test_a_passed_date_has_no_red_text_and_no_fill(self):
+        """Row 1543 AP4b (was: word_cell(late=True) drew the red text): a plain cell has neither the red nor the amber text hex, and no fill."""
+        body, fill = docx_build.word_cell("1 Jan 2026", ctx())
         self.assertIsNone(fill)
-        self.assertIn(TOK["tone-red-text"], body)
+        self.assertNotIn(TOK["tone-red-text"], body)
         self.assertNotIn(TOK["tone-amber-text"], body)
 
     def test_a_word_that_is_not_late_has_no_red_text(self):

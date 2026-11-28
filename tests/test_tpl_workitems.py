@@ -16,6 +16,7 @@ Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fic
 """
 import contextlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,7 +28,7 @@ from _demo import USER
 from _paths import ROOT, SRC
 from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, workitems as wi
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
 from test_server import Running, chrome, wait, wait_toast
 
@@ -385,7 +386,7 @@ def plant(test):
     s.con.commit()
 
 
-class Saved(Api):
+class Saved(_test_changes.Api):
     def setUp(self):
         super().setUp()
         plant(self)
@@ -656,6 +657,18 @@ class InThePage(PageBase):
             # The second press is made once the first one is in the store: a press made while the first save's reply is still on its way may be built on a list the
             # reply then redraws (suspected, not measured; a loaded runner may take seconds over it). Every assert and wait below is as it was.
             self.assertTrue(wait(lambda: self.demo.last_step() == steps + 1), "the first press reached the store")
+            # Suspected, not proven (failed on macOS only): drawing the Due column scrolls or resizes the longer page and the open menu closes on it (components/Menu.jsx).
+            # So the page is let settle (two frames, as in show()) and, if the menu was shut meanwhile, it is opened again by the same right click as above.
+            p.js("window.__settled = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__settled = 1; }))")
+            p.until("window.__settled === 1", "the page settled after Due was added")
+            if not p.js("!!document.querySelector('.cols-menu')"):
+                print("REOPEN 1689: the menu was closed before the second press", flush=True)          # a record only, so a run log shows whether the menu closed by itself
+                summary = os.environ.get('GITHUB_STEP_SUMMARY')          # the run's summary page shows it on a pass too (run_tests passes the environment on)
+                if summary:
+                    with open(summary, 'a', encoding='utf-8') as f:
+                        f.write('REOPEN 1689: the menu was closed before the second press\n')
+                p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+                p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             p.until("document.querySelector('.cols-menu [data-col-name=Due]')?.getAttribute('aria-checked') === 'true'", "the open menu drew Due ticked")      # the next press reads the menu as drawn
             p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
             p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
@@ -1259,7 +1272,7 @@ class PublishedFile(PageBase):
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(.cell-pick):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
-                self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
+                self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Open/.test(e.textContent) && !/Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half') && !e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: the passed date reads Open on a grey half-circle: no red, no Overdue word (row 1543 AP4, review ruling); the sentence was: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 

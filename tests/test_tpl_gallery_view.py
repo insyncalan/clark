@@ -20,6 +20,7 @@ from test_server import Running, chrome, wait
 from test_tpl_imagecap_full_view import png, uri
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
+CLASSIC = SRC / "clark" / "themes" / "prototype-2.0" / "rules-2.css"   # Row 1233 s7: the Classic rules the published page layers over shell.css
 DEMO = ROOT / "tests" / "fixtures" / "gallery_view_demo.jsx"
 _PAGE = {}
 COLOURS = [(200, 30, 30), (30, 200, 30), (30, 30, 200), (200, 200, 30), (30, 200, 200), (200, 30, 200)]
@@ -37,13 +38,13 @@ def page_html():
                                cwd=tmp, capture_output=True, text=True)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8") + (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
+        css = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8") + (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8") + CLASSIC.read_text(encoding="utf-8")
         _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB" data-theme="light"><head><meta charset="utf-8"><title>t</title><style>{css}</style></head>\n'
                          f'<body><main style="max-width:1100px;margin:0 auto;padding:0 16px"><div id="root"></div></main>\n<script>{script}</script>\n</body></html>\n')
     return _PAGE["html"]
 
 
-def pictures(n, caps=(), alts=True, size=(160, 120)):
+def pictures(n, caps=(), alts=True, size=(1200, 900)):
     """n fictional images, each its own colour (left half one, right half the next), with a caption where `caps` says."""
     out = []
     for i in range(n):
@@ -224,7 +225,7 @@ class View(unittest.TestCase):
             with self.subTest(width=width, cls=cls):
                 self.assertEqual(m["across"], across)
                 self.assertAlmostEqual(m["ratio"], 4 / 3, 1)
-        old = gallery.published({"v": 1, "pictures": {"1": uri(png(160, 90)), "2": uri(png(160, 90))}}, None)["content"]
+        old = gallery.published({"v": 1, "pictures": {"1": uri(png(1200, 675)), "2": uri(png(1200, 675))}}, None)["content"]
         self.assertEqual(set(old), {"pictures"})
         self.draw(old["pictures"], 1400)
         m = self.measure()
@@ -251,6 +252,13 @@ class View(unittest.TestCase):
         self.draw([{"image": uri(png(80, 60)), "caption": "<b>Fictional</b> & plan", "alt": "<i>x</i>"}])
         self.assertEqual(self.js("document.querySelector('figcaption').textContent"), "<b>Fictional</b> & plan")
         self.assertEqual(self.js("document.querySelectorAll('figcaption b, img[alt] i').length"), 0)
+
+    def test_the_view_never_shows_the_red_no_description_mark_of_the_edit(self):
+        for theme in ("light", "dark"):
+            self.draw(pictures(2, alts=False), 1400, theme)
+            self.assertEqual(self.js("document.querySelectorAll('.tpl-gal-nodesc').length"), 0, f"no mark on undescribed images in the view, {theme}")
+            self.assertEqual(self.js("document.querySelectorAll('.tpl-gal-fig').length"), 2, "the images are drawn")
+            self.assertNotIn("No description yet", self.js("document.body.textContent"))
 
     def test_an_address_that_is_not_a_real_image_draws_nothing(self):
         for bad in ("http://example.com/a.png", "javascript:alert(1)", "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", "data:image/gif;base64,R0lGODlhAQABAAAAACw="):
@@ -322,3 +330,161 @@ class View(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SmallImage(unittest.TestCase):
+    """Row 1233 s7 (R3, comment 7085957249): in the published view an image under 600 px wide is centred at its own size in its tile on its
+    fill, never enlarged; one of 600 px or more fills the tile (cover). The large view's values (comment 7022644457 row 14)."""
+
+    @classmethod
+    def setUpClass(cls):
+        View.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stack.close()
+
+    js, draw = View.js, View.draw
+
+    def tile(self, i=0):
+        return self.js(f"""(function(){{var f=document.querySelectorAll('.tpl-gal-vframe')[{i}], im=f.querySelector('img'), fr=f.getBoundingClientRect(), r=im.getBoundingClientRect();
+          return {{cls:f.className, w:r.width, h:r.height, nat:im.naturalWidth, fw:fr.width, fh:fr.height, dx:(r.left+r.width/2)-(fr.left+fr.width/2), dy:(r.top+r.height/2)-(fr.top+fr.height/2),
+                   bg:getComputedStyle(f).backgroundColor, blur:getComputedStyle(f,'::before').filter, fit:getComputedStyle(im).objectFit, dfit:f.dataset.fit, style:f.getAttribute('style')||'', bgimg:getComputedStyle(f,'::before').backgroundImage}};}})()""")
+
+    def waitclass(self, i, small):
+        self.assertTrue(wait(lambda: ("small" in self.tile(i)["cls"].split()) == small), "the frame says whether it is small")
+
+    def test_an_image_under_600_wide_is_centred_at_its_own_size_on_a_blurred_fill_at_1400_and_900(self):
+        for width in (1400, 900):
+            self.draw(pictures(1, size=(500, 375)), width)
+            self.waitclass(0, True)
+            t = self.tile()
+            with self.subTest(width=width):
+                self.assertEqual((round(t["w"]), round(t["h"])), (500 if width == 1400 else round(min(500, t["fw"])), round(t["h"])), "its own size, never enlarged")
+                self.assertLess(t["w"], t["fw"] + 1)
+                self.assertLessEqual(abs(t["dx"]), 1, "centred across")
+                self.assertLessEqual(abs(t["dy"]), 1, "centred down")
+                self.assertIn("blur(24px)", t["blur"], "the image's own blurred copy behind it")
+                self.assertEqual(t["fit"], "contain")
+
+    def test_an_image_of_600_or_more_fills_the_tile_and_is_not_marked_small(self):
+        self.draw(pictures(2, size=(1200, 900)), 1400)
+        self.waitclass(0, False)
+        t = self.tile()
+        self.assertEqual((round(t["w"]), round(t["fw"])), (round(t["fw"]), round(t["fw"])), "fills the tile's width")
+        self.assertEqual(t["fit"], "cover")
+        self.assertEqual(t["blur"], "none")
+
+    def test_the_tile_keeps_the_shape_for_all_around_a_small_image_and_whole_has_no_fill_area(self):
+        for shape, ratio in (("square", 1.0), ("16:9", 16 / 9), ("4:3", 4 / 3)):
+            self.draw(pictures(1, size=(300, 300)), 1400, shape=shape)
+            self.waitclass(0, True)
+            t = self.tile()
+            with self.subTest(shape=shape):
+                self.assertAlmostEqual(t["fw"] / t["fh"], ratio, delta=0.02)
+                self.assertEqual(round(t["w"]), 300)
+        self.draw(pictures(1, size=(300, 200)), 1400, shape="whole")
+        self.waitclass(0, True)
+        t = self.tile()
+        self.assertEqual((round(t["w"]), round(t["h"])), (300, 200), "whole: the frame is the image's own size high")
+        self.assertLessEqual(abs(t["fh"] - t["h"]), 1)
+
+    def test_a_stored_brand_plain_or_stretch_is_drawn_as_the_one_blur_fill_at_1400_and_900_light_and_dark(self):
+        # Review ruling: ONE blur fill for every small gallery tile; a per-image fit or fill in old data is not read.
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                pics = pictures(5, size=(400, 300))
+                pics[0]["fill"], pics[1]["fill"], pics[2]["fit"], pics[3]["fill"] = "brand", "plain", "stretch", "pink"
+                pics[4]["fill"] = 'x"); background:url(//e'   # hostile text in a stored fill
+                self.draw(pics, width, theme=theme)
+                for i in range(5):
+                    self.waitclass(i, True)
+                    t = self.tile(i)
+                    with self.subTest(width=width, theme=theme, tile=i):
+                        self.assertIn("fill-blur", t["cls"].split())
+                        self.assertNotIn("fill-brand", t["cls"])
+                        self.assertNotIn("fill-plain", t["cls"])
+                        self.assertIn("blur(24px)", t["blur"], "the image's own blurred copy")
+                        self.assertRegex(t["bgimg"], r'^url\("data:image/', "the blurred copy is of the image itself, not of a stored fill text")
+                        self.assertEqual(t["dfit"], "centre", "never marked stretch")
+                        self.assertRegex(t["style"], r'^--gal-img: url\("data:image/[^"]*"\);?$', "the frame's style is the blur property only, no stored text")
+                        self.assertEqual(t["fit"], "contain", "centred at its own size, not stretched")
+                        self.assertLessEqual(abs(t["dx"]), 1, "centred across")
+                        self.assertLessEqual(abs(t["dy"]), 1, "centred down")
+                        self.assertLessEqual(round(t["w"]), 400, "never enlarged")
+                        self.assertEqual(round(t["w"]), round(min(400, t["fw"])), "its own size, or the tile when narrower")
+                self.assertEqual({self.tile(i)["bg"] for i in range(5)}, {self.tile(0)["bg"]}, "the same tile background under every fill")
+
+    def test_599_wide_is_small_and_600_wide_is_not_in_a_gallery_tile(self):
+        self.draw(pictures(1, size=(599, 400)), 1400)
+        self.waitclass(0, True)
+        self.assertIn("blur(24px)", self.tile()["blur"])
+        self.draw(pictures(1, size=(600, 400)), 1400)
+        self.waitclass(0, False)
+        self.assertEqual((self.tile()["blur"], self.tile()["fit"]), ("none", "cover"))
+
+    def test_the_gallery_small_rule_is_the_one_shared_SMALL_WIDE_and_no_second_number(self):
+        src = (ROOT / "src/clark/page/src/templates/Gallery.jsx").read_text(encoding="utf-8")
+        self.assertRegex(src, r'import \{[^}]*\bSMALL_WIDE\b[^}]*\} from "\.\./logic/fullImageWords\.js"')
+        self.assertIn("img.naturalWidth < SMALL_WIDE", src)
+        code = "\n".join(l.split("//")[0] for l in src.splitlines())
+        for number in ("600", "599", "1200", "1,200"):
+            self.assertNotIn(number, code, "the gallery has no number of its own for small")
+        words = (ROOT / "src/clark/page/src/logic/fullImageWords.js").read_text(encoding="utf-8")
+        self.assertIn("export const SMALL_WIDE = 600;", words)
+
+    def test_shown_passes_no_fit_or_fill_of_any_body(self):
+        body = {"v": 2, "pictures": {"1": GOOD}, "items": {"1": {"fit": "stretch", "fill": "brand"}}}
+        plain = {"image": GOOD, "caption": "", "alt": ""}
+        for v in (2, 1):
+            self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'v': v})})")["pictures"][0], plain)
+        for bad in ({"fit": "centre", "fill": "blur"}, {"fit": "x", "fill": 3}, {"fill": "plain"}):
+            self.assertEqual(self.js(f"G.shown({json.dumps({**body, 'items': {'1': bad}})})")["pictures"][0], plain)
+
+    def test_the_large_view_has_the_spec_padding_caption_and_close_position(self):
+        self.draw(pictures(1, caps=(0,), size=(1600, 900)), 1400)
+        self.js("document.querySelector('.tpl-gal-open').click()")
+        self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+        v = self.js("""(function(){var d=document.querySelector('dialog.tpl-gal-large'),p=d.querySelector('p'),x=d.querySelector('.tpl-gal-x'),cs=getComputedStyle,
+          px=function(n){return cs(n).paddingTop+'|'+cs(n).paddingLeft};
+          return {pad:px(d), size:cs(p).fontSize, mt:cs(p).marginTop, top:cs(x).top, right:cs(x).right, max:cs(d.querySelector('img')).maxHeight, vh:innerHeight};})()""")
+        self.assertEqual((v["pad"], v["size"], v["mt"], v["top"], v["right"]), ("30px|30px", "14px", "10px", "16px", "20px"))
+        self.assertEqual(v["max"], f"{v['vh'] * 0.72:g}px", "the image is at most 72vh high")
+
+    def test_the_large_view_overlay_is_the_spec_colour(self):
+        """AP14: the overlay behind the large view is rgba(6,20,30,.82) (spec row 14; PM ruling WO-M16293)."""
+        self.draw(pictures(1, size=(1600, 900)), 1400)
+        self.js("document.querySelector('.tpl-gal-open').click()")
+        self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+        self.assertEqual(self.js("getComputedStyle(document.querySelector('dialog.tpl-gal-large'), '::backdrop').backgroundColor"), "rgba(6, 20, 30, 0.82)")
+
+    def key(self, name, code):
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": name, "windowsVirtualKeyCode": code}, self.sid)
+
+    def test_the_close_button_reads_close_esc_and_is_the_white_pill(self):
+        """AP14 close (ruled WO-M16403; mock-up gallery-source.html:58 .lb button): visible text 'Close (Esc)', title and aria-label the same, white pill, padding 6px 14px, top 16 right 20."""
+        for width in (1400, 900):
+            self.draw(pictures(1, size=(1600, 900)), width)
+            self.js("document.querySelector('.tpl-gal-open').click()")
+            self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")), width)
+            v = self.js("""(function(){var b=document.querySelector('dialog.tpl-gal-large .tpl-gal-x'),s=getComputedStyle(b);
+              return [b.textContent.trim(), b.title, b.getAttribute('aria-label'), s.backgroundColor, s.paddingTop+' '+s.paddingRight+' '+s.paddingBottom+' '+s.paddingLeft, parseFloat(s.borderTopLeftRadius)>=b.getBoundingClientRect().height/2, s.top, s.right]})()""")
+            self.assertEqual(v, ["Close (Esc)", "Close (Esc)", "Close (Esc)", "rgb(255, 255, 255)", "6px 14px 6px 14px", True, "16px", "20px"], width)
+            self.js("document.querySelector('.tpl-gal-x').click()")
+            self.assertTrue(wait(lambda: not self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+
+    def test_pressing_escape_closes_the_large_view_and_focus_returns_to_the_opener(self):
+        self.draw(pictures(1, size=(1600, 900)), 1400)
+        self.js("document.querySelector('.tpl-gal-open').click()")
+        self.assertTrue(wait(lambda: self.js("!!document.querySelector('dialog.tpl-gal-large[open]')")))
+        self.key("Escape", 27)
+        self.assertTrue(wait(lambda: not self.js("!!document.querySelector('dialog.tpl-gal-large')")), "Esc removes the large view")
+        self.assertTrue(wait(lambda: self.js("document.activeElement.className") == "tpl-gal-open"), "focus is back on the opener")
+
+    def test_a_tile_caption_is_13px_slate_with_the_edit_caption_margin_at_1400_and_900(self):
+        """AP11 View .tcap: 13px, #475577, margin 8px 2px 0 (the same as the Edit caption .fcap, PM ruling 03:19), left aligned."""
+        for width in (1400, 900):
+            self.draw(pictures(1, caps=(0,), size=(1200, 900)), width)
+            c = self.js("(function(){var s=getComputedStyle(document.querySelector('.tpl-gal-fig figcaption'));return [s.fontSize,s.color,s.marginTop,s.marginRight,s.marginBottom,s.marginLeft,s.textAlign]})()")
+            self.assertEqual(c, ["13px", "rgb(71, 85, 119)", "8px", "2px", "0px", "2px", "left"], width)

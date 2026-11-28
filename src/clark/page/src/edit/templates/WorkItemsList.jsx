@@ -15,6 +15,8 @@ import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkIt
 import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
+import { listOrder, listSave, listType } from "../../logic/tableColumns.js";
+import { MOVED } from "../../logic/columnOrderWords.js";
 import { Cell } from "../cells/Cell.jsx";
 import { useColWidths, useColOrder } from "../colWidths.jsx";
 
@@ -72,8 +74,19 @@ const addOne = (kind) => addItem(kind, "report", true);
 export function Edit({ section }) {
   const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
   const gearRef = useRef(null);
+  const [said, setSaid] = useState("");          // row 1534: the last column move, for a screen reader (the Dashboard has no Work items live line)
   const cw = useColWidths(`wil-${section.id}`, classicTheme());      // row 1268, item 12: the page's column widths, kept for this list
-  const ord = useColOrder(`wil-${section.id}`);     // row 1195: the order of the columns (Classic), kept for this list
+  const typ = classicTheme() ? listType((filterOf(section) || {}).kinds) : null, co = (data.value || {}).project ? data.value.project.column_orders : null;
+  const shared = typ ? {      // row 1534: a list of one type moves the order saved for that type with the project (published); a mixed list keeps the order of this browser (row 1195)
+    read: () => (listOrder(co, typ, ["status", "owner", "due", "priority", "workstream", "milestone", "id"]) || []),
+    write: (o, id) => {
+      const next = listSave(co, typ, o), was = co, draw = (text) => { const d = data.value; if (d && d.project) data.value = { ...d, project: { ...d.project, column_orders: text } }; };
+      const lead = 1 + (latest().columns.includes("type") ? 1 : 0);      // the announcement counts every drawn column: the Item, and the Type when it is shown, come before the movable ones
+      draw(JSON.stringify(next)); setSaid(MOVED(WORDS.columns[id] || id, lead + o.indexOf(id) + 1, lead + o.length));
+      change({ kind: "projects", op: "update", changes: { column_orders: next }, place: "menu" }, "", { silent: true }).then((r) => { if (!r) draw(was === undefined || was === null ? "{}" : was); });
+    },
+  } : null;
+  const ord = useColOrder(`wil-${section.id}`, shared);     // row 1195: the order of the columns (Classic), kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -177,8 +190,9 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      {saved && rows.length ? <Listing max={list.max} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} ord={ord} head={headProps} /></Listing> : null}
+      {saved && rows.length ? <Listing max={list.max} count={rows.length} sid={section.id}><Rows typ={typ} rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} ord={ord} head={headProps} /></Listing> : null}
       {colMenu}
+      {typ ? <p class="sr" role="status" aria-live="polite" data-wil-live="">{said}</p> : null}
       {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>
   );

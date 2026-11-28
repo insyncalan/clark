@@ -146,7 +146,13 @@ class ClientPageFilters(unittest.TestCase):
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 if fake:
                     self.assertEqual(cdp.js("new Date().getFullYear()", sid), 2027, "the viewer's clock is a later year")
-                for value in ("overdue", "soon"):
+                self.click(cdp, sid, '[data-fb="due"]')      # row 1543 AP4 (review ruling): the file's Due filter does not offer Overdue
+                self.settle(cdp, sid, "!!document.querySelector('#fbox-due input')")
+                self.assertEqual(cdp.js("document.querySelectorAll('#fbox-due input[value=overdue]').length", sid), 0, "no Overdue option")
+                self.assertGreater(cdp.js("document.querySelectorAll('#fbox-due input').length", sid), 0, "control: the box has its options")
+                self.click(cdp, sid, '[data-fb="due"]')
+                self.settle(cdp, sid, "!document.querySelector('#fbox-due')")
+                for value in ("soon",):
                     self.tick(cdp, sid, "due", value)
                     self.settle(cdp, sid, "!!document.querySelector('[data-chip=due]')")
                     got[(name, value)] = sorted(self.ids(cdp, sid))
@@ -154,9 +160,7 @@ class ClientPageFilters(unittest.TestCase):
                     self.settle(cdp, sid, "!document.querySelector('[data-chip=due]')")
                     self.click(cdp, sid, '[data-fb="due"]')
                     self.settle(cdp, sid, "!document.querySelector('#fbox-due')")
-        self.assertIn("PUB-A-101", got[("true clock", "overdue")])
         self.assertIn("PUB-A-102", got[("true clock", "soon")])
-        self.assertEqual(got[("late clock", "overdue")], got[("true clock", "overdue")])
         self.assertEqual(got[("late clock", "soon")], got[("true clock", "soon")])
 
     def test_each_control_works(self):

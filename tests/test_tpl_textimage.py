@@ -25,7 +25,7 @@ from _pictures_page import BarePage
 from clark import changes, publish, section_bodies, server as sv
 from clark import store as store_module
 from clark.section_kinds import base, textimage
-from test_changes import Api
+import test_changes as _test_changes
 from test_report_editor import Base as PageBase
 from test_server import Running, chrome, wait
 
@@ -155,7 +155,7 @@ class RichWords(unittest.TestCase):
         self.assertTrue(callable(docx_build.section_textimage))
 
 
-class Route(PictureSteps, Api):
+class Route(PictureSteps, _test_changes.Api):
     def snapshot(self):
         con = sqlite3.connect(str(self.path))
         try:
@@ -267,7 +267,7 @@ class Http(unittest.TestCase):
         self.assertIn("/api/section-image", sv.POST_ROUTES)
 
 
-class InTheFile(PictureSteps, Api):
+class InTheFile(PictureSteps, _test_changes.Api):
     def test_a_filled_section_publishes_its_words_and_picture_and_an_empty_or_hidden_one_is_left_out(self):
         full = self.made(KIND, "Fictional site visit")
         self.words(full, {"v": 1, "words": WORDS, "caption": "Fictional hall", "alt": "The new hall"})

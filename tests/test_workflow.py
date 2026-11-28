@@ -82,7 +82,8 @@ class Workflow(unittest.TestCase):
         self.assertRegex(block(on, "macos", 6), r"type: boolean")
         self.assertIn("pull_request:", on)
         self.assertRegex(block(on, "pull_request", 2), r"types: \[opened, synchronize, reopened, labeled, unlabeled\]")
-        self.assertRegex(block(on, "push", 2), r"branches: \[main\]")
+        self.assertNotRegex(on, r"^  push:", "no Tests run on a push to main (Bifrost 2.0 P7)")
+        self.assertIn('if [ "${BRANCH#mergify/merge-queue/}" != "$BRANCH" ]; then FULL=1; fi', self.text)      # Mergify's combined run is the full Ubuntu run
 
     def test_the_merge_queue_trigger_and_its_full_run_plan_are_pinned(self):
         self.assertEqual(merge_queue_problems(self.text), [])
@@ -125,10 +126,11 @@ class Workflow(unittest.TestCase):
         self.assertIn("v0.1-release", docs)
         plan = self.jobs["plan"]
         self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
+        self.assertIn("cut-v*) FULL=1; SMOKE=1; CUT=1 ;;", plan)      # row 1602: a cut branch (cut-v1.3.13) runs the Mac smoke set, reported and never required
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; SMOKE=1 ;;", plan)      # a pull request: the Mac smoke set, not the full macOS suite
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1; SMOKE=1 ;;", plan)               # a push to main: full Ubuntu and the Mac smoke set (the owner, 24-11, row 1602)
+        self.assertNotRegex(plan, r"(?m)^\s*push\)")                  # no case for a push to main: nothing runs on one (Bifrost 2.0 P7), so a dead case would only mislead
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -153,7 +155,10 @@ class Workflow(unittest.TestCase):
         self.assertIn("rate limit|HTTP 429", plan)
         self.assertIn('[ "$ATTEMPT" -lt 4 ]', plan)
         # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
-        self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
+        # (the one expression with "files" in it is the hand-typed workflow_dispatch input, which is not a pull request's text and reaches the plan through env too)
+        files_input = "FILES_INPUT: ${{ github.event.inputs.files }}"
+        self.assertEqual(plan.count(files_input), 1)
+        self.assertNotRegex(plan.replace(files_input, ""), r"\$\{\{[^}]*(filename|files)")
 
     def test_never_pull_request_target_no_secrets_read_only(self):
         self.assertNotIn("pull_request_target", self.text)          # the header comment says "never"
@@ -171,8 +176,8 @@ class Workflow(unittest.TestCase):
 
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
         concurrency = block(self.text, "concurrency")
-        self.assertIn("group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}", concurrency)
-        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
+        self.assertIn("group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event_name == 'schedule' && format('nightly-{0}', github.run_id) || github.event.pull_request.number || github.ref }}", concurrency)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}", concurrency)      # spec change: a label event no longer cancels a run in flight
         self.assertNotIn("cancel-in-progress: true", concurrency)
 
     def test_ubuntu_24_04_newest_python_and_3_9_on_the_quick_tier(self):
@@ -186,12 +191,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}", py39)
         self.assertIn("SHARDS39='[1,2,3]'; COUNT39=3", self.jobs["plan"])
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards39) }}", py39)
-        # four shards on the full path, six on a wide change, three on the cheap path (as one shard it hit the 30-minute cap): the plan decides, the job reads it
+        # ten shards on the full path and on a wide change (row 1678), three on the cheap path (as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])      # wide, not full: six
-        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3,4]'; COUNT=4; fi", self.jobs["plan"])      # full: four
+        self.assertIn("SHARDS='[1,2,3,4,5,6,7,8,9,10]'; COUNT=10", self.jobs["plan"])      # wide, not full: ten (row 1678; was six: "SHARDS='[1,2,3,4,5,6]'; COUNT=6")
+        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3,4,5,6,7,8,9,10]'; COUNT=10; fi", self.jobs["plan"])      # full: ten (row 1678; was four: COUNT=4)
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)
@@ -201,7 +206,7 @@ class Workflow(unittest.TestCase):
         tests = self.jobs["tests"]
         self.assertIn("needs: plan", tests)
         self.assertIn("FULL: ${{ needs.plan.outputs.full }}", tests)
-        self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi', tests)
+        self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--changed origin/$BASE"; fi', tests)      # the affected tests only (Bifrost 2.0, P12; was --push: the quick tier too)
         self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', tests)
         # the second Python and macOS exist only on the full path
         self.assertIn("if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}", self.jobs["tests-py39"])
@@ -232,7 +237,11 @@ class Workflow(unittest.TestCase):
 
     def test_nine_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "9") for i in range(1, 10)})
+        # the nine entries are written by the plan (output macmatrix) and read by the job's matrix; the whole-suite paths still get all nine
+        self.assertIn("include: ${{ fromJSON(needs.plan.outputs.macmatrix) }}", mac)
+        self.assertNotRegex(mac, r"\{shard: \d+, shards: \d+\}")      # no second, hand-written list beside the plan's
+        for env in (dict(EVENT="schedule", BRANCH="main"), dict(EVENT="workflow_dispatch", BRANCH="main", MACOS_INPUT="true")):
+            self.assertEqual({(str(e["shard"]), str(e["shards"])) for e in self.mac_matrix(**env)}, {(str(i), "9") for i in range(1, 10)}, env)
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.15.2"', mac)       # T4: one pinned Python on macOS, never the floating 3.x
         self.assertNotIn('python-version: "3.x"', mac)
@@ -257,7 +266,7 @@ class Workflow(unittest.TestCase):
 
     def test_the_macos_job_pins_python_3_15_2_for_shards_1_to_9(self):
         mac = self.jobs["macos"]
-        self.assertEqual(sorted(int(i) for i, _ in re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), list(range(1, 10)))
+        self.assertEqual(sorted(e["shard"] for e in self.mac_matrix(EVENT="schedule", BRANCH="main")), list(range(1, 10)))
         self.assertEqual(mac.count("python-version:"), 1)        # one setup step, so every one of the nine shards runs the pinned Python
         self.assertIn('python-version: "3.15.2"', mac)
 
@@ -286,7 +295,7 @@ class Workflow(unittest.TestCase):
         passed = self.jobs["passed"]
         self.assertIn("name: Tests passed", passed)
         needs = re.search(r"needs: \[([^\]]*)\]", passed).group(1)
-        self.assertEqual({n.strip() for n in needs.split(",")}, set(self.jobs) - {"passed"})
+        self.assertEqual({n.strip() for n in needs.split(",")}, set(self.jobs) - {"passed", "shard-times"})      # the nightly's refreshed times never decide the gate
         self.assertIn("if: ${{ !cancelled() }}", passed)         # a run cancelled by a newer one posts no red gate
         self.assertNotIn("always()", passed)
         for line in ("PLAN: ${{ needs.plan.result }}", "TESTS: ${{ needs.tests.result }}", "PY39: ${{ needs.tests-py39.result }}",
@@ -312,7 +321,7 @@ class Workflow(unittest.TestCase):
         self.assertNotIn('- cron: "0 23 * * 0"', wf)
         self.assertEqual(wf.count("- cron:"), 1)
         self.assertIn("schedule) FULL=1; MACOS=1; ADVISORY=1 ;;", wf)      # the nightly: full macOS, advisory
-        self.assertIn("push) FULL=1; SMOKE=1 ;;", wf)                     # a push to main: the smoke set, no shards
+        self.assertNotRegex(wf, r"(?m)^\s*push\)")                       # no push case (see the plan test); the smoke set comes from the pull request cases
         self.assertNotIn("push) FULL=1; MACOS=1", wf)
         smoke = self.jobs["macos-smoke"]
         self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
@@ -340,12 +349,10 @@ class Workflow(unittest.TestCase):
             return dict(ln.split("=", 1) for ln in open(out, encoding="utf-8").read().splitlines() if "=" in ln)
 
     def test_macos_smoke_is_required_and_the_full_suite_runs_only_nightly_or_by_hand(self):
-        """The plan, run for real: push to main and a release line get the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
+        """The plan, run for real: there is no push trigger (P7), so no push case; a pull request into a release line gets the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
         a hand-started run with macos=true on a release branch gets the shards (required) in place of the smoke set; an ordinary branch gets neither."""
         cases = (
-            (dict(EVENT="push", BRANCH="main"), "", "1", ""),
             (dict(EVENT="schedule", BRANCH="main"), "1", "", "1"),
-            (dict(EVENT="push", BRANCH="release-1.3.11"), "", "1", ""),
             (dict(EVENT="pull_request", BRANCH="x", BASE_REF="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", ""),
@@ -358,6 +365,169 @@ class Workflow(unittest.TestCase):
             self.assertEqual((out.get("macos", ""), out.get("smoke", ""), out.get("advisory", "")), (macos, smoke, advisory), env)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("py39", ""), "")      # Python 3.9 stays off a push to main (owner's order 08-11)
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="release-1.3.11").get("py39"), "1")
+
+    NINE = [{"shard": i, "shards": 9} for i in range(1, 10)]
+
+    def mac_matrix(self, **env):
+        """The macOS matrix the plan writes for these env values: the parsed JSON list of {shard, shards} entries."""
+        import json
+        return json.loads(self.plan_outputs(**env)["macmatrix"])
+
+    def test_a_hand_started_run_that_names_test_files_uses_one_macos_job(self):
+        """The owner, 26-11: 'a named-file run uses one Mac job'. Run 45805635711 named one file with macos=true and started nine macOS jobs,
+        eight of them with no file to run. The plan, run for real: test files named gives ONE entry, shard 1/1; the whole suite keeps its nine."""
+        hand = dict(EVENT="workflow_dispatch", BRANCH="main", MACOS_INPUT="true")
+        for files in ("test_ask_btn_dot_1349.py", "--repeat 10 test_ask_btn_dot_1349.py", "test_layout test_milestones",
+                      "  test_layout  ", "test_layout.LayoutTest.test_x", "--quick test_layout --max-fail 3", "-j 1 test_layout"):
+            out = self.plan_outputs(FILES_INPUT=files, **hand)
+            self.assertEqual(self.mac_matrix(FILES_INPUT=files, **hand), [{"shard": 1, "shards": 1}], files)
+            self.assertEqual(out.get("macos"), "1", files)      # still wanted, so still required by the gate
+        # the whole suite, by hand and in the nightly, keeps the full list
+        self.assertEqual(self.mac_matrix(**hand), self.NINE)
+        self.assertEqual(self.mac_matrix(EVENT="schedule", BRANCH="main"), self.NINE)
+        # not a named test file: nothing typed, blanks, options only, an option's value that has test_ in it, a bare `test_`, a name with no test_ in it,
+        # a shell pattern (never expanded). All keep the nine, which is what main did for every input.
+        for files in ("", "   ", "--repeat 10", "--quick", "--push origin/test_branch", "--results test_out.json --repeat 2", "test_", "vendor", "*", "-test_x"):
+            self.assertEqual(self.mac_matrix(FILES_INPUT=files, **hand), self.NINE, repr(files))
+
+    def test_the_macos_matrix_is_never_empty_and_never_decides_whether_macos_runs(self):
+        """An empty matrix would skip the job with nobody asking for it. Every path writes a list of at least one entry, and naming files changes
+        neither `macos` (the job's `if`, and the gate's WANT_MACOS) nor any other output."""
+        import json
+        for env in (dict(EVENT="push", BRANCH="main"), dict(EVENT="merge_group", BRANCH="main"), dict(EVENT="schedule", BRANCH="main"),
+                    dict(EVENT="workflow_dispatch", BRANCH="team-x"), dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true"),
+                    dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), dict(EVENT="workflow_dispatch", BRANCH="cut-v1.3.13")):
+            plain = self.plan_outputs(**env)
+            named = self.plan_outputs(FILES_INPUT="--repeat 10 test_ask_btn_dot_1349.py", **env)
+            for out in (plain, named):
+                matrix = json.loads(out["macmatrix"])
+                self.assertGreaterEqual(len(matrix), 1, env)
+                for e in matrix:      # each entry is a real shard of its own count
+                    self.assertEqual(set(e), {"shard", "shards"}, env)
+                    self.assertTrue(1 <= e["shard"] <= e["shards"], env)
+                self.assertEqual(sorted(e["shard"] for e in matrix), list(range(1, matrix[0]["shards"] + 1)), env)      # every shard of the count, once
+            self.assertEqual({k: v for k, v in plain.items() if k != "macmatrix"}, {k: v for k, v in named.items() if k != "macmatrix"}, env)
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("macmatrix: ${{ steps.plan.outputs.macmatrix }}", text)      # declared by the plan job, or the job's matrix reads an empty string
+        self.assertIn('echo "macmatrix=$MACMATRIX" >> "$GITHUB_OUTPUT"', text)
+        self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", self.jobs["macos"])      # the job's `if` is the only thing that skips it
+
+    def test_shard_one_of_one_holds_every_named_file_and_the_gate_rule_is_as_it_was(self):
+        """The one macOS job runs `--shard 1/1` followed by the typed words as given: shard 1 of 1 is every chosen file, so no named file is dropped
+        (on main the file sat in one of nine shards and the other eight ran nothing). The gate reads needs.macos.result exactly as before."""
+        run = [sys.executable, str(ROOT / "dev" / "run_tests.py"), "--list"]
+        named = ["test_workflow.py", "test_run_tests", "test_ci_scan"]
+        whole = subprocess.run(run + named, cwd=ROOT, capture_output=True, text=True, timeout=120).stdout.split("\n")
+        one = subprocess.run(run + ["--shard", "1/1"] + named, cwd=ROOT, capture_output=True, text=True, timeout=120).stdout.split("\n")
+        self.assertGreaterEqual(len([ln for ln in whole if ln.startswith("test_")]), 3)
+        self.assertEqual([ln for ln in one if ln.startswith("test_")], [ln for ln in whole if ln.startswith("test_")])
+        mac = self.jobs["macos"]
+        self.assertIn("FILES: ${{ github.event.inputs.files }}", mac)
+        self.assertIn('python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', mac)      # the typed words, as given, last
+        # the gate: a wanted macOS job (nine shards or one) must be success; failure, cancelled and skipped are red; not wanted must be skipped
+        self.assertTrue(self.gate_passes(WANT_MACOS="1", MACOS="success"))
+        for result in ("failure", "cancelled", "skipped"):
+            self.assertFalse(self.gate_passes(WANT_MACOS="1", MACOS=result), result)
+        self.assertTrue(self.gate_passes(WANT_MACOS="", MACOS="skipped"))
+        for result in ("success", "failure", "cancelled"):
+            self.assertFalse(self.gate_passes(WANT_MACOS="", MACOS=result), result)
+        for result in ("failure", "cancelled", "skipped", "success"):      # the nightly is advisory, as before
+            self.assertTrue(self.gate_passes(WANT_MACOS="1", ADVISORY="1", MACOS=result, EVENT="schedule"), result)
+        passed = self.jobs["passed"]
+        self.assertIn("MACOS: ${{ needs.macos.result }}", passed)
+        self.assertNotIn("macmatrix", passed)      # the gate never reads the matrix, only the one result
+        self.assertNotIn("FILES", passed)
+
+    def test_the_plan_knows_every_run_tests_option_that_takes_a_value(self):
+        """The plan skips the word after an option that takes a value (`--repeat 10`, `--push origin/test_x`), so a value is never read as a file
+        name. Its list is every such option of dev/run_tests.py."""
+        src = (ROOT / "dev" / "run_tests.py").read_text(encoding="utf-8")
+        takes_value = {m.group(1) for m in re.finditer(r'ap\.add_argument\("(-[\w-]+)"([^\n]*)\)', src) if "action=" not in m.group(2)}
+        self.assertIn("--repeat", takes_value)
+        self.assertNotIn("--quick", takes_value)
+        arm = re.search(r"^\s*(-j\|[^)\s]+)\) PREV=", self.jobs["plan"], re.M)
+        self.assertTrue(arm, "the plan has no list of options that take a value")
+        self.assertEqual(set(arm.group(1).split("|")), takes_value)
+
+    def gate_passes(self, **env):
+        """Run the 'Tests passed' job's script as bash -e (as GitHub runs a step) with these env values and say whether it passes."""
+        import os
+        passed = self.jobs["passed"]
+        body = passed[passed.index("run: |\n") + len("run: |\n"):]
+        script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
+        base = {"PATH": os.environ["PATH"], "PLAN": "success", "TESTS": "success", "PY39": "success", "MACOS": "skipped", "SMOKE": "success",
+                "WANT_SMOKE": "1", "ADVISORY": "", "CUT": "", "WANT_PY39": "1", "WANT_MACOS": "", "EVENT": "workflow_dispatch"}
+        ran = "success" if env.get("EVENT") == "pull_request" else "skipped"      # the named tests and the 3.9 compile check run on a pull request only
+        base.update({"NAMED": ran, "COMPILE39": ran})
+        base.update(env)
+        return subprocess.run(["bash", "-e", "-c", script], env=base, capture_output=True, text=True, timeout=60).returncode == 0      # -e: as GitHub runs a step
+
+    def test_a_cut_runs_the_mac_smoke_set_and_reports_it_but_a_red_smoke_never_stops_it(self):
+        """the owner, 26-11 (row 1602, question 74): 'the smoke set runs on every cut and is reported, but never stops it'. A cut-v* branch gets the smoke set
+        (and no full macOS shards) and the plan marks it as a cut; the gate then ignores the smoke result. A release-* branch is unchanged: the smoke is required."""
+        cut = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="cut-v1.3.13")
+        self.assertEqual((cut.get("smoke"), cut.get("cut"), cut.get("macos", "")), ("1", "1", ""))
+        rel = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="release-1.3.11")
+        self.assertEqual((rel.get("smoke"), rel.get("cut", ""), rel.get("macos", "")), ("1", "", ""))
+        self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("cut", ""), "")
+        for result in ("failure", "cancelled", "success", "skipped"):      # a cut: whatever the smoke did, the gate stays green
+            self.assertTrue(self.gate_passes(CUT="1", SMOKE=result), f"cut, smoke {result}")
+        self.assertFalse(self.gate_passes(CUT="1", TESTS="failure"))      # the Ubuntu tests still stop a cut
+        self.assertTrue(self.gate_passes(SMOKE="success"))                # a release line or a push to main: the smoke is still required
+        for result in ("failure", "cancelled", "skipped"):
+            self.assertFalse(self.gate_passes(SMOKE=result), f"release line, smoke {result}")
+
+    def test_a_pull_request_runs_its_named_tests_the_affected_tests_and_the_3_9_compile_check(self):
+        """Bifrost 2.0, P12, box 4: a pull request push runs only the named tests (the test files it adds or changes, a fast job of its own) and
+        the affected tests (--changed), plus the Python 3.9 compile check; the gate needs all three on a pull request and none of the two new ones elsewhere."""
+        named, compile39 = self.jobs["named"], self.jobs["py39-compile"]
+        for body in (named, compile39):
+            self.assertIn("if: ${{ github.event_name == 'pull_request' }}", body)
+        self.assertIn("""git diff --name-only --no-renames --diff-filter=AM "origin/$BASE...HEAD" -- 'tests/test_*.py'""", named)
+        self.assertIn('python3 dev/run_tests.py -j 4 --max-fail 8 "${NAMED[@]}"', named)
+        self.assertIn("fetch-depth: 0", named)
+        self.assertIn('python-version: "3.9"', compile39)
+        self.assertIn("run: python3 dev/tools/pre_ci.py --compile39", compile39)
+        self.assertNotIn("run_tests.py", compile39)                                   # a compile check, no tests on 3.9
+        self.assertNotIn("--push", self.jobs["tests"])
+        self.assertTrue(self.gate_passes(EVENT="pull_request"))
+        for one in ("NAMED", "COMPILE39"):
+            for result in ("failure", "cancelled", "skipped"):
+                self.assertFalse(self.gate_passes(EVENT="pull_request", **{one: result}), f"{one} {result}")
+            self.assertFalse(self.gate_passes(**{one: "success"}), f"{one} ran outside a pull request")
+
+    def test_a_moved_test_file_is_one_of_the_named_tests(self):
+        """Found in the second read of 5b4fdff4: git reports a moved file as R, so with --diff-filter=AM a renamed test file was not
+        listed and never ran. The workflow's own git command runs here on a fixture with a moved test file."""
+        from _pr_fixture import PrFixture
+        command = re.search(r"< <\((git diff [^)]*)\)", self.jobs["named"]).group(1)
+        with PrFixture() as pr:
+            pr.git("mv", "tests/test_mod.py", "tests/test_moved.py")
+            pr.commit("move a test file")
+            pr.git("update-ref", "refs/remotes/origin/main", pr.base)
+            out = subprocess.run(["bash", "-c", command], cwd=pr.dir, env=dict(pr.env, BASE="main"), capture_output=True, text=True)
+        self.assertEqual((out.returncode, out.stdout.split()), (0, ["tests/test_moved.py"]), out.stderr)
+
+    def test_the_nightly_is_never_cancelled_and_hands_over_refreshed_shard_times_and_flaky_classes(self):
+        """Bifrost 2.0, P12, boxes 6 and 7: the nightly has a concurrency group of its own, runs the quarantined files too, and its last job builds
+        dev/tools/shard_times.txt from the real times of the shards and uploads it. Every Ubuntu job uploads its DEFECT and FLAKE classes, which
+        dev/tools/flaky_quarantine.py counts. The workflow still writes nothing: no write permission, no token."""
+        self.assertIn("github.event_name == 'schedule' && format('nightly-{0}', github.run_id)", block(self.text, "concurrency"))
+        tests, times = self.jobs["tests"], self.jobs["shard-times"]
+        self.assertIn('if [ "$EVENT" = "schedule" ]; then SCOPE="--with-quarantined"; fi', tests)
+        self.assertIn("CLARK_RESULTS: ${{ runner.temp }}/test-results.json", tests)
+        self.assertIn("name: test-classes-ubuntu-${{ matrix.shard }}", tests)
+        self.assertIn("name: durations-${{ matrix.shard }}", tests)
+        self.assertIn("path: tests/.durations", tests)
+        self.assertIn("if: ${{ always() && github.event_name == 'schedule' }}", tests)
+        self.assertIn("name: test-classes-named", self.jobs["named"])
+        self.assertIn("if: ${{ !cancelled() && github.event_name == 'schedule' }}", times)
+        self.assertIn("needs: tests", times)
+        self.assertIn("pattern: durations-*", times)
+        self.assertIn('run: python3 dev/tools/shard_refresh.py --durations "$DURATIONS"', times)
+        self.assertIn("name: shard-times\n          path: dev/tools/shard_times.txt", times)      # the artifact name Bifrost 2.0 (nightly_handover.shard_times_pr) downloads; the file it commits
+        self.assertNotIn("git push", self.text)
+        self.assertNotIn(": write", self.text)
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 

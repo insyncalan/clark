@@ -161,8 +161,9 @@ export function SourceLine({ text }) {
 // The editor's peek passes dated={false}: its Achieved on row carries the date, so the date is shown once (the client's peek has no such row, so its chip keeps it).
 export function MsState({ m, dated = true }) {
   const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
-  const look = LOOK[state] || LOOK.Forecast;
-  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
+  const quiet = fromFile.value && (state === "Overdue" || state === "Slipped");      // row 1543 AP4: a published file's peek has no Late word and no colour for a passed or slipped milestone
+  const look = quiet ? ["grey", (LOOK[state] || LOOK.Forecast)[1]] : LOOK[state] || LOOK.Forecast;
+  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : fromFile.value && state === "Overdue" ? DASH : (fromFile.value && m.state_word) || state;
   return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
 }
 export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;

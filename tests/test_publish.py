@@ -563,7 +563,7 @@ class TheFile(Plant):
         # for 40,000); it is now the growth from 40,000 to 160,000 repeats in CPU time (growth_ratio, as in test_publish_public).
         for name, make in (("end tags with no >", lambda n: "<style>" + "</style " * n), ("starts with no >", lambda n: "<style " * n),
                            ("starts and ends", lambda n: "<style>" + "</style x>" * n), ("starts alone", lambda n: "<style>" * n)):
-            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 40000, name)
+            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 40000, name, repeats=5)
 
     def test_style_dash_x_is_not_an_end_tag(self):
         self.assertEqual(publish.style_texts("<style>a{}</style-x>b{}</style>"), ["a{}</style-x>b{}"])
@@ -1179,7 +1179,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones')", sid)))
             milestones = cdp.js("document.querySelector('#milestones').textContent", sid)
             dom = cdp.js("document.documentElement.outerHTML", sid)
-        self.assertEqual(tiles, ["health", "overdue", "risks"], "the file draws the At a glance tiles; their numbers are checked in test_publish_glance")
+        self.assertEqual(tiles, ["health", "risks"], "the file draws the At a glance tiles; their numbers are checked in test_publish_glance")
         self.assertIn("5 items", work, "the list says how many it holds: the kept rows only")
         self.assertIn("ZQ-KEEP-MILESTONE-1", milestones)
         self.assertNotIn("ZQ-FLAG-OFF-MILESTONE", milestones)
@@ -1212,13 +1212,19 @@ class RealBrowser(unittest.TestCase):
             # any other button there (an eye, Export, Hold) is an Edit control and fails, as does every button outside the block.
             # The reader's badge (.cm-wrap, issue 713) is the one other button: it changes only how the page looks for them (their own Light / Dark choice).
             allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b, .mv-mk, .mv-lab, .mv-lab2, [data-msdet]"
+            # Row 1543: the bar's search button (exactly the id pub-search-btn, a native button) is the one more button: it opens the read only search box and edits nothing.
+            # The box (dialog#report-search, with its one input) is drawn only while it is open, so a file at rest holds no form field: fields stays 0 and no input is allowed.
+            search = "#pub-search-btn"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.classList.contains('asat') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.classList.contains('asat') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance') && !b.matches(" + json.dumps(search) + ")).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
             logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)
+            probe = cdp.js(f"({{tags: [...document.querySelectorAll({json.dumps(search)})].map(b => b.tagName), box: document.querySelectorAll('#report-search').length}})", sid)
         self.assertEqual(logo, "SPAN", "row 854: the published file's logo is plain, not a Home button")
+        self.assertEqual(found["fields"], 0, "no form field in a file at rest: the search box and its input are drawn only while the box is open")
+        self.assertEqual(probe, {"tags": ["BUTTON"], "box": 0}, "row 1543: exactly one search button, a native button, and no search box while it is closed")
         self.assertEqual(found, {"fields": 0, "design": "off", "editable": False, "buttons": 0, "unlisted": 0, "settings": False, "mode": "view"})
 
     def test_C_boxed_width_1232_at_1400_and_no_sideways_scroll_at_900(self):

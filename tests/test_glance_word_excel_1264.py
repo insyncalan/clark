@@ -84,14 +84,15 @@ class Word(unittest.TestCase):
         pub = select(body(builtin={"risks": {"hidden": True}}))
         t = alltext(pub)
         self.assertNotIn("High risks and issues", t)
-        self.assertIn("Overdue actions", t)
+        self.assertNotIn("Overdue actions", t)      # row 1543 AP4: the client Word copy has no Overdue actions tile, shown or not
         self.assertIn("Decisions needed", t)
 
     def test_the_counts_are_the_views(self):
         pub = select()
         c = counts(pub)
         t = lines(pub)
-        for key in ("overdue", "risks", "decisions"):
+        self.assertNotIn(c["overdue"]["title"], t)      # row 1543 AP4: the client Word copy has no Overdue actions tile
+        for key in ("risks", "decisions"):
             self.assertIn(c[key]["title"], t)
             self.assertIn(str(c[key]["value"]), t)
             self.assertIn(c[key]["detail"], t)
@@ -99,12 +100,12 @@ class Word(unittest.TestCase):
     def test_the_tiles_are_in_the_bodys_order(self):
         pub = select(body(order=["mor", "decisions", "bud", "health", "risks", "overdue"]))
         t = lines(pub)
-        at = [t.index(w) for w in ("ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues", "Overdue actions")]
+        at = [t.index(w) for w in ("ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues")]      # row 1543 AP4: no Overdue actions tile in the client copy
         self.assertEqual(at, sorted(at))
 
     def test_the_default_order_is_health_then_the_counts_then_the_bespoke_tiles(self):
         t = lines(select())
-        at = [t.index(w) for w in ("Project health", "Overdue actions", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale")]
+        at = [t.index(w) for w in ("Project health", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale")]      # row 1543 AP4: no Overdue actions tile
         self.assertEqual(at, sorted(at))
 
     def test_health_off_means_no_health_tile(self):
@@ -168,7 +169,7 @@ class Word(unittest.TestCase):
     def test_killer_a_counting_tile_is_shaded_in_its_colour_and_the_health_tile_in_the_projects(self):
         xml = zipfile.ZipFile(io.BytesIO(docx_build.build(select()))).read("word/document.xml").decode("utf-8")
         cells = re.findall(r"<w:tc>.*?</w:tc>", xml, re.S)
-        for word, tone in (("Overdue actions", "green"), ("High risks and issues", "red"), ("Project health", "amber")):
+        for word, tone in (("High risks and issues", "red"), ("Project health", "amber")):
             cell = next(c for c in cells if word in c)
             self.assertIn(f'w:fill="{docx_build.TOKENS["tone-" + tone + "-tint"]}"', cell, word)
 
@@ -188,7 +189,7 @@ class Word(unittest.TestCase):
 class Excel(unittest.TestCase):
     def test_the_sheet_has_a_row_for_each_kept_tile_in_order(self):
         rows = sheet_rows(select())
-        self.assertEqual([r[0] for r in rows], ["Project health", "Overdue actions", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale"])
+        self.assertEqual([r[0] for r in rows], ["Project health", "High risks and issues", "Decisions needed", "ZQ-Budget", "ZQ-Morale"])      # row 1543 AP4b: no Overdue actions row in the client workbook
 
     def test_a_bespoke_row_has_label_figure_tag_note(self):
         rows = {r[0]: r for r in sheet_rows(select())}
@@ -199,13 +200,14 @@ class Excel(unittest.TestCase):
         pub = select()
         c = counts(pub)
         rows = {r[0]: r for r in sheet_rows(pub)}
-        for key in ("overdue", "risks", "decisions"):
+        self.assertNotIn(c["overdue"]["title"], rows)      # row 1543 AP4b: the client workbook has no Overdue actions row
+        for key in ("risks", "decisions"):
             self.assertEqual(rows[c[key]["title"]][1], str(c[key]["value"]))
             self.assertEqual(rows[c[key]["title"]][3], c[key]["detail"])
 
     def test_the_order_is_the_bodys(self):
         rows = sheet_rows(select(body(order=["mor", "decisions", "bud", "health", "risks", "overdue"])))
-        self.assertEqual([r[0] for r in rows], ["ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues", "Overdue actions"])
+        self.assertEqual([r[0] for r in rows], ["ZQ-Morale", "Decisions needed", "ZQ-Budget", "Project health", "High risks and issues"])      # row 1543 AP4b: no Overdue actions row
 
     def test_hidden_tiles_are_absent(self):
         rows = sheet_rows(select(body(builtin={"overdue": {"hidden": True}}, health={"shown": False})))

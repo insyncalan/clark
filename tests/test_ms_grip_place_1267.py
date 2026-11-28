@@ -7,7 +7,7 @@ import unittest
 
 import test_ms_header_1230 as H
 from _new_page import reload_to_new_page_cdp
-from test_server import chrome, wait
+from test_server import chrome, restore_done, wait
 
 PCT = "document.querySelector('[data-place] .mv-wrap').dataset.zoomPct"
 
@@ -19,11 +19,12 @@ class ZoomPerPlace(H.Base):
 
     def drag_grip(self, cdp, sid, scope, dy):
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 10))
+        restore_done(cdp, sid)
         cdp.js(f"document.querySelector('{scope} [data-grip]').scrollIntoView({{block: 'center', behavior: 'instant'}})", sid)
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 10))
         read = f"""(() => {{ const g = document.querySelector('{scope} [data-grip]'); const r = g.getBoundingClientRect();
             const x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
-            return [x, y, !!hit && hit.closest('[data-grip]') === g]; }})()"""
+            return [x, y, !!hit && hit.closest('[data-grip]') === g, window.scrollY]; }})()"""
         seen = []
 
         def settled():

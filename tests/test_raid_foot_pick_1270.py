@@ -111,13 +111,20 @@ class Edit(PageBase):
     def stored(self, sec):
         return json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
 
-    def test_picker_count_remove_and_choices(self):
+    def test_picker_count_remove_and_choices_at_1400(self):
+        self.picker_flow(1400)
+
+    def test_picker_count_remove_and_choices_at_900(self):
+        self.picker_flow(900)
+
+    def picker_flow(self, width):
         sec, made = self.seed()
         q = f"[data-id={json.dumps(sec)}]"
         click = lambda p, sel: p.js(f"document.querySelector({json.dumps(sel)}).click()")
         with chrome() as cdp:
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             p.edit()
             p.until(f"!!document.querySelector('{q} .rce-count')", "the count is there")
             self.assertEqual(p.js(f"document.querySelector('{q} .rce-count').textContent"), "2 of 8 picked")
@@ -139,6 +146,41 @@ class Edit(PageBase):
             self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0].get("show") == {"rating": False}), str(self.stored(sec)))
             click(p, f"{q} button[aria-label='Remove card 1']")
             self.assertTrue(self.wait_for(lambda: [c["id"] for c in self.stored(sec)["cards"]] == made[1:]), "Remove card 1 takes the first card out")
+
+    def test_the_picker_refuses_hidden_and_archived_items(self):
+        sec, made = self.seed()
+        with self.store.step("dashboard", USER) as st:
+            keep = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional shown risk", "raised": "2026-10-01", "source": "demo"})
+            old = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional archived risk", "raised": "2026-10-01", "source": "demo"})
+            hid = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional hidden risk", "raised": "2026-10-01", "source": "demo"})
+            st.archive("raid", old)
+            st.update("raid", hid, {"client_visible": 0})
+        q = f"[data-id={json.dumps(sec)}]"
+        opts = f"{q} .rce-opts button"
+        search = lambda p, v: p.js(f"(function(){{ const i = document.querySelector('{q} input[type=search]'); i.value = {json.dumps(v)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+        with chrome() as cdp:
+            cdp.FOCUS_EMULATION = False
+            p = self.visit(cdp)
+            p.edit()
+            for w, dark in ((1400, False), (900, False), (1400, True), (900, True)):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("document.documentElement.dataset.theme = %s" % json.dumps("dark" if dark else "light"))
+                p.until(f"!!document.querySelector('{q} .rce-pick')", "the picker button")
+                if not p.js(f"!!document.querySelector('{q} input[type=search]')"):
+                    p.js(f"document.querySelector('{q} .rce-pick').click()")
+                p.until(f"!!document.querySelector('{q} input[type=search]')", "the search is there")
+                search(p, "")
+                p.until(f"document.querySelectorAll('{opts}').length > 0", "the list")
+                listed = p.js(f"[...document.querySelectorAll('{opts}')].map(b => b.dataset.pick)")
+                self.assertIn(keep, listed, "a shown item is offered at %d" % w)
+                self.assertNotIn(old, listed, "an archived item is not offered at %d" % w)
+                self.assertNotIn(hid, listed, "an item hidden from the client is not offered at %d" % w)
+                self.assertFalse(p.js(f"[...document.querySelectorAll('{opts}')].some(b => b.scrollWidth > b.clientWidth + 1)"), "no sideways overflow in the list at %d" % w)
+                for gone in (old, hid):
+                    search(p, gone)
+                    p.until(f"(document.querySelector('{q} .rce-none')||{{}}).textContent === 'No item matches' && document.querySelectorAll('{opts}').length === 0", "No item matches for %s at %d" % (gone, w))
+                search(p, keep)
+                p.until(f"document.querySelectorAll('{opts}').length === 1", "its own ID finds a shown item")
 
 
 if __name__ == "__main__":

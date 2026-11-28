@@ -530,7 +530,7 @@ class Published(PublishedFile, Setup):
         text = path.read_text(encoding="utf-8")
         for planted in ("ZQ-client-off risk", "ZQ-hidden risk", "ZQ-client-off decision", "ZQ-hidden decision"):
             self.assertNotIn(planted, text, "a left-out item is not in the file")
-        for tile in ("overdue", "risks", "decisions"):
+        for tile in ("risks", "decisions"):      # row 1543 AP4: a published file has no Overdue actions tile
             for width in (1400, 900):
                 with self.subTest(tile=tile, width=width), chrome() as cdp:
                     p = self.draw(cdp, path, width)
@@ -538,7 +538,7 @@ class Published(PublishedFile, Setup):
                     self.assertEqual(p.js(f"document.querySelector('[data-fig={tile}]').tagName"), "BUTTON", "a published tile is a button")
                     self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
                     shown = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
-                    self.assertEqual(shown, {"overdue": 1, "risks": 2, "decisions": 2}[tile], "the file's own figure, not the project's")
+                    self.assertEqual(shown, {"risks": 2, "decisions": 2}[tile], "the file's own figure, not the project's")
                     p.js(f"document.querySelector('[data-fig={tile}]').click()")
                     p.until("location.hash.startsWith('#work')", "the file's Work items opened")
                     p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
@@ -552,7 +552,7 @@ class Published(PublishedFile, Setup):
         path = self.publish()
         seen = {}
         for width in (1400, 900):
-            for tile in ("overdue", "risks"):
+            for tile in ("risks",):      # row 1543 AP4: a published file has no Overdue actions tile
                 with self.subTest(width=width, tile=tile), chrome() as cdp:
                     p = self.draw(cdp, path, width)
                     p.until(f"!!document.querySelector('[data-fig={tile}] .v')", "the published tile drew")
@@ -564,7 +564,7 @@ class Published(PublishedFile, Setup):
                     ids = p.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)")
                     self.assertEqual(len(ids), value, "the rows shown are the ones the tile counted")
                     seen.setdefault(tile, set()).update(ids)
-        self.assertTrue(seen["overdue"].isdisjoint(seen["risks"]), "the two tiles open different rows")
+        self.assertEqual(set(seen), {"risks"}, "the file's only counting tile here is the risks one")
 
     def test_row_1112_the_risks_tile_opens_exactly_the_rows_it_counted(self):
         self.demo.plant_builtin_sections()      # published tiles are buttons only with a built-in section to open (row 1193)
@@ -589,7 +589,7 @@ class Published(PublishedFile, Setup):
         with chrome() as cdp:
             p = self.draw(cdp, path, 1400)
             p.js("document.documentElement.classList.add('print-all')")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "0px", "the print reset does not strip the tile")      # Cards is unmaintained (row 1363): the Classic tile has no border; Cards had 1px
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=risks]')).borderTopWidth"), "0px", "the print reset does not strip the tile")      # Cards is unmaintained (row 1363): the Classic tile has no border; Cards had 1px
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.glance .fig .v')).display === 'none'"), False)
 
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
@@ -598,14 +598,14 @@ class Published(PublishedFile, Setup):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
                 p.until("document.querySelectorAll('.glance > .tcell').length > 0 && !!document.querySelector('.uctotal')", "the file's tiles and use cases drew")
-                self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue", "risks"])
-                self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the client counts only what the file holds")
+                self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "risks"])      # row 1543 AP4: no Overdue actions tile in the file
+                self.assertEqual(p.js("document.querySelector('[data-fig=risks] .v').textContent"), "1", "the client counts only what the file holds")
                 self.assertEqual(p.js("document.querySelectorAll('.glance button:not(.fig), .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
                 self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill').length"), 0)
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
-                health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
-                # Classic draws the wide health tile and the overdue tile in the measured widths (row 1363: measured on the Classic page, 11-19); 1400 is (476, 244) since the Row 1318 follow-up rule (frame padding-left 0), measured in code, not a mock-up value
-                self.assertEqual((round(health), round(overdue)), {1400: (476, 244), 900: (777, 380)}[width], "the Classic tile widths")
+                health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "risks"))
+                # Classic draws the wide health tile and the risks tile in the measured widths (row 1363: measured on the Classic page, 11-19); 1400 is (476, 244) since the Row 1318 follow-up rule (frame padding-left 0), measured in code, not a mock-up value
+                self.assertEqual((round(health), round(overdue)), {1400: (714, 250), 900: (777, 777)}[width], "the Classic tile widths")      # row 1543 AP4: the file has no Overdue actions tile, so Project health and the one risks tile take the 75% / 25% row 1303 gives a health tile with one other (measured in Chrome)
 
     def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
         """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""
@@ -654,7 +654,7 @@ class Published(PublishedFile, Setup):
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
-            self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue"], "absent, not dimmed")
+            self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health"], "absent, not dimmed")
             self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "1 use case")
             self.assertNotIn("Payment runs", p.js("document.body.innerText"))
 

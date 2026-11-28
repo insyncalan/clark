@@ -3,7 +3,7 @@
 // the server for, or why it can't be done. The page's drop indicator, its Move to... menu and its drop all use moveFor, so
 // they cannot disagree. A refusal is made here, in plain words, before anything reaches the server; the server still checks
 // everything again (src/clark/changes.py). The remembered state is at the foot. There is no op here that takes an item away.
-import { KIND_WORDS, dayNumber, dueCell, dueField, isOpen, ownerOf, pillOf, rowsOf } from "../workItems.js";
+import { KIND_WORDS, dayNumber, dueCell, dueField, isOpen, onPublishedPage, ownerOf, pillOf, rowsOf } from "../workItems.js";
 
 // Where on the page the change was made: the step's place. The store, changes.PLACES and the schema's CHECK know "board"
 // since #126 (the tests follow changes.PLACES by themselves).
@@ -87,7 +87,7 @@ export const fridayOnOrAfter = (n) => n + ((5 - weekdayOf(n) + 7) % 7);
 export const weekEndOf = (today) => { const t = dayNumber(today); return t === null ? null : isoOf(fridayOnOrAfter(t)); };
 
 function bucketOf(a, t) {
-  if (a < t) return "overdue";
+  if (a < t) return onPublishedPage() ? "past" : "overdue";      // row 1543 AP4: a published file has no Overdue group: an open item with a passed date is in "Earlier" (the Due filter's word for a past date)
   const end = fridayOnOrAfter(t);
   return a <= end ? "this_week" : a <= end + 7 ? "next_week" : "later";
 }
@@ -146,7 +146,7 @@ function baseColumns(group, rows, ctx) {
     for (const k of kinds) for (const s of k === "decision" ? STATUSES.decision : k === "action" ? STATUSES.action : ["Open", "Closed", "Cancelled"]) have.add(s);
     return STATUS_ORDER.filter((s) => have.has(s)).map((s) => col(s, s, STATUS_TONE[s] || "grey"));
   }
-  if (group === "due") return DUE.map(([k, label, tone]) => col(k, label, tone, k === "overdue" ? { nodrop: true } : k === NONE ? { extra: true } : {}));
+  if (group === "due") return DUE.map(([k, label, tone]) => (onPublishedPage() && k === "overdue" ? ["past", "Earlier", "grey"] : [k, label, tone])).map(([k, label, tone]) => col(k, label, tone, k === "overdue" || k === "past" ? { nodrop: true } : k === NONE ? { extra: true } : {}));      // row 1543 AP4: published: "Earlier" in the place of Overdue
   if (group === "owner") {
     const count = {};
     for (const r of rows) { const k = cellOf("owner", r, ctx); if (k !== NONE) count[k] = (count[k] || 0) + 1; }

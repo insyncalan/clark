@@ -5,7 +5,8 @@ Same harness and fictional data as test_glance_page. Laptop widths only: 1400 an
 """
 import unittest
 
-from test_glance_page import Published, Setup, USER, tearDownModule  # noqa: F401
+from test_glance_page import Setup, USER, tearDownModule
+import test_glance_page as _test_glance_page
 from test_server import chrome
 
 
@@ -43,7 +44,7 @@ class Reference(Setup):
             self.assertEqual(bg(), p.js("(t => { const e = document.createElement('i'); e.style.color = `var(--${t})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })('grey-100')"), "and the tint is the grey-100 one, not any colour")
 
 
-class PublishedFile(Published):
+class PublishedFile(_test_glance_page.Published):
     def test_the_file_has_the_box_and_merged_reference_but_no_download_icon(self):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"ref": "1.3 and 1.4"})

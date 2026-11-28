@@ -41,7 +41,7 @@ class Wiring(unittest.TestCase):
                   + " auto: rs.map((r) => GT.tiles(r, '" + TODAY + "').map((t) => [t.key, t.rag])),"
                   + " edit: os.map((o) => GT.allTiles(rs[2], '" + TODAY + "', { health: 'On track' }, ['overdue', 'risks', 'decisions', 'health'].map((tile) => ({ tile, hidden: 0, outline: o, sort_order: 1 }))).map((t) => [t.key, t.rag, t.word])),"
                   + " file: os.map((o) => ['health', 'overdue', 'risks', 'decisions'].flatMap((k) => ['g', 'a', 'r', 'n', ''].map((c) =>"
-                  + " { const t = GT.fileTiles({ tiles: [{ tile: k, label: k, value: 1, detail: '', colour: c.toUpperCase(), outline: o }] }, { health: 'On track' })[0]; return [k, c, o, t.rag, t.word]; })))"
+                  + " { const t = GT.fileTiles({ tiles: [{ tile: k, label: k, value: 1, detail: '', colour: c.toUpperCase(), outline: o }] }, { health: 'On track' })[0]; return t ? [k, c, o, t.rag, t.word] : null; }).filter(Boolean)))"
                   + " }))(" + json.dumps(rows) + "," + json.dumps(OUTLINES) + ")")
         with chrome() as cdp:
             sid = page_target(cdp)

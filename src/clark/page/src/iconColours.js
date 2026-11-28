@@ -2,7 +2,7 @@
 // letters as the list's pills). shell.css gives each tone an icon class (ic-r ...) and that class takes its colour from a design
 // token (--icon-red ...), so no colour is written anywhere here. A tone is never the only signal: the status, the priority and the
 // date are always written beside their icon.
-import { dayNumber, dueField, isOpen, isLate, pillOf } from "./workItems.js";
+import { dayNumber, dueField, isOpen, isLate, pillOf, onPublishedPage } from "./workItems.js";
 
 export const TONES = ["r", "a", "g", "b", "n", "m"];      // m (maroon) is the Classic Urgent priority icon only
 const PRIORITY_TONE = { Urgent: "r", High: "a", Medium: "b", Low: "n" };
@@ -25,7 +25,7 @@ export function dateTone(row, today) {
   const a = dayNumber(dueField(row)), b = dayNumber(today);
   if (a === null) return "n";
   if (b === null || !isOpen(row) || (a < b && !isLate(row, today))) return "b";
-  if (a < b) return row.kind === "action" ? "r" : "a";
+  if (a < b) return onPublishedPage() ? "n" : row.kind === "action" ? "r" : "a";      // row 1543 AP4: a past date is neutral on the published page only; the editor keeps red and amber. Amber for due within 7 days (below) stays.
   return a - b <= 7 ? "a" : "b";
 }
 

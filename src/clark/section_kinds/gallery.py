@@ -8,8 +8,8 @@ order they are shown. The picture and text rules are the Pictures group's, in te
 picture is held to V1_PICTURE_MAX, as before; a stored version 1 gallery always opens and publishes.
 
 VERSION 2 (row 1233, the redesign on the Full width image's framing, which this reuses from imagecap.py): `{"v": 2, ...}`. A version 1
-gallery becomes version 2 by the words alone (the pictures it holds are slots "1" to "6" of a version 2 body too), so nothing is
-migrated. The fields:
+gallery becomes version 2 when columns, shape or order is chosen (row 1620); a words-only save leaves it version 1 (row 1567). The
+pictures it holds are slots "1" to "6" of a version 2 body too, so nothing is migrated. The fields:
 - `columns` 2 or 3 (default 3, left out when 3): how many across at full width. The page shows two across at half width and at 900 px.
 - `shape` for ALL the images: "4:3" (default, left out), "square", "16:9" or "whole" (never the default). A shape other than "whole" is
   cut here, by clark, from a PNG. A version 1 body has none and is published exactly as 1.0.7 did (no columns, no shape: the page draws
@@ -51,7 +51,7 @@ ORIGINAL_MAX = 1024 * KIB           # bytes one stored original may take (decode
 V1_LIMIT = 3 * 1024 * KIB + 256 * KIB    # what a version 1 body may take, as before (six pictures at V1_PICTURE_MAX in base64 and their words)
 LIMIT = 6 * ((FRAMED_MAX + 2) // 3 * 4 + (ORIGINAL_MAX + 2) // 3 * 4) + 64 * KIB     # the stored body (either version): six framed copies, six originals and the words
 EMPTY = ""
-START = '{"v":2}'                   # the body a version 2 gallery starts from (and what upgrades a version 1 gallery: its pictures are kept)
+START = '{"v":2}'                   # the body a version 2 gallery starts from (a version 1 gallery becomes version 2 when columns, shape or order is chosen: its pictures are kept)
 COLUMNS = (2, 3)                    # Row 1233: how many across; the view draws two across at half width and at 900 px whatever is said
 SHAPES = ("4:3", "square", "16:9", "whole")     # one shape for every image; none said is 4:3 (a new gallery and 1.0.7 alike), "whole" is never the default
 DEFAULT_COLUMNS = 3
@@ -161,7 +161,7 @@ def _order(value):
 def _numbers(item, shape, image):
     """The framing of one image as the Image template's code takes it: its own numbers and the one shape for all. The default shape does
     not cut a JPEG or a WebP (clark cuts only a PNG): such an image stays as it is and the page draws it in 4:3, as 1.0.7 did, so a
-    version 1 gallery that holds one is upgraded by its words alone without losing it."""
+    version 1 gallery that holds one is upgraded (columns, shape or order chosen) without losing it."""
     numbers = {k: item[k] for k in ("fx", "fy", "crop") if k in item}
     if shape != "whole" and not (shape == DEFAULT_SHAPE and imagecap._decode_data(image)[0] != "png"):
         numbers["shape"], numbers["ratio"] = "free", RATIOS[shape]

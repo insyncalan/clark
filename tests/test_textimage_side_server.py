@@ -9,7 +9,7 @@ import json
 import unittest
 
 from _pictures import GOOD, GOOD_JPEG, PictureSteps, check, data, png, published
-from test_changes import Api
+import test_changes as _test_changes
 from test_imagecap_full_server import BLUE, GREEN, RED, decode, halves, make_png, sized_jpeg
 from clark import changes, section_bodies, server as sv
 from clark.section_kinds import base, imagecap, textimage as ti
@@ -299,7 +299,7 @@ class Version1(unittest.TestCase):
 
 
 
-class Route(PictureSteps, Api):
+class Route(PictureSteps, _test_changes.Api):
     def new(self):
         return self.ok("new", values={"type": "textimage", "title": "Fictional side by side", "body": ti.START})["ref"]
 

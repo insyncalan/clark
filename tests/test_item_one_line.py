@@ -214,18 +214,18 @@ class PublishedFileCarriesTheWord(Base):
                         self.assertTrue(shown, f"{r['id']}: the status word is visible text at {w}, not a tooltip")
                         self.assertLess(r["h"], 60, f"{r['id']} stays compact at {w}")
                     self.assertEqual(cdp.js(HEADS % t, sid)[0][0], "Status", "the file's header names the icon column")
-                self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Overdue", "Pending", "Red"], words)
+                self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Open", "Pending", "Red"], words)
                 self.assertTrue(cdp.js(LISTS_FIT, sid), f"the lists fit their cards at {w}")    
             rows = {r["id"]: r for t in ("actions", "raid") for r in cdp.js(ROWS % t, sid)}
             by_text = {r["title"]: r for r in rows.values()}
-            self.assertEqual(by_text["Cut-over plan to be agreed"]["word"], "Overdue")
-            self.assertIn("r", by_text["Cut-over plan to be agreed"]["cls"].split())
+            self.assertEqual(by_text["Cut-over plan to be agreed"]["word"], "Open", "row 1543 AP4: a passed date is plain in a file, never Overdue")
+            self.assertNotIn("r", by_text["Cut-over plan to be agreed"]["cls"].split())
             self.assertEqual(by_text[SOON]["word"], "Due soon")
             self.assertIn("a", by_text[SOON]["cls"].split())
             self.assertEqual(by_text["Training room booked for November"]["word"], "On track")
             self.assertIn("g", by_text["Training room booked for November"]["cls"].split())
             self.assertEqual(by_text["Supplier delivery may slip"]["word"], "Red")
-            self.assertEqual(by_text["Cut-over plan to be agreed"]["aria"], "Action, Overdue", "and the accessible name is kept")
+            self.assertEqual(by_text["Cut-over plan to be agreed"]["aria"], "Action, Open", "and the accessible name is kept")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-type=actions] .pill, [data-type=raid] .pill').length", sid), 0)
             self.assertEqual(cdp.js("document.querySelectorAll('.wl-id').length", sid), 0, "a file draws no item number")
             self.assertNotRegex(cdp.js("document.querySelector('[data-type=actions]').innerText", sid), r"days? late|\d d late", "a file shows dates, not a count read on the publish day")
@@ -233,7 +233,7 @@ class PublishedFileCarriesTheWord(Base):
 
 PUB_ROWS = r"""[...document.querySelectorAll('[data-type=actions] .wl-row, [data-type=raid] .wl-row')].map(r => ({id: r.dataset.id, text: r.innerText.replace(/\s+/g, ' ').trim(),
   title: r.querySelector('.wl-title').textContent.trim(), word: ((r.querySelector('.ico-w') || {}).textContent || '').trim()}))"""
-EXPECT = {"Cut-over plan to be agreed": "Overdue", SOON: "Due soon", "Training room booked for November": "On track",
+EXPECT = {"Cut-over plan to be agreed": "Open", SOON: "Due soon", "Training room booked for November": "On track",
           "Supplier delivery may slip": "Red", "Mid-rated supplier risk": "Amber", "Some test data is missing": "Green", "Urgent site risk": "Red"}
 
 
@@ -303,7 +303,7 @@ class WordCopyCarriesTheWord(unittest.TestCase):
         self.assertTrue(actions and raid)
         for row in actions:
             self.assertTrue(row[-1].strip(), "an action's Status is a word in the Word copy")
-            self.assertIn("(overdue)", row[4], "a late action says overdue in words")
+            self.assertRegex(row[4].strip(), r"^\d{2}-\d{2}-\d{4}$", "row 1543 AP4 (review ruling, no late days on any client surface): a late action's due cell is the plain date, no '(overdue)'")
         for row in raid:
             self.assertTrue(row[-1].strip() and row[4].strip(), "a risk's Status and Priority are words in the Word copy")
 

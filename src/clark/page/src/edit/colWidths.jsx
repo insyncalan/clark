@@ -88,26 +88,69 @@ export function gridTracks(tracks, ids, cw) {
 /** Row 1195 (the Work items list under Classic): the order of a table's columns, changed by dragging a heading onto another or, from the keyboard, Alt with Left or Right arrow on a heading.
  *  Kept for each table on this computer (logic/remember.js), never in the data. `apply(ids)` is the ids in the kept order (a column never moved keeps its place after the moved ones);
  *  `props(id, ids)` goes on the heading cell. A drop on a heading puts the dragged column in that heading's place. */
-export function useColOrder(table) {
+export function useColOrder(table, shared = null) {      // row 1534: `shared` = { read(): ids, write(ids, id) } keeps the order with the project instead of this browser, and also moves with Alt+Shift
   const key = `order.${table}`;
-  const [saved, setSaved] = useState(() => { const v = recall(key, []); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; });
+  const [mine, setSaved] = useState(() => { const v = recall(key, []); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; });
   const [drag, setDrag] = useState(null), [over, setOver] = useState(null);
   const focus = useRef(null), from = useRef(null), onGrip = useRef(false);
-  useEffect(() => {      // after a move the heading keeps the focus, so the next arrow press moves it again
+  // After a move the heading keeps the focus, so the next arrow press moves it again. The saved order is drawn again when the save's reply is read back, and that can
+  // draw the heading cell new, which drops the focus to the page: the wish stays until the focus is somewhere else on purpose (a press, or another control taking it).
+  useEffect(() => {
     if (!focus.current) return;
-    const h = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`);
-    focus.current = null;
-    if (h && h.focus) h.focus();
+    const a = document.activeElement, h = document.querySelector(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`);
+    if (h && h.focus && (!a || a === document.body)) h.focus();
   });
+  useEffect(() => {
+    const off = (e) => { if (focus.current && !(e.target && e.target.closest && e.target.closest(`[data-cw-table="${table}"][data-cw-head="${focus.current}"]`))) focus.current = null; };
+    document.addEventListener("focusin", off, true); document.addEventListener("pointerdown", off, true);
+    return () => { document.removeEventListener("focusin", off, true); document.removeEventListener("pointerdown", off, true); };
+  }, [table]);
+  const saved = shared ? shared.read() : mine;
   const apply = (ids) => { const known = saved.filter((x) => ids.includes(x)); return known.concat(ids.filter((x) => !known.includes(x))); };
   const move = (a, b, ids) => {
     const now = apply(ids);
     if (a === b || !now.includes(a) || !now.includes(b)) return;
     const o = now.filter((x) => x !== a), i = o.indexOf(b);
     o.splice(now.indexOf(a) < now.indexOf(b) ? i + 1 : i, 0, a);
-    setSaved(o); remember(key, o); focus.current = a;
+    if (shared) shared.write(o, a); else { setSaved(o); remember(key, o); }
+    focus.current = a;
   };
-  const props = (id, ids) => ({
+  // row 1534 (a Dashboard list of one type): a heading is dragged with the pointer (a mouse, a pen or a finger: HTML5 draggable does not fire on touch, as in the Work items table, ColumnsMenu.jsx).
+  // A press that moves less than 5 px is a click and moves nothing; a drop on another movable heading of the row moves the column there; a drop anywhere else, on the Status or the Item, or Esc cancels.
+  const press = (id, ids) => (e) => {
+    if (e.button || (e.target.closest && e.target.closest(".cgrip, button"))) return;
+    const th = e.currentTarget, row = th.parentElement, x0 = e.clientX, y0 = e.clientY;
+    let moving = false, to = null;
+    const heads = () => Array.from(row.querySelectorAll("th[data-move]"));
+    const clear = () => heads().forEach((t) => { t.classList.remove("col-dragging", "col-drop-before", "col-drop-after"); });
+    const hit = (m) => { const el = document.elementFromPoint(m.clientX, m.clientY), t = el && el.closest ? el.closest("th[data-move]") : null; return t && t.parentElement === row ? t : null; };
+    const go = (m) => {
+      if (!moving && Math.hypot(m.clientX - x0, m.clientY - y0) < 5) return;
+      moving = true; clear(); th.classList.add("col-dragging"); to = null;
+      const t = hit(m), tid = t && t.getAttribute("data-cw-head");
+      if (!t || tid === id) return;
+      to = tid; t.classList.add(heads().indexOf(t) > heads().indexOf(th) ? "col-drop-after" : "col-drop-before");
+    };
+    const done = (drop) => {
+      document.removeEventListener("pointermove", go); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", cancel); document.removeEventListener("keydown", key, true); document.removeEventListener("selectstart", stop, true); document.removeEventListener("dragstart", stop, true);
+      clear();
+      if (!moving) return;
+      const quiet = (c) => { c.stopPropagation(); c.preventDefault(); };      // the click that ends a drag is not a click on the heading
+      document.addEventListener("click", quiet, { capture: true, once: true }); setTimeout(() => document.removeEventListener("click", quiet, true), 0);
+      if (drop && to) move(id, to, ids);
+    };
+    const up = () => done(true), cancel = () => done(false), key = (k) => { if (k.key === "Escape") { k.stopPropagation(); done(false); } }, stop = (x) => x.preventDefault();      // no text selection and no browser drag of a selection while a heading is dragged
+    document.addEventListener("selectstart", stop, true); document.addEventListener("dragstart", stop, true);
+    document.addEventListener("pointermove", go); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cancel); document.addEventListener("keydown", key, true);
+  };
+  const keys = (id, ids) => (e) => {      // Alt+Shift with an arrow (row 1534) and Alt with an arrow (row 1195, the words of the heading's label) both move it; Ctrl with an arrow still resizes
+    if (!e.altKey || e.ctrlKey || e.metaKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    if (!e.target.closest || e.target.closest("input, textarea, select")) return;
+    e.preventDefault(); e.stopPropagation();
+    const now = apply(ids), j = now.indexOf(id) + (e.key === "ArrowLeft" ? -1 : 1);
+    if (now[j] && !(shared && now[j] === "status")) move(id, now[j], ids);
+  };
+  const props = (id, ids) => shared ? (id === "status" || !ids.includes(id) ? {} : { "data-move": "", onPointerDown: press(id, ids), onKeyDown: keys(id, ids) }) : ({
     draggable: true,
     onPointerDownCapture: (e) => { onGrip.current = !!(e.target.closest && e.target.closest(".cgrip")); },      // a press on the width handle resizes, it never starts a move
     onDragStart: (e) => {
@@ -126,6 +169,6 @@ export function useColOrder(table) {
       if (now[j]) move(id, now[j], ids);
     },
   });
-  const cls = (id) => `${drag === id ? " wil-dragging" : ""}${over === id && drag !== id ? " wil-drop" : ""}`;
+  const cls = (id, ids) => (shared ? (id === "status" || !ids || !ids.includes(id) ? "" : " col-move") : `${drag === id ? " wil-dragging" : ""}${over === id && drag !== id ? " wil-drop" : ""}`);      // col-move: the grab cursor, and a finger drags the heading instead of scrolling the page (rules-2.css)
   return { apply, props, cls };
 }
