@@ -585,7 +585,7 @@ jobs:
           echo "named tests: $NAMED; Python 3.9 compile: $COMPILE39"
           if [ "$EVENT" = "pull_request" ]; then test "$NAMED" = "success"; test "$COMPILE39" = "success"; else test "$NAMED" = "skipped"; test "$COMPILE39" = "skipped"; fi
           if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
-          # the full macOS shards are never required on a pull request, a push to main or a release line (the Mac smoke set below is the Mac check there); only a hand-started run with macos=true requires them, and the nightly is advisory (ADVISORY=1: no check here)
+          # the full macOS shards are never required on a pull request, a push to main or a release line (the Mac smoke set below is the Mac check there); a hand-started run with macos=true and the nightly are advisory too (ADVISORY=1: no check here)
           if [ "$EVENT" = "pull_request" ]; then :; elif [ -n "$WANT_MACOS" ] && [ -z "$ADVISORY" ]; then test "$MACOS" = "success"; elif [ -z "$WANT_MACOS" ]; then test "$MACOS" = "skipped"; fi
           # a release cut (cut-v*): the Mac smoke set runs and its result is shown, but a red smoke never turns "Tests passed" red (the owner, 26-11, row 1602)
           if [ -n "$CUT" ]; then echo "Mac smoke set on a cut (reported, never required): $SMOKE"; SMOKE=skipped; WANT_SMOKE=""; fi

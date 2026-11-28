@@ -486,6 +486,10 @@ class Workflow(unittest.TestCase):
         self.assertTrue(self.gate_passes(SMOKE="success"))
         for result in ("failure", "cancelled", "skipped"):
             self.assertFalse(self.gate_passes(SMOKE=result), f"no CUT, smoke {result}")
+        # a pull request with the full-ci label (not a release line) plans no CUT, so its smoke is still required
+        fullci = self.plan_outputs(EVENT="pull_request", BRANCH="team-x", BASE_REF="main", LABELS="full-ci")
+        self.assertEqual((fullci.get("smoke"), fullci.get("cut", "")), ("1", ""))
+        self.assertFalse(self.gate_passes(CUT=fullci.get("cut", ""), SMOKE="failure"))
 
     def test_a_hand_started_macos_run_is_advisory_a_red_mac_shard_never_blocks(self):
         """P12-18, G2 (the owner, 23-11 and 26-11: 'a macOS failure never blocks'): a hand-started run with macos=true still runs the full Mac shards,
