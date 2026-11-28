@@ -1461,7 +1461,7 @@ class AddedLinesOnly(unittest.TestCase):
 
     def test_a_textconv_driver_does_not_hide_an_added_line(self):
         r = self.repo({".gitattributes": "* diff=hide\n", "src/old.py": self.OLD})
-        r.git("config", "diff.hide.textconv", "echo clean")        # every version converts to the same text: a converted diff shows no change
+        r.git("config", "diff.hide.textconv", "echo clean")        # every version converts to the same text: a converted diff is empty
         r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
         r.commit("edit")
         rc, out = r.scan()
@@ -1471,7 +1471,7 @@ class AddedLinesOnly(unittest.TestCase):
         r = self.repo()
         r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
         r.commit("edit")
-        with mock.patch.dict(os.environ, {"GIT_EXTERNAL_DIFF": "true"}):      # prints nothing: an external diff shows no change
+        with mock.patch.dict(os.environ, {"GIT_EXTERNAL_DIFF": "true"}):      # prints nothing: an external diff is empty
             rc, out = r.scan()
         self.assertEqual(rc, 1, out)
 
