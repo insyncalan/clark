@@ -349,6 +349,50 @@ class Scan(unittest.TestCase):
                 r = self.shots(path, text)
                 self.refused(r, "file #1: uses a secret or write access")
 
+    OTHER_JOB = "  other:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo x\n"
+    NO_PAIR = TIMES_BASE.replace("    permissions:\n      contents: write\n", "")
+
+    def test_a_later_job_named_other_with_the_same_write_pair_is_refused(self):
+        r = self.shots(self.TESTS, self.TIMES_BASE + self.OTHER_JOB)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_permissions_write_all_is_refused_in_the_tests_workflow(self):
+        for key, text in {"workflow level, pair kept in the job": self.TIMES_BASE.replace("permissions:\n  contents: read", "permissions: write-all"),
+                          "workflow level, no pair": self.NO_PAIR.replace("permissions:\n  contents: read", "permissions: write-all"),
+                          "inside the job": self.TIMES_BASE.replace("    permissions:\n      contents: write\n", "    permissions: write-all\n")}.items():
+            with self.subTest(key):
+                r = self.shots(self.TESTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_nested_shard_times_key_under_another_job_is_refused(self):
+        other = "  other:\n    runs-on: ubuntu-24.04\n"
+        for key, head in (("real job without the pair", self.NO_PAIR), ("no shard-times job", self.NO_PAIR.split("  shard-times:")[0])):
+            for shape, nested in (("pair nested deeper", "    shard-times:\n      permissions:\n        contents: write\n"),
+                                  ("pair at the job's own indent", "    shard-times:\n    permissions:\n      contents: write\n")):
+                with self.subTest("%s, %s" % (key, shape)):
+                    r = self.shots(self.TESTS, head + other + nested + "    steps:\n      - run: echo x\n")
+                    self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_job_name_that_only_starts_with_shard_times_is_refused(self):
+        r = self.shots(self.TESTS, self.TIMES_BASE.replace("  shard-times:", "  shard-times-x:"))
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_two_shard_times_jobs_are_refused_whichever_holds_the_pair(self):
+        job = self.TIMES_BASE.split("  shard-times:")[1]
+        r = self.shots(self.TESTS, self.TIMES_BASE + "  shard-times:" + job)
+        self.refused(r, "file #1: uses a secret or write access")
+        r = self.shots(self.TESTS, self.NO_PAIR + "  shard-times:" + job)
+        self.refused(r, "file #1: uses a secret or write access")
+        plain = self.NO_PAIR.split("  shard-times:")[1]
+        r = self.shots(self.TESTS, self.TIMES_BASE + "  shard-times:" + plain)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_shard_times_write_is_refused_in_every_other_workflow_path(self):
+        for name in ("release.yml", "ci.yml", "tests.yaml", "Tests.yml"):
+            with self.subTest(name):
+                r = self.shots(".github/workflows/" + name, self.TIMES_BASE)
+                self.refused(r, "file #1: uses a secret or write access")
+
     def test_a_bare_secrets_word_is_not_refused_in_other_files(self):
         r = self.shots(".github/workflows/other.yml", self.SHOTS_BASE.replace("echo hi", "echo secrets are kept elsewhere"))
         self.assertNotIn("uses a secret or write access", r.scan()[1])
