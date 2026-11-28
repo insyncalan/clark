@@ -10,6 +10,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCAN_NAME = "Scan"
+ALLOWED_MAC_LINES = [
+    'workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;',
+    'schedule) FULL=1; MACOS=1; ADVISORY=1 ;;',
+    'cut-v*) FULL=1; SMOKE=1; CUT=1 ;;',
+    '*,full-ci,*) FULL=1; SMOKE=1 ;;',
+    'if [ -n "$REL" ]; then SMOKE=1; fi',
+    'if [ "$(printf \'%s\\n\' "$CHANGED" | wc -l)" -ge 3000 ]; then FULL=1; SMOKE=1; fi',
+    'src/clark/updates.py|src/clark/platform.py) FULL=1; SMOKE=1 ;;',
+    'clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; SMOKE=1 ;;',
+]
 
 
 def text(rel):
@@ -52,14 +62,12 @@ class ScanIsAdvisoryOnTheMergifyDraft(unittest.TestCase):
             self.assertNotIn(var + "=", line)
 
     def test_no_other_plan_line_near_the_mergify_branch_starts_a_mac_run(self):
-        """A Mac set started for the Mergify draft by ANOTHER line (e.g. a separate case on the branch) is caught: any line that assigns MACOS=1 or SMOKE=1
-        must not name mergify itself or sit within the 2 code lines after a line that does."""
-        lines = code(".github/workflows/tests.yml")
-        for i, ln in enumerate(lines):
-            if re.search(r"\b(MACOS|SMOKE)=1", ln):
-                window = lines[max(0, i - 2):i + 1]
-                for w in window:
-                    self.assertNotIn("mergify", w.lower(), "a Mac run is set next to the Mergify branch: " + ln.strip())
+        """The exact set of code lines that assign MACOS=1 or SMOKE=1 (comment tail cut): a Mac set started for the Mergify draft by ANOTHER line, one-line or a multi-line case arm,
+        is a new line and is caught. A new legitimate Mac rule changes this list on purpose. None of the lines names mergify."""
+        got = [re.sub(r"\s+#.*$", "", ln.strip()) for ln in code(".github/workflows/tests.yml") if re.search(r"\b(MACOS|SMOKE)=1", ln)]
+        self.assertEqual(got, ALLOWED_MAC_LINES)
+        for ln in got:
+            self.assertNotIn("mergify", ln.lower())
 
     def test_the_mac_jobs_still_start_only_from_the_plan_outputs(self):
         lines = [ln.strip() for ln in code(".github/workflows/tests.yml")]
