@@ -284,7 +284,7 @@ class Scan:
                 if j + paths >= len(moved):
                     raise RuntimeError("git diff output not fully read")
                 new_path = moved[j + paths].decode("utf-8", "surrogateescape")
-                if not meta[4].startswith(b"D") and set(meta[2]) != {48}:
+                if not meta[4].startswith(b"D") and set(meta[2]) != {48} and meta[0] != b":160000":      # a submodule's old id is a commit, not a file: no diff of it
                     self.old[new_path] = meta[2].decode()
                 src = moved[j + 1].decode("utf-8", "surrogateescape")
                 if paths == 2 and (src in pp.GUARD_ALLOWED or src in VENDORED_PINS):
@@ -311,7 +311,7 @@ class Scan:
             return data
         if not old or not data or b"\0" in data or data[:2] == b"PK":
             return data
-        diff = self.git("diff", "-U0", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)
+        diff = self.git("diff", "-U0", "--no-color", "--text", "--no-ext-diff", "--no-textconv", old, e.sha)
         lines, hunk = [], False
         for ln in diff.split(b"\n"):
             if ln.startswith(b"@@"):
