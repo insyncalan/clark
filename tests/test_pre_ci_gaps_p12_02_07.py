@@ -49,6 +49,11 @@ class FakeClock:
         return 0.0 if self.reads == 1 else float(self.after)
 
 
+def no_run(argv, stdin=None):
+    """A run that must never happen: a broken tool that reaches it fails the test instead of launching dev/run_tests.py."""
+    raise AssertionError("the real runner was launched: %r" % (argv,))
+
+
 def fake_git(*args):
     return {"rev-parse": "abc123\n", "merge-base": "base123\n"}.get(args[0], "")
 
@@ -59,7 +64,7 @@ def main_with(run_all, seconds=1):
     with tempfile.TemporaryDirectory() as tmp:
         ticket = Path(tmp) / "ticket.json"
         ticket.write_text(json.dumps(TICKET), encoding="utf-8")
-        with Swap(git=fake_git, time=FakeClock(seconds)), unittest.mock.patch.object(pre_ci.PreCi, "run_all", run_all), \
+        with Swap(git=fake_git, time=FakeClock(seconds), run=no_run), unittest.mock.patch.object(pre_ci.PreCi, "run_all", run_all), \
                 contextlib.redirect_stdout(out):
             code = pre_ci.main(["--ticket", str(ticket), "--record", str(Path(tmp) / "rec")])
         doc = json.loads((Path(tmp) / "rec" / "abc123.json").read_text(encoding="utf-8"))
@@ -75,6 +80,16 @@ class OneRunTest(unittest.TestCase):
         self.assertIn("note: 301 s, over the 300 s target (logged, never blocks)", text)
         _, text, _, _ = main_with(nothing, seconds=pre_ci.TARGET_SECONDS)
         self.assertNotIn("over the 300 s target", text)
+        self.assertNotIn("note:", text)
+
+    def test_the_cap_and_the_target_are_40_files_and_300_seconds(self):
+        self.assertEqual(pre_ci.AFFECTED_CAP, 40)
+        self.assertEqual(pre_ci.TARGET_SECONDS, 300)
+
+    def test_the_log_line_holds_the_seconds_of_the_run(self):
+        _, _, doc, log = main_with(lambda self, t, c: None, seconds=42)
+        self.assertEqual(json.loads(log[0])["seconds"], 42)
+        self.assertEqual(doc["seconds"], 42)
 
     def test_the_log_line_holds_the_result_of_each_check_by_name_and_no_more_than_the_summary(self):
         def two(self, t, c):
@@ -106,7 +121,7 @@ class OneRunTest(unittest.TestCase):
                 seen.append(name)
                 return self.add(1, name, ["x"], code, "", 0.0)
             return f
-        with Swap(), unittest.mock.patch.object(pre_ci.PreCi, "tool", lambda self, n, name, script, *a: seen.append(name) or self.add(n, name, ["x"], 1, "", 0.0)), \
+        with Swap(run=no_run), unittest.mock.patch.object(pre_ci.PreCi, "tool", lambda self, n, name, script, *a: seen.append(name) or self.add(n, name, ["x"], 1, "", 0.0)), \
                 unittest.mock.patch.object(pre_ci.PreCi, "named", record("named", 0)), \
                 unittest.mock.patch.object(pre_ci.PreCi, "affected", record("affected", 0)), \
                 unittest.mock.patch.object(pre_ci.PreCi, "compile39", record("compile39", 0)), \
@@ -350,7 +365,7 @@ class Python39Test(unittest.TestCase):
             for name, text in files.items():
                 (Path(tmp) / name).write_text(text, encoding="utf-8")
             listing = "\0".join(files) + "\0"
-            with Swap(python39=lambda: "", ROOT=Path(tmp), git=lambda *a: listing):
+            with Swap(python39=lambda: "", ROOT=Path(tmp), git=lambda *a: listing, run=no_run):
                 return pre_ci.PreCi("", "", "").compile39()
 
     def test_without_a_3_9_a_file_the_grammar_switch_refuses_is_a_fail_naming_the_file_and_line(self):
@@ -456,7 +471,7 @@ class StartTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ticket = Path(tmp) / "ticket.json"
             ticket.write_text(json.dumps(TICKET), encoding="utf-8")
-            with Swap(git=spy, time=FakeClock(1)), unittest.mock.patch.object(pre_ci.PreCi, "run_all", lambda self, t, c: None), \
+            with Swap(git=spy, time=FakeClock(1), run=no_run), unittest.mock.patch.object(pre_ci.PreCi, "run_all", lambda self, t, c: None), \
                     contextlib.redirect_stdout(out):
                 pre_ci.main(["--ticket", str(ticket), "--record", str(Path(tmp) / "rec"), "--base", "origin/x"])
         self.assertIn(("merge-base", "origin/x", "abc123"), calls)
@@ -469,7 +484,7 @@ class StartTest(unittest.TestCase):
             ticket = Path(tmp) / "ticket.json"
             ticket.write_text(json.dumps(TICKET), encoding="utf-8")
             ran = []
-            with Swap(git=lambda *a: " M x.py\n" if a[0] == "status" else fake_git(*a)), \
+            with Swap(git=lambda *a: " M x.py\n" if a[0] == "status" else fake_git(*a), run=no_run), \
                     unittest.mock.patch.object(pre_ci.PreCi, "run_all", lambda self, t, c: ran.append(1)), \
                     contextlib.redirect_stdout(out):
                 code = pre_ci.main(["--ticket", str(ticket), "--record", str(Path(tmp) / "rec")])
@@ -484,7 +499,7 @@ class StartTest(unittest.TestCase):
 
     def test_check_5_asks_git_for_the_tracked_py_files(self):
         calls = []
-        with Swap(python39=lambda: "", ROOT=Path("/nonexistent"), git=lambda *a: calls.append(a) or ""):
+        with Swap(python39=lambda: "", ROOT=Path("/nonexistent"), git=lambda *a: calls.append(a) or "", run=no_run):
             pre_ci.PreCi("", "", "").compile39()
         self.assertEqual(calls, [("ls-files", "-z", "--", "*.py")])
 
@@ -525,6 +540,16 @@ class StartTest(unittest.TestCase):
             with Swap(SMOKE=Path(tmp) / "missing.txt", run=lambda *a, **k: ran.append(a) or (0, "", 0.0)):
                 check = pre_ci.PreCi("", "", "").smoke()
             self.assertEqual((check["result"], ran), ("not checked", []))
+
+    def test_a_run_with_an_empty_smoke_list_exits_1_and_records_a_fail_with_smoke_not_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = Path(tmp) / "smoke.txt"
+            empty.write_text("", encoding="utf-8")
+            with Swap(SMOKE=empty, run=no_run):
+                code, _, doc, log = main_with(lambda self, t, c: self.smoke())
+        self.assertEqual((code, doc["result"]), (1, "fail"))
+        self.assertEqual({c["name"]: c["result"] for c in doc["checks"]}, {"smoke suite": "not checked"})
+        self.assertEqual(json.loads(log[0])["checks"], {"smoke suite": "not checked"})
 
 
 if __name__ == "__main__":
