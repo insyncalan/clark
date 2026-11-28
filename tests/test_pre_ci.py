@@ -7,7 +7,10 @@ Run: python3 dev/run_tests.py test_pre_ci   (quick tier)
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
+import unittest.mock
+from pathlib import Path
 
 from _paths import ROOT  # noqa: F401  (puts dev/tools on the path)
 from _pr_fixture import PrFixture, TEST_MOD
@@ -188,6 +191,139 @@ class PartsTest(unittest.TestCase):
         listed = ["test_a.py", "test_b.py", "test_c.py", "test_d.py", "test_run_tests.py"]
         chosen, capped = pre_ci.narrow(listed, ["dev/run_tests.py"], lambda f: "Run: python3 dev/run_tests.py", cap=3)
         self.assertEqual((chosen, capped), (["test_run_tests.py"], True))
+
+
+class FakeClock:
+    """Stands in for pre_ci.time: the first read is 0, every later read is `after`, so a run takes exactly `after` seconds."""
+    def __init__(self, after):
+        self.after, self.reads = after, 0
+
+    def time(self):
+        self.reads += 1
+        return 0.0 if self.reads == 1 else float(self.after)
+
+
+class Swap:
+    """Replace attributes of pre_ci for one block and put the real ones back."""
+    def __init__(self, **attrs):
+        self.attrs, self.saved = attrs, {}
+
+    def __enter__(self):
+        for k, v in self.attrs.items():
+            self.saved[k] = getattr(pre_ci, k)
+            setattr(pre_ci, k, v)
+
+    def __exit__(self, *exc):
+        for k, v in self.saved.items():
+            setattr(pre_ci, k, v)
+
+
+def fake_git(*args):
+    return {"rev-parse": "abc123\n", "merge-base": "base123\n"}.get(args[0], "")
+
+
+class TargetTest(unittest.TestCase):
+    """The 5-minute target is logged, never a failure. main() runs in this process with git, the six checks and the clock
+    replaced, so no real time passes; the clock says how long the run took."""
+    def record_for(self, seconds):
+        with tempfile.TemporaryDirectory() as tmp:
+            ticket = Path(tmp) / "ticket.json"
+            ticket.write_text(json.dumps(TICKET), encoding="utf-8")
+            with Swap(git=fake_git, time=FakeClock(seconds)), \
+                    unittest.mock.patch.object(pre_ci.PreCi, "run_all", lambda self, t, c: None):
+                code = pre_ci.main(["--ticket", str(ticket), "--record", str(Path(tmp) / "rec")])
+            return code, json.loads((Path(tmp) / "rec" / "abc123.json").read_text(encoding="utf-8"))
+
+    def test_a_run_over_the_target_records_over_target_and_is_still_a_pass(self):
+        code, doc = self.record_for(pre_ci.TARGET_SECONDS + 1)
+        self.assertIs(doc["over_target"], True)
+        self.assertEqual(doc["seconds"], pre_ci.TARGET_SECONDS + 1)
+        self.assertEqual((doc["result"], code), ("pass", 0))
+
+    def test_a_run_at_or_under_the_target_records_over_target_false(self):
+        for seconds in (pre_ci.TARGET_SECONDS - 1, pre_ci.TARGET_SECONDS):
+            code, doc = self.record_for(seconds)
+            self.assertIs(doc["over_target"], False, seconds)
+            self.assertEqual((doc["result"], code), ("pass", 0), seconds)
+
+    def test_the_target_is_five_minutes(self):
+        self.assertEqual(pre_ci.TARGET_SECONDS, 300)
+
+
+class GapsTest(unittest.TestCase):
+    def test_an_empty_named_tests_list_fails_the_named_tests_check_and_runs_nothing(self):
+        ran = []
+        with Swap(run=lambda *a, **k: ran.append(a) or (0, "", 0.0)):
+            check = pre_ci.PreCi("", "", "").named([])
+        self.assertEqual((check["name"], check["result"], check["exit"]), ("named tests", "fail", 1))
+        self.assertIn("names no test", check["tail"])
+        self.assertEqual(ran, [])
+
+    def test_named_tests_that_match_no_test_fail_even_when_the_runner_exits_0(self):
+        with Swap(run=lambda argv, stdin=None: (0, "OK\n", 0.1)):
+            check = pre_ci.PreCi("", "", "").named(["test_nothing.Nothing.test_none"])
+        self.assertEqual((check["result"], check["exit"]), ("fail", 1))
+        self.assertIn("no named test ran", check["tail"])
+
+    def test_named_tests_that_ran_pass(self):
+        with Swap(run=lambda argv, stdin=None: (0, "Ran 1 tests in 0.1s\nOK\n", 0.1)):
+            check = pre_ci.PreCi("", "", "").named(["test_mod.ModTest.test_triple"])
+        self.assertEqual(check["result"], "pass")
+
+    def test_more_than_40_files_with_the_default_cap_are_capped_and_at_most_40_are_chosen(self):
+        self.assertEqual(pre_ci.AFFECTED_CAP, 40)
+        listed = ["test_m%02d.py" % i for i in range(45)]
+        changed = ["src/clark/m%02d.py" % i for i in range(45)]     # each changed file has its own test file: 45 close files
+        chosen, capped = pre_ci.narrow(listed, changed, lambda f: "")
+        self.assertTrue(capped)
+        self.assertEqual(len(chosen), 40)
+        self.assertEqual(chosen, listed[:40])
+
+    def test_exactly_40_files_all_run_and_41_are_capped(self):
+        forty = ["test_f%02d.py" % i for i in range(40)]
+        self.assertEqual(pre_ci.narrow(forty, ["x.py"], lambda f: ""), (forty, False))
+        self.assertTrue(pre_ci.narrow(forty + ["test_z.py"], ["x.py"], lambda f: "")[1])
+
+    def smoke_check(self, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "pre_ci_smoke.txt"
+            if text is not None:
+                path.write_text(text, encoding="utf-8")
+            ran = []
+            with Swap(SMOKE=path, run=lambda *a, **k: ran.append(a) or (0, "Ran 1 tests in 0.1s\nOK\n", 0.1)):
+                check = pre_ci.PreCi("", "", "").smoke()
+            return check, ran
+
+    def test_an_empty_smoke_list_is_not_a_pass_and_runs_nothing(self):
+        for text in ("", "# only a comment\n\n"):
+            check, ran = self.smoke_check(text)
+            self.assertEqual(check["result"], "not checked", text)
+            self.assertIn("lists no test file", check["tail"])
+            self.assertEqual(ran, [])
+
+    def test_a_missing_smoke_list_is_not_a_pass_and_runs_nothing(self):
+        check, ran = self.smoke_check(None)
+        self.assertEqual(check["result"], "not checked")
+        self.assertEqual(ran, [])
+
+    def test_a_run_with_an_empty_smoke_list_is_not_a_pass_overall(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ticket = Path(tmp) / "ticket.json"
+            ticket.write_text(json.dumps(TICKET), encoding="utf-8")
+            empty = Path(tmp) / "smoke.txt"
+            empty.write_text("", encoding="utf-8")
+            def only_smoke(self, t, c):
+                self.smoke()
+            with Swap(git=fake_git, SMOKE=empty), unittest.mock.patch.object(pre_ci.PreCi, "run_all", only_smoke):
+                code = pre_ci.main(["--ticket", str(ticket), "--record", str(Path(tmp) / "rec")])
+            doc = json.loads((Path(tmp) / "rec" / "abc123.json").read_text(encoding="utf-8"))
+        self.assertEqual((code, doc["result"]), (1, "fail"))
+        self.assertEqual(results(doc), {"smoke suite": "not checked"})
+
+    def test_a_smoke_list_with_files_runs_them(self):
+        check, ran = self.smoke_check("test_a  # why\ntest_b\n")
+        self.assertEqual(check["result"], "pass")
+        self.assertEqual(ran[0][0][-2:], ["test_a", "test_b"])
 
 
 if __name__ == "__main__":
