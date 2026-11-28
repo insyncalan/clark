@@ -297,6 +297,102 @@ class Scan(unittest.TestCase):
         r = self.shots(self.SHOTS, self.SHOTS_BASE + "        env:\n          B: ${{ toJSON(secrets) }}\n")
         self.refused(r, "file #1: uses a secret or write access")
 
+    # Row 1709 D6b (owner ruling 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write`: the nightly's shard-times job, which pushes one new branch.
+    TESTS = ".github/workflows/tests.yml"
+    TIMES_BASE = ("on:\n  schedule:\n    - cron: '0 4 * * *'\npermissions:\n  contents: read\njobs:\n  tests:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo hi\n"
+                  "  shard-times:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo times\n")
+
+    def test_the_one_shard_times_write_passes_in_the_one_tests_workflow(self):
+        r = self.shots(self.TESTS, self.TIMES_BASE)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        self.assertIn("workflow files follow the rules", out)
+        self.assertNotIn("REFUSED", out)
+        self.assertEqual(ci_scan.ALLOWED_WRITE, {".github/workflows/tests.yml": "shard-times"})
+
+    def test_any_other_write_is_refused_in_the_tests_workflow(self):
+        for key, text in {"second job": self.TIMES_BASE + "  other:\n    permissions:\n      contents: write\n    steps:\n      - run: echo x\n",
+                          "workflow level": self.TIMES_BASE.replace("permissions:\n  contents: read", "permissions:\n  contents: write"),
+                          "in the tests job": self.TIMES_BASE.replace("  tests:\n", "  tests:\n    permissions:\n      contents: write\n"),
+                          "other scope in the job": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n      pull-requests: write\n"),
+                          "another scope that writes": self.TIMES_BASE.replace("contents: write", "packages: write"),
+                          "a read scope next to it": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n      issues: read\n"),
+                          "write-all": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n      actions: write-all\n"),
+                          "id-token": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n      id-token: write\n"),
+                          "twice in the job": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n      contents: write\n"),
+                          "a secret next to it": self.TIMES_BASE + "      - env:\n          K: ${{ secrets.K }}\n        run: echo\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.TESTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_later_job_write_is_refused_when_the_shard_times_job_has_no_permissions(self):
+        base = self.TIMES_BASE.replace("    permissions:\n      contents: write\n", "")
+        r = self.shots(self.TESTS, base + "  other:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo x\n")
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_write_all_in_the_shard_times_block_is_refused(self):
+        for key, text in {"as the permissions": self.TIMES_BASE.replace("    permissions:\n      contents: write\n", "    permissions: write-all\n"),
+                          "below the pair": self.TIMES_BASE.replace("      contents: write\n", "      contents: write\n    env:\n      X: write-all\n")}.items():
+            with self.subTest(key):
+                r = self.shots(self.TESTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_nested_shard_times_line_is_not_the_job(self):
+        text = self.TIMES_BASE.replace("  shard-times:\n", "  other:\n").replace("    permissions:\n", "    env:\n      shard-times:\n    permissions:\n")
+        r = self.shots(self.TESTS, text)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_shard_times_write_is_refused_in_any_other_workflow_or_job_name(self):
+        for key, path, text in (("other workflow", ".github/workflows/other.yml", self.TIMES_BASE), ("audit", ".github/workflows/audit.yml", self.TIMES_BASE),
+                                ("other job name", self.TESTS, self.TIMES_BASE.replace("  shard-times:", "  shard-time:"))):
+            with self.subTest(key):
+                r = self.shots(path, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    OTHER_JOB = "  other:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo x\n"
+    NO_PAIR = TIMES_BASE.replace("    permissions:\n      contents: write\n", "")
+
+    def test_a_later_job_named_other_with_the_same_write_pair_is_refused(self):
+        r = self.shots(self.TESTS, self.TIMES_BASE + self.OTHER_JOB)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_permissions_write_all_is_refused_in_the_tests_workflow(self):
+        for key, text in {"workflow level, pair kept in the job": self.TIMES_BASE.replace("permissions:\n  contents: read", "permissions: write-all"),
+                          "workflow level, no pair": self.NO_PAIR.replace("permissions:\n  contents: read", "permissions: write-all"),
+                          "inside the job": self.TIMES_BASE.replace("    permissions:\n      contents: write\n", "    permissions: write-all\n")}.items():
+            with self.subTest(key):
+                r = self.shots(self.TESTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_nested_shard_times_key_under_another_job_is_refused(self):
+        other = "  other:\n    runs-on: ubuntu-24.04\n"
+        for key, head in (("real job without the pair", self.NO_PAIR), ("no shard-times job", self.NO_PAIR.split("  shard-times:")[0])):
+            for shape, nested in (("pair nested deeper", "    shard-times:\n      permissions:\n        contents: write\n"),
+                                  ("pair at the job's own indent", "    shard-times:\n    permissions:\n      contents: write\n")):
+                with self.subTest("%s, %s" % (key, shape)):
+                    r = self.shots(self.TESTS, head + other + nested + "    steps:\n      - run: echo x\n")
+                    self.refused(r, "file #1: uses a secret or write access")
+
+    def test_a_job_name_that_only_starts_with_shard_times_is_refused(self):
+        r = self.shots(self.TESTS, self.TIMES_BASE.replace("  shard-times:", "  shard-times-x:"))
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_two_shard_times_jobs_are_refused_whichever_holds_the_pair(self):
+        job = self.TIMES_BASE.split("  shard-times:")[1]
+        r = self.shots(self.TESTS, self.TIMES_BASE + "  shard-times:" + job)
+        self.refused(r, "file #1: uses a secret or write access")
+        r = self.shots(self.TESTS, self.NO_PAIR + "  shard-times:" + job)
+        self.refused(r, "file #1: uses a secret or write access")
+        plain = self.NO_PAIR.split("  shard-times:")[1]
+        r = self.shots(self.TESTS, self.TIMES_BASE + "  shard-times:" + plain)
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_shard_times_write_is_refused_in_every_other_workflow_path(self):
+        for name in ("release.yml", "ci.yml", "tests.yaml", "Tests.yml"):
+            with self.subTest(name):
+                r = self.shots(".github/workflows/" + name, self.TIMES_BASE)
+                self.refused(r, "file #1: uses a secret or write access")
+
     def test_a_bare_secrets_word_is_not_refused_in_other_files(self):
         r = self.shots(".github/workflows/other.yml", self.SHOTS_BASE.replace("echo hi", "echo secrets are kept elsewhere"))
         self.assertNotIn("uses a secret or write access", r.scan()[1])

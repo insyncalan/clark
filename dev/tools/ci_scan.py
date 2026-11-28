@@ -44,6 +44,23 @@ SAFE_LINE = re.compile(r"^\s*(?:-\s+)?(?:if|name|run-name|group|[A-Z][A-Z0-9_]*)
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 # Row Argos: ONE workflow may read ONE named secret, in one step's env, and nothing else (no other secret, no write, no id-token).
 ALLOWED_SECRET = {".github/workflows/screenshots.yml": "ARGOS_TOKEN"}
+# Row 1709 D6b (owner ruling 27-11 ~22:50): ONE job of ONE workflow may hold `contents: write` and nothing else that writes: the nightly's shard-times job,
+# which pushes one new branch. Exactly the two lines `    permissions:` / `      contents: write` directly inside that job's block.
+ALLOWED_WRITE = {".github/workflows/tests.yml": "shard-times"}
+
+
+def without_job_write(code, job):
+    """code with the job's one `permissions:` / `contents: write` pair removed when that pair is exactly the job's permissions block
+    (nothing else in the block) and the only one in the file; otherwise code unchanged, so any `write` is still found and refused."""
+    lines = code.splitlines()
+    start = [i for i, ln in enumerate(lines) if ln == "  %s:" % job]
+    if len(start) != 1:
+        return code
+    end = next((i for i in range(start[0] + 1, len(lines)) if lines[i].strip() and len(lines[i]) - len(lines[i].lstrip()) <= 2), len(lines))
+    for i in range(start[0] + 1, end - 1):
+        if lines[i] == "    permissions:" and lines[i + 1] == "      contents: write" and (i + 2 >= end or len(lines[i + 2]) - len(lines[i + 2].lstrip()) <= 4):
+            return "\n".join(lines[:i] + lines[i + 2:])
+    return code
 
 
 def secret_in_step_env(code, name):
@@ -392,7 +409,8 @@ class Scan:
             tag = e.index
             if re.search(r"pull_request_target|workflow_run", code):
                 bad.append("file #%d: uses a trigger that runs with this repository's token on outside code" % tag)
-            if re.search(r"secrets:\s|\bwrite\b|write-all|id-token", code):
+            scanned = without_job_write(code, ALLOWED_WRITE[e.path]) if e.path in ALLOWED_WRITE else code
+            if re.search(r"secrets:\s|\bwrite\b|write-all|id-token", scanned):
                 bad.append("file #%d: uses a secret or write access" % tag)
             named = re.findall(r"secrets\.(\w+)", code)
             allowed = ALLOWED_SECRET.get(e.path)
