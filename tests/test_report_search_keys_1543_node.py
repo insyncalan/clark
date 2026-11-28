@@ -48,6 +48,12 @@ class Keys1543(unittest.TestCase):
         })()""", {})
         self.assertEqual(got, [0, 3, 0], "Enter after the words went back to an earlier value picks the FIRST result, not the old pick")
 
+    def test_chosen_none_clamped_and_pick_of_other_words(self):
+        got = run("""[RS.chosenAt({q: "a", at: 0}, "a", 0), RS.chosenAt({q: "", at: 0}, "", 0),
+          RS.chosenAt({q: "a", at: 99}, "a", 3), RS.chosenAt({q: "a", at: 2}, "a", 3), RS.chosenAt({q: "a", at: 1}, "a", 3),
+          RS.chosenAt({q: "a", at: 2}, "b", 3), RS.chosenAt({q: "a", at: 99}, "b", 3)]""", {})
+        self.assertEqual(got, [-1, -1, 2, 2, 1, 0, 0], "no results: -1; a pick past the end is clamped to the last result; a pick made for other words is not used, the first is chosen")
+
 
 if __name__ == "__main__":
     unittest.main()
