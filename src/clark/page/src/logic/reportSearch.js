@@ -78,6 +78,13 @@ export function sectionText(section, data, today) {
   return out.filter(Boolean).join(" ");
 }
 
+/** The sections of an added page: `sections` is a list, or the JSON text of one (a published file's page, stores/report.js filePages). Anything else, or text that does not parse to a list, has none; a list's entries that are not objects are skipped. */
+function pageSections(page) {
+  let list = page && page.sections;
+  if (typeof list === "string") { try { list = JSON.parse(list); } catch { return []; } }
+  return Array.isArray(list) ? list.filter((s) => s && typeof s === "object") : [];
+}
+
 /** The entries of a report's data: {id, kind, view, title, text}. `kind` is the name of the page it is on. */
 export function buildIndex(data, today) {
   const d = data || {}, out = [];
@@ -88,7 +95,7 @@ export function buildIndex(data, today) {
   for (const m of d.milestones || []) add(m.id, "Milestones", "milestones", m.name, join(m.description, m.owner, m.client_message));
   for (const u of d.use_cases || []) add(u.id, "Use cases", "usecases", join(u.ref, u.title), join(u.headline, u.standing, u.owner));
   for (const s of d.report_sections || []) add(s.id, "Dashboard", "dashboard", s.title, sectionText(s, d, today), false);
-  for (const p of d.added_pages || []) for (const s of (p && p.sections) || []) add(s.id, plain(p.name) || "Page", "page:" + p.id, s.title, sectionText(s, d, today), false);      // an added page, where the page draws it (`added_pages`, stores/report.js:19,20,94). A published file's `data.pages` is NOT read: the page does not draw it (report.js:365,371), so its words are not found
+  for (const p of d.added_pages || []) for (const s of pageSections(p)) add(s.id, plain(p.name) || "Page", "page:" + p.id, s.title, sectionText(s, d, today), false);      // an added page, where the page draws it (`added_pages`, stores/report.js:19,20,94). A published file's page reaches it with `sections` as JSON text (filePages, stores/report.js), the editor's as a list: both are read
   return out;
 }
 
