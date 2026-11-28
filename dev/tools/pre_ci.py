@@ -254,6 +254,7 @@ def main(argv=None):
     (folder / (head + ".json")).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
     line = {k: doc[k] for k in ("head", "base", "ticket", "result", "finished", "seconds")}
     line["checks"] = {c["name"]: c["result"] for c in run_.checks}
+    line["size"] = size
     with open(folder / "log.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(line) + "\n")
     if seconds > TARGET_SECONDS:
