@@ -17,13 +17,14 @@
 # NO Tests run on a push to main (Bifrost 2.0 P7, the owner, 26-11): a change was tested in Mergify's combined run (branch mergify/merge-queue/*, or the merge_group event) before it merged.
 #
 # macOS (the owner, 24-11-2026, row 1602: "require the Mac smoke set only; run the full suite nightly as advisory"):
-#  - REQUIRED: the Mac smoke set (one job, the files that test what is Mac-specific) on a release branch and on a
-#    pull request into one, on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
+#  - SMOKE SET: the Mac smoke set (one job, the files that test what is Mac-specific) runs on a release branch and on a
+#    pull request into one, but there it is reported and never required (P12-18, the owner 23-11 and 26-11: a macOS failure never blocks);
+#    it is REQUIRED on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
 #    files), and on a pull request that carries the label `full-ci`. Nothing else asks for a Mac.
 #  - ADVISORY: the full macOS suite (the newest Python, every file, nine shards) runs in the nightly on main only; a red shard shows
 #    in the run and never turns "Tests passed" red (continue-on-error, set by the plan for `schedule`).
 #  - ON DEMAND: a hand-started run with macos=true (Actions > Tests > Run workflow, or gh workflow run Tests --ref <branch> -f macos=true)
-#    adds the full macOS suite, required for that run, in place of the smoke set. Use it for a change that needs a full Mac run.
+#    adds the full macOS suite, ADVISORY for that run (P12-18: a red shard shows, never turns "Tests passed" red), in place of the smoke set. Use it for a change that needs a full Mac run.
 #    When "files" names test files (a word with test_ in it, e.g. -f files="--repeat 10 test_ask_btn_dot_1349.py"), the macOS side is
 #    ONE job (shard 1/1, which holds every named file), not nine: run 45805635711 named one file and started nine macOS jobs, eight of
 #    them with no file to run, and macOS runners are the scarce ones (the owner, 26-11). The plan decides (output macmatrix).
@@ -121,6 +122,8 @@ jobs:
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
             schedule) FULL=1; MACOS=1; ADVISORY=1 ;;      # every nightly run on main: the full Ubuntu matrix and the full macOS suite, ADVISORY: a red shard shows, the gate stays green (the owner, 24-11, row 1602)
           esac
+          # A hand-started run with macos=true: the full Mac shards run, advisory (P12-18, G2: a macOS failure never blocks). After the case above, which sets MACOS.
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -n "$MACOS" ]; then ADVISORY=1; fi
           case "$BRANCH" in
             release-*|v*-release*) FULL=1; REL=1 ;;
             cut-v*) FULL=1; SMOKE=1; CUT=1 ;;      # a release cut (cut-v1.3.13): the Mac smoke set runs and is reported, but it is never part of "Tests passed" (the owner, 26-11, row 1602, question 74: "the smoke set runs on every cut and is reported, but never stops it")
@@ -134,9 +137,9 @@ jobs:
           case ",$LABELS," in
             *,full-ci,*) FULL=1; SMOKE=1 ;;
           esac
-          # A release branch, and a pull request into one, runs the Mac smoke set (required), not the full macOS suite (the owner, 24-11, row 1602).
-          # The full suite on a release line is still there on demand: a hand-started run with macos=true (the line above clears the smoke set then).
-          if [ -n "$REL" ]; then SMOKE=1; fi
+          # A release branch, and a pull request into one, runs the Mac smoke set, reported and never required (CUT=1: the gate ignores the result; P12-18, G1), not the full macOS suite (the owner, 24-11, row 1602).
+          # The full suite on a release line is still there on demand: a hand-started run with macos=true (advisory; the macOS line below clears the smoke set then).
+          if [ -n "$REL" ]; then SMOKE=1; CUT=1; fi
           # A pull request that changes a guarded file is the full Ubuntu matrix without the label, and macOS only when the file is
           # Mac-specific (platform, updates, the launcher and the package files); the release gate runs macOS on everything else. A file moved away from a guarded path counts too (#593):
           # the API gives the old name as previous_filename, so both names are listed. The changed files come from the API

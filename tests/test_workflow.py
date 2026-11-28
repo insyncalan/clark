@@ -350,13 +350,13 @@ class Workflow(unittest.TestCase):
 
     def test_macos_smoke_is_required_and_the_full_suite_runs_only_nightly_or_by_hand(self):
         """The plan, run for real: there is no push trigger (P7), so no push case; a pull request into a release line gets the smoke set and no shards; the nightly gets the shards, advisory, and no smoke;
-        a hand-started run with macos=true on a release branch gets the shards (required) in place of the smoke set; an ordinary branch gets neither."""
+        a hand-started run with macos=true on a release branch gets the shards (advisory since P12-18: a red shard shows, never blocks) in place of the smoke set; an ordinary branch gets neither."""
         cases = (
             (dict(EVENT="schedule", BRANCH="main"), "1", "", "1"),
             (dict(EVENT="pull_request", BRANCH="x", BASE_REF="release-1.3.11"), "", "1", ""),
             (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11"), "", "1", ""),
-            (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", ""),
-            (dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true"), "1", "", ""),
+            (dict(EVENT="workflow_dispatch", BRANCH="release-1.3.11", MACOS_INPUT="true"), "1", "", "1"),
+            (dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true"), "1", "", "1"),
             (dict(EVENT="workflow_dispatch", BRANCH="team-x"), "", "", ""),
             (dict(EVENT="merge_group", BRANCH="main"), "", "", ""),
         )
@@ -381,7 +381,7 @@ class Workflow(unittest.TestCase):
                       "  test_layout  ", "test_layout.LayoutTest.test_x", "--quick test_layout --max-fail 3", "-j 1 test_layout"):
             out = self.plan_outputs(FILES_INPUT=files, **hand)
             self.assertEqual(self.mac_matrix(FILES_INPUT=files, **hand), [{"shard": 1, "shards": 1}], files)
-            self.assertEqual(out.get("macos"), "1", files)      # still wanted, so still required by the gate
+            self.assertEqual(out.get("macos"), "1", files)      # still wanted (the job runs); advisory since P12-18, see the test below
         # the whole suite, by hand and in the nightly, keeps the full list
         self.assertEqual(self.mac_matrix(**hand), self.NINE)
         self.assertEqual(self.mac_matrix(EVENT="schedule", BRANCH="main"), self.NINE)
@@ -464,18 +464,44 @@ class Workflow(unittest.TestCase):
 
     def test_a_cut_runs_the_mac_smoke_set_and_reports_it_but_a_red_smoke_never_stops_it(self):
         """the owner, 26-11 (row 1602, question 74): 'the smoke set runs on every cut and is reported, but never stops it'. A cut-v* branch gets the smoke set
-        (and no full macOS shards) and the plan marks it as a cut; the gate then ignores the smoke result. A release-* branch is unchanged: the smoke is required."""
+        (and no full macOS shards) and the plan marks it as a cut; the gate then ignores the smoke result. A release-* branch (and a pull request into one) now does the same since P12-18 (G1): the smoke set runs and is reported, never required."""
         cut = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="cut-v1.3.13")
         self.assertEqual((cut.get("smoke"), cut.get("cut"), cut.get("macos", "")), ("1", "1", ""))
         rel = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="release-1.3.11")
-        self.assertEqual((rel.get("smoke"), rel.get("cut", ""), rel.get("macos", "")), ("1", "", ""))
+        self.assertEqual((rel.get("smoke"), rel.get("cut", ""), rel.get("macos", "")), ("1", "1", ""))
+        relpr = self.plan_outputs(EVENT="pull_request", BRANCH="team-x", BASE_REF="release-1.3.11")
+        self.assertEqual((relpr.get("smoke"), relpr.get("cut", ""), relpr.get("macos", "")), ("1", "1", ""))
+        plain = self.plan_outputs(EVENT="pull_request", BRANCH="team-x", BASE_REF="main")
+        self.assertEqual(plain.get("cut", ""), "")      # G1 touches a release line only
         self.assertEqual(self.plan_outputs(EVENT="push", BRANCH="main").get("cut", ""), "")
         for result in ("failure", "cancelled", "success", "skipped"):      # a cut: whatever the smoke did, the gate stays green
             self.assertTrue(self.gate_passes(CUT="1", SMOKE=result), f"cut, smoke {result}")
         self.assertFalse(self.gate_passes(CUT="1", TESTS="failure"))      # the Ubuntu tests still stop a cut
-        self.assertTrue(self.gate_passes(SMOKE="success"))                # a release line or a push to main: the smoke is still required
+        # a release line (P12-18, G1: the plan sets CUT=1 there): a red smoke leaves the gate green, an Ubuntu failure still fails it
+        for result in ("failure", "cancelled", "success", "skipped"):
+            self.assertTrue(self.gate_passes(CUT=rel.get("cut", ""), SMOKE=result), f"release line, smoke {result}")
+        self.assertFalse(self.gate_passes(CUT=rel.get("cut", ""), SMOKE="failure", TESTS="failure"))
+        self.assertFalse(self.gate_passes(CUT=rel.get("cut", ""), TESTS="cancelled"))
+        # a line with no CUT (an ordinary pull request wanting the smoke, a push) still requires it
+        self.assertTrue(self.gate_passes(SMOKE="success"))
         for result in ("failure", "cancelled", "skipped"):
-            self.assertFalse(self.gate_passes(SMOKE=result), f"release line, smoke {result}")
+            self.assertFalse(self.gate_passes(SMOKE=result), f"no CUT, smoke {result}")
+
+    def test_a_hand_started_macos_run_is_advisory_a_red_mac_shard_never_blocks(self):
+        """P12-18, G2 (the owner, 23-11 and 26-11: 'a macOS failure never blocks'): a hand-started run with macos=true still runs the full Mac shards,
+        but the plan marks it advisory, so the macos job is continue-on-error and the gate does not check the shards; an Ubuntu failure still fails it."""
+        for branch in ("team-x", "release-1.3.11", "main"):
+            out = self.plan_outputs(EVENT="workflow_dispatch", BRANCH=branch, MACOS_INPUT="true")
+            self.assertEqual((out.get("macos"), out.get("advisory")), ("1", "1"), branch)
+        for env in (dict(EVENT="workflow_dispatch", BRANCH="team-x"), dict(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="false"),
+                    dict(EVENT="pull_request", BRANCH="team-x", BASE_REF="main"), dict(EVENT="merge_group", BRANCH="main")):
+            self.assertEqual(self.plan_outputs(**env).get("advisory", ""), "", env)      # no macos=true: not advisory (and not asked for)
+        self.assertIn("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", self.jobs["macos"])
+        adv = self.plan_outputs(EVENT="workflow_dispatch", BRANCH="team-x", MACOS_INPUT="true")["advisory"]
+        for result in ("failure", "cancelled", "success"):
+            self.assertTrue(self.gate_passes(WANT_MACOS="1", ADVISORY=adv, MACOS=result, SMOKE="skipped", WANT_SMOKE=""), f"hand macos, shard {result}")
+        self.assertFalse(self.gate_passes(WANT_MACOS="1", ADVISORY=adv, MACOS="failure", SMOKE="skipped", WANT_SMOKE="", TESTS="failure"))
+        self.assertFalse(self.gate_passes(WANT_MACOS="1", ADVISORY=adv, MACOS="success", SMOKE="skipped", WANT_SMOKE="", PY39="failure"))
 
     def test_a_pull_request_runs_its_named_tests_the_affected_tests_and_the_3_9_compile_check(self):
         """Bifrost 2.0, P12, box 4: a pull request push runs only the named tests (the test files it adds or changes, a fast job of its own) and
@@ -552,7 +578,7 @@ class Workflow(unittest.TestCase):
 
     def test_a_pull_request_never_requires_the_macos_shards(self):
         """The owner, 22-11 17:58: the macOS shards stop being required on pull requests (the Mac smoke set is their Mac check). the owner, 24-11 (row 1602): a push to main
-        gets the smoke set too, and the nightly's full macOS suite is advisory, so the shards are required only for a hand-started run with macos=true."""
+        gets the smoke set too, and the nightly's full macOS suite is advisory, so no event requires the shards (P12-18: a hand-started run with macos=true runs them as advisory)."""
         plan = self.jobs["plan"]
         pr_part = plan[plan.index('case ",$LABELS," in'):plan.index('PY39=""')]
         self.assertNotIn("MACOS=1", pr_part)          # no pull-request path asks for the macOS shards
