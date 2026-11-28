@@ -249,6 +249,19 @@ class OnlyWhatTheViewDraws(unittest.TestCase):
         self.assertEqual(run("RS.searchReport(idx, 'ZQ-page-words')[0].view", data), "page:P1")
         self.assertEqual(run("RS.searchReport(idx, 'ZQ-page-words')[0].kind", data), "Site page")
 
+    def test_an_added_page_whose_sections_are_a_json_string_is_found_like_one_with_an_array(self):
+        """A published file's added page reaches the page with `sections` as JSON text (stores/report.js filePages), the editor's data with an array: both are searched; text that is not a list of sections gives no hit and no crash."""
+        sec = {"id": "P1-S-1", "type": "text", "title": "Added page head", "body": "<p>ZQ-string-words</p>"}
+        as_text = {"added_pages": [{"id": "P1", "name": "Site page", "sections": json.dumps([sec])}]}
+        as_list = {"added_pages": [{"id": "P1", "name": "Site page", "sections": [sec]}]}
+        for data in (as_text, as_list):
+            self.assertEqual((ids("ZQ-string-words", data), ids("added page head", data)), (["P1-S-1"], ["P1-S-1"]))
+            self.assertEqual(run("RS.searchReport(idx, 'ZQ-string-words')[0].view", data), "page:P1")
+        for bad in ("{not json", "", json.dumps({"id": "P1-S-1"}), json.dumps("text"), "null", None, 7):
+            data = {"added_pages": [{"id": "P1", "name": "Site page", "sections": bad}], "actions": [{"id": "A-1", "description": "Still found"}]}
+            self.assertEqual(ids("still found", data), ["A-1"], f"{bad!r}: no crash, the other rows are still found")
+            self.assertEqual(ids("ZQ-string-words", data), [], f"{bad!r}: no section hits")
+
     def test_a_quote_or_callout_without_its_heading_does_not_find_its_title_and_the_switch_is_no_word(self):
         for kind, content in (("quote", {"quotes": [{"quote": "Q", "by": "", "role": ""}]}), ("callout", {"tone": "info", "title": "T", "paras": ["P"], "category": "C", "colour": "plain", "icon": "none"})):
             for heading, found in ((False, []), (True, ["S-1"]), (None, ["S-1"])):
