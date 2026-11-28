@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 import test_ask_panel
+from _new_page import reload_to_new_page
 from test_report_editor import Base
 from test_server import Running, chrome
 
@@ -193,9 +194,10 @@ class Drop(Base):
                 self.assertNotIn("q1", titles, "the oldest of the 31 went")
                 self.assertIn("q2", titles, "the second oldest stays")
                 self.assertEqual(len(json.loads(p.js("localStorage.getItem('clark.askChats.XYZ')"))), 2, "another project's chats stay")
-                p.js("location.hash = '#dashboard&p=XYZ'")
+                hop = lambda code: reload_to_new_page(p.js, ready=f"new URLSearchParams(location.search).get('project') === '{code}'", what=f"the {code} page loaded", seconds=20, reload=lambda: p.js(f"location.hash = '#dashboard&p={code}'"))  # noqa: E731
+                hop("XYZ")
                 p.until("location.hash.indexOf('p=XYZ') >= 0", "on XYZ")
-                p.js("location.hash = '#dashboard&p=ABC'")
+                hop("ABC")
                 p.until("location.hash.indexOf('p=ABC') >= 0", "back on ABC")
                 p.until("!!document.querySelector('[data-id]')", "the page is drawn")
                 if not p.js("!!document.querySelector('#ask-panel')"):
