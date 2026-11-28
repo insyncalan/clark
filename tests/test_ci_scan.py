@@ -1232,7 +1232,7 @@ class VendoredPdfLibrary(unittest.TestCase):
 
 
 class AddedLinesOnly(unittest.TestCase):
-    """The listed-words check reads only the lines a change ADDS: an old hit on the base, a removed line or an unchanged line
+    """The listed-words check reads only the lines a change ADDS: an old hit on the base, a removed line or a context line
     never counts; an added line, a new file and a moved file's added lines do. (Human ruling 27-11 ~22:50.)"""
     OLD = "old line %s here\nplain\n" % LISTED
 
@@ -1431,6 +1431,56 @@ class AddedLinesOnly(unittest.TestCase):
         r.commit("edit one file, plain move of another")
         rc, out = r.scan()
         self.assertEqual(rc, 0, out)
+
+    def test_a_rename_before_another_changed_file_keeps_that_files_old_sha(self):
+        r = self.repo({"src/old.py": self.OLD, "zz.py": self.OLD})
+        r.git("mv", "src/old.py", "src/z.py")
+        r.write("zz.py", self.OLD + "clean\n")
+        r.commit("move one file, edit a file sorted after it: its old hit is not an added line")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def added_text(self, r, path):
+        s = ci_scan.Scan(r.path, r.base, "HEAD", False)
+        s.load()
+        return [s.added(e, d) for e, d in zip(s.entries, s.blobs) if e.path == path][0]
+
+    def test_the_added_text_is_exactly_the_added_lines_without_the_plus_and_the_diff_header(self):
+        r = self.repo()
+        r.write("src/old.py", "head\n" + self.OLD + "+plus start\nlast\n")
+        r.commit("add three lines, one starting with a plus")
+        self.assertEqual(self.added_text(r, "src/old.py"), b"head\n+plus start\nlast")
+
+    def test_a_diff_header_line_is_not_added_text(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "x\n")
+        r.commit("edit")
+        text = self.added_text(r, "src/old.py")
+        self.assertEqual(text, b"x")
+        self.assertNotIn(b"+++", text)
+
+    def test_a_textconv_driver_does_not_hide_an_added_line(self):
+        r = self.repo({".gitattributes": "* diff=hide\n", "src/old.py": self.OLD})
+        r.git("config", "diff.hide.textconv", "echo clean")        # every version converts to the same text: a converted diff shows no change
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_an_external_diff_program_does_not_hide_an_added_line(self):
+        r = self.repo()
+        r.write("src/old.py", self.OLD + "thanks %s\n" % LISTED)
+        r.commit("edit")
+        with mock.patch.dict(os.environ, {"GIT_EXTERNAL_DIFF": "true"}):      # prints nothing: an external diff shows no change
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+
+    def test_a_file_that_held_a_nul_on_the_base_is_read_by_its_added_lines(self):
+        r = self.repo({"src/old.py": b"a\0b\n".decode()})
+        r.write("src/old.py", "a\nthanks %s\n" % LISTED)
+        r.commit("the base blob has a NUL, the new one has none: git would call the diff binary without --text")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
 
     def test_a_word_split_across_two_added_lines_is_not_formed(self):
         r = self.repo()

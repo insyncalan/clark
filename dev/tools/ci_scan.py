@@ -304,7 +304,7 @@ class Scan:
         self.tree = pp.list_tree(self.repo, self.head, self.env)
 
     def added(self, e, data):
-        """What the listed-word scan reads of a changed file: only the lines HEAD adds to it (a removed or unchanged line never counts;
+        """What the listed-word scan reads of a changed file: only the lines HEAD adds to it (a removed line or a context line never counts;
         a moved file counts its added lines; a new file, a binary file, a zip, a file with NULs and a file with a pinned per-file allowance count in full)."""
         old = self.old.get(e.path)
         if e.path in pp.GUARD_ALLOWED or e.path in self.whole or e.path in VENDORED_PINS:      # its allowance is a per-FILE count (one use), so the whole file is read, not the added lines
