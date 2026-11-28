@@ -1574,7 +1574,7 @@ class AddedLinesOnly(unittest.TestCase):
         """The base has a gitlink (mode 160000) where HEAD has a plain file: its old id is a commit, not a file, so the file is read in full."""
         r = self.repo({})
         r.git("update-index", "--add", "--cacheinfo", "160000,%s,sub" % r.base)
-        r.commit("a submodule")
+        r.git("commit", "-q", "-m", "a submodule")      # not r.commit: its add -A would drop a gitlink with no directory behind it
         r.base = r.git("rev-parse", "HEAD").strip()
         r.git("rm", "-q", "--cached", "sub")
         r.write("sub", "thanks %s\n" % LISTED)
