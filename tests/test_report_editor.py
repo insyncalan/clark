@@ -310,9 +310,23 @@ class Modes(OldBase):
             p = self.visit(cdp)
             p.edit()
             p.js("window.__eaten = 0; document.addEventListener('click', (c) => { c.stopPropagation(); c.preventDefault(); window.__eaten++; }, { capture: true, once: true })")
-            p.view()
+            p.js("document.querySelector('[data-mode=view]').click()")
             self.assertEqual(p.js("window.__eaten"), 1, "the first click was lost")
+            self.assertFalse(wait(lambda: p.js("document.querySelector('#report').dataset.mode === 'view'"), 1), "the eaten click changed nothing: still Edit")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "edit")
+            p.view()
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
+
+    def test_view_fails_loudly_when_view_never_lands(self):
+        """Row 1534: view() must raise 'View mode' on a timeout, never pass silently. A page whose mode never becomes View stands in
+        (no browser needed). view() waits its 10 s of clicks plus 1 s, so this test takes about 11 s."""
+        class NeverView(Pg):
+            def js(self, expr):
+                return False
+
+        with self.assertRaises(AssertionError) as raised:
+            NeverView(self, None, None).view()
+        self.assertIn("View mode", str(raised.exception))
 
     def test_view_is_read_only(self):
         """View has none of the finder's elements (absent, not hidden); typing changes nothing; Edit has them all."""
