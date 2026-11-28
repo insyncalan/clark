@@ -16,6 +16,7 @@ Text checks only, no YAML parser. Run: python3 dev/run_tests.py test_mac_never_b
 import os
 import re
 import subprocess
+import tempfile
 import unittest
 
 from _paths import ROOT
@@ -50,6 +51,24 @@ def gate_passes(**env):
     return subprocess.run(["bash", "-e", "-c", script], env=base, capture_output=True, text=True, timeout=60).returncode == 0
 
 
+def plan_outputs(changed_file, labels):
+    """The outputs of the real `plan` step for a pull request that changes exactly one file (a fake gh lists it), as {name: value}."""
+    text = TESTS_YML.read_text(encoding="utf-8")
+    plan = text[text.index("\n  plan:\n"):]
+    body = plan[plan.index("run: |\n") + len("run: |\n"):].split("\n\n")[0]
+    script = "\n".join(ln[10:] if ln.startswith(" " * 10) else ln for ln in body.splitlines())
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "out")
+        open(out, "w", encoding="utf-8").close()
+        env = {"PATH": os.environ["PATH"], "GITHUB_OUTPUT": out, "RUNNER_TEMP": d, "EVENT": "pull_request", "BRANCH": "feature-x", "BASE_REF": "main",
+               "LABELS": labels, "MACOS_INPUT": "", "SCHEDULE": "", "REPO": "x/y", "PR_NUMBER": "7", "GH_TOKEN": "", "FILES_INPUT": ""}
+        fake = "gh() { printf '%s\\n' '" + changed_file + "'; }\n"
+        r = subprocess.run(["bash", "-c", fake + script], env=env, capture_output=True, text=True, timeout=60)
+        assert r.returncode == 0, r.stderr
+        with open(out, encoding="utf-8") as f:
+            return dict(ln.split("=", 1) for ln in f.read().splitlines() if "=" in ln)
+
+
 class MacNeverBlocksTest(unittest.TestCase):
     def test_a_red_or_cancelled_full_mac_suite_in_the_nightly_leaves_the_gate_green(self):
         for result in ("failure", "cancelled", "success"):
@@ -57,10 +76,26 @@ class MacNeverBlocksTest(unittest.TestCase):
         self.assertFalse(gate_passes(EVENT="schedule", WANT_MACOS="1", ADVISORY="1", TESTS="failure"))      # the Ubuntu tests still stop it
 
     def test_a_red_or_missing_mac_never_stops_a_pull_request_or_a_cut(self):
+        """A pull request WITHOUT a Mac-specific change stays green on a red Mac. It asks for no Mac (WANT_SMOKE and WANT_MACOS empty) never waits on one, and a release cut shows the Mac smoke
+        set without requiring it. A pull request that DOES change Mac files is the opposite case: see the next test."""
         for result in ("failure", "cancelled", "skipped"):
-            self.assertTrue(gate_passes(EVENT="pull_request", MACOS=result), f"pull request, macOS {result}")
+            self.assertTrue(gate_passes(EVENT="pull_request", WANT_SMOKE="", WANT_MACOS="", MACOS=result), f"pull request without Mac files, macOS {result}")
             self.assertTrue(gate_passes(EVENT="workflow_dispatch", CUT="1", WANT_SMOKE="1", SMOKE=result), f"cut, smoke {result}")
         self.assertFalse(gate_passes(EVENT="pull_request", TESTS="failure"))
+
+    def test_a_pull_request_that_changes_mac_files_waits_for_the_smoke_set_and_a_red_smoke_stops_it(self):
+        """The owner's ruling of 26-11 (13:39): macOS never blocks a release CUT only; a pull request that changes a Mac file still waits for
+        the Mac smoke set. The plan step is run for real (a fake gh lists the changed files), then the 'Tests passed' gate with its answer."""
+        mac_changes = {"src/clark/updates.py": "", "src/clark/platform.py": "", "clark.command": "", "dev/tools/package.py": "", "src/clark/foo.py": "full-ci"}
+        for changed, labels in mac_changes.items():
+            plan = plan_outputs(changed, labels)
+            self.assertEqual((plan["smoke"], plan["cut"]), ("1", ""), f"{changed!r} label {labels!r}: the smoke set is wanted, and this is not a cut")
+            for red in ("failure", "cancelled", "skipped"):
+                self.assertFalse(gate_passes(EVENT="pull_request", WANT_SMOKE=plan["smoke"], CUT=plan["cut"], SMOKE=red), f"{changed!r} + smoke {red}")
+            self.assertTrue(gate_passes(EVENT="pull_request", WANT_SMOKE=plan["smoke"], CUT=plan["cut"], SMOKE="success"), f"{changed!r} + smoke success")
+            self.assertFalse(gate_passes(EVENT="pull_request", WANT_SMOKE=plan["smoke"], CUT=plan["cut"], SMOKE="success", TESTS="failure"))
+        plain = plan_outputs("src/clark/foo.py", "")
+        self.assertEqual((plain["smoke"], plain["cut"]), ("", ""), "a plain pull request asks for no Mac smoke set")
 
     def test_the_mac_zip_job_is_the_only_job_of_the_release_build_and_says_it_never_blocks(self):
         self.assertEqual(job_names(RELEASE_YML), ["mac-zip"])
